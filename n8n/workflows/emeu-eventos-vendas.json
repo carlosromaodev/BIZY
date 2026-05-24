@@ -1,0 +1,60 @@
+{
+  "name": "ÉMeu - Eventos de venda para WhatsApp",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "emeu-eventos",
+        "responseMode": "onReceived",
+        "responseCode": 202,
+        "options": {}
+      },
+      "id": "webhook-emeu-eventos",
+      "name": "Receber eventos do ÉMeu",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [260, 280]
+    },
+    {
+      "parameters": {
+        "jsCode": "const entrada = $json.body ?? $json;\nconst evento = entrada.eventType ?? $json.headers?.['x-emeu-evento'];\nconst payload = entrada.payload ?? {};\nconst reserva = payload.reserva ?? payload.cancelada ?? payload.promovida ?? null;\nconst peca = payload.peca ?? reserva?.peca ?? null;\nconst numero = String(reserva?.telefoneCliente ?? '').replace(/\\D/g, '');\nif (!numero) return [];\nconst telefone = numero.startsWith('244') ? numero : `244${numero}`;\nconst nome = reserva.nomeCliente || 'cliente';\nconst codigo = peca?.codigo || reserva.codigoPeca || '?';\nconst preco = peca?.precoEmKwanza ? new Intl.NumberFormat('pt-AO', { style: 'currency', currency: 'AOA', maximumFractionDigits: 0 }).format(peca.precoEmKwanza) : 'preço a confirmar';\nconst mensagens = {\n  RESERVATION_CREATED: `Olá, ${nome}. Recebemos o teu pedido da peça #${codigo}.\\n\\nA peça ficou reservada temporariamente para ti.\\nPreço: ${preco}\\n\\nApós o pagamento, envia o comprovativo por aqui.`,\n  RESERVATION_EXPIRING: `Olá, ${nome}. A tua reserva da peça #${codigo} está quase a expirar. Envia o comprovativo para manter a prioridade.`,\n  RESERVATION_WAITLISTED: `Olá, ${nome}. A peça #${codigo} já tem uma reserva ativa. Colocamos o teu pedido na fila de espera.`,\n  RESERVATION_EXPIRED: `Olá, ${nome}. A reserva temporária da peça #${codigo} expirou porque o pagamento não foi confirmado dentro do prazo.`,\n  PAYMENT_CONFIRMED: `Pagamento confirmado, ${nome}. A peça #${codigo} ficou marcada como paga. Obrigado pela compra!`,\n  PAYMENT_REJECTED: `Olá, ${nome}. Não conseguimos validar o pagamento da peça #${codigo}. A equipa vai acompanhar contigo por aqui.`,\n  ORDER_READY_TO_SHIP: `Olá, ${nome}. A encomenda da peça #${codigo} está pronta para envio.`,\n  ORDER_DELIVERED: `Olá, ${nome}. A entrega da peça #${codigo} foi concluída. Obrigado por comprares connosco.`\n};\nconst texto = mensagens[evento];\nreturn texto ? [{ json: { telefone, texto, evento } }] : [];"
+      },
+      "id": "preparar-mensagem",
+      "name": "Preparar mensagem segura",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [520, 280]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{($env.EVOLUTION_API_URL || 'http://evolution-api:8080').replace(/\\/$/, '') + '/message/sendText/' + ($env.EVOLUTION_INSTANCE || 'emeu')}}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{$env.EVOLUTION_API_KEY || 'trocar_api_key'}}" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { number: $json.telefone, text: $json.texto, delay: 800, linkPreview: false } }}",
+        "options": { "timeout": 30000 }
+      },
+      "id": "enviar-whatsapp",
+      "name": "Enviar WhatsApp pela Evolution",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [800, 280]
+    }
+  ],
+  "connections": {
+    "Receber eventos do ÉMeu": {
+      "main": [[{ "node": "Preparar mensagem segura", "type": "main", "index": 0 }]]
+    },
+    "Preparar mensagem segura": {
+      "main": [[{ "node": "Enviar WhatsApp pela Evolution", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": { "executionOrder": "v1" },
+  "active": false
+}

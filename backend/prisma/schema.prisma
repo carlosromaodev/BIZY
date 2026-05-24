@@ -1,0 +1,377 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Peca {
+  id            String    @id @default(uuid())
+  codigo        String    @unique
+  negocioId     String?
+  negocio       Negocio?  @relation(fields: [negocioId], references: [id])
+  nome          String
+  descricao     String
+  precoEmKwanza Int
+  quantidade    Int
+  fotosJson     String    @default("[]")
+  estado        String    @default("DISPONIVEL")
+  criadoEm      DateTime  @default(now())
+  atualizadoEm  DateTime  @updatedAt
+  reservas      Reserva[]
+
+  @@index([negocioId])
+}
+
+model Reserva {
+  id                String   @id @default(uuid())
+  pecaId            String
+  peca              Peca     @relation(fields: [pecaId], references: [id])
+  codigoPeca        String
+  telefoneCliente   String
+  nomeCliente       String
+  usernameCliente   String
+  userIdCliente     String?
+  avatarUrlCliente  String?
+  estado            String
+  estadoPagamento   String   @default("AGUARDANDO_COMPROVATIVO")
+  comentarioOriginal String
+  liveId            String
+  expiraEm          DateTime?
+  enderecoEntrega   String?
+  comprovativoPagamentoUrl String?
+  criadaEm          DateTime @default(now())
+  atualizadaEm      DateTime @updatedAt
+
+  @@index([codigoPeca, estado])
+  @@index([telefoneCliente, codigoPeca])
+}
+
+model ComentarioRecebido {
+  id                    String   @id @default(uuid())
+  source                String
+  provider              String
+  liveId                String
+  username              String
+  userId                String?
+  displayName           String
+  avatarUrl             String?
+  commentText           String
+  timestamp             DateTime
+  intent                String?
+  phone                 String?
+  productCode           String?
+  confidence            Float?
+  requiresManualReview  Boolean?
+  estado                String
+  motivo                String?
+  criadoEm              DateTime @default(now())
+  atualizadoEm          DateTime @updatedAt
+
+  @@index([liveId, estado])
+}
+
+model SessaoLive {
+  id                      String    @id
+  username                String
+  providerNome            String
+  status                  String
+  ativa                   Boolean   @default(true)
+  iniciadaEm              DateTime
+  encerradaEm             DateTime?
+  comentariosRecebidos    Int       @default(0)
+  comentariosProcessados  Int       @default(0)
+  comentariosComErro      Int       @default(0)
+  ultimoComentarioEm      DateTime?
+  ultimoErro              String?
+  criadaEm                DateTime  @default(now())
+  atualizadaEm            DateTime  @updatedAt
+
+  @@index([ativa, status])
+  @@index([username])
+}
+
+model MensagemWhatsapp {
+  id              String   @id @default(uuid())
+  telefone        String
+  tipo            String
+  conteudo        String
+  provider        String
+  idExterno       String?
+  enviadaEm       DateTime @default(now())
+}
+
+model ClienteAtendimento {
+  id                   String                 @id @default(uuid())
+  telefone             String                 @unique
+  nome                 String?
+  username             String?
+  userId               String?
+  avatarUrl            String?
+  origem               String?
+  tagsJson             String                 @default("[]")
+  consentimento        Boolean                @default(true)
+  primeiraInteracaoEm  DateTime               @default(now())
+  ultimaInteracaoEm    DateTime               @default(now())
+  criadoEm             DateTime               @default(now())
+  atualizadoEm         DateTime               @updatedAt
+  conversas            ConversaAtendimento[]
+
+  @@index([ultimaInteracaoEm])
+  @@index([userId])
+}
+
+model ConversaAtendimento {
+  id                String                  @id @default(uuid())
+  clienteId         String
+  cliente           ClienteAtendimento      @relation(fields: [clienteId], references: [id])
+  telefone          String
+  canal             String                  @default("whatsapp")
+  estado            String                  @default("ABERTA")
+  prioridade        String                  @default("NORMAL")
+  responsavelId     String?
+  tagsJson          String                  @default("[]")
+  ultimaMensagemEm  DateTime?
+  criadaEm          DateTime                @default(now())
+  atualizadoEm      DateTime                @updatedAt
+  mensagens         MensagemAtendimento[]
+
+  @@unique([telefone, canal])
+  @@index([estado, ultimaMensagemEm])
+  @@index([clienteId])
+}
+
+model MensagemAtendimento {
+  id                 String              @id @default(uuid())
+  conversaId         String
+  conversa           ConversaAtendimento @relation(fields: [conversaId], references: [id])
+  telefone           String
+  direcao            String
+  remetente          String
+  canal              String              @default("whatsapp")
+  tipo               String
+  conteudo           String
+  provider           String?
+  providerMessageId  String?             @unique
+  status             String
+  origem             String
+  reservaId          String?
+  comentarioId       String?
+  erro               String?
+  contextoJson       String              @default("{}")
+  enviadaEm          DateTime            @default(now())
+  criadoEm           DateTime            @default(now())
+  atualizadoEm       DateTime            @updatedAt
+
+  @@index([telefone, enviadaEm])
+  @@index([conversaId, enviadaEm])
+  @@index([status, atualizadoEm])
+  @@index([reservaId])
+  @@index([comentarioId])
+}
+
+model EventoSistema {
+  id       String   @id @default(uuid())
+  tipo     String
+  dadosJson String
+  criadoEm DateTime @default(now())
+
+  @@index([tipo, criadoEm])
+}
+
+model OutboxEventoN8n {
+  id                  String    @id @default(uuid())
+  eventoId            String
+  tipo                String
+  payloadJson         String
+  status              String    @default("PENDENTE")
+  tentativas          Int       @default(0)
+  proximaTentativaEm  DateTime  @default(now())
+  ultimoErro          String?
+  publicadoEm         DateTime?
+  criadoEm            DateTime  @default(now())
+  atualizadoEm        DateTime  @updatedAt
+
+  @@index([status, proximaTentativaEm])
+  @@index([tipo, criadoEm])
+}
+
+model OutboxMensagemWhatsApp {
+  id                  String    @id @default(uuid())
+  telefone            String
+  tipo                String
+  conteudo            String
+  contextoJson        String    @default("{}")
+  status              String    @default("PENDENTE")
+  tentativas          Int       @default(0)
+  maxTentativas       Int       @default(5)
+  proximaTentativaEm  DateTime  @default(now())
+  ultimoErro          String?
+  provider            String?
+  idExterno           String?
+  enviadaEm           DateTime?
+  criadoEm            DateTime  @default(now())
+  atualizadoEm        DateTime  @updatedAt
+
+  @@index([status, proximaTentativaEm])
+  @@index([telefone, tipo])
+  @@index([criadoEm])
+}
+
+model UsuarioSistema {
+  id                String                    @id @default(uuid())
+  nome              String
+  telefone          String?                   @unique
+  email             String?                   @unique
+  avatarUrl         String?
+  papel             String                    @default("VENDEDOR")
+  origemCadastro    String                    @default("TELEFONE")
+  perfilCompletoEm  DateTime?
+  criadoEm          DateTime                  @default(now())
+  atualizadoEm      DateTime                  @updatedAt
+  codigosSms        CodigoLoginSms[]
+  sessoes           SessaoUsuario[]
+  identidades       IdentidadeAutenticacao[]
+  perfilEstudantil  PerfilEstudantilUsuario?
+  negocios          MembroNegocio[]
+}
+
+model IdentidadeAutenticacao {
+  id             String         @id @default(uuid())
+  usuarioId      String
+  usuario        UsuarioSistema @relation(fields: [usuarioId], references: [id])
+  tipo           String
+  provider       String
+  providerUserId String
+  email          String?
+  telefone       String?
+  dadosJson      String         @default("{}")
+  criadaEm       DateTime       @default(now())
+  atualizadaEm   DateTime       @updatedAt
+
+  @@unique([tipo, provider, providerUserId])
+  @@index([usuarioId])
+  @@index([email])
+  @@index([telefone])
+}
+
+model PerfilEstudantilUsuario {
+  id              String         @id @default(uuid())
+  usuarioId       String         @unique
+  usuario         UsuarioSistema @relation(fields: [usuarioId], references: [id])
+  institutionCode String
+  studentNumber   String
+  username        String?
+  nome            String
+  email           String?
+  telefone        String?
+  curso           String?
+  turma           String?
+  anoAcademico    String?
+  avatarUrl       String?
+  dadosJson       String         @default("{}")
+  sincronizadoEm  DateTime       @default(now())
+  criadoEm        DateTime       @default(now())
+  atualizadoEm    DateTime       @updatedAt
+
+  @@unique([institutionCode, studentNumber])
+  @@index([usuarioId])
+}
+
+model Negocio {
+  id                    String          @id @default(uuid())
+  nomeComercial         String
+  segmento              String
+  tipo                  String
+  nif                   String?
+  telefone              String?
+  whatsapp              String?
+  email                 String?
+  instagram             String?
+  tiktok                String?
+  provincia             String?
+  municipio             String?
+  endereco              String?
+  moeda                 String          @default("AOA")
+  fusoHorario           String          @default("Africa/Luanda")
+  canaisVendaJson       String          @default("[]")
+  metodosPagamentoJson  String          @default("[]")
+  entregaJson           String          @default("{}")
+  minutosReservaPadrao  Int             @default(10)
+  criadoEm              DateTime        @default(now())
+  atualizadoEm          DateTime        @updatedAt
+  membros               MembroNegocio[]
+  pecas                 Peca[]
+
+  @@index([nomeComercial])
+}
+
+model MembroNegocio {
+  id           String         @id @default(uuid())
+  negocioId    String
+  negocio      Negocio        @relation(fields: [negocioId], references: [id])
+  usuarioId    String
+  usuario      UsuarioSistema @relation(fields: [usuarioId], references: [id])
+  papel        String         @default("DONO")
+  criadoEm     DateTime       @default(now())
+  atualizadoEm DateTime       @updatedAt
+
+  @@unique([negocioId, usuarioId])
+  @@index([usuarioId])
+}
+
+model CodigoLoginSms {
+  id                   String         @id @default(uuid())
+  telefone             String
+  codigoHash           String
+  codigoFinal          String
+  expiraEm             DateTime
+  usadoEm              DateTime?
+  tentativas           Int            @default(0)
+  statusEnvio          String
+  provider             String
+  providerMessageId    String?
+  providerResponseJson String?
+  usuarioId            String?
+  usuario              UsuarioSistema? @relation(fields: [usuarioId], references: [id])
+  criadoEm             DateTime       @default(now())
+  atualizadoEm         DateTime       @updatedAt
+
+  @@index([telefone, expiraEm])
+}
+
+model SessaoUsuario {
+  id           String         @id @default(uuid())
+  tokenHash    String         @unique
+  usuarioId    String
+  usuario      UsuarioSistema @relation(fields: [usuarioId], references: [id])
+  expiraEm     DateTime
+  criadaEm     DateTime       @default(now())
+  ultimoUsoEm  DateTime?
+
+  @@index([usuarioId])
+  @@index([expiraEm])
+}
+
+model InstanciaWhatsApp {
+  id              String   @id @default(uuid())
+  nome            String   @unique
+  etiqueta        String?
+  telefone        String?
+  status          String   @default("CRIADA")
+  qrCode          String?
+  pairingCode     String?
+  baseUrl         String?
+  apiKey          String?
+  padrao          Boolean  @default(false)
+  ativa           Boolean  @default(true)
+  ultimoErro      String?
+  ultimaConexaoEm DateTime?
+  ultimaConsultaEm DateTime?
+  criadaEm        DateTime @default(now())
+  atualizadaEm    DateTime @updatedAt
+
+  @@index([ativa, padrao])
+}

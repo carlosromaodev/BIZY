@@ -1,0 +1,9 @@
+node_modules
+backend/dist
+frontend/dist
+coverage
+.git
+.env
+*.db
+*.db-journal
+docker/postgres/data

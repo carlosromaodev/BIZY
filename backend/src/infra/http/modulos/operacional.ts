@@ -1,0 +1,161 @@
+import {
+  AtualizarConversaAtendimentoSchema,
+  DefinirPoliticaAutomacaoAtendimentoSchema,
+  RegistrarNotaInternaAtendimentoSchema,
+  RegistrarSugestaoIaAtendimentoSchema
+} from "../../../dominio/esquemas.js";
+import { exigirUsuarioAutenticado } from "../seguranca.js";
+import type { ModuloHttp } from "./ModuloHttp.js";
+
+export const moduloOperacional: ModuloHttp = {
+  nome: "operacional",
+  descricao: "Leituras operacionais reais para frontend, automações e atendimento.",
+  registrar(app, contexto) {
+    app.get("/automacoes/status", async (request, reply) => {
+      const usuario = await exigirUsuarioAutenticado(contexto, request, reply, "Faça login para consultar automações.");
+      if (!usuario) return;
+
+      return contexto.consultaOperacional.consultar(contexto.consultaIntegracoes.listarStatus());
+    });
+
+    app.get("/automacoes/n8n/outbox", async (request, reply) => {
+      const usuario = await exigirUsuarioAutenticado(contexto, request, reply, "Faça login para consultar outbox n8n.");
+      if (!usuario) return;
+
+      const limite = Number((request.query as { limite?: string } | undefined)?.limite ?? 100);
+      return contexto.consultaOperacional.listarOutboxN8n(Math.max(1, Math.min(limite, 500)));
+    });
+
+    app.get("/automacoes/n8n/outbox/saude", async (request, reply) => {
+      const usuario = await exigirUsuarioAutenticado(contexto, request, reply, "Faça login para consultar outbox n8n.");
+      if (!usuario) return;
+
+      return contexto.consultaOperacional.consultarSaudeOutboxN8n();
+    });
+
+    app.get("/automacoes/whatsapp/outbox", async (request, reply) => {
+      const usuario = await exigirUsuarioAutenticado(contexto, request, reply, "Faça login para consultar outbox WhatsApp.");
+      if (!usuario) return;
+
+      const limite = Number((request.query as { limite?: string } | undefined)?.limite ?? 100);
+      return contexto.repositorios.auditoria.listarMensagensWhatsApp(Math.max(1, Math.min(limite, 500)));
+    });
+
+    app.get("/automacoes/whatsapp/outbox/saude", async (request, reply) => {
+      const usuario = await exigirUsuarioAutenticado(contexto, request, reply, "Faça login para consultar outbox WhatsApp.");
+      if (!usuario) return;
+
+      return contexto.repositorios.auditoria.resumirMensagensWhatsAppOutbox();
+    });
+
+    app.post("/automacoes/whatsapp/outbox/reprocessar", async (request, reply) => {
+      const usuario = await exigirUsuarioAutenticado(contexto, request, reply, "Faça login para reprocessar WhatsApp.");
+      if (!usuario) return;
+
+      const body = (request.body ?? {}) as { incluirFalhadas?: boolean; limite?: number };
+      const resultado = await contexto.recuperacaoMensagensWhatsApp.reprocessarPendentes({
+        incluirFalhadas: body.incluirFalhadas === true,
+        limite: body.limite
+      });
+      return reply.code(202).send(resultado);
+    });
+
+    app.get("/atendimento/conversas", async (request, reply) => {
+      const usuario = await exigirUsuarioAutenticado(contexto, request, reply, "Faça login para consultar atendimento.");
+      if (!usuario) return;
+
+      return contexto.consultaAtendimentoOperacional.listarConversas();
+    });
+
+    app.patch("/atendimento/conversas/:id", async (request, reply) => {
+      const usuario = await exigirUsuarioAutenticado(contexto, request, reply, "Faça login para gerir atendimento.");
+      if (!usuario) return;
+
+      const { id } = request.params as { id: string };
+      const dados = AtualizarConversaAtendimentoSchema.parse(request.body ?? {});
+      const conversa = await contexto.gestaoAtendimentoCrm.atualizarConversa(id, dados);
+      return { conversa: conversa.conversa };
+    });
+
+    app.post("/atendimento/conversas/:id/politica", async (request, reply) => {
+      const usuario = await exigirUsuarioAutenticado(contexto, request, reply, "Faça login para gerir atendimento.");
+      if (!usuario) return;
+
+      const { id } = request.params as { id: string };
+      const dados = DefinirPoliticaAutomacaoAtendimentoSchema.parse(request.body ?? {});
+      const resultado = await contexto.gestaoAtendimentoCrm.definirPoliticaAutomacao(id, dados.politica);
+      return {
+        conversa: resultado.conversa.conversa,
+        politicaAutomacao: resultado.politicaAutomacao
+      };
+    });
+
+    app.post("/atendimento/conversas/:id/notas", async (request, reply) => {
+      const usuario = await exigirUsuarioAutenticado(contexto, request, reply, "Faça login para gerir atendimento.");
+      if (!usuario) return;
+
+      const { id } = request.params as { id: string };
+      const dados = RegistrarNotaInternaAtendimentoSchema.parse(request.body ?? {});
+      const mensagem = await contexto.gestaoAtendimentoCrm.registrarNotaInterna(id, {
+        texto: dados.texto,
+        autorId: usuario.id,
+        autorNome: usuario.nome
+      });
+      return reply.code(201).send({ mensagem });
+    });
+
+    app.post("/atendimento/conversas/:id/sugestoes", async (request, reply) => {
+      const usuario = await exigirUsuarioAutenticado(contexto, request, reply, "Faça login para gerir atendimento.");
+      if (!usuario) return;
+
+      const { id } = request.params as { id: string };
+      const dados = RegistrarSugestaoIaAtendimentoSchema.parse(request.body ?? {});
+      const mensagem = await contexto.gestaoAtendimentoCrm.registrarSugestaoIa(id, dados);
+      return reply.code(201).send({ mensagem });
+    });
+
+    app.get("/relatorios/entregas", async (request, reply) => {
+      const usuario = await exigirUsuarioAutenticado(contexto, request, reply, "Faça login para consultar relatórios.");
+      if (!usuario) return;
+
+      return contexto.consultaOperacional.listarEntregas();
+    });
+
+    app.get("/relatorios/entregas.csv", async (request, reply) => {
+      const usuario = await exigirUsuarioAutenticado(contexto, request, reply, "Faça login para exportar entregas.");
+      if (!usuario) return;
+
+      const csv = await contexto.consultaOperacional.exportarEntregasCsv();
+      reply.header("Content-Type", "text/csv; charset=utf-8");
+      reply.header("Content-Disposition", 'attachment; filename="entregas-emeu.csv"');
+      return reply.send(csv);
+    });
+
+    app.get("/relatorios/live-piloto", async (request, reply) => {
+      const usuario = await exigirUsuarioAutenticado(contexto, request, reply, "Faça login para consultar relatórios.");
+      if (!usuario) return;
+
+      const liveId = (request.query as { liveId?: string } | undefined)?.liveId?.trim();
+      return contexto.consultaOperacional.gerarRelatorioLivePiloto(liveId || undefined);
+    });
+
+    app.get("/relatorios/crm-pos-live", async (request, reply) => {
+      const usuario = await exigirUsuarioAutenticado(contexto, request, reply, "Faça login para consultar relatórios.");
+      if (!usuario) return;
+
+      const liveId = (request.query as { liveId?: string } | undefined)?.liveId?.trim();
+      return contexto.consultaOperacional.gerarRelatorioCrmPosLive(liveId || undefined);
+    });
+
+    app.get("/relatorios/crm-pos-live.csv", async (request, reply) => {
+      const usuario = await exigirUsuarioAutenticado(contexto, request, reply, "Faça login para exportar relatórios.");
+      if (!usuario) return;
+
+      const liveId = (request.query as { liveId?: string } | undefined)?.liveId?.trim();
+      const csv = await contexto.consultaOperacional.exportarCrmPosLiveCsv(liveId || undefined);
+      reply.header("Content-Type", "text/csv; charset=utf-8");
+      reply.header("Content-Disposition", 'attachment; filename="crm-pos-live-emeu.csv"');
+      return reply.send(csv);
+    });
+  }
+};

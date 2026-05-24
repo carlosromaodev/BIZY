@@ -1,0 +1,60 @@
+{
+  "nome": "ÉMeu - blueprints n8n",
+  "observacao": "Este ficheiro descreve os workflows que devem ser montados no n8n. Os nomes de nodes podem variar conforme a versão instalada.",
+  "workflows": [
+    {
+      "nome": "Nova reserva",
+      "gatilho": "Webhook RESERVATION_CREATED",
+      "passos": [
+        "Validar assinatura HMAC",
+        "Enviar WhatsApp com peça, preço e prazo",
+        "Aguardar alguns minutos",
+        "Consultar GET /n8n/reservations/active/:phone",
+        "Enviar lembrete se ainda estiver WAITING_PAYMENT"
+      ]
+    },
+    {
+      "nome": "Atendimento WhatsApp com IA",
+      "gatilho": "Mensagem recebida no WhatsApp",
+      "passos": [
+        "Consultar GET /n8n/customers/by-phone/:phone",
+        "Montar contexto consciente",
+        "Classificar intenção",
+        "Responder automaticamente se for simples",
+        "Enviar para humano se ferir guardrails"
+      ]
+    },
+    {
+      "nome": "Comprovativo",
+      "gatilho": "Imagem ou documento recebido",
+      "passos": [
+        "Consultar reserva ativa por telefone",
+        "Registrar comprovativo no backend",
+        "Aguardar aprovação humana",
+        "Confirmar ou rejeitar pagamento no backend",
+        "Avisar cliente"
+      ]
+    },
+    {
+      "nome": "Expiração e fila",
+      "gatilho": "RESERVATION_EXPIRING ou RESERVATION_EXPIRED",
+      "passos": [
+        "Enviar lembrete final quando estiver a expirar",
+        "Avisar cliente anterior quando expirar",
+        "Avisar cliente promovido da fila se existir",
+        "Consultar produto antes de prometer disponibilidade"
+      ]
+    },
+    {
+      "nome": "Pós-venda",
+      "gatilho": "PAYMENT_CONFIRMED",
+      "passos": [
+        "Pedir endereço",
+        "Atualizar endereço no backend",
+        "Enviar status de envio",
+        "Marcar entregue",
+        "Pedir feedback"
+      ]
+    }
+  ]
+}

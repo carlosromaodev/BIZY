@@ -1,0 +1,85 @@
+{
+  "name": "ÉMeu - Atendimento WhatsApp contextual",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "emeu-whatsapp-inbound",
+        "responseMode": "onReceived",
+        "responseCode": 202,
+        "options": {}
+      },
+      "id": "webhook-whatsapp",
+      "name": "Receber mensagem WhatsApp",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 280]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $json.body ?? $json;\nconst data = body.data ?? body;\nconst remoteJid = data.key?.remoteJid ?? data.remoteJid ?? body.remoteJid ?? '';\nconst telefone = String(remoteJid || data.from || body.from || '').replace(/\\D/g, '').replace(/^244/, '');\nconst texto = data.message?.conversation ?? data.message?.extendedTextMessage?.text ?? body.text ?? body.message ?? '';\nreturn telefone && texto ? [{ json: { telefone, texto } }] : [];"
+      },
+      "id": "normalizar-mensagem",
+      "name": "Normalizar mensagem",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [500, 280]
+    },
+    {
+      "parameters": {
+        "url": "={{($env.N8N_BACKEND_BASE_URL || 'http://backend:3333').replace(/\\/$/, '') + '/n8n/customers/by-phone/' + $json.telefone}}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "X-EMEU-N8N-TOKEN", "value": "={{$env.N8N_BACKEND_TOKEN || 'trocar_este_token'}}" }
+          ]
+        },
+        "options": { "timeout": 30000 }
+      },
+      "id": "buscar-contexto",
+      "name": "Buscar contexto no backend",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [760, 280]
+    },
+    {
+      "parameters": {
+        "jsCode": "const contexto = $json;\nconst cliente = contexto.cliente ?? {};\nconst reserva = contexto.reservaAtiva;\nconst peca = contexto.pecaReservada ?? reserva?.peca;\nconst telefone = cliente.telefone ? `244${String(cliente.telefone).replace(/^244/, '')}` : null;\nif (!telefone) return [];\nconst nome = cliente.nome || 'cliente';\nlet texto;\nif (!reserva) texto = `Olá, ${nome}. Não encontrei uma reserva ativa neste número. Vou chamar a equipa para ajudar.`;\nelse if (reserva.estadoPagamento === 'CONFIRMADO' || reserva.estado === 'PAID') texto = `Olá, ${nome}. O pagamento da peça #${reserva.codigoPeca} está confirmado. A equipa vai seguir com a entrega.`;\nelse if (reserva.estado === 'WAITLISTED') texto = `Olá, ${nome}. Estás na fila da peça #${reserva.codigoPeca}. Se chegar a tua vez, avisamos por aqui.`;\nelse {\n  const minutos = reserva.tempoRestanteSegundos != null ? Math.ceil(reserva.tempoRestanteSegundos / 60) : null;\n  const preco = peca?.precoEmKwanza ? new Intl.NumberFormat('pt-AO', { style: 'currency', currency: 'AOA', maximumFractionDigits: 0 }).format(peca.precoEmKwanza) : 'preço indisponível';\n  texto = `Olá, ${nome}. A tua reserva da peça #${reserva.codigoPeca} está ativa.\\nPreço: ${preco}\\n${minutos != null ? `Tempo restante: ${minutos} min\\n` : ''}Envia o comprovativo por aqui depois do pagamento.`;\n}\nreturn [{ json: { telefone, texto } }];"
+      },
+      "id": "preparar-resposta",
+      "name": "Preparar resposta com guardrails",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1020, 280]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{($env.EVOLUTION_API_URL || 'http://evolution-api:8080').replace(/\\/$/, '') + '/message/sendText/' + ($env.EVOLUTION_INSTANCE || 'emeu')}}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{$env.EVOLUTION_API_KEY || 'trocar_api_key'}}" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { number: $json.telefone, text: $json.texto, delay: 800, linkPreview: false } }}",
+        "options": { "timeout": 30000 }
+      },
+      "id": "responder-whatsapp",
+      "name": "Responder pelo WhatsApp",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1280, 280]
+    }
+  ],
+  "connections": {
+    "Receber mensagem WhatsApp": { "main": [[{ "node": "Normalizar mensagem", "type": "main", "index": 0 }]] },
+    "Normalizar mensagem": { "main": [[{ "node": "Buscar contexto no backend", "type": "main", "index": 0 }]] },
+    "Buscar contexto no backend": { "main": [[{ "node": "Preparar resposta com guardrails", "type": "main", "index": 0 }]] },
+    "Preparar resposta com guardrails": { "main": [[{ "node": "Responder pelo WhatsApp", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "active": false
+}

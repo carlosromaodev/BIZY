@@ -1,0 +1,244 @@
+name: emeu
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: emeu_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-emeu}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-emeu_senha_dev}
+      POSTGRES_DB: ${POSTGRES_DB:-emeu}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-emeu} -d ${POSTGRES_DB:-emeu}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - emeu_net
+
+  redis:
+    image: redis:7-alpine
+    container_name: emeu_redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - emeu_net
+
+  backend:
+    build:
+      context: .
+      dockerfile: docker/backend/Dockerfile
+    container_name: emeu_backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      PORTA: 3333
+      HOST: 0.0.0.0
+      DATABASE_URL: postgresql://${POSTGRES_USER:-emeu}:${POSTGRES_PASSWORD:-emeu_senha_dev}@postgres:5432/${POSTGRES_DB:-emeu}?schema=public
+      MODO_ARMAZENAMENTO: prisma
+      MINUTOS_RESERVA: ${MINUTOS_RESERVA:-15}
+      ORIGEM_FRONTEND: ${ORIGEM_FRONTEND:-http://localhost:5173}
+      INICIAR_AGENDADOR_EXPIRACAO: ${INICIAR_AGENDADOR_EXPIRACAO:-true}
+      RESTAURAR_LIVES_ATIVAS: ${RESTAURAR_LIVES_ATIVAS:-false}
+      N8N_WEBHOOK_EVENTOS_URL: ${N8N_WEBHOOK_EVENTOS_URL:-http://n8n:5678/webhook/emeu-eventos}
+      N8N_WEBHOOK_SECRET: ${N8N_WEBHOOK_SECRET:-trocar_este_segredo}
+      N8N_BACKEND_TOKEN: ${N8N_BACKEND_TOKEN:-trocar_este_token}
+      N8N_EVENTOS_ATIVOS: ${N8N_EVENTOS_ATIVOS:-true}
+      N8N_ASSUME_WHATSAPP: ${N8N_ASSUME_WHATSAPP:-false}
+      N8N_MINUTOS_ANTES_EXPIRAR: ${N8N_MINUTOS_ANTES_EXPIRAR:-2}
+      WHATSAPP_PROVIDER: ${WHATSAPP_PROVIDER:-evolution}
+      WHATSAPP_OUTBOX_MAX_TENTATIVAS: ${WHATSAPP_OUTBOX_MAX_TENTATIVAS:-5}
+      WHATSAPP_OUTBOX_LIMITE_POR_CICLO: ${WHATSAPP_OUTBOX_LIMITE_POR_CICLO:-25}
+      WHATSAPP_OUTBOX_ATRASO_INICIAL_MS: ${WHATSAPP_OUTBOX_ATRASO_INICIAL_MS:-60000}
+      WHATSAPP_OUTBOX_ATRASO_MAXIMO_MS: ${WHATSAPP_OUTBOX_ATRASO_MAXIMO_MS:-1800000}
+      WHATSAPP_OUTBOX_INTERVALO_MS: ${WHATSAPP_OUTBOX_INTERVALO_MS:-30000}
+      WHATSAPP_CLOUD_API_BASE_URL: ${WHATSAPP_CLOUD_API_BASE_URL:-https://graph.facebook.com}
+      WHATSAPP_CLOUD_API_VERSION: ${WHATSAPP_CLOUD_API_VERSION:-v25.0}
+      WHATSAPP_CLOUD_PHONE_NUMBER_ID: ${WHATSAPP_CLOUD_PHONE_NUMBER_ID:-}
+      WHATSAPP_CLOUD_ACCESS_TOKEN: ${WHATSAPP_CLOUD_ACCESS_TOKEN:-}
+      WHATSAPP_CLOUD_LINK_PREVIEW: ${WHATSAPP_CLOUD_LINK_PREVIEW:-false}
+      WHATSAPP_CLOUD_DEFAULT_TEMPLATE_NAME: ${WHATSAPP_CLOUD_DEFAULT_TEMPLATE_NAME:-}
+      WHATSAPP_CLOUD_DEFAULT_TEMPLATE_LANGUAGE: ${WHATSAPP_CLOUD_DEFAULT_TEMPLATE_LANGUAGE:-pt_PT}
+      EVOLUTION_API_URL: ${EVOLUTION_API_URL:-http://evolution-api:8080}
+      EVOLUTION_API_KEY: ${EVOLUTION_API_KEY:-trocar_api_key}
+      EVOLUTION_INSTANCE: ${EVOLUTION_INSTANCE:-emeu}
+      EVOLUTION_MANAGER_PUBLIC_URL: ${EVOLUTION_MANAGER_PUBLIC_URL:-http://localhost:3000}
+      EVOLUTION_DELAY_MS: ${EVOLUTION_DELAY_MS:-800}
+      EVOLUTION_LINK_PREVIEW: ${EVOLUTION_LINK_PREVIEW:-false}
+      EVOLUTION_WEBHOOK_TOKEN: ${EVOLUTION_WEBHOOK_TOKEN:-trocar_token_webhook_evolution}
+      AUTH_SECRET: ${AUTH_SECRET:-trocar_secret_login}
+      LOGIN_SMS_MINUTOS_EXPIRACAO: ${LOGIN_SMS_MINUTOS_EXPIRACAO:-10}
+      LOGIN_SESSAO_DIAS_EXPIRACAO: ${LOGIN_SESSAO_DIAS_EXPIRACAO:-7}
+      LOGIN_SMS_DEV_MODE: ${LOGIN_SMS_DEV_MODE:-false}
+      LOGIN_SMS_EXPOR_CODIGO_DEV: ${LOGIN_SMS_EXPOR_CODIGO_DEV:-false}
+      OMBALA_API_BASE_URL: ${OMBALA_API_BASE_URL:-https://api.ombala.ao}
+      OMBALA_API_TOKEN: ${OMBALA_API_TOKEN:-}
+      OMBALA_SMS_DEFAULT_SENDER: ${OMBALA_SMS_DEFAULT_SENDER:-EMEU}
+    ports:
+      - "${BACKEND_PORT:-3333}:3333"
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://localhost:3333/saude').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+    networks:
+      - emeu_net
+
+  frontend:
+    build:
+      context: .
+      dockerfile: docker/frontend/Dockerfile
+      args:
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:3333}
+        VITE_N8N_URL: ${VITE_N8N_URL:-http://localhost:5678}
+        VITE_TIKTOK_LIVE_USERNAME_PADRAO: ${TIKTOK_LIVE_USERNAME:-@mattbtw}
+    container_name: emeu_frontend
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_started
+    ports:
+      - "${FRONTEND_PORT:-5173}:80"
+    networks:
+      - emeu_net
+
+  n8n:
+    image: docker.n8n.io/n8nio/n8n:${N8N_VERSION:-2.18.5}
+    container_name: emeu_n8n
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DB_TYPE: postgresdb
+      DB_POSTGRESDB_HOST: postgres
+      DB_POSTGRESDB_PORT: 5432
+      DB_POSTGRESDB_DATABASE: ${N8N_DB:-n8n}
+      DB_POSTGRESDB_USER: ${POSTGRES_USER:-emeu}
+      DB_POSTGRESDB_PASSWORD: ${POSTGRES_PASSWORD:-emeu_senha_dev}
+      DB_POSTGRESDB_SCHEMA: public
+      N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY:-trocar_por_uma_chave_de_32_chars}
+      N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS: "true"
+      N8N_RUNNERS_ENABLED: "true"
+      N8N_HOST: ${N8N_HOST:-localhost}
+      N8N_PORT: 5678
+      N8N_PROTOCOL: ${N8N_PROTOCOL:-http}
+      WEBHOOK_URL: ${N8N_PUBLIC_URL:-http://localhost:5678/}
+      N8N_BACKEND_BASE_URL: ${N8N_BACKEND_BASE_URL:-http://backend:3333}
+      N8N_BACKEND_TOKEN: ${N8N_BACKEND_TOKEN:-trocar_este_token}
+      EVOLUTION_API_URL: ${EVOLUTION_API_URL:-http://evolution-api:8080}
+      EVOLUTION_API_KEY: ${EVOLUTION_API_KEY:-trocar_api_key}
+      EVOLUTION_INSTANCE: ${EVOLUTION_INSTANCE:-emeu}
+      GENERIC_TIMEZONE: ${TZ:-Africa/Luanda}
+      TZ: ${TZ:-Africa/Luanda}
+    ports:
+      - "${N8N_PORT:-5678}:5678"
+    volumes:
+      - n8n_data:/home/node/.n8n
+    networks:
+      - emeu_net
+
+  evolution-api:
+    image: evoapicloud/evolution-api:${EVOLUTION_VERSION:-latest}
+    container_name: emeu_evolution_api
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      backend:
+        condition: service_started
+    environment:
+      SERVER_NAME: evolution
+      SERVER_TYPE: http
+      SERVER_PORT: 8080
+      SERVER_URL: ${EVOLUTION_PUBLIC_URL:-http://localhost:8080}
+      CORS_ORIGIN: "*"
+      CORS_METHODS: POST,GET,PUT,DELETE
+      CORS_CREDENTIALS: "true"
+      DATABASE_PROVIDER: postgresql
+      DATABASE_CONNECTION_URI: postgresql://${POSTGRES_USER:-emeu}:${POSTGRES_PASSWORD:-emeu_senha_dev}@postgres:5432/${EVOLUTION_DB:-evolution}
+      DATABASE_CONNECTION_CLIENT_NAME: evolution
+      DATABASE_SAVE_DATA_INSTANCE: "true"
+      DATABASE_SAVE_DATA_NEW_MESSAGE: "true"
+      DATABASE_SAVE_MESSAGE_UPDATE: "true"
+      DATABASE_SAVE_DATA_CONTACTS: "true"
+      DATABASE_SAVE_DATA_CHATS: "true"
+      DATABASE_SAVE_DATA_HISTORIC: "true"
+      CACHE_REDIS_ENABLED: "true"
+      CACHE_REDIS_URI: redis://redis:6379/1
+      CACHE_REDIS_PREFIX_KEY: evolution-cache
+      CACHE_REDIS_SAVE_INSTANCES: "true"
+      CACHE_LOCAL_ENABLED: "false"
+      AUTHENTICATION_API_KEY: ${EVOLUTION_API_KEY:-trocar_api_key}
+      AUTHENTICATION_EXPOSE_IN_FETCH_INSTANCES: "false"
+      CONFIG_SESSION_PHONE_CLIENT: EMeu
+      CONFIG_SESSION_PHONE_NAME: Chrome
+      QRCODE_LIMIT: ${EVOLUTION_QRCODE_LIMIT:-30}
+      QRCODE_COLOR: "#1f6f55"
+      LOG_LEVEL: ERROR,WARN,INFO,LOG,WEBHOOKS
+      LOG_COLOR: "true"
+      LANGUAGE: pt-BR
+      WEBHOOK_GLOBAL_ENABLED: "true"
+      WEBHOOK_GLOBAL_URL: ${EVOLUTION_WEBHOOK_URL:-http://backend:3333/webhooks/evolution?token=${EVOLUTION_WEBHOOK_TOKEN:-trocar_token_webhook_evolution}}
+      WEBHOOK_GLOBAL_WEBHOOK_BY_EVENTS: "false"
+      WEBHOOK_EVENTS_MESSAGES_UPSERT: "true"
+      WEBHOOK_EVENTS_SEND_MESSAGE: "true"
+      WEBHOOK_EVENTS_CONNECTION_UPDATE: "true"
+      WEBHOOK_EVENTS_QRCODE_UPDATED: "true"
+      WEBHOOK_REQUEST_TIMEOUT_MS: 30000
+      WEBHOOK_RETRY_MAX_ATTEMPTS: 5
+      WEBHOOK_RETRY_INITIAL_DELAY_SECONDS: 5
+      WEBSOCKET_ENABLED: "true"
+      WEBSOCKET_GLOBAL_EVENTS: "true"
+      N8N_ENABLED: "true"
+    ports:
+      - "${EVOLUTION_PORT:-8080}:8080"
+    volumes:
+      - evolution_instances:/evolution/instances
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - emeu_net
+
+  evolution-manager:
+    image: evoapicloud/evolution-manager:${EVOLUTION_MANAGER_VERSION:-latest}
+    container_name: emeu_evolution_manager
+    restart: unless-stopped
+    depends_on:
+      - evolution-api
+    volumes:
+      - ./docker/evolution-manager/nginx.conf:/etc/nginx/conf.d/nginx.conf:ro
+    ports:
+      - "${EVOLUTION_MANAGER_PORT:-3000}:80"
+    networks:
+      - emeu_net
+
+volumes:
+  postgres_data:
+  redis_data:
+  n8n_data:
+  evolution_instances:
+
+networks:
+  emeu_net:
+    driver: bridge

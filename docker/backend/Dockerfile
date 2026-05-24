@@ -1,0 +1,35 @@
+FROM node:20-alpine AS deps
+WORKDIR /app
+RUN apk add --no-cache openssl libc6-compat
+
+COPY package.json package-lock.json ./
+COPY backend/package.json backend/package.json
+COPY frontend/package.json frontend/package.json
+RUN npm ci --workspace backend --include-workspace-root
+
+FROM node:20-alpine AS build
+WORKDIR /app
+RUN apk add --no-cache openssl libc6-compat
+COPY --from=deps /app/node_modules ./node_modules
+COPY package.json package-lock.json ./
+COPY backend ./backend
+WORKDIR /app/backend
+RUN npx prisma generate
+RUN npm run build
+
+FROM node:20-alpine AS runtime
+WORKDIR /app
+ENV NODE_ENV=production
+RUN apk add --no-cache openssl libc6-compat
+
+COPY package.json package-lock.json ./
+COPY backend/package.json backend/package.json
+RUN npm ci --workspace backend --include-workspace-root && npm cache clean --force
+
+COPY --from=build /app/backend/dist ./backend/dist
+COPY --from=build /app/backend/prisma ./backend/prisma
+COPY backend/scripts ./backend/scripts
+
+WORKDIR /app/backend
+EXPOSE 3333
+CMD ["sh", "-c", "npx prisma generate && npx prisma migrate deploy && node dist/main.js"]

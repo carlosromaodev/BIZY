@@ -1,0 +1,28 @@
+name: emeu
+
+services:
+  postgres:
+    ports: !reset []
+
+  redis:
+    ports: !reset []
+
+  backend:
+    ports: !override
+      - "${BACKEND_BIND:-127.0.0.1}:${BACKEND_PORT:-3333}:3333"
+
+  frontend:
+    ports: !override
+      - "${FRONTEND_BIND:-127.0.0.1}:${FRONTEND_PORT:-5173}:80"
+
+  n8n:
+    ports: !override
+      - "${N8N_BIND:-127.0.0.1}:${N8N_PORT:-5678}:5678"
+
+  evolution-api:
+    ports: !override
+      - "${EVOLUTION_BIND:-127.0.0.1}:${EVOLUTION_PORT:-8080}:8080"
+
+  evolution-manager:
+    ports: !override
+      - "${EVOLUTION_MANAGER_BIND:-127.0.0.1}:${EVOLUTION_MANAGER_PORT:-3000}:80"

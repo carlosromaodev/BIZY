@@ -1,0 +1,85 @@
+{
+  "name": "ÉMeu - Comprovativo e aprovação de pagamento",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "emeu-comprovativo",
+        "responseMode": "onReceived",
+        "responseCode": 202,
+        "options": {}
+      },
+      "id": "webhook-comprovativo",
+      "name": "Receber comprovativo",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 280]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $json.body ?? $json;\nconst data = body.data ?? body;\nconst remoteJid = data.key?.remoteJid ?? data.remoteJid ?? body.remoteJid ?? '';\nconst telefone = String(remoteJid || data.from || body.from || '').replace(/\\D/g, '').replace(/^244/, '');\nreturn telefone ? [{ json: { telefone } }] : [];"
+      },
+      "id": "normalizar-comprovativo",
+      "name": "Normalizar comprovativo",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [500, 280]
+    },
+    {
+      "parameters": {
+        "url": "={{($env.N8N_BACKEND_BASE_URL || 'http://backend:3333').replace(/\\/$/, '') + '/n8n/reservations/active/' + $json.telefone}}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "X-EMEU-N8N-TOKEN", "value": "={{$env.N8N_BACKEND_TOKEN || 'trocar_este_token'}}" }
+          ]
+        },
+        "options": { "timeout": 30000 }
+      },
+      "id": "buscar-reservas",
+      "name": "Buscar reserva ativa",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [760, 280]
+    },
+    {
+      "parameters": {
+        "jsCode": "const reservas = Array.isArray($json) ? $json : ($json.data ?? []);\nif (!reservas.length) return [];\nreturn [{ json: { reservaId: reservas[0].id } }];"
+      },
+      "id": "selecionar-reserva",
+      "name": "Selecionar reserva",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1020, 280]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{($env.N8N_BACKEND_BASE_URL || 'http://backend:3333').replace(/\\/$/, '') + '/n8n/payments/' + $json.reservaId + '/proof-received'}}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "X-EMEU-N8N-TOKEN", "value": "={{$env.N8N_BACKEND_TOKEN || 'trocar_este_token'}}" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { observacao: 'Comprovativo recebido via n8n. Aguardando aprovação humana.' } }}",
+        "options": { "timeout": 30000 }
+      },
+      "id": "registrar-comprovativo",
+      "name": "Registar comprovativo no backend",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1280, 280]
+    }
+  ],
+  "connections": {
+    "Receber comprovativo": { "main": [[{ "node": "Normalizar comprovativo", "type": "main", "index": 0 }]] },
+    "Normalizar comprovativo": { "main": [[{ "node": "Buscar reserva ativa", "type": "main", "index": 0 }]] },
+    "Buscar reserva ativa": { "main": [[{ "node": "Selecionar reserva", "type": "main", "index": 0 }]] },
+    "Selecionar reserva": { "main": [[{ "node": "Registar comprovativo no backend", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "active": false
+}

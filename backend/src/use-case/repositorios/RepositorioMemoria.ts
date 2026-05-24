@@ -1,0 +1,1264 @@
+import { randomUUID } from "node:crypto";
+import type {
+  RepositorioAutenticacao,
+  RepositorioAtendimento,
+  RepositorioAuditoria,
+  RepositorioComentarios,
+  RepositorioInstanciasWhatsApp,
+  RepositorioPecas,
+  RepositorioReservas,
+  RepositorioSessoesLive
+} from "../../dominio/repositorios/contratos.js";
+import type {
+  AtualizacaoRegistroSessaoLive,
+  AtualizacaoConversaAtendimento,
+  AtualizarPeca,
+  CodigoLoginSms,
+  ClienteAtendimento,
+  ConversaAtendimento,
+  ConversaAtendimentoComMensagens,
+  DadosCriacaoReservaComControleStock,
+  EstadoComentario,
+  EstadoPagamento,
+  EstadoPeca,
+  EstadoReserva,
+  EventoSistema,
+  InstanciaWhatsApp,
+  MensagemAtendimento,
+  NovaMensagemAtendimento,
+  NovaPeca,
+  NovaReserva,
+  NovoOutboxMensagemWhatsApp,
+  NovoRegistroSessaoLive,
+  NovoRegistroComentario,
+  Peca,
+  RegistroOutboxEventoN8n,
+  RegistroOutboxMensagemWhatsApp,
+  RegistroComentario,
+  RegistroSessaoLive,
+  Reserva,
+  ResumoOutboxEventoN8n,
+  ResumoOutboxMensagemWhatsApp,
+  ResultadoInterpretacaoComentario
+} from "../../dominio/tipos.js";
+import type {
+  DadosIdentidadeAutenticacao,
+  DadosNegocioBizy,
+  DadosPerfilEstudantil,
+  NegocioBizy,
+  PerfilEstudantilUsuario,
+  UsuarioSistema
+} from "../../dominio/tipos.js";
+
+const estadosQueBloqueiamStock: EstadoReserva[] = ["PENDING", "RESERVED", "WAITING_PAYMENT", "PAID"];
+const estadosAtivosParaDuplicidade: EstadoReserva[] = ["PENDING", "RESERVED", "WAITING_PAYMENT", "WAITLISTED"];
+
+export class RepositorioPecasMemoria implements RepositorioPecas {
+  private readonly pecas = new Map<string, Peca>();
+
+  async criar(dados: NovaPeca): Promise<Peca> {
+    if (this.pecas.has(dados.codigo)) {
+      throw new Error(`Peça #${dados.codigo} já existe.`);
+    }
+
+    const agora = new Date();
+    const peca: Peca = {
+      id: randomUUID(),
+      codigo: dados.codigo,
+      negocioId: dados.negocioId ?? null,
+      nome: dados.nome,
+      descricao: dados.descricao,
+      precoEmKwanza: dados.precoEmKwanza,
+      quantidade: dados.quantidade,
+      fotos: dados.fotos,
+      estado: dados.estado ?? (dados.quantidade > 0 ? "DISPONIVEL" : "ESGOTADA"),
+      criadoEm: agora,
+      atualizadoEm: agora
+    };
+
+    this.pecas.set(peca.codigo, peca);
+    return peca;
+  }
+
+  async listar(): Promise<Peca[]> {
+    return [...this.pecas.values()].sort((a, b) => a.codigo.localeCompare(b.codigo, "pt-AO", { numeric: true }));
+  }
+
+  async buscarPorCodigo(codigo: string): Promise<Peca | null> {
+    return this.pecas.get(codigo) ?? null;
+  }
+
+  async atualizar(codigo: string, dados: AtualizarPeca): Promise<Peca> {
+    const peca = await this.exigirPeca(codigo);
+    const atualizada: Peca = {
+      ...peca,
+      ...dados,
+      atualizadoEm: new Date()
+    };
+
+    this.pecas.set(codigo, atualizada);
+    return atualizada;
+  }
+
+  async atualizarEstado(codigo: string, estado: EstadoPeca): Promise<Peca> {
+    return this.atualizar(codigo, { estado });
+  }
+
+  private async exigirPeca(codigo: string): Promise<Peca> {
+    const peca = await this.buscarPorCodigo(codigo);
+
+    if (!peca) {
+      throw new Error(`Peça #${codigo} não encontrada.`);
+    }
+
+    return peca;
+  }
+}
+
+export class RepositorioReservasMemoria implements RepositorioReservas {
+  private readonly reservas = new Map<string, Reserva>();
+  private readonly bloqueiosPorPeca = new Map<string, Promise<void>>();
+
+  constructor(private readonly repositorioPecas?: RepositorioPecasMemoria) {}
+
+  async criar(dados: NovaReserva): Promise<Reserva> {
+    const agora = new Date();
+    const reserva: Reserva = {
+      id: randomUUID(),
+      ...dados,
+      userIdCliente: dados.userIdCliente ?? null,
+      avatarUrlCliente: dados.avatarUrlCliente ?? null,
+      estadoPagamento: dados.estadoPagamento ?? "AGUARDANDO_COMPROVATIVO",
+      enderecoEntrega: dados.enderecoEntrega ?? null,
+      comprovativoPagamentoUrl: dados.comprovativoPagamentoUrl ?? null,
+      criadaEm: agora,
+      atualizadaEm: agora
+    };
+
+    this.reservas.set(reserva.id, reserva);
+    return reserva;
+  }
+
+  async criarComControleDeStock(dados: DadosCriacaoReservaComControleStock) {
+    return this.comBloqueioPeca(dados.codigoPeca, async () => {
+      const repositorioPecas = this.repositorioPecas;
+      if (!repositorioPecas) {
+        return {
+          tipo: "REVISAO_MANUAL" as const,
+          reserva: null,
+          motivo: "Repositório de peças não configurado para controle de stock."
+        };
+      }
+
+      const peca = await repositorioPecas.buscarPorCodigo(dados.codigoPeca);
+
+      if (!peca) {
+        return {
+          tipo: "REVISAO_MANUAL" as const,
+          reserva: null,
+          motivo: `Peça #${dados.codigoPeca} não encontrada.`
+        };
+      }
+
+      if (peca.estado === "VENDIDA" || peca.estado === "ESGOTADA") {
+        return {
+          tipo: "PECA_INDISPONIVEL" as const,
+          reserva: null,
+          peca,
+          motivo: `Peça #${peca.codigo} indisponível.`
+        };
+      }
+
+      const reservasQueBloqueiamStock = await this.contarReservasQueBloqueiamStock(peca.codigo);
+      const temStockLivre = peca.quantidade - reservasQueBloqueiamStock > 0;
+      const reserva = await this.criar({
+        codigoPeca: peca.codigo,
+        telefoneCliente: dados.telefoneCliente,
+        nomeCliente: dados.nomeCliente,
+        usernameCliente: dados.usernameCliente,
+        userIdCliente: dados.userIdCliente ?? null,
+        avatarUrlCliente: dados.avatarUrlCliente ?? null,
+        estado: temStockLivre ? "WAITING_PAYMENT" : "WAITLISTED",
+        comentarioOriginal: dados.comentarioOriginal,
+        liveId: dados.liveId,
+        expiraEm: temStockLivre ? dados.expiraEmReserva : null
+      });
+
+      if (temStockLivre && reservasQueBloqueiamStock + 1 >= peca.quantidade) {
+        const atualizada = await repositorioPecas.atualizarEstado(peca.codigo, "RESERVADA");
+        return { tipo: "RESERVA_CRIADA" as const, reserva, peca: atualizada };
+      }
+
+      return { tipo: temStockLivre ? "RESERVA_CRIADA" as const : "FILA_ESPERA" as const, reserva, peca };
+    });
+  }
+
+  async listar(): Promise<Reserva[]> {
+    return [...this.reservas.values()].sort((a, b) => a.criadaEm.getTime() - b.criadaEm.getTime());
+  }
+
+  async buscarPorId(id: string): Promise<Reserva | null> {
+    return this.reservas.get(id) ?? null;
+  }
+
+  async buscarReservaAtivaPorTelefoneEPeca(telefone: string, codigoPeca: string): Promise<Reserva | null> {
+    const reservas = await this.listar();
+    return (
+      reservas.find(
+        (reserva) =>
+          reserva.telefoneCliente === telefone &&
+          reserva.codigoPeca === codigoPeca &&
+          estadosAtivosParaDuplicidade.includes(reserva.estado)
+      ) ?? null
+    );
+  }
+
+  async contarReservasQueBloqueiamStock(codigoPeca: string): Promise<number> {
+    const reservas = await this.listar();
+    return reservas.filter(
+      (reserva) => reserva.codigoPeca === codigoPeca && estadosQueBloqueiamStock.includes(reserva.estado)
+    ).length;
+  }
+
+  async listarFilaDaPeca(codigoPeca: string): Promise<Reserva[]> {
+    const reservas = await this.listar();
+    return reservas.filter((reserva) => reserva.codigoPeca === codigoPeca && reserva.estado === "WAITLISTED");
+  }
+
+  async listarReservasExpiradas(agora: Date): Promise<Reserva[]> {
+    const reservas = await this.listar();
+    return reservas.filter(
+      (reserva) =>
+        ["PENDING", "RESERVED", "WAITING_PAYMENT"].includes(reserva.estado) &&
+        reserva.expiraEm !== null &&
+        reserva.expiraEm.getTime() <= agora.getTime()
+    );
+  }
+
+  async atualizarEstado(id: string, estado: EstadoReserva, expiraEm: Date | null = null): Promise<Reserva> {
+    const reserva = await this.exigirReserva(id);
+    const atualizada: Reserva = {
+      ...reserva,
+      estado,
+      expiraEm,
+      atualizadaEm: new Date()
+    };
+
+    this.reservas.set(id, atualizada);
+    return atualizada;
+  }
+
+  async atualizarEstadoPagamento(
+    id: string,
+    estadoPagamento: EstadoPagamento,
+    comprovativoPagamentoUrl: string | null = null
+  ): Promise<Reserva> {
+    const reserva = await this.exigirReserva(id);
+    const atualizada: Reserva = {
+      ...reserva,
+      estadoPagamento,
+      comprovativoPagamentoUrl: comprovativoPagamentoUrl ?? reserva.comprovativoPagamentoUrl,
+      atualizadaEm: new Date()
+    };
+
+    this.reservas.set(id, atualizada);
+    return atualizada;
+  }
+
+  async atualizarEnderecoEntrega(id: string, enderecoEntrega: string): Promise<Reserva> {
+    const reserva = await this.exigirReserva(id);
+    const atualizada: Reserva = {
+      ...reserva,
+      enderecoEntrega,
+      atualizadaEm: new Date()
+    };
+
+    this.reservas.set(id, atualizada);
+    return atualizada;
+  }
+
+  private async exigirReserva(id: string): Promise<Reserva> {
+    const reserva = await this.buscarPorId(id);
+
+    if (!reserva) {
+      throw new Error(`Reserva ${id} não encontrada.`);
+    }
+
+    return reserva;
+  }
+
+  private async comBloqueioPeca<T>(codigoPeca: string, operacao: () => Promise<T>): Promise<T> {
+    const bloqueioAnterior = this.bloqueiosPorPeca.get(codigoPeca) ?? Promise.resolve();
+    let liberarBloqueio!: () => void;
+    const bloqueioAtual = new Promise<void>((resolve) => {
+      liberarBloqueio = resolve;
+    });
+    const cadeiaAtual = bloqueioAnterior.then(() => bloqueioAtual);
+
+    this.bloqueiosPorPeca.set(codigoPeca, cadeiaAtual);
+
+    await bloqueioAnterior;
+
+    try {
+      return await operacao();
+    } finally {
+      liberarBloqueio();
+      if (this.bloqueiosPorPeca.get(codigoPeca) === cadeiaAtual) {
+        this.bloqueiosPorPeca.delete(codigoPeca);
+      }
+    }
+  }
+}
+
+export class RepositorioComentariosMemoria implements RepositorioComentarios {
+  private readonly comentarios = new Map<string, RegistroComentario>();
+
+  async criar(dados: NovoRegistroComentario): Promise<RegistroComentario> {
+    const agora = new Date();
+    const registro: RegistroComentario = {
+      id: randomUUID(),
+      comentario: dados.comentario,
+      interpretacao: dados.interpretacao,
+      estado: dados.estado,
+      motivo: dados.motivo ?? null,
+      criadoEm: agora,
+      atualizadoEm: agora
+    };
+
+    this.comentarios.set(registro.id, registro);
+    return registro;
+  }
+
+  async listar(limite = 100): Promise<RegistroComentario[]> {
+    return [...this.comentarios.values()]
+      .sort((a, b) => b.criadoEm.getTime() - a.criadoEm.getTime())
+      .slice(0, limite);
+  }
+
+  async buscarPorId(id: string): Promise<RegistroComentario | null> {
+    return this.comentarios.get(id) ?? null;
+  }
+
+  async atualizarEstado(
+    id: string,
+    estado: EstadoComentario,
+    motivo: string | null = null,
+    interpretacao?: ResultadoInterpretacaoComentario | null
+  ): Promise<RegistroComentario> {
+    const registro = this.comentarios.get(id);
+
+    if (!registro) {
+      throw new Error(`Comentário ${id} não encontrado.`);
+    }
+
+    const atualizado: RegistroComentario = {
+      ...registro,
+      estado,
+      motivo,
+      interpretacao: interpretacao ?? registro.interpretacao,
+      atualizadoEm: new Date()
+    };
+
+    this.comentarios.set(id, atualizado);
+    return atualizado;
+  }
+
+  async limparTodos(): Promise<number> {
+    const total = this.comentarios.size;
+    this.comentarios.clear();
+    return total;
+  }
+}
+
+export class RepositorioAutenticacaoMemoria implements RepositorioAutenticacao {
+  private readonly usuarios = new Map<string, UsuarioSistema>();
+  private readonly usuariosPorTelefone = new Map<string, string>();
+  private readonly identidades = new Map<string, { usuarioId: string; dados: DadosIdentidadeAutenticacao }>();
+  private readonly perfisEstudantis = new Map<string, PerfilEstudantilUsuario>();
+  private readonly negocios = new Map<string, NegocioBizy>();
+  private readonly negocioPrincipalPorUsuario = new Map<string, string>();
+  private readonly codigos = new Map<string, CodigoLoginSms>();
+  private readonly sessoes = new Map<string, {
+    id: string;
+    tokenHash: string;
+    usuarioId: string;
+    expiraEm: Date;
+    criadaEm: Date;
+    ultimoUsoEm: Date | null;
+  }>();
+
+  async criarOuAtualizarUsuario(dados: {
+    telefone: string;
+    nome: string;
+    email?: string | null;
+    avatarUrl?: string | null;
+    origemCadastro?: string;
+  }) {
+    const idExistente = this.usuariosPorTelefone.get(dados.telefone);
+    const existente = idExistente ? this.usuarios.get(idExistente) : null;
+    const agora = new Date();
+    const usuario = existente
+      ? {
+          ...existente,
+          nome: dados.nome,
+          email: dados.email ?? existente.email,
+          avatarUrl: dados.avatarUrl ?? existente.avatarUrl,
+          origemCadastro: dados.origemCadastro ?? existente.origemCadastro,
+          atualizadoEm: agora
+        }
+      : {
+          id: randomUUID(),
+          nome: dados.nome,
+          telefone: dados.telefone,
+          email: dados.email ?? null,
+          avatarUrl: dados.avatarUrl ?? null,
+          papel: "VENDEDOR",
+          origemCadastro: dados.origemCadastro ?? "TELEFONE",
+          perfilCompletoEm: null,
+          criadoEm: agora,
+          atualizadoEm: agora
+        };
+
+    this.usuarios.set(usuario.id, usuario);
+    if (usuario.telefone) this.usuariosPorTelefone.set(usuario.telefone, usuario.id);
+    return usuario;
+  }
+
+  async buscarUsuarioPorTelefone(telefone: string) {
+    const id = this.usuariosPorTelefone.get(telefone);
+    return id ? this.usuarios.get(id) ?? null : null;
+  }
+
+  async buscarUsuarioPorId(id: string) {
+    return this.usuarios.get(id) ?? null;
+  }
+
+  async criarOuAtualizarUsuarioPorIdentidade(dados: DadosIdentidadeAutenticacao): Promise<UsuarioSistema> {
+    const chave = this.chaveIdentidade(dados.tipo, dados.provider, dados.providerUserId);
+    const identidade = this.identidades.get(chave);
+    const agora = new Date();
+
+    if (identidade) {
+      const atual = this.exigirUsuario(identidade.usuarioId);
+      const usuario = {
+        ...atual,
+        nome: dados.nome || atual.nome,
+        telefone: dados.telefone ?? atual.telefone,
+        email: dados.email ?? atual.email,
+        avatarUrl: dados.avatarUrl ?? atual.avatarUrl,
+        origemCadastro: dados.origemCadastro,
+        atualizadoEm: agora
+      };
+      this.usuarios.set(usuario.id, usuario);
+      if (usuario.telefone) this.usuariosPorTelefone.set(usuario.telefone, usuario.id);
+      this.identidades.set(chave, { usuarioId: usuario.id, dados });
+      return usuario;
+    }
+
+    const usuarioPorTelefone = dados.telefone ? await this.buscarUsuarioPorTelefone(dados.telefone) : null;
+    const usuarioPorEmail = dados.email
+      ? [...this.usuarios.values()].find((usuario) => usuario.email?.toLowerCase() === dados.email?.toLowerCase()) ?? null
+      : null;
+    const usuarioBase = usuarioPorTelefone ?? usuarioPorEmail;
+    const usuario: UsuarioSistema = usuarioBase
+      ? {
+          ...usuarioBase,
+          nome: dados.nome || usuarioBase.nome,
+          telefone: dados.telefone ?? usuarioBase.telefone,
+          email: dados.email ?? usuarioBase.email,
+          avatarUrl: dados.avatarUrl ?? usuarioBase.avatarUrl,
+          origemCadastro: dados.origemCadastro,
+          atualizadoEm: agora
+        }
+      : {
+          id: randomUUID(),
+          nome: dados.nome,
+          telefone: dados.telefone ?? null,
+          email: dados.email ?? null,
+          avatarUrl: dados.avatarUrl ?? null,
+          papel: "VENDEDOR",
+          origemCadastro: dados.origemCadastro,
+          perfilCompletoEm: null,
+          criadoEm: agora,
+          atualizadoEm: agora
+        };
+
+    this.usuarios.set(usuario.id, usuario);
+    if (usuario.telefone) this.usuariosPorTelefone.set(usuario.telefone, usuario.id);
+    this.identidades.set(chave, { usuarioId: usuario.id, dados });
+    return usuario;
+  }
+
+  async salvarPerfilEstudantil(dados: DadosPerfilEstudantil): Promise<PerfilEstudantilUsuario> {
+    const agora = new Date();
+    const chave = `${dados.institutionCode}:${dados.studentNumber}`;
+    const existente = this.perfisEstudantis.get(chave);
+    const perfil: PerfilEstudantilUsuario = {
+      id: existente?.id ?? randomUUID(),
+      usuarioId: dados.usuarioId,
+      institutionCode: dados.institutionCode,
+      studentNumber: dados.studentNumber,
+      username: dados.username ?? null,
+      nome: dados.nome,
+      email: dados.email ?? null,
+      telefone: dados.telefone ?? null,
+      curso: dados.curso ?? null,
+      turma: dados.turma ?? null,
+      anoAcademico: dados.anoAcademico ?? null,
+      avatarUrl: dados.avatarUrl ?? null,
+      dados: dados.dados ?? {},
+      sincronizadoEm: agora,
+      criadoEm: existente?.criadoEm ?? agora,
+      atualizadoEm: agora
+    };
+
+    this.perfisEstudantis.set(chave, perfil);
+    return perfil;
+  }
+
+  async buscarNegocioPrincipalPorUsuario(usuarioId: string): Promise<NegocioBizy | null> {
+    const negocioId = this.negocioPrincipalPorUsuario.get(usuarioId);
+    return negocioId ? this.negocios.get(negocioId) ?? null : null;
+  }
+
+  async salvarNegocioUsuario(usuarioId: string, dados: DadosNegocioBizy): Promise<NegocioBizy> {
+    this.exigirUsuario(usuarioId);
+    const existente = await this.buscarNegocioPrincipalPorUsuario(usuarioId);
+    const agora = new Date();
+    const negocio: NegocioBizy = {
+      id: existente?.id ?? randomUUID(),
+      nomeComercial: dados.nomeComercial,
+      segmento: dados.segmento,
+      tipo: dados.tipo,
+      nif: dados.nif ?? null,
+      telefone: dados.telefone ?? null,
+      whatsapp: dados.whatsapp ?? null,
+      email: dados.email ?? null,
+      instagram: dados.instagram ?? null,
+      tiktok: dados.tiktok ?? null,
+      provincia: dados.provincia ?? null,
+      municipio: dados.municipio ?? null,
+      endereco: dados.endereco ?? null,
+      moeda: dados.moeda ?? "AOA",
+      fusoHorario: dados.fusoHorario ?? "Africa/Luanda",
+      canaisVenda: dados.canaisVenda ?? [],
+      metodosPagamento: dados.metodosPagamento ?? [],
+      entrega: dados.entrega ?? {},
+      minutosReservaPadrao: dados.minutosReservaPadrao ?? 10,
+      usuarioPapel: "DONO",
+      criadoEm: existente?.criadoEm ?? agora,
+      atualizadoEm: agora
+    };
+
+    this.negocios.set(negocio.id, negocio);
+    this.negocioPrincipalPorUsuario.set(usuarioId, negocio.id);
+    return negocio;
+  }
+
+  async marcarUsuarioOnboardingCompleto(usuarioId: string, data: Date): Promise<UsuarioSistema> {
+    const usuario = this.exigirUsuario(usuarioId);
+    const atualizado = { ...usuario, perfilCompletoEm: data, atualizadoEm: data };
+    this.usuarios.set(usuarioId, atualizado);
+    return atualizado;
+  }
+
+  async criarCodigoSms(dados: {
+    telefone: string;
+    codigoHash: string;
+    codigoFinal: string;
+    expiraEm: Date;
+    statusEnvio: string;
+    provider: string;
+    providerMessageId?: string | null;
+    providerResponseJson?: string | null;
+    usuarioId?: string | null;
+  }): Promise<CodigoLoginSms> {
+    const agora = new Date();
+    const codigo: CodigoLoginSms = {
+      id: randomUUID(),
+      telefone: dados.telefone,
+      codigoHash: dados.codigoHash,
+      codigoFinal: dados.codigoFinal,
+      expiraEm: dados.expiraEm,
+      usadoEm: null,
+      tentativas: 0,
+      statusEnvio: dados.statusEnvio,
+      provider: dados.provider,
+      providerMessageId: dados.providerMessageId ?? null,
+      providerResponseJson: dados.providerResponseJson ?? null,
+      usuarioId: dados.usuarioId ?? null,
+      criadoEm: agora,
+      atualizadoEm: agora
+    };
+
+    this.codigos.set(codigo.id, codigo);
+    return codigo;
+  }
+
+  async buscarCodigoSmsValido(telefone: string, agora: Date): Promise<CodigoLoginSms | null> {
+    return (
+      [...this.codigos.values()]
+        .filter((codigo) => codigo.telefone === telefone && !codigo.usadoEm && codigo.expiraEm > agora)
+        .filter((codigo) => ["SENT", "DEV"].includes(codigo.statusEnvio))
+        .sort((a, b) => b.criadoEm.getTime() - a.criadoEm.getTime())[0] ?? null
+    );
+  }
+
+  async marcarCodigoUsado(id: string, usadoEm: Date): Promise<CodigoLoginSms> {
+    const codigo = this.exigirCodigo(id);
+    const atualizado = { ...codigo, usadoEm, atualizadoEm: usadoEm };
+    this.codigos.set(id, atualizado);
+    return atualizado;
+  }
+
+  async incrementarTentativasCodigo(id: string): Promise<CodigoLoginSms> {
+    const codigo = this.exigirCodigo(id);
+    const atualizado = { ...codigo, tentativas: codigo.tentativas + 1, atualizadoEm: new Date() };
+    this.codigos.set(id, atualizado);
+    return atualizado;
+  }
+
+  async revogarCodigosAbertos(telefone: string, agora: Date): Promise<void> {
+    for (const codigo of this.codigos.values()) {
+      if (codigo.telefone === telefone && !codigo.usadoEm && codigo.expiraEm > agora) {
+        this.codigos.set(codigo.id, { ...codigo, usadoEm: agora, statusEnvio: "REVOKED", atualizadoEm: agora });
+      }
+    }
+  }
+
+  async criarSessao(dados: { tokenHash: string; usuarioId: string; expiraEm: Date }): Promise<void> {
+    const sessao = {
+      id: randomUUID(),
+      tokenHash: dados.tokenHash,
+      usuarioId: dados.usuarioId,
+      expiraEm: dados.expiraEm,
+      criadaEm: new Date(),
+      ultimoUsoEm: null
+    };
+    this.sessoes.set(sessao.tokenHash, sessao);
+  }
+
+  async buscarSessaoPorTokenHash(tokenHash: string, agora: Date) {
+    const sessao = this.sessoes.get(tokenHash);
+    if (!sessao || sessao.expiraEm <= agora) return null;
+    const usuario = this.usuarios.get(sessao.usuarioId);
+    return usuario ? { id: sessao.id, usuario } : null;
+  }
+
+  async tocarSessao(id: string, agora: Date): Promise<void> {
+    for (const [tokenHash, sessao] of this.sessoes.entries()) {
+      if (sessao.id === id) {
+        this.sessoes.set(tokenHash, { ...sessao, ultimoUsoEm: agora });
+        return;
+      }
+    }
+  }
+
+  async encerrarSessao(tokenHash: string): Promise<void> {
+    this.sessoes.delete(tokenHash);
+  }
+
+  async limparCodigosSms(): Promise<number> {
+    const total = this.codigos.size;
+    this.codigos.clear();
+    return total;
+  }
+
+  private exigirCodigo(id: string) {
+    const codigo = this.codigos.get(id);
+    if (!codigo) throw new Error(`Código ${id} não encontrado.`);
+    return codigo;
+  }
+
+  private exigirUsuario(id: string): UsuarioSistema {
+    const usuario = this.usuarios.get(id);
+    if (!usuario) throw new Error(`Usuário ${id} não encontrado.`);
+    return usuario;
+  }
+
+  private chaveIdentidade(tipo: string, provider: string, providerUserId: string) {
+    return `${tipo}:${provider}:${providerUserId}`;
+  }
+}
+
+export class RepositorioInstanciasWhatsAppMemoria implements RepositorioInstanciasWhatsApp {
+  private readonly instancias = new Map<string, InstanciaWhatsApp>();
+
+  async criar(dados: {
+    nome: string;
+    etiqueta?: string | null;
+    telefone?: string | null;
+    baseUrl?: string | null;
+    apiKey?: string | null;
+    padrao?: boolean;
+  }): Promise<InstanciaWhatsApp> {
+    if ([...this.instancias.values()].some((instancia) => instancia.nome === dados.nome && instancia.ativa)) {
+      throw new Error(`Instância ${dados.nome} já existe.`);
+    }
+
+    if (dados.padrao) {
+      for (const instancia of this.instancias.values()) {
+        this.instancias.set(instancia.id, { ...instancia, padrao: false, atualizadaEm: new Date() });
+      }
+    }
+
+    const agora = new Date();
+    const instancia: InstanciaWhatsApp = {
+      id: randomUUID(),
+      nome: dados.nome,
+      etiqueta: dados.etiqueta ?? null,
+      telefone: dados.telefone ?? null,
+      status: "CRIADA",
+      qrCode: null,
+      pairingCode: null,
+      baseUrl: dados.baseUrl ?? null,
+      apiKey: dados.apiKey ?? null,
+      padrao: dados.padrao ?? false,
+      ativa: true,
+      ultimoErro: null,
+      ultimaConexaoEm: null,
+      ultimaConsultaEm: null,
+      criadaEm: agora,
+      atualizadaEm: agora
+    };
+
+    this.instancias.set(instancia.id, instancia);
+    return instancia;
+  }
+
+  async listarAtivas(): Promise<InstanciaWhatsApp[]> {
+    return [...this.instancias.values()]
+      .filter((instancia) => instancia.ativa)
+      .sort((a, b) => Number(b.padrao) - Number(a.padrao) || b.atualizadaEm.getTime() - a.atualizadaEm.getTime());
+  }
+
+  async buscarPorId(id: string): Promise<InstanciaWhatsApp | null> {
+    return this.instancias.get(id) ?? null;
+  }
+
+  async buscarPadrao(): Promise<InstanciaWhatsApp | null> {
+    return (await this.listarAtivas()).find((instancia) => instancia.padrao) ?? null;
+  }
+
+  async atualizar(id: string, dados: Partial<Pick<
+    InstanciaWhatsApp,
+    "etiqueta" | "telefone" | "status" | "qrCode" | "pairingCode" | "baseUrl" | "apiKey" | "padrao" | "ativa" | "ultimoErro" | "ultimaConexaoEm" | "ultimaConsultaEm"
+  >>): Promise<InstanciaWhatsApp> {
+    const instancia = await this.exigirInstancia(id);
+
+    if (dados.padrao) {
+      for (const item of this.instancias.values()) {
+        if (item.id !== id) this.instancias.set(item.id, { ...item, padrao: false, atualizadaEm: new Date() });
+      }
+    }
+
+    const atualizada = { ...instancia, ...dados, atualizadaEm: new Date() };
+    this.instancias.set(id, atualizada);
+    return atualizada;
+  }
+
+  async definirPadrao(id: string): Promise<InstanciaWhatsApp> {
+    return this.atualizar(id, { padrao: true, ativa: true });
+  }
+
+  async desativar(id: string): Promise<InstanciaWhatsApp> {
+    return this.atualizar(id, { ativa: false, padrao: false });
+  }
+
+  private async exigirInstancia(id: string): Promise<InstanciaWhatsApp> {
+    const instancia = await this.buscarPorId(id);
+    if (!instancia) throw new Error(`Instância ${id} não encontrada.`);
+    return instancia;
+  }
+}
+
+export class RepositorioSessoesLiveMemoria implements RepositorioSessoesLive {
+  private readonly sessoes = new Map<string, RegistroSessaoLive>();
+
+  async salvar(dados: NovoRegistroSessaoLive): Promise<RegistroSessaoLive> {
+    const agora = new Date();
+    const existente = this.sessoes.get(dados.id);
+    const sessao: RegistroSessaoLive = {
+      id: dados.id,
+      username: dados.username,
+      providerNome: dados.providerNome,
+      status: dados.status,
+      ativa: dados.ativa ?? true,
+      iniciadaEm: dados.iniciadaEm,
+      encerradaEm: dados.encerradaEm ?? null,
+      comentariosRecebidos: dados.comentariosRecebidos ?? 0,
+      comentariosProcessados: dados.comentariosProcessados ?? 0,
+      comentariosComErro: dados.comentariosComErro ?? 0,
+      ultimoComentarioEm: dados.ultimoComentarioEm ?? null,
+      ultimoErro: dados.ultimoErro ?? null,
+      criadaEm: existente?.criadaEm ?? agora,
+      atualizadaEm: agora
+    };
+
+    this.sessoes.set(dados.id, sessao);
+    return sessao;
+  }
+
+  async listarAtivas(): Promise<RegistroSessaoLive[]> {
+    return [...this.sessoes.values()]
+      .filter((sessao) => sessao.ativa)
+      .sort((a, b) => b.atualizadaEm.getTime() - a.atualizadaEm.getTime());
+  }
+
+  async buscarPorId(id: string): Promise<RegistroSessaoLive | null> {
+    return this.sessoes.get(id) ?? null;
+  }
+
+  async atualizar(id: string, dados: AtualizacaoRegistroSessaoLive): Promise<RegistroSessaoLive> {
+    const existente = await this.buscarPorId(id);
+    if (!existente) throw new Error(`Sessão de live ${id} não encontrada.`);
+
+    const atualizada: RegistroSessaoLive = {
+      ...existente,
+      ...dados,
+      atualizadaEm: new Date()
+    };
+
+    this.sessoes.set(id, atualizada);
+    return atualizada;
+  }
+
+  async encerrar(id: string, encerradaEm = new Date()): Promise<RegistroSessaoLive> {
+    return this.atualizar(id, { ativa: false, status: "ENCERRADA", encerradaEm });
+  }
+}
+
+export class RepositorioAtendimentoMemoria implements RepositorioAtendimento {
+  private readonly clientes = new Map<string, ClienteAtendimento>();
+  private readonly conversas = new Map<string, ConversaAtendimento>();
+  private readonly mensagens = new Map<string, MensagemAtendimento>();
+
+  async registrarMensagem(dados: NovaMensagemAtendimento): Promise<MensagemAtendimento> {
+    if (dados.providerMessageId) {
+      const existente = await this.buscarMensagemPorProviderMessageId(dados.providerMessageId);
+      if (existente) return existente;
+    }
+
+    const agora = new Date();
+    const enviadaEm = dados.enviadaEm ?? agora;
+    const { cliente, conversa } = this.obterConversaExistente(dados, enviadaEm) ?? this.obterOuCriarConversa(dados, enviadaEm);
+    if (dados.providerMessageId) {
+      const existenteConcorrente =
+        [...this.mensagens.values()].find((mensagem) => mensagem.providerMessageId === dados.providerMessageId) ?? null;
+      if (existenteConcorrente) return existenteConcorrente;
+    }
+    const mensagem: MensagemAtendimento = {
+      id: randomUUID(),
+      conversaId: conversa.id,
+      telefone: dados.telefone,
+      direcao: dados.direcao,
+      remetente: dados.remetente,
+      canal: dados.canal ?? "whatsapp",
+      tipo: dados.tipo,
+      conteudo: dados.conteudo,
+      provider: dados.provider ?? null,
+      providerMessageId: dados.providerMessageId ?? null,
+      status: dados.status ?? (dados.direcao === "INBOUND" ? "RECEIVED" : "SENT"),
+      origem: dados.origem,
+      reservaId: dados.reservaId ?? null,
+      comentarioId: dados.comentarioId ?? null,
+      erro: dados.erro ?? null,
+      contexto: dados.contexto ?? {},
+      enviadaEm,
+      criadoEm: agora,
+      atualizadoEm: agora
+    };
+
+    this.mensagens.set(mensagem.id, mensagem);
+    this.clientes.set(cliente.telefone, { ...cliente, ultimaInteracaoEm: enviadaEm, atualizadoEm: agora });
+    this.conversas.set(conversa.id, { ...conversa, ultimaMensagemEm: enviadaEm, atualizadoEm: agora });
+    return mensagem;
+  }
+
+  async listarConversasComMensagens(limite = 100): Promise<ConversaAtendimentoComMensagens[]> {
+    return [...this.conversas.values()]
+      .map((conversa) => this.montarConversaComMensagens(conversa))
+      .sort(
+        (a, b) =>
+          (b.conversa.ultimaMensagemEm?.getTime() ?? b.conversa.atualizadoEm.getTime()) -
+          (a.conversa.ultimaMensagemEm?.getTime() ?? a.conversa.atualizadoEm.getTime())
+      )
+      .slice(0, limite);
+  }
+
+  async buscarConversaComMensagensPorId(id: string): Promise<ConversaAtendimentoComMensagens | null> {
+    const conversa = this.conversas.get(id);
+    return conversa ? this.montarConversaComMensagens(conversa) : null;
+  }
+
+  async atualizarConversa(
+    id: string,
+    dados: AtualizacaoConversaAtendimento
+  ): Promise<ConversaAtendimentoComMensagens | null> {
+    const conversa = this.conversas.get(id);
+    if (!conversa) return null;
+
+    const atualizada: ConversaAtendimento = {
+      ...conversa,
+      estado: dados.estado ?? conversa.estado,
+      prioridade: dados.prioridade ?? conversa.prioridade,
+      responsavelId: dados.responsavelId === undefined ? conversa.responsavelId : dados.responsavelId,
+      tags: dados.tags ?? conversa.tags,
+      atualizadoEm: new Date()
+    };
+
+    this.conversas.set(id, atualizada);
+    return this.montarConversaComMensagens(atualizada);
+  }
+
+  async buscarMensagemPorProviderMessageId(providerMessageId: string): Promise<MensagemAtendimento | null> {
+    return [...this.mensagens.values()].find((mensagem) => mensagem.providerMessageId === providerMessageId) ?? null;
+  }
+
+  async atualizarStatusMensagemPorProviderMessageId(
+    providerMessageId: string,
+    dados: { status: MensagemAtendimento["status"]; erro?: string | null; atualizadoEm?: Date }
+  ): Promise<MensagemAtendimento | null> {
+    const mensagem = await this.buscarMensagemPorProviderMessageId(providerMessageId);
+    if (!mensagem) return null;
+
+    const atualizada = {
+      ...mensagem,
+      status: dados.status,
+      erro: dados.erro === undefined ? mensagem.erro : dados.erro,
+      atualizadoEm: dados.atualizadoEm ?? new Date()
+    };
+    this.mensagens.set(mensagem.id, atualizada);
+    return atualizada;
+  }
+
+  async limparHistorico() {
+    const resultado = {
+      mensagensAtendimento: this.mensagens.size,
+      conversasAtendimento: this.conversas.size,
+      clientesAtendimento: this.clientes.size
+    };
+
+    this.mensagens.clear();
+    this.conversas.clear();
+    this.clientes.clear();
+    return resultado;
+  }
+
+  private obterOuCriarConversa(dados: NovaMensagemAtendimento, agora: Date) {
+    const clienteExistente = this.clientes.get(dados.telefone);
+    const cliente: ClienteAtendimento = clienteExistente
+      ? {
+          ...clienteExistente,
+          nome: dados.nomeCliente ?? clienteExistente.nome,
+          username: dados.usernameCliente ?? clienteExistente.username,
+          userId: dados.userIdCliente ?? clienteExistente.userId,
+          avatarUrl: dados.avatarUrlCliente ?? clienteExistente.avatarUrl,
+          ultimaInteracaoEm: agora,
+          atualizadoEm: new Date()
+        }
+      : {
+          id: randomUUID(),
+          telefone: dados.telefone,
+          nome: dados.nomeCliente ?? null,
+          username: dados.usernameCliente ?? null,
+          userId: dados.userIdCliente ?? null,
+          avatarUrl: dados.avatarUrlCliente ?? null,
+          origem: dados.origem,
+          tags: [],
+          consentimento: true,
+          primeiraInteracaoEm: agora,
+          ultimaInteracaoEm: agora,
+          criadoEm: new Date(),
+          atualizadoEm: new Date()
+        };
+
+    this.clientes.set(cliente.telefone, cliente);
+
+    const canal = dados.canal ?? "whatsapp";
+    const conversaExistente = [...this.conversas.values()].find(
+      (conversa) => conversa.telefone === dados.telefone && conversa.canal === canal
+    );
+    const conversa: ConversaAtendimento =
+      conversaExistente ??
+      {
+        id: randomUUID(),
+        clienteId: cliente.id,
+        telefone: dados.telefone,
+        canal,
+        estado: "ABERTA",
+        prioridade: "NORMAL",
+        responsavelId: null,
+        tags: [],
+        ultimaMensagemEm: null,
+        criadaEm: new Date(),
+        atualizadoEm: new Date()
+      };
+
+    this.conversas.set(conversa.id, conversa);
+    return { cliente, conversa };
+  }
+
+  private obterConversaExistente(dados: NovaMensagemAtendimento, agora: Date) {
+    if (!dados.conversaId) return null;
+
+    const conversa = this.conversas.get(dados.conversaId);
+    if (!conversa) return null;
+
+    const clienteExistente = this.clientes.get(conversa.telefone);
+    if (!clienteExistente) return null;
+
+    const cliente: ClienteAtendimento = {
+      ...clienteExistente,
+      nome: dados.nomeCliente ?? clienteExistente.nome,
+      username: dados.usernameCliente ?? clienteExistente.username,
+      userId: dados.userIdCliente ?? clienteExistente.userId,
+      avatarUrl: dados.avatarUrlCliente ?? clienteExistente.avatarUrl,
+      ultimaInteracaoEm: agora,
+      atualizadoEm: new Date()
+    };
+
+    this.clientes.set(cliente.telefone, cliente);
+    return { cliente, conversa };
+  }
+
+  private montarConversaComMensagens(conversa: ConversaAtendimento): ConversaAtendimentoComMensagens {
+    return {
+      conversa,
+      cliente: this.clientes.get(conversa.telefone)!,
+      mensagens: [...this.mensagens.values()]
+        .filter((mensagem) => mensagem.conversaId === conversa.id)
+        .sort((a, b) => a.enviadaEm.getTime() - b.enviadaEm.getTime())
+    };
+  }
+}
+
+export class RepositorioAuditoriaMemoria implements RepositorioAuditoria {
+  private readonly eventos = new Map<string, EventoSistema>();
+  private readonly mensagens = new Map<string, {
+    id: string;
+    telefone: string;
+    tipo: string;
+    conteudo: string;
+    provider: string;
+    idExterno: string | null;
+    enviadaEm: Date;
+  }>();
+  private readonly outbox = new Map<string, RegistroOutboxEventoN8n>();
+  private readonly outboxWhatsApp = new Map<string, RegistroOutboxMensagemWhatsApp>();
+
+  async registrarEventoSistema(evento: EventoSistema): Promise<void> {
+    this.eventos.set(evento.id, evento);
+  }
+
+  async registrarMensagemWhatsApp(dados: {
+    telefone: string;
+    tipo: string;
+    conteudo: string;
+    provider: string;
+    idExterno?: string | null;
+    enviadaEm?: Date;
+  }): Promise<void> {
+    const id = randomUUID();
+    this.mensagens.set(id, {
+      id,
+      telefone: dados.telefone,
+      tipo: dados.tipo,
+      conteudo: dados.conteudo,
+      provider: dados.provider,
+      idExterno: dados.idExterno ?? null,
+      enviadaEm: dados.enviadaEm ?? new Date()
+    });
+  }
+
+  async criarEventoN8n(evento: EventoSistema): Promise<RegistroOutboxEventoN8n> {
+    const agora = new Date();
+    const registro: RegistroOutboxEventoN8n = {
+      id: randomUUID(),
+      eventoId: evento.id,
+      tipo: evento.tipo,
+      payload: evento.dados,
+      status: "PENDENTE",
+      tentativas: 0,
+      proximaTentativaEm: agora,
+      ultimoErro: null,
+      publicadoEm: null,
+      criadoEm: agora,
+      atualizadoEm: agora
+    };
+
+    this.outbox.set(registro.id, registro);
+    return registro;
+  }
+
+  async listarEventosN8n(limite = 100): Promise<RegistroOutboxEventoN8n[]> {
+    return [...this.outbox.values()]
+      .sort((a, b) => b.criadoEm.getTime() - a.criadoEm.getTime())
+      .slice(0, limite);
+  }
+
+  async listarEventosN8nPendentes(limite: number, agora: Date): Promise<RegistroOutboxEventoN8n[]> {
+    return [...this.outbox.values()]
+      .filter((evento) => evento.status !== "PUBLICADO" && evento.proximaTentativaEm <= agora)
+      .sort((a, b) => a.criadoEm.getTime() - b.criadoEm.getTime())
+      .slice(0, limite);
+  }
+
+  async marcarEventoN8nPublicado(id: string, publicadoEm: Date): Promise<void> {
+    const registro = this.outbox.get(id);
+    if (!registro) return;
+    this.outbox.set(id, { ...registro, status: "PUBLICADO", publicadoEm, atualizadoEm: publicadoEm });
+  }
+
+  async marcarEventoN8nFalha(id: string, erro: string, proximaTentativaEm: Date): Promise<void> {
+    const registro = this.outbox.get(id);
+    if (!registro) return;
+    this.outbox.set(id, {
+      ...registro,
+      status: "FALHOU",
+      tentativas: registro.tentativas + 1,
+      ultimoErro: erro,
+      proximaTentativaEm,
+      atualizadoEm: new Date()
+    });
+  }
+
+  async resumirEventosN8n(): Promise<ResumoOutboxEventoN8n> {
+    const eventos = [...this.outbox.values()];
+    const pendentes = eventos.filter((evento) => evento.status === "PENDENTE");
+    const falhados = eventos.filter((evento) => evento.status === "FALHOU");
+    const proximaTentativaEm =
+      [...pendentes, ...falhados]
+        .map((evento) => evento.proximaTentativaEm)
+        .sort((a, b) => a.getTime() - b.getTime())[0] ?? null;
+    const atualizadoEm = eventos.map((evento) => evento.atualizadoEm).sort((a, b) => b.getTime() - a.getTime())[0] ?? null;
+    const ultimaFalha =
+      falhados.sort((a, b) => b.atualizadoEm.getTime() - a.atualizadoEm.getTime())[0]?.ultimoErro ?? null;
+
+    return {
+      total: eventos.length,
+      pendentes: pendentes.length,
+      publicados: eventos.filter((evento) => evento.status === "PUBLICADO").length,
+      falhados: falhados.length,
+      proximaTentativaEm,
+      ultimaFalha,
+      atualizadoEm
+    };
+  }
+
+  async criarMensagemWhatsAppPendente(dados: NovoOutboxMensagemWhatsApp): Promise<RegistroOutboxMensagemWhatsApp> {
+    const agora = new Date();
+    const registro: RegistroOutboxMensagemWhatsApp = {
+      id: randomUUID(),
+      telefone: dados.telefone,
+      tipo: dados.tipo,
+      conteudo: dados.conteudo,
+      contexto: dados.contexto ?? {},
+      status: "PENDENTE",
+      tentativas: 0,
+      maxTentativas: Math.max(1, dados.maxTentativas ?? 5),
+      proximaTentativaEm: dados.proximaTentativaEm ?? agora,
+      ultimoErro: dados.ultimoErro ?? null,
+      provider: null,
+      idExterno: null,
+      enviadaEm: null,
+      criadoEm: agora,
+      atualizadoEm: agora
+    };
+
+    this.outboxWhatsApp.set(registro.id, registro);
+    return registro;
+  }
+
+  async listarMensagensWhatsApp(limite = 100): Promise<RegistroOutboxMensagemWhatsApp[]> {
+    return [...this.outboxWhatsApp.values()]
+      .sort((a, b) => b.criadoEm.getTime() - a.criadoEm.getTime())
+      .slice(0, limite);
+  }
+
+  async listarMensagensWhatsAppPendentes(
+    limite: number,
+    agora: Date,
+    opcoes: { incluirFalhadas?: boolean } = {}
+  ): Promise<RegistroOutboxMensagemWhatsApp[]> {
+    return [...this.outboxWhatsApp.values()]
+      .filter((mensagem) => {
+        const statusPermitido = mensagem.status === "PENDENTE" || (opcoes.incluirFalhadas && mensagem.status === "FALHOU");
+        return statusPermitido && mensagem.proximaTentativaEm <= agora;
+      })
+      .sort((a, b) => a.criadoEm.getTime() - b.criadoEm.getTime())
+      .slice(0, limite);
+  }
+
+  async marcarMensagemWhatsAppEnviada(
+    id: string,
+    dados: { provider: string; idExterno?: string | null; enviadaEm: Date }
+  ): Promise<void> {
+    const registro = this.outboxWhatsApp.get(id);
+    if (!registro) return;
+
+    this.outboxWhatsApp.set(id, {
+      ...registro,
+      status: "ENVIADA",
+      provider: dados.provider,
+      idExterno: dados.idExterno ?? null,
+      enviadaEm: dados.enviadaEm,
+      ultimoErro: null,
+      atualizadoEm: dados.enviadaEm
+    });
+  }
+
+  async marcarMensagemWhatsAppFalha(
+    id: string,
+    erro: string,
+    proximaTentativaEm: Date,
+    opcoes: { falhaFinal?: boolean } = {}
+  ): Promise<void> {
+    const registro = this.outboxWhatsApp.get(id);
+    if (!registro) return;
+
+    this.outboxWhatsApp.set(id, {
+      ...registro,
+      status: opcoes.falhaFinal ? "FALHOU" : "PENDENTE",
+      tentativas: registro.tentativas + 1,
+      ultimoErro: erro,
+      proximaTentativaEm,
+      atualizadoEm: new Date()
+    });
+  }
+
+  async resumirMensagensWhatsAppOutbox(): Promise<ResumoOutboxMensagemWhatsApp> {
+    const mensagens = [...this.outboxWhatsApp.values()];
+    const pendentes = mensagens.filter((mensagem) => mensagem.status === "PENDENTE");
+    const falhadas = mensagens.filter((mensagem) => mensagem.status === "FALHOU");
+    const reprocessaveis = [...pendentes, ...falhadas];
+    const proximaTentativaEm =
+      reprocessaveis.map((mensagem) => mensagem.proximaTentativaEm).sort((a, b) => a.getTime() - b.getTime())[0] ?? null;
+    const atualizadoEm = mensagens.map((mensagem) => mensagem.atualizadoEm).sort((a, b) => b.getTime() - a.getTime())[0] ?? null;
+    const ultimaFalha =
+      mensagens
+        .filter((mensagem) => mensagem.ultimoErro)
+        .sort((a, b) => b.atualizadoEm.getTime() - a.atualizadoEm.getTime())[0]?.ultimoErro ?? null;
+
+    return {
+      total: mensagens.length,
+      pendentes: pendentes.length,
+      enviadas: mensagens.filter((mensagem) => mensagem.status === "ENVIADA").length,
+      falhadas: falhadas.length,
+      proximaTentativaEm,
+      ultimaFalha,
+      atualizadoEm
+    };
+  }
+
+  async limparMensagensComunicacao() {
+    const resultado = {
+      mensagensWhatsapp: this.mensagens.size,
+      outboxWhatsapp: this.outboxWhatsApp.size
+    };
+
+    this.mensagens.clear();
+    this.outboxWhatsApp.clear();
+    return resultado;
+  }
+}

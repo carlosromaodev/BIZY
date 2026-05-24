@@ -1,0 +1,31 @@
+{
+  "name": "emeu",
+  "version": "0.1.0",
+  "private": true,
+  "description": "ÉMeu - automação de vendas em lives com reservas e WhatsApp.",
+  "workspaces": [
+    "backend",
+    "frontend"
+  ],
+  "scripts": {
+    "dev": "bash scripts/dev-full.sh",
+    "dev:full": "bash scripts/dev-full.sh",
+    "dev:backend": "npm run dev --workspace backend",
+    "dev:frontend": "npm run dev --workspace frontend",
+    "build": "npm run build --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "prisma:generate": "npm run prisma:generate --workspace backend",
+    "prisma:push": "npm run prisma:push --workspace backend",
+    "prisma:migrate:dev": "npm run prisma:migrate:dev --workspace backend",
+    "prisma:migrate:deploy": "npm run prisma:migrate:deploy --workspace backend",
+    "prisma:migrate:status": "npm run prisma:migrate:status --workspace backend",
+    "docker:config": "docker compose --env-file .env.docker.example config",
+    "docker:up": "COMPOSE_BAKE=false DOCKER_BUILDKIT=0 docker compose --env-file .env.docker.example up -d --build",
+    "docker:down": "docker compose --env-file .env.docker.example down",
+    "docker:logs": "docker compose --env-file .env.docker.example logs -f backend n8n evolution-api",
+    "ngrok:sistema": "bash scripts/setup-ngrok.sh",
+    "ngrok:evolution": "bash scripts/setup-ngrok.sh",
+    "ngrok:update": "bash scripts/update-ngrok-url.sh"
+  }
+}
