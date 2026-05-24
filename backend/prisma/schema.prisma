@@ -439,6 +439,9 @@ model Negocio {
   metodosPagamentoJson  String          @default("[]")
   entregaJson           String          @default("{}")
   minutosReservaPadrao  Int             @default(10)
+  slugPublico           String?         @unique
+  descricaoPublica      String?
+  lojaPublicadaEm       DateTime?
   criadoEm              DateTime        @default(now())
   atualizadoEm          DateTime        @updatedAt
   membros               MembroNegocio[]
@@ -462,8 +465,33 @@ model Negocio {
   relacoesDestino       RelacaoNegocio[] @relation("RelacaoNegocioDestino")
   compartilhamentosOrigem CompartilhamentoCliente[] @relation("CompartilhamentoClienteNegocioOrigem")
   compartilhamentosDestino CompartilhamentoCliente[] @relation("CompartilhamentoClienteNegocioDestino")
+  eventosTrackingComercial EventoTrackingComercial[]
 
   @@index([nomeComercial])
+  @@index([slugPublico])
+}
+
+model EventoTrackingComercial {
+  id             String   @id @default(uuid())
+  negocioId      String
+  negocio        Negocio  @relation(fields: [negocioId], references: [id])
+  tipo           String
+  entidadeTipo   String?
+  entidadeId     String?
+  slugLoja       String?
+  codigoProduto  String?
+  trackingId     String?
+  origem         String?
+  canal          String?
+  utmJson        String   @default("{}")
+  metadataJson   String   @default("{}")
+  criadoEm       DateTime @default(now())
+
+  @@index([negocioId, tipo, criadoEm])
+  @@index([negocioId, origem, criadoEm])
+  @@index([negocioId, canal, criadoEm])
+  @@index([slugLoja, criadoEm])
+  @@index([trackingId, criadoEm])
 }
 
 model MembroNegocio {

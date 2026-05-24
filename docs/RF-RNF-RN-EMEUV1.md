@@ -1,10 +1,10 @@
 # Bizy / ÉMeu V1 - Requisitos Funcionais, Não Funcionais e Regras de Negócio
 
 Documento: `RF-RNF-RN-EMEUV1.md`
-Versão: 1.7
+Versão: 1.8
 Data: 2026-05-25
 Autor: Carlos
-Status: MVP base implementado; fundação backend Bizy CRM+ com Clientes 360, Pedidos e Catálogo/Stock comercial em evolução
+Status: MVP base implementado; fundação backend Bizy CRM+ com Clientes 360, Pedidos, Catálogo/Stock e Loja Pública em evolução
 
 ---
 
@@ -31,6 +31,8 @@ Atualização 1.5: iniciado o backend de Clientes 360, com API autenticada/multi
 Atualização 1.6: iniciado o backend de Pedidos completos, com APIs autenticadas/multi-negócio para criar pedidos manuais com vários itens, cliente obrigatório, cálculo de subtotal/desconto/entrega/total, validação de stock, funil operacional, confirmação de pagamento, atualização de entrega e exportação CSV.
 
 Atualização 1.7: iniciado o backend de Produtos, Stock e Catálogo Comercial, com metadados de produto, SKU, custo, margem estimada, categoria, coleção, variantes simples, estado de stock, resumo comercial e histórico de movimentos de stock por negócio.
+
+Atualização 1.8: iniciado o backend de Loja Pública, Catálogo Digital e Tracking, com publicação por slug, listagem pública de produtos vendáveis, página pública de produto, checkout WhatsApp pré-preenchido com origem e tracking básico de visitas, produto visto e clique WhatsApp.
 
 ---
 
@@ -308,7 +310,7 @@ Esta etapa transforma o Bizy de painel de live em CRM operacional para lojas que
 | RF117 | [x] O sistema deve manter histórico de movimentos de stock: entrada, venda, reserva, cancelamento, devolução, ajuste manual e correção. | Alta | Implementado no backend |
 | RF118 | [ ] O vendedor deve importar produtos por CSV/Excel com validação de código único e relatório de erros. | Média | Planeado |
 | RF119 | [x] O produto deve permitir variantes simples, como tamanho, cor ou modelo, quando a loja precisar. | Média | Implementado no backend |
-| RF120 | [ ] O CRM deve gerar catálogo compartilhável por WhatsApp com produtos selecionados, preço, fotos e disponibilidade. | Média | Planeado |
+| RF120 | [~] O CRM deve gerar catálogo compartilhável por WhatsApp com produtos selecionados, preço, fotos e disponibilidade. | Média | Parcial - loja pública e checkout WhatsApp por produto implementados; faltam catálogos selecionáveis por campanha |
 | RF121 | [ ] O sistema deve permitir arquivar produtos sem histórico de venda recente, preservando pedidos e relatórios antigos. | Média | Planeado |
 
 #### 3.13.5 Conversas, Campanhas e Atendimento
@@ -374,12 +376,12 @@ Esta etapa posiciona o Bizy como uma plataforma de operação comercial para cri
 
 | ID | Requisito Funcional | Prioridade | Estado |
 |---|---|---|---|
-| RF157 | [ ] Cada negócio deve poder publicar uma loja virtual com URL própria por slug e, futuramente, domínio personalizado. | Alta | Planeado |
-| RF158 | [ ] A loja virtual deve listar produtos com fotos, nome, preço, variantes, estado de stock, coleções, busca e filtros úteis. | Alta | Planeado |
-| RF159 | [ ] A página pública de produto deve permitir partilha direta, seleção de variante, cálculo inicial de entrega e chamada para comprar pelo WhatsApp ou pelo checkout do site. | Alta | Planeado |
-| RF160 | [ ] O dono do negócio deve poder criar catálogos digitais por coleção, campanha, live, afiliado, data comemorativa ou segmento de clientes. | Alta | Planeado |
-| RF161 | [ ] O catálogo digital deve gerar link partilhável e, quando necessário, resumo visual ou PDF simples com produtos, preços e disponibilidade. | Média | Planeado |
-| RF162 | [ ] O catálogo deve respeitar stock e disponibilidade, ocultando produtos indisponíveis ou oferecendo lista de interesse/reposição. | Alta | Planeado |
+| RF157 | [~] Cada negócio deve poder publicar uma loja virtual com URL própria por slug e, futuramente, domínio personalizado. | Alta | Parcial - publicação por slug implementada; faltam domínio personalizado e frontend público completo |
+| RF158 | [~] A loja virtual deve listar produtos com fotos, nome, preço, variantes, estado de stock, coleções, busca e filtros úteis. | Alta | Parcial - listagem pública com dados essenciais implementada; faltam busca/filtros avançados no endpoint público |
+| RF159 | [~] A página pública de produto deve permitir partilha direta, seleção de variante, cálculo inicial de entrega e chamada para comprar pelo WhatsApp ou pelo checkout do site. | Alta | Parcial - endpoint público e chamada WhatsApp implementados; faltam cálculo de entrega e checkout site |
+| RF160 | [~] O dono do negócio deve poder criar catálogos digitais por coleção, campanha, live, afiliado, data comemorativa ou segmento de clientes. | Alta | Parcial - base de loja/catálogo público implementada; faltam entidades de catálogo por campanha/segmento |
+| RF161 | [~] O catálogo digital deve gerar link partilhável e, quando necessário, resumo visual ou PDF simples com produtos, preços e disponibilidade. | Média | Parcial - slug público e links de produto implementados; faltam resumo visual/PDF |
+| RF162 | [x] O catálogo deve respeitar stock e disponibilidade, ocultando produtos indisponíveis ou oferecendo lista de interesse/reposição. | Alta | Implementado para ocultar indisponíveis |
 | RF163 | [ ] A loja deve permitir destacar produtos, promoções, novidades, mais vendidos, reposições e kits. | Média | Planeado |
 | RF164 | [ ] Páginas públicas devem ter metadados de SEO e preview social para WhatsApp, Facebook, Instagram, TikTok e navegadores. | Média | Planeado |
 
@@ -387,7 +389,7 @@ Esta etapa posiciona o Bizy como uma plataforma de operação comercial para cri
 
 | ID | Requisito Funcional | Prioridade | Estado |
 |---|---|---|---|
-| RF165 | [ ] O checkout por WhatsApp deve gerar mensagem pré-preenchida com produto, variante, quantidade, preço, entrega estimada e origem do link. | Alta | Planeado |
+| RF165 | [~] O checkout por WhatsApp deve gerar mensagem pré-preenchida com produto, variante, quantidade, preço, entrega estimada e origem do link. | Alta | Parcial - produto, variante, quantidade, preço e origem implementados; falta entrega estimada |
 | RF166 | [ ] O checkout pelo site deve criar pedido/carrinho com dados do cliente, itens, entrega, pagamento e origem comercial. | Alta | Planeado |
 | RF167 | [ ] O sistema deve calcular entrega por zona, município, bairro, tabela manual, retirada na loja ou regra de entrega grátis acima de valor configurado. | Alta | Planeado |
 | RF168 | [ ] O total do pedido deve calcular itens, descontos, entrega, taxas e valor final antes da confirmação. | Alta | Planeado |
@@ -402,11 +404,11 @@ Esta etapa posiciona o Bizy como uma plataforma de operação comercial para cri
 
 | ID | Requisito Funcional | Prioridade | Estado |
 |---|---|---|---|
-| RF175 | [ ] O sistema deve gerar links rastreáveis para produto, catálogo, campanha, afiliado, criador, vendedor, post social e live. | Alta | Planeado |
-| RF176 | [ ] Links rastreáveis devem suportar UTM, código de referência, canal, campanha, criador, afiliado, vendedor e origem do conteúdo. | Alta | Planeado |
+| RF175 | [~] O sistema deve gerar links rastreáveis para produto, catálogo, campanha, afiliado, criador, vendedor, post social e live. | Alta | Parcial - loja/produto e clique WhatsApp rastreáveis implementados; faltam campanha, afiliado, criador, vendedor, post e live |
+| RF176 | [~] Links rastreáveis devem suportar UTM, código de referência, canal, campanha, criador, afiliado, vendedor e origem do conteúdo. | Alta | Parcial - UTM, canal, origem e trackingId implementados; faltam entidades específicas de campanha/criador/afiliado/vendedor |
 | RF177 | [ ] O tracking deve associar visita anônima a lead, WhatsApp click, checkout ou pedido quando o cliente se identificar e houver base de consentimento aplicável. | Alta | Planeado |
-| RF178 | [ ] O sistema deve registrar eventos como página vista, produto visto, catálogo visto, clique WhatsApp, checkout iniciado, pedido criado, pagamento confirmado e compra entregue. | Alta | Planeado |
-| RF179 | [ ] O dono do negócio deve ver conversão por link, produto, campanha, afiliado, criador, rede social e canal de venda. | Alta | Planeado |
+| RF178 | [~] O sistema deve registrar eventos como página vista, produto visto, catálogo visto, clique WhatsApp, checkout iniciado, pedido criado, pagamento confirmado e compra entregue. | Alta | Parcial - loja visitada, produto visto e clique WhatsApp implementados |
+| RF179 | [~] O dono do negócio deve ver conversão por link, produto, campanha, afiliado, criador, rede social e canal de venda. | Alta | Parcial - resumo por tipo, origem e canal implementado; faltam conversão e atribuição completa |
 | RF180 | [ ] O CRM+ deve suportar modelos de atribuição: primeiro toque, último toque, conversão assistida e ajuste manual auditado. | Média | Planeado |
 | RF181 | [ ] O prazo de atribuição por cookie/referral deve ser configurável por negócio, campanha ou afiliado. | Média | Planeado |
 | RF182 | [ ] A loja pública deve exibir consentimento/aviso de tracking quando necessário e permitir operação básica mesmo sem cookies. | Alta | Planeado |
@@ -514,8 +516,8 @@ Esta etapa vem antes da implementação visual dos novos módulos. O objetivo é
 | RF252 | [~] O backend deve expor APIs de Clientes 360 para criar, listar, segmentar, fundir, etiquetar, bloquear, exportar e gerir consentimento. | Alta | Parcial - criar, listar, pesquisar, detalhar, etiquetar, bloquear/estado, exportar e consentimentos implementados; faltam fundir, segmentação comportamental avançada e jobs |
 | RF253 | [~] O backend deve expor APIs de Pedidos com múltiplos itens, estados de funil, pagamento, entrega, desconto, comprovativos e origem comercial. | Alta | Parcial - APIs `/pedidos` implementadas para criar/listar/detalhar/exportar, confirmar pagamento e atualizar entrega |
 | RF254 | [~] O backend deve evoluir Produtos para suportar variantes, coleções, movimentos de stock, custo, margem, importação e catálogo digital. | Alta | Parcial - variantes, coleções, movimentos, custo e margem implementados; faltam importação e catálogo digital público |
-| RF255 | [ ] O backend deve expor APIs públicas e privadas para loja virtual, página de produto, catálogo digital, checkout WhatsApp e checkout site. | Alta | Planeado |
-| RF256 | [ ] O backend deve registrar tracking de links, UTM, referência, cookies técnicos, visitas, cliques WhatsApp, checkout iniciado, pedido e venda atribuída. | Alta | Planeado |
+| RF255 | [~] O backend deve expor APIs públicas e privadas para loja virtual, página de produto, catálogo digital, checkout WhatsApp e checkout site. | Alta | Parcial - loja pública, página de produto e checkout WhatsApp implementados; falta checkout site |
+| RF256 | [~] O backend deve registrar tracking de links, UTM, referência, cookies técnicos, visitas, cliques WhatsApp, checkout iniciado, pedido e venda atribuída. | Alta | Parcial - trackingId, UTM, visitas, produto visto e clique WhatsApp implementados; faltam cookies técnicos, checkout iniciado, pedido e venda atribuída |
 | RF257 | [ ] O backend deve suportar afiliados, criadores e revendedores com links próprios, regras de comissão, reversões, pagamentos e relatórios. | Alta | Planeado |
 | RF258 | [ ] O backend deve normalizar social inbox com comentários de redes sociais, posts, autores, intenção, tarefas e oportunidades. | Alta | Planeado |
 | RF259 | [ ] O backend deve ter funil e playbooks de recuperação com eventos, condições, ações, tarefas humanas e histórico de mudança. | Alta | Planeado |
@@ -840,7 +842,7 @@ Esta etapa vem antes da implementação visual dos novos módulos. O objetivo é
 | RN80 | [ ] A identidade canônica do cliente deve priorizar telefone/email quando existirem, mantendo aliases sociais como TikTok, Instagram, Facebook, username e nome exibido. | Planeado |
 | RN81 | [ ] Uma visita anônima só vira cliente identificado quando o usuário fornece contacto, faz checkout, conversa pelo WhatsApp ou é associado por regra segura e permitida. | Planeado |
 | RN82 | [ ] Um link rastreável pode atribuir origem/campanha, mas não pode sobrescrever dados confirmados do cliente sem auditoria. | Planeado |
-| RN83 | [ ] A atribuição padrão deve ser configurável, mas o sistema deve mostrar claramente se a venda veio de live, site, WhatsApp, catálogo, campanha, afiliado, criador ou comentário social. | Planeado |
+| RN83 | [~] A atribuição padrão deve ser configurável, mas o sistema deve mostrar claramente se a venda veio de live, site, WhatsApp, catálogo, campanha, afiliado, criador ou comentário social. | Parcial - origem/canal do checkout WhatsApp e tracking básico implementados |
 | RN84 | [ ] Comissão de afiliado/criador só fica confirmada depois do pedido pago e dentro das regras de validade da atribuição. | Planeado |
 | RN85 | [ ] Cancelamento, devolução, chargeback, reembolso ou fraude devem reverter ou bloquear comissão. | Planeado |
 | RN86 | [ ] O dono/admin pode corrigir atribuição ou comissão manualmente, mas deve informar motivo e a alteração deve ficar auditada. | Planeado |
@@ -859,7 +861,7 @@ Esta etapa vem antes da implementação visual dos novos módulos. O objetivo é
 | RN99 | [ ] Comentário com intenção incerta, reclamação, pedido de desconto, troca ou conflito deve gerar tarefa humana. | Planeado |
 | RN100 | [~] O valor de entrega e total do pedido devem ser calculados antes do cliente confirmar compra pelo site ou WhatsApp. | Parcial - cálculo feito na criação do pedido; falta checkout site/WhatsApp |
 | RN101 | [~] Stock só deve ser bloqueado quando pedido/reserva atingir estado configurado para bloqueio; simples visualização ou clique não bloqueia stock. | Parcial - criação de pedido valida stock e considera pedidos ativos; falta configuração por negócio e movimentos de stock |
-| RN102 | [ ] O checkout por WhatsApp deve preservar origem do link e produto selecionado para que o atendente não precise perguntar tudo outra vez. | Planeado |
+| RN102 | [x] O checkout por WhatsApp deve preservar origem do link e produto selecionado para que o atendente não precise perguntar tudo outra vez. | Implementado no backend |
 | RN103 | [ ] Cookies devem armazenar apenas identificadores técnicos, referência, campanha e timestamps, nunca telefone, email, nome ou endereço. | Planeado |
 | RN104 | [ ] O cliente deve conseguir comprar mesmo recusando cookies não essenciais, com perda apenas de parte da atribuição/analytics. | Planeado |
 | RN105 | [ ] Evento de tracking não confirmado não pode ser tratado como venda, apenas como sinal de intenção ou oportunidade. | Planeado |

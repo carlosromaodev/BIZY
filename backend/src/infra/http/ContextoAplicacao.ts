@@ -12,7 +12,8 @@ import type {
   RepositorioPecas,
   RepositorioPedidos,
   RepositorioReservas,
-  RepositorioSessoesLive
+  RepositorioSessoesLive,
+  RepositorioTrackingComercial
 } from "../../dominio/repositorios/contratos.js";
 import { AutomacaoWhatsApp } from "../../dominio/servicos/AutomacaoWhatsApp.js";
 import { InterpretadorComentario } from "../../dominio/servicos/InterpretadorComentario.js";
@@ -32,6 +33,7 @@ import { GestaoAtendimentoCrmUseCase } from "../../use-case/GestaoAtendimentoCrm
 import { GestaoWhatsAppEvolutionUseCase } from "../../use-case/GestaoWhatsAppEvolutionUseCase.js";
 import { GerarReciboReservaUseCase } from "../../use-case/GerarReciboReservaUseCase.js";
 import { LimparDadosComunicacaoUseCase } from "../../use-case/LimparDadosComunicacaoUseCase.js";
+import { LojaPublicaUseCase } from "../../use-case/LojaPublicaUseCase.js";
 import { MonitorReservasUseCase } from "../../use-case/MonitorReservasUseCase.js";
 import { OnboardingBizyUseCase } from "../../use-case/OnboardingBizyUseCase.js";
 import { MotorReservas } from "../../use-case/MotorReservas.js";
@@ -49,7 +51,8 @@ import {
   RepositorioPecasMemoria,
   RepositorioPedidosMemoria,
   RepositorioReservasMemoria,
-  RepositorioSessoesLiveMemoria
+  RepositorioSessoesLiveMemoria,
+  RepositorioTrackingComercialMemoria
 } from "../../use-case/repositorios/RepositorioMemoria.js";
 import {
   RepositorioAutenticacaoPrisma,
@@ -61,7 +64,8 @@ import {
   RepositorioPecasPrisma,
   RepositorioPedidosPrisma,
   RepositorioReservasPrisma,
-  RepositorioSessoesLivePrisma
+  RepositorioSessoesLivePrisma,
+  RepositorioTrackingComercialPrisma
 } from "../../use-case/repositorios/RepositorioPrisma.js";
 import { criarPrismaCliente } from "../banco/prismaCliente.js";
 import { PublicadorEventosN8n } from "../n8n/PublicadorEventosN8n.js";
@@ -86,6 +90,7 @@ export interface RepositoriosAplicacao {
   instanciasWhatsApp: RepositorioInstanciasWhatsApp;
   sessoesLive: RepositorioSessoesLive;
   auditoria: RepositorioAuditoria;
+  trackingComercial: RepositorioTrackingComercial;
   verificarConexao?: () => Promise<void>;
   encerrar?: () => Promise<void>;
 }
@@ -136,6 +141,7 @@ export interface ContextoAplicacao {
   publicadorEventosN8n: PublicadorEventosN8n;
   recuperacaoMensagensWhatsApp: RecuperacaoMensagensWhatsAppUseCase;
   limparDadosComunicacao: LimparDadosComunicacaoUseCase;
+  lojaPublica: LojaPublicaUseCase;
   sessoesLive: Map<string, SessaoLive>;
 }
 
@@ -261,6 +267,11 @@ export function criarContextoAplicacao(logger: FastifyBaseLogger): ContextoAplic
     repositorios.auditoria,
     repositorios.autenticacao
   );
+  const lojaPublica = new LojaPublicaUseCase(
+    repositorios.autenticacao,
+    repositorios.pecas,
+    repositorios.trackingComercial
+  );
 
   const publicadorEventosN8n = new PublicadorEventosN8n(eventos, {
     webhookUrl: process.env.N8N_WEBHOOK_EVENTOS_URL,
@@ -302,6 +313,7 @@ export function criarContextoAplicacao(logger: FastifyBaseLogger): ContextoAplic
     publicadorEventosN8n,
     recuperacaoMensagensWhatsApp,
     limparDadosComunicacao,
+    lojaPublica,
     sessoesLive: new Map()
   };
 }
@@ -331,6 +343,7 @@ function criarRepositorios(): RepositoriosAplicacao {
       instanciasWhatsApp: new RepositorioInstanciasWhatsAppMemoria(),
       sessoesLive: new RepositorioSessoesLiveMemoria(),
       auditoria: new RepositorioAuditoriaMemoria(),
+      trackingComercial: new RepositorioTrackingComercialMemoria(),
       verificarConexao: async () => undefined
     };
   }
@@ -348,6 +361,7 @@ function criarRepositorios(): RepositoriosAplicacao {
     instanciasWhatsApp: new RepositorioInstanciasWhatsAppPrisma(prisma),
     sessoesLive: new RepositorioSessoesLivePrisma(prisma),
     auditoria: new RepositorioAuditoriaPrisma(prisma),
+    trackingComercial: new RepositorioTrackingComercialPrisma(prisma),
     verificarConexao: async () => {
       await prisma.$queryRaw`SELECT 1`;
     },

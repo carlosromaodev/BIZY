@@ -9,6 +9,7 @@ import {
   fontesLive,
   politicasAutomacaoAtendimento,
   prioridadesConversaAtendimento,
+  tiposEventoTrackingComercial,
   tiposMovimentoStock
 } from "./tipos.js";
 
@@ -81,6 +82,40 @@ export const RegistrarMovimentoStockSchema = z.object({
   motivo: z.string().trim().min(3).max(500),
   responsavelId: z.string().trim().min(1).max(120).nullable().optional().transform((valor) => valor ?? null),
   origem: z.string().trim().min(1).max(80).nullable().optional().transform((valor) => valor ?? null)
+});
+
+export const PublicarLojaSchema = z.object({
+  slug: z
+    .string()
+    .trim()
+    .min(3)
+    .max(80)
+    .transform((valor) => valor.toLowerCase())
+    .refine((valor) => /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(valor), {
+      message: "Use um slug com letras minúsculas, números e hífens, sem espaços."
+    }),
+  descricaoPublica: TextoCatalogoOpcionalSchema,
+  publicada: z.boolean().default(true)
+});
+
+export const RegistrarEventoTrackingSchema = z.object({
+  tipo: z.enum(tiposEventoTrackingComercial),
+  entidadeTipo: z.string().trim().min(1).max(80).nullable().optional().transform((valor) => valor ?? null),
+  entidadeId: z.string().trim().min(1).max(120).nullable().optional().transform((valor) => valor ?? null),
+  slugLoja: TextoCatalogoOpcionalSchema,
+  codigoProduto: TextoCatalogoOpcionalSchema,
+  trackingId: z.string().trim().min(1).max(160).nullable().optional().transform((valor) => valor ?? null),
+  origem: z.string().trim().min(1).max(80).nullable().optional().transform((valor) => valor ?? null),
+  canal: z.string().trim().min(1).max(80).nullable().optional().transform((valor) => valor ?? null),
+  utm: z.record(z.string(), z.string()).default({}),
+  metadata: z.record(z.string(), z.unknown()).default({})
+});
+
+export const GerarCheckoutWhatsAppPublicoSchema = z.object({
+  quantidade: z.coerce.number().int().min(1).max(999).default(1),
+  variante: z.record(z.string(), z.string()).default({}),
+  trackingId: z.string().trim().min(1).max(160).nullable().optional().transform((valor) => valor ?? null),
+  origem: z.string().trim().min(1).max(80).default("loja-publica")
 });
 
 export const IniciarLiveSchema = z.object({

@@ -11,7 +11,16 @@ export interface ContextoComercialHttp {
   modulosAtivos: string[];
 }
 
-const MODULOS_CORE = ["crm", "catalogo", "conversas", "reservas", "pedidos", "whatsapp"] as const;
+const MODULOS_CORE = [
+  "crm",
+  "catalogo",
+  "conversas",
+  "reservas",
+  "pedidos",
+  "whatsapp",
+  "loja-publica",
+  "tracking"
+] as const;
 
 const PERMISSOES_POR_PAPEL: Record<string, string[]> = {
   DONO: [
@@ -21,6 +30,8 @@ const PERMISSOES_POR_PAPEL: Record<string, string[]> = {
     "pedidos:gerir",
     "pagamentos:gerir",
     "conversas:gerir",
+    "loja-publica:gerir",
+    "tracking:ler",
     "campanhas:gerir",
     "relatorios:ver",
     "configuracoes:gerir"
@@ -32,11 +43,13 @@ const PERMISSOES_POR_PAPEL: Record<string, string[]> = {
     "pedidos:gerir",
     "pagamentos:gerir",
     "conversas:gerir",
+    "loja-publica:gerir",
+    "tracking:ler",
     "campanhas:gerir",
     "relatorios:ver",
     "configuracoes:gerir"
   ],
-  VENDEDOR: ["catalogo:ler", "clientes:ler", "pedidos:gerir", "conversas:gerir", "relatorios:ver"],
+  VENDEDOR: ["catalogo:ler", "clientes:ler", "pedidos:gerir", "conversas:gerir", "relatorios:ver", "tracking:ler"],
   ATENDENTE: ["clientes:ler", "pedidos:ler", "conversas:gerir"],
   FINANCEIRO: ["clientes:ler", "pedidos:ler", "pagamentos:gerir", "relatorios:ver"],
   ENTREGADOR: ["pedidos:ler", "entregas:gerir"],

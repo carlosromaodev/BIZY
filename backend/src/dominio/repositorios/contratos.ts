@@ -24,7 +24,9 @@ import type {
   EstadoPeca,
   EstadoReserva,
   EventoSistema,
+  EventoTrackingComercial,
   DadosCriacaoReservaComControleStock,
+  DadosPublicacaoLoja,
   CodigoLoginSms,
   InstanciaWhatsApp,
   NovoOutboxMensagemWhatsApp,
@@ -44,8 +46,10 @@ import type {
   DadosNegocioBizy,
   FiltrosClientes360,
   MovimentoStock,
+  NovoEventoTrackingComercial,
   NovoMovimentoStock,
-  NegocioBizy
+  NegocioBizy,
+  ResumoTrackingComercial
 } from "../tipos.js";
 
 export interface RepositorioPecas {
@@ -56,6 +60,11 @@ export interface RepositorioPecas {
   atualizarEstado(codigo: string, estado: EstadoPeca, negocioId?: string | null): Promise<Peca>;
   registrarMovimentoStock(dados: NovoMovimentoStock): Promise<MovimentoStock>;
   listarMovimentosStock(codigoPeca: string, negocioId?: string | null): Promise<MovimentoStock[]>;
+}
+
+export interface RepositorioTrackingComercial {
+  registrarEvento(dados: NovoEventoTrackingComercial): Promise<EventoTrackingComercial>;
+  resumirEventos(negocioId: string): Promise<ResumoTrackingComercial>;
 }
 
 export interface RepositorioReservas {
@@ -191,6 +200,8 @@ export interface RepositorioAutenticacao {
   salvarPerfilEstudantil(dados: DadosPerfilEstudantil): Promise<PerfilEstudantilUsuario>;
   buscarNegocioPrincipalPorUsuario(usuarioId: string): Promise<NegocioBizy | null>;
   salvarNegocioUsuario(usuarioId: string, dados: DadosNegocioBizy): Promise<NegocioBizy>;
+  atualizarPublicacaoLoja(negocioId: string, dados: DadosPublicacaoLoja): Promise<NegocioBizy>;
+  buscarNegocioPorSlugPublico(slug: string): Promise<NegocioBizy | null>;
   listarModulosAtivosPorNegocio(negocioId: string): Promise<string[]>;
   marcarUsuarioOnboardingCompleto(usuarioId: string, data: Date): Promise<UsuarioSistema>;
   criarCodigoSms(dados: {

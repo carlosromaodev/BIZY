@@ -9,7 +9,8 @@ import type {
   RepositorioPecas,
   RepositorioPedidos,
   RepositorioReservas,
-  RepositorioSessoesLive
+  RepositorioSessoesLive,
+  RepositorioTrackingComercial
 } from "../../dominio/repositorios/contratos.js";
 import type {
   AtualizacaoRegistroSessaoLive,
@@ -36,12 +37,14 @@ import type {
   EstadoPedido,
   EstadoReserva,
   EventoSistema,
+  EventoTrackingComercial,
   FiltrosPedidos,
   FiltrosClientes360,
   InstanciaWhatsApp,
   MensagemAtendimento,
   MovimentoStock,
   NovaMensagemAtendimento,
+  NovoEventoTrackingComercial,
   NovoMovimentoStock,
   NovaPeca,
   NovaReserva,
@@ -60,9 +63,11 @@ import type {
   ResultadoInterpretacaoComentario,
   DadosIdentidadeAutenticacao,
   DadosNegocioBizy,
+  DadosPublicacaoLoja,
   DadosPerfilEstudantil,
   NegocioBizy,
   PerfilEstudantilUsuario,
+  ResumoTrackingComercial,
   UsuarioSistema
 } from "../../dominio/tipos.js";
 import { normalizarEmail, normalizarTelefone } from "../../dominio/servicos/normalizarContato.js";
@@ -273,6 +278,90 @@ export class RepositorioPecasPrisma implements RepositorioPecas {
     if (peca.estado === "ESGOTADA" || peca.quantidade === 0) return "ESGOTADO";
     if (peca.stockMinimo > 0 && peca.quantidade <= peca.stockMinimo) return "BAIXO_STOCK";
     return "DISPONIVEL";
+  }
+}
+
+export class RepositorioTrackingComercialPrisma implements RepositorioTrackingComercial {
+  constructor(private readonly prisma: PrismaClient) {}
+
+  async registrarEvento(dados: NovoEventoTrackingComercial): Promise<EventoTrackingComercial> {
+    const evento = await this.prisma.eventoTrackingComercial.create({
+      data: {
+        negocioId: dados.negocioId,
+        tipo: dados.tipo,
+        entidadeTipo: dados.entidadeTipo ?? null,
+        entidadeId: dados.entidadeId ?? null,
+        slugLoja: dados.slugLoja ?? null,
+        codigoProduto: dados.codigoProduto ?? null,
+        trackingId: dados.trackingId ?? null,
+        origem: dados.origem ?? null,
+        canal: dados.canal ?? null,
+        utmJson: JSON.stringify(dados.utm ?? {}),
+        metadataJson: JSON.stringify(dados.metadata ?? {})
+      }
+    });
+
+    return this.mapearEvento(evento);
+  }
+
+  async resumirEventos(negocioId: string): Promise<ResumoTrackingComercial> {
+    const eventos = await this.prisma.eventoTrackingComercial.findMany({
+      where: { negocioId }
+    });
+    const mapeados = eventos.map((evento) => this.mapearEvento(evento));
+    return {
+      totalEventos: mapeados.length,
+      porTipo: this.contarPor(mapeados, (evento) => evento.tipo),
+      porOrigem: this.contarPor(mapeados, (evento) => evento.origem ?? "sem_origem"),
+      porCanal: this.contarPor(mapeados, (evento) => evento.canal ?? "sem_canal")
+    };
+  }
+
+  private mapearEvento(evento: {
+    id: string;
+    negocioId: string;
+    tipo: string;
+    entidadeTipo: string | null;
+    entidadeId: string | null;
+    slugLoja: string | null;
+    codigoProduto: string | null;
+    trackingId: string | null;
+    origem: string | null;
+    canal: string | null;
+    utmJson: string;
+    metadataJson: string;
+    criadoEm: Date;
+  }): EventoTrackingComercial {
+    return {
+      ...evento,
+      tipo: evento.tipo as EventoTrackingComercial["tipo"],
+      utm: this.lerMapaStrings(evento.utmJson),
+      metadata: this.lerObjeto(evento.metadataJson)
+    };
+  }
+
+  private contarPor<T extends string>(eventos: EventoTrackingComercial[], seletor: (evento: EventoTrackingComercial) => T) {
+    return eventos.reduce<Record<T, number>>((acumulador, evento) => {
+      const chave = seletor(evento);
+      acumulador[chave] = (acumulador[chave] ?? 0) + 1;
+      return acumulador;
+    }, {} as Record<T, number>);
+  }
+
+  private lerMapaStrings(valor: string): Record<string, string> {
+    const objeto = this.lerObjeto(valor);
+    return Object.fromEntries(
+      Object.entries(objeto).filter((entrada): entrada is [string, string] => typeof entrada[1] === "string")
+    );
+  }
+
+  private lerObjeto(valor: string): Record<string, unknown> {
+    try {
+      const dados = JSON.parse(valor);
+      return dados && typeof dados === "object" && !Array.isArray(dados) ? dados as Record<string, unknown> : {};
+    } catch {
+      return {};
+    }
   }
 }
 
@@ -1158,7 +1247,10 @@ export class RepositorioAutenticacaoPrisma implements RepositorioAutenticacao {
       canaisVendaJson: JSON.stringify(dados.canaisVenda ?? []),
       metodosPagamentoJson: JSON.stringify(dados.metodosPagamento ?? []),
       entregaJson: JSON.stringify(dados.entrega ?? {}),
-      minutosReservaPadrao: dados.minutosReservaPadrao ?? 10
+      minutosReservaPadrao: dados.minutosReservaPadrao ?? 10,
+      slugPublico: dados.slugPublico ?? undefined,
+      descricaoPublica: dados.descricaoPublica ?? undefined,
+      lojaPublicadaEm: dados.lojaPublicadaEm ?? undefined
     };
 
     if (atual) {
@@ -1182,6 +1274,37 @@ export class RepositorioAutenticacaoPrisma implements RepositorioAutenticacao {
     });
 
     return this.mapearNegocio(negocio, "DONO");
+  }
+
+  async atualizarPublicacaoLoja(negocioId: string, dados: DadosPublicacaoLoja): Promise<NegocioBizy> {
+    const existente = await this.prisma.negocio.findFirst({
+      where: {
+        slugPublico: dados.slug,
+        NOT: { id: negocioId }
+      }
+    });
+    if (existente) {
+      throw new Error(`Slug público ${dados.slug} já existe.`);
+    }
+
+    const negocio = await this.prisma.negocio.update({
+      where: { id: negocioId },
+      data: {
+        slugPublico: dados.slug,
+        descricaoPublica: dados.descricaoPublica,
+        lojaPublicadaEm: dados.publicada ? new Date() : null
+      }
+    });
+
+    return this.mapearNegocio(negocio);
+  }
+
+  async buscarNegocioPorSlugPublico(slug: string): Promise<NegocioBizy | null> {
+    const negocio = await this.prisma.negocio.findUnique({
+      where: { slugPublico: slug }
+    });
+
+    return negocio ? this.mapearNegocio(negocio) : null;
   }
 
   async listarModulosAtivosPorNegocio(negocioId: string): Promise<string[]> {
@@ -1325,6 +1448,9 @@ export class RepositorioAutenticacaoPrisma implements RepositorioAutenticacao {
       metodosPagamentoJson: string;
       entregaJson: string;
       minutosReservaPadrao: number;
+      slugPublico: string | null;
+      descricaoPublica: string | null;
+      lojaPublicadaEm: Date | null;
       criadoEm: Date;
       atualizadoEm: Date;
     },
@@ -1350,6 +1476,9 @@ export class RepositorioAutenticacaoPrisma implements RepositorioAutenticacao {
       metodosPagamento: this.lerArray(negocio.metodosPagamentoJson),
       entrega: this.lerObjeto(negocio.entregaJson),
       minutosReservaPadrao: negocio.minutosReservaPadrao,
+      slugPublico: negocio.slugPublico,
+      descricaoPublica: negocio.descricaoPublica,
+      lojaPublicadaEm: negocio.lojaPublicadaEm,
       usuarioPapel,
       criadoEm: negocio.criadoEm,
       atualizadoEm: negocio.atualizadoEm

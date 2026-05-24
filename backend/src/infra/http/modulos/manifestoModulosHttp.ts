@@ -4,6 +4,7 @@ import { moduloClientes } from "./clientes.js";
 import { moduloDiagnosticos } from "./diagnosticos.js";
 import { moduloIntegracoes } from "./integracoes.js";
 import { moduloLives } from "./lives.js";
+import { moduloLojaPublica } from "./lojaPublica.js";
 import { moduloMedia } from "./media.js";
 import type { ModuloHttp } from "./ModuloHttp.js";
 import { moduloN8n } from "./n8n.js";
@@ -19,6 +20,7 @@ export const modulosHttp = [
   moduloLives,
   moduloCatalogo,
   moduloClientes,
+  moduloLojaPublica,
   moduloDiagnosticos,
   moduloMedia,
   moduloPedidos,

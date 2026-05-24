@@ -220,6 +220,7 @@ function deveExigirSessaoOperacional(url: string): boolean {
   if (rotasPublicas.includes(caminho)) return false;
   if (caminho.startsWith("/auth/")) return false;
   if (caminho.startsWith("/n8n/")) return false;
+  if (caminho.startsWith("/publico/")) return false;
   if (caminho.startsWith("/webhooks/")) return false;
 
   return true;

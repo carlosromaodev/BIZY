@@ -15,6 +15,18 @@ export const tiposMovimentoStock = [
 ] as const;
 export type TipoMovimentoStock = (typeof tiposMovimentoStock)[number];
 
+export const tiposEventoTrackingComercial = [
+  "LOJA_VISITADA",
+  "PRODUTO_VISTO",
+  "CATALOGO_VISTO",
+  "WHATSAPP_CLICK",
+  "CHECKOUT_INICIADO",
+  "PEDIDO_CRIADO",
+  "PAGAMENTO_CONFIRMADO",
+  "COMPRA_ENTREGUE"
+] as const;
+export type TipoEventoTrackingComercial = (typeof tiposEventoTrackingComercial)[number];
+
 export const estadosReserva = [
   "PENDING",
   "RESERVED",
@@ -840,6 +852,9 @@ export interface DadosNegocioBizy {
   metodosPagamento?: string[];
   entrega?: Record<string, unknown>;
   minutosReservaPadrao?: number;
+  slugPublico?: string | null;
+  descricaoPublica?: string | null;
+  lojaPublicadaEm?: Date | null;
 }
 
 export interface NegocioBizy extends Required<Pick<DadosNegocioBizy, "nomeComercial" | "segmento" | "tipo">> {
@@ -859,9 +874,55 @@ export interface NegocioBizy extends Required<Pick<DadosNegocioBizy, "nomeComerc
   metodosPagamento: string[];
   entrega: Record<string, unknown>;
   minutosReservaPadrao: number;
+  slugPublico: string | null;
+  descricaoPublica: string | null;
+  lojaPublicadaEm: Date | null;
   usuarioPapel?: string;
   criadoEm: Date;
   atualizadoEm: Date;
+}
+
+export interface DadosPublicacaoLoja {
+  slug: string;
+  descricaoPublica?: string | null;
+  publicada: boolean;
+}
+
+export interface EventoTrackingComercial {
+  id: string;
+  negocioId: string;
+  tipo: TipoEventoTrackingComercial;
+  entidadeTipo: string | null;
+  entidadeId: string | null;
+  slugLoja: string | null;
+  codigoProduto: string | null;
+  trackingId: string | null;
+  origem: string | null;
+  canal: string | null;
+  utm: Record<string, string>;
+  metadata: Record<string, unknown>;
+  criadoEm: Date;
+}
+
+export interface NovoEventoTrackingComercial {
+  negocioId: string;
+  tipo: TipoEventoTrackingComercial;
+  entidadeTipo?: string | null;
+  entidadeId?: string | null;
+  slugLoja?: string | null;
+  codigoProduto?: string | null;
+  trackingId?: string | null;
+  origem?: string | null;
+  canal?: string | null;
+  utm?: Record<string, string>;
+  metadata?: Record<string, unknown>;
+}
+
+export interface ResumoTrackingComercial {
+  totalEventos: number;
+  porTipo: Partial<Record<TipoEventoTrackingComercial, number>>;
+  porOrigem: Record<string, number>;
+  porCanal: Record<string, number>;
 }
 
 export interface CodigoLoginSms {

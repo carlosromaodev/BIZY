@@ -9,7 +9,8 @@ import type {
   RepositorioPecas,
   RepositorioPedidos,
   RepositorioReservas,
-  RepositorioSessoesLive
+  RepositorioSessoesLive,
+  RepositorioTrackingComercial
 } from "../../dominio/repositorios/contratos.js";
 import type {
   AtualizacaoRegistroSessaoLive,
@@ -31,6 +32,7 @@ import type {
   EstadoPagamento,
   EstadoPeca,
   EstadoReserva,
+  EventoTrackingComercial,
   FiltrosPedidos,
   FiltrosClientes360,
   EventoSistema,
@@ -38,6 +40,7 @@ import type {
   MensagemAtendimento,
   MovimentoStock,
   NovaMensagemAtendimento,
+  NovoEventoTrackingComercial,
   NovoMovimentoStock,
   NovaPeca,
   NovaReserva,
@@ -59,9 +62,11 @@ import { normalizarEmail, normalizarTelefone } from "../../dominio/servicos/norm
 import type {
   DadosIdentidadeAutenticacao,
   DadosNegocioBizy,
+  DadosPublicacaoLoja,
   DadosPerfilEstudantil,
   NegocioBizy,
   PerfilEstudantilUsuario,
+  ResumoTrackingComercial,
   UsuarioSistema
 } from "../../dominio/tipos.js";
 
@@ -205,6 +210,49 @@ export class RepositorioPecasMemoria implements RepositorioPecas {
     if (peca.estado === "ESGOTADA" || peca.quantidade === 0) return "ESGOTADO";
     if (peca.stockMinimo > 0 && peca.quantidade <= peca.stockMinimo) return "BAIXO_STOCK";
     return "DISPONIVEL";
+  }
+}
+
+export class RepositorioTrackingComercialMemoria implements RepositorioTrackingComercial {
+  private readonly eventos = new Map<string, EventoTrackingComercial>();
+
+  async registrarEvento(dados: NovoEventoTrackingComercial): Promise<EventoTrackingComercial> {
+    const evento: EventoTrackingComercial = {
+      id: randomUUID(),
+      negocioId: dados.negocioId,
+      tipo: dados.tipo,
+      entidadeTipo: dados.entidadeTipo ?? null,
+      entidadeId: dados.entidadeId ?? null,
+      slugLoja: dados.slugLoja ?? null,
+      codigoProduto: dados.codigoProduto ?? null,
+      trackingId: dados.trackingId ?? null,
+      origem: dados.origem ?? null,
+      canal: dados.canal ?? null,
+      utm: dados.utm ?? {},
+      metadata: dados.metadata ?? {},
+      criadoEm: new Date()
+    };
+
+    this.eventos.set(evento.id, evento);
+    return evento;
+  }
+
+  async resumirEventos(negocioId: string): Promise<ResumoTrackingComercial> {
+    const eventos = [...this.eventos.values()].filter((evento) => evento.negocioId === negocioId);
+    return {
+      totalEventos: eventos.length,
+      porTipo: this.contarPor(eventos, (evento) => evento.tipo),
+      porOrigem: this.contarPor(eventos, (evento) => evento.origem ?? "sem_origem"),
+      porCanal: this.contarPor(eventos, (evento) => evento.canal ?? "sem_canal")
+    };
+  }
+
+  private contarPor<T extends string>(eventos: EventoTrackingComercial[], seletor: (evento: EventoTrackingComercial) => T) {
+    return eventos.reduce<Record<T, number>>((acumulador, evento) => {
+      const chave = seletor(evento);
+      acumulador[chave] = (acumulador[chave] ?? 0) + 1;
+      return acumulador;
+    }, {} as Record<T, number>);
   }
 }
 
@@ -664,6 +712,9 @@ export class RepositorioAutenticacaoMemoria implements RepositorioAutenticacao {
       metodosPagamento: dados.metodosPagamento ?? [],
       entrega: dados.entrega ?? {},
       minutosReservaPadrao: dados.minutosReservaPadrao ?? 10,
+      slugPublico: existente?.slugPublico ?? dados.slugPublico ?? null,
+      descricaoPublica: dados.descricaoPublica ?? existente?.descricaoPublica ?? null,
+      lojaPublicadaEm: dados.lojaPublicadaEm ?? existente?.lojaPublicadaEm ?? null,
       usuarioPapel: "DONO",
       criadoEm: existente?.criadoEm ?? agora,
       atualizadoEm: agora
@@ -672,6 +723,32 @@ export class RepositorioAutenticacaoMemoria implements RepositorioAutenticacao {
     this.negocios.set(negocio.id, negocio);
     this.negocioPrincipalPorUsuario.set(usuarioId, negocio.id);
     return negocio;
+  }
+
+  async atualizarPublicacaoLoja(negocioId: string, dados: DadosPublicacaoLoja): Promise<NegocioBizy> {
+    const atual = this.negocios.get(negocioId);
+    if (!atual) throw new Error("Negócio não encontrado.");
+
+    const slug = dados.slug.trim().toLowerCase();
+    const donoSlug = [...this.negocios.values()].find((negocio) => negocio.slugPublico === slug && negocio.id !== negocioId);
+    if (donoSlug) {
+      throw new Error(`Slug público ${slug} já existe.`);
+    }
+
+    const atualizado: NegocioBizy = {
+      ...atual,
+      slugPublico: slug,
+      descricaoPublica: dados.descricaoPublica ?? atual.descricaoPublica,
+      lojaPublicadaEm: dados.publicada ? atual.lojaPublicadaEm ?? new Date() : null,
+      atualizadoEm: new Date()
+    };
+
+    this.negocios.set(negocioId, atualizado);
+    return atualizado;
+  }
+
+  async buscarNegocioPorSlugPublico(slug: string): Promise<NegocioBizy | null> {
+    return [...this.negocios.values()].find((negocio) => negocio.slugPublico === slug.trim().toLowerCase()) ?? null;
   }
 
   async listarModulosAtivosPorNegocio(negocioId: string): Promise<string[]> {
