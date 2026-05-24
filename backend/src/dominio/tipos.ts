@@ -1,6 +1,20 @@
 export const estadosPeca = ["DISPONIVEL", "RESERVADA", "VENDIDA", "ESGOTADA"] as const;
 export type EstadoPeca = (typeof estadosPeca)[number];
 
+export const estadosStockProduto = ["DISPONIVEL", "BAIXO_STOCK", "ESGOTADO", "ARQUIVADO"] as const;
+export type EstadoStockProduto = (typeof estadosStockProduto)[number];
+
+export const tiposMovimentoStock = [
+  "ENTRADA",
+  "SAIDA",
+  "RESERVA",
+  "CANCELAMENTO",
+  "DEVOLUCAO",
+  "AJUSTE",
+  "CORRECAO"
+] as const;
+export type TipoMovimentoStock = (typeof tiposMovimentoStock)[number];
+
 export const estadosReserva = [
   "PENDING",
   "RESERVED",
@@ -146,12 +160,21 @@ export interface Peca {
   id: string;
   codigo: string;
   negocioId: string | null;
+  sku: string | null;
   nome: string;
   descricao: string;
+  categoria: string | null;
+  colecao: string | null;
   precoEmKwanza: number;
+  custoEmKwanza: number | null;
+  margemEstimadaEmKwanza: number | null;
   quantidade: number;
+  stockMinimo: number;
   fotos: string[];
+  variantes: Record<string, string[]>;
   estado: EstadoPeca;
+  estadoStock: EstadoStockProduto;
+  arquivadaEm: Date | null;
   criadoEm: Date;
   atualizadoEm: Date;
 }
@@ -159,22 +182,77 @@ export interface Peca {
 export interface NovaPeca {
   codigo: string;
   negocioId?: string | null;
+  sku?: string | null;
   nome: string;
   descricao: string;
+  categoria?: string | null;
+  colecao?: string | null;
   precoEmKwanza: number;
+  custoEmKwanza?: number | null;
   quantidade: number;
+  stockMinimo?: number;
   fotos: string[];
+  variantes?: Record<string, string[]>;
   estado?: EstadoPeca;
+  arquivadaEm?: Date | null;
 }
 
 export interface AtualizarPeca {
   negocioId?: string | null;
+  sku?: string | null;
   nome?: string;
   descricao?: string;
+  categoria?: string | null;
+  colecao?: string | null;
   precoEmKwanza?: number;
+  custoEmKwanza?: number | null;
   quantidade?: number;
+  stockMinimo?: number;
   fotos?: string[];
+  variantes?: Record<string, string[]>;
   estado?: EstadoPeca;
+  arquivadaEm?: Date | null;
+}
+
+export interface MovimentoStock {
+  id: string;
+  negocioId: string | null;
+  pecaId: string;
+  codigoPeca: string;
+  tipo: TipoMovimentoStock;
+  quantidade: number;
+  quantidadeAnterior: number;
+  quantidadeNova: number;
+  motivo: string | null;
+  responsavelId: string | null;
+  origem: string | null;
+  criadoEm: Date;
+}
+
+export interface NovoMovimentoStock {
+  negocioId?: string | null;
+  pecaId: string;
+  codigoPeca: string;
+  tipo: TipoMovimentoStock;
+  quantidade: number;
+  quantidadeAnterior: number;
+  quantidadeNova: number;
+  motivo?: string | null;
+  responsavelId?: string | null;
+  origem?: string | null;
+}
+
+export interface ResumoCatalogoComercial {
+  total: number;
+  disponiveis: number;
+  baixoStock: number;
+  esgotadas: number;
+  arquivadas: number;
+  custoTotalEmKwanza: number;
+  valorPotencialEmKwanza: number;
+  margemPotencialEmKwanza: number;
+  categorias: Array<{ nome: string; total: number }>;
+  colecoes: Array<{ nome: string; total: number }>;
 }
 
 export interface Reserva {

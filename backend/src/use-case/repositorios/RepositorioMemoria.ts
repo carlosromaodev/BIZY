@@ -36,7 +36,9 @@ import type {
   EventoSistema,
   InstanciaWhatsApp,
   MensagemAtendimento,
+  MovimentoStock,
   NovaMensagemAtendimento,
+  NovoMovimentoStock,
   NovaPeca,
   NovaReserva,
   NovoOutboxMensagemWhatsApp,
@@ -68,6 +70,7 @@ const estadosAtivosParaDuplicidade: EstadoReserva[] = ["PENDING", "RESERVED", "W
 
 export class RepositorioPecasMemoria implements RepositorioPecas {
   private readonly pecas = new Map<string, Peca>();
+  private readonly movimentosStock = new Map<string, MovimentoStock>();
 
   async criar(dados: NovaPeca): Promise<Peca> {
     const chave = this.chavePeca(dados.codigo, dados.negocioId ?? null);
@@ -80,18 +83,28 @@ export class RepositorioPecasMemoria implements RepositorioPecas {
       id: randomUUID(),
       codigo: dados.codigo,
       negocioId: dados.negocioId ?? null,
+      sku: dados.sku ?? null,
       nome: dados.nome,
       descricao: dados.descricao,
+      categoria: dados.categoria ?? null,
+      colecao: dados.colecao ?? null,
       precoEmKwanza: dados.precoEmKwanza,
+      custoEmKwanza: dados.custoEmKwanza ?? null,
+      margemEstimadaEmKwanza: this.calcularMargem(dados.precoEmKwanza, dados.custoEmKwanza ?? null),
       quantidade: dados.quantidade,
+      stockMinimo: dados.stockMinimo ?? 0,
       fotos: dados.fotos,
+      variantes: dados.variantes ?? {},
       estado: dados.estado ?? (dados.quantidade > 0 ? "DISPONIVEL" : "ESGOTADA"),
+      estadoStock: "DISPONIVEL",
+      arquivadaEm: dados.arquivadaEm ?? null,
       criadoEm: agora,
       atualizadoEm: agora
     };
+    const enriquecida = this.enriquecerPeca(peca);
 
-    this.pecas.set(chave, peca);
-    return peca;
+    this.pecas.set(chave, enriquecida);
+    return enriquecida;
   }
 
   async listar(negocioId?: string | null): Promise<Peca[]> {
@@ -113,16 +126,51 @@ export class RepositorioPecasMemoria implements RepositorioPecas {
     const atualizada: Peca = {
       ...peca,
       ...dados,
+      margemEstimadaEmKwanza: this.calcularMargem(
+        dados.precoEmKwanza ?? peca.precoEmKwanza,
+        dados.custoEmKwanza !== undefined ? dados.custoEmKwanza : peca.custoEmKwanza
+      ),
       atualizadoEm: new Date()
     };
+    const enriquecida = this.enriquecerPeca(atualizada);
 
     this.pecas.delete(this.chavePeca(peca.codigo, peca.negocioId));
-    this.pecas.set(this.chavePeca(atualizada.codigo, atualizada.negocioId), atualizada);
-    return atualizada;
+    this.pecas.set(this.chavePeca(enriquecida.codigo, enriquecida.negocioId), enriquecida);
+    return enriquecida;
   }
 
   async atualizarEstado(codigo: string, estado: EstadoPeca, negocioId?: string | null): Promise<Peca> {
     return this.atualizar(codigo, { estado }, negocioId);
+  }
+
+  async registrarMovimentoStock(dados: NovoMovimentoStock): Promise<MovimentoStock> {
+    const movimento: MovimentoStock = {
+      id: randomUUID(),
+      negocioId: dados.negocioId ?? null,
+      pecaId: dados.pecaId,
+      codigoPeca: dados.codigoPeca,
+      tipo: dados.tipo,
+      quantidade: dados.quantidade,
+      quantidadeAnterior: dados.quantidadeAnterior,
+      quantidadeNova: dados.quantidadeNova,
+      motivo: dados.motivo ?? null,
+      responsavelId: dados.responsavelId ?? null,
+      origem: dados.origem ?? null,
+      criadoEm: new Date()
+    };
+
+    this.movimentosStock.set(movimento.id, movimento);
+    return movimento;
+  }
+
+  async listarMovimentosStock(codigoPeca: string, negocioId?: string | null): Promise<MovimentoStock[]> {
+    return [...this.movimentosStock.values()]
+      .filter((movimento) => {
+        const mesmoCodigo = movimento.codigoPeca === codigoPeca;
+        const mesmoNegocio = negocioId ? movimento.negocioId === negocioId : true;
+        return mesmoCodigo && mesmoNegocio;
+      })
+      .sort((a, b) => b.criadoEm.getTime() - a.criadoEm.getTime());
   }
 
   private async exigirPeca(codigo: string, negocioId?: string | null): Promise<Peca> {
@@ -137,6 +185,26 @@ export class RepositorioPecasMemoria implements RepositorioPecas {
 
   private chavePeca(codigo: string, negocioId: string | null | undefined): string {
     return `${negocioId ?? "global"}:${codigo}`;
+  }
+
+  private enriquecerPeca(peca: Peca): Peca {
+    const margemEstimadaEmKwanza = this.calcularMargem(peca.precoEmKwanza, peca.custoEmKwanza);
+    return {
+      ...peca,
+      margemEstimadaEmKwanza,
+      estadoStock: this.calcularEstadoStock(peca)
+    };
+  }
+
+  private calcularMargem(precoEmKwanza: number, custoEmKwanza: number | null): number | null {
+    return custoEmKwanza === null ? null : precoEmKwanza - custoEmKwanza;
+  }
+
+  private calcularEstadoStock(peca: Pick<Peca, "arquivadaEm" | "estado" | "quantidade" | "stockMinimo">): Peca["estadoStock"] {
+    if (peca.arquivadaEm) return "ARQUIVADO";
+    if (peca.estado === "ESGOTADA" || peca.quantidade === 0) return "ESGOTADO";
+    if (peca.stockMinimo > 0 && peca.quantidade <= peca.stockMinimo) return "BAIXO_STOCK";
+    return "DISPONIVEL";
   }
 }
 

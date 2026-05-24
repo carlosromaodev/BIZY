@@ -40,7 +40,9 @@ import type {
   FiltrosClientes360,
   InstanciaWhatsApp,
   MensagemAtendimento,
+  MovimentoStock,
   NovaMensagemAtendimento,
+  NovoMovimentoStock,
   NovaPeca,
   NovaReserva,
   NovoRegistroComentario,
@@ -76,11 +78,17 @@ export class RepositorioPecasPrisma implements RepositorioPecas {
       data: {
         codigo: dados.codigo,
         negocioId: dados.negocioId ?? null,
+        sku: dados.sku ?? null,
         nome: dados.nome,
         descricao: dados.descricao,
+        categoria: dados.categoria ?? null,
+        colecao: dados.colecao ?? null,
         precoEmKwanza: dados.precoEmKwanza,
+        custoEmKwanza: dados.custoEmKwanza ?? null,
         quantidade: dados.quantidade,
+        stockMinimo: dados.stockMinimo ?? 0,
         fotosJson: JSON.stringify(dados.fotos),
+        variantesJson: JSON.stringify(dados.variantes ?? {}),
         estado: dados.estado ?? (dados.quantidade > 0 ? "DISPONIVEL" : "ESGOTADA")
       }
     });
@@ -116,13 +124,20 @@ export class RepositorioPecasPrisma implements RepositorioPecas {
     const peca = await this.prisma.peca.update({
       where: { id: atual.id },
       data: {
+        sku: dados.sku,
         nome: dados.nome,
         descricao: dados.descricao,
+        categoria: dados.categoria,
+        colecao: dados.colecao,
         precoEmKwanza: dados.precoEmKwanza,
+        custoEmKwanza: dados.custoEmKwanza,
         quantidade: dados.quantidade,
+        stockMinimo: dados.stockMinimo,
         negocioId: dados.negocioId,
         estado: dados.estado,
-        fotosJson: dados.fotos ? JSON.stringify(dados.fotos) : undefined
+        arquivadaEm: dados.arquivadaEm,
+        fotosJson: dados.fotos ? JSON.stringify(dados.fotos) : undefined,
+        variantesJson: dados.variantes ? JSON.stringify(dados.variantes) : undefined
       }
     });
 
@@ -133,23 +148,90 @@ export class RepositorioPecasPrisma implements RepositorioPecas {
     return this.atualizar(codigo, { estado }, negocioId);
   }
 
+  async registrarMovimentoStock(dados: NovoMovimentoStock): Promise<MovimentoStock> {
+    const movimento = await this.prisma.movimentoStock.create({
+      data: {
+        negocioId: dados.negocioId ?? null,
+        pecaId: dados.pecaId,
+        codigoPeca: dados.codigoPeca,
+        tipo: dados.tipo,
+        quantidade: dados.quantidade,
+        quantidadeAnterior: dados.quantidadeAnterior,
+        quantidadeNova: dados.quantidadeNova,
+        motivo: dados.motivo ?? null,
+        responsavelId: dados.responsavelId ?? null,
+        origem: dados.origem ?? null
+      }
+    });
+
+    return this.mapearMovimentoStock(movimento);
+  }
+
+  async listarMovimentosStock(codigoPeca: string, negocioId?: string | null): Promise<MovimentoStock[]> {
+    const movimentos = await this.prisma.movimentoStock.findMany({
+      where: {
+        codigoPeca,
+        ...(negocioId ? { negocioId } : {})
+      },
+      orderBy: { criadoEm: "desc" }
+    });
+
+    return movimentos.map((movimento) => this.mapearMovimentoStock(movimento));
+  }
+
   private mapearPeca(peca: {
     id: string;
     codigo: string;
     negocioId: string | null;
+    sku: string | null;
     nome: string;
     descricao: string;
+    categoria: string | null;
+    colecao: string | null;
     precoEmKwanza: number;
+    custoEmKwanza: number | null;
     quantidade: number;
+    stockMinimo: number;
     fotosJson: string;
+    variantesJson: string;
     estado: string;
+    arquivadaEm: Date | null;
     criadoEm: Date;
     atualizadoEm: Date;
   }): Peca {
+    const margemEstimadaEmKwanza = this.calcularMargem(peca.precoEmKwanza, peca.custoEmKwanza);
     return {
       ...peca,
       fotos: this.lerFotos(peca.fotosJson),
-      estado: peca.estado as EstadoPeca
+      variantes: this.lerVariantes(peca.variantesJson),
+      estado: peca.estado as EstadoPeca,
+      margemEstimadaEmKwanza,
+      estadoStock: this.calcularEstadoStock({
+        arquivadaEm: peca.arquivadaEm,
+        estado: peca.estado as EstadoPeca,
+        quantidade: peca.quantidade,
+        stockMinimo: peca.stockMinimo
+      })
+    };
+  }
+
+  private mapearMovimentoStock(movimento: {
+    id: string;
+    negocioId: string | null;
+    pecaId: string;
+    codigoPeca: string;
+    tipo: string;
+    quantidade: number;
+    quantidadeAnterior: number;
+    quantidadeNova: number;
+    motivo: string | null;
+    responsavelId: string | null;
+    origem: string | null;
+    criadoEm: Date;
+  }): MovimentoStock {
+    return {
+      ...movimento,
+      tipo: movimento.tipo as MovimentoStock["tipo"]
     };
   }
 
@@ -160,6 +242,37 @@ export class RepositorioPecasPrisma implements RepositorioPecas {
     } catch {
       return [];
     }
+  }
+
+  private lerVariantes(valor: string): Record<string, string[]> {
+    try {
+      const variantes = JSON.parse(valor);
+      if (!variantes || typeof variantes !== "object" || Array.isArray(variantes)) return {};
+
+      return Object.fromEntries(
+        Object.entries(variantes)
+          .filter(([, valores]) => Array.isArray(valores))
+          .map(([nome, valores]) => [nome, (valores as unknown[]).filter((valor) => typeof valor === "string")])
+      );
+    } catch {
+      return {};
+    }
+  }
+
+  private calcularMargem(precoEmKwanza: number, custoEmKwanza: number | null): number | null {
+    return custoEmKwanza === null ? null : precoEmKwanza - custoEmKwanza;
+  }
+
+  private calcularEstadoStock(peca: {
+    arquivadaEm: Date | null;
+    estado: EstadoPeca;
+    quantidade: number;
+    stockMinimo: number;
+  }): Peca["estadoStock"] {
+    if (peca.arquivadaEm) return "ARQUIVADO";
+    if (peca.estado === "ESGOTADA" || peca.quantidade === 0) return "ESGOTADO";
+    if (peca.stockMinimo > 0 && peca.quantidade <= peca.stockMinimo) return "BAIXO_STOCK";
+    return "DISPONIVEL";
   }
 }
 
@@ -432,19 +545,35 @@ export class RepositorioReservasPrisma implements RepositorioReservas {
     id: string;
     codigo: string;
     negocioId: string | null;
+    sku: string | null;
     nome: string;
     descricao: string;
+    categoria: string | null;
+    colecao: string | null;
     precoEmKwanza: number;
+    custoEmKwanza: number | null;
     quantidade: number;
+    stockMinimo: number;
     fotosJson: string;
+    variantesJson: string;
     estado: string;
+    arquivadaEm: Date | null;
     criadoEm: Date;
     atualizadoEm: Date;
   }): Peca {
+    const margemEstimadaEmKwanza = this.calcularMargem(peca.precoEmKwanza, peca.custoEmKwanza);
     return {
       ...peca,
       fotos: this.lerFotos(peca.fotosJson),
-      estado: peca.estado as EstadoPeca
+      variantes: this.lerVariantes(peca.variantesJson),
+      estado: peca.estado as EstadoPeca,
+      margemEstimadaEmKwanza,
+      estadoStock: this.calcularEstadoStock({
+        arquivadaEm: peca.arquivadaEm,
+        estado: peca.estado as EstadoPeca,
+        quantidade: peca.quantidade,
+        stockMinimo: peca.stockMinimo
+      })
     };
   }
 
@@ -455,6 +584,37 @@ export class RepositorioReservasPrisma implements RepositorioReservas {
     } catch {
       return [];
     }
+  }
+
+  private lerVariantes(valor: string): Record<string, string[]> {
+    try {
+      const variantes = JSON.parse(valor);
+      if (!variantes || typeof variantes !== "object" || Array.isArray(variantes)) return {};
+
+      return Object.fromEntries(
+        Object.entries(variantes)
+          .filter(([, valores]) => Array.isArray(valores))
+          .map(([nome, valores]) => [nome, (valores as unknown[]).filter((valor) => typeof valor === "string")])
+      );
+    } catch {
+      return {};
+    }
+  }
+
+  private calcularMargem(precoEmKwanza: number, custoEmKwanza: number | null): number | null {
+    return custoEmKwanza === null ? null : precoEmKwanza - custoEmKwanza;
+  }
+
+  private calcularEstadoStock(peca: {
+    arquivadaEm: Date | null;
+    estado: EstadoPeca;
+    quantidade: number;
+    stockMinimo: number;
+  }): Peca["estadoStock"] {
+    if (peca.arquivadaEm) return "ARQUIVADO";
+    if (peca.estado === "ESGOTADA" || peca.quantidade === 0) return "ESGOTADO";
+    if (peca.stockMinimo > 0 && peca.quantidade <= peca.stockMinimo) return "BAIXO_STOCK";
+    return "DISPONIVEL";
   }
 
   private async executarTransacaoComRetentativas<T>(operacao: () => Promise<T>, tentativa = 1): Promise<T> {

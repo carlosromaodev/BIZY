@@ -1,4 +1,8 @@
-import { AtualizarPecaSchema, CriarPecaSchema } from "../../../dominio/esquemas.js";
+import {
+  AtualizarPecaSchema,
+  CriarPecaSchema,
+  RegistrarMovimentoStockSchema
+} from "../../../dominio/esquemas.js";
 import { exigirAcessoComercial } from "../contextoComercial.js";
 import type { ModuloHttp } from "./ModuloHttp.js";
 
@@ -40,6 +44,66 @@ export const moduloCatalogo: ModuloHttp = {
       if (!contextoComercial) return;
 
       return contexto.gestaoPecas.listarPecas(contextoComercial.negocio.id);
+    });
+
+    app.get("/pecas/resumo", async (request, reply) => {
+      const contextoComercial = await exigirAcessoComercial(
+        contexto,
+        request,
+        reply,
+        {
+          permissao: "catalogo:ler",
+          modulo: "catalogo",
+          mensagemPermissao: "Sem permissão para consultar catálogo.",
+          mensagemModulo: "Catálogo desativado para este negócio."
+        }
+      );
+      if (!contextoComercial) return;
+
+      return contexto.gestaoPecas.resumirCatalogo(contextoComercial.negocio.id);
+    });
+
+    app.get("/pecas/:codigo/movimentos", async (request, reply) => {
+      const contextoComercial = await exigirAcessoComercial(
+        contexto,
+        request,
+        reply,
+        {
+          permissao: "catalogo:ler",
+          modulo: "catalogo",
+          mensagemPermissao: "Sem permissão para consultar histórico de stock.",
+          mensagemModulo: "Catálogo desativado para este negócio."
+        }
+      );
+      if (!contextoComercial) return;
+
+      const { codigo } = request.params as { codigo: string };
+      const movimentos = await contexto.gestaoPecas.listarMovimentosStock(codigo, contextoComercial.negocio.id);
+      return { movimentos };
+    });
+
+    app.post("/pecas/:codigo/movimentos", async (request, reply) => {
+      const contextoComercial = await exigirAcessoComercial(
+        contexto,
+        request,
+        reply,
+        {
+          permissao: "catalogo:gerir",
+          modulo: "catalogo",
+          mensagemPermissao: "Sem permissão para gerir stock.",
+          mensagemModulo: "Catálogo desativado para este negócio."
+        }
+      );
+      if (!contextoComercial) return;
+
+      const { codigo } = request.params as { codigo: string };
+      const dados = RegistrarMovimentoStockSchema.parse(request.body ?? {});
+      const resultado = await contexto.gestaoPecas.registrarMovimentoStock(
+        codigo,
+        { ...dados, responsavelId: dados.responsavelId ?? contextoComercial.usuario.id },
+        contextoComercial.negocio.id
+      );
+      return reply.code(201).send(resultado);
     });
 
     app.patch("/pecas/:codigo", async (request, reply) => {

@@ -8,7 +8,8 @@ import {
   estadosRelacionamentoCliente,
   fontesLive,
   politicasAutomacaoAtendimento,
-  prioridadesConversaAtendimento
+  prioridadesConversaAtendimento,
+  tiposMovimentoStock
 } from "./tipos.js";
 
 const TextoPerfilOpcionalSchema = z.preprocess(
@@ -20,6 +21,18 @@ const AvatarPerfilOpcionalSchema = z.preprocess(
   (valor) => (typeof valor === "string" && valor.trim() === "" ? null : valor),
   z.string().trim().url().max(2048).nullable().optional()
 ).transform((valor) => valor ?? null);
+
+const TextoCatalogoOpcionalSchema = z.preprocess(
+  (valor) => (typeof valor === "string" && valor.trim() === "" ? null : valor),
+  z.string().trim().min(1).max(120).nullable().optional()
+).transform((valor) => valor ?? null);
+
+const VariantesPecaSchema = z
+  .record(
+    z.string().trim().min(1).max(60),
+    z.array(z.string().trim().min(1).max(80)).max(60)
+  )
+  .default({});
 
 export const ComentarioLiveSchema = z.object({
   source: z.enum(fontesLive),
@@ -46,15 +59,29 @@ export const ResultadoInterpretacaoComentarioSchema = z.object({
 export const CriarPecaSchema = z.object({
   codigo: z.string().trim().min(1).max(32),
   negocioId: z.string().trim().uuid().nullable().optional(),
+  sku: TextoCatalogoOpcionalSchema,
   nome: z.string().trim().min(2).max(120),
   descricao: z.string().trim().max(1000).default(""),
+  categoria: TextoCatalogoOpcionalSchema,
+  colecao: TextoCatalogoOpcionalSchema,
   precoEmKwanza: z.coerce.number().int().min(0),
+  custoEmKwanza: z.coerce.number().int().min(0).nullable().optional().transform((valor) => valor ?? null),
   quantidade: z.coerce.number().int().min(0),
+  stockMinimo: z.coerce.number().int().min(0).default(0),
   fotos: z.array(z.string().url()).default([]),
+  variantes: VariantesPecaSchema,
   estado: z.enum(estadosPeca).optional()
 });
 
 export const AtualizarPecaSchema = CriarPecaSchema.partial().omit({ codigo: true });
+
+export const RegistrarMovimentoStockSchema = z.object({
+  tipo: z.enum(tiposMovimentoStock),
+  quantidade: z.coerce.number().int().min(1).max(999_999),
+  motivo: z.string().trim().min(3).max(500),
+  responsavelId: z.string().trim().min(1).max(120).nullable().optional().transform((valor) => valor ?? null),
+  origem: z.string().trim().min(1).max(80).nullable().optional().transform((valor) => valor ?? null)
+});
 
 export const IniciarLiveSchema = z.object({
   liveUsername: z.string().trim().min(1),

@@ -8,24 +8,56 @@ datasource db {
 }
 
 model Peca {
-  id            String    @id @default(uuid())
-  codigo        String
-  negocioId     String?
-  negocio       Negocio?  @relation(fields: [negocioId], references: [id])
-  nome          String
-  descricao     String
-  precoEmKwanza Int
-  quantidade    Int
-  fotosJson     String    @default("[]")
-  estado        String    @default("DISPONIVEL")
-  criadoEm      DateTime  @default(now())
-  atualizadoEm  DateTime  @updatedAt
-  reservas      Reserva[]
-  itensPedido    ItemPedido[]
+  id              String           @id @default(uuid())
+  codigo          String
+  negocioId       String?
+  negocio         Negocio?         @relation(fields: [negocioId], references: [id])
+  sku             String?
+  nome            String
+  descricao       String
+  categoria       String?
+  colecao         String?
+  precoEmKwanza   Int
+  custoEmKwanza   Int?
+  quantidade      Int
+  stockMinimo     Int              @default(0)
+  fotosJson       String           @default("[]")
+  variantesJson   String           @default("{}")
+  estado          String           @default("DISPONIVEL")
+  arquivadaEm     DateTime?
+  criadoEm        DateTime         @default(now())
+  atualizadoEm    DateTime         @updatedAt
+  reservas        Reserva[]
+  itensPedido     ItemPedido[]
+  movimentosStock MovimentoStock[]
 
   @@unique([negocioId, codigo])
   @@index([negocioId])
   @@index([negocioId, estado])
+  @@index([negocioId, categoria])
+  @@index([negocioId, colecao])
+  @@index([negocioId, sku])
+}
+
+model MovimentoStock {
+  id                 String   @id @default(uuid())
+  negocioId          String?
+  negocio            Negocio? @relation(fields: [negocioId], references: [id])
+  pecaId             String
+  peca               Peca     @relation(fields: [pecaId], references: [id])
+  codigoPeca         String
+  tipo               String
+  quantidade         Int
+  quantidadeAnterior Int
+  quantidadeNova     Int
+  motivo             String?
+  responsavelId      String?
+  origem             String?
+  criadoEm           DateTime @default(now())
+
+  @@index([negocioId, codigoPeca, criadoEm])
+  @@index([pecaId, criadoEm])
+  @@index([tipo, criadoEm])
 }
 
 model Reserva {
@@ -411,6 +443,7 @@ model Negocio {
   atualizadoEm          DateTime        @updatedAt
   membros               MembroNegocio[]
   pecas                 Peca[]
+  movimentosStock       MovimentoStock[]
   reservas              Reserva[]
   comentariosRecebidos  ComentarioRecebido[]
   sessoesLive           SessaoLive[]

@@ -1,10 +1,10 @@
 # Bizy / ÉMeu V1 - Requisitos Funcionais, Não Funcionais e Regras de Negócio
 
 Documento: `RF-RNF-RN-EMEUV1.md`
-Versão: 1.6
+Versão: 1.7
 Data: 2026-05-25
 Autor: Carlos
-Status: MVP base implementado; fundação backend Bizy CRM+ com Clientes 360 e Pedidos operacionais em evolução
+Status: MVP base implementado; fundação backend Bizy CRM+ com Clientes 360, Pedidos e Catálogo/Stock comercial em evolução
 
 ---
 
@@ -29,6 +29,8 @@ Atualização 1.4: antes das novas telas e módulos, o backend deve ser preparad
 Atualização 1.5: iniciado o backend de Clientes 360, com API autenticada/multi-negócio para cadastro, listagem, perfil, atualização, bloqueio/estado, exportação CSV e sincronização automática de clientes a partir de comentários, reservas e mensagens de atendimento.
 
 Atualização 1.6: iniciado o backend de Pedidos completos, com APIs autenticadas/multi-negócio para criar pedidos manuais com vários itens, cliente obrigatório, cálculo de subtotal/desconto/entrega/total, validação de stock, funil operacional, confirmação de pagamento, atualização de entrega e exportação CSV.
+
+Atualização 1.7: iniciado o backend de Produtos, Stock e Catálogo Comercial, com metadados de produto, SKU, custo, margem estimada, categoria, coleção, variantes simples, estado de stock, resumo comercial e histórico de movimentos de stock por negócio.
 
 ---
 
@@ -291,21 +293,21 @@ Esta etapa transforma o Bizy de painel de live em CRM operacional para lojas que
 | RF107 | [x] O vendedor deve marcar pedido como entregue com data, responsável e observação opcional. | Alta | Implementado no backend |
 | RF108 | [ ] O sistema deve permitir pedido rascunho apenas quando houver uso real: orçamento, carrinho em conversa ou checkout incompleto; não deve aparecer como submenu solto. | Média | Planeado |
 | RF109 | [ ] O CRM deve permitir recuperar pedidos parados com lembrete automático ou tarefa humana. | Alta | Planeado |
-| RF110 | [ ] O pedido deve mostrar margem estimada quando custo do produto estiver cadastrado. | Baixa | Planeado |
+| RF110 | [~] O pedido deve mostrar margem estimada quando custo do produto estiver cadastrado. | Baixa | Parcial - produto já guarda custo e margem estimada; falta mostrar margem no pedido |
 | RF111 | [~] O sistema deve exportar pedidos com filtros por data, estado, cliente, produto, pagamento e entrega. | Média | Parcial - CSV de pedidos implementado; faltam filtros avançados no arquivo |
 
 #### 3.13.4 Produtos, Stock e Catálogo Comercial
 
 | ID | Requisito Funcional | Prioridade | Estado |
 |---|---|---|---|
-| RF112 | [ ] Produtos devem suportar SKU/código, nome, fotos, descrição curta, preço, custo opcional, stock, estado e coleção de venda. | Alta | Planeado |
-| RF113 | [ ] O sistema deve permitir criar coleções comerciais, como live atual, novidades, promoção, reposição, mais vendidos e catálogo WhatsApp. | Alta | Planeado |
-| RF114 | [ ] Categorias só devem aparecer quando forem usadas para filtros, relatórios ou catálogo; não devem ser menu principal separado sem conteúdo operacional. | Alta | Planeado |
+| RF112 | [x] Produtos devem suportar SKU/código, nome, fotos, descrição curta, preço, custo opcional, stock, estado e coleção de venda. | Alta | Implementado no backend |
+| RF113 | [~] O sistema deve permitir criar coleções comerciais, como live atual, novidades, promoção, reposição, mais vendidos e catálogo WhatsApp. | Alta | Parcial - campo coleção e resumo por coleção implementados; faltam regras/telas de gestão |
+| RF114 | [~] Categorias só devem aparecer quando forem usadas para filtros, relatórios ou catálogo; não devem ser menu principal separado sem conteúdo operacional. | Alta | Parcial - backend agrupa apenas categorias usadas; falta refletir no frontend |
 | RF115 | [ ] Descontos devem ser tratados como regra aplicada em pedido, campanha ou produto específico, não como página solta sem fluxo de aprovação. | Alta | Planeado |
-| RF116 | [ ] O CRM deve alertar produtos com stock baixo, stock parado, mais vendidos e produtos reservados sem pagamento. | Alta | Planeado |
-| RF117 | [ ] O sistema deve manter histórico de movimentos de stock: entrada, venda, reserva, cancelamento, devolução, ajuste manual e correção. | Alta | Planeado |
+| RF116 | [~] O CRM deve alertar produtos com stock baixo, stock parado, mais vendidos e produtos reservados sem pagamento. | Alta | Parcial - resumo de stock baixo implementado; faltam stock parado, ranking e reservados sem pagamento |
+| RF117 | [x] O sistema deve manter histórico de movimentos de stock: entrada, venda, reserva, cancelamento, devolução, ajuste manual e correção. | Alta | Implementado no backend |
 | RF118 | [ ] O vendedor deve importar produtos por CSV/Excel com validação de código único e relatório de erros. | Média | Planeado |
-| RF119 | [ ] O produto deve permitir variantes simples, como tamanho, cor ou modelo, quando a loja precisar. | Média | Planeado |
+| RF119 | [x] O produto deve permitir variantes simples, como tamanho, cor ou modelo, quando a loja precisar. | Média | Implementado no backend |
 | RF120 | [ ] O CRM deve gerar catálogo compartilhável por WhatsApp com produtos selecionados, preço, fotos e disponibilidade. | Média | Planeado |
 | RF121 | [ ] O sistema deve permitir arquivar produtos sem histórico de venda recente, preservando pedidos e relatórios antigos. | Média | Planeado |
 
@@ -511,7 +513,7 @@ Esta etapa vem antes da implementação visual dos novos módulos. O objetivo é
 | RF251 | [x] O backend deve fornecer contexto de requisição com usuário, negócio, papel, permissões, módulos ativos e canal de origem. | Alta | Implementado |
 | RF252 | [~] O backend deve expor APIs de Clientes 360 para criar, listar, segmentar, fundir, etiquetar, bloquear, exportar e gerir consentimento. | Alta | Parcial - criar, listar, pesquisar, detalhar, etiquetar, bloquear/estado, exportar e consentimentos implementados; faltam fundir, segmentação comportamental avançada e jobs |
 | RF253 | [~] O backend deve expor APIs de Pedidos com múltiplos itens, estados de funil, pagamento, entrega, desconto, comprovativos e origem comercial. | Alta | Parcial - APIs `/pedidos` implementadas para criar/listar/detalhar/exportar, confirmar pagamento e atualizar entrega |
-| RF254 | [ ] O backend deve evoluir Produtos para suportar variantes, coleções, movimentos de stock, custo, margem, importação e catálogo digital. | Alta | Planeado |
+| RF254 | [~] O backend deve evoluir Produtos para suportar variantes, coleções, movimentos de stock, custo, margem, importação e catálogo digital. | Alta | Parcial - variantes, coleções, movimentos, custo e margem implementados; faltam importação e catálogo digital público |
 | RF255 | [ ] O backend deve expor APIs públicas e privadas para loja virtual, página de produto, catálogo digital, checkout WhatsApp e checkout site. | Alta | Planeado |
 | RF256 | [ ] O backend deve registrar tracking de links, UTM, referência, cookies técnicos, visitas, cliques WhatsApp, checkout iniciado, pedido e venda atribuída. | Alta | Planeado |
 | RF257 | [ ] O backend deve suportar afiliados, criadores e revendedores com links próprios, regras de comissão, reversões, pagamentos e relatórios. | Alta | Planeado |
@@ -817,8 +819,8 @@ Esta etapa vem antes da implementação visual dos novos módulos. O objetivo é
 | RN64 | [~] Pedido pago não pode ser apagado; deve ser cancelado, devolvido, trocado ou ajustado com auditoria. | Parcial - não existe exclusão de pedido; falta trilha de auditoria detalhada para ajustes |
 | RN65 | [~] Desconto exige motivo e, acima do limite configurado, aprovação de perfil autorizado. | Parcial - motivo obrigatório implementado; falta limite configurável e aprovação |
 | RN66 | [ ] Produto sem stock disponível não deve ser vendido automaticamente, mas pode entrar em lista de interesse/reposição. | Planeado |
-| RN67 | [ ] Movimento manual de stock exige motivo e responsável. | Planeado |
-| RN68 | [ ] Categoria de produto só deve existir se melhorar filtro, catálogo ou relatório; categoria vazia deve ficar oculta. | Planeado |
+| RN67 | [x] Movimento manual de stock exige motivo e responsável. | Implementado no backend |
+| RN68 | [~] Categoria de produto só deve existir se melhorar filtro, catálogo ou relatório; categoria vazia deve ficar oculta. | Parcial - resumo expõe apenas categorias usadas; falta ocultar no frontend |
 | RN69 | [ ] Pedido rascunho não é categoria principal; só aparece dentro do cliente, conversa ou funil quando houver carrinho/orçamento real. | Planeado |
 | RN70 | [ ] Relatório só entra no menu comercial se responder uma pergunta prática da loja. | Planeado |
 | RN71 | [ ] Relatórios técnicos de automação pertencem ao Admin/Sistema, não ao menu do vendedor. | Planeado |

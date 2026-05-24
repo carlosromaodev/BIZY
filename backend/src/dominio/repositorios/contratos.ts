@@ -43,6 +43,8 @@ import type {
   PerfilEstudantilUsuario,
   DadosNegocioBizy,
   FiltrosClientes360,
+  MovimentoStock,
+  NovoMovimentoStock,
   NegocioBizy
 } from "../tipos.js";
 
@@ -52,6 +54,8 @@ export interface RepositorioPecas {
   buscarPorCodigo(codigo: string, negocioId?: string | null): Promise<Peca | null>;
   atualizar(codigo: string, dados: AtualizarPeca, negocioId?: string | null): Promise<Peca>;
   atualizarEstado(codigo: string, estado: EstadoPeca, negocioId?: string | null): Promise<Peca>;
+  registrarMovimentoStock(dados: NovoMovimentoStock): Promise<MovimentoStock>;
+  listarMovimentosStock(codigoPeca: string, negocioId?: string | null): Promise<MovimentoStock[]>;
 }
 
 export interface RepositorioReservas {
