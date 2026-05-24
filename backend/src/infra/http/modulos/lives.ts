@@ -8,6 +8,7 @@ import {
 } from "../../../dominio/esquemas.js";
 import type { ComentarioLive } from "../../../dominio/tipos.js";
 import { criarProviderLive, type ContextoAplicacao, type SessaoLive } from "../ContextoAplicacao.js";
+import { exigirAcessoComercial } from "../contextoComercial.js";
 import { exigirUsuarioAutenticado } from "../seguranca.js";
 import type { ModuloHttp } from "./ModuloHttp.js";
 
@@ -113,6 +114,14 @@ export const moduloLives: ModuloHttp = {
     });
 
     app.post("/comentarios/manual", async (request, reply) => {
+      const contextoComercial = await exigirAcessoComercial(contexto, request, reply, {
+        permissao: "conversas:gerir",
+        modulo: "conversas",
+        mensagemPermissao: "Sem permissão para registrar comentários.",
+        mensagemModulo: "Conversas desativadas para este negócio."
+      });
+      if (!contextoComercial) return;
+
       const dados = ComentarioManualSchema.parse(request.body);
       const comentario: ComentarioLive = {
         source: "manual",
@@ -126,15 +135,26 @@ export const moduloLives: ModuloHttp = {
         timestamp: new Date()
       };
 
-      const resultado = await contexto.processadorComentarios.processar(comentario);
+      const resultado = await contexto.processadorComentarios.processar(comentario, {
+        negocioId: contextoComercial.negocio.id
+      });
       return reply.code(201).send(resultado);
     });
 
-    app.get("/comentarios", async (request) => {
+    app.get("/comentarios", async (request, reply) => {
+      const contextoComercial = await exigirAcessoComercial(contexto, request, reply, {
+        permissao: "conversas:ler",
+        modulo: "conversas",
+        mensagemPermissao: "Sem permissão para consultar comentários.",
+        mensagemModulo: "Conversas desativadas para este negócio."
+      });
+      if (!contextoComercial) return;
+
       const incluirIgnorados = (request.query as { incluirIgnorados?: string | boolean } | undefined)?.incluirIgnorados;
 
       return contexto.consultaPainel.listarComentarios({
-        incluirIgnorados: incluirIgnorados === true || incluirIgnorados === "true"
+        incluirIgnorados: incluirIgnorados === true || incluirIgnorados === "true",
+        negocioId: contextoComercial.negocio.id
       });
     });
 
@@ -146,16 +166,32 @@ export const moduloLives: ModuloHttp = {
       return contexto.limparDadosComunicacao.executar();
     });
 
-    app.post("/comentarios/:id/aprovar", async (request) => {
+    app.post("/comentarios/:id/aprovar", async (request, reply) => {
+      const contextoComercial = await exigirAcessoComercial(contexto, request, reply, {
+        permissao: "conversas:gerir",
+        modulo: "conversas",
+        mensagemPermissao: "Sem permissão para revisar comentários.",
+        mensagemModulo: "Conversas desativadas para este negócio."
+      });
+      if (!contextoComercial) return;
+
       const { id } = request.params as { id: string };
       const dados = AprovarComentarioManualSchema.parse(request.body ?? {});
-      return contexto.revisaoComentarios.aprovarComentario(id, dados);
+      return contexto.revisaoComentarios.aprovarComentario(id, dados, { negocioId: contextoComercial.negocio.id });
     });
 
-    app.post("/comentarios/:id/rejeitar", async (request) => {
+    app.post("/comentarios/:id/rejeitar", async (request, reply) => {
+      const contextoComercial = await exigirAcessoComercial(contexto, request, reply, {
+        permissao: "conversas:gerir",
+        modulo: "conversas",
+        mensagemPermissao: "Sem permissão para revisar comentários.",
+        mensagemModulo: "Conversas desativadas para este negócio."
+      });
+      if (!contextoComercial) return;
+
       const { id } = request.params as { id: string };
       const dados = RejeitarComentarioManualSchema.parse(request.body ?? {});
-      return contexto.revisaoComentarios.rejeitarComentario(id, dados.motivo);
+      return contexto.revisaoComentarios.rejeitarComentario(id, dados.motivo, { negocioId: contextoComercial.negocio.id });
     });
   }
 };

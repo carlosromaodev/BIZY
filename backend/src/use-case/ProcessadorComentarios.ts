@@ -1,6 +1,6 @@
 import { ComentarioLiveSchema } from "../dominio/esquemas.js";
 import type { DespachadorEventos } from "../dominio/eventos/DespachadorEventos.js";
-import type { RepositorioComentarios } from "../dominio/repositorios/contratos.js";
+import type { RepositorioClientes, RepositorioComentarios } from "../dominio/repositorios/contratos.js";
 import type { AutomacaoWhatsApp } from "../dominio/servicos/AutomacaoWhatsApp.js";
 import type { InterpretadorComentario } from "../dominio/servicos/InterpretadorComentario.js";
 import type { MotorReservas } from "./MotorReservas.js";
@@ -14,31 +14,41 @@ export interface ResultadoProcessamentoComentario {
   motivo: string | null;
 }
 
+interface OpcoesProcessamentoComentario {
+  negocioId?: string | null;
+}
+
 export class ProcessadorComentarios {
   constructor(
     private readonly interpretadorComentario: InterpretadorComentario,
     private readonly motorReservas: MotorReservas,
     private readonly automacaoWhatsApp: AutomacaoWhatsApp,
     private readonly repositorioComentarios: RepositorioComentarios,
-    private readonly eventos: DespachadorEventos
+    private readonly eventos: DespachadorEventos,
+    private readonly repositorioClientes?: RepositorioClientes
   ) {}
 
-  async processar(comentarioEntrada: ComentarioLive): Promise<ResultadoProcessamentoComentario> {
+  async processar(
+    comentarioEntrada: ComentarioLive,
+    opcoes: OpcoesProcessamentoComentario = {}
+  ): Promise<ResultadoProcessamentoComentario> {
     const comentario = ComentarioLiveSchema.parse(comentarioEntrada);
+    const negocioId = opcoes.negocioId ?? null;
 
-    this.eventos.emitir("COMMENT_RECEIVED", { comentario });
+    this.eventos.emitir("COMMENT_RECEIVED", { comentario, negocioId });
 
     const interpretacao = this.interpretadorComentario.interpretar(comentario.commentText);
-    this.eventos.emitir("COMMENT_PARSED", { comentario, interpretacao });
+    this.eventos.emitir("COMMENT_PARSED", { comentario, interpretacao, negocioId });
 
     const registroInicial = await this.repositorioComentarios.criar({
+      negocioId,
       comentario,
       interpretacao,
       estado: "RECEBIDO"
     });
 
     if (interpretacao.intent === "BUY") {
-      this.eventos.emitir("INTENT_DETECTED", { comentario, interpretacao });
+      this.eventos.emitir("INTENT_DETECTED", { comentario, interpretacao, negocioId });
     }
 
     if (interpretacao.intent !== "BUY") {
@@ -62,7 +72,7 @@ export class ProcessadorComentarios {
       );
 
       if (this.devePedirCodigoPecaNaRevisao(interpretacao)) {
-        await this.pedirCodigoPecaAoCliente(comentario, interpretacao, motivo);
+        await this.pedirCodigoPecaAoCliente(comentario, interpretacao, motivo, negocioId);
       }
 
       return { registro, reserva: null, reservas: [], estado: "REVISAO_MANUAL", motivo };
@@ -70,15 +80,20 @@ export class ProcessadorComentarios {
 
     const codigosPeca = this.listarCodigosPecaInterpretados(interpretacao);
     const resultadosReserva = [];
+    const cliente = await this.sincronizarCliente(comentario, interpretacao, negocioId);
 
     for (const codigoPeca of codigosPeca) {
-      const resultadoReserva = await this.motorReservas.criarReserva(comentario, {
-        ...interpretacao,
-        productCode: codigoPeca,
-        productCodes: [codigoPeca]
-      });
+      const resultadoReserva = await this.motorReservas.criarReserva(
+        comentario,
+        {
+          ...interpretacao,
+          productCode: codigoPeca,
+          productCodes: [codigoPeca]
+        },
+        { negocioId, clienteNegocioId: cliente?.id ?? null }
+      );
       resultadosReserva.push(resultadoReserva);
-      await this.notificarResultadoReserva(resultadoReserva, comentario, interpretacao);
+      await this.notificarResultadoReserva(resultadoReserva, comentario, interpretacao, negocioId);
     }
 
     const reservas = resultadosReserva.flatMap((resultado) => (resultado.reserva ? [resultado.reserva] : []));
@@ -110,10 +125,31 @@ export class ProcessadorComentarios {
     return [...new Set(codigos.filter((codigo): codigo is string => Boolean(codigo)))];
   }
 
+  private async sincronizarCliente(
+    comentario: ComentarioLive,
+    interpretacao: ResultadoInterpretacaoComentario,
+    negocioId?: string | null
+  ) {
+    if (!this.repositorioClientes || !negocioId || !interpretacao.phone) return null;
+
+    return this.repositorioClientes.sincronizar({
+      negocioId,
+      telefone: interpretacao.phone,
+      nome: comentario.displayName || comentario.username,
+      username: comentario.username,
+      userId: comentario.userId ?? null,
+      avatarUrl: comentario.avatarUrl ?? null,
+      origem: "comentario_live",
+      consentimentoDados: true,
+      ultimaInteracaoEm: comentario.timestamp
+    });
+  }
+
   private async notificarResultadoReserva(
     resultadoReserva: Awaited<ReturnType<MotorReservas["criarReserva"]>>,
     comentario: ComentarioLive,
-    interpretacao: ReturnType<InterpretadorComentario["interpretar"]>
+    interpretacao: ReturnType<InterpretadorComentario["interpretar"]>,
+    negocioId?: string | null
   ): Promise<void> {
     if (resultadoReserva.tipo === "RESERVA_CRIADA" && resultadoReserva.reserva && resultadoReserva.peca) {
       await this.automacaoWhatsApp.notificarReservaCriada(resultadoReserva.reserva, resultadoReserva.peca);
@@ -135,7 +171,8 @@ export class ProcessadorComentarios {
       await this.pedirCodigoPecaAoCliente(
         comentario,
         interpretacao,
-        resultadoReserva.motivo || "Peça não encontrada no catálogo."
+        resultadoReserva.motivo || "Peça não encontrada no catálogo.",
+        resultadoReserva.reserva?.negocioId ?? negocioId ?? null
       );
     }
 
@@ -143,7 +180,8 @@ export class ProcessadorComentarios {
       await this.pedirCodigoPecaAoCliente(
         comentario,
         interpretacao,
-        resultadoReserva.motivo || "Peça não encontrada no catálogo."
+        resultadoReserva.motivo || "Peça não encontrada no catálogo.",
+        resultadoReserva.reserva?.negocioId ?? negocioId ?? null
       );
     }
   }
@@ -169,7 +207,8 @@ export class ProcessadorComentarios {
   private async pedirCodigoPecaAoCliente(
     comentario: ComentarioLive,
     interpretacao: ResultadoInterpretacaoComentario,
-    motivo: string
+    motivo: string,
+    negocioId?: string | null
   ): Promise<void> {
     if (!interpretacao.phone) return;
 
@@ -180,14 +219,16 @@ export class ProcessadorComentarios {
       nomeCliente,
       comentario,
       interpretacao,
-      motivo
+      motivo,
+      negocioId: negocioId ?? null
     });
 
     await this.automacaoWhatsApp.solicitarCodigoPeca(
       interpretacao.phone,
       nomeCliente,
       comentario.commentText,
-      motivo
+      motivo,
+      negocioId
     );
   }
 

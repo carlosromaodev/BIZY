@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
-import { LogoBizy, NOME_PRODUTO } from "@/marca/bizy";
+import { CORES_LOGO_BIZY_ESCURA, LogoBizy, NOME_PRODUTO } from "@/marca/bizy";
 
 const dadosFooter = {
   empresa: {
@@ -132,17 +132,7 @@ export default function Footer4Col() {
         <div className="grid gap-10 lg:grid-cols-[1.05fr_1.95fr]">
           <div>
             <Link className="inline-flex items-center gap-3 text-white focus-visible:outline-none" to="/">
-              <LogoBizy
-                className="h-10 w-auto"
-                cores={{
-                  principal: "#d8ff72",
-                  cinzaClaro: "#78d64b",
-                  cinzaMedio: "#ffffff",
-                  faviconBase: "#d8ff72",
-                  faviconCheck: "#050706",
-                  faviconLinhas: "#78d64b"
-                }}
-              />
+              <LogoBizy cores={CORES_LOGO_BIZY_ESCURA} className="h-10 w-auto" />
             </Link>
 
             <p className="mt-5 max-w-md text-sm leading-7 text-white/62">{dadosFooter.empresa.descricao}</p>

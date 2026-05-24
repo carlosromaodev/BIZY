@@ -33,6 +33,8 @@ export const tiposEventoSistema = [
   "PAYMENT_PROOF_RECEIVED",
   "PAYMENT_CONFIRMED",
   "PAYMENT_REJECTED",
+  "ORDER_CREATED",
+  "ORDER_PAYMENT_CONFIRMED",
   "ORDER_READY_TO_SHIP",
   "ORDER_DELIVERED",
   "WHATSAPP_MESSAGE_RECEIVED",
@@ -52,6 +54,8 @@ export const eventosEnviadosAoN8n = [
   "PAYMENT_PROOF_RECEIVED",
   "PAYMENT_CONFIRMED",
   "PAYMENT_REJECTED",
+  "ORDER_CREATED",
+  "ORDER_PAYMENT_CONFIRMED",
   "ORDER_READY_TO_SHIP",
   "ORDER_DELIVERED"
 ] as const satisfies readonly TipoEventoSistema[];
@@ -175,6 +179,8 @@ export interface AtualizarPeca {
 
 export interface Reserva {
   id: string;
+  negocioId: string | null;
+  clienteNegocioId: string | null;
   codigoPeca: string;
   telefoneCliente: string;
   nomeCliente: string;
@@ -193,6 +199,8 @@ export interface Reserva {
 }
 
 export interface NovaReserva {
+  negocioId?: string | null;
+  clienteNegocioId?: string | null;
   codigoPeca: string;
   telefoneCliente: string;
   nomeCliente: string;
@@ -209,6 +217,8 @@ export interface NovaReserva {
 }
 
 export interface DadosCriacaoReservaComControleStock {
+  negocioId?: string | null;
+  clienteNegocioId?: string | null;
   codigoPeca: string;
   telefoneCliente: string;
   nomeCliente: string;
@@ -222,6 +232,7 @@ export interface DadosCriacaoReservaComControleStock {
 
 export interface RegistroComentario {
   id: string;
+  negocioId: string | null;
   comentario: ComentarioLive;
   interpretacao: ResultadoInterpretacaoComentario | null;
   estado: EstadoComentario;
@@ -231,6 +242,7 @@ export interface RegistroComentario {
 }
 
 export interface NovoRegistroComentario {
+  negocioId?: string | null;
   comentario: ComentarioLive;
   interpretacao: ResultadoInterpretacaoComentario | null;
   estado: EstadoComentario;
@@ -274,6 +286,7 @@ export type StatusOutboxMensagemWhatsApp = "PENDENTE" | "ENVIADA" | "FALHOU";
 
 export interface RegistroOutboxMensagemWhatsApp {
   id: string;
+  negocioId: string | null;
   telefone: string;
   tipo: string;
   conteudo: string;
@@ -291,6 +304,7 @@ export interface RegistroOutboxMensagemWhatsApp {
 }
 
 export interface NovoOutboxMensagemWhatsApp {
+  negocioId?: string | null;
   telefone: string;
   tipo: string;
   conteudo: string;
@@ -342,6 +356,8 @@ export type PoliticaAutomacaoAtendimento = (typeof politicasAutomacaoAtendimento
 
 export interface ClienteAtendimento {
   id: string;
+  negocioId: string | null;
+  clienteGlobalId: string | null;
   telefone: string;
   nome: string | null;
   username: string | null;
@@ -358,6 +374,8 @@ export interface ClienteAtendimento {
 
 export interface ConversaAtendimento {
   id: string;
+  negocioId: string | null;
+  clienteNegocioId: string | null;
   clienteId: string;
   telefone: string;
   canal: string;
@@ -376,6 +394,7 @@ export type AtualizacaoConversaAtendimento = Partial<
 
 export interface MensagemAtendimento {
   id: string;
+  negocioId: string | null;
   conversaId: string;
   telefone: string;
   direcao: DirecaoMensagemAtendimento;
@@ -397,6 +416,8 @@ export interface MensagemAtendimento {
 }
 
 export interface NovaMensagemAtendimento {
+  negocioId?: string | null;
+  clienteNegocioId?: string | null;
   conversaId?: string | null;
   telefone: string;
   nomeCliente?: string | null;
@@ -423,6 +444,240 @@ export interface ConversaAtendimentoComMensagens {
   cliente: ClienteAtendimento;
   conversa: ConversaAtendimento;
   mensagens: MensagemAtendimento[];
+}
+
+export const estadosRelacionamentoCliente = [
+  "ATIVO",
+  "LEAD",
+  "VIP",
+  "INATIVO",
+  "BLOQUEADO",
+  "SEM_WHATSAPP",
+  "SEM_CONSENTIMENTO",
+  "INADIMPLENTE",
+  "PRIORIDADE_ALTA"
+] as const;
+export type EstadoRelacionamentoCliente = (typeof estadosRelacionamentoCliente)[number];
+
+export interface Cliente360 {
+  id: string;
+  negocioId: string;
+  clienteGlobalId: string;
+  telefone: string | null;
+  email: string | null;
+  nome: string | null;
+  username: string | null;
+  userId: string | null;
+  avatarUrl: string | null;
+  origem: string | null;
+  tags: string[];
+  preferencias: Record<string, unknown>;
+  consentimentoMarketing: boolean;
+  consentimentoDados: boolean;
+  estadoRelacionamento: EstadoRelacionamentoCliente;
+  primeiraInteracaoEm: Date;
+  ultimaInteracaoEm: Date;
+  criadoEm: Date;
+  atualizadoEm: Date;
+}
+
+export interface DadosCliente360 {
+  negocioId: string;
+  telefone?: string | null;
+  email?: string | null;
+  nome?: string | null;
+  username?: string | null;
+  userId?: string | null;
+  avatarUrl?: string | null;
+  origem?: string | null;
+  tags?: string[];
+  preferencias?: Record<string, unknown>;
+  consentimentoMarketing?: boolean;
+  consentimentoDados?: boolean;
+  estadoRelacionamento?: EstadoRelacionamentoCliente;
+  ultimaInteracaoEm?: Date;
+}
+
+export type AtualizacaoCliente360 = Partial<
+  Pick<
+    DadosCliente360,
+    | "telefone"
+    | "email"
+    | "nome"
+    | "username"
+    | "userId"
+    | "avatarUrl"
+    | "origem"
+    | "tags"
+    | "preferencias"
+    | "consentimentoMarketing"
+    | "consentimentoDados"
+    | "estadoRelacionamento"
+  >
+>;
+
+export interface FiltrosClientes360 {
+  busca?: string;
+  estadoRelacionamento?: EstadoRelacionamentoCliente;
+  tag?: string;
+  limite?: number;
+}
+
+export interface MetricasCliente360 {
+  totalReservas: number;
+  reservasAtivas: number;
+  reservasPagas: number;
+  totalCompradoEmKwanza: number;
+  totalMensagens: number;
+  conversasAbertas: number;
+  ultimaInteracaoEm: Date | null;
+}
+
+export interface Cliente360ComMetricas extends Cliente360 {
+  metricas: MetricasCliente360;
+}
+
+export const estadosPedido = [
+  "NOVO",
+  "AGUARDANDO_PAGAMENTO",
+  "PAGO",
+  "EM_PREPARACAO",
+  "PRONTO_ENTREGA",
+  "ENVIADO",
+  "ENTREGUE",
+  "CANCELADO",
+  "TROCADO",
+  "DEVOLVIDO"
+] as const;
+export type EstadoPedido = (typeof estadosPedido)[number];
+
+export const estadosPagamentoPedido = [
+  "PENDENTE",
+  "COMPROVATIVO_RECEBIDO",
+  "CONFIRMADO",
+  "REJEITADO",
+  "REEMBOLSADO"
+] as const;
+export type EstadoPagamentoPedido = (typeof estadosPagamentoPedido)[number];
+
+export const estadosEntregaPedido = [
+  "PENDENTE",
+  "RETIRADA_LOJA",
+  "EM_PREPARACAO",
+  "PRONTO",
+  "ENVIADO",
+  "ENTREGUE",
+  "FALHOU",
+  "DEVOLVIDO"
+] as const;
+export type EstadoEntregaPedido = (typeof estadosEntregaPedido)[number];
+
+export interface ItemPedido {
+  id: string;
+  pedidoId: string;
+  pecaId: string;
+  codigoPeca: string;
+  nomeProduto: string;
+  quantidade: number;
+  precoUnitarioEmKwanza: number;
+  subtotalEmKwanza: number;
+  criadoEm: Date;
+  atualizadoEm: Date;
+}
+
+export interface Pedido {
+  id: string;
+  negocioId: string;
+  clienteNegocioId: string;
+  reservaId: string | null;
+  numero: number;
+  estado: EstadoPedido;
+  estadoPagamento: EstadoPagamentoPedido;
+  estadoEntrega: EstadoEntregaPedido;
+  origem: string;
+  canal: string;
+  subtotalEmKwanza: number;
+  descontoEmKwanza: number;
+  taxaEntregaEmKwanza: number;
+  totalEmKwanza: number;
+  motivoDesconto: string | null;
+  enderecoEntrega: string | null;
+  comprovativoPagamentoUrl: string | null;
+  observacao: string | null;
+  responsavelId: string | null;
+  pagoEm: Date | null;
+  entregueEm: Date | null;
+  canceladoEm: Date | null;
+  criadoEm: Date;
+  atualizadoEm: Date;
+  itens: ItemPedido[];
+}
+
+export interface ItemNovoPedido {
+  codigoPeca: string;
+  quantidade: number;
+  precoUnitarioEmKwanza?: number;
+}
+
+export interface NovoPedido {
+  negocioId: string;
+  clienteNegocioId: string;
+  reservaId?: string | null;
+  itens: ItemNovoPedido[];
+  origem?: string;
+  canal?: string;
+  descontoEmKwanza?: number;
+  motivoDesconto?: string | null;
+  taxaEntregaEmKwanza?: number;
+  enderecoEntrega?: string | null;
+  comprovativoPagamentoUrl?: string | null;
+  observacao?: string | null;
+  responsavelId?: string | null;
+}
+
+export interface DadosPedidoResolvido extends Omit<NovoPedido, "itens"> {
+  numero?: number;
+  estado?: EstadoPedido;
+  estadoPagamento?: EstadoPagamentoPedido;
+  estadoEntrega?: EstadoEntregaPedido;
+  subtotalEmKwanza: number;
+  descontoEmKwanza: number;
+  taxaEntregaEmKwanza: number;
+  totalEmKwanza: number;
+  itens: Array<{
+    pecaId: string;
+    codigoPeca: string;
+    nomeProduto: string;
+    quantidade: number;
+    precoUnitarioEmKwanza: number;
+    subtotalEmKwanza: number;
+  }>;
+}
+
+export interface FiltrosPedidos {
+  estado?: EstadoPedido;
+  estadoPagamento?: EstadoPagamentoPedido;
+  estadoEntrega?: EstadoEntregaPedido;
+  clienteId?: string;
+  busca?: string;
+  limite?: number;
+}
+
+export interface AtualizacaoEstadoPedido {
+  estado?: EstadoPedido;
+  observacao?: string | null;
+  responsavelId?: string | null;
+}
+
+export interface ConfirmacaoPagamentoPedido {
+  comprovativoPagamentoUrl?: string | null;
+  observacao?: string | null;
+}
+
+export interface AtualizacaoEntregaPedido {
+  estadoEntrega: EstadoEntregaPedido;
+  observacao?: string | null;
+  responsavelId?: string | null;
 }
 
 export interface UsuarioSistema {
@@ -559,6 +814,7 @@ export interface SessaoUsuario {
 
 export interface InstanciaWhatsApp {
   id: string;
+  negocioId: string | null;
   nome: string;
   etiqueta: string | null;
   telefone: string | null;

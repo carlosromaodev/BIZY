@@ -16,6 +16,12 @@ interface OpcoesMotorReservas {
 
 interface OpcoesCancelamentoReserva {
   permitirCancelarPaga?: boolean;
+  negocioId?: string | null;
+}
+
+interface OpcoesOperacaoReserva {
+  negocioId?: string | null;
+  clienteNegocioId?: string | null;
 }
 
 export class MotorReservas {
@@ -34,7 +40,8 @@ export class MotorReservas {
 
   async criarReserva(
     comentario: ComentarioLive,
-    interpretacao: ResultadoInterpretacaoComentario
+    interpretacao: ResultadoInterpretacaoComentario,
+    opcoes: OpcoesOperacaoReserva = {}
   ): Promise<ResultadoReserva> {
     if (!interpretacao.phone || !interpretacao.productCode) {
       return {
@@ -45,6 +52,8 @@ export class MotorReservas {
     }
 
     const resultado = await this.repositorioReservas.criarComControleDeStock({
+      negocioId: opcoes.negocioId ?? null,
+      clienteNegocioId: opcoes.clienteNegocioId ?? null,
       codigoPeca: interpretacao.productCode,
       telefoneCliente: interpretacao.phone,
       nomeCliente: comentario.displayName || comentario.username,
@@ -68,17 +77,20 @@ export class MotorReservas {
     return resultado;
   }
 
-  async confirmarPagamento(idReserva: string): Promise<{ reserva: Reserva; peca: Peca }> {
-    const reservaAtual = await this.exigirReserva(idReserva);
+  async confirmarPagamento(
+    idReserva: string,
+    opcoes: OpcoesOperacaoReserva = {}
+  ): Promise<{ reserva: Reserva; peca: Peca }> {
+    const reservaAtual = await this.exigirReserva(idReserva, opcoes.negocioId);
     await this.repositorioReservas.atualizarEstadoPagamento(reservaAtual.id, "CONFIRMADO");
     const reserva = await this.repositorioReservas.atualizarEstado(reservaAtual.id, "PAID", null);
-    const peca = await this.exigirPeca(reserva.codigoPeca);
-    const reservasPagas = (await this.repositorioReservas.listar()).filter(
+    const peca = await this.exigirPeca(reserva.codigoPeca, reserva.negocioId);
+    const reservasPagas = (await this.repositorioReservas.listar(reserva.negocioId)).filter(
       (item) => item.codigoPeca === peca.codigo && item.estado === "PAID"
     ).length;
 
     if (reservasPagas >= peca.quantidade) {
-      await this.repositorioPecas.atualizarEstado(peca.codigo, "VENDIDA");
+      await this.repositorioPecas.atualizarEstado(peca.codigo, "VENDIDA", peca.negocioId);
     }
 
     this.eventos.emitir("PAYMENT_CONFIRMED", { reserva, peca });
@@ -89,15 +101,16 @@ export class MotorReservas {
 
   async registrarComprovativoPagamento(
     idReserva: string,
-    comprovativoPagamentoUrl: string | null = null
+    comprovativoPagamentoUrl: string | null = null,
+    opcoes: OpcoesOperacaoReserva = {}
   ): Promise<{ reserva: Reserva; peca: Peca }> {
-    const reservaAtual = await this.exigirReserva(idReserva);
+    const reservaAtual = await this.exigirReserva(idReserva, opcoes.negocioId);
     const reserva = await this.repositorioReservas.atualizarEstadoPagamento(
       reservaAtual.id,
       "COMPROVATIVO_RECEBIDO",
       comprovativoPagamentoUrl
     );
-    const peca = await this.exigirPeca(reserva.codigoPeca);
+    const peca = await this.exigirPeca(reserva.codigoPeca, reserva.negocioId);
 
     this.eventos.emitir("PAYMENT_PROOF_RECEIVED", { reserva, peca });
 
@@ -107,7 +120,7 @@ export class MotorReservas {
   async rejeitarPagamento(idReserva: string, motivo: string): Promise<{ reserva: Reserva; peca: Peca; motivo: string }> {
     const reservaAtual = await this.exigirReserva(idReserva);
     const reserva = await this.repositorioReservas.atualizarEstadoPagamento(reservaAtual.id, "REJEITADO");
-    const peca = await this.exigirPeca(reserva.codigoPeca);
+    const peca = await this.exigirPeca(reserva.codigoPeca, reserva.negocioId);
 
     this.eventos.emitir("PAYMENT_REJECTED", { reserva, peca, motivo });
 
@@ -120,7 +133,7 @@ export class MotorReservas {
   ): Promise<{ reserva: Reserva; peca: Peca }> {
     const reservaAtual = await this.exigirReserva(idReserva);
     const reserva = await this.repositorioReservas.atualizarEnderecoEntrega(reservaAtual.id, enderecoEntrega);
-    const peca = await this.exigirPeca(reserva.codigoPeca);
+    const peca = await this.exigirPeca(reserva.codigoPeca, reserva.negocioId);
 
     this.eventos.emitir("ORDER_READY_TO_SHIP", { reserva, peca });
 
@@ -129,7 +142,7 @@ export class MotorReservas {
 
   async marcarPedidoEntregue(idReserva: string): Promise<{ reserva: Reserva; peca: Peca }> {
     const reserva = await this.exigirReserva(idReserva);
-    const peca = await this.exigirPeca(reserva.codigoPeca);
+    const peca = await this.exigirPeca(reserva.codigoPeca, reserva.negocioId);
 
     this.eventos.emitir("ORDER_DELIVERED", { reserva, peca });
 
@@ -140,14 +153,14 @@ export class MotorReservas {
     idReserva: string,
     opcoes: OpcoesCancelamentoReserva = {}
   ): Promise<{ cancelada: Reserva; promovida: Reserva | null; peca: Peca }> {
-    const reservaAtual = await this.exigirReserva(idReserva);
+    const reservaAtual = await this.exigirReserva(idReserva, opcoes.negocioId);
 
     if (reservaAtual.estado === "PAID" && !opcoes.permitirCancelarPaga) {
       throw new Error("Reserva paga não pode ser cancelada sem autorização explícita.");
     }
 
     const cancelada = await this.repositorioReservas.atualizarEstado(reservaAtual.id, "CANCELLED", null);
-    const peca = await this.exigirPeca(cancelada.codigoPeca);
+    const peca = await this.exigirPeca(cancelada.codigoPeca, cancelada.negocioId);
     const promovida = await this.promoverProximoDaFila(peca);
 
     this.eventos.emitir("STOCK_UPDATED", { codigoPeca: peca.codigo });
@@ -162,7 +175,7 @@ export class MotorReservas {
 
     for (const reserva of vencidas) {
       const expirada = await this.repositorioReservas.atualizarEstado(reserva.id, "EXPIRED", null);
-      const peca = await this.exigirPeca(expirada.codigoPeca);
+      const peca = await this.exigirPeca(expirada.codigoPeca, expirada.negocioId);
       const promovida = await this.promoverProximoDaFila(peca);
 
       expiradas.push(expirada);
@@ -178,17 +191,20 @@ export class MotorReservas {
   }
 
   private async promoverProximoDaFila(peca: Peca): Promise<Reserva | null> {
-    const reservasQueBloqueiamStock = await this.repositorioReservas.contarReservasQueBloqueiamStock(peca.codigo);
+    const reservasQueBloqueiamStock = await this.repositorioReservas.contarReservasQueBloqueiamStock(
+      peca.codigo,
+      peca.negocioId
+    );
     const temStockLivre = peca.quantidade - reservasQueBloqueiamStock > 0;
 
     if (!temStockLivre || peca.estado === "VENDIDA" || peca.estado === "ESGOTADA") {
       return null;
     }
 
-    const [proximaReserva] = await this.repositorioReservas.listarFilaDaPeca(peca.codigo);
+    const [proximaReserva] = await this.repositorioReservas.listarFilaDaPeca(peca.codigo, peca.negocioId);
 
     if (!proximaReserva) {
-      await this.repositorioPecas.atualizarEstado(peca.codigo, "DISPONIVEL");
+      await this.repositorioPecas.atualizarEstado(peca.codigo, "DISPONIVEL", peca.negocioId);
       return null;
     }
 
@@ -198,7 +214,7 @@ export class MotorReservas {
       this.calcularExpiracao()
     );
 
-    await this.repositorioPecas.atualizarEstado(peca.codigo, "RESERVADA");
+    await this.repositorioPecas.atualizarEstado(peca.codigo, "RESERVADA", peca.negocioId);
     this.eventos.emitir("RESERVATION_CREATED", { reserva: promovida, peca, origem: "fila_de_espera" });
 
     return promovida;
@@ -208,8 +224,8 @@ export class MotorReservas {
     return new Date(this.agora().getTime() + this.minutosReserva * 60_000);
   }
 
-  private async exigirReserva(idReserva: string): Promise<Reserva> {
-    const reserva = await this.repositorioReservas.buscarPorId(idReserva);
+  private async exigirReserva(idReserva: string, negocioId?: string | null): Promise<Reserva> {
+    const reserva = await this.repositorioReservas.buscarPorId(idReserva, negocioId);
 
     if (!reserva) {
       throw new Error(`Reserva ${idReserva} não encontrada.`);
@@ -218,8 +234,8 @@ export class MotorReservas {
     return reserva;
   }
 
-  private async exigirPeca(codigoPeca: string): Promise<Peca> {
-    const peca = await this.repositorioPecas.buscarPorCodigo(codigoPeca);
+  private async exigirPeca(codigoPeca: string, negocioId?: string | null): Promise<Peca> {
+    const peca = await this.repositorioPecas.buscarPorCodigo(codigoPeca, negocioId);
 
     if (!peca) {
       throw new Error(`Peça #${codigoPeca} não encontrada.`);

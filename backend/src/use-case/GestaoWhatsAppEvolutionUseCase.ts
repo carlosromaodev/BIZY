@@ -20,8 +20,8 @@ export class GestaoWhatsAppEvolutionUseCase {
     private readonly opcoes: OpcoesGestaoWhatsAppEvolution
   ) {}
 
-  async listarResumo() {
-    const instancias = await this.repositorio.listarAtivas();
+  async listarResumo(negocioId?: string | null) {
+    const instancias = await this.repositorio.listarAtivas(negocioId);
     const padrao =
       instancias.find((instancia) => instancia.padrao && instanciaWhatsAppEstaConectada(instancia.status)) ??
       instancias.find((instancia) => instanciaWhatsAppEstaConectada(instancia.status)) ??
@@ -41,6 +41,7 @@ export class GestaoWhatsAppEvolutionUseCase {
   }
 
   async criarInstancia(dados: {
+    negocioId?: string | null;
     nome: string;
     etiqueta?: string | null;
     telefone?: string | null;
@@ -49,7 +50,9 @@ export class GestaoWhatsAppEvolutionUseCase {
     token?: string | null;
     padrao?: boolean;
   }) {
+    const negocioId = dados.negocioId ?? null;
     const instancia = await this.repositorio.criar({
+      negocioId,
       nome: dados.nome.trim().replace(/\s+/g, "-"),
       etiqueta: dados.etiqueta?.trim() || null,
       telefone: dados.telefone ? this.normalizarNumeroDono(dados.telefone) : null,
@@ -75,13 +78,13 @@ export class GestaoWhatsAppEvolutionUseCase {
       pairingCode: artefatos.pairingCode,
       ultimaConsultaEm: new Date(),
       ultimoErro: resultado.ok ? null : resultado.mensagemErro
-    });
+    }, negocioId);
 
     return this.formatarInstancia(atualizada);
   }
 
-  async conectar(id: string) {
-    const instancia = await this.exigirInstancia(id);
+  async conectar(id: string, negocioId?: string | null) {
+    const instancia = await this.exigirInstancia(id, negocioId);
     const resultado = await this.criarCliente(instancia).conectar(instancia.nome, instancia.telefone);
     const artefatos = await extrairQrEvolution(resultado.payload);
     const atualizada = await this.repositorio.atualizar(instancia.id, {
@@ -95,13 +98,13 @@ export class GestaoWhatsAppEvolutionUseCase {
       pairingCode: artefatos.pairingCode,
       ultimaConsultaEm: new Date(),
       ultimoErro: resultado.ok ? null : resultado.mensagemErro
-    });
+    }, negocioId);
 
     return this.formatarInstancia(atualizada);
   }
 
-  async consultarEstado(id: string) {
-    const instancia = await this.exigirInstancia(id);
+  async consultarEstado(id: string, negocioId?: string | null) {
+    const instancia = await this.exigirInstancia(id, negocioId);
     const resultado = await this.criarCliente(instancia).consultarEstado(instancia.nome);
     const estado = normalizarEstadoEvolution(resultado.payload);
     const conectado = instanciaWhatsAppEstaConectada(estado);
@@ -112,20 +115,20 @@ export class GestaoWhatsAppEvolutionUseCase {
       ultimaConexaoEm: conectado ? new Date() : instancia.ultimaConexaoEm,
       ultimaConsultaEm: new Date(),
       ultimoErro: resultado.ok ? null : resultado.mensagemErro ?? extrairMensagemEvolution(resultado.payload)
-    });
+    }, negocioId);
 
     return this.formatarInstancia(atualizada);
   }
 
-  async definirPadrao(id: string) {
-    const instancia = await this.repositorio.definirPadrao(id);
+  async definirPadrao(id: string, negocioId?: string | null) {
+    const instancia = await this.repositorio.definirPadrao(id, negocioId);
     return this.formatarInstancia(instancia);
   }
 
-  async remover(id: string) {
-    const instancia = await this.exigirInstancia(id);
+  async remover(id: string, negocioId?: string | null) {
+    const instancia = await this.exigirInstancia(id, negocioId);
     const resultado = await this.criarCliente(instancia).apagarInstancia(instancia.nome);
-    const removida = await this.repositorio.desativar(id);
+    const removida = await this.repositorio.desativar(id, negocioId);
 
     return {
       instancia: this.formatarInstancia(removida),
@@ -144,8 +147,8 @@ export class GestaoWhatsAppEvolutionUseCase {
     });
   }
 
-  private async exigirInstancia(id: string) {
-    const instancia = await this.repositorio.buscarPorId(id);
+  private async exigirInstancia(id: string, negocioId?: string | null) {
+    const instancia = await this.repositorio.buscarPorId(id, negocioId);
     if (!instancia || !instancia.ativa) {
       throw new Error("Instância WhatsApp não encontrada.");
     }
@@ -174,6 +177,7 @@ export class GestaoWhatsAppEvolutionUseCase {
   private formatarInstancia(instancia: InstanciaWhatsApp) {
     return {
       id: instancia.id,
+      negocioId: instancia.negocioId,
       nome: instancia.nome,
       etiqueta: instancia.etiqueta,
       telefone: instancia.telefone,

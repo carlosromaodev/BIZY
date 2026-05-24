@@ -18,7 +18,8 @@ import {
   requisitarApi,
   type UsuarioSessao
 } from "../api";
-import { LogoBizy, NOME_PRODUTO } from "../marca/bizy";
+import { CLASSE_BOTAO_CONTORNO_ESCURO, CLASSE_CAMPO_ESCURO } from "../componentes/estilosFormularioEscuro";
+import { CORES_LOGO_BIZY_ESCURA, LogoBizy, NOME_PRODUTO } from "../marca/bizy";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AuthPage, AuthSeparator, GoogleIcon } from "@/components/ui/auth-page";
 import { Badge } from "@/components/ui/badge";
@@ -276,7 +277,7 @@ export function PaginaLogin() {
 
   return (
     <AuthPage
-      brand={<LogoBizy />}
+      brand={<LogoBizy cores={CORES_LOGO_BIZY_ESCURA} />}
       title={tituloPagina}
       description={descricaoPagina}
       visualImage="/bizy-login-team.png"
@@ -374,12 +375,13 @@ export function PaginaLogin() {
                   {estaCriandoConta ? (
                     <div className="grid gap-2">
                       <Label htmlFor="nomeLogin">Nome do vendedor</Label>
-                      <Input id="nomeLogin" value={nome} onChange={(e) => setNome(e.target.value)} />
+                      <Input id="nomeLogin" className={CLASSE_CAMPO_ESCURO} value={nome} onChange={(e) => setNome(e.target.value)} />
                     </div>
                   ) : null}
                   <div className="grid gap-2">
                     <Label htmlFor="telefoneLogin">Telefone</Label>
                     <Input
+                      className={CLASSE_CAMPO_ESCURO}
                       id="telefoneLogin"
                       inputMode="tel"
                       value={telefone}
@@ -397,6 +399,7 @@ export function PaginaLogin() {
                   <div className="grid gap-2">
                     <Label htmlFor="codigoLogin">Código</Label>
                     <Input
+                      className={CLASSE_CAMPO_ESCURO}
                       id="codigoLogin"
                       inputMode="numeric"
                       maxLength={6}
@@ -420,13 +423,13 @@ export function PaginaLogin() {
                     {carregando ? "A validar..." : "Validar e continuar"}
                   </Button>
                   <div className="grid gap-2 sm:grid-cols-2">
-                    <Button type="button" variant="outline" className="h-10 rounded-xl" onClick={() => void enviarCodigo()} disabled={carregando || segundosRestantes > 0}>
+                    <Button type="button" variant="outline" className={cn(CLASSE_BOTAO_CONTORNO_ESCURO, "h-10 rounded-xl")} onClick={() => void enviarCodigo()} disabled={carregando || segundosRestantes > 0}>
                       Reenviar
                     </Button>
                     <Button
                       type="button"
                       variant="outline"
-                      className="h-10 rounded-xl"
+                      className={cn(CLASSE_BOTAO_CONTORNO_ESCURO, "h-10 rounded-xl")}
                       onClick={() => {
                         setEtapaTelefone("telefone");
                         setCodigo("");
@@ -504,6 +507,7 @@ export function PaginaLogin() {
                 <div className="grid gap-2">
                   <Label htmlFor="identificadorEstudante">{rotuloIdentificador}</Label>
                   <Input
+                    className={CLASSE_CAMPO_ESCURO}
                     id="identificadorEstudante"
                     autoComplete="username"
                     inputMode={tipoIdentificador === "username" && providerEstudantil === "uor" ? "text" : "numeric"}
@@ -528,11 +532,11 @@ export function PaginaLogin() {
                       autoComplete="current-password"
                       value={palavraPasse}
                       onChange={(e) => setPalavraPasse(e.target.value)}
-                      className="pr-11"
+                      className={cn(CLASSE_CAMPO_ESCURO, "pr-11")}
                     />
                     <button
                       type="button"
-                      className="absolute right-2 top-1/2 grid size-8 -translate-y-1/2 place-items-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground"
+                      className="absolute right-2 top-1/2 grid size-8 -translate-y-1/2 place-items-center rounded-lg text-white/50 transition-colors hover:bg-white/8 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#d8ff72]/25"
                       onClick={() => setMostrarPasse((valor) => !valor)}
                       aria-label={mostrarPasse ? "Ocultar palavra-passe" : "Mostrar palavra-passe"}
                     >

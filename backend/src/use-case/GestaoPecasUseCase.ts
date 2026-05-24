@@ -14,20 +14,24 @@ export class GestaoPecasUseCase {
     return peca;
   }
 
-  async listarPecas() {
-    return this.repositorioPecas.listar();
+  async listarPecas(negocioId?: string | null) {
+    return this.repositorioPecas.listar(negocioId);
   }
 
-  async atualizarPeca(codigo: string, dados: AtualizarPeca) {
+  async atualizarPeca(codigo: string, dados: AtualizarPeca, negocioId?: string | null) {
     const codigoNormalizado = this.normalizarCodigo(codigo);
-    const pecaAtual = await this.exigirPeca(codigoNormalizado);
-    const peca = await this.repositorioPecas.atualizar(codigoNormalizado, this.normalizarAtualizacao(pecaAtual, dados));
+    const pecaAtual = await this.exigirPeca(codigoNormalizado, negocioId);
+    const peca = await this.repositorioPecas.atualizar(
+      codigoNormalizado,
+      this.normalizarAtualizacao(pecaAtual, dados),
+      negocioId
+    );
     this.eventos.emitir("STOCK_UPDATED", { peca });
     return peca;
   }
 
-  async desativarPeca(codigo: string) {
-    return this.atualizarPeca(codigo, { estado: "ESGOTADA" });
+  async desativarPeca(codigo: string, negocioId?: string | null) {
+    return this.atualizarPeca(codigo, { estado: "ESGOTADA" }, negocioId);
   }
 
   private normalizarCriacao(dados: NovaPeca): NovaPeca {
@@ -50,8 +54,8 @@ export class GestaoPecasUseCase {
     return dados;
   }
 
-  private async exigirPeca(codigo: string): Promise<Peca> {
-    const peca = await this.repositorioPecas.buscarPorCodigo(this.normalizarCodigo(codigo));
+  private async exigirPeca(codigo: string, negocioId?: string | null): Promise<Peca> {
+    const peca = await this.repositorioPecas.buscarPorCodigo(this.normalizarCodigo(codigo), negocioId);
 
     if (!peca) {
       throw new Error(`Peça #${codigo} não encontrada.`);

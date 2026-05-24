@@ -40,7 +40,7 @@ import {
 } from "@/components/ui/navigation-menu";
 import { Marquee } from "@/components/ui/marquee";
 import { PROMPT_FONT_FAMILY } from "@/lib/prompt-font";
-import { LogoBizy, NOME_PRODUTO } from "../marca/bizy";
+import { CORES_LOGO_BIZY_ESCURA, LogoBizy, NOME_PRODUTO } from "../marca/bizy";
 
 const MotionDiv = motion.div;
 const MotionSection = motion.section;
@@ -197,16 +197,7 @@ export function PaginaHome() {
       <header className="absolute inset-x-0 top-0 z-40 bg-transparent text-white">
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4">
           <Link className="flex items-center gap-2 font-bold" to="/">
-            <LogoBizy
-              cores={{
-                principal: "#D8FF72",
-                cinzaClaro: "#86EFAC",
-                cinzaMedio: "#ffffff",
-                faviconBase: "#D8FF72",
-                faviconCheck: "#050706",
-                faviconLinhas: "#86EFAC"
-              }}
-            />
+            <LogoBizy cores={CORES_LOGO_BIZY_ESCURA} />
           </Link>
 
           <NavigationMenu className="hidden flex-none md:flex">

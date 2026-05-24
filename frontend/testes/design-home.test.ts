@@ -30,6 +30,8 @@ describe("landing page Bizy", () => {
     expect(source).toContain("useReducedMotion");
     expect(source).toContain("MotionDiv");
     expect(source).toContain("LiveCommerceHero");
+    expect(source).toContain("CORES_LOGO_BIZY_ESCURA");
+    expect(source).toContain("<LogoBizy cores={CORES_LOGO_BIZY_ESCURA}");
     expect(source).toContain("BizyFeaturesSection");
     expect(source).toContain("CTAWithTextMarquee");
     expect(source).toContain("Footer4Col");
@@ -89,6 +91,8 @@ describe("landing page Bizy", () => {
     expect(source).toContain("A plataforma envia WhatsApp automaticamente?");
     expect(source).toContain("Ver preços");
     expect(footer).toContain("CRM operacional para live commerce");
+    expect(footer).toContain("CORES_LOGO_BIZY_ESCURA");
+    expect(footer).toContain("<LogoBizy cores={CORES_LOGO_BIZY_ESCURA}");
     expect(footer).toContain("Atendimento WhatsApp");
     expect(footer).toContain("Luanda, Angola");
     expect(source).toContain("perguntasOperacao");

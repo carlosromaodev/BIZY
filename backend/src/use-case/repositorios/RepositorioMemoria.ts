@@ -3,25 +3,36 @@ import type {
   RepositorioAutenticacao,
   RepositorioAtendimento,
   RepositorioAuditoria,
+  RepositorioClientes,
   RepositorioComentarios,
   RepositorioInstanciasWhatsApp,
   RepositorioPecas,
+  RepositorioPedidos,
   RepositorioReservas,
   RepositorioSessoesLive
 } from "../../dominio/repositorios/contratos.js";
 import type {
   AtualizacaoRegistroSessaoLive,
+  AtualizacaoCliente360,
   AtualizacaoConversaAtendimento,
+  AtualizacaoEntregaPedido,
+  AtualizacaoEstadoPedido,
   AtualizarPeca,
   CodigoLoginSms,
   ClienteAtendimento,
+  Cliente360,
+  ConfirmacaoPagamentoPedido,
   ConversaAtendimento,
   ConversaAtendimentoComMensagens,
   DadosCriacaoReservaComControleStock,
+  DadosCliente360,
+  DadosPedidoResolvido,
   EstadoComentario,
   EstadoPagamento,
   EstadoPeca,
   EstadoReserva,
+  FiltrosPedidos,
+  FiltrosClientes360,
   EventoSistema,
   InstanciaWhatsApp,
   MensagemAtendimento,
@@ -32,6 +43,7 @@ import type {
   NovoRegistroSessaoLive,
   NovoRegistroComentario,
   Peca,
+  Pedido,
   RegistroOutboxEventoN8n,
   RegistroOutboxMensagemWhatsApp,
   RegistroComentario,
@@ -41,6 +53,7 @@ import type {
   ResumoOutboxMensagemWhatsApp,
   ResultadoInterpretacaoComentario
 } from "../../dominio/tipos.js";
+import { normalizarEmail, normalizarTelefone } from "../../dominio/servicos/normalizarContato.js";
 import type {
   DadosIdentidadeAutenticacao,
   DadosNegocioBizy,
@@ -57,7 +70,8 @@ export class RepositorioPecasMemoria implements RepositorioPecas {
   private readonly pecas = new Map<string, Peca>();
 
   async criar(dados: NovaPeca): Promise<Peca> {
-    if (this.pecas.has(dados.codigo)) {
+    const chave = this.chavePeca(dados.codigo, dados.negocioId ?? null);
+    if (this.pecas.has(chave)) {
       throw new Error(`Peça #${dados.codigo} já existe.`);
     }
 
@@ -76,42 +90,53 @@ export class RepositorioPecasMemoria implements RepositorioPecas {
       atualizadoEm: agora
     };
 
-    this.pecas.set(peca.codigo, peca);
+    this.pecas.set(chave, peca);
     return peca;
   }
 
-  async listar(): Promise<Peca[]> {
-    return [...this.pecas.values()].sort((a, b) => a.codigo.localeCompare(b.codigo, "pt-AO", { numeric: true }));
+  async listar(negocioId?: string | null): Promise<Peca[]> {
+    return [...this.pecas.values()]
+      .filter((peca) => !negocioId || peca.negocioId === negocioId)
+      .sort((a, b) => a.codigo.localeCompare(b.codigo, "pt-AO", { numeric: true }));
   }
 
-  async buscarPorCodigo(codigo: string): Promise<Peca | null> {
-    return this.pecas.get(codigo) ?? null;
+  async buscarPorCodigo(codigo: string, negocioId?: string | null): Promise<Peca | null> {
+    if (negocioId) {
+      return this.pecas.get(this.chavePeca(codigo, negocioId)) ?? null;
+    }
+
+    return [...this.pecas.values()].find((peca) => peca.codigo === codigo) ?? null;
   }
 
-  async atualizar(codigo: string, dados: AtualizarPeca): Promise<Peca> {
-    const peca = await this.exigirPeca(codigo);
+  async atualizar(codigo: string, dados: AtualizarPeca, negocioId?: string | null): Promise<Peca> {
+    const peca = await this.exigirPeca(codigo, negocioId);
     const atualizada: Peca = {
       ...peca,
       ...dados,
       atualizadoEm: new Date()
     };
 
-    this.pecas.set(codigo, atualizada);
+    this.pecas.delete(this.chavePeca(peca.codigo, peca.negocioId));
+    this.pecas.set(this.chavePeca(atualizada.codigo, atualizada.negocioId), atualizada);
     return atualizada;
   }
 
-  async atualizarEstado(codigo: string, estado: EstadoPeca): Promise<Peca> {
-    return this.atualizar(codigo, { estado });
+  async atualizarEstado(codigo: string, estado: EstadoPeca, negocioId?: string | null): Promise<Peca> {
+    return this.atualizar(codigo, { estado }, negocioId);
   }
 
-  private async exigirPeca(codigo: string): Promise<Peca> {
-    const peca = await this.buscarPorCodigo(codigo);
+  private async exigirPeca(codigo: string, negocioId?: string | null): Promise<Peca> {
+    const peca = await this.buscarPorCodigo(codigo, negocioId);
 
     if (!peca) {
       throw new Error(`Peça #${codigo} não encontrada.`);
     }
 
     return peca;
+  }
+
+  private chavePeca(codigo: string, negocioId: string | null | undefined): string {
+    return `${negocioId ?? "global"}:${codigo}`;
   }
 }
 
@@ -126,6 +151,8 @@ export class RepositorioReservasMemoria implements RepositorioReservas {
     const reserva: Reserva = {
       id: randomUUID(),
       ...dados,
+      negocioId: dados.negocioId ?? null,
+      clienteNegocioId: dados.clienteNegocioId ?? null,
       userIdCliente: dados.userIdCliente ?? null,
       avatarUrlCliente: dados.avatarUrlCliente ?? null,
       estadoPagamento: dados.estadoPagamento ?? "AGUARDANDO_COMPROVATIVO",
@@ -150,7 +177,7 @@ export class RepositorioReservasMemoria implements RepositorioReservas {
         };
       }
 
-      const peca = await repositorioPecas.buscarPorCodigo(dados.codigoPeca);
+      const peca = await repositorioPecas.buscarPorCodigo(dados.codigoPeca, dados.negocioId);
 
       if (!peca) {
         return {
@@ -169,10 +196,12 @@ export class RepositorioReservasMemoria implements RepositorioReservas {
         };
       }
 
-      const reservasQueBloqueiamStock = await this.contarReservasQueBloqueiamStock(peca.codigo);
+      const reservasQueBloqueiamStock = await this.contarReservasQueBloqueiamStock(peca.codigo, peca.negocioId);
       const temStockLivre = peca.quantidade - reservasQueBloqueiamStock > 0;
       const reserva = await this.criar({
         codigoPeca: peca.codigo,
+        negocioId: dados.negocioId ?? peca.negocioId,
+        clienteNegocioId: dados.clienteNegocioId ?? null,
         telefoneCliente: dados.telefoneCliente,
         nomeCliente: dados.nomeCliente,
         usernameCliente: dados.usernameCliente,
@@ -185,7 +214,7 @@ export class RepositorioReservasMemoria implements RepositorioReservas {
       });
 
       if (temStockLivre && reservasQueBloqueiamStock + 1 >= peca.quantidade) {
-        const atualizada = await repositorioPecas.atualizarEstado(peca.codigo, "RESERVADA");
+        const atualizada = await repositorioPecas.atualizarEstado(peca.codigo, "RESERVADA", peca.negocioId);
         return { tipo: "RESERVA_CRIADA" as const, reserva, peca: atualizada };
       }
 
@@ -193,36 +222,53 @@ export class RepositorioReservasMemoria implements RepositorioReservas {
     });
   }
 
-  async listar(): Promise<Reserva[]> {
-    return [...this.reservas.values()].sort((a, b) => a.criadaEm.getTime() - b.criadaEm.getTime());
+  async listar(negocioId?: string | null): Promise<Reserva[]> {
+    return [...this.reservas.values()]
+      .filter((reserva) => !negocioId || reserva.negocioId === negocioId)
+      .sort((a, b) => a.criadaEm.getTime() - b.criadaEm.getTime());
   }
 
-  async buscarPorId(id: string): Promise<Reserva | null> {
-    return this.reservas.get(id) ?? null;
+  async buscarPorId(id: string, negocioId?: string | null): Promise<Reserva | null> {
+    const reserva = this.reservas.get(id) ?? null;
+    if (!reserva || !negocioId) return reserva;
+    return reserva.negocioId === negocioId ? reserva : null;
   }
 
-  async buscarReservaAtivaPorTelefoneEPeca(telefone: string, codigoPeca: string): Promise<Reserva | null> {
+  async buscarReservaAtivaPorTelefoneEPeca(
+    telefone: string,
+    codigoPeca: string,
+    negocioId?: string | null
+  ): Promise<Reserva | null> {
     const reservas = await this.listar();
     return (
       reservas.find(
         (reserva) =>
           reserva.telefoneCliente === telefone &&
           reserva.codigoPeca === codigoPeca &&
+          (!negocioId || reserva.negocioId === negocioId) &&
           estadosAtivosParaDuplicidade.includes(reserva.estado)
       ) ?? null
     );
   }
 
-  async contarReservasQueBloqueiamStock(codigoPeca: string): Promise<number> {
+  async contarReservasQueBloqueiamStock(codigoPeca: string, negocioId?: string | null): Promise<number> {
     const reservas = await this.listar();
     return reservas.filter(
-      (reserva) => reserva.codigoPeca === codigoPeca && estadosQueBloqueiamStock.includes(reserva.estado)
+      (reserva) =>
+        reserva.codigoPeca === codigoPeca &&
+        (!negocioId || reserva.negocioId === negocioId) &&
+        estadosQueBloqueiamStock.includes(reserva.estado)
     ).length;
   }
 
-  async listarFilaDaPeca(codigoPeca: string): Promise<Reserva[]> {
+  async listarFilaDaPeca(codigoPeca: string, negocioId?: string | null): Promise<Reserva[]> {
     const reservas = await this.listar();
-    return reservas.filter((reserva) => reserva.codigoPeca === codigoPeca && reserva.estado === "WAITLISTED");
+    return reservas.filter(
+      (reserva) =>
+        reserva.codigoPeca === codigoPeca &&
+        (!negocioId || reserva.negocioId === negocioId) &&
+        reserva.estado === "WAITLISTED"
+    );
   }
 
   async listarReservasExpiradas(agora: Date): Promise<Reserva[]> {
@@ -317,6 +363,7 @@ export class RepositorioComentariosMemoria implements RepositorioComentarios {
     const agora = new Date();
     const registro: RegistroComentario = {
       id: randomUUID(),
+      negocioId: dados.negocioId ?? null,
       comentario: dados.comentario,
       interpretacao: dados.interpretacao,
       estado: dados.estado,
@@ -329,14 +376,17 @@ export class RepositorioComentariosMemoria implements RepositorioComentarios {
     return registro;
   }
 
-  async listar(limite = 100): Promise<RegistroComentario[]> {
+  async listar(limite = 100, negocioId?: string | null): Promise<RegistroComentario[]> {
     return [...this.comentarios.values()]
+      .filter((comentario) => !negocioId || comentario.negocioId === negocioId)
       .sort((a, b) => b.criadoEm.getTime() - a.criadoEm.getTime())
       .slice(0, limite);
   }
 
-  async buscarPorId(id: string): Promise<RegistroComentario | null> {
-    return this.comentarios.get(id) ?? null;
+  async buscarPorId(id: string, negocioId?: string | null): Promise<RegistroComentario | null> {
+    const comentario = this.comentarios.get(id) ?? null;
+    if (!comentario || !negocioId) return comentario;
+    return comentario.negocioId === negocioId ? comentario : null;
   }
 
   async atualizarEstado(
@@ -377,6 +427,7 @@ export class RepositorioAutenticacaoMemoria implements RepositorioAutenticacao {
   private readonly perfisEstudantis = new Map<string, PerfilEstudantilUsuario>();
   private readonly negocios = new Map<string, NegocioBizy>();
   private readonly negocioPrincipalPorUsuario = new Map<string, string>();
+  private readonly modulosAtivosPorNegocio = new Map<string, Set<string>>();
   private readonly codigos = new Map<string, CodigoLoginSms>();
   private readonly sessoes = new Map<string, {
     id: string;
@@ -555,6 +606,10 @@ export class RepositorioAutenticacaoMemoria implements RepositorioAutenticacao {
     return negocio;
   }
 
+  async listarModulosAtivosPorNegocio(negocioId: string): Promise<string[]> {
+    return [...(this.modulosAtivosPorNegocio.get(negocioId) ?? [])];
+  }
+
   async marcarUsuarioOnboardingCompleto(usuarioId: string, data: Date): Promise<UsuarioSistema> {
     const usuario = this.exigirUsuario(usuarioId);
     const atualizado = { ...usuario, perfilCompletoEm: data, atualizadoEm: data };
@@ -685,6 +740,7 @@ export class RepositorioInstanciasWhatsAppMemoria implements RepositorioInstanci
   private readonly instancias = new Map<string, InstanciaWhatsApp>();
 
   async criar(dados: {
+    negocioId?: string | null;
     nome: string;
     etiqueta?: string | null;
     telefone?: string | null;
@@ -692,19 +748,28 @@ export class RepositorioInstanciasWhatsAppMemoria implements RepositorioInstanci
     apiKey?: string | null;
     padrao?: boolean;
   }): Promise<InstanciaWhatsApp> {
-    if ([...this.instancias.values()].some((instancia) => instancia.nome === dados.nome && instancia.ativa)) {
+    const negocioId = dados.negocioId ?? null;
+
+    if (
+      [...this.instancias.values()].some(
+        (instancia) => instancia.negocioId === negocioId && instancia.nome === dados.nome && instancia.ativa
+      )
+    ) {
       throw new Error(`Instância ${dados.nome} já existe.`);
     }
 
     if (dados.padrao) {
       for (const instancia of this.instancias.values()) {
-        this.instancias.set(instancia.id, { ...instancia, padrao: false, atualizadaEm: new Date() });
+        if (instancia.negocioId === negocioId) {
+          this.instancias.set(instancia.id, { ...instancia, padrao: false, atualizadaEm: new Date() });
+        }
       }
     }
 
     const agora = new Date();
     const instancia: InstanciaWhatsApp = {
       id: randomUUID(),
+      negocioId,
       nome: dados.nome,
       etiqueta: dados.etiqueta ?? null,
       telefone: dados.telefone ?? null,
@@ -726,29 +791,32 @@ export class RepositorioInstanciasWhatsAppMemoria implements RepositorioInstanci
     return instancia;
   }
 
-  async listarAtivas(): Promise<InstanciaWhatsApp[]> {
+  async listarAtivas(negocioId?: string | null): Promise<InstanciaWhatsApp[]> {
     return [...this.instancias.values()]
-      .filter((instancia) => instancia.ativa)
+      .filter((instancia) => instancia.ativa && this.pertenceAoNegocio(instancia, negocioId))
       .sort((a, b) => Number(b.padrao) - Number(a.padrao) || b.atualizadaEm.getTime() - a.atualizadaEm.getTime());
   }
 
-  async buscarPorId(id: string): Promise<InstanciaWhatsApp | null> {
-    return this.instancias.get(id) ?? null;
+  async buscarPorId(id: string, negocioId?: string | null): Promise<InstanciaWhatsApp | null> {
+    const instancia = this.instancias.get(id) ?? null;
+    return instancia && this.pertenceAoNegocio(instancia, negocioId) ? instancia : null;
   }
 
-  async buscarPadrao(): Promise<InstanciaWhatsApp | null> {
-    return (await this.listarAtivas()).find((instancia) => instancia.padrao) ?? null;
+  async buscarPadrao(negocioId?: string | null): Promise<InstanciaWhatsApp | null> {
+    return (await this.listarAtivas(negocioId)).find((instancia) => instancia.padrao) ?? null;
   }
 
   async atualizar(id: string, dados: Partial<Pick<
     InstanciaWhatsApp,
     "etiqueta" | "telefone" | "status" | "qrCode" | "pairingCode" | "baseUrl" | "apiKey" | "padrao" | "ativa" | "ultimoErro" | "ultimaConexaoEm" | "ultimaConsultaEm"
-  >>): Promise<InstanciaWhatsApp> {
-    const instancia = await this.exigirInstancia(id);
+  >>, negocioId?: string | null): Promise<InstanciaWhatsApp> {
+    const instancia = await this.exigirInstancia(id, negocioId);
 
     if (dados.padrao) {
       for (const item of this.instancias.values()) {
-        if (item.id !== id) this.instancias.set(item.id, { ...item, padrao: false, atualizadaEm: new Date() });
+        if (item.id !== id && item.negocioId === instancia.negocioId) {
+          this.instancias.set(item.id, { ...item, padrao: false, atualizadaEm: new Date() });
+        }
       }
     }
 
@@ -757,18 +825,22 @@ export class RepositorioInstanciasWhatsAppMemoria implements RepositorioInstanci
     return atualizada;
   }
 
-  async definirPadrao(id: string): Promise<InstanciaWhatsApp> {
-    return this.atualizar(id, { padrao: true, ativa: true });
+  async definirPadrao(id: string, negocioId?: string | null): Promise<InstanciaWhatsApp> {
+    return this.atualizar(id, { padrao: true, ativa: true }, negocioId);
   }
 
-  async desativar(id: string): Promise<InstanciaWhatsApp> {
-    return this.atualizar(id, { ativa: false, padrao: false });
+  async desativar(id: string, negocioId?: string | null): Promise<InstanciaWhatsApp> {
+    return this.atualizar(id, { ativa: false, padrao: false }, negocioId);
   }
 
-  private async exigirInstancia(id: string): Promise<InstanciaWhatsApp> {
-    const instancia = await this.buscarPorId(id);
+  private async exigirInstancia(id: string, negocioId?: string | null): Promise<InstanciaWhatsApp> {
+    const instancia = await this.buscarPorId(id, negocioId);
     if (!instancia) throw new Error(`Instância ${id} não encontrada.`);
     return instancia;
+  }
+
+  private pertenceAoNegocio(instancia: InstanciaWhatsApp, negocioId?: string | null) {
+    return negocioId === undefined ? true : instancia.negocioId === (negocioId ?? null);
   }
 }
 
@@ -828,6 +900,344 @@ export class RepositorioSessoesLiveMemoria implements RepositorioSessoesLive {
   }
 }
 
+interface ClienteGlobalMemoria {
+  id: string;
+  telefoneCanonico: string | null;
+  emailCanonico: string | null;
+  nomePreferido: string | null;
+  avatarUrl: string | null;
+  origemPrimeira: string | null;
+  dados: Record<string, unknown>;
+  criadoEm: Date;
+  atualizadoEm: Date;
+}
+
+export class RepositorioClientesMemoria implements RepositorioClientes {
+  private readonly clientesGlobais = new Map<string, ClienteGlobalMemoria>();
+  private readonly clientesNegocio = new Map<string, Cliente360>();
+
+  async salvar(dados: DadosCliente360): Promise<Cliente360> {
+    const contato = this.normalizarContatoObrigatorio(dados.telefone, dados.email);
+    const agora = new Date();
+    const global = this.obterOuCriarClienteGlobal(dados, contato, agora);
+    const existente = this.buscarExistentePorContato(dados.negocioId, global.id, contato.telefoneLocal);
+    const cliente: Cliente360 = existente
+      ? {
+          ...existente,
+          telefone: contato.telefoneLocal ?? existente.telefone,
+          email: contato.email ?? existente.email,
+          nome: dados.nome ?? existente.nome,
+          username: dados.username ?? existente.username,
+          userId: dados.userId ?? existente.userId,
+          avatarUrl: dados.avatarUrl ?? existente.avatarUrl,
+          origem: existente.origem ?? dados.origem ?? null,
+          tags: dados.tags ? this.unirTags(existente.tags, dados.tags) : existente.tags,
+          preferencias: dados.preferencias ? { ...existente.preferencias, ...dados.preferencias } : existente.preferencias,
+          consentimentoMarketing: dados.consentimentoMarketing ?? existente.consentimentoMarketing,
+          consentimentoDados: dados.consentimentoDados ?? existente.consentimentoDados,
+          estadoRelacionamento: dados.estadoRelacionamento ?? existente.estadoRelacionamento,
+          ultimaInteracaoEm: dados.ultimaInteracaoEm ?? existente.ultimaInteracaoEm,
+          atualizadoEm: agora
+        }
+      : {
+          id: randomUUID(),
+          negocioId: dados.negocioId,
+          clienteGlobalId: global.id,
+          telefone: contato.telefoneLocal,
+          email: contato.email,
+          nome: dados.nome ?? null,
+          username: dados.username ?? null,
+          userId: dados.userId ?? null,
+          avatarUrl: dados.avatarUrl ?? null,
+          origem: dados.origem ?? null,
+          tags: this.normalizarTags(dados.tags ?? []),
+          preferencias: dados.preferencias ?? {},
+          consentimentoMarketing: dados.consentimentoMarketing ?? false,
+          consentimentoDados: dados.consentimentoDados ?? false,
+          estadoRelacionamento: dados.estadoRelacionamento ?? "ATIVO",
+          primeiraInteracaoEm: dados.ultimaInteracaoEm ?? agora,
+          ultimaInteracaoEm: dados.ultimaInteracaoEm ?? agora,
+          criadoEm: agora,
+          atualizadoEm: agora
+        };
+
+    this.clientesNegocio.set(cliente.id, cliente);
+    return cliente;
+  }
+
+  async sincronizar(dados: DadosCliente360): Promise<Cliente360 | null> {
+    if (!normalizarTelefone(dados.telefone) && !normalizarEmail(dados.email)) return null;
+    return this.salvar(dados);
+  }
+
+  async listar(negocioId: string, filtros: FiltrosClientes360 = {}): Promise<Cliente360[]> {
+    const busca = (filtros.busca ?? "").trim().toLowerCase();
+    const tag = filtros.tag?.trim().toLowerCase();
+    const limite = filtros.limite ?? 100;
+
+    return [...this.clientesNegocio.values()]
+      .filter((cliente) => cliente.negocioId === negocioId)
+      .filter((cliente) => !filtros.estadoRelacionamento || cliente.estadoRelacionamento === filtros.estadoRelacionamento)
+      .filter((cliente) => !tag || cliente.tags.some((item) => item.toLowerCase() === tag))
+      .filter((cliente) => {
+        if (!busca) return true;
+        return [
+          cliente.telefone,
+          cliente.email,
+          cliente.nome,
+          cliente.username,
+          cliente.userId,
+          ...cliente.tags
+        ].some((valor) => valor?.toLowerCase().includes(busca));
+      })
+      .sort((a, b) => b.ultimaInteracaoEm.getTime() - a.ultimaInteracaoEm.getTime())
+      .slice(0, limite);
+  }
+
+  async buscarPorId(id: string, negocioId: string): Promise<Cliente360 | null> {
+    const cliente = this.clientesNegocio.get(id) ?? null;
+    return cliente?.negocioId === negocioId ? cliente : null;
+  }
+
+  async atualizar(id: string, negocioId: string, dados: AtualizacaoCliente360): Promise<Cliente360 | null> {
+    const existente = await this.buscarPorId(id, negocioId);
+    if (!existente) return null;
+
+    const telefone = dados.telefone === undefined ? existente.telefone : normalizarTelefone(dados.telefone)?.local ?? null;
+    const email = dados.email === undefined ? existente.email : normalizarEmail(dados.email);
+    if (!telefone && !email) {
+      throw new Error("Cliente precisa manter telefone ou email.");
+    }
+
+    const atualizado: Cliente360 = {
+      ...existente,
+      telefone,
+      email,
+      nome: dados.nome === undefined ? existente.nome : dados.nome,
+      username: dados.username === undefined ? existente.username : dados.username,
+      userId: dados.userId === undefined ? existente.userId : dados.userId,
+      avatarUrl: dados.avatarUrl === undefined ? existente.avatarUrl : dados.avatarUrl,
+      origem: dados.origem === undefined ? existente.origem : dados.origem,
+      tags: dados.tags === undefined ? existente.tags : this.normalizarTags(dados.tags),
+      preferencias: dados.preferencias === undefined ? existente.preferencias : dados.preferencias,
+      consentimentoMarketing: dados.consentimentoMarketing ?? existente.consentimentoMarketing,
+      consentimentoDados: dados.consentimentoDados ?? existente.consentimentoDados,
+      estadoRelacionamento: dados.estadoRelacionamento ?? existente.estadoRelacionamento,
+      atualizadoEm: new Date()
+    };
+
+    this.clientesNegocio.set(id, atualizado);
+    return atualizado;
+  }
+
+  private obterOuCriarClienteGlobal(
+    dados: DadosCliente360,
+    contato: { telefoneCanonico: string | null; telefoneLocal: string | null; email: string | null },
+    agora: Date
+  ): ClienteGlobalMemoria {
+    const existente = [...this.clientesGlobais.values()].find(
+      (cliente) =>
+        Boolean(contato.telefoneCanonico && cliente.telefoneCanonico === contato.telefoneCanonico) ||
+        Boolean(contato.email && cliente.emailCanonico === contato.email)
+    );
+
+    if (existente) {
+      const atualizado = {
+        ...existente,
+        nomePreferido: dados.nome ?? existente.nomePreferido,
+        avatarUrl: dados.avatarUrl ?? existente.avatarUrl,
+        atualizadoEm: agora
+      };
+      this.clientesGlobais.set(atualizado.id, atualizado);
+      return atualizado;
+    }
+
+    const novo: ClienteGlobalMemoria = {
+      id: randomUUID(),
+      telefoneCanonico: contato.telefoneCanonico,
+      emailCanonico: contato.email,
+      nomePreferido: dados.nome ?? null,
+      avatarUrl: dados.avatarUrl ?? null,
+      origemPrimeira: dados.origem ?? null,
+      dados: {},
+      criadoEm: agora,
+      atualizadoEm: agora
+    };
+    this.clientesGlobais.set(novo.id, novo);
+    return novo;
+  }
+
+  private buscarExistentePorContato(
+    negocioId: string,
+    clienteGlobalId: string,
+    telefone: string | null
+  ): Cliente360 | null {
+    return (
+      [...this.clientesNegocio.values()].find(
+        (cliente) =>
+          cliente.negocioId === negocioId &&
+          (cliente.clienteGlobalId === clienteGlobalId || Boolean(telefone && cliente.telefone === telefone))
+      ) ?? null
+    );
+  }
+
+  private normalizarContatoObrigatorio(telefone?: string | null, email?: string | null) {
+    const telefoneNormalizado = normalizarTelefone(telefone);
+    const emailNormalizado = normalizarEmail(email);
+    if (!telefoneNormalizado && !emailNormalizado) {
+      throw new Error("Informe telefone ou email para identificar o cliente.");
+    }
+
+    return {
+      telefoneLocal: telefoneNormalizado?.local ?? null,
+      telefoneCanonico: telefoneNormalizado?.canonico ?? null,
+      email: emailNormalizado
+    };
+  }
+
+  private unirTags(tagsAtuais: string[], novasTags: string[]): string[] {
+    return this.normalizarTags([...tagsAtuais, ...novasTags]);
+  }
+
+  private normalizarTags(tags: string[]): string[] {
+    return [...new Set(tags.map((tag) => tag.trim()).filter(Boolean))];
+  }
+}
+
+export class RepositorioPedidosMemoria implements RepositorioPedidos {
+  private readonly pedidos = new Map<string, Pedido>();
+
+  async criar(dados: DadosPedidoResolvido): Promise<Pedido> {
+    const agora = new Date();
+    const id = randomUUID();
+    const numero = dados.numero ?? this.proximoNumero(dados.negocioId);
+    const pedido: Pedido = {
+      id,
+      negocioId: dados.negocioId,
+      clienteNegocioId: dados.clienteNegocioId,
+      reservaId: dados.reservaId ?? null,
+      numero,
+      estado: dados.estado ?? "AGUARDANDO_PAGAMENTO",
+      estadoPagamento: dados.estadoPagamento ?? "PENDENTE",
+      estadoEntrega: dados.estadoEntrega ?? "PENDENTE",
+      origem: dados.origem ?? "manual",
+      canal: dados.canal ?? "whatsapp",
+      subtotalEmKwanza: dados.subtotalEmKwanza,
+      descontoEmKwanza: dados.descontoEmKwanza,
+      taxaEntregaEmKwanza: dados.taxaEntregaEmKwanza,
+      totalEmKwanza: dados.totalEmKwanza,
+      motivoDesconto: dados.motivoDesconto ?? null,
+      enderecoEntrega: dados.enderecoEntrega ?? null,
+      comprovativoPagamentoUrl: dados.comprovativoPagamentoUrl ?? null,
+      observacao: dados.observacao ?? null,
+      responsavelId: dados.responsavelId ?? null,
+      pagoEm: null,
+      entregueEm: null,
+      canceladoEm: null,
+      criadoEm: agora,
+      atualizadoEm: agora,
+      itens: dados.itens.map((item) => ({
+        id: randomUUID(),
+        pedidoId: id,
+        ...item,
+        criadoEm: agora,
+        atualizadoEm: agora
+      }))
+    };
+
+    this.pedidos.set(pedido.id, pedido);
+    return pedido;
+  }
+
+  async listar(negocioId: string, filtros: FiltrosPedidos = {}): Promise<Pedido[]> {
+    const busca = filtros.busca?.trim().toLowerCase();
+    return [...this.pedidos.values()]
+      .filter((pedido) => pedido.negocioId === negocioId)
+      .filter((pedido) => !filtros.estado || pedido.estado === filtros.estado)
+      .filter((pedido) => !filtros.estadoPagamento || pedido.estadoPagamento === filtros.estadoPagamento)
+      .filter((pedido) => !filtros.estadoEntrega || pedido.estadoEntrega === filtros.estadoEntrega)
+      .filter((pedido) => !filtros.clienteId || pedido.clienteNegocioId === filtros.clienteId)
+      .filter((pedido) => {
+        if (!busca) return true;
+        return [
+          String(pedido.numero),
+          pedido.canal,
+          pedido.origem,
+          pedido.observacao,
+          ...pedido.itens.flatMap((item) => [item.codigoPeca, item.nomeProduto])
+        ].some((valor) => valor?.toLowerCase().includes(busca));
+      })
+      .sort((a, b) => b.criadoEm.getTime() - a.criadoEm.getTime())
+      .slice(0, filtros.limite ?? 100);
+  }
+
+  async buscarPorId(id: string, negocioId: string): Promise<Pedido | null> {
+    const pedido = this.pedidos.get(id) ?? null;
+    return pedido?.negocioId === negocioId ? pedido : null;
+  }
+
+  async atualizarEstado(id: string, negocioId: string, dados: AtualizacaoEstadoPedido): Promise<Pedido | null> {
+    const pedido = await this.buscarPorId(id, negocioId);
+    if (!pedido) return null;
+
+    const atualizado: Pedido = {
+      ...pedido,
+      estado: dados.estado ?? pedido.estado,
+      observacao: dados.observacao ?? pedido.observacao,
+      responsavelId: dados.responsavelId ?? pedido.responsavelId,
+      canceladoEm: dados.estado === "CANCELADO" ? new Date() : pedido.canceladoEm,
+      atualizadoEm: new Date()
+    };
+    this.pedidos.set(id, atualizado);
+    return atualizado;
+  }
+
+  async confirmarPagamento(
+    id: string,
+    negocioId: string,
+    dados: ConfirmacaoPagamentoPedido
+  ): Promise<Pedido | null> {
+    const pedido = await this.buscarPorId(id, negocioId);
+    if (!pedido) return null;
+
+    const atualizado: Pedido = {
+      ...pedido,
+      estado: "PAGO",
+      estadoPagamento: "CONFIRMADO",
+      comprovativoPagamentoUrl: dados.comprovativoPagamentoUrl ?? pedido.comprovativoPagamentoUrl,
+      observacao: dados.observacao ?? pedido.observacao,
+      pagoEm: new Date(),
+      atualizadoEm: new Date()
+    };
+    this.pedidos.set(id, atualizado);
+    return atualizado;
+  }
+
+  async atualizarEntrega(id: string, negocioId: string, dados: AtualizacaoEntregaPedido): Promise<Pedido | null> {
+    const pedido = await this.buscarPorId(id, negocioId);
+    if (!pedido) return null;
+
+    const atualizado: Pedido = {
+      ...pedido,
+      estado: dados.estadoEntrega === "ENTREGUE" ? "ENTREGUE" : pedido.estado,
+      estadoEntrega: dados.estadoEntrega,
+      observacao: dados.observacao ?? pedido.observacao,
+      responsavelId: dados.responsavelId ?? pedido.responsavelId,
+      entregueEm: dados.estadoEntrega === "ENTREGUE" ? new Date() : pedido.entregueEm,
+      atualizadoEm: new Date()
+    };
+    this.pedidos.set(id, atualizado);
+    return atualizado;
+  }
+
+  private proximoNumero(negocioId: string): number {
+    const numeros = [...this.pedidos.values()]
+      .filter((pedido) => pedido.negocioId === negocioId)
+      .map((pedido) => pedido.numero);
+    return Math.max(0, ...numeros) + 1;
+  }
+}
+
 export class RepositorioAtendimentoMemoria implements RepositorioAtendimento {
   private readonly clientes = new Map<string, ClienteAtendimento>();
   private readonly conversas = new Map<string, ConversaAtendimento>();
@@ -841,7 +1251,13 @@ export class RepositorioAtendimentoMemoria implements RepositorioAtendimento {
 
     const agora = new Date();
     const enviadaEm = dados.enviadaEm ?? agora;
-    const { cliente, conversa } = this.obterConversaExistente(dados, enviadaEm) ?? this.obterOuCriarConversa(dados, enviadaEm);
+    const dadosComNegocio = {
+      ...dados,
+      negocioId: dados.negocioId ?? this.inferirNegocioIdPorTelefone(dados.telefone)
+    };
+    const { cliente, conversa } =
+      this.obterConversaExistente(dadosComNegocio, enviadaEm) ??
+      this.obterOuCriarConversa(dadosComNegocio, enviadaEm);
     if (dados.providerMessageId) {
       const existenteConcorrente =
         [...this.mensagens.values()].find((mensagem) => mensagem.providerMessageId === dados.providerMessageId) ?? null;
@@ -849,6 +1265,7 @@ export class RepositorioAtendimentoMemoria implements RepositorioAtendimento {
     }
     const mensagem: MensagemAtendimento = {
       id: randomUUID(),
+      negocioId: conversa.negocioId,
       conversaId: conversa.id,
       telefone: dados.telefone,
       direcao: dados.direcao,
@@ -870,13 +1287,18 @@ export class RepositorioAtendimentoMemoria implements RepositorioAtendimento {
     };
 
     this.mensagens.set(mensagem.id, mensagem);
-    this.clientes.set(cliente.telefone, { ...cliente, ultimaInteracaoEm: enviadaEm, atualizadoEm: agora });
+    this.clientes.set(this.chaveCliente(cliente.telefone, cliente.negocioId), {
+      ...cliente,
+      ultimaInteracaoEm: enviadaEm,
+      atualizadoEm: agora
+    });
     this.conversas.set(conversa.id, { ...conversa, ultimaMensagemEm: enviadaEm, atualizadoEm: agora });
     return mensagem;
   }
 
-  async listarConversasComMensagens(limite = 100): Promise<ConversaAtendimentoComMensagens[]> {
+  async listarConversasComMensagens(limite = 100, negocioId?: string | null): Promise<ConversaAtendimentoComMensagens[]> {
     return [...this.conversas.values()]
+      .filter((conversa) => !negocioId || conversa.negocioId === negocioId)
       .map((conversa) => this.montarConversaComMensagens(conversa))
       .sort(
         (a, b) =>
@@ -886,17 +1308,23 @@ export class RepositorioAtendimentoMemoria implements RepositorioAtendimento {
       .slice(0, limite);
   }
 
-  async buscarConversaComMensagensPorId(id: string): Promise<ConversaAtendimentoComMensagens | null> {
+  async buscarConversaComMensagensPorId(
+    id: string,
+    negocioId?: string | null
+  ): Promise<ConversaAtendimentoComMensagens | null> {
     const conversa = this.conversas.get(id);
+    if (conversa && negocioId && conversa.negocioId !== negocioId) return null;
     return conversa ? this.montarConversaComMensagens(conversa) : null;
   }
 
   async atualizarConversa(
     id: string,
-    dados: AtualizacaoConversaAtendimento
+    dados: AtualizacaoConversaAtendimento,
+    negocioId?: string | null
   ): Promise<ConversaAtendimentoComMensagens | null> {
     const conversa = this.conversas.get(id);
     if (!conversa) return null;
+    if (negocioId && conversa.negocioId !== negocioId) return null;
 
     const atualizada: ConversaAtendimento = {
       ...conversa,
@@ -946,7 +1374,8 @@ export class RepositorioAtendimentoMemoria implements RepositorioAtendimento {
   }
 
   private obterOuCriarConversa(dados: NovaMensagemAtendimento, agora: Date) {
-    const clienteExistente = this.clientes.get(dados.telefone);
+    const negocioId = dados.negocioId ?? null;
+    const clienteExistente = this.clientes.get(this.chaveCliente(dados.telefone, negocioId));
     const cliente: ClienteAtendimento = clienteExistente
       ? {
           ...clienteExistente,
@@ -959,6 +1388,8 @@ export class RepositorioAtendimentoMemoria implements RepositorioAtendimento {
         }
       : {
           id: randomUUID(),
+          negocioId,
+          clienteGlobalId: null,
           telefone: dados.telefone,
           nome: dados.nomeCliente ?? null,
           username: dados.usernameCliente ?? null,
@@ -973,16 +1404,21 @@ export class RepositorioAtendimentoMemoria implements RepositorioAtendimento {
           atualizadoEm: new Date()
         };
 
-    this.clientes.set(cliente.telefone, cliente);
+    this.clientes.set(this.chaveCliente(cliente.telefone, cliente.negocioId), cliente);
 
     const canal = dados.canal ?? "whatsapp";
     const conversaExistente = [...this.conversas.values()].find(
-      (conversa) => conversa.telefone === dados.telefone && conversa.canal === canal
+      (conversa) =>
+        conversa.telefone === dados.telefone &&
+        conversa.canal === canal &&
+        conversa.negocioId === negocioId
     );
     const conversa: ConversaAtendimento =
       conversaExistente ??
       {
         id: randomUUID(),
+        negocioId,
+        clienteNegocioId: dados.clienteNegocioId ?? null,
         clienteId: cliente.id,
         telefone: dados.telefone,
         canal,
@@ -1004,8 +1440,9 @@ export class RepositorioAtendimentoMemoria implements RepositorioAtendimento {
 
     const conversa = this.conversas.get(dados.conversaId);
     if (!conversa) return null;
+    if (dados.negocioId && conversa.negocioId !== dados.negocioId) return null;
 
-    const clienteExistente = this.clientes.get(conversa.telefone);
+    const clienteExistente = this.clientes.get(this.chaveCliente(conversa.telefone, conversa.negocioId));
     if (!clienteExistente) return null;
 
     const cliente: ClienteAtendimento = {
@@ -1018,18 +1455,34 @@ export class RepositorioAtendimentoMemoria implements RepositorioAtendimento {
       atualizadoEm: new Date()
     };
 
-    this.clientes.set(cliente.telefone, cliente);
+    this.clientes.set(this.chaveCliente(cliente.telefone, cliente.negocioId), cliente);
     return { cliente, conversa };
   }
 
   private montarConversaComMensagens(conversa: ConversaAtendimento): ConversaAtendimentoComMensagens {
     return {
       conversa,
-      cliente: this.clientes.get(conversa.telefone)!,
+      cliente: this.clientes.get(this.chaveCliente(conversa.telefone, conversa.negocioId))!,
       mensagens: [...this.mensagens.values()]
         .filter((mensagem) => mensagem.conversaId === conversa.id)
         .sort((a, b) => a.enviadaEm.getTime() - b.enviadaEm.getTime())
     };
+  }
+
+  private chaveCliente(telefone: string, negocioId: string | null | undefined): string {
+    return `${negocioId ?? "global"}:${telefone}`;
+  }
+
+  private inferirNegocioIdPorTelefone(telefone: string): string | null {
+    const negocioIds = [
+      ...new Set(
+        [...this.conversas.values()]
+          .filter((conversa) => conversa.telefone === telefone && conversa.negocioId)
+          .map((conversa) => conversa.negocioId as string)
+      )
+    ];
+
+    return negocioIds.length === 1 ? negocioIds[0] : null;
   }
 }
 
@@ -1037,6 +1490,7 @@ export class RepositorioAuditoriaMemoria implements RepositorioAuditoria {
   private readonly eventos = new Map<string, EventoSistema>();
   private readonly mensagens = new Map<string, {
     id: string;
+    negocioId: string | null;
     telefone: string;
     tipo: string;
     conteudo: string;
@@ -1052,6 +1506,7 @@ export class RepositorioAuditoriaMemoria implements RepositorioAuditoria {
   }
 
   async registrarMensagemWhatsApp(dados: {
+    negocioId?: string | null;
     telefone: string;
     tipo: string;
     conteudo: string;
@@ -1062,6 +1517,7 @@ export class RepositorioAuditoriaMemoria implements RepositorioAuditoria {
     const id = randomUUID();
     this.mensagens.set(id, {
       id,
+      negocioId: dados.negocioId ?? null,
       telefone: dados.telefone,
       tipo: dados.tipo,
       conteudo: dados.conteudo,
@@ -1150,6 +1606,7 @@ export class RepositorioAuditoriaMemoria implements RepositorioAuditoria {
     const agora = new Date();
     const registro: RegistroOutboxMensagemWhatsApp = {
       id: randomUUID(),
+      negocioId: dados.negocioId ?? null,
       telefone: dados.telefone,
       tipo: dados.tipo,
       conteudo: dados.conteudo,
@@ -1170,8 +1627,9 @@ export class RepositorioAuditoriaMemoria implements RepositorioAuditoria {
     return registro;
   }
 
-  async listarMensagensWhatsApp(limite = 100): Promise<RegistroOutboxMensagemWhatsApp[]> {
+  async listarMensagensWhatsApp(limite = 100, negocioId?: string | null): Promise<RegistroOutboxMensagemWhatsApp[]> {
     return [...this.outboxWhatsApp.values()]
+      .filter((mensagem) => this.pertenceAoNegocio(mensagem.negocioId, negocioId))
       .sort((a, b) => b.criadoEm.getTime() - a.criadoEm.getTime())
       .slice(0, limite);
   }
@@ -1179,12 +1637,16 @@ export class RepositorioAuditoriaMemoria implements RepositorioAuditoria {
   async listarMensagensWhatsAppPendentes(
     limite: number,
     agora: Date,
-    opcoes: { incluirFalhadas?: boolean } = {}
+    opcoes: { incluirFalhadas?: boolean; negocioId?: string | null } = {}
   ): Promise<RegistroOutboxMensagemWhatsApp[]> {
     return [...this.outboxWhatsApp.values()]
       .filter((mensagem) => {
         const statusPermitido = mensagem.status === "PENDENTE" || (opcoes.incluirFalhadas && mensagem.status === "FALHOU");
-        return statusPermitido && mensagem.proximaTentativaEm <= agora;
+        return (
+          statusPermitido &&
+          mensagem.proximaTentativaEm <= agora &&
+          this.pertenceAoNegocio(mensagem.negocioId, opcoes.negocioId)
+        );
       })
       .sort((a, b) => a.criadoEm.getTime() - b.criadoEm.getTime())
       .slice(0, limite);
@@ -1227,8 +1689,10 @@ export class RepositorioAuditoriaMemoria implements RepositorioAuditoria {
     });
   }
 
-  async resumirMensagensWhatsAppOutbox(): Promise<ResumoOutboxMensagemWhatsApp> {
-    const mensagens = [...this.outboxWhatsApp.values()];
+  async resumirMensagensWhatsAppOutbox(negocioId?: string | null): Promise<ResumoOutboxMensagemWhatsApp> {
+    const mensagens = [...this.outboxWhatsApp.values()].filter((mensagem) =>
+      this.pertenceAoNegocio(mensagem.negocioId, negocioId)
+    );
     const pendentes = mensagens.filter((mensagem) => mensagem.status === "PENDENTE");
     const falhadas = mensagens.filter((mensagem) => mensagem.status === "FALHOU");
     const reprocessaveis = [...pendentes, ...falhadas];
@@ -1260,5 +1724,9 @@ export class RepositorioAuditoriaMemoria implements RepositorioAuditoria {
     this.mensagens.clear();
     this.outboxWhatsApp.clear();
     return resultado;
+  }
+
+  private pertenceAoNegocio(registroNegocioId: string | null, negocioId?: string | null) {
+    return negocioId === undefined ? true : registroNegocioId === (negocioId ?? null);
   }
 }

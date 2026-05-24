@@ -26,11 +26,11 @@ export class ConsultaPainelUseCase {
     private readonly repositorioComentarios: RepositorioComentarios
   ) {}
 
-  async resumirPainel(lives: SessaoLiveResumo[], integracoes: StatusIntegracao[]) {
+  async resumirPainel(lives: SessaoLiveResumo[], integracoes: StatusIntegracao[], negocioId?: string | null) {
     const [pecas, reservas, comentarios] = await Promise.all([
-      this.repositorioPecas.listar(),
-      this.repositorioReservas.listar(),
-      this.repositorioComentarios.listar(200)
+      this.repositorioPecas.listar(negocioId),
+      this.repositorioReservas.listar(negocioId),
+      this.repositorioComentarios.listar(200, negocioId)
     ]);
 
     return {
@@ -58,12 +58,12 @@ export class ConsultaPainelUseCase {
     };
   }
 
-  async listarReservas() {
-    return this.repositorioReservas.listar();
+  async listarReservas(negocioId?: string | null) {
+    return this.repositorioReservas.listar(negocioId);
   }
 
-  async listarComentarios(opcoes: { incluirIgnorados?: boolean } = {}) {
-    const comentarios = await this.repositorioComentarios.listar(200);
+  async listarComentarios(opcoes: { incluirIgnorados?: boolean; negocioId?: string | null } = {}) {
+    const comentarios = await this.repositorioComentarios.listar(200, opcoes.negocioId);
     if (opcoes.incluirIgnorados) return comentarios;
 
     return comentarios.filter((comentario) => comentario.estado !== "IGNORADO");

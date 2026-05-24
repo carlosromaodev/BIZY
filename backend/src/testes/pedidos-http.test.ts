@@ -1,0 +1,260 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { criarAplicacao } from "../infra/http/criarAplicacao.js";
+
+const ambienteOriginal = { ...process.env };
+
+async function autenticar(app: Awaited<ReturnType<typeof criarAplicacao>>, telefone: string, nome: string) {
+  const respostaCodigo = await app.inject({
+    method: "POST",
+    url: "/auth/telefone/solicitar-codigo",
+    payload: { telefone, nome }
+  });
+  expect(respostaCodigo.statusCode).toBe(202);
+
+  const respostaSessao = await app.inject({
+    method: "POST",
+    url: "/auth/telefone/confirmar-codigo",
+    payload: { telefone, codigo: respostaCodigo.json().codigoDev }
+  });
+  expect(respostaSessao.statusCode).toBe(200);
+
+  return { authorization: `Bearer ${respostaSessao.json().token}` };
+}
+
+async function criarPeca(
+  app: Awaited<ReturnType<typeof criarAplicacao>>,
+  headers: Record<string, string>,
+  codigo: string,
+  quantidade = 5,
+  precoEmKwanza = 12_000
+) {
+  const resposta = await app.inject({
+    method: "POST",
+    url: "/pecas",
+    headers,
+    payload: {
+      codigo,
+      nome: `Produto ${codigo}`,
+      descricao: `Produto ${codigo} para pedido completo`,
+      precoEmKwanza,
+      quantidade,
+      fotos: []
+    }
+  });
+  expect(resposta.statusCode).toBe(201);
+  return resposta.json();
+}
+
+async function criarCliente(app: Awaited<ReturnType<typeof criarAplicacao>>, headers: Record<string, string>) {
+  const resposta = await app.inject({
+    method: "POST",
+    url: "/clientes",
+    headers,
+    payload: {
+      telefone: "937624785",
+      nome: "Cliente Pedido",
+      email: "cliente.pedido@example.com",
+      consentimentoDados: true,
+      tags: ["comprador"]
+    }
+  });
+  expect(resposta.statusCode).toBe(201);
+  return resposta.json();
+}
+
+describe("pedidos HTTP", () => {
+  beforeEach(() => {
+    process.env = {
+      ...ambienteOriginal,
+      MODO_ARMAZENAMENTO: "memoria",
+      N8N_EVENTOS_ATIVOS: "false",
+      N8N_ASSUME_WHATSAPP: "true",
+      WHATSAPP_PROVIDER: "console",
+      INICIAR_AGENDADOR_EXPIRACAO: "false",
+      N8N_BACKEND_TOKEN: "",
+      EVOLUTION_WEBHOOK_TOKEN: ""
+    };
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+    process.env = { ...ambienteOriginal };
+  });
+
+  it("cria pedido com vários itens, pagamento, entrega e exportação isolados por loja", async () => {
+    const app = await criarAplicacao();
+
+    try {
+      const lojaA = await autenticar(app, "923222001", "Loja A Pedidos");
+      const lojaB = await autenticar(app, "923222002", "Loja B Pedidos");
+
+      await criarPeca(app, lojaA, "P1", 3, 12_000);
+      await criarPeca(app, lojaA, "P2", 2, 5_000);
+      await criarPeca(app, lojaB, "P1", 10, 99_000);
+      const cliente = await criarCliente(app, lojaA);
+
+      const respostaCriacao = await app.inject({
+        method: "POST",
+        url: "/pedidos",
+        headers: lojaA,
+        payload: {
+          clienteId: cliente.id,
+          itens: [
+            { codigoPeca: "P1", quantidade: 2 },
+            { codigoPeca: "P2", quantidade: 1, precoUnitarioEmKwanza: 4_500 }
+          ],
+          descontoEmKwanza: 1_000,
+          motivoDesconto: "Campanha da live",
+          taxaEntregaEmKwanza: 1_500,
+          enderecoEntrega: "Talatona, Rua 1",
+          origem: "manual",
+          canal: "whatsapp",
+          observacao: "Pedido criado no CRM"
+        }
+      });
+
+      expect(respostaCriacao.statusCode).toBe(201);
+      expect(respostaCriacao.json()).toEqual(
+        expect.objectContaining({
+          clienteNegocioId: cliente.id,
+          estado: "AGUARDANDO_PAGAMENTO",
+          estadoPagamento: "PENDENTE",
+          estadoEntrega: "PENDENTE",
+          subtotalEmKwanza: 28_500,
+          descontoEmKwanza: 1_000,
+          taxaEntregaEmKwanza: 1_500,
+          totalEmKwanza: 29_000,
+          canal: "whatsapp",
+          origem: "manual"
+        })
+      );
+      expect(respostaCriacao.json().itens).toEqual([
+        expect.objectContaining({
+          codigoPeca: "P1",
+          quantidade: 2,
+          precoUnitarioEmKwanza: 12_000,
+          subtotalEmKwanza: 24_000
+        }),
+        expect.objectContaining({
+          codigoPeca: "P2",
+          quantidade: 1,
+          precoUnitarioEmKwanza: 4_500,
+          subtotalEmKwanza: 4_500
+        })
+      ]);
+
+      const listaA = await app.inject({ method: "GET", url: "/pedidos", headers: lojaA });
+      expect(listaA.statusCode).toBe(200);
+      expect(listaA.json().pedidos).toEqual([expect.objectContaining({ id: respostaCriacao.json().id })]);
+
+      const listaB = await app.inject({ method: "GET", url: "/pedidos", headers: lojaB });
+      expect(listaB.statusCode).toBe(200);
+      expect(listaB.json().pedidos).toEqual([]);
+
+      const perfil = await app.inject({
+        method: "GET",
+        url: `/pedidos/${respostaCriacao.json().id}`,
+        headers: lojaA
+      });
+      expect(perfil.statusCode).toBe(200);
+      expect(perfil.json().pedido).toEqual(expect.objectContaining({ id: respostaCriacao.json().id }));
+      expect(perfil.json().cliente).toEqual(expect.objectContaining({ id: cliente.id }));
+
+      const perfilCruzado = await app.inject({
+        method: "GET",
+        url: `/pedidos/${respostaCriacao.json().id}`,
+        headers: lojaB
+      });
+      expect(perfilCruzado.statusCode).toBe(404);
+
+      const pagamento = await app.inject({
+        method: "POST",
+        url: `/pedidos/${respostaCriacao.json().id}/confirmar-pagamento`,
+        headers: lojaA,
+        payload: {
+          comprovativoPagamentoUrl: "https://example.com/comprovativo.png",
+          observacao: "Pagamento validado pela equipa financeira"
+        }
+      });
+      expect(pagamento.statusCode).toBe(200);
+      expect(pagamento.json()).toEqual(
+        expect.objectContaining({
+          estado: "PAGO",
+          estadoPagamento: "CONFIRMADO",
+          comprovativoPagamentoUrl: "https://example.com/comprovativo.png",
+          pagoEm: expect.any(String)
+        })
+      );
+
+      const entrega = await app.inject({
+        method: "PATCH",
+        url: `/pedidos/${respostaCriacao.json().id}/entrega`,
+        headers: lojaA,
+        payload: {
+          estadoEntrega: "ENTREGUE",
+          responsavelId: "entregador_1",
+          observacao: "Recebido pelo cliente"
+        }
+      });
+      expect(entrega.statusCode).toBe(200);
+      expect(entrega.json()).toEqual(
+        expect.objectContaining({
+          estado: "ENTREGUE",
+          estadoEntrega: "ENTREGUE",
+          responsavelId: "entregador_1",
+          entregueEm: expect.any(String)
+        })
+      );
+
+      const exportacao = await app.inject({
+        method: "GET",
+        url: "/pedidos/exportar.csv",
+        headers: lojaA
+      });
+      expect(exportacao.statusCode).toBe(200);
+      expect(exportacao.headers["content-type"]).toContain("text/csv");
+      expect(exportacao.body).toContain("numero,cliente,telefone,estado,estadoPagamento,estadoEntrega,totalEmKwanza");
+      expect(exportacao.body).toContain("Cliente Pedido");
+      expect(exportacao.body).toContain("29000");
+    } finally {
+      await app.close();
+    }
+  });
+
+  it("recusa desconto sem motivo e quantidade acima do stock", async () => {
+    const app = await criarAplicacao();
+
+    try {
+      const lojaA = await autenticar(app, "923222101", "Loja A Regras Pedido");
+      await criarPeca(app, lojaA, "S1", 1, 10_000);
+      const cliente = await criarCliente(app, lojaA);
+
+      const descontoSemMotivo = await app.inject({
+        method: "POST",
+        url: "/pedidos",
+        headers: lojaA,
+        payload: {
+          clienteId: cliente.id,
+          itens: [{ codigoPeca: "S1", quantidade: 1 }],
+          descontoEmKwanza: 500
+        }
+      });
+      expect(descontoSemMotivo.statusCode).toBe(400);
+
+      const semStock = await app.inject({
+        method: "POST",
+        url: "/pedidos",
+        headers: lojaA,
+        payload: {
+          clienteId: cliente.id,
+          itens: [{ codigoPeca: "S1", quantidade: 2 }]
+        }
+      });
+      expect(semStock.statusCode).toBe(400);
+      expect(semStock.json().mensagem).toContain("Stock insuficiente");
+    } finally {
+      await app.close();
+    }
+  });
+});

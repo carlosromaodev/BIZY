@@ -1,7 +1,11 @@
 import { z } from "zod";
 import {
   estadosConversaAtendimento,
+  estadosEntregaPedido,
+  estadosPagamentoPedido,
+  estadosPedido,
   estadosPeca,
+  estadosRelacionamentoCliente,
   fontesLive,
   politicasAutomacaoAtendimento,
   prioridadesConversaAtendimento
@@ -150,6 +154,96 @@ export const AtualizarConversaAtendimentoSchema = z
   .refine((dados) => Object.keys(dados).length > 0, {
     message: "Informe pelo menos um campo para atualizar a conversa."
   });
+
+const TagsClienteSchema = z.array(z.string().trim().min(1).max(40)).max(20);
+
+const PreferenciasClienteSchema = z.record(z.string(), z.unknown()).default({});
+
+const ClienteCrmBaseSchema = z.object({
+  telefone: z.string().trim().min(8).max(30).nullable().optional(),
+  email: z.preprocess(
+    (valor) => (typeof valor === "string" && valor.trim() === "" ? null : valor),
+    z.string().trim().email().max(160).nullable().optional()
+  ).transform((valor) => valor ?? null),
+  nome: TextoPerfilOpcionalSchema,
+  username: TextoPerfilOpcionalSchema,
+  userId: TextoPerfilOpcionalSchema,
+  avatarUrl: AvatarPerfilOpcionalSchema,
+  origem: z.string().trim().min(1).max(80).default("manual"),
+  tags: TagsClienteSchema.default([]),
+  preferencias: PreferenciasClienteSchema,
+  consentimentoMarketing: z.boolean().default(false),
+  consentimentoDados: z.boolean().default(false),
+  estadoRelacionamento: z.enum(estadosRelacionamentoCliente).default("ATIVO")
+});
+
+export const CriarClienteCrmSchema = ClienteCrmBaseSchema
+  .refine((dados) => Boolean(dados.telefone || dados.email), {
+    message: "Informe telefone ou email para identificar o cliente."
+  });
+
+export const AtualizarClienteCrmSchema = ClienteCrmBaseSchema.partial()
+  .omit({ origem: true })
+  .extend({
+    origem: z.string().trim().min(1).max(80).nullable().optional()
+  })
+  .refine((dados) => Object.keys(dados).length > 0, {
+    message: "Informe pelo menos um campo para atualizar o cliente."
+  });
+
+export const CriarPedidoSchema = z.object({
+  clienteId: z.string().trim().uuid(),
+  reservaId: z.string().trim().uuid().nullable().optional(),
+  itens: z
+    .array(
+      z.object({
+        codigoPeca: z.string().trim().min(1).max(32),
+        quantidade: z.coerce.number().int().min(1).max(999),
+        precoUnitarioEmKwanza: z.coerce.number().int().min(0).optional()
+      })
+    )
+    .min(1)
+    .max(100),
+  origem: z.string().trim().min(1).max(60).default("manual"),
+  canal: z.string().trim().min(1).max(60).default("whatsapp"),
+  descontoEmKwanza: z.coerce.number().int().min(0).default(0),
+  motivoDesconto: TextoPerfilOpcionalSchema,
+  taxaEntregaEmKwanza: z.coerce.number().int().min(0).default(0),
+  enderecoEntrega: z.string().trim().min(3).max(1000).nullable().optional().transform((valor) => valor ?? null),
+  comprovativoPagamentoUrl: z.string().trim().url().max(2048).nullable().optional().transform((valor) => valor ?? null),
+  observacao: z.string().trim().max(1000).nullable().optional().transform((valor) => valor ?? null),
+  responsavelId: TextoPerfilOpcionalSchema
+});
+
+export const AtualizarEstadoPedidoSchema = z
+  .object({
+    estado: z.enum(estadosPedido).optional(),
+    observacao: z.string().trim().max(1000).nullable().optional().transform((valor) => valor ?? null),
+    responsavelId: TextoPerfilOpcionalSchema
+  })
+  .refine((dados) => Object.keys(dados).length > 0, {
+    message: "Informe pelo menos um campo para atualizar o pedido."
+  });
+
+export const ConfirmarPagamentoPedidoSchema = z.object({
+  comprovativoPagamentoUrl: z.string().trim().url().max(2048).nullable().optional().transform((valor) => valor ?? null),
+  observacao: z.string().trim().max(1000).nullable().optional().transform((valor) => valor ?? null)
+});
+
+export const AtualizarEntregaPedidoSchema = z.object({
+  estadoEntrega: z.enum(estadosEntregaPedido),
+  observacao: z.string().trim().max(1000).nullable().optional().transform((valor) => valor ?? null),
+  responsavelId: TextoPerfilOpcionalSchema
+});
+
+export const FiltrosPedidosQuerySchema = z.object({
+  estado: z.enum(estadosPedido).optional(),
+  estadoPagamento: z.enum(estadosPagamentoPedido).optional(),
+  estadoEntrega: z.enum(estadosEntregaPedido).optional(),
+  clienteId: z.string().trim().uuid().optional(),
+  busca: z.string().trim().max(120).optional(),
+  limite: z.coerce.number().int().min(1).max(1000).optional()
+});
 
 export const RegistrarNotaInternaAtendimentoSchema = z.object({
   texto: z.string().trim().min(2).max(2000)

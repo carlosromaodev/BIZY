@@ -7,8 +7,15 @@ const source = (path: string) => readFileSync(resolve(process.cwd(), path), "utf
 describe("onboarding Bizy", () => {
   it("segue o mesmo sistema visual escuro do login na criacao do negocio", () => {
     const onboarding = source("src/paginas/Onboarding.tsx");
+    const estilosFormularioEscuro = source("src/componentes/estilosFormularioEscuro.ts");
 
     expect(onboarding).toContain("/bizy-login-team.png");
+    expect(onboarding).toContain("CLASSE_CAMPO_ESCURO");
+    expect(onboarding).toContain("CLASSE_TEXTAREA_ESCURO");
+    expect(onboarding).toContain("CLASSE_BOTAO_CONTORNO_ESCURO");
+    expect(onboarding).toContain("className={CLASSE_CAMPO_ESCURO}");
+    expect(onboarding).toContain("className={CLASSE_TEXTAREA_ESCURO}");
+    expect(onboarding).toContain('className={cn(CLASSE_BOTAO_CONTORNO_ESCURO, "h-11 rounded-2xl")}');
     expect(onboarding).toContain("bg-[#050706]");
     expect(onboarding).toContain("bg-[#050706]/76");
     expect(onboarding).toContain("border-white/12");
@@ -21,5 +28,10 @@ describe("onboarding Bizy", () => {
     expect(onboarding).not.toContain("bg-white/80");
     expect(onboarding).not.toContain("border-primary");
     expect(onboarding).not.toContain("hover:border-primary");
+    expect(estilosFormularioEscuro).toContain("!bg-transparent");
+    expect(estilosFormularioEscuro).toContain("placeholder:!text-white/42");
+    expect(estilosFormularioEscuro).toContain("!border-white/16");
+    expect(estilosFormularioEscuro).toContain("focus:!border-[#d8ff72]");
+    expect(estilosFormularioEscuro).toContain("focus-visible:!border-[#d8ff72]");
   });
 });

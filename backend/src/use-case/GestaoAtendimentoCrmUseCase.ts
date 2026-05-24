@@ -11,11 +11,15 @@ const prefixoPolitica = "politica:";
 export class GestaoAtendimentoCrmUseCase {
   constructor(private readonly repositorioAtendimento: RepositorioAtendimento) {}
 
-  async atualizarConversa(id: string, dados: AtualizacaoConversaAtendimento): Promise<ConversaAtendimentoComMensagens> {
+  async atualizarConversa(
+    id: string,
+    dados: AtualizacaoConversaAtendimento,
+    negocioId?: string | null
+  ): Promise<ConversaAtendimentoComMensagens> {
     const atualizada = await this.repositorioAtendimento.atualizarConversa(id, {
       ...dados,
       tags: dados.tags ? this.normalizarTags(dados.tags) : undefined
-    });
+    }, negocioId);
 
     if (!atualizada) throw new Error(`Conversa de atendimento ${id} não encontrada.`);
     return atualizada;
@@ -23,9 +27,10 @@ export class GestaoAtendimentoCrmUseCase {
 
   async definirPoliticaAutomacao(
     id: string,
-    politica: PoliticaAutomacaoAtendimento
+    politica: PoliticaAutomacaoAtendimento,
+    negocioId?: string | null
   ): Promise<{ conversa: ConversaAtendimentoComMensagens; politicaAutomacao: PoliticaAutomacaoAtendimento }> {
-    const atual = await this.exigirConversa(id);
+    const atual = await this.exigirConversa(id, negocioId);
     const tags = [
       ...atual.conversa.tags.filter((tag) => !tag.startsWith(prefixoPolitica)),
       `${prefixoPolitica}${politica}`
@@ -33,18 +38,20 @@ export class GestaoAtendimentoCrmUseCase {
     const conversa = await this.atualizarConversa(id, {
       estado: politica === "EXIGIR_HUMANO" || politica === "BLOQUEAR_IA" ? "AGUARDANDO_HUMANO" : atual.conversa.estado,
       tags
-    });
+    }, negocioId);
 
     return { conversa, politicaAutomacao: politica };
   }
 
   async registrarNotaInterna(
     id: string,
-    dados: { texto: string; autorId?: string | null; autorNome?: string | null }
+    dados: { texto: string; autorId?: string | null; autorNome?: string | null },
+    negocioId?: string | null
   ): Promise<MensagemAtendimento> {
-    const conversa = await this.exigirConversa(id);
+    const conversa = await this.exigirConversa(id, negocioId);
 
     return this.repositorioAtendimento.registrarMensagem({
+      negocioId,
       conversaId: conversa.conversa.id,
       telefone: conversa.conversa.telefone,
       direcao: "OUTBOUND",
@@ -69,13 +76,15 @@ export class GestaoAtendimentoCrmUseCase {
       regra: string;
       confianca: number;
       dadosConsultados: Record<string, unknown>;
-    }
+    },
+    negocioId?: string | null
   ): Promise<MensagemAtendimento> {
-    const conversa = await this.exigirConversa(id);
+    const conversa = await this.exigirConversa(id, negocioId);
 
-    await this.atualizarConversa(id, { estado: "AGUARDANDO_HUMANO" });
+    await this.atualizarConversa(id, { estado: "AGUARDANDO_HUMANO" }, negocioId);
 
     return this.repositorioAtendimento.registrarMensagem({
+      negocioId,
       conversaId: conversa.conversa.id,
       telefone: conversa.conversa.telefone,
       direcao: "OUTBOUND",
@@ -97,8 +106,8 @@ export class GestaoAtendimentoCrmUseCase {
     });
   }
 
-  private async exigirConversa(id: string): Promise<ConversaAtendimentoComMensagens> {
-    const conversa = await this.repositorioAtendimento.buscarConversaComMensagensPorId(id);
+  private async exigirConversa(id: string, negocioId?: string | null): Promise<ConversaAtendimentoComMensagens> {
+    const conversa = await this.repositorioAtendimento.buscarConversaComMensagensPorId(id, negocioId);
     if (!conversa) throw new Error(`Conversa de atendimento ${id} não encontrada.`);
     return conversa;
   }

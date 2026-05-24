@@ -4,26 +4,40 @@ import type {
   RepositorioAutenticacao,
   RepositorioAtendimento,
   RepositorioAuditoria,
+  RepositorioClientes,
   RepositorioInstanciasWhatsApp,
   RepositorioPecas,
+  RepositorioPedidos,
   RepositorioReservas,
   RepositorioSessoesLive
 } from "../../dominio/repositorios/contratos.js";
 import type {
   AtualizacaoRegistroSessaoLive,
+  AtualizacaoCliente360,
   AtualizacaoConversaAtendimento,
+  AtualizacaoEntregaPedido,
+  AtualizacaoEstadoPedido,
   AtualizarPeca,
   CodigoLoginSms,
   ClienteAtendimento,
+  Cliente360,
   ComentarioLive,
+  ConfirmacaoPagamentoPedido,
   ConversaAtendimento,
   ConversaAtendimentoComMensagens,
   DadosCriacaoReservaComControleStock,
+  DadosCliente360,
+  DadosPedidoResolvido,
   EstadoComentario,
+  EstadoEntregaPedido,
   EstadoPagamento,
+  EstadoPagamentoPedido,
   EstadoPeca,
+  EstadoPedido,
   EstadoReserva,
   EventoSistema,
+  FiltrosPedidos,
+  FiltrosClientes360,
   InstanciaWhatsApp,
   MensagemAtendimento,
   NovaMensagemAtendimento,
@@ -33,6 +47,7 @@ import type {
   NovoOutboxMensagemWhatsApp,
   NovoRegistroSessaoLive,
   Peca,
+  Pedido,
   RegistroOutboxEventoN8n,
   RegistroOutboxMensagemWhatsApp,
   RegistroComentario,
@@ -48,6 +63,7 @@ import type {
   PerfilEstudantilUsuario,
   UsuarioSistema
 } from "../../dominio/tipos.js";
+import { normalizarEmail, normalizarTelefone } from "../../dominio/servicos/normalizarContato.js";
 
 const estadosQueBloqueiamStock: EstadoReserva[] = ["PENDING", "RESERVED", "WAITING_PAYMENT", "PAID"];
 const estadosAtivosParaDuplicidade: EstadoReserva[] = ["PENDING", "RESERVED", "WAITING_PAYMENT", "WAITLISTED"];
@@ -72,19 +88,33 @@ export class RepositorioPecasPrisma implements RepositorioPecas {
     return this.mapearPeca(peca);
   }
 
-  async listar(): Promise<Peca[]> {
-    const pecas = await this.prisma.peca.findMany({ orderBy: { codigo: "asc" } });
+  async listar(negocioId?: string | null): Promise<Peca[]> {
+    const pecas = await this.prisma.peca.findMany({
+      where: negocioId ? { negocioId } : undefined,
+      orderBy: { codigo: "asc" }
+    });
     return pecas.map((peca) => this.mapearPeca(peca));
   }
 
-  async buscarPorCodigo(codigo: string): Promise<Peca | null> {
-    const peca = await this.prisma.peca.findUnique({ where: { codigo } });
+  async buscarPorCodigo(codigo: string, negocioId?: string | null): Promise<Peca | null> {
+    const peca = await this.prisma.peca.findFirst({
+      where: {
+        codigo,
+        ...(negocioId ? { negocioId } : {})
+      },
+      orderBy: { criadoEm: "asc" }
+    });
     return peca ? this.mapearPeca(peca) : null;
   }
 
-  async atualizar(codigo: string, dados: AtualizarPeca): Promise<Peca> {
+  async atualizar(codigo: string, dados: AtualizarPeca, negocioId?: string | null): Promise<Peca> {
+    const atual = await this.buscarPorCodigo(codigo, negocioId);
+    if (!atual) {
+      throw new Error(`Peça #${codigo} não encontrada.`);
+    }
+
     const peca = await this.prisma.peca.update({
-      where: { codigo },
+      where: { id: atual.id },
       data: {
         nome: dados.nome,
         descricao: dados.descricao,
@@ -99,8 +129,8 @@ export class RepositorioPecasPrisma implements RepositorioPecas {
     return this.mapearPeca(peca);
   }
 
-  async atualizarEstado(codigo: string, estado: EstadoPeca): Promise<Peca> {
-    return this.atualizar(codigo, { estado });
+  async atualizarEstado(codigo: string, estado: EstadoPeca, negocioId?: string | null): Promise<Peca> {
+    return this.atualizar(codigo, { estado }, negocioId);
   }
 
   private mapearPeca(peca: {
@@ -137,7 +167,13 @@ export class RepositorioReservasPrisma implements RepositorioReservas {
   constructor(private readonly prisma: PrismaClient) {}
 
   async criar(dados: NovaReserva): Promise<Reserva> {
-    const peca = await this.prisma.peca.findUnique({ where: { codigo: dados.codigoPeca } });
+    const peca = await this.prisma.peca.findFirst({
+      where: {
+        codigo: dados.codigoPeca,
+        ...(dados.negocioId ? { negocioId: dados.negocioId } : {})
+      },
+      orderBy: { criadoEm: "asc" }
+    });
 
     if (!peca) {
       throw new Error(`Peça #${dados.codigoPeca} não encontrada.`);
@@ -146,6 +182,8 @@ export class RepositorioReservasPrisma implements RepositorioReservas {
     const reserva = await this.prisma.reserva.create({
       data: {
         pecaId: peca.id,
+        negocioId: dados.negocioId ?? peca.negocioId ?? null,
+        clienteNegocioId: dados.clienteNegocioId ?? null,
         codigoPeca: dados.codigoPeca,
         telefoneCliente: dados.telefoneCliente,
         nomeCliente: dados.nomeCliente,
@@ -169,7 +207,13 @@ export class RepositorioReservasPrisma implements RepositorioReservas {
     return this.executarTransacaoComRetentativas(async () =>
       this.prisma.$transaction(
         async (tx) => {
-          const peca = await tx.peca.findUnique({ where: { codigo: dados.codigoPeca } });
+          const peca = await tx.peca.findFirst({
+            where: {
+              codigo: dados.codigoPeca,
+              ...(dados.negocioId ? { negocioId: dados.negocioId } : {})
+            },
+            orderBy: { criadoEm: "asc" }
+          });
 
           if (!peca) {
             return {
@@ -190,6 +234,7 @@ export class RepositorioReservasPrisma implements RepositorioReservas {
 
           const reservasQueBloqueiamStock = await tx.reserva.count({
             where: {
+              negocioId: peca.negocioId,
               codigoPeca: peca.codigo,
               estado: { in: estadosQueBloqueiamStock }
             }
@@ -199,6 +244,8 @@ export class RepositorioReservasPrisma implements RepositorioReservas {
           const reserva = await tx.reserva.create({
             data: {
               pecaId: peca.id,
+              negocioId: dados.negocioId ?? peca.negocioId ?? null,
+              clienteNegocioId: dados.clienteNegocioId ?? null,
               codigoPeca: peca.codigo,
               telefoneCliente: dados.telefoneCliente,
               nomeCliente: dados.nomeCliente,
@@ -215,7 +262,7 @@ export class RepositorioReservasPrisma implements RepositorioReservas {
 
           const pecaAtualizada =
             temStockLivre && reservasQueBloqueiamStock + 1 >= peca.quantidade
-              ? await tx.peca.update({ where: { codigo: peca.codigo }, data: { estado: "RESERVADA" } })
+              ? await tx.peca.update({ where: { id: peca.id }, data: { estado: "RESERVADA" } })
               : peca;
 
           return {
@@ -228,8 +275,18 @@ export class RepositorioReservasPrisma implements RepositorioReservas {
       )
     ).catch(async (erro) => {
       if (this.ehViolacaoDeUnicidade(erro)) {
-        const reservaExistente = await this.buscarReservaAtivaPorTelefoneEPeca(dados.telefoneCliente, dados.codigoPeca);
-        const peca = await this.prisma.peca.findUnique({ where: { codigo: dados.codigoPeca } });
+        const reservaExistente = await this.buscarReservaAtivaPorTelefoneEPeca(
+          dados.telefoneCliente,
+          dados.codigoPeca,
+          dados.negocioId
+        );
+        const peca = await this.prisma.peca.findFirst({
+          where: {
+            codigo: dados.codigoPeca,
+            ...(dados.negocioId ? { negocioId: dados.negocioId } : {})
+          },
+          orderBy: { criadoEm: "asc" }
+        });
         return {
           tipo: "DUPLICADA" as const,
           reserva: reservaExistente,
@@ -243,21 +300,34 @@ export class RepositorioReservasPrisma implements RepositorioReservas {
     });
   }
 
-  async listar(): Promise<Reserva[]> {
-    const reservas = await this.prisma.reserva.findMany({ orderBy: { criadaEm: "asc" } });
+  async listar(negocioId?: string | null): Promise<Reserva[]> {
+    const reservas = await this.prisma.reserva.findMany({
+      where: negocioId ? { negocioId } : undefined,
+      orderBy: { criadaEm: "asc" }
+    });
     return reservas.map((reserva) => this.mapearReserva(reserva));
   }
 
-  async buscarPorId(id: string): Promise<Reserva | null> {
-    const reserva = await this.prisma.reserva.findUnique({ where: { id } });
+  async buscarPorId(id: string, negocioId?: string | null): Promise<Reserva | null> {
+    const reserva = await this.prisma.reserva.findFirst({
+      where: {
+        id,
+        ...(negocioId ? { negocioId } : {})
+      }
+    });
     return reserva ? this.mapearReserva(reserva) : null;
   }
 
-  async buscarReservaAtivaPorTelefoneEPeca(telefone: string, codigoPeca: string): Promise<Reserva | null> {
+  async buscarReservaAtivaPorTelefoneEPeca(
+    telefone: string,
+    codigoPeca: string,
+    negocioId?: string | null
+  ): Promise<Reserva | null> {
     const reserva = await this.prisma.reserva.findFirst({
       where: {
         telefoneCliente: telefone,
         codigoPeca,
+        ...(negocioId ? { negocioId } : {}),
         estado: { in: estadosAtivosParaDuplicidade }
       },
       orderBy: { criadaEm: "asc" }
@@ -266,18 +336,19 @@ export class RepositorioReservasPrisma implements RepositorioReservas {
     return reserva ? this.mapearReserva(reserva) : null;
   }
 
-  async contarReservasQueBloqueiamStock(codigoPeca: string): Promise<number> {
+  async contarReservasQueBloqueiamStock(codigoPeca: string, negocioId?: string | null): Promise<number> {
     return this.prisma.reserva.count({
       where: {
         codigoPeca,
+        ...(negocioId ? { negocioId } : {}),
         estado: { in: estadosQueBloqueiamStock }
       }
     });
   }
 
-  async listarFilaDaPeca(codigoPeca: string): Promise<Reserva[]> {
+  async listarFilaDaPeca(codigoPeca: string, negocioId?: string | null): Promise<Reserva[]> {
     const reservas = await this.prisma.reserva.findMany({
-      where: { codigoPeca, estado: "WAITLISTED" },
+      where: { codigoPeca, ...(negocioId ? { negocioId } : {}), estado: "WAITLISTED" },
       orderBy: { criadaEm: "asc" }
     });
 
@@ -332,6 +403,8 @@ export class RepositorioReservasPrisma implements RepositorioReservas {
 
   private mapearReserva(reserva: {
     id: string;
+    negocioId: string | null;
+    clienteNegocioId: string | null;
     codigoPeca: string;
     telefoneCliente: string;
     nomeCliente: string;
@@ -407,12 +480,197 @@ export class RepositorioReservasPrisma implements RepositorioReservas {
   }
 }
 
+type PedidoPrismaComItens = Prisma.PedidoGetPayload<{ include: { itens: true } }>;
+
+export class RepositorioPedidosPrisma implements RepositorioPedidos {
+  constructor(private readonly prisma: PrismaClient) {}
+
+  async criar(dados: DadosPedidoResolvido): Promise<Pedido> {
+    const pedido = await this.criarComRetentativa(dados);
+    return this.mapearPedido(pedido);
+  }
+
+  async listar(negocioId: string, filtros: FiltrosPedidos = {}): Promise<Pedido[]> {
+    const busca = filtros.busca?.trim();
+    const pedidos = await this.prisma.pedido.findMany({
+      where: {
+        negocioId,
+        ...(filtros.estado ? { estado: filtros.estado } : {}),
+        ...(filtros.estadoPagamento ? { estadoPagamento: filtros.estadoPagamento } : {}),
+        ...(filtros.estadoEntrega ? { estadoEntrega: filtros.estadoEntrega } : {}),
+        ...(filtros.clienteId ? { clienteNegocioId: filtros.clienteId } : {}),
+        ...(busca
+          ? {
+              OR: [
+                Number.isNaN(Number(busca)) ? undefined : { numero: Number(busca) },
+                { canal: { contains: busca, mode: "insensitive" } },
+                { origem: { contains: busca, mode: "insensitive" } },
+                { observacao: { contains: busca, mode: "insensitive" } },
+                {
+                  itens: {
+                    some: {
+                      OR: [
+                        { codigoPeca: { contains: busca, mode: "insensitive" } },
+                        { nomeProduto: { contains: busca, mode: "insensitive" } }
+                      ]
+                    }
+                  }
+                }
+              ].filter(Boolean) as Prisma.PedidoWhereInput[]
+            }
+          : {})
+      },
+      include: { itens: true },
+      orderBy: { criadoEm: "desc" },
+      take: filtros.limite ?? 100
+    });
+
+    return pedidos.map((pedido) => this.mapearPedido(pedido));
+  }
+
+  async buscarPorId(id: string, negocioId: string): Promise<Pedido | null> {
+    const pedido = await this.prisma.pedido.findFirst({
+      where: { id, negocioId },
+      include: { itens: true }
+    });
+    return pedido ? this.mapearPedido(pedido) : null;
+  }
+
+  async atualizarEstado(id: string, negocioId: string, dados: AtualizacaoEstadoPedido): Promise<Pedido | null> {
+    const existente = await this.buscarPorId(id, negocioId);
+    if (!existente) return null;
+
+    const pedido = await this.prisma.pedido.update({
+      where: { id },
+      data: {
+        estado: dados.estado,
+        observacao: dados.observacao ?? undefined,
+        responsavelId: dados.responsavelId ?? undefined,
+        canceladoEm: dados.estado === "CANCELADO" ? new Date() : undefined
+      },
+      include: { itens: true }
+    });
+
+    return this.mapearPedido(pedido);
+  }
+
+  async confirmarPagamento(
+    id: string,
+    negocioId: string,
+    dados: ConfirmacaoPagamentoPedido
+  ): Promise<Pedido | null> {
+    const existente = await this.buscarPorId(id, negocioId);
+    if (!existente) return null;
+
+    const pedido = await this.prisma.pedido.update({
+      where: { id },
+      data: {
+        estado: "PAGO",
+        estadoPagamento: "CONFIRMADO",
+        comprovativoPagamentoUrl: dados.comprovativoPagamentoUrl ?? undefined,
+        observacao: dados.observacao ?? undefined,
+        pagoEm: new Date()
+      },
+      include: { itens: true }
+    });
+
+    return this.mapearPedido(pedido);
+  }
+
+  async atualizarEntrega(id: string, negocioId: string, dados: AtualizacaoEntregaPedido): Promise<Pedido | null> {
+    const existente = await this.buscarPorId(id, negocioId);
+    if (!existente) return null;
+
+    const pedido = await this.prisma.pedido.update({
+      where: { id },
+      data: {
+        estado: dados.estadoEntrega === "ENTREGUE" ? "ENTREGUE" : undefined,
+        estadoEntrega: dados.estadoEntrega,
+        observacao: dados.observacao ?? undefined,
+        responsavelId: dados.responsavelId ?? undefined,
+        entregueEm: dados.estadoEntrega === "ENTREGUE" ? new Date() : undefined
+      },
+      include: { itens: true }
+    });
+
+    return this.mapearPedido(pedido);
+  }
+
+  private async criarComRetentativa(dados: DadosPedidoResolvido, tentativa = 1): Promise<PedidoPrismaComItens> {
+    try {
+      return await this.prisma.$transaction(async (tx) => {
+        const ultimo = await tx.pedido.findFirst({
+          where: { negocioId: dados.negocioId },
+          orderBy: { numero: "desc" },
+          select: { numero: true }
+        });
+        const numero = dados.numero ?? (ultimo?.numero ?? 0) + 1;
+
+        return tx.pedido.create({
+          data: {
+            negocioId: dados.negocioId,
+            clienteNegocioId: dados.clienteNegocioId,
+            reservaId: dados.reservaId ?? null,
+            numero,
+            estado: dados.estado ?? "AGUARDANDO_PAGAMENTO",
+            estadoPagamento: dados.estadoPagamento ?? "PENDENTE",
+            estadoEntrega: dados.estadoEntrega ?? "PENDENTE",
+            origem: dados.origem ?? "manual",
+            canal: dados.canal ?? "whatsapp",
+            subtotalEmKwanza: dados.subtotalEmKwanza,
+            descontoEmKwanza: dados.descontoEmKwanza,
+            taxaEntregaEmKwanza: dados.taxaEntregaEmKwanza,
+            totalEmKwanza: dados.totalEmKwanza,
+            motivoDesconto: dados.motivoDesconto ?? null,
+            enderecoEntrega: dados.enderecoEntrega ?? null,
+            comprovativoPagamentoUrl: dados.comprovativoPagamentoUrl ?? null,
+            observacao: dados.observacao ?? null,
+            responsavelId: dados.responsavelId ?? null,
+            itens: {
+              create: dados.itens.map((item) => ({
+                pecaId: item.pecaId,
+                codigoPeca: item.codigoPeca,
+                nomeProduto: item.nomeProduto,
+                quantidade: item.quantidade,
+                precoUnitarioEmKwanza: item.precoUnitarioEmKwanza,
+                subtotalEmKwanza: item.subtotalEmKwanza
+              }))
+            }
+          },
+          include: { itens: true }
+        });
+      });
+    } catch (erro) {
+      if (
+        erro instanceof Prisma.PrismaClientKnownRequestError &&
+        erro.code === "P2002" &&
+        tentativa < Number(process.env.PRISMA_TRANSACAO_MAX_TENTATIVAS ?? 8)
+      ) {
+        await new Promise((resolver) => setTimeout(resolver, tentativa * 40));
+        return this.criarComRetentativa(dados, tentativa + 1);
+      }
+      throw erro;
+    }
+  }
+
+  private mapearPedido(pedido: PedidoPrismaComItens): Pedido {
+    return {
+      ...pedido,
+      estado: pedido.estado as EstadoPedido,
+      estadoPagamento: pedido.estadoPagamento as EstadoPagamentoPedido,
+      estadoEntrega: pedido.estadoEntrega as EstadoEntregaPedido,
+      itens: pedido.itens.map((item) => ({ ...item }))
+    };
+  }
+}
+
 export class RepositorioComentariosPrisma implements RepositorioComentarios {
   constructor(private readonly prisma: PrismaClient) {}
 
   async criar(dados: NovoRegistroComentario): Promise<RegistroComentario> {
     const comentario = await this.prisma.comentarioRecebido.create({
       data: {
+        negocioId: dados.negocioId ?? null,
         ...this.mapearComentarioParaBanco(dados.comentario),
         ...this.mapearInterpretacaoParaBanco(dados.interpretacao),
         estado: dados.estado,
@@ -423,8 +681,9 @@ export class RepositorioComentariosPrisma implements RepositorioComentarios {
     return this.mapearRegistroComentario(comentario);
   }
 
-  async listar(limite = 100): Promise<RegistroComentario[]> {
+  async listar(limite = 100, negocioId?: string | null): Promise<RegistroComentario[]> {
     const comentarios = await this.prisma.comentarioRecebido.findMany({
+      where: negocioId ? { negocioId } : undefined,
       take: limite,
       orderBy: { criadoEm: "desc" }
     });
@@ -432,8 +691,13 @@ export class RepositorioComentariosPrisma implements RepositorioComentarios {
     return comentarios.map((comentario) => this.mapearRegistroComentario(comentario));
   }
 
-  async buscarPorId(id: string): Promise<RegistroComentario | null> {
-    const comentario = await this.prisma.comentarioRecebido.findUnique({ where: { id } });
+  async buscarPorId(id: string, negocioId?: string | null): Promise<RegistroComentario | null> {
+    const comentario = await this.prisma.comentarioRecebido.findFirst({
+      where: {
+        id,
+        ...(negocioId ? { negocioId } : {})
+      }
+    });
     return comentario ? this.mapearRegistroComentario(comentario) : null;
   }
 
@@ -486,6 +750,7 @@ export class RepositorioComentariosPrisma implements RepositorioComentarios {
 
   private mapearRegistroComentario(comentario: {
     id: string;
+    negocioId: string | null;
     source: string;
     provider: string;
     liveId: string;
@@ -520,6 +785,7 @@ export class RepositorioComentariosPrisma implements RepositorioComentarios {
 
     return {
       id: comentario.id,
+      negocioId: comentario.negocioId,
       comentario: {
         source: comentario.source as ComentarioLive["source"],
         provider: comentario.provider,
@@ -758,6 +1024,23 @@ export class RepositorioAutenticacaoPrisma implements RepositorioAutenticacao {
     return this.mapearNegocio(negocio, "DONO");
   }
 
+  async listarModulosAtivosPorNegocio(negocioId: string): Promise<string[]> {
+    const modulos = await this.prisma.moduloNegocio.findMany({
+      where: {
+        negocioId,
+        ativo: true
+      },
+      orderBy: {
+        modulo: "asc"
+      },
+      select: {
+        modulo: true
+      }
+    });
+
+    return modulos.map((modulo) => modulo.modulo);
+  }
+
   async marcarUsuarioOnboardingCompleto(usuarioId: string, data: Date): Promise<UsuarioSistema> {
     return this.prisma.usuarioSistema.update({
       where: { id: usuarioId },
@@ -936,6 +1219,7 @@ export class RepositorioInstanciasWhatsAppPrisma implements RepositorioInstancia
   constructor(private readonly prisma: PrismaClient) {}
 
   async criar(dados: {
+    negocioId?: string | null;
     nome: string;
     etiqueta?: string | null;
     telefone?: string | null;
@@ -943,12 +1227,18 @@ export class RepositorioInstanciasWhatsAppPrisma implements RepositorioInstancia
     apiKey?: string | null;
     padrao?: boolean;
   }): Promise<InstanciaWhatsApp> {
+    const negocioId = dados.negocioId ?? null;
+
     if (dados.padrao) {
-      await this.prisma.instanciaWhatsApp.updateMany({ where: { padrao: true }, data: { padrao: false } });
+      await this.prisma.instanciaWhatsApp.updateMany({
+        where: { negocioId, padrao: true },
+        data: { padrao: false }
+      });
     }
 
     return this.prisma.instanciaWhatsApp.create({
       data: {
+        negocioId,
         nome: dados.nome,
         etiqueta: dados.etiqueta ?? null,
         telefone: dados.telefone ?? null,
@@ -960,20 +1250,22 @@ export class RepositorioInstanciasWhatsAppPrisma implements RepositorioInstancia
     });
   }
 
-  async listarAtivas(): Promise<InstanciaWhatsApp[]> {
+  async listarAtivas(negocioId?: string | null): Promise<InstanciaWhatsApp[]> {
     return this.prisma.instanciaWhatsApp.findMany({
-      where: { ativa: true },
+      where: { ativa: true, ...this.filtroNegocio(negocioId) },
       orderBy: [{ padrao: "desc" }, { atualizadaEm: "desc" }]
     });
   }
 
-  async buscarPorId(id: string): Promise<InstanciaWhatsApp | null> {
-    return this.prisma.instanciaWhatsApp.findUnique({ where: { id } });
+  async buscarPorId(id: string, negocioId?: string | null): Promise<InstanciaWhatsApp | null> {
+    return this.prisma.instanciaWhatsApp.findFirst({
+      where: { id, ...this.filtroNegocio(negocioId) }
+    });
   }
 
-  async buscarPadrao(): Promise<InstanciaWhatsApp | null> {
+  async buscarPadrao(negocioId?: string | null): Promise<InstanciaWhatsApp | null> {
     return this.prisma.instanciaWhatsApp.findFirst({
-      where: { ativa: true, padrao: true },
+      where: { ativa: true, padrao: true, ...this.filtroNegocio(negocioId) },
       orderBy: { atualizadaEm: "desc" }
     });
   }
@@ -983,10 +1275,16 @@ export class RepositorioInstanciasWhatsAppPrisma implements RepositorioInstancia
     dados: Partial<Pick<
       InstanciaWhatsApp,
       "etiqueta" | "telefone" | "status" | "qrCode" | "pairingCode" | "baseUrl" | "apiKey" | "padrao" | "ativa" | "ultimoErro" | "ultimaConexaoEm" | "ultimaConsultaEm"
-    >>
+    >>,
+    negocioId?: string | null
   ): Promise<InstanciaWhatsApp> {
+    const instancia = await this.exigirInstancia(id, negocioId);
+
     if (dados.padrao) {
-      await this.prisma.instanciaWhatsApp.updateMany({ where: { padrao: true, id: { not: id } }, data: { padrao: false } });
+      await this.prisma.instanciaWhatsApp.updateMany({
+        where: { negocioId: instancia.negocioId, padrao: true, id: { not: id } },
+        data: { padrao: false }
+      });
     }
 
     return this.prisma.instanciaWhatsApp.update({
@@ -995,16 +1293,31 @@ export class RepositorioInstanciasWhatsAppPrisma implements RepositorioInstancia
     });
   }
 
-  async definirPadrao(id: string): Promise<InstanciaWhatsApp> {
-    await this.prisma.instanciaWhatsApp.updateMany({ where: { padrao: true, id: { not: id } }, data: { padrao: false } });
+  async definirPadrao(id: string, negocioId?: string | null): Promise<InstanciaWhatsApp> {
+    const instancia = await this.exigirInstancia(id, negocioId);
+    await this.prisma.instanciaWhatsApp.updateMany({
+      where: { negocioId: instancia.negocioId, padrao: true, id: { not: id } },
+      data: { padrao: false }
+    });
     return this.prisma.instanciaWhatsApp.update({ where: { id }, data: { padrao: true, ativa: true } });
   }
 
-  async desativar(id: string): Promise<InstanciaWhatsApp> {
+  async desativar(id: string, negocioId?: string | null): Promise<InstanciaWhatsApp> {
+    await this.exigirInstancia(id, negocioId);
     return this.prisma.instanciaWhatsApp.update({
       where: { id },
       data: { ativa: false, padrao: false }
     });
+  }
+
+  private filtroNegocio(negocioId?: string | null): Prisma.InstanciaWhatsAppWhereInput {
+    return negocioId === undefined ? {} : { negocioId: negocioId ?? null };
+  }
+
+  private async exigirInstancia(id: string, negocioId?: string | null): Promise<InstanciaWhatsApp> {
+    const instancia = await this.buscarPorId(id, negocioId);
+    if (!instancia) throw new Error(`Instância ${id} não encontrada.`);
+    return instancia;
   }
 }
 
@@ -1096,6 +1409,264 @@ export class RepositorioSessoesLivePrisma implements RepositorioSessoesLive {
   }
 }
 
+export class RepositorioClientesPrisma implements RepositorioClientes {
+  constructor(private readonly prisma: PrismaClient) {}
+
+  async salvar(dados: DadosCliente360): Promise<Cliente360> {
+    const contato = this.normalizarContatoObrigatorio(dados.telefone, dados.email);
+    const agora = new Date();
+    const clienteGlobal = await this.obterOuCriarClienteGlobal(dados, contato);
+    const existente = await this.buscarExistentePorContato(dados.negocioId, clienteGlobal.id, contato.telefoneLocal);
+
+    if (existente) {
+      const atualizado = await this.prisma.clienteNegocio.update({
+        where: { id: existente.id },
+        data: {
+          telefone: contato.telefoneLocal ?? existente.telefone,
+          email: contato.email ?? existente.email,
+          nome: dados.nome ?? existente.nome,
+          username: dados.username ?? existente.username,
+          userId: dados.userId ?? existente.userId,
+          avatarUrl: dados.avatarUrl ?? existente.avatarUrl,
+          origem: existente.origem ?? dados.origem ?? null,
+          tagsJson: dados.tags ? this.serializar(this.unirTags(this.lerLista(existente.tagsJson), dados.tags)) : undefined,
+          preferenciasJson: dados.preferencias
+            ? this.serializar({ ...this.parseJson(existente.preferenciasJson), ...dados.preferencias })
+            : undefined,
+          consentimentoMarketing: dados.consentimentoMarketing ?? existente.consentimentoMarketing,
+          consentimentoDados: dados.consentimentoDados ?? existente.consentimentoDados,
+          estadoRelacionamento: dados.estadoRelacionamento ?? existente.estadoRelacionamento,
+          ultimaInteracaoEm: dados.ultimaInteracaoEm ?? existente.ultimaInteracaoEm
+        }
+      });
+      return this.mapearCliente(atualizado);
+    }
+
+    const cliente = await this.prisma.clienteNegocio.create({
+      data: {
+        negocioId: dados.negocioId,
+        clienteGlobalId: clienteGlobal.id,
+        telefone: contato.telefoneLocal,
+        email: contato.email,
+        nome: dados.nome ?? null,
+        username: dados.username ?? null,
+        userId: dados.userId ?? null,
+        avatarUrl: dados.avatarUrl ?? null,
+        origem: dados.origem ?? null,
+        tagsJson: this.serializar(this.normalizarTags(dados.tags ?? [])),
+        preferenciasJson: this.serializar(dados.preferencias ?? {}),
+        consentimentoMarketing: dados.consentimentoMarketing ?? false,
+        consentimentoDados: dados.consentimentoDados ?? false,
+        estadoRelacionamento: dados.estadoRelacionamento ?? "ATIVO",
+        primeiraInteracaoEm: dados.ultimaInteracaoEm ?? agora,
+        ultimaInteracaoEm: dados.ultimaInteracaoEm ?? agora
+      }
+    });
+
+    return this.mapearCliente(cliente);
+  }
+
+  async sincronizar(dados: DadosCliente360): Promise<Cliente360 | null> {
+    if (!normalizarTelefone(dados.telefone) && !normalizarEmail(dados.email)) return null;
+    return this.salvar(dados);
+  }
+
+  async listar(negocioId: string, filtros: FiltrosClientes360 = {}): Promise<Cliente360[]> {
+    const busca = filtros.busca?.trim();
+    const where: Prisma.ClienteNegocioWhereInput = {
+      negocioId,
+      ...(filtros.estadoRelacionamento ? { estadoRelacionamento: filtros.estadoRelacionamento } : {}),
+      ...(busca
+        ? {
+            OR: [
+              { telefone: { contains: busca, mode: "insensitive" } },
+              { email: { contains: busca, mode: "insensitive" } },
+              { nome: { contains: busca, mode: "insensitive" } },
+              { username: { contains: busca, mode: "insensitive" } },
+              { userId: { contains: busca, mode: "insensitive" } }
+            ]
+          }
+        : {})
+    };
+
+    const clientes = await this.prisma.clienteNegocio.findMany({
+      where,
+      orderBy: { ultimaInteracaoEm: "desc" },
+      take: filtros.limite ?? 100
+    });
+    const tag = filtros.tag?.trim().toLowerCase();
+
+    return clientes
+      .map((cliente) => this.mapearCliente(cliente))
+      .filter((cliente) => !tag || cliente.tags.some((item) => item.toLowerCase() === tag));
+  }
+
+  async buscarPorId(id: string, negocioId: string): Promise<Cliente360 | null> {
+    const cliente = await this.prisma.clienteNegocio.findFirst({ where: { id, negocioId } });
+    return cliente ? this.mapearCliente(cliente) : null;
+  }
+
+  async atualizar(id: string, negocioId: string, dados: AtualizacaoCliente360): Promise<Cliente360 | null> {
+    const existente = await this.prisma.clienteNegocio.findFirst({ where: { id, negocioId } });
+    if (!existente) return null;
+
+    const telefone = dados.telefone === undefined ? existente.telefone : normalizarTelefone(dados.telefone)?.local ?? null;
+    const email = dados.email === undefined ? existente.email : normalizarEmail(dados.email);
+    if (!telefone && !email) {
+      throw new Error("Cliente precisa manter telefone ou email.");
+    }
+
+    const atualizado = await this.prisma.clienteNegocio.update({
+      where: { id: existente.id },
+      data: {
+        telefone,
+        email,
+        nome: dados.nome === undefined ? existente.nome : dados.nome,
+        username: dados.username === undefined ? existente.username : dados.username,
+        userId: dados.userId === undefined ? existente.userId : dados.userId,
+        avatarUrl: dados.avatarUrl === undefined ? existente.avatarUrl : dados.avatarUrl,
+        origem: dados.origem === undefined ? existente.origem : dados.origem,
+        tagsJson: dados.tags === undefined ? existente.tagsJson : this.serializar(this.normalizarTags(dados.tags)),
+        preferenciasJson:
+          dados.preferencias === undefined ? existente.preferenciasJson : this.serializar(dados.preferencias),
+        consentimentoMarketing: dados.consentimentoMarketing ?? existente.consentimentoMarketing,
+        consentimentoDados: dados.consentimentoDados ?? existente.consentimentoDados,
+        estadoRelacionamento: dados.estadoRelacionamento ?? existente.estadoRelacionamento
+      }
+    });
+
+    return this.mapearCliente(atualizado);
+  }
+
+  private async obterOuCriarClienteGlobal(
+    dados: DadosCliente360,
+    contato: { telefoneCanonico: string | null; email: string | null }
+  ) {
+    const whereOr = [
+      contato.telefoneCanonico ? { telefoneCanonico: contato.telefoneCanonico } : null,
+      contato.email ? { emailCanonico: contato.email } : null
+    ].filter(Boolean) as Prisma.ClienteGlobalWhereInput[];
+
+    const existente = whereOr.length
+      ? await this.prisma.clienteGlobal.findFirst({ where: { OR: whereOr } })
+      : null;
+
+    if (existente) {
+      return this.prisma.clienteGlobal.update({
+        where: { id: existente.id },
+        data: {
+          nomePreferido: dados.nome ?? existente.nomePreferido,
+          avatarUrl: dados.avatarUrl ?? existente.avatarUrl
+        }
+      });
+    }
+
+    return this.prisma.clienteGlobal.create({
+      data: {
+        telefoneCanonico: contato.telefoneCanonico,
+        emailCanonico: contato.email,
+        nomePreferido: dados.nome ?? null,
+        avatarUrl: dados.avatarUrl ?? null,
+        origemPrimeira: dados.origem ?? null,
+        dadosJson: "{}"
+      }
+    });
+  }
+
+  private async buscarExistentePorContato(
+    negocioId: string,
+    clienteGlobalId: string,
+    telefone: string | null
+  ) {
+    return this.prisma.clienteNegocio.findFirst({
+      where: {
+        negocioId,
+        OR: [
+          { clienteGlobalId },
+          ...(telefone ? [{ telefone }] : [])
+        ]
+      }
+    });
+  }
+
+  private mapearCliente(cliente: {
+    id: string;
+    negocioId: string;
+    clienteGlobalId: string;
+    telefone: string | null;
+    email: string | null;
+    nome: string | null;
+    username: string | null;
+    userId: string | null;
+    avatarUrl: string | null;
+    origem: string | null;
+    tagsJson: string;
+    preferenciasJson: string;
+    consentimentoMarketing: boolean;
+    consentimentoDados: boolean;
+    estadoRelacionamento: string;
+    primeiraInteracaoEm: Date;
+    ultimaInteracaoEm: Date;
+    criadoEm: Date;
+    atualizadoEm: Date;
+  }): Cliente360 {
+    return {
+      ...cliente,
+      tags: this.lerLista(cliente.tagsJson),
+      preferencias: this.parseJson(cliente.preferenciasJson),
+      estadoRelacionamento: cliente.estadoRelacionamento as Cliente360["estadoRelacionamento"]
+    };
+  }
+
+  private normalizarContatoObrigatorio(telefone?: string | null, email?: string | null) {
+    const telefoneNormalizado = normalizarTelefone(telefone);
+    const emailNormalizado = normalizarEmail(email);
+    if (!telefoneNormalizado && !emailNormalizado) {
+      throw new Error("Informe telefone ou email para identificar o cliente.");
+    }
+
+    return {
+      telefoneLocal: telefoneNormalizado?.local ?? null,
+      telefoneCanonico: telefoneNormalizado?.canonico ?? null,
+      email: emailNormalizado
+    };
+  }
+
+  private unirTags(tagsAtuais: string[], novasTags: string[]): string[] {
+    return this.normalizarTags([...tagsAtuais, ...novasTags]);
+  }
+
+  private normalizarTags(tags: string[]): string[] {
+    return [...new Set(tags.map((tag) => tag.trim()).filter(Boolean))];
+  }
+
+  private lerLista(valor: string): string[] {
+    try {
+      const lista = JSON.parse(valor);
+      return Array.isArray(lista) ? lista.filter((item) => typeof item === "string") : [];
+    } catch {
+      return [];
+    }
+  }
+
+  private parseJson(valor: string): Record<string, unknown> {
+    try {
+      const json = JSON.parse(valor);
+      return json && typeof json === "object" && !Array.isArray(json) ? json : {};
+    } catch {
+      return {};
+    }
+  }
+
+  private serializar(valor: unknown): string {
+    return JSON.stringify(valor, (_chave, item) => {
+      if (item instanceof Date) return item.toISOString();
+      if (typeof item === "bigint") return item.toString();
+      return item;
+    });
+  }
+}
+
 export class RepositorioAtendimentoPrisma implements RepositorioAtendimento {
   constructor(private readonly prisma: PrismaClient) {}
 
@@ -1113,6 +1684,7 @@ export class RepositorioAtendimentoPrisma implements RepositorioAtendimento {
     try {
       const mensagem = await this.prisma.mensagemAtendimento.create({
         data: {
+          negocioId: conversa.negocioId,
           conversaId: conversa.id,
           telefone: dados.telefone,
           direcao: dados.direcao,
@@ -1144,9 +1716,14 @@ export class RepositorioAtendimentoPrisma implements RepositorioAtendimento {
   }
 
   private async obterConversaParaMensagem(dados: NovaMensagemAtendimento, canal: string, enviadaEm: Date) {
+    const negocioId = dados.negocioId ?? (await this.inferirNegocioIdPorTelefone(dados.telefone));
+
     if (dados.conversaId) {
-      const existente = await this.prisma.conversaAtendimento.findUnique({
-        where: { id: dados.conversaId },
+      const existente = await this.prisma.conversaAtendimento.findFirst({
+        where: {
+          id: dados.conversaId,
+          ...(negocioId ? { negocioId } : {})
+        },
         include: { cliente: true }
       });
 
@@ -1169,46 +1746,89 @@ export class RepositorioAtendimentoPrisma implements RepositorioAtendimento {
       }
     }
 
-    const cliente = await this.prisma.clienteAtendimento.upsert({
-      where: { telefone: dados.telefone },
-      create: {
+    const clienteExistente = await this.prisma.clienteAtendimento.findFirst({
+      where: {
         telefone: dados.telefone,
-        nome: dados.nomeCliente ?? null,
-        username: dados.usernameCliente ?? null,
-        userId: dados.userIdCliente ?? null,
-        avatarUrl: dados.avatarUrlCliente ?? null,
-        origem: dados.origem,
-        primeiraInteracaoEm: enviadaEm,
-        ultimaInteracaoEm: enviadaEm
-      },
-      update: {
-        nome: dados.nomeCliente ?? undefined,
-        username: dados.usernameCliente ?? undefined,
-        userId: dados.userIdCliente ?? undefined,
-        avatarUrl: dados.avatarUrlCliente ?? undefined,
-        ultimaInteracaoEm: enviadaEm
+        negocioId
+      }
+    });
+    const cliente = clienteExistente
+      ? await this.prisma.clienteAtendimento.update({
+          where: { id: clienteExistente.id },
+          data: {
+            nome: dados.nomeCliente ?? undefined,
+            username: dados.usernameCliente ?? undefined,
+            userId: dados.userIdCliente ?? undefined,
+            avatarUrl: dados.avatarUrlCliente ?? undefined,
+            ultimaInteracaoEm: enviadaEm
+          }
+        })
+      : await this.prisma.clienteAtendimento.create({
+          data: {
+            negocioId,
+            telefone: dados.telefone,
+            nome: dados.nomeCliente ?? null,
+            username: dados.usernameCliente ?? null,
+            userId: dados.userIdCliente ?? null,
+            avatarUrl: dados.avatarUrlCliente ?? null,
+            origem: dados.origem,
+            primeiraInteracaoEm: enviadaEm,
+            ultimaInteracaoEm: enviadaEm
+          }
+        });
+
+    const conversaExistente = await this.prisma.conversaAtendimento.findFirst({
+      where: {
+        telefone: dados.telefone,
+        canal,
+        negocioId
       }
     });
 
-    return this.prisma.conversaAtendimento.upsert({
-      where: { telefone_canal: { telefone: dados.telefone, canal } },
-      create: {
+    if (conversaExistente) {
+      return this.prisma.conversaAtendimento.update({
+        where: { id: conversaExistente.id },
+        data: {
+          clienteId: cliente.id,
+          clienteNegocioId: dados.clienteNegocioId ?? conversaExistente.clienteNegocioId,
+          ultimaMensagemEm: enviadaEm
+        }
+      });
+    }
+
+    return this.prisma.conversaAtendimento.create({
+      data: {
+        negocioId,
+        clienteNegocioId: dados.clienteNegocioId ?? null,
         clienteId: cliente.id,
         telefone: dados.telefone,
         canal,
         estado: "ABERTA",
         prioridade: "NORMAL",
         ultimaMensagemEm: enviadaEm
-      },
-      update: {
-        clienteId: cliente.id,
-        ultimaMensagemEm: enviadaEm
       }
     });
   }
 
-  async listarConversasComMensagens(limite = 100): Promise<ConversaAtendimentoComMensagens[]> {
+  private async inferirNegocioIdPorTelefone(telefone: string): Promise<string | null> {
     const conversas = await this.prisma.conversaAtendimento.findMany({
+      where: {
+        telefone,
+        negocioId: { not: null }
+      },
+      distinct: ["negocioId"],
+      take: 2,
+      select: {
+        negocioId: true
+      }
+    });
+
+    return conversas.length === 1 ? conversas[0].negocioId : null;
+  }
+
+  async listarConversasComMensagens(limite = 100, negocioId?: string | null): Promise<ConversaAtendimentoComMensagens[]> {
+    const conversas = await this.prisma.conversaAtendimento.findMany({
+      where: negocioId ? { negocioId } : undefined,
       orderBy: [{ ultimaMensagemEm: "desc" }, { atualizadoEm: "desc" }],
       take: limite,
       include: {
@@ -1224,9 +1844,15 @@ export class RepositorioAtendimentoPrisma implements RepositorioAtendimento {
     }));
   }
 
-  async buscarConversaComMensagensPorId(id: string): Promise<ConversaAtendimentoComMensagens | null> {
-    const conversa = await this.prisma.conversaAtendimento.findUnique({
-      where: { id },
+  async buscarConversaComMensagensPorId(
+    id: string,
+    negocioId?: string | null
+  ): Promise<ConversaAtendimentoComMensagens | null> {
+    const conversa = await this.prisma.conversaAtendimento.findFirst({
+      where: {
+        id,
+        ...(negocioId ? { negocioId } : {})
+      },
       include: {
         cliente: true,
         mensagens: { orderBy: { enviadaEm: "asc" } }
@@ -1244,9 +1870,15 @@ export class RepositorioAtendimentoPrisma implements RepositorioAtendimento {
 
   async atualizarConversa(
     id: string,
-    dados: AtualizacaoConversaAtendimento
+    dados: AtualizacaoConversaAtendimento,
+    negocioId?: string | null
   ): Promise<ConversaAtendimentoComMensagens | null> {
-    const existente = await this.prisma.conversaAtendimento.findUnique({ where: { id } });
+    const existente = await this.prisma.conversaAtendimento.findFirst({
+      where: {
+        id,
+        ...(negocioId ? { negocioId } : {})
+      }
+    });
     if (!existente) return null;
 
     const conversa = await this.prisma.conversaAtendimento.update({
@@ -1308,6 +1940,8 @@ export class RepositorioAtendimentoPrisma implements RepositorioAtendimento {
 
   private mapearCliente(cliente: {
     id: string;
+    negocioId: string | null;
+    clienteGlobalId: string | null;
     telefone: string;
     nome: string | null;
     username: string | null;
@@ -1329,6 +1963,8 @@ export class RepositorioAtendimentoPrisma implements RepositorioAtendimento {
 
   private mapearConversa(conversa: {
     id: string;
+    negocioId: string | null;
+    clienteNegocioId: string | null;
     clienteId: string;
     telefone: string;
     canal: string;
@@ -1350,6 +1986,7 @@ export class RepositorioAtendimentoPrisma implements RepositorioAtendimento {
 
   private mapearMensagem(mensagem: {
     id: string;
+    negocioId: string | null;
     conversaId: string;
     telefone: string;
     direcao: string;
@@ -1417,11 +2054,13 @@ export class RepositorioAuditoriaPrisma implements RepositorioAuditoria {
       where: { id: evento.id },
       create: {
         id: evento.id,
+        negocioId: this.obterNegocioId(evento.dados),
         tipo: evento.tipo,
         dadosJson: this.serializar(evento.dados),
         criadoEm: evento.criadoEm
       },
       update: {
+        negocioId: this.obterNegocioId(evento.dados),
         tipo: evento.tipo,
         dadosJson: this.serializar(evento.dados)
       }
@@ -1429,6 +2068,7 @@ export class RepositorioAuditoriaPrisma implements RepositorioAuditoria {
   }
 
   async registrarMensagemWhatsApp(dados: {
+    negocioId?: string | null;
     telefone: string;
     tipo: string;
     conteudo: string;
@@ -1438,6 +2078,7 @@ export class RepositorioAuditoriaPrisma implements RepositorioAuditoria {
   }): Promise<void> {
     await this.prisma.mensagemWhatsapp.create({
       data: {
+        negocioId: dados.negocioId ?? null,
         telefone: dados.telefone,
         tipo: dados.tipo,
         conteudo: dados.conteudo,
@@ -1451,6 +2092,7 @@ export class RepositorioAuditoriaPrisma implements RepositorioAuditoria {
   async criarEventoN8n(evento: EventoSistema): Promise<RegistroOutboxEventoN8n> {
     const registro = await this.prisma.outboxEventoN8n.create({
       data: {
+        negocioId: this.obterNegocioId(evento.dados),
         eventoId: evento.id,
         tipo: evento.tipo,
         payloadJson: this.serializar(evento.dados),
@@ -1543,6 +2185,7 @@ export class RepositorioAuditoriaPrisma implements RepositorioAuditoria {
   async criarMensagemWhatsAppPendente(dados: NovoOutboxMensagemWhatsApp): Promise<RegistroOutboxMensagemWhatsApp> {
     const registro = await this.prisma.outboxMensagemWhatsApp.create({
       data: {
+        negocioId: dados.negocioId ?? this.obterNegocioId(dados.contexto ?? {}),
         telefone: dados.telefone,
         tipo: dados.tipo,
         conteudo: dados.conteudo,
@@ -1557,8 +2200,9 @@ export class RepositorioAuditoriaPrisma implements RepositorioAuditoria {
     return this.mapearOutboxWhatsApp(registro);
   }
 
-  async listarMensagensWhatsApp(limite = 100): Promise<RegistroOutboxMensagemWhatsApp[]> {
+  async listarMensagensWhatsApp(limite = 100, negocioId?: string | null): Promise<RegistroOutboxMensagemWhatsApp[]> {
     const registros = await this.prisma.outboxMensagemWhatsApp.findMany({
+      where: this.filtroNegocioOutboxWhatsApp(negocioId),
       orderBy: { criadoEm: "desc" },
       take: limite
     });
@@ -1569,10 +2213,11 @@ export class RepositorioAuditoriaPrisma implements RepositorioAuditoria {
   async listarMensagensWhatsAppPendentes(
     limite: number,
     agora: Date,
-    opcoes: { incluirFalhadas?: boolean } = {}
+    opcoes: { incluirFalhadas?: boolean; negocioId?: string | null } = {}
   ): Promise<RegistroOutboxMensagemWhatsApp[]> {
     const registros = await this.prisma.outboxMensagemWhatsApp.findMany({
       where: {
+        ...this.filtroNegocioOutboxWhatsApp(opcoes.negocioId),
         status: { in: opcoes.incluirFalhadas ? ["PENDENTE", "FALHOU"] : ["PENDENTE"] },
         proximaTentativaEm: { lte: agora }
       },
@@ -1616,23 +2261,25 @@ export class RepositorioAuditoriaPrisma implements RepositorioAuditoria {
     });
   }
 
-  async resumirMensagensWhatsAppOutbox(): Promise<ResumoOutboxMensagemWhatsApp> {
+  async resumirMensagensWhatsAppOutbox(negocioId?: string | null): Promise<ResumoOutboxMensagemWhatsApp> {
+    const filtroNegocio = this.filtroNegocioOutboxWhatsApp(negocioId);
     const [total, pendentes, enviadas, falhadas, proximo, ultimaFalha, ultimoAtualizado] = await Promise.all([
-      this.prisma.outboxMensagemWhatsApp.count(),
-      this.prisma.outboxMensagemWhatsApp.count({ where: { status: "PENDENTE" } }),
-      this.prisma.outboxMensagemWhatsApp.count({ where: { status: "ENVIADA" } }),
-      this.prisma.outboxMensagemWhatsApp.count({ where: { status: "FALHOU" } }),
+      this.prisma.outboxMensagemWhatsApp.count({ where: filtroNegocio }),
+      this.prisma.outboxMensagemWhatsApp.count({ where: { ...filtroNegocio, status: "PENDENTE" } }),
+      this.prisma.outboxMensagemWhatsApp.count({ where: { ...filtroNegocio, status: "ENVIADA" } }),
+      this.prisma.outboxMensagemWhatsApp.count({ where: { ...filtroNegocio, status: "FALHOU" } }),
       this.prisma.outboxMensagemWhatsApp.findFirst({
-        where: { status: { in: ["PENDENTE", "FALHOU"] } },
+        where: { ...filtroNegocio, status: { in: ["PENDENTE", "FALHOU"] } },
         orderBy: { proximaTentativaEm: "asc" },
         select: { proximaTentativaEm: true }
       }),
       this.prisma.outboxMensagemWhatsApp.findFirst({
-        where: { ultimoErro: { not: null } },
+        where: { ...filtroNegocio, ultimoErro: { not: null } },
         orderBy: { atualizadoEm: "desc" },
         select: { ultimoErro: true }
       }),
       this.prisma.outboxMensagemWhatsApp.findFirst({
+        where: filtroNegocio,
         orderBy: { atualizadoEm: "desc" },
         select: { atualizadoEm: true }
       })
@@ -1691,6 +2338,7 @@ export class RepositorioAuditoriaPrisma implements RepositorioAuditoria {
 
   private mapearOutboxWhatsApp(registro: {
     id: string;
+    negocioId: string | null;
     telefone: string;
     tipo: string;
     conteudo: string;
@@ -1708,6 +2356,7 @@ export class RepositorioAuditoriaPrisma implements RepositorioAuditoria {
   }): RegistroOutboxMensagemWhatsApp {
     return {
       id: registro.id,
+      negocioId: registro.negocioId,
       telefone: registro.telefone,
       tipo: registro.tipo,
       conteudo: registro.conteudo,
@@ -1740,5 +2389,26 @@ export class RepositorioAuditoriaPrisma implements RepositorioAuditoria {
       if (typeof item === "bigint") return item.toString();
       return item;
     });
+  }
+
+  private filtroNegocioOutboxWhatsApp(negocioId?: string | null): Prisma.OutboxMensagemWhatsAppWhereInput {
+    return negocioId === undefined ? {} : { negocioId: negocioId ?? null };
+  }
+
+  private obterNegocioId(dados: Record<string, unknown>): string | null {
+    const direto = typeof dados.negocioId === "string" && dados.negocioId.trim() ? dados.negocioId : null;
+    if (direto) return direto;
+
+    const contexto = this.obterObjeto(dados.contexto);
+    const negocioContexto =
+      typeof contexto.negocioId === "string" && contexto.negocioId.trim() ? contexto.negocioId : null;
+    if (negocioContexto) return negocioContexto;
+
+    const reserva = this.obterObjeto(dados.reserva ?? contexto.reserva);
+    return typeof reserva.negocioId === "string" && reserva.negocioId.trim() ? reserva.negocioId : null;
+  }
+
+  private obterObjeto(valor: unknown): Record<string, unknown> {
+    return valor && typeof valor === "object" && !Array.isArray(valor) ? (valor as Record<string, unknown>) : {};
   }
 }

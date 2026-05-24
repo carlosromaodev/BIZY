@@ -1,13 +1,22 @@
 import type {
   AtualizarPeca,
+  AtualizacaoCliente360,
   AtualizacaoConversaAtendimento,
+  AtualizacaoEntregaPedido,
+  AtualizacaoEstadoPedido,
+  Cliente360,
+  ConfirmacaoPagamentoPedido,
   ConversaAtendimentoComMensagens,
+  DadosPedidoResolvido,
+  DadosCliente360,
   NovaPeca,
   NovaReserva,
   NovaMensagemAtendimento,
   NovoRegistroComentario,
+  FiltrosPedidos,
   Peca,
   MensagemAtendimento,
+  Pedido,
   RegistroComentario,
   Reserva,
   EstadoComentario,
@@ -33,15 +42,16 @@ import type {
   DadosPerfilEstudantil,
   PerfilEstudantilUsuario,
   DadosNegocioBizy,
+  FiltrosClientes360,
   NegocioBizy
 } from "../tipos.js";
 
 export interface RepositorioPecas {
   criar(dados: NovaPeca): Promise<Peca>;
-  listar(): Promise<Peca[]>;
-  buscarPorCodigo(codigo: string): Promise<Peca | null>;
-  atualizar(codigo: string, dados: AtualizarPeca): Promise<Peca>;
-  atualizarEstado(codigo: string, estado: EstadoPeca): Promise<Peca>;
+  listar(negocioId?: string | null): Promise<Peca[]>;
+  buscarPorCodigo(codigo: string, negocioId?: string | null): Promise<Peca | null>;
+  atualizar(codigo: string, dados: AtualizarPeca, negocioId?: string | null): Promise<Peca>;
+  atualizarEstado(codigo: string, estado: EstadoPeca, negocioId?: string | null): Promise<Peca>;
 }
 
 export interface RepositorioReservas {
@@ -53,11 +63,15 @@ export interface RepositorioReservas {
     peca?: Peca | null;
     motivo?: string;
   }>;
-  listar(): Promise<Reserva[]>;
-  buscarPorId(id: string): Promise<Reserva | null>;
-  buscarReservaAtivaPorTelefoneEPeca(telefone: string, codigoPeca: string): Promise<Reserva | null>;
-  contarReservasQueBloqueiamStock(codigoPeca: string): Promise<number>;
-  listarFilaDaPeca(codigoPeca: string): Promise<Reserva[]>;
+  listar(negocioId?: string | null): Promise<Reserva[]>;
+  buscarPorId(id: string, negocioId?: string | null): Promise<Reserva | null>;
+  buscarReservaAtivaPorTelefoneEPeca(
+    telefone: string,
+    codigoPeca: string,
+    negocioId?: string | null
+  ): Promise<Reserva | null>;
+  contarReservasQueBloqueiamStock(codigoPeca: string, negocioId?: string | null): Promise<number>;
+  listarFilaDaPeca(codigoPeca: string, negocioId?: string | null): Promise<Reserva[]>;
   listarReservasExpiradas(agora: Date): Promise<Reserva[]>;
   atualizarEstado(id: string, estado: EstadoReserva, expiraEm?: Date | null): Promise<Reserva>;
   atualizarEstadoPagamento(
@@ -71,6 +85,7 @@ export interface RepositorioReservas {
 export interface RepositorioAuditoria {
   registrarEventoSistema(evento: EventoSistema): Promise<void>;
   registrarMensagemWhatsApp(dados: {
+    negocioId?: string | null;
     telefone: string;
     tipo: string;
     conteudo: string;
@@ -85,11 +100,11 @@ export interface RepositorioAuditoria {
   marcarEventoN8nPublicado(id: string, publicadoEm: Date): Promise<void>;
   marcarEventoN8nFalha(id: string, erro: string, proximaTentativaEm: Date): Promise<void>;
   criarMensagemWhatsAppPendente(dados: NovoOutboxMensagemWhatsApp): Promise<RegistroOutboxMensagemWhatsApp>;
-  listarMensagensWhatsApp(limite?: number): Promise<RegistroOutboxMensagemWhatsApp[]>;
+  listarMensagensWhatsApp(limite?: number, negocioId?: string | null): Promise<RegistroOutboxMensagemWhatsApp[]>;
   listarMensagensWhatsAppPendentes(
     limite: number,
     agora: Date,
-    opcoes?: { incluirFalhadas?: boolean }
+    opcoes?: { incluirFalhadas?: boolean; negocioId?: string | null }
   ): Promise<RegistroOutboxMensagemWhatsApp[]>;
   marcarMensagemWhatsAppEnviada(
     id: string,
@@ -101,7 +116,7 @@ export interface RepositorioAuditoria {
     proximaTentativaEm: Date,
     opcoes?: { falhaFinal?: boolean }
   ): Promise<void>;
-  resumirMensagensWhatsAppOutbox(): Promise<ResumoOutboxMensagemWhatsApp>;
+  resumirMensagensWhatsAppOutbox(negocioId?: string | null): Promise<ResumoOutboxMensagemWhatsApp>;
   limparMensagensComunicacao(): Promise<Pick<
     ResultadoLimpezaDadosComunicacao,
     "mensagensWhatsapp" | "outboxWhatsapp"
@@ -110,9 +125,13 @@ export interface RepositorioAuditoria {
 
 export interface RepositorioAtendimento {
   registrarMensagem(dados: NovaMensagemAtendimento): Promise<MensagemAtendimento>;
-  listarConversasComMensagens(limite?: number): Promise<ConversaAtendimentoComMensagens[]>;
-  buscarConversaComMensagensPorId(id: string): Promise<ConversaAtendimentoComMensagens | null>;
-  atualizarConversa(id: string, dados: AtualizacaoConversaAtendimento): Promise<ConversaAtendimentoComMensagens | null>;
+  listarConversasComMensagens(limite?: number, negocioId?: string | null): Promise<ConversaAtendimentoComMensagens[]>;
+  buscarConversaComMensagensPorId(id: string, negocioId?: string | null): Promise<ConversaAtendimentoComMensagens | null>;
+  atualizarConversa(
+    id: string,
+    dados: AtualizacaoConversaAtendimento,
+    negocioId?: string | null
+  ): Promise<ConversaAtendimentoComMensagens | null>;
   buscarMensagemPorProviderMessageId(providerMessageId: string): Promise<MensagemAtendimento | null>;
   atualizarStatusMensagemPorProviderMessageId(
     providerMessageId: string,
@@ -124,10 +143,27 @@ export interface RepositorioAtendimento {
   >>;
 }
 
+export interface RepositorioClientes {
+  salvar(dados: DadosCliente360): Promise<Cliente360>;
+  sincronizar(dados: DadosCliente360): Promise<Cliente360 | null>;
+  listar(negocioId: string, filtros?: FiltrosClientes360): Promise<Cliente360[]>;
+  buscarPorId(id: string, negocioId: string): Promise<Cliente360 | null>;
+  atualizar(id: string, negocioId: string, dados: AtualizacaoCliente360): Promise<Cliente360 | null>;
+}
+
+export interface RepositorioPedidos {
+  criar(dados: DadosPedidoResolvido): Promise<Pedido>;
+  listar(negocioId: string, filtros?: FiltrosPedidos): Promise<Pedido[]>;
+  buscarPorId(id: string, negocioId: string): Promise<Pedido | null>;
+  atualizarEstado(id: string, negocioId: string, dados: AtualizacaoEstadoPedido): Promise<Pedido | null>;
+  confirmarPagamento(id: string, negocioId: string, dados: ConfirmacaoPagamentoPedido): Promise<Pedido | null>;
+  atualizarEntrega(id: string, negocioId: string, dados: AtualizacaoEntregaPedido): Promise<Pedido | null>;
+}
+
 export interface RepositorioComentarios {
   criar(dados: NovoRegistroComentario): Promise<RegistroComentario>;
-  listar(limite?: number): Promise<RegistroComentario[]>;
-  buscarPorId(id: string): Promise<RegistroComentario | null>;
+  listar(limite?: number, negocioId?: string | null): Promise<RegistroComentario[]>;
+  buscarPorId(id: string, negocioId?: string | null): Promise<RegistroComentario | null>;
   atualizarEstado(
     id: string,
     estado: EstadoComentario,
@@ -151,6 +187,7 @@ export interface RepositorioAutenticacao {
   salvarPerfilEstudantil(dados: DadosPerfilEstudantil): Promise<PerfilEstudantilUsuario>;
   buscarNegocioPrincipalPorUsuario(usuarioId: string): Promise<NegocioBizy | null>;
   salvarNegocioUsuario(usuarioId: string, dados: DadosNegocioBizy): Promise<NegocioBizy>;
+  listarModulosAtivosPorNegocio(negocioId: string): Promise<string[]>;
   marcarUsuarioOnboardingCompleto(usuarioId: string, data: Date): Promise<UsuarioSistema>;
   criarCodigoSms(dados: {
     telefone: string;
@@ -179,6 +216,7 @@ export interface RepositorioAutenticacao {
 
 export interface RepositorioInstanciasWhatsApp {
   criar(dados: {
+    negocioId?: string | null;
     nome: string;
     etiqueta?: string | null;
     telefone?: string | null;
@@ -186,15 +224,15 @@ export interface RepositorioInstanciasWhatsApp {
     apiKey?: string | null;
     padrao?: boolean;
   }): Promise<InstanciaWhatsApp>;
-  listarAtivas(): Promise<InstanciaWhatsApp[]>;
-  buscarPorId(id: string): Promise<InstanciaWhatsApp | null>;
-  buscarPadrao(): Promise<InstanciaWhatsApp | null>;
+  listarAtivas(negocioId?: string | null): Promise<InstanciaWhatsApp[]>;
+  buscarPorId(id: string, negocioId?: string | null): Promise<InstanciaWhatsApp | null>;
+  buscarPadrao(negocioId?: string | null): Promise<InstanciaWhatsApp | null>;
   atualizar(id: string, dados: Partial<Pick<
     InstanciaWhatsApp,
     "etiqueta" | "telefone" | "status" | "qrCode" | "pairingCode" | "baseUrl" | "apiKey" | "padrao" | "ativa" | "ultimoErro" | "ultimaConexaoEm" | "ultimaConsultaEm"
-  >>): Promise<InstanciaWhatsApp>;
-  definirPadrao(id: string): Promise<InstanciaWhatsApp>;
-  desativar(id: string): Promise<InstanciaWhatsApp>;
+  >>, negocioId?: string | null): Promise<InstanciaWhatsApp>;
+  definirPadrao(id: string, negocioId?: string | null): Promise<InstanciaWhatsApp>;
+  desativar(id: string, negocioId?: string | null): Promise<InstanciaWhatsApp>;
 }
 
 export interface RepositorioSessoesLive {

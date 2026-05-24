@@ -116,7 +116,7 @@ export class ProvedorWhatsAppEvolutionDinamico implements ProvedorWhatsApp {
   }
 
   async enviarMensagem(mensagem: MensagemWhatsApp): Promise<ResultadoEnvioWhatsApp> {
-    const destino = await this.resolverDestino();
+    const destino = await this.resolverDestino(this.extrairNegocioId(mensagem.contexto));
     const provedor = new ProvedorWhatsAppEvolution({
       baseUrl: destino.baseUrl,
       apiKey: destino.apiKey,
@@ -130,8 +130,8 @@ export class ProvedorWhatsAppEvolutionDinamico implements ProvedorWhatsApp {
     return provedor.enviarMensagem(mensagem);
   }
 
-  private async resolverDestino() {
-    const instancias = await this.opcoes.repositorioInstancias.listarAtivas();
+  private async resolverDestino(negocioId?: string | null) {
+    const instancias = await this.opcoes.repositorioInstancias.listarAtivas(negocioId);
     const selecionada = selecionarInstanciaWhatsAppPreferida(instancias);
     const instancia = selecionada?.nome?.trim() || this.opcoes.instanciaFallback?.trim();
     const baseUrl = selecionada?.baseUrl?.trim() || this.opcoes.baseUrl.trim();
@@ -146,6 +146,26 @@ export class ProvedorWhatsAppEvolutionDinamico implements ProvedorWhatsApp {
     }
 
     return { instancia, baseUrl, apiKey };
+  }
+
+  private extrairNegocioId(contexto: unknown): string | null {
+    if (!contexto || typeof contexto !== "object" || Array.isArray(contexto)) return null;
+    const dados = contexto as Record<string, unknown>;
+    if (typeof dados.negocioId === "string" && dados.negocioId.trim()) return dados.negocioId;
+
+    const reserva = dados.reserva;
+    if (reserva && typeof reserva === "object" && !Array.isArray(reserva)) {
+      const negocioId = (reserva as Record<string, unknown>).negocioId;
+      if (typeof negocioId === "string" && negocioId.trim()) return negocioId;
+    }
+
+    const peca = dados.peca;
+    if (peca && typeof peca === "object" && !Array.isArray(peca)) {
+      const negocioId = (peca as Record<string, unknown>).negocioId;
+      if (typeof negocioId === "string" && negocioId.trim()) return negocioId;
+    }
+
+    return null;
   }
 }
 

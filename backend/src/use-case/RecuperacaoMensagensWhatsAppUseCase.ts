@@ -14,6 +14,7 @@ interface OpcoesRecuperacaoMensagensWhatsApp {
 }
 
 interface DadosFalhaWhatsApp {
+  negocioId?: string | null;
   telefone: string;
   tipo: string;
   conteudo: string;
@@ -67,6 +68,7 @@ export class RecuperacaoMensagensWhatsAppUseCase {
 
   async registrarFalha(dados: DadosFalhaWhatsApp) {
     return this.repositorioAuditoria.criarMensagemWhatsAppPendente({
+      negocioId: dados.negocioId ?? this.obterNegocioIdDoContexto(dados.contexto),
       telefone: dados.telefone,
       tipo: dados.tipo,
       conteudo: dados.conteudo,
@@ -77,7 +79,9 @@ export class RecuperacaoMensagensWhatsAppUseCase {
     });
   }
 
-  async reprocessarPendentes(opcoes: { agora?: Date; incluirFalhadas?: boolean; limite?: number } = {}) {
+  async reprocessarPendentes(
+    opcoes: { agora?: Date; incluirFalhadas?: boolean; limite?: number; negocioId?: string | null } = {}
+  ) {
     if (this.processando) {
       return { processadas: 0, enviadas: 0, falhadas: 0 };
     }
@@ -87,7 +91,8 @@ export class RecuperacaoMensagensWhatsAppUseCase {
       const agora = opcoes.agora ?? new Date();
       const limite = Math.max(1, Math.min(opcoes.limite ?? this.limitePorCiclo, 100));
       const mensagens = await this.repositorioAuditoria.listarMensagensWhatsAppPendentes(limite, agora, {
-        incluirFalhadas: opcoes.incluirFalhadas
+        incluirFalhadas: opcoes.incluirFalhadas,
+        negocioId: opcoes.negocioId
       });
       let enviadas = 0;
       let falhadas = 0;
@@ -122,6 +127,7 @@ export class RecuperacaoMensagensWhatsAppUseCase {
       telefone,
       tipo,
       conteudo,
+      negocioId: this.obterString(evento.dados.negocioId) ?? this.obterNegocioIdDoContexto(evento.dados.contexto),
       contexto: this.obterObjeto(evento.dados.contexto),
       erro: this.obterString(evento.dados.erro) ?? undefined,
       ocorridoEm: this.obterData(evento.dados.ocorridoEm) ?? evento.criadoEm
@@ -169,6 +175,13 @@ export class RecuperacaoMensagensWhatsAppUseCase {
 
   private obterObjeto(valor: unknown): Record<string, unknown> {
     return valor && typeof valor === "object" && !Array.isArray(valor) ? (valor as Record<string, unknown>) : {};
+  }
+
+  private obterNegocioIdDoContexto(contexto: unknown): string | null {
+    const dados = this.obterObjeto(contexto);
+    const reserva = this.obterObjeto(dados.reserva);
+    const peca = this.obterObjeto(dados.peca);
+    return this.obterString(dados.negocioId) ?? this.obterString(reserva.negocioId) ?? this.obterString(peca.negocioId);
   }
 
   private obterString(valor: unknown): string | null {

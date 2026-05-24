@@ -9,9 +9,17 @@ describe("login Bizy", () => {
     const login = source("src/paginas/Login.tsx");
     const animatedTabs = source("src/components/ui/animated-tabs.tsx");
     const authPage = source("src/components/ui/auth-page.tsx");
+    const estilosFormularioEscuro = source("src/componentes/estilosFormularioEscuro.ts");
 
     expect(login).toContain("@/components/ui/auth-page");
     expect(login).toContain("AuthPage");
+    expect(login).toContain("CORES_LOGO_BIZY_ESCURA");
+    expect(login).toContain("brand={<LogoBizy cores={CORES_LOGO_BIZY_ESCURA} />}");
+    expect(login).toContain("CLASSE_CAMPO_ESCURO");
+    expect(login).toContain("CLASSE_BOTAO_CONTORNO_ESCURO");
+    expect(login).toContain("className={CLASSE_CAMPO_ESCURO}");
+    expect(login).toContain('className={cn(CLASSE_CAMPO_ESCURO, "pr-11")}');
+    expect(login).toContain('className={cn(CLASSE_BOTAO_CONTORNO_ESCURO, "h-10 rounded-xl")}');
     expect(login).toContain("AuthSeparator");
     expect(login).toContain("GoogleIcon");
     expect(login).toContain('visualImage="/bizy-login-team.png"');
@@ -70,5 +78,12 @@ describe("login Bizy", () => {
     expect(animatedTabs).toContain("framer-motion");
     expect(animatedTabs).toContain("layoutId=\"animated-tabs-active\"");
     expect(animatedTabs).toContain("--animated-tabs-active-bg");
+    expect(estilosFormularioEscuro).toContain("!bg-transparent");
+    expect(estilosFormularioEscuro).toContain("placeholder:!text-white/42");
+    expect(estilosFormularioEscuro).toContain("!border-white/16");
+    expect(estilosFormularioEscuro).toContain("focus:!border-[#d8ff72]");
+    expect(estilosFormularioEscuro).toContain("focus-visible:!border-[#d8ff72]");
+    expect(estilosFormularioEscuro).toContain("hover:!bg-white/8");
+    expect(estilosFormularioEscuro).toContain("!text-white/82");
   });
 });

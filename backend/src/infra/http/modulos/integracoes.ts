@@ -1,4 +1,5 @@
 import { CriarInstanciaWhatsAppSchema, EnviarMensagemWhatsAppManualSchema } from "../../../dominio/esquemas.js";
+import { exigirAcessoComercial } from "../contextoComercial.js";
 import { exigirUsuarioAutenticado } from "../seguranca.js";
 import type { ModuloHttp } from "./ModuloHttp.js";
 
@@ -11,69 +12,115 @@ export const moduloIntegracoes: ModuloHttp = {
     app.get("/integracoes/status", async () => contexto.consultaIntegracoes.listarStatus());
 
     app.get("/evolution/resumo", async (request, reply) => {
-      const usuario = await exigirUsuarioAutenticado(contexto, request, reply, mensagemWhatsAppProtegido);
-      if (!usuario) return;
-      return contexto.gestaoWhatsAppEvolution.listarResumo();
+      const contextoComercial = await exigirAcessoComercial(contexto, request, reply, {
+        permissao: "conversas:ler",
+        modulo: "whatsapp",
+        mensagemPermissao: "Sem permissão para consultar WhatsApp.",
+        mensagemModulo: "WhatsApp desativado para este negócio."
+      });
+      if (!contextoComercial) return;
+      return contexto.gestaoWhatsAppEvolution.listarResumo(contextoComercial.negocio.id);
     });
 
     app.get("/whatsapp/templates", async (request, reply) => {
-      const usuario = await exigirUsuarioAutenticado(contexto, request, reply, mensagemWhatsAppProtegido);
-      if (!usuario) return;
+      const contextoComercial = await exigirAcessoComercial(contexto, request, reply, {
+        permissao: "conversas:gerir",
+        modulo: "whatsapp",
+        mensagemPermissao: "Sem permissão para gerir WhatsApp.",
+        mensagemModulo: "WhatsApp desativado para este negócio."
+      });
+      if (!contextoComercial) return;
 
       return { templates: contexto.automacaoWhatsApp.listarTemplates() };
     });
 
     app.post("/whatsapp/mensagens", async (request, reply) => {
-      const usuario = await exigirUsuarioAutenticado(contexto, request, reply, mensagemWhatsAppProtegido);
-      if (!usuario) return;
+      const contextoComercial = await exigirAcessoComercial(contexto, request, reply, {
+        permissao: "conversas:gerir",
+        modulo: "whatsapp",
+        mensagemPermissao: "Sem permissão para enviar WhatsApp.",
+        mensagemModulo: "WhatsApp desativado para este negócio."
+      });
+      if (!contextoComercial) return;
 
       const dados = EnviarMensagemWhatsAppManualSchema.parse(request.body ?? {});
-      const resultado = await contexto.automacaoWhatsApp.enviarMensagemManual(dados);
+      const resultado = await contexto.automacaoWhatsApp.enviarMensagemManual({
+        ...dados,
+        negocioId: contextoComercial.negocio.id
+      });
       return reply.code(202).send(resultado);
     });
 
     app.post("/evolution/instancias", async (request, reply) => {
-      const usuario = await exigirUsuarioAutenticado(contexto, request, reply, mensagemWhatsAppProtegido);
-      if (!usuario) return;
+      const contextoComercial = await exigirAcessoComercial(contexto, request, reply, {
+        permissao: "configuracoes:gerir",
+        modulo: "whatsapp",
+        mensagemPermissao: "Sem permissão para configurar WhatsApp.",
+        mensagemModulo: "WhatsApp desativado para este negócio."
+      });
+      if (!contextoComercial) return;
 
       const dados = CriarInstanciaWhatsAppSchema.parse(request.body);
-      const instancia = await contexto.gestaoWhatsAppEvolution.criarInstancia(dados);
+      const instancia = await contexto.gestaoWhatsAppEvolution.criarInstancia({
+        ...dados,
+        negocioId: contextoComercial.negocio.id
+      });
       return reply.code(201).send({ instancia });
     });
 
     app.post("/evolution/instancias/:id/conectar", async (request, reply) => {
-      const usuario = await exigirUsuarioAutenticado(contexto, request, reply, mensagemWhatsAppProtegido);
-      if (!usuario) return;
+      const contextoComercial = await exigirAcessoComercial(contexto, request, reply, {
+        permissao: "configuracoes:gerir",
+        modulo: "whatsapp",
+        mensagemPermissao: "Sem permissão para configurar WhatsApp.",
+        mensagemModulo: "WhatsApp desativado para este negócio."
+      });
+      if (!contextoComercial) return;
 
       const { id } = request.params as { id: string };
-      const instancia = await contexto.gestaoWhatsAppEvolution.conectar(id);
+      const instancia = await contexto.gestaoWhatsAppEvolution.conectar(id, contextoComercial.negocio.id);
       return { instancia };
     });
 
     app.post("/evolution/instancias/:id/estado", async (request, reply) => {
-      const usuario = await exigirUsuarioAutenticado(contexto, request, reply, mensagemWhatsAppProtegido);
-      if (!usuario) return;
+      const contextoComercial = await exigirAcessoComercial(contexto, request, reply, {
+        permissao: "conversas:ler",
+        modulo: "whatsapp",
+        mensagemPermissao: "Sem permissão para consultar WhatsApp.",
+        mensagemModulo: "WhatsApp desativado para este negócio."
+      });
+      if (!contextoComercial) return;
 
       const { id } = request.params as { id: string };
-      const instancia = await contexto.gestaoWhatsAppEvolution.consultarEstado(id);
+      const instancia = await contexto.gestaoWhatsAppEvolution.consultarEstado(id, contextoComercial.negocio.id);
       return { instancia };
     });
 
     app.post("/evolution/instancias/:id/padrao", async (request, reply) => {
-      const usuario = await exigirUsuarioAutenticado(contexto, request, reply, mensagemWhatsAppProtegido);
-      if (!usuario) return;
+      const contextoComercial = await exigirAcessoComercial(contexto, request, reply, {
+        permissao: "configuracoes:gerir",
+        modulo: "whatsapp",
+        mensagemPermissao: "Sem permissão para configurar WhatsApp.",
+        mensagemModulo: "WhatsApp desativado para este negócio."
+      });
+      if (!contextoComercial) return;
 
       const { id } = request.params as { id: string };
-      const instancia = await contexto.gestaoWhatsAppEvolution.definirPadrao(id);
+      const instancia = await contexto.gestaoWhatsAppEvolution.definirPadrao(id, contextoComercial.negocio.id);
       return { instancia };
     });
 
     app.delete("/evolution/instancias/:id", async (request, reply) => {
-      const usuario = await exigirUsuarioAutenticado(contexto, request, reply, mensagemWhatsAppProtegido);
-      if (!usuario) return;
+      const contextoComercial = await exigirAcessoComercial(contexto, request, reply, {
+        permissao: "configuracoes:gerir",
+        modulo: "whatsapp",
+        mensagemPermissao: "Sem permissão para configurar WhatsApp.",
+        mensagemModulo: "WhatsApp desativado para este negócio."
+      });
+      if (!contextoComercial) return;
 
       const { id } = request.params as { id: string };
-      return contexto.gestaoWhatsAppEvolution.remover(id);
+      return contexto.gestaoWhatsAppEvolution.remover(id, contextoComercial.negocio.id);
     });
 
     app.post("/webhooks/evolution", async (request, reply) => {

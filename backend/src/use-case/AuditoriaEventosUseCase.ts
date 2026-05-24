@@ -27,6 +27,7 @@ export class AuditoriaEventosUseCase {
 
       if (telefone && tipo && conteudo && provider) {
         await this.repositorioAuditoria.registrarMensagemWhatsApp({
+          negocioId: this.obterString(dados.negocioId) ?? this.obterNegocioIdDoContexto(dados.contexto),
           telefone,
           tipo,
           conteudo,
@@ -46,6 +47,7 @@ export class AuditoriaEventosUseCase {
 
       if (telefone && tipo && conteudo) {
         await this.repositorioAuditoria.registrarMensagemWhatsApp({
+          negocioId: this.obterString(dados.negocioId) ?? this.obterNegocioIdDoContexto(dados.contexto),
           telefone,
           tipo: `${tipo}_FALHOU`,
           conteudo: erro ? `${conteudo}\n\nErro: ${erro}` : conteudo,
@@ -62,6 +64,7 @@ export class AuditoriaEventosUseCase {
 
       if (telefone && conteudo) {
         await this.repositorioAuditoria.registrarMensagemWhatsApp({
+          negocioId: this.obterString(mensagem.negocioId) ?? this.obterNegocioIdDoContexto(mensagem.payloadOriginal),
           telefone,
           tipo: "RECEBIDA",
           conteudo,
@@ -75,6 +78,13 @@ export class AuditoriaEventosUseCase {
 
   private obterObjeto(valor: unknown): Record<string, unknown> {
     return valor && typeof valor === "object" && !Array.isArray(valor) ? (valor as Record<string, unknown>) : {};
+  }
+
+  private obterNegocioIdDoContexto(contexto: unknown): string | null {
+    const dados = this.obterObjeto(contexto);
+    const reserva = this.obterObjeto(dados.reserva);
+    const peca = this.obterObjeto(dados.peca);
+    return this.obterString(dados.negocioId) ?? this.obterString(reserva.negocioId) ?? this.obterString(peca.negocioId);
   }
 
   private obterString(valor: unknown): string | null {

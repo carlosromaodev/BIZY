@@ -18,6 +18,10 @@ export interface ResultadoRevisaoComentario {
   motivo: string | null;
 }
 
+interface OpcoesRevisaoComentario {
+  negocioId?: string | null;
+}
+
 export class RevisaoComentariosUseCase {
   private readonly normalizadorTelefone = new NormalizadorTelefone();
 
@@ -28,12 +32,18 @@ export class RevisaoComentariosUseCase {
     private readonly eventos: DespachadorEventos
   ) {}
 
-  async aprovarComentario(idComentario: string, dados: DadosAprovacaoComentario): Promise<ResultadoRevisaoComentario> {
-    const registroAtual = await this.exigirComentarioEmRevisao(idComentario);
+  async aprovarComentario(
+    idComentario: string,
+    dados: DadosAprovacaoComentario,
+    opcoes: OpcoesRevisaoComentario = {}
+  ): Promise<ResultadoRevisaoComentario> {
+    const registroAtual = await this.exigirComentarioEmRevisao(idComentario, opcoes.negocioId);
     const telefone = this.exigirTelefoneValido(dados.telefone);
     const codigoPeca = dados.codigoPeca.trim();
     const interpretacao = this.montarInterpretacaoManual(telefone, codigoPeca);
-    const resultadoReserva = await this.motorReservas.criarReserva(registroAtual.comentario, interpretacao);
+    const resultadoReserva = await this.motorReservas.criarReserva(registroAtual.comentario, interpretacao, {
+      negocioId: registroAtual.negocioId
+    });
 
     await this.notificarResultado(resultadoReserva, registroAtual, telefone);
 
@@ -61,8 +71,12 @@ export class RevisaoComentariosUseCase {
     };
   }
 
-  async rejeitarComentario(idComentario: string, motivo: string): Promise<ResultadoRevisaoComentario> {
-    const registroAtual = await this.exigirComentarioEmRevisao(idComentario);
+  async rejeitarComentario(
+    idComentario: string,
+    motivo: string,
+    opcoes: OpcoesRevisaoComentario = {}
+  ): Promise<ResultadoRevisaoComentario> {
+    const registroAtual = await this.exigirComentarioEmRevisao(idComentario, opcoes.negocioId);
     const registro = await this.repositorioComentarios.atualizarEstado(idComentario, "IGNORADO", motivo);
 
     this.eventos.emitir("COMMENT_REVIEWED", {
@@ -81,8 +95,11 @@ export class RevisaoComentariosUseCase {
     };
   }
 
-  private async exigirComentarioEmRevisao(idComentario: string): Promise<RegistroComentario> {
-    const registro = await this.repositorioComentarios.buscarPorId(idComentario);
+  private async exigirComentarioEmRevisao(
+    idComentario: string,
+    negocioId?: string | null
+  ): Promise<RegistroComentario> {
+    const registro = await this.repositorioComentarios.buscarPorId(idComentario, negocioId);
 
     if (!registro) {
       throw new Error(`Comentário ${idComentario} não encontrado.`);

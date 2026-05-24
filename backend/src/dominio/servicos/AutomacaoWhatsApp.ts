@@ -22,6 +22,7 @@ export interface TemplateWhatsApp {
 }
 
 export interface DadosMensagemManualWhatsApp {
+  negocioId?: string | null;
   telefone: string;
   mensagem?: string;
   templateId?: string;
@@ -178,7 +179,8 @@ A peça está reservada para ti por ${this.minutosReserva} minutos. Para garanti
     telefone: string,
     nomeCliente: string,
     comentarioOriginal: string,
-    motivo: string
+    motivo: string,
+    negocioId?: string | null
   ): Promise<void> {
     await this.enviarComRateLimit(
       telefone,
@@ -188,7 +190,7 @@ A peça está reservada para ti por ${this.minutosReserva} minutos. Para garanti
 Responde com o código da peça que queres reservar, por exemplo: A03 ou peça 4.
 
 Assim que receber o código da peça, confirmo a disponibilidade e sigo com a tua compra.`,
-      { comentarioOriginal, motivo }
+      { comentarioOriginal, motivo, negocioId: negocioId ?? null }
     );
   }
 
@@ -202,6 +204,7 @@ Assim que receber o código da peça, confirmo a disponibilidade e sigo com a tu
     const tipo = template?.tipo ?? "MANUAL";
 
     const resultado = await this.enviarSemBloqueioAutomatico(dados.telefone, tipo, conteudo, {
+      negocioId: dados.negocioId ?? null,
       origem: "painel",
       templateId: template?.id ?? null,
       variaveis: dados.variaveis ?? {}
@@ -235,10 +238,12 @@ Assim que receber o código da peça, confirmo a disponibilidade e sigo com a tu
     }
 
     try {
+      const negocioId = this.extrairNegocioIdDoContexto(contexto);
       const resultado = await this.provedorWhatsApp.enviarMensagem({ telefone, conteudo, tipo, contexto });
       this.ultimosEnvios.set(chave, agora);
 
       this.eventos.emitir("WHATSAPP_MESSAGE_SENT", {
+        negocioId,
         telefone,
         tipo,
         conteudo,
@@ -248,7 +253,9 @@ Assim que receber o código da peça, confirmo a disponibilidade e sigo com a tu
         enviadoEm: resultado.enviadoEm
       });
     } catch (erro) {
+      const negocioId = this.extrairNegocioIdDoContexto(contexto);
       this.eventos.emitir("WHATSAPP_MESSAGE_FAILED", {
+        negocioId,
         telefone,
         tipo,
         conteudo,
@@ -266,8 +273,10 @@ Assim que receber o código da peça, confirmo a disponibilidade e sigo com a tu
     contexto: Record<string, unknown>
   ) {
     const resultado = await this.provedorWhatsApp.enviarMensagem({ telefone, conteudo, tipo, contexto });
+    const negocioId = this.extrairNegocioIdDoContexto(contexto);
 
     this.eventos.emitir("WHATSAPP_MESSAGE_SENT", {
+      negocioId,
       telefone,
       tipo,
       conteudo,
@@ -305,6 +314,17 @@ Assim que receber o código da peça, confirmo a disponibilidade e sigo com a tu
       reservaId: reserva?.id,
       codigoPeca: peca?.codigo
     };
+  }
+
+  private extrairNegocioIdDoContexto(contexto: Record<string, unknown>): string | null {
+    const reserva = contexto.reserva as Reserva | undefined;
+    const peca = contexto.peca as Peca | undefined;
+    const negocioId = contexto.negocioId;
+
+    if (typeof negocioId === "string" && negocioId.trim()) return negocioId;
+    if (typeof reserva?.negocioId === "string" && reserva.negocioId.trim()) return reserva.negocioId;
+    if (typeof peca?.negocioId === "string" && peca.negocioId.trim()) return peca.negocioId;
+    return null;
   }
 
   private formatarKwanza(valor: number): string {

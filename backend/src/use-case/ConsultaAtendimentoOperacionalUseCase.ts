@@ -24,12 +24,12 @@ export class ConsultaAtendimentoOperacionalUseCase {
     private readonly repositorioAtendimento: RepositorioAtendimento
   ) {}
 
-  async listarConversas() {
+  async listarConversas(negocioId?: string | null) {
     const [pecas, reservas, comentarios, conversasCrm] = await Promise.all([
-      this.repositorioPecas.listar(),
-      this.repositorioReservas.listar(),
-      this.repositorioComentarios.listar(200),
-      this.repositorioAtendimento.listarConversasComMensagens(200)
+      this.repositorioPecas.listar(negocioId),
+      this.repositorioReservas.listar(negocioId),
+      this.repositorioComentarios.listar(200, negocioId),
+      this.repositorioAtendimento.listarConversasComMensagens(200, negocioId)
     ]);
     const pecasPorCodigo = new Map(pecas.map((peca) => [peca.codigo, peca]));
     const grupos = new Map<

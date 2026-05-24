@@ -4,6 +4,7 @@ import {
   RegistrarNotaInternaAtendimentoSchema,
   RegistrarSugestaoIaAtendimentoSchema
 } from "../../../dominio/esquemas.js";
+import { exigirAcessoComercial } from "../contextoComercial.js";
 import { exigirUsuarioAutenticado } from "../seguranca.js";
 import type { ModuloHttp } from "./ModuloHttp.js";
 
@@ -34,56 +35,98 @@ export const moduloOperacional: ModuloHttp = {
     });
 
     app.get("/automacoes/whatsapp/outbox", async (request, reply) => {
-      const usuario = await exigirUsuarioAutenticado(contexto, request, reply, "Faça login para consultar outbox WhatsApp.");
-      if (!usuario) return;
+      const contextoComercial = await exigirAcessoComercial(contexto, request, reply, {
+        permissao: "conversas:gerir",
+        modulo: "whatsapp",
+        mensagemPermissao: "Sem permissão para consultar outbox WhatsApp.",
+        mensagemModulo: "WhatsApp desativado para este negócio."
+      });
+      if (!contextoComercial) return;
 
       const limite = Number((request.query as { limite?: string } | undefined)?.limite ?? 100);
-      return contexto.repositorios.auditoria.listarMensagensWhatsApp(Math.max(1, Math.min(limite, 500)));
+      return contexto.repositorios.auditoria.listarMensagensWhatsApp(
+        Math.max(1, Math.min(limite, 500)),
+        contextoComercial.negocio.id
+      );
     });
 
     app.get("/automacoes/whatsapp/outbox/saude", async (request, reply) => {
-      const usuario = await exigirUsuarioAutenticado(contexto, request, reply, "Faça login para consultar outbox WhatsApp.");
-      if (!usuario) return;
+      const contextoComercial = await exigirAcessoComercial(contexto, request, reply, {
+        permissao: "conversas:gerir",
+        modulo: "whatsapp",
+        mensagemPermissao: "Sem permissão para consultar outbox WhatsApp.",
+        mensagemModulo: "WhatsApp desativado para este negócio."
+      });
+      if (!contextoComercial) return;
 
-      return contexto.repositorios.auditoria.resumirMensagensWhatsAppOutbox();
+      return contexto.repositorios.auditoria.resumirMensagensWhatsAppOutbox(contextoComercial.negocio.id);
     });
 
     app.post("/automacoes/whatsapp/outbox/reprocessar", async (request, reply) => {
-      const usuario = await exigirUsuarioAutenticado(contexto, request, reply, "Faça login para reprocessar WhatsApp.");
-      if (!usuario) return;
+      const contextoComercial = await exigirAcessoComercial(contexto, request, reply, {
+        permissao: "conversas:gerir",
+        modulo: "whatsapp",
+        mensagemPermissao: "Sem permissão para reprocessar WhatsApp.",
+        mensagemModulo: "WhatsApp desativado para este negócio."
+      });
+      if (!contextoComercial) return;
 
       const body = (request.body ?? {}) as { incluirFalhadas?: boolean; limite?: number };
       const resultado = await contexto.recuperacaoMensagensWhatsApp.reprocessarPendentes({
         incluirFalhadas: body.incluirFalhadas === true,
-        limite: body.limite
+        limite: body.limite,
+        negocioId: contextoComercial.negocio.id
       });
       return reply.code(202).send(resultado);
     });
 
     app.get("/atendimento/conversas", async (request, reply) => {
-      const usuario = await exigirUsuarioAutenticado(contexto, request, reply, "Faça login para consultar atendimento.");
-      if (!usuario) return;
+      const contextoComercial = await exigirAcessoComercial(contexto, request, reply, {
+        permissao: "conversas:ler",
+        modulo: "conversas",
+        mensagemPermissao: "Sem permissão para consultar atendimento.",
+        mensagemModulo: "Conversas desativadas para este negócio."
+      });
+      if (!contextoComercial) return;
 
-      return contexto.consultaAtendimentoOperacional.listarConversas();
+      return contexto.consultaAtendimentoOperacional.listarConversas(contextoComercial.negocio.id);
     });
 
     app.patch("/atendimento/conversas/:id", async (request, reply) => {
-      const usuario = await exigirUsuarioAutenticado(contexto, request, reply, "Faça login para gerir atendimento.");
-      if (!usuario) return;
+      const contextoComercial = await exigirAcessoComercial(contexto, request, reply, {
+        permissao: "conversas:gerir",
+        modulo: "conversas",
+        mensagemPermissao: "Sem permissão para gerir atendimento.",
+        mensagemModulo: "Conversas desativadas para este negócio."
+      });
+      if (!contextoComercial) return;
 
       const { id } = request.params as { id: string };
       const dados = AtualizarConversaAtendimentoSchema.parse(request.body ?? {});
-      const conversa = await contexto.gestaoAtendimentoCrm.atualizarConversa(id, dados);
+      const conversa = await contexto.gestaoAtendimentoCrm.atualizarConversa(
+        id,
+        dados,
+        contextoComercial.negocio.id
+      );
       return { conversa: conversa.conversa };
     });
 
     app.post("/atendimento/conversas/:id/politica", async (request, reply) => {
-      const usuario = await exigirUsuarioAutenticado(contexto, request, reply, "Faça login para gerir atendimento.");
-      if (!usuario) return;
+      const contextoComercial = await exigirAcessoComercial(contexto, request, reply, {
+        permissao: "conversas:gerir",
+        modulo: "conversas",
+        mensagemPermissao: "Sem permissão para gerir atendimento.",
+        mensagemModulo: "Conversas desativadas para este negócio."
+      });
+      if (!contextoComercial) return;
 
       const { id } = request.params as { id: string };
       const dados = DefinirPoliticaAutomacaoAtendimentoSchema.parse(request.body ?? {});
-      const resultado = await contexto.gestaoAtendimentoCrm.definirPoliticaAutomacao(id, dados.politica);
+      const resultado = await contexto.gestaoAtendimentoCrm.definirPoliticaAutomacao(
+        id,
+        dados.politica,
+        contextoComercial.negocio.id
+      );
       return {
         conversa: resultado.conversa.conversa,
         politicaAutomacao: resultado.politicaAutomacao
@@ -91,26 +134,40 @@ export const moduloOperacional: ModuloHttp = {
     });
 
     app.post("/atendimento/conversas/:id/notas", async (request, reply) => {
-      const usuario = await exigirUsuarioAutenticado(contexto, request, reply, "Faça login para gerir atendimento.");
-      if (!usuario) return;
+      const contextoComercial = await exigirAcessoComercial(contexto, request, reply, {
+        permissao: "conversas:gerir",
+        modulo: "conversas",
+        mensagemPermissao: "Sem permissão para gerir atendimento.",
+        mensagemModulo: "Conversas desativadas para este negócio."
+      });
+      if (!contextoComercial) return;
 
       const { id } = request.params as { id: string };
       const dados = RegistrarNotaInternaAtendimentoSchema.parse(request.body ?? {});
       const mensagem = await contexto.gestaoAtendimentoCrm.registrarNotaInterna(id, {
         texto: dados.texto,
-        autorId: usuario.id,
-        autorNome: usuario.nome
-      });
+        autorId: contextoComercial.usuario.id,
+        autorNome: contextoComercial.usuario.nome
+      }, contextoComercial.negocio.id);
       return reply.code(201).send({ mensagem });
     });
 
     app.post("/atendimento/conversas/:id/sugestoes", async (request, reply) => {
-      const usuario = await exigirUsuarioAutenticado(contexto, request, reply, "Faça login para gerir atendimento.");
-      if (!usuario) return;
+      const contextoComercial = await exigirAcessoComercial(contexto, request, reply, {
+        permissao: "conversas:gerir",
+        modulo: "conversas",
+        mensagemPermissao: "Sem permissão para gerir atendimento.",
+        mensagemModulo: "Conversas desativadas para este negócio."
+      });
+      if (!contextoComercial) return;
 
       const { id } = request.params as { id: string };
       const dados = RegistrarSugestaoIaAtendimentoSchema.parse(request.body ?? {});
-      const mensagem = await contexto.gestaoAtendimentoCrm.registrarSugestaoIa(id, dados);
+      const mensagem = await contexto.gestaoAtendimentoCrm.registrarSugestaoIa(
+        id,
+        dados,
+        contextoComercial.negocio.id
+      );
       return reply.code(201).send({ mensagem });
     });
 

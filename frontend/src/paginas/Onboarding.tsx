@@ -11,6 +11,7 @@ import {
 import { type FormEvent, type ReactNode, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { obterUsuario, requisitarApi, type NegocioSessao } from "../api";
+import { CLASSE_BOTAO_CONTORNO_ESCURO, CLASSE_CAMPO_ESCURO, CLASSE_TEXTAREA_ESCURO } from "../componentes/estilosFormularioEscuro";
 import { LogoBizy } from "../marca/bizy";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -248,22 +249,22 @@ export function PaginaOnboarding() {
                 <form onSubmit={salvarNegocio} className="grid gap-4">
                   <div className="grid gap-4 md:grid-cols-2">
                     <Campo label="Nome comercial" id="nomeComercial">
-                      <Input id="nomeComercial" value={negocio.nomeComercial} onChange={(e) => setNegocio({ ...negocio, nomeComercial: e.target.value })} required />
+                      <Input id="nomeComercial" className={CLASSE_CAMPO_ESCURO} value={negocio.nomeComercial} onChange={(e) => setNegocio({ ...negocio, nomeComercial: e.target.value })} required />
                     </Campo>
                     <Campo label="Segmento" id="segmento">
-                      <Input id="segmento" value={negocio.segmento} onChange={(e) => setNegocio({ ...negocio, segmento: e.target.value })} placeholder="Moda, eletrônicos, cosméticos..." required />
+                      <Input id="segmento" className={CLASSE_CAMPO_ESCURO} value={negocio.segmento} onChange={(e) => setNegocio({ ...negocio, segmento: e.target.value })} placeholder="Moda, eletrônicos, cosméticos..." required />
                     </Campo>
                     <Campo label="WhatsApp oficial" id="whatsapp">
-                      <Input id="whatsapp" value={negocio.whatsapp} onChange={(e) => setNegocio({ ...negocio, whatsapp: e.target.value })} inputMode="tel" />
+                      <Input id="whatsapp" className={CLASSE_CAMPO_ESCURO} value={negocio.whatsapp} onChange={(e) => setNegocio({ ...negocio, whatsapp: e.target.value })} inputMode="tel" />
                     </Campo>
                     <Campo label="Email" id="emailNegocio">
-                      <Input id="emailNegocio" type="email" value={negocio.email} onChange={(e) => setNegocio({ ...negocio, email: e.target.value })} />
+                      <Input id="emailNegocio" className={CLASSE_CAMPO_ESCURO} type="email" value={negocio.email} onChange={(e) => setNegocio({ ...negocio, email: e.target.value })} />
                     </Campo>
                     <Campo label="Província" id="provincia">
-                      <Input id="provincia" value={negocio.provincia} onChange={(e) => setNegocio({ ...negocio, provincia: e.target.value })} />
+                      <Input id="provincia" className={CLASSE_CAMPO_ESCURO} value={negocio.provincia} onChange={(e) => setNegocio({ ...negocio, provincia: e.target.value })} />
                     </Campo>
                     <Campo label="Município" id="municipio">
-                      <Input id="municipio" value={negocio.municipio} onChange={(e) => setNegocio({ ...negocio, municipio: e.target.value })} />
+                      <Input id="municipio" className={CLASSE_CAMPO_ESCURO} value={negocio.municipio} onChange={(e) => setNegocio({ ...negocio, municipio: e.target.value })} />
                     </Campo>
                   </div>
 
@@ -273,6 +274,7 @@ export function PaginaOnboarding() {
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <Campo label="Reserva padrão em minutos" id="reservaMinutos">
                       <Input
+                        className={CLASSE_CAMPO_ESCURO}
                         id="reservaMinutos"
                         type="number"
                         min={1}
@@ -294,26 +296,26 @@ export function PaginaOnboarding() {
                   </div>
                   <div className="grid gap-4 md:grid-cols-2">
                     <Campo label="Código da peça" id="codigoProduto">
-                      <Input id="codigoProduto" value={produto.codigo} onChange={(e) => setProduto({ ...produto, codigo: e.target.value })} required />
+                      <Input id="codigoProduto" className={CLASSE_CAMPO_ESCURO} value={produto.codigo} onChange={(e) => setProduto({ ...produto, codigo: e.target.value })} required />
                     </Campo>
                     <Campo label="Nome do produto" id="nomeProduto">
-                      <Input id="nomeProduto" value={produto.nome} onChange={(e) => setProduto({ ...produto, nome: e.target.value })} required />
+                      <Input id="nomeProduto" className={CLASSE_CAMPO_ESCURO} value={produto.nome} onChange={(e) => setProduto({ ...produto, nome: e.target.value })} required />
                     </Campo>
                     <Campo label="Categoria" id="categoriaProduto">
-                      <Input id="categoriaProduto" value={produto.categoria} onChange={(e) => setProduto({ ...produto, categoria: e.target.value })} />
+                      <Input id="categoriaProduto" className={CLASSE_CAMPO_ESCURO} value={produto.categoria} onChange={(e) => setProduto({ ...produto, categoria: e.target.value })} />
                     </Campo>
                     <Campo label="Preço em Kz" id="precoProduto">
-                      <Input id="precoProduto" type="number" min={0} value={produto.precoEmKwanza} onChange={(e) => setProduto({ ...produto, precoEmKwanza: Number(e.target.value) })} required />
+                      <Input id="precoProduto" className={CLASSE_CAMPO_ESCURO} type="number" min={0} value={produto.precoEmKwanza} onChange={(e) => setProduto({ ...produto, precoEmKwanza: Number(e.target.value) })} required />
                     </Campo>
                     <Campo label="Stock" id="stockProduto">
-                      <Input id="stockProduto" type="number" min={0} value={produto.quantidade} onChange={(e) => setProduto({ ...produto, quantidade: Number(e.target.value) })} required />
+                      <Input id="stockProduto" className={CLASSE_CAMPO_ESCURO} type="number" min={0} value={produto.quantidade} onChange={(e) => setProduto({ ...produto, quantidade: Number(e.target.value) })} required />
                     </Campo>
                   </div>
                   <Campo label="Descrição" id="descricaoProduto">
-                    <Textarea id="descricaoProduto" value={produto.descricao} onChange={(e) => setProduto({ ...produto, descricao: e.target.value })} rows={4} />
+                    <Textarea id="descricaoProduto" className={CLASSE_TEXTAREA_ESCURO} value={produto.descricao} onChange={(e) => setProduto({ ...produto, descricao: e.target.value })} rows={4} />
                   </Campo>
                   <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
-                    <Button type="button" variant="outline" className="h-11 rounded-2xl border-white/16 bg-black/20 text-white hover:border-white/28 hover:bg-white/8 active:border-[#d8ff72]" onClick={() => navigate("/app")}>
+                    <Button type="button" variant="outline" className={cn(CLASSE_BOTAO_CONTORNO_ESCURO, "h-11 rounded-2xl")} onClick={() => navigate("/app")}>
                       Fazer depois
                     </Button>
                     <Button className="h-11 rounded-2xl bg-[#18733a] text-white hover:bg-[#219447] active:border-[#d8ff72]" disabled={salvando || !produto.codigo || !produto.nome}>

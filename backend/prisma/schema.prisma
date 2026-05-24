@@ -9,7 +9,7 @@ datasource db {
 
 model Peca {
   id            String    @id @default(uuid())
-  codigo        String    @unique
+  codigo        String
   negocioId     String?
   negocio       Negocio?  @relation(fields: [negocioId], references: [id])
   nome          String
@@ -21,12 +21,19 @@ model Peca {
   criadoEm      DateTime  @default(now())
   atualizadoEm  DateTime  @updatedAt
   reservas      Reserva[]
+  itensPedido    ItemPedido[]
 
+  @@unique([negocioId, codigo])
   @@index([negocioId])
+  @@index([negocioId, estado])
 }
 
 model Reserva {
   id                String   @id @default(uuid())
+  negocioId         String?
+  negocio           Negocio? @relation(fields: [negocioId], references: [id])
+  clienteNegocioId  String?
+  clienteNegocio    ClienteNegocio? @relation(fields: [clienteNegocioId], references: [id])
   pecaId            String
   peca              Peca     @relation(fields: [pecaId], references: [id])
   codigoPeca        String
@@ -44,13 +51,76 @@ model Reserva {
   comprovativoPagamentoUrl String?
   criadaEm          DateTime @default(now())
   atualizadaEm      DateTime @updatedAt
+  pedidos           Pedido[]
 
   @@index([codigoPeca, estado])
   @@index([telefoneCliente, codigoPeca])
+  @@index([negocioId, codigoPeca, estado])
+  @@index([negocioId, telefoneCliente, codigoPeca])
+  @@index([clienteNegocioId])
+}
+
+model Pedido {
+  id                      String          @id @default(uuid())
+  negocioId               String
+  negocio                 Negocio         @relation(fields: [negocioId], references: [id])
+  clienteNegocioId        String
+  clienteNegocio          ClienteNegocio  @relation(fields: [clienteNegocioId], references: [id])
+  reservaId               String?
+  reserva                 Reserva?        @relation(fields: [reservaId], references: [id])
+  numero                  Int
+  estado                  String          @default("AGUARDANDO_PAGAMENTO")
+  estadoPagamento         String          @default("PENDENTE")
+  estadoEntrega           String          @default("PENDENTE")
+  origem                  String          @default("manual")
+  canal                   String          @default("whatsapp")
+  subtotalEmKwanza        Int
+  descontoEmKwanza        Int             @default(0)
+  taxaEntregaEmKwanza     Int             @default(0)
+  totalEmKwanza           Int
+  motivoDesconto          String?
+  enderecoEntrega         String?
+  comprovativoPagamentoUrl String?
+  observacao              String?
+  responsavelId           String?
+  pagoEm                  DateTime?
+  entregueEm              DateTime?
+  canceladoEm             DateTime?
+  criadoEm                DateTime        @default(now())
+  atualizadoEm            DateTime        @updatedAt
+  itens                   ItemPedido[]
+
+  @@unique([negocioId, numero])
+  @@index([negocioId, estado, criadoEm])
+  @@index([negocioId, estadoPagamento, criadoEm])
+  @@index([negocioId, estadoEntrega, criadoEm])
+  @@index([clienteNegocioId, criadoEm])
+  @@index([reservaId])
+}
+
+model ItemPedido {
+  id                    String   @id @default(uuid())
+  pedidoId              String
+  pedido                Pedido   @relation(fields: [pedidoId], references: [id], onDelete: Cascade)
+  pecaId                String
+  peca                  Peca     @relation(fields: [pecaId], references: [id])
+  codigoPeca            String
+  nomeProduto           String
+  quantidade            Int
+  precoUnitarioEmKwanza Int
+  subtotalEmKwanza      Int
+  criadoEm              DateTime @default(now())
+  atualizadoEm          DateTime @updatedAt
+
+  @@index([pedidoId])
+  @@index([pecaId])
+  @@index([codigoPeca])
 }
 
 model ComentarioRecebido {
   id                    String   @id @default(uuid())
+  negocioId             String?
+  negocio               Negocio? @relation(fields: [negocioId], references: [id])
   source                String
   provider              String
   liveId                String
@@ -71,10 +141,13 @@ model ComentarioRecebido {
   atualizadoEm          DateTime @updatedAt
 
   @@index([liveId, estado])
+  @@index([negocioId, liveId, estado])
 }
 
 model SessaoLive {
   id                      String    @id
+  negocioId               String?
+  negocio                 Negocio?  @relation(fields: [negocioId], references: [id])
   username                String
   providerNome            String
   status                  String
@@ -91,21 +164,30 @@ model SessaoLive {
 
   @@index([ativa, status])
   @@index([username])
+  @@index([negocioId, ativa, status])
 }
 
 model MensagemWhatsapp {
   id              String   @id @default(uuid())
+  negocioId       String?
+  negocio         Negocio? @relation(fields: [negocioId], references: [id])
   telefone        String
   tipo            String
   conteudo        String
   provider        String
   idExterno       String?
   enviadaEm       DateTime @default(now())
+
+  @@index([negocioId, telefone])
 }
 
 model ClienteAtendimento {
   id                   String                 @id @default(uuid())
-  telefone             String                 @unique
+  negocioId            String?
+  negocio              Negocio?               @relation(fields: [negocioId], references: [id])
+  clienteGlobalId      String?
+  clienteGlobal        ClienteGlobal?         @relation(fields: [clienteGlobalId], references: [id])
+  telefone             String
   nome                 String?
   username             String?
   userId               String?
@@ -121,10 +203,17 @@ model ClienteAtendimento {
 
   @@index([ultimaInteracaoEm])
   @@index([userId])
+  @@index([negocioId, ultimaInteracaoEm])
+  @@unique([negocioId, telefone])
+  @@index([clienteGlobalId])
 }
 
 model ConversaAtendimento {
   id                String                  @id @default(uuid())
+  negocioId         String?
+  negocio           Negocio?                @relation(fields: [negocioId], references: [id])
+  clienteNegocioId  String?
+  clienteNegocio    ClienteNegocio?         @relation(fields: [clienteNegocioId], references: [id])
   clienteId         String
   cliente           ClienteAtendimento      @relation(fields: [clienteId], references: [id])
   telefone          String
@@ -138,13 +227,17 @@ model ConversaAtendimento {
   atualizadoEm      DateTime                @updatedAt
   mensagens         MensagemAtendimento[]
 
-  @@unique([telefone, canal])
+  @@unique([negocioId, telefone, canal])
   @@index([estado, ultimaMensagemEm])
   @@index([clienteId])
+  @@index([negocioId, estado, ultimaMensagemEm])
+  @@index([clienteNegocioId])
 }
 
 model MensagemAtendimento {
   id                 String              @id @default(uuid())
+  negocioId          String?
+  negocio            Negocio?            @relation(fields: [negocioId], references: [id])
   conversaId         String
   conversa           ConversaAtendimento @relation(fields: [conversaId], references: [id])
   telefone           String
@@ -170,19 +263,25 @@ model MensagemAtendimento {
   @@index([status, atualizadoEm])
   @@index([reservaId])
   @@index([comentarioId])
+  @@index([negocioId, telefone, enviadaEm])
 }
 
 model EventoSistema {
   id       String   @id @default(uuid())
+  negocioId String?
+  negocio   Negocio? @relation(fields: [negocioId], references: [id])
   tipo     String
   dadosJson String
   criadoEm DateTime @default(now())
 
   @@index([tipo, criadoEm])
+  @@index([negocioId, tipo, criadoEm])
 }
 
 model OutboxEventoN8n {
   id                  String    @id @default(uuid())
+  negocioId           String?
+  negocio             Negocio?  @relation(fields: [negocioId], references: [id])
   eventoId            String
   tipo                String
   payloadJson         String
@@ -196,10 +295,13 @@ model OutboxEventoN8n {
 
   @@index([status, proximaTentativaEm])
   @@index([tipo, criadoEm])
+  @@index([negocioId, status, proximaTentativaEm])
 }
 
 model OutboxMensagemWhatsApp {
   id                  String    @id @default(uuid())
+  negocioId           String?
+  negocio             Negocio?  @relation(fields: [negocioId], references: [id])
   telefone            String
   tipo                String
   conteudo            String
@@ -218,6 +320,8 @@ model OutboxMensagemWhatsApp {
   @@index([status, proximaTentativaEm])
   @@index([telefone, tipo])
   @@index([criadoEm])
+  @@index([negocioId, status, proximaTentativaEm])
+  @@index([negocioId, telefone, tipo])
 }
 
 model UsuarioSistema {
@@ -236,6 +340,9 @@ model UsuarioSistema {
   identidades       IdentidadeAutenticacao[]
   perfilEstudantil  PerfilEstudantilUsuario?
   negocios          MembroNegocio[]
+  relacoesNegocioCriadas RelacaoNegocio[] @relation("RelacoesNegocioCriadas")
+  compartilhamentosAprovados CompartilhamentoCliente[] @relation("CompartilhamentosAprovados")
+  auditoriasCompartilhamento AuditoriaCompartilhamentoCliente[] @relation("AuditoriasCompartilhamentoUsuario")
 }
 
 model IdentidadeAutenticacao {
@@ -304,6 +411,24 @@ model Negocio {
   atualizadoEm          DateTime        @updatedAt
   membros               MembroNegocio[]
   pecas                 Peca[]
+  reservas              Reserva[]
+  comentariosRecebidos  ComentarioRecebido[]
+  sessoesLive           SessaoLive[]
+  mensagensWhatsapp     MensagemWhatsapp[]
+  clientesAtendimento   ClienteAtendimento[]
+  conversasAtendimento  ConversaAtendimento[]
+  mensagensAtendimento  MensagemAtendimento[]
+  eventosSistema        EventoSistema[]
+  outboxEventosN8n      OutboxEventoN8n[]
+  outboxMensagensWhatsApp OutboxMensagemWhatsApp[]
+  instanciasWhatsApp    InstanciaWhatsApp[]
+  clientesNegocio       ClienteNegocio[]
+  pedidos               Pedido[]
+  modulos               ModuloNegocio[]
+  relacoesOrigem        RelacaoNegocio[] @relation("RelacaoNegocioOrigem")
+  relacoesDestino       RelacaoNegocio[] @relation("RelacaoNegocioDestino")
+  compartilhamentosOrigem CompartilhamentoCliente[] @relation("CompartilhamentoClienteNegocioOrigem")
+  compartilhamentosDestino CompartilhamentoCliente[] @relation("CompartilhamentoClienteNegocioDestino")
 
   @@index([nomeComercial])
 }
@@ -315,11 +440,145 @@ model MembroNegocio {
   usuarioId    String
   usuario      UsuarioSistema @relation(fields: [usuarioId], references: [id])
   papel        String         @default("DONO")
+  status       String         @default("ATIVO")
+  permissoesJson String       @default("{}")
   criadoEm     DateTime       @default(now())
   atualizadoEm DateTime       @updatedAt
 
   @@unique([negocioId, usuarioId])
   @@index([usuarioId])
+  @@index([negocioId, papel, status])
+}
+
+model ClienteGlobal {
+  id                 String              @id @default(uuid())
+  telefoneCanonico   String?             @unique
+  emailCanonico      String?             @unique
+  nomePreferido      String?
+  avatarUrl          String?
+  origemPrimeira     String?
+  dadosJson          String              @default("{}")
+  criadoEm           DateTime            @default(now())
+  atualizadoEm       DateTime            @updatedAt
+  clientesNegocio    ClienteNegocio[]
+  clientesAtendimento ClienteAtendimento[]
+  compartilhamentos  CompartilhamentoCliente[]
+
+  @@index([telefoneCanonico])
+  @@index([emailCanonico])
+}
+
+model ClienteNegocio {
+  id                   String          @id @default(uuid())
+  negocioId            String
+  negocio              Negocio         @relation(fields: [negocioId], references: [id])
+  clienteGlobalId      String
+  clienteGlobal        ClienteGlobal   @relation(fields: [clienteGlobalId], references: [id])
+  telefone             String?
+  email                String?
+  nome                 String?
+  username             String?
+  userId               String?
+  avatarUrl            String?
+  origem               String?
+  tagsJson             String          @default("[]")
+  preferenciasJson     String          @default("{}")
+  consentimentoMarketing Boolean       @default(false)
+  consentimentoDados   Boolean         @default(false)
+  estadoRelacionamento String          @default("ATIVO")
+  primeiraInteracaoEm  DateTime        @default(now())
+  ultimaInteracaoEm    DateTime        @default(now())
+  criadoEm             DateTime        @default(now())
+  atualizadoEm         DateTime        @updatedAt
+  reservas             Reserva[]
+  conversas            ConversaAtendimento[]
+  pedidos              Pedido[]
+  compartilhamentosOrigem CompartilhamentoCliente[] @relation("CompartilhamentoClienteOrigemCliente")
+
+  @@unique([negocioId, clienteGlobalId])
+  @@unique([negocioId, telefone])
+  @@index([clienteGlobalId])
+  @@index([negocioId, ultimaInteracaoEm])
+  @@index([negocioId, estadoRelacionamento])
+}
+
+model RelacaoNegocio {
+  id                 String          @id @default(uuid())
+  negocioOrigemId    String
+  negocioOrigem      Negocio         @relation("RelacaoNegocioOrigem", fields: [negocioOrigemId], references: [id])
+  negocioDestinoId   String
+  negocioDestino     Negocio         @relation("RelacaoNegocioDestino", fields: [negocioDestinoId], references: [id])
+  tipo               String
+  estado             String          @default("PENDENTE")
+  escopoJson         String          @default("{}")
+  criadoPorUsuarioId String?
+  criadoPorUsuario   UsuarioSistema? @relation("RelacoesNegocioCriadas", fields: [criadoPorUsuarioId], references: [id])
+  aprovadoEm         DateTime?
+  expiraEm           DateTime?
+  criadoEm           DateTime        @default(now())
+  atualizadoEm       DateTime        @updatedAt
+  compartilhamentos  CompartilhamentoCliente[]
+
+  @@unique([negocioOrigemId, negocioDestinoId, tipo])
+  @@index([negocioDestinoId, estado])
+  @@index([tipo, estado])
+}
+
+model CompartilhamentoCliente {
+  id                    String          @id @default(uuid())
+  relacaoId             String?
+  relacao               RelacaoNegocio? @relation(fields: [relacaoId], references: [id])
+  clienteGlobalId       String
+  clienteGlobal         ClienteGlobal   @relation(fields: [clienteGlobalId], references: [id])
+  clienteNegocioOrigemId String?
+  clienteNegocioOrigem  ClienteNegocio? @relation("CompartilhamentoClienteOrigemCliente", fields: [clienteNegocioOrigemId], references: [id])
+  negocioOrigemId       String
+  negocioOrigem         Negocio         @relation("CompartilhamentoClienteNegocioOrigem", fields: [negocioOrigemId], references: [id])
+  negocioDestinoId      String
+  negocioDestino        Negocio         @relation("CompartilhamentoClienteNegocioDestino", fields: [negocioDestinoId], references: [id])
+  escopoJson            String          @default("{}")
+  baseLegal             String          @default("CONSENTIMENTO")
+  consentimentoCliente  Boolean         @default(false)
+  status                String          @default("PENDENTE")
+  aprovadoPorUsuarioId  String?
+  aprovadoPorUsuario    UsuarioSistema? @relation("CompartilhamentosAprovados", fields: [aprovadoPorUsuarioId], references: [id])
+  expiraEm              DateTime?
+  criadoEm              DateTime        @default(now())
+  atualizadoEm          DateTime        @updatedAt
+  auditorias            AuditoriaCompartilhamentoCliente[]
+
+  @@index([clienteGlobalId])
+  @@index([negocioOrigemId, negocioDestinoId, status])
+  @@index([relacaoId])
+  @@index([clienteNegocioOrigemId])
+}
+
+model AuditoriaCompartilhamentoCliente {
+  id                  String                 @id @default(uuid())
+  compartilhamentoId  String
+  compartilhamento    CompartilhamentoCliente @relation(fields: [compartilhamentoId], references: [id])
+  atorUsuarioId       String?
+  atorUsuario         UsuarioSistema?        @relation("AuditoriasCompartilhamentoUsuario", fields: [atorUsuarioId], references: [id])
+  acao                String
+  dadosJson           String                 @default("{}")
+  criadoEm            DateTime               @default(now())
+
+  @@index([compartilhamentoId, criadoEm])
+  @@index([atorUsuarioId])
+}
+
+model ModuloNegocio {
+  id              String   @id @default(uuid())
+  negocioId       String
+  negocio         Negocio  @relation(fields: [negocioId], references: [id])
+  modulo          String
+  ativo           Boolean  @default(true)
+  configuracaoJson String  @default("{}")
+  criadoEm        DateTime @default(now())
+  atualizadoEm    DateTime @updatedAt
+
+  @@unique([negocioId, modulo])
+  @@index([negocioId, ativo])
 }
 
 model CodigoLoginSms {
@@ -357,7 +616,9 @@ model SessaoUsuario {
 
 model InstanciaWhatsApp {
   id              String   @id @default(uuid())
-  nome            String   @unique
+  negocioId       String?
+  negocio         Negocio? @relation(fields: [negocioId], references: [id])
+  nome            String
   etiqueta        String?
   telefone        String?
   status          String   @default("CRIADA")
@@ -373,5 +634,7 @@ model InstanciaWhatsApp {
   criadaEm        DateTime @default(now())
   atualizadaEm    DateTime @updatedAt
 
+  @@unique([negocioId, nome])
   @@index([ativa, padrao])
+  @@index([negocioId, ativa, padrao])
 }

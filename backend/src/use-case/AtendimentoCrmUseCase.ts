@@ -1,7 +1,11 @@
 import { createHash } from "node:crypto";
 import type { DespachadorEventos } from "../dominio/eventos/DespachadorEventos.js";
-import type { RepositorioAtendimento, RepositorioAuditoria } from "../dominio/repositorios/contratos.js";
-import type { ComentarioLive, EventoSistema, Reserva, StatusMensagemAtendimento } from "../dominio/tipos.js";
+import type {
+  RepositorioAtendimento,
+  RepositorioAuditoria,
+  RepositorioClientes
+} from "../dominio/repositorios/contratos.js";
+import type { Cliente360, ComentarioLive, DadosCliente360, EventoSistema, Reserva, StatusMensagemAtendimento } from "../dominio/tipos.js";
 
 type Logger = Pick<Console, "error" | "warn">;
 
@@ -10,7 +14,8 @@ export class AtendimentoCrmUseCase {
     eventos: DespachadorEventos,
     private readonly repositorioAtendimento: RepositorioAtendimento,
     private readonly repositorioAuditoria: RepositorioAuditoria,
-    private readonly logger: Logger = console
+    private readonly logger: Logger = console,
+    private readonly repositorioClientes?: RepositorioClientes
   ) {
     eventos.aoReceberQualquer((evento) => {
       void this.processarEvento(evento).catch((erro) => {
@@ -60,10 +65,25 @@ export class AtendimentoCrmUseCase {
     const interpretacao = this.obterObjeto(evento.dados.interpretacao);
     const telefone = this.obterString(interpretacao.phone);
     const texto = this.obterString(comentario.commentText);
+    const negocioId = this.obterString(evento.dados.negocioId);
 
     if (!telefone || !texto) return;
 
+    const cliente = await this.sincronizarCliente({
+      negocioId,
+      telefone,
+      nome: this.obterString(comentario.displayName),
+      username: this.obterString(comentario.username),
+      userId: this.obterString(comentario.userId),
+      avatarUrl: this.obterString(comentario.avatarUrl),
+      origem: "comentario_live",
+      consentimentoDados: true,
+      ultimaInteracaoEm: this.obterData(comentario.timestamp) ?? new Date()
+    });
+
     await this.repositorioAtendimento.registrarMensagem({
+      negocioId,
+      clienteNegocioId: cliente?.id ?? null,
       telefone,
       nomeCliente: this.obterString(comentario.displayName),
       usernameCliente: this.obterString(comentario.username),
@@ -93,10 +113,25 @@ export class AtendimentoCrmUseCase {
     const reserva = this.obterObjeto(evento.dados.reserva) as unknown as Reserva;
     const telefone = this.obterString(reserva.telefoneCliente);
     const reservaId = this.obterString(reserva.id);
+    const negocioId = this.obterString(reserva.negocioId) ?? this.obterString(evento.dados.negocioId);
 
     if (!telefone || !reservaId) return;
 
+    const cliente = await this.sincronizarCliente({
+      negocioId,
+      telefone,
+      nome: this.obterString(reserva.nomeCliente),
+      username: this.obterString(reserva.usernameCliente),
+      userId: this.obterString(reserva.userIdCliente),
+      avatarUrl: this.obterString(reserva.avatarUrlCliente),
+      origem: "reserva",
+      consentimentoDados: true,
+      ultimaInteracaoEm: reserva.atualizadaEm ?? reserva.criadaEm ?? new Date()
+    });
+
     await this.repositorioAtendimento.registrarMensagem({
+      negocioId,
+      clienteNegocioId: reserva.clienteNegocioId ?? cliente?.id ?? null,
       telefone,
       nomeCliente: this.obterString(reserva.nomeCliente),
       usernameCliente: this.obterString(reserva.usernameCliente),
@@ -119,10 +154,25 @@ export class AtendimentoCrmUseCase {
     const telefone = this.obterString(dados.telefone);
     const conteudo = this.obterString(dados.conteudo);
     const tipo = this.obterString(dados.tipo) ?? "WHATSAPP";
+    const negocioId = this.obterNegocioIdDoContexto(dados.contexto) ?? this.obterString(dados.negocioId);
 
     if (!telefone || !conteudo) return;
 
+    const cliente = await this.sincronizarCliente({
+      negocioId,
+      telefone,
+      nome: this.obterNomeClienteDoContexto(dados.contexto),
+      username: this.obterUsernameClienteDoContexto(dados.contexto),
+      userId: this.obterUserIdClienteDoContexto(dados.contexto),
+      avatarUrl: this.obterAvatarUrlClienteDoContexto(dados.contexto),
+      origem: "whatsapp",
+      consentimentoDados: true,
+      ultimaInteracaoEm: this.obterData(dados.enviadoEm) ?? new Date()
+    });
+
     await this.repositorioAtendimento.registrarMensagem({
+      negocioId,
+      clienteNegocioId: cliente?.id ?? null,
       telefone,
       nomeCliente: this.obterNomeClienteDoContexto(dados.contexto),
       usernameCliente: this.obterUsernameClienteDoContexto(dados.contexto),
@@ -148,10 +198,25 @@ export class AtendimentoCrmUseCase {
     const telefone = this.obterString(dados.telefone);
     const conteudo = this.obterString(dados.conteudo);
     const tipo = this.obterString(dados.tipo) ?? "WHATSAPP";
+    const negocioId = this.obterNegocioIdDoContexto(dados.contexto) ?? this.obterString(dados.negocioId);
 
     if (!telefone || !conteudo) return;
 
+    const cliente = await this.sincronizarCliente({
+      negocioId,
+      telefone,
+      nome: this.obterNomeClienteDoContexto(dados.contexto),
+      username: this.obterUsernameClienteDoContexto(dados.contexto),
+      userId: this.obterUserIdClienteDoContexto(dados.contexto),
+      avatarUrl: this.obterAvatarUrlClienteDoContexto(dados.contexto),
+      origem: "whatsapp",
+      consentimentoDados: true,
+      ultimaInteracaoEm: this.obterData(dados.ocorridoEm) ?? new Date()
+    });
+
     await this.repositorioAtendimento.registrarMensagem({
+      negocioId,
+      clienteNegocioId: cliente?.id ?? null,
       telefone,
       nomeCliente: this.obterNomeClienteDoContexto(dados.contexto),
       usernameCliente: this.obterUsernameClienteDoContexto(dados.contexto),
@@ -176,10 +241,25 @@ export class AtendimentoCrmUseCase {
     const mensagem = this.obterObjeto(evento.dados.mensagem);
     const telefone = this.obterString(mensagem.telefone);
     const conteudo = this.obterString(mensagem.texto);
+    const negocioId = this.obterNegocioIdDoContexto(mensagem.payloadOriginal) ?? this.obterString(mensagem.negocioId);
 
     if (!telefone || !conteudo) return;
 
+    const cliente = await this.sincronizarCliente({
+      negocioId,
+      telefone,
+      nome: this.obterString(mensagem.nomeCliente),
+      username: this.obterString(mensagem.username ?? mensagem.usernameCliente),
+      userId: this.obterString(mensagem.userId ?? mensagem.userIdCliente),
+      avatarUrl: this.obterString(mensagem.avatarUrl ?? mensagem.avatarUrlCliente),
+      origem: "whatsapp",
+      consentimentoDados: true,
+      ultimaInteracaoEm: this.obterData(mensagem.recebidaEm) ?? new Date()
+    });
+
     await this.repositorioAtendimento.registrarMensagem({
+      negocioId,
+      clienteNegocioId: cliente?.id ?? null,
       telefone,
       nomeCliente: this.obterString(mensagem.nomeCliente),
       usernameCliente: this.obterString(mensagem.username ?? mensagem.usernameCliente),
@@ -224,6 +304,7 @@ export class AtendimentoCrmUseCase {
       !this.ehReprocessamentoDeStatusEvolution(mensagemAtualizada.contexto)
     ) {
       await this.repositorioAuditoria.criarMensagemWhatsAppPendente({
+        negocioId: mensagemAtualizada.negocioId,
         telefone: mensagemAtualizada.telefone,
         tipo: mensagemAtualizada.tipo,
         conteudo: mensagemAtualizada.conteudo,
@@ -264,9 +345,31 @@ export class AtendimentoCrmUseCase {
     return `Reserva criada para a peça #${reserva.codigoPeca}. Pagamento pendente.`;
   }
 
+  private async sincronizarCliente(
+    dados: Omit<DadosCliente360, "negocioId"> & { negocioId: string | null }
+  ): Promise<Cliente360 | null> {
+    if (!this.repositorioClientes || !dados.negocioId) return null;
+
+    try {
+      return await this.repositorioClientes.sincronizar({
+        ...dados,
+        negocioId: dados.negocioId
+      });
+    } catch (erro) {
+      this.logger.warn("[crm] Falha ao sincronizar Cliente 360", erro);
+      return null;
+    }
+  }
+
   private obterReservaIdDoContexto(contexto: unknown): string | null {
     const reserva = this.obterObjeto(this.obterObjeto(contexto).reserva);
     return this.obterString(reserva.id);
+  }
+
+  private obterNegocioIdDoContexto(contexto: unknown): string | null {
+    const dados = this.obterObjeto(contexto);
+    const reserva = this.obterObjeto(dados.reserva);
+    return this.obterString(dados.negocioId) ?? this.obterString(reserva.negocioId);
   }
 
   private obterNomeClienteDoContexto(contexto: unknown): string | null {

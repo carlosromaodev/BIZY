@@ -1,10 +1,10 @@
 # Bizy / ÉMeu V1 - Requisitos Funcionais, Não Funcionais e Regras de Negócio
 
 Documento: `RF-RNF-RN-EMEUV1.md`
-Versão: 1.2
-Data: 2026-05-24
+Versão: 1.6
+Data: 2026-05-25
 Autor: Carlos
-Status: MVP base implementado; próxima etapa CRM de loja em planeamento
+Status: MVP base implementado; fundação backend Bizy CRM+ com Clientes 360 e Pedidos operacionais em evolução
 
 ---
 
@@ -21,6 +21,14 @@ O objetivo é servir como base para implementação, testes, validação do pilo
 Atualização 1.1: o documento passa a orientar a evolução do Bizy para um CRM completo de loja, com foco em clientes, pedidos, produtos, conversas WhatsApp, campanhas, relatórios úteis e remoção de navegação/informação que não ajuda a operação diária.
 
 Atualização 1.2: adicionada a frente de identidade e onboarding, com login por telefone, Gmail e UOR/ISPTEC, persistência de identidade separada do telefone, cadastro do negócio e produto inicial como base para o CRM.
+
+Atualização 1.3: o posicionamento estratégico passa a ser Bizy CRM+ para criadores, afiliados e social commerce. Além da automação de live, o produto deve oferecer loja virtual, catálogo digital, checkout por WhatsApp/site, links rastreáveis, afiliados, social inbox, funil de vendas, automações comerciais e governança das categorias oficiais de WhatsApp: marketing, utilidade, autenticação e serviço.
+
+Atualização 1.4: antes das novas telas e módulos, o backend deve ser preparado como núcleo multi-negócio, modular e auditável. Os requisitos passam a usar o marcador de checklist antes do texto em tabelas e listas, facilitando leitura, priorização e acompanhamento do que falta.
+
+Atualização 1.5: iniciado o backend de Clientes 360, com API autenticada/multi-negócio para cadastro, listagem, perfil, atualização, bloqueio/estado, exportação CSV e sincronização automática de clientes a partir de comentários, reservas e mensagens de atendimento.
+
+Atualização 1.6: iniciado o backend de Pedidos completos, com APIs autenticadas/multi-negócio para criar pedidos manuais com vários itens, cliente obrigatório, cálculo de subtotal/desconto/entrega/total, validação de stock, funil operacional, confirmação de pagamento, atualização de entrega e exportação CSV.
 
 ---
 
@@ -42,15 +50,18 @@ Use estes marcadores como checklist de acompanhamento:
 - `[~]` existe parcialmente e precisa ser completado.
 - `[ ]` ainda exige ação, decisão operacional ou implementação futura.
 
+Nas tabelas de RF, RNF, RN e fora de escopo, o marcador deve aparecer no início do texto do item. A coluna `Estado` deve descrever a situação sem repetir o marcador.
+
 | Estado | Significado |
 |---|---|
-| [x] Implementado | Já existe no código atual |
-| [~] Parcial | Existe parcialmente, mas precisa completar |
-| [ ] Planeado | Deve ser implementado para o piloto ou pós-piloto |
-| [ ] Pós-MVP | Fora do escopo imediato do piloto |
-| [ ] Em escopo CRM | Saiu do fora de escopo e entra na próxima etapa CRM |
-| [ ] Parcial CRM | Parte entra na próxima etapa CRM; parte continua para evolução posterior |
-| [ ] Processo | Regra operacional do piloto, não necessariamente implementação de código |
+| Implementado | Já existe no código atual |
+| Parcial | Existe parcialmente, mas precisa completar |
+| Planeado | Deve ser implementado para o piloto ou pós-piloto |
+| Pós-MVP | Fora do escopo imediato do piloto |
+| Em escopo CRM | Saiu do fora de escopo e entra na próxima etapa CRM |
+| Em escopo CRM+ | Entra na etapa Bizy CRM+ Social Commerce |
+| Parcial CRM | Parte entra na próxima etapa CRM; parte continua para evolução posterior |
+| Processo | Regra operacional do piloto, não necessariamente implementação de código |
 
 ---
 
@@ -60,141 +71,141 @@ Use estes marcadores como checklist de acompanhamento:
 
 | ID | Requisito Funcional | Prioridade | Estado |
 |---|---|---|---|
-| RF01 | O sistema deve permitir login por telefone móvel angolano. | Alta | [x] Implementado |
-| RF02 | O sistema deve enviar código SMS de autenticação usando provider configurável, inicialmente Ombala. | Alta | [x] Implementado |
-| RF03 | O sistema deve confirmar o código SMS e criar uma sessão autenticada para o vendedor. | Alta | [x] Implementado |
-| RF04 | O código SMS deve expirar no tempo configurado e não pode ser reutilizado. | Alta | [x] Implementado |
-| RF05 | Em ambiente de desenvolvimento, o sistema pode expor o código para facilitar testes. | Média | [x] Implementado |
-| RF06 | Em produção, o sistema não deve expor código SMS em resposta, UI ou logs públicos. | Alta | [x] Implementado |
-| RF07 | O vendedor deve poder encerrar a sessão pelo painel. | Alta | [x] Implementado |
-| RF07A | O sistema deve permitir login estudantil por UOR/ISPTEC usando o mesmo padrão de validação do UOR Connect. | Alta | [x] Implementado |
-| RF07B | O sistema deve permitir login com Gmail via OAuth quando `GOOGLE_CLIENT_ID` e `GOOGLE_CLIENT_SECRET` estiverem configurados. | Alta | [x] Implementado |
-| RF07C | O sistema deve separar identidade de telefone, permitindo usuários com telefone, Gmail ou identidade estudantil sem criar números falsos. | Alta | [x] Implementado |
-| RF07D | O sistema deve persistir origem do cadastro, email, avatar e perfil académico quando esses dados forem devolvidos pelo provedor de autenticação. | Alta | [x] Implementado |
-| RF07E | Após o primeiro login, o usuário deve passar por onboarding para cadastrar negócio, canais de venda, pagamentos e regra padrão de reserva. | Alta | [x] Implementado |
-| RF07F | O onboarding deve permitir criar o primeiro produto ligado ao negócio antes de entrar na operação diária. | Alta | [x] Implementado |
-| RF07G | O login com Gmail deve informar claramente quando as credenciais OAuth ainda não estiverem configuradas. | Média | [x] Implementado |
+| RF01 | [x] O sistema deve permitir login por telefone móvel angolano. | Alta | Implementado |
+| RF02 | [x] O sistema deve enviar código SMS de autenticação usando provider configurável, inicialmente Ombala. | Alta | Implementado |
+| RF03 | [x] O sistema deve confirmar o código SMS e criar uma sessão autenticada para o vendedor. | Alta | Implementado |
+| RF04 | [x] O código SMS deve expirar no tempo configurado e não pode ser reutilizado. | Alta | Implementado |
+| RF05 | [x] Em ambiente de desenvolvimento, o sistema pode expor o código para facilitar testes. | Média | Implementado |
+| RF06 | [x] Em produção, o sistema não deve expor código SMS em resposta, UI ou logs públicos. | Alta | Implementado |
+| RF07 | [x] O vendedor deve poder encerrar a sessão pelo painel. | Alta | Implementado |
+| RF07A | [x] O sistema deve permitir login estudantil por UOR/ISPTEC usando o mesmo padrão de validação do UOR Connect. | Alta | Implementado |
+| RF07B | [x] O sistema deve permitir login com Gmail via OAuth quando `GOOGLE_CLIENT_ID` e `GOOGLE_CLIENT_SECRET` estiverem configurados. | Alta | Implementado |
+| RF07C | [x] O sistema deve separar identidade de telefone, permitindo usuários com telefone, Gmail ou identidade estudantil sem criar números falsos. | Alta | Implementado |
+| RF07D | [x] O sistema deve persistir origem do cadastro, email, avatar e perfil académico quando esses dados forem devolvidos pelo provedor de autenticação. | Alta | Implementado |
+| RF07E | [x] Após o primeiro login, o usuário deve passar por onboarding para cadastrar negócio, canais de venda, pagamentos e regra padrão de reserva. | Alta | Implementado |
+| RF07F | [x] O onboarding deve permitir criar o primeiro produto ligado ao negócio antes de entrar na operação diária. | Alta | Implementado |
+| RF07G | [x] O login com Gmail deve informar claramente quando as credenciais OAuth ainda não estiverem configuradas. | Média | Implementado |
 
 ### 3.2 Catálogo de Peças
 
 | ID | Requisito Funcional | Prioridade | Estado |
 |---|---|---|---|
-| RF08 | O vendedor deve poder cadastrar peça com código, nome, descrição, preço e quantidade. | Alta | [x] Implementado |
-| RF09 | O código da peça deve ser único no catálogo. | Alta | [x] Implementado |
-| RF10 | O vendedor deve poder listar e pesquisar peças por nome ou código. | Alta | [x] Implementado |
-| RF11 | O vendedor deve poder editar preço, quantidade, nome, descrição, fotos e estado da peça. | Alta | [x] Implementado |
-| RF12 | O vendedor deve poder desativar ou remover uma peça que não será vendida na live. | Média | [x] Implementado |
-| RF13 | O catálogo deve aceitar foto opcional da peça via URL ou placeholder. | Média | [x] Implementado |
-| RF14 | O painel deve mostrar o estado da peça: disponível, reservada, vendida ou esgotada. | Alta | [x] Implementado |
+| RF08 | [x] O vendedor deve poder cadastrar peça com código, nome, descrição, preço e quantidade. | Alta | Implementado |
+| RF09 | [x] O código da peça deve ser único dentro do catálogo de cada negócio/loja, não globalmente entre todas as lojas. | Alta | Implementado |
+| RF10 | [x] O vendedor deve poder listar e pesquisar peças por nome ou código. | Alta | Implementado |
+| RF11 | [x] O vendedor deve poder editar preço, quantidade, nome, descrição, fotos e estado da peça. | Alta | Implementado |
+| RF12 | [x] O vendedor deve poder desativar ou remover uma peça que não será vendida na live. | Média | Implementado |
+| RF13 | [x] O catálogo deve aceitar foto opcional da peça via URL ou placeholder. | Média | Implementado |
+| RF14 | [x] O painel deve mostrar o estado da peça: disponível, reservada, vendida ou esgotada. | Alta | Implementado |
 
 ### 3.3 Captura de Comentários de Live
 
 | ID | Requisito Funcional | Prioridade | Estado |
 |---|---|---|---|
-| RF15 | O sistema deve conectar numa live do TikTok pelo `username` ou `uniqueId`. | Alta | [x] Implementado |
-| RF16 | O sistema deve capturar comentários da live em tempo real. | Alta | [x] Implementado |
-| RF17 | O sistema deve normalizar comentários capturados para um formato interno único. | Alta | [x] Implementado |
-| RF18 | O sistema deve permitir selecionar provider de captura: TikTok principal, TikTok Python ou manual. | Alta | [x] Implementado |
-| RF19 | O sistema deve fornecer modo manual para simular ou registrar comentários quando a captura automática falhar. | Alta | [x] Implementado |
-| RF20 | O painel deve exibir comentários capturados em tempo real. | Alta | [x] Implementado |
+| RF15 | [x] O sistema deve conectar numa live do TikTok pelo `username` ou `uniqueId`. | Alta | Implementado |
+| RF16 | [x] O sistema deve capturar comentários da live em tempo real. | Alta | Implementado |
+| RF17 | [x] O sistema deve normalizar comentários capturados para um formato interno único. | Alta | Implementado |
+| RF18 | [x] O sistema deve permitir selecionar provider de captura: TikTok principal, TikTok Python ou manual. | Alta | Implementado |
+| RF19 | [x] O sistema deve fornecer modo manual para simular ou registrar comentários quando a captura automática falhar. | Alta | Implementado |
+| RF20 | [x] O painel deve exibir comentários capturados em tempo real. | Alta | Implementado |
 
 ### 3.4 Parser de Intenção
 
 | ID | Requisito Funcional | Prioridade | Estado |
 |---|---|---|---|
-| RF21 | O sistema deve identificar intenção de compra em português informal. | Alta | [x] Implementado |
-| RF22 | O sistema deve extrair telefone móvel angolano válido do comentário. | Alta | [x] Implementado |
-| RF23 | O sistema deve extrair código da peça independentemente da ordem do telefone e do código. | Alta | [x] Implementado |
-| RF24 | O sistema deve calcular nível de confiança da interpretação. | Alta | [x] Implementado |
-| RF25 | O sistema deve marcar comentários ambíguos para revisão manual. | Alta | [x] Implementado |
-| RF26 | O sistema deve suportar variações como `peça 4`, `peca 4`, `#4`, `produto 4`, `item 4` e código livre. | Alta | [x] Implementado |
-| RF27 | O sistema deve permitir evoluir o parser com dicionário de termos por loja ou por segmento. | Baixa | [ ] Pós-MVP |
-| RF28 | Quando o comentário mencionar mais de uma peça, o sistema deve permitir criar múltiplas reservas vinculadas ao mesmo telefone. | Média | [x] Implementado |
+| RF21 | [x] O sistema deve identificar intenção de compra em português informal. | Alta | Implementado |
+| RF22 | [x] O sistema deve extrair telefone móvel angolano válido do comentário. | Alta | Implementado |
+| RF23 | [x] O sistema deve extrair código da peça independentemente da ordem do telefone e do código. | Alta | Implementado |
+| RF24 | [x] O sistema deve calcular nível de confiança da interpretação. | Alta | Implementado |
+| RF25 | [x] O sistema deve marcar comentários ambíguos para revisão manual. | Alta | Implementado |
+| RF26 | [x] O sistema deve suportar variações como `peça 4`, `peca 4`, `#4`, `produto 4`, `item 4` e código livre. | Alta | Implementado |
+| RF27 | [ ] O sistema deve permitir evoluir o parser com dicionário de termos por loja ou por segmento. | Baixa | Pós-MVP |
+| RF28 | [x] Quando o comentário mencionar mais de uma peça, o sistema deve permitir criar múltiplas reservas vinculadas ao mesmo telefone. | Média | Implementado |
 
 ### 3.5 Revisão Manual
 
 | ID | Requisito Funcional | Prioridade | Estado |
 |---|---|---|---|
-| RF29 | O painel deve listar comentários pendentes de revisão manual. | Alta | [x] Implementado |
-| RF30 | O vendedor deve poder corrigir telefone, código da peça e observação de um comentário em revisão. | Alta | [x] Implementado |
-| RF31 | O vendedor deve poder aprovar manualmente um comentário e forçar a criação da reserva. | Alta | [x] Implementado |
-| RF32 | O vendedor deve poder rejeitar ou ignorar um comentário em revisão. | Alta | [x] Implementado |
-| RF33 | A aprovação manual deve criar reserva em até 10 segundos em condições normais. | Alta | [x] Implementado |
+| RF29 | [x] O painel deve listar comentários pendentes de revisão manual. | Alta | Implementado |
+| RF30 | [x] O vendedor deve poder corrigir telefone, código da peça e observação de um comentário em revisão. | Alta | Implementado |
+| RF31 | [x] O vendedor deve poder aprovar manualmente um comentário e forçar a criação da reserva. | Alta | Implementado |
+| RF32 | [x] O vendedor deve poder rejeitar ou ignorar um comentário em revisão. | Alta | Implementado |
+| RF33 | [x] A aprovação manual deve criar reserva em até 10 segundos em condições normais. | Alta | Implementado |
 
 ### 3.6 Motor de Reservas e Fila
 
 | ID | Requisito Funcional | Prioridade | Estado |
 |---|---|---|---|
-| RF34 | O sistema deve criar reserva automática para o primeiro comentário válido. | Alta | [x] Implementado |
-| RF35 | O sistema deve impedir reservas duplicadas ativas para o mesmo telefone e mesma peça. | Alta | [x] Implementado |
-| RF36 | O sistema deve colocar o cliente em fila de espera quando não houver stock livre. | Alta | [x] Implementado |
-| RF37 | Reservas ativas devem bloquear stock durante o prazo de pagamento. | Alta | [x] Implementado |
-| RF38 | O sistema deve expirar reservas não pagas após o prazo configurado. | Alta | [x] Implementado |
-| RF39 | O prazo padrão do MVP deve ser configurável, com recomendação de 15 minutos para piloto. | Alta | [x] Implementado |
-| RF40 | Ao expirar ou cancelar uma reserva, o sistema deve promover automaticamente o primeiro cliente da fila. | Alta | [x] Implementado |
-| RF41 | O vendedor deve poder cancelar uma reserva manualmente. | Alta | [x] Implementado |
-| RF42 | O vendedor deve poder confirmar pagamento de uma reserva. | Alta | [x] Implementado |
-| RF43 | O sistema deve atualizar o estado da peça quando todo o stock for vendido. | Alta | [x] Implementado |
+| RF34 | [x] O sistema deve criar reserva automática para o primeiro comentário válido. | Alta | Implementado |
+| RF35 | [x] O sistema deve impedir reservas duplicadas ativas para o mesmo telefone e mesma peça. | Alta | Implementado |
+| RF36 | [x] O sistema deve colocar o cliente em fila de espera quando não houver stock livre. | Alta | Implementado |
+| RF37 | [x] Reservas ativas devem bloquear stock durante o prazo de pagamento. | Alta | Implementado |
+| RF38 | [x] O sistema deve expirar reservas não pagas após o prazo configurado. | Alta | Implementado |
+| RF39 | [x] O prazo padrão do MVP deve ser configurável, com recomendação de 15 minutos para piloto. | Alta | Implementado |
+| RF40 | [x] Ao expirar ou cancelar uma reserva, o sistema deve promover automaticamente o primeiro cliente da fila. | Alta | Implementado |
+| RF41 | [x] O vendedor deve poder cancelar uma reserva manualmente. | Alta | Implementado |
+| RF42 | [x] O vendedor deve poder confirmar pagamento de uma reserva. | Alta | Implementado |
+| RF43 | [x] O sistema deve atualizar o estado da peça quando todo o stock for vendido. | Alta | Implementado |
 
 ### 3.7 Painel Operacional
 
 | ID | Requisito Funcional | Prioridade | Estado |
 |---|---|---|---|
-| RF44 | O painel deve mostrar estado da live, comentários, reservas, stock, fila e integrações. | Alta | [x] Implementado |
-| RF45 | O painel deve atualizar dados em tempo real via SSE. | Alta | [x] Implementado |
-| RF46 | O painel deve destacar reservas próximas da expiração. | Alta | [x] Implementado |
-| RF47 | O painel deve permitir ações rápidas em até 2 cliques para confirmar pagamento e cancelar reserva. | Alta | [x] Implementado |
-| RF48 | O painel deve mostrar métricas de operação: reservas criadas, pagas, pendentes, fila e conversão. | Alta | [x] Implementado |
-| RF49 | O painel deve exibir atividade recente com eventos de reserva, pagamento, expiração e mensagens. | Média | [x] Implementado |
+| RF44 | [x] O painel deve mostrar estado da live, comentários, reservas, stock, fila e integrações. | Alta | Implementado |
+| RF45 | [x] O painel deve atualizar dados em tempo real via SSE. | Alta | Implementado |
+| RF46 | [x] O painel deve destacar reservas próximas da expiração. | Alta | Implementado |
+| RF47 | [x] O painel deve permitir ações rápidas em até 2 cliques para confirmar pagamento e cancelar reserva. | Alta | Implementado |
+| RF48 | [x] O painel deve mostrar métricas de operação: reservas criadas, pagas, pendentes, fila e conversão. | Alta | Implementado |
+| RF49 | [x] O painel deve exibir atividade recente com eventos de reserva, pagamento, expiração e mensagens. | Média | Implementado |
 
 ### 3.8 WhatsApp e Atendimento
 
 | ID | Requisito Funcional | Prioridade | Estado |
 |---|---|---|---|
-| RF50 | O sistema deve permitir conectar WhatsApp via Evolution API com QR Code ou código de pareamento. | Alta | [x] Implementado |
-| RF51 | O painel deve permitir criar, conectar, consultar, definir padrão e remover instâncias Evolution. | Alta | [x] Implementado |
-| RF52 | O sistema deve enviar mensagens automáticas de reserva, fila, expiração, pagamento, cancelamento e peça vendida. | Alta | [x] Implementado |
-| RF52A | Quando o comentário tiver telefone, mas a peça estiver ausente ou não existir no catálogo, o sistema deve contactar o cliente e pedir o código da peça. | Alta | [x] Implementado |
-| RF53 | O sistema deve receber e normalizar webhooks de mensagens recebidas pela Evolution API. | Alta | [x] Implementado |
-| RF54 | O vendedor deve poder enviar mensagem manual pelo painel sem sair do ÉMeu. | Alta | [x] Implementado |
-| RF55 | O painel deve oferecer templates de WhatsApp para IBAN, reserva, lembrete, pagamento confirmado e atendimento. | Alta | [x] Implementado |
-| RF56 | A página de conversas deve mostrar histórico do cliente, reserva atual e contexto operacional. | Alta | [x] Implementado |
-| RF56A | O vendedor deve poder limpar, com confirmação explícita, dados operacionais de comentários, histórico de atendimento, outbox/mensagens WhatsApp e códigos SMS sem apagar produtos, reservas, usuários ou conexão WhatsApp. | Média | [x] Implementado |
+| RF50 | [x] O sistema deve permitir conectar WhatsApp via Evolution API com QR Code ou código de pareamento. | Alta | Implementado |
+| RF51 | [x] O painel deve permitir criar, conectar, consultar, definir padrão e remover instâncias Evolution. | Alta | Implementado |
+| RF52 | [x] O sistema deve enviar mensagens automáticas de reserva, fila, expiração, pagamento, cancelamento e peça vendida. | Alta | Implementado |
+| RF52A | [x] Quando o comentário tiver telefone, mas a peça estiver ausente ou não existir no catálogo, o sistema deve contactar o cliente e pedir o código da peça. | Alta | Implementado |
+| RF53 | [x] O sistema deve receber e normalizar webhooks de mensagens recebidas pela Evolution API. | Alta | Implementado |
+| RF54 | [x] O vendedor deve poder enviar mensagem manual pelo painel sem sair do ÉMeu. | Alta | Implementado |
+| RF55 | [x] O painel deve oferecer templates de WhatsApp para IBAN, reserva, lembrete, pagamento confirmado e atendimento. | Alta | Implementado |
+| RF56 | [x] A página de conversas deve mostrar histórico do cliente, reserva atual e contexto operacional. | Alta | Implementado |
+| RF56A | [x] O vendedor deve poder limpar, com confirmação explícita, dados operacionais de comentários, histórico de atendimento, outbox/mensagens WhatsApp e códigos SMS sem apagar produtos, reservas, usuários ou conexão WhatsApp. | Média | Implementado |
 
 ### 3.9 Pagamento e Pós-Venda
 
 | ID | Requisito Funcional | Prioridade | Estado |
 |---|---|---|---|
-| RF57 | O sistema deve registrar comprovativo de pagamento recebido por URL externa ou ficheiro `dataUrl` de imagem/PDF. | Alta | [x] Implementado |
-| RF58 | O vendedor ou fluxo autorizado deve poder confirmar pagamento. | Alta | [x] Implementado |
-| RF59 | O vendedor ou fluxo autorizado deve poder rejeitar pagamento com motivo. | Alta | [x] Implementado |
-| RF60 | O estado de pagamento deve ser exibido no painel de reservas e conversas. | Alta | [x] Implementado |
-| RF61 | O sistema deve atualizar endereço de entrega após pagamento confirmado. | Média | [x] Implementado |
-| RF62 | O sistema deve marcar pedido como entregue por endpoint controlado. | Média | [x] Implementado |
-| RF63 | O sistema deve exportar lista de entregas ao final da live. | Média | [x] Implementado |
-| RF63A | O sistema deve emitir recibo PDF autenticado para cada reserva. | Média | [x] Implementado |
+| RF57 | [x] O sistema deve registrar comprovativo de pagamento recebido por URL externa ou ficheiro `dataUrl` de imagem/PDF. | Alta | Implementado |
+| RF58 | [x] O vendedor ou fluxo autorizado deve poder confirmar pagamento. | Alta | Implementado |
+| RF59 | [x] O vendedor ou fluxo autorizado deve poder rejeitar pagamento com motivo. | Alta | Implementado |
+| RF60 | [x] O estado de pagamento deve ser exibido no painel de reservas e conversas. | Alta | Implementado |
+| RF61 | [x] O sistema deve atualizar endereço de entrega após pagamento confirmado. | Média | Implementado |
+| RF62 | [x] O sistema deve marcar pedido como entregue por endpoint controlado. | Média | Implementado |
+| RF63 | [x] O sistema deve exportar lista de entregas ao final da live. | Média | Implementado |
+| RF63A | [x] O sistema deve emitir recibo PDF autenticado para cada reserva. | Média | Implementado |
 
 ### 3.10 n8n e Automações
 
 | ID | Requisito Funcional | Prioridade | Estado |
 |---|---|---|---|
-| RF64 | O backend deve publicar eventos de venda para o n8n por webhook assinado. | Alta | [x] Implementado |
-| RF65 | Eventos destinados ao n8n devem ser persistidos em outbox antes da publicação ou para retry. | Alta | [x] Implementado |
-| RF66 | O backend deve expor endpoints `/n8n/*` para consulta contextual e ações controladas. | Alta | [x] Implementado |
-| RF67 | O n8n deve poder consultar cliente, reservas ativas e produto antes de responder ao cliente. | Alta | [x] Implementado |
-| RF68 | O n8n deve encaminhar casos sensíveis para aprovação humana. | Alta | [x] Implementado |
-| RF69 | O painel deve mostrar workflows, guardrails e estado operacional das automações. | Média | [x] Implementado |
-| RF70 | O painel deve mostrar eventos pendentes, falhados e publicados da outbox n8n. | Média | [x] Implementado |
+| RF64 | [x] O backend deve publicar eventos de venda para o n8n por webhook assinado. | Alta | Implementado |
+| RF65 | [x] Eventos destinados ao n8n devem ser persistidos em outbox antes da publicação ou para retry. | Alta | Implementado |
+| RF66 | [x] O backend deve expor endpoints `/n8n/*` para consulta contextual e ações controladas. | Alta | Implementado |
+| RF67 | [x] O n8n deve poder consultar cliente, reservas ativas e produto antes de responder ao cliente. | Alta | Implementado |
+| RF68 | [x] O n8n deve encaminhar casos sensíveis para aprovação humana. | Alta | Implementado |
+| RF69 | [x] O painel deve mostrar workflows, guardrails e estado operacional das automações. | Média | Implementado |
+| RF70 | [x] O painel deve mostrar eventos pendentes, falhados e publicados da outbox n8n. | Média | Implementado |
 
 ### 3.11 Configurações e Piloto
 
 | ID | Requisito Funcional | Prioridade | Estado |
 |---|---|---|---|
-| RF71 | URLs, tokens e segredos devem ser configurados por variáveis de ambiente. | Alta | [x] Implementado |
-| RF72 | O frontend não deve depender de URLs hardcoded para n8n, Evolution ou backend em produção. | Alta | [x] Implementado |
-| RF73 | O painel deve mostrar configurações operacionais em execução. | Média | [x] Implementado |
-| RF74 | O sistema deve registrar métricas úteis para piloto: comentário, reserva, revisão, pagamento e expiração. | Alta | [x] Implementado |
-| RF75 | O sistema deve permitir gerar relatório de live piloto com métricas e feedback. | Média | [x] Implementado |
+| RF71 | [x] URLs, tokens e segredos devem ser configurados por variáveis de ambiente. | Alta | Implementado |
+| RF72 | [x] O frontend não deve depender de URLs hardcoded para n8n, Evolution ou backend em produção. | Alta | Implementado |
+| RF73 | [x] O painel deve mostrar configurações operacionais em execução. | Média | Implementado |
+| RF74 | [x] O sistema deve registrar métricas úteis para piloto: comentário, reserva, revisão, pagamento e expiração. | Alta | Implementado |
+| RF75 | [x] O sistema deve permitir gerar relatório de live piloto com métricas e feedback. | Média | Implementado |
 
 ### 3.12 CRM e Atendimento Completo - Passos Pretendidos
 
@@ -236,112 +247,287 @@ Esta etapa transforma o Bizy de painel de live em CRM operacional para lojas que
 
 | ID | Requisito Funcional | Prioridade | Estado |
 |---|---|---|---|
-| RF76 | A navegação principal do CRM deve conter apenas módulos de uso frequente: Painel, Pedidos, Produtos, Clientes, Conversas, Campanhas, Relatórios e Configurações da Loja. | Alta | [ ] Planeado |
-| RF77 | Funcionalidades técnicas como n8n, providers, filas internas, saúde da automação e logs devem sair da navegação da loja e ficar em área Admin/Sistema acessível apenas a perfis autorizados. | Alta | [ ] Planeado |
-| RF78 | O sistema deve remover ou ocultar submenus sem utilidade operacional imediata, como `Drafts`, `Calendário`, `Resumo`, `Categoria`, `Descontos`, `Chatbot`, `Explorar`, `Relatórios` vazios, `Site`, `Montra`, `Finalizar compra`, `Apresentação`, `Menu` e `Páginas`, até existir fluxo real para cada um. | Alta | [ ] Planeado |
-| RF79 | O módulo Painel deve mostrar o que a loja precisa fazer hoje: pedidos novos, pagamentos pendentes, conversas sem resposta, produtos com stock baixo, entregas pendentes, faturação do dia e tarefas atrasadas. | Alta | [ ] Planeado |
-| RF80 | A interface deve oferecer pesquisa global por cliente, telefone, produto, código de peça, pedido, conversa e comprovativo. | Alta | [ ] Planeado |
-| RF81 | A navegação mobile deve priorizar até 5 atalhos: Painel, Pedidos, Clientes, Conversas e Mais. | Alta | [ ] Planeado |
-| RF82 | O menu `Mais` no mobile deve agrupar Produtos, Campanhas, Relatórios, Configurações da Loja e Admin/Sistema quando permitido. | Média | [ ] Planeado |
-| RF83 | Telas vazias devem explicar a próxima ação útil, como importar clientes, criar produto, criar pedido, conectar WhatsApp ou enviar primeira campanha. | Alta | [ ] Planeado |
-| RF84 | O sistema deve evitar páginas decorativas, estatísticas vazias ou configurações técnicas expostas à vendedora sem ação clara. | Alta | [ ] Planeado |
+| RF76 | [ ] A navegação principal do CRM deve conter apenas módulos de uso frequente: Painel, Pedidos, Produtos, Clientes, Conversas, Campanhas, Relatórios e Configurações da Loja. | Alta | Planeado |
+| RF77 | [ ] Funcionalidades técnicas como n8n, providers, filas internas, saúde da automação e logs devem sair da navegação da loja e ficar em área Admin/Sistema acessível apenas a perfis autorizados. | Alta | Planeado |
+| RF78 | [ ] O sistema deve remover ou ocultar submenus sem utilidade operacional imediata, como `Drafts`, `Calendário`, `Resumo`, `Categoria`, `Descontos`, `Chatbot`, `Explorar`, `Relatórios` vazios, `Site`, `Montra`, `Finalizar compra`, `Apresentação`, `Menu` e `Páginas`, até existir fluxo real para cada um. | Alta | Planeado |
+| RF79 | [ ] O módulo Painel deve mostrar o que a loja precisa fazer hoje: pedidos novos, pagamentos pendentes, conversas sem resposta, produtos com stock baixo, entregas pendentes, faturação do dia e tarefas atrasadas. | Alta | Planeado |
+| RF80 | [ ] A interface deve oferecer pesquisa global por cliente, telefone, produto, código de peça, pedido, conversa e comprovativo. | Alta | Planeado |
+| RF81 | [ ] A navegação mobile deve priorizar até 5 atalhos: Painel, Pedidos, Clientes, Conversas e Mais. | Alta | Planeado |
+| RF82 | [ ] O menu `Mais` no mobile deve agrupar Produtos, Campanhas, Relatórios, Configurações da Loja e Admin/Sistema quando permitido. | Média | Planeado |
+| RF83 | [ ] Telas vazias devem explicar a próxima ação útil, como importar clientes, criar produto, criar pedido, conectar WhatsApp ou enviar primeira campanha. | Alta | Planeado |
+| RF84 | [ ] O sistema deve evitar páginas decorativas, estatísticas vazias ou configurações técnicas expostas à vendedora sem ação clara. | Alta | Planeado |
 
 #### 3.13.2 Clientes 360
 
 | ID | Requisito Funcional | Prioridade | Estado |
 |---|---|---|---|
-| RF85 | O CRM deve ter lista de clientes com nome, telefone, WhatsApp, última interação, último pedido, total comprado, estado, tags e responsável. | Alta | [ ] Planeado |
-| RF86 | O vendedor deve poder cadastrar cliente manualmente com nome, telefone, WhatsApp, endereço, notas, tags, origem e consentimento de comunicação. | Alta | [ ] Planeado |
-| RF87 | O sistema deve importar clientes por CSV/Excel com validação de telefone angolano, deduplicação e relatório de erros. | Alta | [ ] Planeado |
-| RF88 | O perfil do cliente deve mostrar visão 360: dados pessoais, conversas, pedidos, pagamentos, reservas, entregas, notas internas, tags, tarefas e histórico de campanhas. | Alta | [ ] Planeado |
-| RF89 | O sistema deve deduplicar clientes por telefone canónico, mantendo aliases de username, TikTok, Instagram ou nome exibido. | Alta | [ ] Planeado |
-| RF90 | O vendedor deve poder fundir clientes duplicados com pré-visualização de dados que serão mantidos. | Média | [ ] Planeado |
-| RF91 | O CRM deve segmentar clientes por comportamento: novo, primeiro pedido, recorrente, VIP, inativo, nunca comprou, pagamento pendente, carrinho/reserva perdida e alto potencial. | Alta | [ ] Planeado |
-| RF92 | O perfil do cliente deve permitir ações rápidas: enviar WhatsApp, criar pedido, reservar produto, adicionar nota, criar tarefa, atribuir responsável e marcar follow-up. | Alta | [ ] Planeado |
-| RF93 | O sistema deve registrar preferências do cliente, como tamanho, cor, categoria favorita, faixa de preço, bairro de entrega e observações de atendimento. | Média | [ ] Planeado |
-| RF94 | O CRM deve calcular indicadores por cliente: total gasto, pedidos pagos, pedidos cancelados, reservas expiradas, tempo médio de pagamento e data da última compra. | Alta | [ ] Planeado |
-| RF95 | O vendedor deve poder marcar cliente como bloqueado, sem WhatsApp, sem consentimento, inadimplente ou prioridade alta. | Alta | [ ] Planeado |
-| RF96 | O sistema deve permitir exportar clientes filtrados com campos úteis para operação e marketing autorizado. | Média | [ ] Planeado |
+| RF85 | [~] O CRM deve ter lista de clientes com nome, telefone, WhatsApp, última interação, último pedido, total comprado, estado, tags e responsável. | Alta | Parcial - API lista clientes com métricas de reserva/mensagem/compra; faltam WhatsApp explícito, último pedido e responsável na UI |
+| RF86 | [~] O vendedor deve poder cadastrar cliente manualmente com nome, telefone, WhatsApp, endereço, notas, tags, origem e consentimento de comunicação. | Alta | Parcial - API cria cliente com nome, telefone, email, tags, origem e consentimentos; faltam endereço/notas estruturadas |
+| RF87 | [ ] O sistema deve importar clientes por CSV/Excel com validação de telefone angolano, deduplicação e relatório de erros. | Alta | Planeado |
+| RF88 | [~] O perfil do cliente deve mostrar visão 360: dados pessoais, conversas, pedidos, pagamentos, reservas, entregas, notas internas, tags, tarefas e histórico de campanhas. | Alta | Parcial - API entrega dados pessoais, métricas, reservas e conversas; faltam pedidos completos, entregas, tarefas e campanhas |
+| RF89 | [~] O sistema deve deduplicar clientes por telefone canónico, mantendo aliases de username, TikTok, Instagram ou nome exibido. | Alta | Parcial - backend normaliza telefone angolano em ClienteGlobal e preserva username/userId/avatar por negócio; faltam aliases sociais completos |
+| RF90 | [ ] O vendedor deve poder fundir clientes duplicados com pré-visualização de dados que serão mantidos. | Média | Planeado |
+| RF91 | [ ] O CRM deve segmentar clientes por comportamento: novo, primeiro pedido, recorrente, VIP, inativo, nunca comprou, pagamento pendente, carrinho/reserva perdida e alto potencial. | Alta | Planeado |
+| RF92 | [ ] O perfil do cliente deve permitir ações rápidas: enviar WhatsApp, criar pedido, reservar produto, adicionar nota, criar tarefa, atribuir responsável e marcar follow-up. | Alta | Planeado |
+| RF93 | [ ] O sistema deve registrar preferências do cliente, como tamanho, cor, categoria favorita, faixa de preço, bairro de entrega e observações de atendimento. | Média | Planeado |
+| RF94 | [~] O CRM deve calcular indicadores por cliente: total gasto, pedidos pagos, pedidos cancelados, reservas expiradas, tempo médio de pagamento e data da última compra. | Alta | Parcial - API calcula reservas, reservas pagas, total comprado, mensagens, conversas abertas e última interação |
+| RF95 | [x] O vendedor deve poder marcar cliente como bloqueado, sem WhatsApp, sem consentimento, inadimplente ou prioridade alta. | Alta | Implementado no backend por `estadoRelacionamento` |
+| RF96 | [~] O sistema deve permitir exportar clientes filtrados com campos úteis para operação e marketing autorizado. | Média | Parcial - exportação CSV autenticada implementada; falta job/auditoria e filtros avançados de marketing |
 
 #### 3.13.3 Pedidos, Cobrança e Entrega
 
 | ID | Requisito Funcional | Prioridade | Estado |
 |---|---|---|---|
-| RF97 | Reservas devem evoluir para pedidos completos com cliente, itens, quantidade, desconto autorizado, total, estado de pagamento, estado de entrega e origem. | Alta | [ ] Planeado |
-| RF98 | O vendedor deve criar pedido manual fora da live a partir do cliente ou da conversa. | Alta | [ ] Planeado |
-| RF99 | O pedido deve suportar múltiplos itens, ajuste de quantidade, remoção de item e validação de stock antes de confirmar. | Alta | [ ] Planeado |
-| RF100 | O CRM deve ter funil de pedidos com estados: novo, aguardando pagamento, pago, em preparação, pronto para entrega, enviado, entregue, cancelado, trocado e devolvido. | Alta | [ ] Planeado |
-| RF101 | O sistema deve permitir cobrança por WhatsApp com templates de pagamento, lembrete, comprovativo pendente e pagamento confirmado. | Alta | [ ] Planeado |
-| RF102 | O pedido deve anexar comprovativos, recibos, notas de pagamento e histórico de aprovação/rejeição. | Alta | [ ] Planeado |
-| RF103 | O vendedor deve poder aplicar desconto apenas com motivo obrigatório e auditoria. | Média | [ ] Planeado |
-| RF104 | O CRM deve registrar endereço de entrega por pedido e permitir reutilizar endereços salvos do cliente. | Alta | [ ] Planeado |
-| RF105 | O sistema deve gerar lista de preparação/separação com produtos, quantidades, fotos e códigos. | Média | [ ] Planeado |
-| RF106 | O sistema deve gerar lista de entrega por bairro, estado, entregador ou data. | Média | [ ] Planeado |
-| RF107 | O vendedor deve marcar pedido como entregue com data, responsável e observação opcional. | Alta | [ ] Planeado |
-| RF108 | O sistema deve permitir pedido rascunho apenas quando houver uso real: orçamento, carrinho em conversa ou checkout incompleto; não deve aparecer como submenu solto. | Média | [ ] Planeado |
-| RF109 | O CRM deve permitir recuperar pedidos parados com lembrete automático ou tarefa humana. | Alta | [ ] Planeado |
-| RF110 | O pedido deve mostrar margem estimada quando custo do produto estiver cadastrado. | Baixa | [ ] Planeado |
-| RF111 | O sistema deve exportar pedidos com filtros por data, estado, cliente, produto, pagamento e entrega. | Média | [ ] Planeado |
+| RF97 | [~] Reservas devem evoluir para pedidos completos com cliente, itens, quantidade, desconto autorizado, total, estado de pagamento, estado de entrega e origem. | Alta | Parcial - pedido completo criado por API; falta conversão automática de reserva em pedido |
+| RF98 | [~] O vendedor deve criar pedido manual fora da live a partir do cliente ou da conversa. | Alta | Parcial - API manual implementada a partir do cliente; falta ação direta na conversa/UI |
+| RF99 | [~] O pedido deve suportar múltiplos itens, ajuste de quantidade, remoção de item e validação de stock antes de confirmar. | Alta | Parcial - criação com múltiplos itens e stock validado; faltam edição/remoção pós-criação |
+| RF100 | [~] O CRM deve ter funil de pedidos com estados: novo, aguardando pagamento, pago, em preparação, pronto para entrega, enviado, entregue, cancelado, trocado e devolvido. | Alta | Parcial - estados de funil suportados no backend; falta UI kanban/lista operacional |
+| RF101 | [ ] O sistema deve permitir cobrança por WhatsApp com templates de pagamento, lembrete, comprovativo pendente e pagamento confirmado. | Alta | Planeado |
+| RF102 | [~] O pedido deve anexar comprovativos, recibos, notas de pagamento e histórico de aprovação/rejeição. | Alta | Parcial - comprovativo/observação de pagamento no pedido; faltam recibos e trilha detalhada de aprovação/rejeição |
+| RF103 | [~] O vendedor deve poder aplicar desconto apenas com motivo obrigatório e auditoria. | Média | Parcial - motivo obrigatório no backend; falta limite configurável e aprovação por perfil |
+| RF104 | [~] O CRM deve registrar endereço de entrega por pedido e permitir reutilizar endereços salvos do cliente. | Alta | Parcial - endereço por pedido implementado; falta agenda de endereços do cliente |
+| RF105 | [ ] O sistema deve gerar lista de preparação/separação com produtos, quantidades, fotos e códigos. | Média | Planeado |
+| RF106 | [ ] O sistema deve gerar lista de entrega por bairro, estado, entregador ou data. | Média | Planeado |
+| RF107 | [x] O vendedor deve marcar pedido como entregue com data, responsável e observação opcional. | Alta | Implementado no backend |
+| RF108 | [ ] O sistema deve permitir pedido rascunho apenas quando houver uso real: orçamento, carrinho em conversa ou checkout incompleto; não deve aparecer como submenu solto. | Média | Planeado |
+| RF109 | [ ] O CRM deve permitir recuperar pedidos parados com lembrete automático ou tarefa humana. | Alta | Planeado |
+| RF110 | [ ] O pedido deve mostrar margem estimada quando custo do produto estiver cadastrado. | Baixa | Planeado |
+| RF111 | [~] O sistema deve exportar pedidos com filtros por data, estado, cliente, produto, pagamento e entrega. | Média | Parcial - CSV de pedidos implementado; faltam filtros avançados no arquivo |
 
 #### 3.13.4 Produtos, Stock e Catálogo Comercial
 
 | ID | Requisito Funcional | Prioridade | Estado |
 |---|---|---|---|
-| RF112 | Produtos devem suportar SKU/código, nome, fotos, descrição curta, preço, custo opcional, stock, estado e coleção de venda. | Alta | [ ] Planeado |
-| RF113 | O sistema deve permitir criar coleções comerciais, como live atual, novidades, promoção, reposição, mais vendidos e catálogo WhatsApp. | Alta | [ ] Planeado |
-| RF114 | Categorias só devem aparecer quando forem usadas para filtros, relatórios ou catálogo; não devem ser menu principal separado sem conteúdo operacional. | Alta | [ ] Planeado |
-| RF115 | Descontos devem ser tratados como regra aplicada em pedido, campanha ou produto específico, não como página solta sem fluxo de aprovação. | Alta | [ ] Planeado |
-| RF116 | O CRM deve alertar produtos com stock baixo, stock parado, mais vendidos e produtos reservados sem pagamento. | Alta | [ ] Planeado |
-| RF117 | O sistema deve manter histórico de movimentos de stock: entrada, venda, reserva, cancelamento, devolução, ajuste manual e correção. | Alta | [ ] Planeado |
-| RF118 | O vendedor deve importar produtos por CSV/Excel com validação de código único e relatório de erros. | Média | [ ] Planeado |
-| RF119 | O produto deve permitir variantes simples, como tamanho, cor ou modelo, quando a loja precisar. | Média | [ ] Planeado |
-| RF120 | O CRM deve gerar catálogo compartilhável por WhatsApp com produtos selecionados, preço, fotos e disponibilidade. | Média | [ ] Planeado |
-| RF121 | O sistema deve permitir arquivar produtos sem histórico de venda recente, preservando pedidos e relatórios antigos. | Média | [ ] Planeado |
+| RF112 | [ ] Produtos devem suportar SKU/código, nome, fotos, descrição curta, preço, custo opcional, stock, estado e coleção de venda. | Alta | Planeado |
+| RF113 | [ ] O sistema deve permitir criar coleções comerciais, como live atual, novidades, promoção, reposição, mais vendidos e catálogo WhatsApp. | Alta | Planeado |
+| RF114 | [ ] Categorias só devem aparecer quando forem usadas para filtros, relatórios ou catálogo; não devem ser menu principal separado sem conteúdo operacional. | Alta | Planeado |
+| RF115 | [ ] Descontos devem ser tratados como regra aplicada em pedido, campanha ou produto específico, não como página solta sem fluxo de aprovação. | Alta | Planeado |
+| RF116 | [ ] O CRM deve alertar produtos com stock baixo, stock parado, mais vendidos e produtos reservados sem pagamento. | Alta | Planeado |
+| RF117 | [ ] O sistema deve manter histórico de movimentos de stock: entrada, venda, reserva, cancelamento, devolução, ajuste manual e correção. | Alta | Planeado |
+| RF118 | [ ] O vendedor deve importar produtos por CSV/Excel com validação de código único e relatório de erros. | Média | Planeado |
+| RF119 | [ ] O produto deve permitir variantes simples, como tamanho, cor ou modelo, quando a loja precisar. | Média | Planeado |
+| RF120 | [ ] O CRM deve gerar catálogo compartilhável por WhatsApp com produtos selecionados, preço, fotos e disponibilidade. | Média | Planeado |
+| RF121 | [ ] O sistema deve permitir arquivar produtos sem histórico de venda recente, preservando pedidos e relatórios antigos. | Média | Planeado |
 
 #### 3.13.5 Conversas, Campanhas e Atendimento
 
 | ID | Requisito Funcional | Prioridade | Estado |
 |---|---|---|---|
-| RF122 | Conversas devem ser a caixa de entrada comercial do CRM, unificando WhatsApp, comentários de live e eventos de pedido do cliente. | Alta | [ ] Planeado |
-| RF123 | Cada conversa deve estar vinculada a cliente, pedido atual quando houver, responsável, estado, prioridade, SLA e tags. | Alta | [ ] Planeado |
-| RF124 | A conversa deve permitir responder com texto livre, template aprovado, mensagem rápida, imagem, documento, recibo e link de catálogo. | Alta | [ ] Planeado |
-| RF125 | O CRM deve sugerir próximas ações na conversa, como pedir comprovativo, confirmar pagamento, pedir endereço, oferecer alternativa, criar pedido ou marcar follow-up. | Alta | [ ] Planeado |
-| RF126 | `Chatbot` não deve ser módulo principal; automações devem aparecer como assistente dentro de Conversas, Campanhas ou Configurações da Loja. | Alta | [ ] Planeado |
-| RF127 | Campanhas devem substituir o conceito genérico de `Transmissões`, com foco em mensagens segmentadas e autorizadas por WhatsApp. | Alta | [ ] Planeado |
-| RF128 | O vendedor deve criar campanha para segmentos de clientes com template aprovado, janela de envio, limite diário, preview e confirmação antes do disparo. | Alta | [ ] Planeado |
-| RF129 | O sistema deve mostrar resultado de campanha: enviados, entregues, lidos, respondidos, falhados, pedidos gerados e receita atribuída. | Média | [ ] Planeado |
-| RF130 | Clientes sem consentimento ou com opt-out não devem receber campanhas, mas podem receber mensagens transacionais permitidas. | Alta | [ ] Planeado |
-| RF131 | O CRM deve permitir sequências pós-venda: agradecer compra, pedir endereço, lembrar pagamento, confirmar entrega e reativar cliente inativo. | Média | [ ] Planeado |
-| RF132 | A caixa de entrada deve ter filtros úteis: sem resposta, pagamento pendente, entrega pendente, VIP, reclamação, campanha respondida e meu atendimento. | Alta | [ ] Planeado |
+| RF122 | [ ] Conversas devem ser a caixa de entrada comercial do CRM, unificando WhatsApp, comentários de live e eventos de pedido do cliente. | Alta | Planeado |
+| RF123 | [ ] Cada conversa deve estar vinculada a cliente, pedido atual quando houver, responsável, estado, prioridade, SLA e tags. | Alta | Planeado |
+| RF124 | [ ] A conversa deve permitir responder com texto livre, template aprovado, mensagem rápida, imagem, documento, recibo e link de catálogo. | Alta | Planeado |
+| RF125 | [ ] O CRM deve sugerir próximas ações na conversa, como pedir comprovativo, confirmar pagamento, pedir endereço, oferecer alternativa, criar pedido ou marcar follow-up. | Alta | Planeado |
+| RF126 | [ ] `Chatbot` não deve ser módulo principal; automações devem aparecer como assistente dentro de Conversas, Campanhas ou Configurações da Loja. | Alta | Planeado |
+| RF127 | [ ] Campanhas devem substituir o conceito genérico de `Transmissões`, com foco em mensagens segmentadas e autorizadas por WhatsApp. | Alta | Planeado |
+| RF128 | [ ] O vendedor deve criar campanha para segmentos de clientes com template aprovado, janela de envio, limite diário, preview e confirmação antes do disparo. | Alta | Planeado |
+| RF129 | [ ] O sistema deve mostrar resultado de campanha: enviados, entregues, lidos, respondidos, falhados, pedidos gerados e receita atribuída. | Média | Planeado |
+| RF130 | [ ] Clientes sem consentimento ou com opt-out não devem receber campanhas, mas podem receber mensagens transacionais permitidas. | Alta | Planeado |
+| RF131 | [ ] O CRM deve permitir sequências pós-venda: agradecer compra, pedir endereço, lembrar pagamento, confirmar entrega e reativar cliente inativo. | Média | Planeado |
+| RF132 | [ ] A caixa de entrada deve ter filtros úteis: sem resposta, pagamento pendente, entrega pendente, VIP, reclamação, campanha respondida e meu atendimento. | Alta | Planeado |
 
 #### 3.13.6 Relatórios que a Loja Usa
 
 | ID | Requisito Funcional | Prioridade | Estado |
 |---|---|---|---|
-| RF133 | Relatórios devem começar por indicadores práticos: vendas do dia, pedidos pagos, pagamentos pendentes, ticket médio, clientes novos, clientes recorrentes e conversão de reservas. | Alta | [ ] Planeado |
-| RF134 | O CRM deve mostrar ranking de produtos mais vendidos, produtos encalhados, produtos com maior margem e produtos com mais reserva perdida. | Média | [ ] Planeado |
-| RF135 | O CRM deve mostrar desempenho de atendimento: tempo médio de primeira resposta, conversas abertas, SLA vencido, mensagens falhadas e taxa de resolução. | Alta | [ ] Planeado |
-| RF136 | O CRM deve mostrar desempenho de campanhas: receita gerada, respostas, opt-out, falhas e segmentos que converteram. | Média | [ ] Planeado |
-| RF137 | A página `Explorar` não deve existir como relatório vazio; relatórios avançados só entram quando houver perguntas reais de negócio a responder. | Alta | [ ] Planeado |
-| RF138 | O vendedor deve exportar relatórios em CSV e PDF simples para operação diária. | Média | [ ] Planeado |
-| RF139 | O sistema deve gerar resumo diário automático com vendas, pendências e tarefas para o dia seguinte. | Média | [ ] Planeado |
-| RF140 | O CRM deve permitir filtrar relatórios por período, canal, produto, coleção, responsável e estado do pedido. | Média | [ ] Planeado |
-| RF141 | O painel deve mostrar oportunidades perdidas, como clientes que perguntaram e não compraram, reserva expirada e comprovativo não enviado. | Alta | [ ] Planeado |
-| RF142 | O CRM deve medir retenção simples: clientes que voltaram a comprar, tempo desde última compra e clientes em risco de sumir. | Média | [ ] Planeado |
-| RF143 | Relatórios técnicos de automação devem ficar no Admin/Sistema, não no menu comercial da loja. | Alta | [ ] Planeado |
+| RF133 | [ ] Relatórios devem começar por indicadores práticos: vendas do dia, pedidos pagos, pagamentos pendentes, ticket médio, clientes novos, clientes recorrentes e conversão de reservas. | Alta | Planeado |
+| RF134 | [ ] O CRM deve mostrar ranking de produtos mais vendidos, produtos encalhados, produtos com maior margem e produtos com mais reserva perdida. | Média | Planeado |
+| RF135 | [ ] O CRM deve mostrar desempenho de atendimento: tempo médio de primeira resposta, conversas abertas, SLA vencido, mensagens falhadas e taxa de resolução. | Alta | Planeado |
+| RF136 | [ ] O CRM deve mostrar desempenho de campanhas: receita gerada, respostas, opt-out, falhas e segmentos que converteram. | Média | Planeado |
+| RF137 | [ ] A página `Explorar` não deve existir como relatório vazio; relatórios avançados só entram quando houver perguntas reais de negócio a responder. | Alta | Planeado |
+| RF138 | [ ] O vendedor deve exportar relatórios em CSV e PDF simples para operação diária. | Média | Planeado |
+| RF139 | [ ] O sistema deve gerar resumo diário automático com vendas, pendências e tarefas para o dia seguinte. | Média | Planeado |
+| RF140 | [ ] O CRM deve permitir filtrar relatórios por período, canal, produto, coleção, responsável e estado do pedido. | Média | Planeado |
+| RF141 | [ ] O painel deve mostrar oportunidades perdidas, como clientes que perguntaram e não compraram, reserva expirada e comprovativo não enviado. | Alta | Planeado |
+| RF142 | [ ] O CRM deve medir retenção simples: clientes que voltaram a comprar, tempo desde última compra e clientes em risco de sumir. | Média | Planeado |
+| RF143 | [ ] Relatórios técnicos de automação devem ficar no Admin/Sistema, não no menu comercial da loja. | Alta | Planeado |
 
 #### 3.13.7 Tarefas, Equipa e Rotina da Loja
 
 | ID | Requisito Funcional | Prioridade | Estado |
 |---|---|---|---|
-| RF144 | O CRM deve criar tarefas manuais ou automáticas para follow-up, cobrança, entrega, reclamação, reposição e pós-venda. | Alta | [ ] Planeado |
-| RF145 | Cada tarefa deve ter responsável, cliente/pedido relacionado, prazo, prioridade, estado e observação. | Alta | [ ] Planeado |
-| RF146 | O vendedor deve ver `Minhas tarefas` no Painel, ordenadas por atraso e impacto comercial. | Alta | [ ] Planeado |
-| RF147 | O sistema deve criar tarefa automática quando pagamento vencer, mensagem falhar, cliente VIP ficar sem resposta ou pedido pago ficar sem entrega. | Alta | [ ] Planeado |
-| RF148 | O CRM deve suportar papéis mínimos: dono da loja, vendedor, atendente, financeiro, entregador e admin técnico. | Média | [ ] Planeado |
-| RF149 | Permissões devem controlar quem pode dar desconto, confirmar pagamento, cancelar pedido, exportar clientes e alterar configurações. | Alta | [ ] Planeado |
-| RF150 | A equipa deve poder transferir conversa/pedido/tarefa entre responsáveis com motivo opcional. | Média | [ ] Planeado |
-| RF151 | O sistema deve registrar auditoria de ações humanas críticas, incluindo quem fez, quando fez e qual dado foi alterado. | Alta | [ ] Planeado |
+| RF144 | [ ] O CRM deve criar tarefas manuais ou automáticas para follow-up, cobrança, entrega, reclamação, reposição e pós-venda. | Alta | Planeado |
+| RF145 | [ ] Cada tarefa deve ter responsável, cliente/pedido relacionado, prazo, prioridade, estado e observação. | Alta | Planeado |
+| RF146 | [ ] O vendedor deve ver `Minhas tarefas` no Painel, ordenadas por atraso e impacto comercial. | Alta | Planeado |
+| RF147 | [ ] O sistema deve criar tarefa automática quando pagamento vencer, mensagem falhar, cliente VIP ficar sem resposta ou pedido pago ficar sem entrega. | Alta | Planeado |
+| RF148 | [ ] O CRM deve suportar papéis mínimos: dono da loja, vendedor, atendente, financeiro, entregador e admin técnico. | Média | Planeado |
+| RF149 | [ ] Permissões devem controlar quem pode dar desconto, confirmar pagamento, cancelar pedido, exportar clientes e alterar configurações. | Alta | Planeado |
+| RF150 | [ ] A equipa deve poder transferir conversa/pedido/tarefa entre responsáveis com motivo opcional. | Média | Planeado |
+| RF151 | [ ] O sistema deve registrar auditoria de ações humanas críticas, incluindo quem fez, quando fez e qual dado foi alterado. | Alta | Planeado |
+
+### 3.14 Bizy CRM+ Social Commerce - Criadores, Afiliados e Loja Virtual
+
+Esta etapa posiciona o Bizy como uma plataforma de operação comercial para criadores, afiliados, revendedores, social sellers e lojas que vendem em múltiplos canais. A automação de live continua importante, mas deixa de ser o produto inteiro: ela passa a ser um canal de aquisição dentro de uma base maior com loja virtual, catálogo digital, checkout, tracking, afiliados, social inbox, funil e automações.
+
+#### 3.14.1 Posicionamento e Arquitetura Comercial
+
+| ID | Requisito Funcional | Prioridade | Estado |
+|---|---|---|---|
+| RF152 | [ ] O Bizy deve suportar perfis de negócio como loja tradicional, criador/influenciador, afiliado, revendedor, social seller e marca que vende em múltiplos canais. | Alta | Planeado |
+| RF153 | [ ] O dono do negócio deve poder ativar ou desativar módulos conforme a operação: loja virtual, catálogo digital, afiliados, social inbox, campanhas, checkout, entrega, stock, relatórios e automações. | Alta | Planeado |
+| RF154 | [ ] O onboarding do negócio deve capturar modelo de venda, canais ativos, áreas de entrega, métodos de pagamento, regras de comissão, política de troca/devolução, contas sociais e tipo de produto vendido. | Alta | Planeado |
+| RF155 | [ ] O painel deve priorizar indicadores de dinheiro, oportunidade e operação: vendas, pedidos parados, leads recuperáveis, stock em risco, campanhas que geram receita e afiliados que vendem. | Alta | Planeado |
+| RF156 | [ ] Funcionalidades técnicas devem continuar separadas da operação comercial, mantendo o vendedor focado em atender, vender, cobrar, entregar e recuperar clientes. | Alta | Planeado |
+
+#### 3.14.2 Loja Virtual, Montra e Catálogo Digital
+
+| ID | Requisito Funcional | Prioridade | Estado |
+|---|---|---|---|
+| RF157 | [ ] Cada negócio deve poder publicar uma loja virtual com URL própria por slug e, futuramente, domínio personalizado. | Alta | Planeado |
+| RF158 | [ ] A loja virtual deve listar produtos com fotos, nome, preço, variantes, estado de stock, coleções, busca e filtros úteis. | Alta | Planeado |
+| RF159 | [ ] A página pública de produto deve permitir partilha direta, seleção de variante, cálculo inicial de entrega e chamada para comprar pelo WhatsApp ou pelo checkout do site. | Alta | Planeado |
+| RF160 | [ ] O dono do negócio deve poder criar catálogos digitais por coleção, campanha, live, afiliado, data comemorativa ou segmento de clientes. | Alta | Planeado |
+| RF161 | [ ] O catálogo digital deve gerar link partilhável e, quando necessário, resumo visual ou PDF simples com produtos, preços e disponibilidade. | Média | Planeado |
+| RF162 | [ ] O catálogo deve respeitar stock e disponibilidade, ocultando produtos indisponíveis ou oferecendo lista de interesse/reposição. | Alta | Planeado |
+| RF163 | [ ] A loja deve permitir destacar produtos, promoções, novidades, mais vendidos, reposições e kits. | Média | Planeado |
+| RF164 | [ ] Páginas públicas devem ter metadados de SEO e preview social para WhatsApp, Facebook, Instagram, TikTok e navegadores. | Média | Planeado |
+
+#### 3.14.3 Checkout WhatsApp/Site, Entrega e Pedido
+
+| ID | Requisito Funcional | Prioridade | Estado |
+|---|---|---|---|
+| RF165 | [ ] O checkout por WhatsApp deve gerar mensagem pré-preenchida com produto, variante, quantidade, preço, entrega estimada e origem do link. | Alta | Planeado |
+| RF166 | [ ] O checkout pelo site deve criar pedido/carrinho com dados do cliente, itens, entrega, pagamento e origem comercial. | Alta | Planeado |
+| RF167 | [ ] O sistema deve calcular entrega por zona, município, bairro, tabela manual, retirada na loja ou regra de entrega grátis acima de valor configurado. | Alta | Planeado |
+| RF168 | [ ] O total do pedido deve calcular itens, descontos, entrega, taxas e valor final antes da confirmação. | Alta | Planeado |
+| RF169 | [ ] O cliente deve poder iniciar compra sem criar conta, mas a confirmação do pedido deve exigir contacto validável e aceite das condições necessárias. | Alta | Planeado |
+| RF170 | [ ] Checkout abandonado deve criar lead/oportunidade recuperável, respeitando consentimento e regras do canal. | Alta | Planeado |
+| RF171 | [ ] A conversa deve permitir gerar orçamento/manual quote com produtos, entrega e validade. | Média | Planeado |
+| RF172 | [ ] Pedidos vindos de live, WhatsApp, site, catálogo, afiliado ou comentário social devem alimentar a mesma entidade comercial de pedido/funil. | Alta | Planeado |
+| RF173 | [ ] Cada negócio deve configurar métodos de pagamento aceitos, dados bancários, instruções e mensagens de cobrança. | Alta | Planeado |
+| RF174 | [ ] O pedido deve acompanhar estados de preparação, entrega, retirada, conclusão, troca, devolução e cancelamento. | Alta | Planeado |
+
+#### 3.14.4 Links Rastreáveis, Cookies e Atribuição
+
+| ID | Requisito Funcional | Prioridade | Estado |
+|---|---|---|---|
+| RF175 | [ ] O sistema deve gerar links rastreáveis para produto, catálogo, campanha, afiliado, criador, vendedor, post social e live. | Alta | Planeado |
+| RF176 | [ ] Links rastreáveis devem suportar UTM, código de referência, canal, campanha, criador, afiliado, vendedor e origem do conteúdo. | Alta | Planeado |
+| RF177 | [ ] O tracking deve associar visita anônima a lead, WhatsApp click, checkout ou pedido quando o cliente se identificar e houver base de consentimento aplicável. | Alta | Planeado |
+| RF178 | [ ] O sistema deve registrar eventos como página vista, produto visto, catálogo visto, clique WhatsApp, checkout iniciado, pedido criado, pagamento confirmado e compra entregue. | Alta | Planeado |
+| RF179 | [ ] O dono do negócio deve ver conversão por link, produto, campanha, afiliado, criador, rede social e canal de venda. | Alta | Planeado |
+| RF180 | [ ] O CRM+ deve suportar modelos de atribuição: primeiro toque, último toque, conversão assistida e ajuste manual auditado. | Média | Planeado |
+| RF181 | [ ] O prazo de atribuição por cookie/referral deve ser configurável por negócio, campanha ou afiliado. | Média | Planeado |
+| RF182 | [ ] A loja pública deve exibir consentimento/aviso de tracking quando necessário e permitir operação básica mesmo sem cookies. | Alta | Planeado |
+| RF183 | [ ] O sistema deve preparar integração futura com eventos server-side, como Meta Conversions API, quando o negócio configurar credenciais e consentimentos. | Média | Planeado |
+| RF184 | [ ] Links, cookies e eventos não devem expor dados sensíveis do cliente em URL, query string ou identificadores públicos. | Alta | Planeado |
+
+#### 3.14.5 Afiliados, Criadores e Revendedores
+
+| ID | Requisito Funcional | Prioridade | Estado |
+|---|---|---|---|
+| RF185 | [ ] O dono do negócio deve poder criar perfis de afiliado/criador com código, nome público, contacto, comissão, método de pagamento e estado. | Alta | Planeado |
+| RF186 | [ ] Produtos, coleções e catálogos devem poder ser associados a afiliados, criadores ou revendedores específicos. | Alta | Planeado |
+| RF187 | [ ] Cada afiliado deve ter links rastreáveis próprios para produtos, catálogos e campanhas. | Alta | Planeado |
+| RF188 | [ ] O afiliado deve ter painel ou relatório com cliques, leads, pedidos, vendas pagas, conversão e comissão estimada. | Média | Planeado |
+| RF189 | [ ] O dono do negócio deve ver ranking de afiliados/criadores por receita, pedidos pagos, conversão, ticket médio e comissões pendentes. | Alta | Planeado |
+| RF190 | [ ] Regras de comissão devem suportar percentual, valor fixo, comissão por produto, por coleção, por campanha e por meta alcançada. | Alta | Planeado |
+| RF191 | [ ] Comissão só deve ficar confirmada depois do pagamento do pedido; cancelamentos, devoluções ou reembolsos devem reverter a comissão. | Alta | Planeado |
+| RF192 | [ ] O sistema deve ter proteção antifraude básica contra autoindicação, leads duplicados e atribuições suspeitas. | Alta | Planeado |
+| RF193 | [ ] O afiliado/criador deve poder receber pacote de divulgação com links, fotos, textos sugeridos e regras da campanha. | Média | Planeado |
+| RF194 | [ ] Criadores e revendedores devem poder ter mini-loja pública com produtos autorizados e rastreamento próprio. | Média | Planeado |
+| RF195 | [ ] O sistema deve gerar relatório de pagamento de comissões com período, vendas, reversões, saldo e histórico. | Alta | Planeado |
+| RF196 | [ ] O modo revendedor deve permitir preço especial, reserva de stock, margem estimada e regras separadas de entrega/retirada quando configurado. | Média | Planeado |
+
+#### 3.14.6 Social Inbox e Comentários de Redes Sociais
+
+| ID | Requisito Funcional | Prioridade | Estado |
+|---|---|---|---|
+| RF197 | [ ] O sistema deve permitir conectar contas sociais suportadas por providers oficiais ou conectores autorizados. | Alta | Planeado |
+| RF198 | [ ] O CRM+ deve capturar comentários de fotos, vídeos, posts e lives quando a API do provider permitir, respeitando permissões e limites do canal. | Alta | Planeado |
+| RF199 | [ ] Comentários sociais devem ser normalizados numa entidade única de interação social com provider, post, autor, texto, data, link original e estado. | Alta | Planeado |
+| RF200 | [ ] O sistema deve classificar comentários por intenção: preço, disponibilidade, tamanho/cor, entrega, reclamação, intenção de compra, lead frio/quente, spam ou dúvida geral. | Alta | Planeado |
+| RF201 | [ ] Um comentário social deve poder gerar cliente, lead, conversa, tarefa, pedido ou oportunidade de recuperação. | Alta | Planeado |
+| RF202 | [ ] Toda interação social deve preservar o link/post original, identificador do provider e contexto da campanha para auditoria e análise. | Alta | Planeado |
+| RF203 | [ ] Quando permitido pelo provider, o atendente deve poder responder ao comentário ou levar a conversa para WhatsApp com contexto. | Média | Planeado |
+| RF204 | [ ] Quando a API não permitir extração automática, o sistema deve oferecer fallback de importação manual, CSV, colagem assistida ou captura operacional controlada. | Alta | Planeado |
+| RF205 | [ ] Comentários devem ser deduplicados por identificador do provider e por sinais de cliente, evitando criar leads repetidos. | Alta | Planeado |
+| RF206 | [ ] A social inbox deve filtrar por rede, post, campanha, intenção, urgência, respondido/não respondido, produto e responsável. | Alta | Planeado |
+| RF207 | [ ] O CRM+ deve mostrar quais posts, vídeos, lives e criadores geram mais leads, pedidos e receita. | Alta | Planeado |
+| RF208 | [ ] Automações em comentários sociais devem ser conservadoras: quando houver dúvida, o sistema cria tarefa humana em vez de responder automaticamente. | Alta | Planeado |
+
+#### 3.14.7 Funil de Vendas, Automação e Recuperação
+
+| ID | Requisito Funcional | Prioridade | Estado |
+|---|---|---|---|
+| RF209 | [ ] O CRM+ deve mapear funil com etapas: visita, produto visto, WhatsApp click, lead, conversa, checkout, pedido, pagamento pendente, pago, preparação, entrega, entregue, pós-venda e recompra. | Alta | Planeado |
+| RF210 | [ ] Eventos de loja, WhatsApp, social, live, afiliado e checkout devem movimentar automaticamente o cliente/pedido no funil quando a regra for segura. | Alta | Planeado |
+| RF211 | [ ] O dono do negócio deve poder configurar playbooks de recuperação para carrinho abandonado, pagamento pendente, reserva expirada, cliente inativo, pós-venda e reposição de produto. | Alta | Planeado |
+| RF212 | [ ] Automações devem aceitar condições por segmento, evento, inatividade, stock, canal, categoria de mensagem, consentimento e responsável. | Alta | Planeado |
+| RF213 | [ ] Ações de automação devem incluir enviar template WhatsApp, criar tarefa, adicionar tag, notificar responsável, reservar produto, mover etapa do funil e adicionar a campanha. | Alta | Planeado |
+| RF214 | [ ] Casos sensíveis como desconto, pagamento, reclamação, troca, cancelamento e cliente irritado devem exigir aprovação humana ou tarefa. | Alta | Planeado |
+| RF215 | [ ] O painel deve mostrar oportunidades perdidas e recuperáveis: carrinhos, WhatsApp clicks sem compra, comentários com intenção, pedidos sem pagamento e clientes inativos. | Alta | Planeado |
+| RF216 | [ ] Relatórios de automação devem mostrar vendas recuperadas, receita atribuída, mensagens enviadas, falhas, opt-out, conversões e intervenção humana. | Alta | Planeado |
+
+#### 3.14.8 WhatsApp Oficial: Categorias, Eventos e Metodologia
+
+| ID | Requisito Funcional | Prioridade | Estado |
+|---|---|---|---|
+| RF217 | [ ] O motor de mensagens deve classificar todo envio WhatsApp como `marketing`, `utilidade`, `autenticacao` ou `servico` antes de enviar. | Alta | Planeado |
+| RF218 | [ ] Conversas de serviço devem ser usadas para atendimento iniciado pelo cliente e dentro da janela permitida do canal, com texto livre quando aplicável. | Alta | Planeado |
+| RF219 | [ ] Templates de utilidade devem ser usados para eventos transacionais como pedido criado, pagamento pendente, pagamento confirmado, entrega, recibo, reserva expirada e atualização de fila/reposição. | Alta | Planeado |
+| RF220 | [ ] Templates de marketing devem ser usados para promoções, novidades, campanhas, reativação, cross-sell, catálogo, cupões e divulgações de afiliados/criadores. | Alta | Planeado |
+| RF221 | [ ] Templates de autenticação devem ser usados apenas para códigos OTP, login, validação de identidade e operações de segurança. | Alta | Planeado |
+| RF222 | [ ] Cada evento de mensagem deve registrar motivo, categoria, template, idioma, janela de atendimento, consentimento, entidade relacionada e fallback previsto. | Alta | Planeado |
+| RF223 | [ ] O sistema deve impedir texto promocional em mensagens de utilidade ou autenticação. | Alta | Planeado |
+| RF224 | [ ] Quando a janela de serviço estiver fechada, o sistema deve exigir template aprovado e categoria compatível com o evento. | Alta | Planeado |
+| RF225 | [ ] Clientes com opt-out não devem receber marketing, mas podem receber mensagens transacionais permitidas e necessárias à execução do pedido. | Alta | Planeado |
+| RF226 | [ ] Se a categoria ou template necessário não estiver configurado/aprovado, o sistema deve criar tarefa humana e não tentar envio inseguro. | Alta | Planeado |
+| RF227 | [ ] Logs de mensagem devem guardar categoria, template, preço/categoria vigente quando disponível, resposta do provider, erro e estado final. | Alta | Planeado |
+| RF228 | [ ] A escolha de categoria deve ser configurável por tipo de evento, mas limitada por um motor de política para evitar uso indevido. | Alta | Planeado |
+| RF229 | [ ] Templates WhatsApp devem ter ciclo de vida: rascunho, enviado para aprovação, aprovado, rejeitado, pausado, substituído e descontinuado. | Média | Planeado |
+| RF230 | [ ] As regras de categoria WhatsApp devem seguir a documentação oficial vigente do provider escolhido e ser revistas periodicamente. | Alta | Processo |
+
+#### 3.14.9 Flexibilidade Operacional e Modularidade
+
+| ID | Requisito Funcional | Prioridade | Estado |
+|---|---|---|---|
+| RF231 | [ ] Cada negócio deve poder operar com canais diferentes sem quebrar o sistema: só WhatsApp, só loja, social + WhatsApp, live + WhatsApp, afiliados + site ou combinação completa. | Alta | Planeado |
+| RF232 | [ ] Módulos devem ser controlados por configuração/plano, sem expor páginas vazias para quem não ativou a função. | Alta | Planeado |
+| RF233 | [ ] A loja pública deve funcionar mesmo sem social inbox conectada. | Alta | Planeado |
+| RF234 | [ ] A social inbox deve funcionar mesmo sem loja pública publicada. | Alta | Planeado |
+| RF235 | [ ] O módulo de afiliados deve funcionar com checkout por WhatsApp antes do checkout completo do site estar maduro. | Alta | Planeado |
+| RF236 | [ ] A entrega deve aceitar cálculo automático, tabela manual, retirada na loja e orçamento humano. | Alta | Planeado |
+| RF237 | [ ] O sistema deve usar Kwanza como moeda padrão e preparar arquitetura para múltiplas moedas no futuro. | Média | Planeado |
+| RF238 | [~] A arquitetura deve preparar multi-loja, múltiplas linhas WhatsApp, múltiplos domínios e múltiplas equipas como evolução. | Média | Parcial |
+| RF239 | [ ] Todos os canais públicos devem alimentar o mesmo núcleo de cliente, produto, pedido, conversa, pagamento e relatório. | Alta | Planeado |
+| RF240 | [ ] Toda automação deve ter fallback humano claro, com tarefa, motivo e contexto suficiente para a equipa continuar. | Alta | Planeado |
+| RF241 | [ ] Cada módulo deve ter estado vazio com próxima ação útil, sem cards decorativos ou métricas sem explicação. | Alta | Planeado |
+| RF242 | [ ] O CRM+ deve importar e exportar produtos, clientes, pedidos, afiliados, comissões e relatórios em formatos operacionais. | Média | Planeado |
+| RF243 | [ ] Tracking deve funcionar parcialmente sem cookies usando UTM, código de referência, link curto e associação posterior ao telefone/cliente. | Alta | Planeado |
+| RF244 | [ ] O dono/admin deve poder pausar campanhas, automações, afiliados ou integrações rapidamente em caso de erro operacional. | Alta | Planeado |
+
+### 3.15 Fundação Backend para Novas Atualizações CRM+
+
+Esta etapa vem antes da implementação visual dos novos módulos. O objetivo é evitar que Clientes, Pedidos, Loja Virtual, Afiliados, Social Inbox e WhatsApp Oficial sejam construídos por atalhos difíceis de manter. O backend deve virar o núcleo operacional do Bizy: multi-negócio, modular, auditável, testável e preparado para crescer.
+
+| ID | Requisito Funcional | Prioridade | Estado |
+|---|---|---|---|
+| RF245 | [x] O banco deve ter `Negocio` como fronteira principal de tenant, permitindo que produtos e instâncias WhatsApp sejam únicos por negócio. | Alta | Implementado |
+| RF246 | [x] O banco deve separar `ClienteGlobal` de `ClienteNegocio`, permitindo identidade canónica compartilhável sem misturar dados comerciais privados de cada loja. | Alta | Implementado |
+| RF247 | [x] O banco deve suportar relacionamento entre negócios, compartilhamento controlado de clientes e auditoria de compartilhamento. | Alta | Implementado |
+| RF248 | [x] O banco deve ter configuração de módulos por negócio para ativar/desativar CRM, loja pública, afiliados, social inbox, campanhas, checkout e automações. | Alta | Implementado |
+| RF249 | [x] Entidades operacionais existentes, como reservas, comentários, conversas, mensagens, outbox e instâncias WhatsApp, devem carregar `negocioId` para preparação multi-tenant. | Alta | Implementado na fundação operacional |
+| RF250 | [~] Todas as rotas operacionais devem resolver o negócio atual do usuário autenticado e filtrar dados por `negocioId`. | Alta | Parcial - catálogo, painel, reservas, pedidos, comentários, conversas, clientes, WhatsApp/Evolution e outbox WhatsApp protegidos |
+| RF251 | [x] O backend deve fornecer contexto de requisição com usuário, negócio, papel, permissões, módulos ativos e canal de origem. | Alta | Implementado |
+| RF252 | [~] O backend deve expor APIs de Clientes 360 para criar, listar, segmentar, fundir, etiquetar, bloquear, exportar e gerir consentimento. | Alta | Parcial - criar, listar, pesquisar, detalhar, etiquetar, bloquear/estado, exportar e consentimentos implementados; faltam fundir, segmentação comportamental avançada e jobs |
+| RF253 | [~] O backend deve expor APIs de Pedidos com múltiplos itens, estados de funil, pagamento, entrega, desconto, comprovativos e origem comercial. | Alta | Parcial - APIs `/pedidos` implementadas para criar/listar/detalhar/exportar, confirmar pagamento e atualizar entrega |
+| RF254 | [ ] O backend deve evoluir Produtos para suportar variantes, coleções, movimentos de stock, custo, margem, importação e catálogo digital. | Alta | Planeado |
+| RF255 | [ ] O backend deve expor APIs públicas e privadas para loja virtual, página de produto, catálogo digital, checkout WhatsApp e checkout site. | Alta | Planeado |
+| RF256 | [ ] O backend deve registrar tracking de links, UTM, referência, cookies técnicos, visitas, cliques WhatsApp, checkout iniciado, pedido e venda atribuída. | Alta | Planeado |
+| RF257 | [ ] O backend deve suportar afiliados, criadores e revendedores com links próprios, regras de comissão, reversões, pagamentos e relatórios. | Alta | Planeado |
+| RF258 | [ ] O backend deve normalizar social inbox com comentários de redes sociais, posts, autores, intenção, tarefas e oportunidades. | Alta | Planeado |
+| RF259 | [ ] O backend deve ter funil e playbooks de recuperação com eventos, condições, ações, tarefas humanas e histórico de mudança. | Alta | Planeado |
+| RF260 | [ ] O backend deve implementar motor de política WhatsApp para classificar envios em marketing, utilidade, autenticação ou serviço antes de chamar o provider. | Alta | Planeado |
+| RF261 | [ ] O backend deve gerir templates WhatsApp por categoria, idioma, estado de aprovação, provider, versão e compatibilidade com eventos. | Alta | Planeado |
+| RF262 | [ ] O backend deve unificar outbox/event bus para WhatsApp, n8n, tracking, campanhas, social inbox, comissões e notificações internas. | Alta | Planeado |
+| RF263 | [~] O backend deve implementar permissões e papéis por negócio: dono, admin, vendedor, atendente, financeiro, entregador, afiliado/criador e suporte técnico. | Alta | Parcial |
+| RF264 | [ ] O backend deve registrar auditoria de ações críticas: exportação, desconto, pagamento, cancelamento, fusão de cliente, compartilhamento, comissão e alteração de permissão. | Alta | Planeado |
+| RF265 | [ ] Importações e exportações grandes devem rodar como jobs com estado, relatório de erros, idempotência e arquivo resultante. | Média | Planeado |
+| RF266 | [~] Módulos desativados devem bloquear rotas, automações e menus relacionados, preservando dados para reativação futura. | Alta | Parcial - guarda HTTP aplicada em rotas comerciais, conversas e WhatsApp |
+| RF267 | [ ] Webhooks, importações, campanhas e eventos públicos devem usar chaves de idempotência para evitar duplicidade. | Alta | Planeado |
+| RF268 | [ ] Migrations, seeds e scripts de bootstrap devem preparar ambientes dev/staging/prod sem depender de dados manuais invisíveis. | Alta | Planeado |
+| RF269 | [ ] O backend deve manter contratos versionados para APIs internas, públicas, webhooks e eventos de automação. | Média | Planeado |
+| RF270 | [~] Cada módulo backend novo deve nascer com testes de schema, use-case, repositório e rota HTTP antes de ser ligado ao frontend. | Alta | Parcial |
 
 ---
 
@@ -351,118 +537,166 @@ Esta etapa transforma o Bizy de painel de live em CRM operacional para lojas que
 
 | ID | Requisito Não Funcional | Prioridade | Estado |
 |---|---|---|---|
-| RNF01 | O backend deve ser implementado em Node.js, TypeScript e Fastify. | Alta | [x] Implementado |
-| RNF02 | O frontend deve ser implementado em React, Vite e TypeScript. | Alta | [x] Implementado |
-| RNF03 | O banco principal deve usar PostgreSQL com Prisma. | Alta | [x] Implementado |
-| RNF04 | O domínio deve permanecer separado de HTTP, Prisma, React, TikTok, n8n e Evolution. | Alta | [x] Implementado |
-| RNF05 | Regras de aplicação devem ficar em classes de `use-case`, não diretamente nos handlers HTTP. | Alta | [x] Implementado |
-| RNF06 | Providers externos devem ficar atrás de contratos: `LiveCommentProvider`, `ProvedorWhatsApp` e `ProvedorSms`. | Alta | [x] Implementado |
-| RNF07 | A camada HTTP deve ser modular e registrada por manifesto. | Média | [x] Implementado |
+| RNF01 | [x] O backend deve ser implementado em Node.js, TypeScript e Fastify. | Alta | Implementado |
+| RNF02 | [x] O frontend deve ser implementado em React, Vite e TypeScript. | Alta | Implementado |
+| RNF03 | [x] O banco principal deve usar PostgreSQL com Prisma. | Alta | Implementado |
+| RNF04 | [x] O domínio deve permanecer separado de HTTP, Prisma, React, TikTok, n8n e Evolution. | Alta | Implementado |
+| RNF05 | [x] Regras de aplicação devem ficar em classes de `use-case`, não diretamente nos handlers HTTP. | Alta | Implementado |
+| RNF06 | [x] Providers externos devem ficar atrás de contratos: `LiveCommentProvider`, `ProvedorWhatsApp` e `ProvedorSms`. | Alta | Implementado |
+| RNF07 | [x] A camada HTTP deve ser modular e registrada por manifesto. | Média | Implementado |
 
 ### 4.2 Performance e Tempo de Resposta
 
 | ID | Requisito Não Funcional | Prioridade | Estado |
 |---|---|---|---|
-| RNF08 | Comentários capturados devem aparecer no painel em até 3 segundos em condições normais. | Alta | [x] Implementado |
-| RNF09 | A criação de reserva a partir de comentário válido deve ocorrer em até 10 segundos. | Alta | [x] Implementado |
-| RNF10 | O envio de código SMS deve ocorrer preferencialmente em até 30 segundos. | Alta | [x] Implementado |
-| RNF11 | Ações críticas no painel devem exigir poucos cliques e dar feedback visual imediato. | Alta | [x] Implementado |
-| RNF12 | O frontend deve manter bundle adequado para carregamento rápido em conexões comuns de Angola. | Média | [x] Implementado |
+| RNF08 | [x] Comentários capturados devem aparecer no painel em até 3 segundos em condições normais. | Alta | Implementado |
+| RNF09 | [x] A criação de reserva a partir de comentário válido deve ocorrer em até 10 segundos. | Alta | Implementado |
+| RNF10 | [x] O envio de código SMS deve ocorrer preferencialmente em até 30 segundos. | Alta | Implementado |
+| RNF11 | [x] Ações críticas no painel devem exigir poucos cliques e dar feedback visual imediato. | Alta | Implementado |
+| RNF12 | [x] O frontend deve manter bundle adequado para carregamento rápido em conexões comuns de Angola. | Média | Implementado |
 
 ### 4.3 Confiabilidade e Resiliência
 
 | ID | Requisito Não Funcional | Prioridade | Estado |
 |---|---|---|---|
-| RNF13 | O sistema deve manter modo manual como contingência quando provider automático falhar. | Alta | [x] Implementado |
-| RNF14 | Eventos para n8n devem ter retry automático por outbox. | Alta | [x] Implementado |
-| RNF15 | Reservas e comentários processados devem ser persistidos para não depender de estado em memória. | Alta | [x] Implementado |
-| RNF16 | O agendador de expiração deve rodar periodicamente e ser configurável. | Alta | [x] Implementado |
-| RNF17 | O sistema deve tolerar falhas temporárias do n8n sem perder eventos. | Alta | [x] Implementado |
-| RNF18 | Em caso de falha de TikTok, o vendedor deve conseguir continuar a operação pelo modo manual. | Alta | [x] Implementado |
+| RNF13 | [x] O sistema deve manter modo manual como contingência quando provider automático falhar. | Alta | Implementado |
+| RNF14 | [x] Eventos para n8n devem ter retry automático por outbox. | Alta | Implementado |
+| RNF15 | [x] Reservas e comentários processados devem ser persistidos para não depender de estado em memória. | Alta | Implementado |
+| RNF16 | [x] O agendador de expiração deve rodar periodicamente e ser configurável. | Alta | Implementado |
+| RNF17 | [x] O sistema deve tolerar falhas temporárias do n8n sem perder eventos. | Alta | Implementado |
+| RNF18 | [x] Em caso de falha de TikTok, o vendedor deve conseguir continuar a operação pelo modo manual. | Alta | Implementado |
 
 ### 4.4 Segurança
 
 | ID | Requisito Não Funcional | Prioridade | Estado |
 |---|---|---|---|
-| RNF19 | Endpoints operacionais devem exigir sessão autenticada. | Alta | [x] Implementado |
-| RNF20 | Código SMS deve ser armazenado como hash. | Alta | [x] Implementado |
-| RNF21 | Token de sessão deve ser armazenado como hash no backend. | Alta | [x] Implementado |
-| RNF22 | Comunicação backend -> n8n deve usar HMAC SHA-256. | Alta | [x] Implementado |
-| RNF23 | Comunicação n8n -> backend deve exigir `X-EMEU-N8N-TOKEN`. | Alta | [x] Implementado |
-| RNF24 | Webhook Evolution deve exigir token configurado. | Alta | [x] Implementado |
-| RNF25 | Em produção, `LOGIN_SMS_DEV_MODE` e `LOGIN_SMS_EXPOR_CODIGO_DEV` devem estar desativados. | Alta | [x] Implementado |
-| RNF26 | CORS deve ser restrito à origem real do frontend em produção. | Alta | [x] Implementado |
-| RNF27 | Rate limit deve proteger endpoints HTTP sensíveis. | Alta | [x] Implementado |
-| RNF28 | Em escala, rate limit deve usar armazenamento distribuído como Redis. | Média | [ ] Pós-MVP |
-| RNF29 | Em produção madura, sessão deve considerar cookie HttpOnly ou mecanismo equivalente mais seguro que `localStorage`. | Média | [ ] Pós-MVP |
+| RNF19 | [x] Endpoints operacionais devem exigir sessão autenticada. | Alta | Implementado |
+| RNF20 | [x] Código SMS deve ser armazenado como hash. | Alta | Implementado |
+| RNF21 | [x] Token de sessão deve ser armazenado como hash no backend. | Alta | Implementado |
+| RNF22 | [x] Comunicação backend -> n8n deve usar HMAC SHA-256. | Alta | Implementado |
+| RNF23 | [x] Comunicação n8n -> backend deve exigir `X-EMEU-N8N-TOKEN`. | Alta | Implementado |
+| RNF24 | [x] Webhook Evolution deve exigir token configurado. | Alta | Implementado |
+| RNF25 | [x] Em produção, `LOGIN_SMS_DEV_MODE` e `LOGIN_SMS_EXPOR_CODIGO_DEV` devem estar desativados. | Alta | Implementado |
+| RNF26 | [x] CORS deve ser restrito à origem real do frontend em produção. | Alta | Implementado |
+| RNF27 | [x] Rate limit deve proteger endpoints HTTP sensíveis. | Alta | Implementado |
+| RNF28 | [ ] Em escala, rate limit deve usar armazenamento distribuído como Redis. | Média | Pós-MVP |
+| RNF29 | [ ] Em produção madura, sessão deve considerar cookie HttpOnly ou mecanismo equivalente mais seguro que `localStorage`. | Média | Pós-MVP |
 
 ### 4.5 Dados, Auditoria e Observabilidade
 
 | ID | Requisito Não Funcional | Prioridade | Estado |
 |---|---|---|---|
-| RNF30 | O comentário original deve ser mantido como evidência operacional. | Alta | [x] Implementado |
-| RNF31 | Eventos internos devem ser registrados para auditoria. | Alta | [x] Implementado |
-| RNF32 | Mensagens WhatsApp enviadas devem ser auditáveis. | Alta | [x] Implementado |
-| RNF33 | O sistema deve registrar timestamps para medir tempo comentário -> reserva e reserva -> pagamento. | Alta | [x] Implementado |
-| RNF34 | O sistema deve expor métricas de saúde da outbox n8n. | Média | [x] Implementado |
-| RNF35 | Logs de produção devem ser estruturados e centralizados. | Média | [x] Implementado |
+| RNF30 | [x] O comentário original deve ser mantido como evidência operacional. | Alta | Implementado |
+| RNF31 | [x] Eventos internos devem ser registrados para auditoria. | Alta | Implementado |
+| RNF32 | [x] Mensagens WhatsApp enviadas devem ser auditáveis. | Alta | Implementado |
+| RNF33 | [x] O sistema deve registrar timestamps para medir tempo comentário -> reserva e reserva -> pagamento. | Alta | Implementado |
+| RNF34 | [x] O sistema deve expor métricas de saúde da outbox n8n. | Média | Implementado |
+| RNF35 | [x] Logs de produção devem ser estruturados e centralizados. | Média | Implementado |
 
 ### 4.6 Usabilidade e Acessibilidade
 
 | ID | Requisito Não Funcional | Prioridade | Estado |
 |---|---|---|---|
-| RNF36 | A interface deve ser responsiva para desktop, tablet e mobile. | Alta | [x] Implementado |
-| RNF37 | O painel deve ser simples o suficiente para onboarding de vendedor em até 5 minutos. | Alta | [x] Implementado |
-| RNF38 | Formulários devem exibir mensagens claras de erro, sucesso e carregamento. | Alta | [x] Implementado |
-| RNF39 | A navegação principal deve ser consistente entre páginas internas. | Média | [x] Implementado |
-| RNF40 | A UI deve destacar estados críticos como reserva perto de expirar, pagamento pendente e comentário em revisão. | Alta | [x] Implementado |
+| RNF36 | [x] A interface deve ser responsiva para desktop, tablet e mobile. | Alta | Implementado |
+| RNF37 | [x] O painel deve ser simples o suficiente para onboarding de vendedor em até 5 minutos. | Alta | Implementado |
+| RNF38 | [x] Formulários devem exibir mensagens claras de erro, sucesso e carregamento. | Alta | Implementado |
+| RNF39 | [x] A navegação principal deve ser consistente entre páginas internas. | Média | Implementado |
+| RNF40 | [x] A UI deve destacar estados críticos como reserva perto de expirar, pagamento pendente e comentário em revisão. | Alta | Implementado |
 
 ### 4.7 Qualidade e Testes
 
 | ID | Requisito Não Funcional | Prioridade | Estado |
 |---|---|---|---|
-| RNF41 | Entradas HTTP e dados críticos devem ser validados com Zod. | Alta | [x] Implementado |
-| RNF42 | O projeto deve manter TypeScript em modo estrito. | Alta | [x] Implementado |
-| RNF43 | O backend deve ter testes automatizados para parser, motor de reservas, autenticação, n8n, SMS, Evolution, media e PDF. | Alta | [x] Implementado |
-| RNF44 | O fluxo crítico deve ter testes de integração HTTP. | Alta | [x] Implementado |
-| RNF45 | O frontend deve ter testes E2E para login, catálogo, comentário manual, reserva e pagamento. | Média | [x] Implementado |
-| RNF46 | A lógica de concorrência de reservas deve ser testada com PostgreSQL real. | Alta | [x] Implementado |
-| RNF47 | O build e o typecheck devem passar antes de publicar piloto. | Alta | [x] Implementado |
+| RNF41 | [x] Entradas HTTP e dados críticos devem ser validados com Zod. | Alta | Implementado |
+| RNF42 | [x] O projeto deve manter TypeScript em modo estrito. | Alta | Implementado |
+| RNF43 | [x] O backend deve ter testes automatizados para parser, motor de reservas, autenticação, n8n, SMS, Evolution, media e PDF. | Alta | Implementado |
+| RNF44 | [x] O fluxo crítico deve ter testes de integração HTTP. | Alta | Implementado |
+| RNF45 | [x] O frontend deve ter testes E2E para login, catálogo, comentário manual, reserva e pagamento. | Média | Implementado |
+| RNF46 | [x] A lógica de concorrência de reservas deve ser testada com PostgreSQL real. | Alta | Implementado |
+| RNF47 | [x] O build e o typecheck devem passar antes de publicar piloto. | Alta | Implementado |
 
 ### 4.8 Deploy e Operação
 
 | ID | Requisito Não Funcional | Prioridade | Estado |
 |---|---|---|---|
-| RNF48 | O projeto deve possuir Docker Compose para ambiente integrado. | Alta | [x] Implementado |
-| RNF49 | O backend deve executar `prisma migrate deploy` em produção. | Alta | [x] Implementado |
-| RNF50 | Imagens de n8n e Evolution devem ser fixadas por versão ou digest em produção. | Média | [x] Implementado |
-| RNF51 | PostgreSQL e Redis não devem ficar expostos publicamente em produção. | Alta | [x] Implementado |
-| RNF52 | O ambiente de staging deve usar HTTPS e domínio próprio. | Média | [x] Implementado |
-| RNF53 | Segredos reais não devem ser versionados no repositório. | Alta | [x] Implementado |
-| RNF54 | Ficheiros de comprovativo devem ser guardados dentro de raiz controlada e servidos por rota autenticada. | Alta | [x] Implementado |
+| RNF48 | [x] O projeto deve possuir Docker Compose para ambiente integrado. | Alta | Implementado |
+| RNF49 | [x] O backend deve executar `prisma migrate deploy` em produção. | Alta | Implementado |
+| RNF50 | [x] Imagens de n8n e Evolution devem ser fixadas por versão ou digest em produção. | Média | Implementado |
+| RNF51 | [x] PostgreSQL e Redis não devem ficar expostos publicamente em produção. | Alta | Implementado |
+| RNF52 | [x] O ambiente de staging deve usar HTTPS e domínio próprio. | Média | Implementado |
+| RNF53 | [x] Segredos reais não devem ser versionados no repositório. | Alta | Implementado |
+| RNF54 | [x] Ficheiros de comprovativo devem ser guardados dentro de raiz controlada e servidos por rota autenticada. | Alta | Implementado |
 
 ### 4.9 Operabilidade do CRM Completo
 
 | ID | Requisito Não Funcional | Prioridade | Estado |
 |---|---|---|---|
-| RNF55 | A navegação comercial deve permitir chegar às ações principais em até 2 cliques no desktop e 2 toques no mobile. | Alta | [ ] Planeado |
-| RNF56 | O CRM deve continuar responsivo e utilizável em telemóveis de 360px de largura sem scroll horizontal. | Alta | [x] Implementado |
-| RNF57 | Listas de clientes, pedidos, produtos e conversas devem suportar paginação, filtros e busca sem travar com pelo menos 10.000 registros. | Alta | [ ] Planeado |
-| RNF58 | A busca global deve responder em até 1 segundo para bases pequenas e manter feedback de carregamento em bases maiores. | Média | [ ] Planeado |
-| RNF59 | Dados pessoais de clientes devem ser protegidos com controlo de acesso por papel e auditoria de exportação. | Alta | [ ] Planeado |
-| RNF60 | Exportações de clientes, pedidos e relatórios devem registrar usuário, filtro usado, data e quantidade exportada. | Alta | [ ] Planeado |
-| RNF61 | O CRM deve manter backups e estratégia de recuperação para clientes, pedidos, mensagens, comprovativos e produtos. | Alta | [ ] Planeado |
-| RNF62 | A interface deve distinguir claramente operação comercial de configuração técnica. | Alta | [ ] Planeado |
-| RNF63 | Páginas sem funcionalidade real não devem ser publicadas na navegação principal. | Alta | [ ] Planeado |
-| RNF64 | O design system deve padronizar cards, listas, tabelas, filtros, badges, estados vazios e ações destrutivas antes de novas páginas CRM. | Alta | [x] Implementado |
-| RNF65 | A aplicação deve manter textos curtos, orientados à ação e compreensíveis por vendedor não técnico. | Alta | [ ] Planeado |
-| RNF66 | O CRM deve registrar métricas de funil sem depender de serviços externos para operação básica. | Média | [ ] Planeado |
-| RNF67 | Campanhas devem respeitar limites de envio, opt-out, consentimento e regras do provider WhatsApp usado. | Alta | [ ] Planeado |
-| RNF68 | Automações devem falhar de forma segura: se houver dúvida, criar tarefa humana em vez de executar ação crítica. | Alta | [ ] Planeado |
-| RNF69 | O sistema deve manter idempotência em importações, campanhas e webhooks para evitar duplicação de clientes, pedidos ou mensagens. | Alta | [ ] Planeado |
-| RNF70 | O CRM deve permitir evolução modular por domínios: Clientes, Pedidos, Produtos, Conversas, Campanhas, Relatórios e Configurações. | Alta | [ ] Planeado |
-| RNF71 | O frontend deve usar `shadcn/ui` como fonte padrão de componentes de interface: botões, cards, badges, inputs, selects, tabelas, dialogs, sheets, tabs, skeletons e estados de feedback. | Alta | [x] Implementado |
-| RNF72 | Novos componentes próprios só devem ser criados quando não existir primitivo equivalente em `shadcn/ui`; composições de domínio devem reaproveitar os primitivos instalados. | Alta | [x] Implementado |
+| RNF55 | [ ] A navegação comercial deve permitir chegar às ações principais em até 2 cliques no desktop e 2 toques no mobile. | Alta | Planeado |
+| RNF56 | [x] O CRM deve continuar responsivo e utilizável em telemóveis de 360px de largura sem scroll horizontal. | Alta | Implementado |
+| RNF57 | [ ] Listas de clientes, pedidos, produtos e conversas devem suportar paginação, filtros e busca sem travar com pelo menos 10.000 registros. | Alta | Planeado |
+| RNF58 | [ ] A busca global deve responder em até 1 segundo para bases pequenas e manter feedback de carregamento em bases maiores. | Média | Planeado |
+| RNF59 | [ ] Dados pessoais de clientes devem ser protegidos com controlo de acesso por papel e auditoria de exportação. | Alta | Planeado |
+| RNF60 | [ ] Exportações de clientes, pedidos e relatórios devem registrar usuário, filtro usado, data e quantidade exportada. | Alta | Planeado |
+| RNF61 | [ ] O CRM deve manter backups e estratégia de recuperação para clientes, pedidos, mensagens, comprovativos e produtos. | Alta | Planeado |
+| RNF62 | [ ] A interface deve distinguir claramente operação comercial de configuração técnica. | Alta | Planeado |
+| RNF63 | [ ] Páginas sem funcionalidade real não devem ser publicadas na navegação principal. | Alta | Planeado |
+| RNF64 | [x] O design system deve padronizar cards, listas, tabelas, filtros, badges, estados vazios e ações destrutivas antes de novas páginas CRM. | Alta | Implementado |
+| RNF65 | [ ] A aplicação deve manter textos curtos, orientados à ação e compreensíveis por vendedor não técnico. | Alta | Planeado |
+| RNF66 | [ ] O CRM deve registrar métricas de funil sem depender de serviços externos para operação básica. | Média | Planeado |
+| RNF67 | [ ] Campanhas devem respeitar limites de envio, opt-out, consentimento e regras do provider WhatsApp usado. | Alta | Planeado |
+| RNF68 | [ ] Automações devem falhar de forma segura: se houver dúvida, criar tarefa humana em vez de executar ação crítica. | Alta | Planeado |
+| RNF69 | [ ] O sistema deve manter idempotência em importações, campanhas e webhooks para evitar duplicação de clientes, pedidos ou mensagens. | Alta | Planeado |
+| RNF70 | [ ] O CRM deve permitir evolução modular por domínios: Clientes, Pedidos, Produtos, Conversas, Campanhas, Relatórios e Configurações. | Alta | Planeado |
+| RNF71 | [x] O frontend deve usar `shadcn/ui` como fonte padrão de componentes de interface: botões, cards, badges, inputs, selects, tabelas, dialogs, sheets, tabs, skeletons e estados de feedback. | Alta | Implementado |
+| RNF72 | [x] Novos componentes próprios só devem ser criados quando não existir primitivo equivalente em `shadcn/ui`; composições de domínio devem reaproveitar os primitivos instalados. | Alta | Implementado |
+
+### 4.10 Operabilidade CRM+ Social Commerce
+
+| ID | Requisito Não Funcional | Prioridade | Estado |
+|---|---|---|---|
+| RNF73 | [ ] A loja pública, catálogo e checkout devem ser rápidos e utilizáveis em mobile, com prioridade para telas de 360px e conexões móveis comuns em Angola. | Alta | Planeado |
+| RNF74 | [ ] O checkout e o clique para WhatsApp não podem depender de tracking, cookies ou integrações sociais para funcionar. | Alta | Planeado |
+| RNF75 | [ ] Tracking, social inbox, afiliados, checkout, funil, automações, catálogo, loja pública e WhatsApp policy devem ser módulos separados por fronteiras claras. | Alta | Planeado |
+| RNF76 | [ ] Eventos de tracking e automação devem usar outbox/event bus para não bloquear a operação principal de pedido, pagamento ou conversa. | Alta | Planeado |
+| RNF77 | [ ] Webhooks de redes sociais e WhatsApp devem ser idempotentes para evitar duplicar clientes, comentários, mensagens, pedidos ou comissões. | Alta | Planeado |
+| RNF78 | [ ] O sistema deve suportar limitações de providers sociais por adaptadores, permissões, rate limits e fallback manual documentado. | Alta | Planeado |
+| RNF79 | [ ] O motor de política WhatsApp deve ser testável, auditável e independente do provider concreto usado para envio. | Alta | Planeado |
+| RNF80 | [ ] A categoria WhatsApp escolhida para cada envio deve ficar rastreável para auditoria, custo, troubleshooting e melhoria operacional. | Alta | Planeado |
+| RNF81 | [ ] Mensagens de marketing, utilidade, autenticação e serviço devem ter validação automática de categoria antes de irem ao provider. | Alta | Planeado |
+| RNF82 | [ ] O sistema deve aplicar opt-out e consentimento antes de campanhas, reativações, divulgações de afiliados e mensagens promocionais. | Alta | Planeado |
+| RNF83 | [ ] Cookies e identificadores de tracking não devem conter telefone, email, nome, endereço ou qualquer dado pessoal sensível. | Alta | Planeado |
+| RNF84 | [ ] A loja pública deve exibir texto claro sobre tracking/privacidade quando cookies ou eventos de marketing forem usados. | Alta | Planeado |
+| RNF85 | [ ] Relatórios de afiliados e criadores devem expor apenas dados necessários, evitando mostrar dados privados de clientes sem necessidade operacional. | Alta | Planeado |
+| RNF86 | [ ] O cálculo de comissão deve ser reprocessável e auditável por período, pedido, afiliado, produto, reversão e pagamento. | Alta | Planeado |
+| RNF87 | [ ] Eventos analíticos devem ser armazenados de forma eficiente para pelo menos 100.000 eventos sem travar a UI operacional. | Média | Planeado |
+| RNF88 | [ ] Páginas públicas de loja e catálogo devem ser cacheáveis sempre que possível, sem expor dados privados ou stock incorreto. | Média | Planeado |
+| RNF89 | [ ] A UI deve ocultar módulos não ativados, mas preservar rotas e dados para reativação futura quando permitido. | Média | Planeado |
+| RNF90 | [ ] Toda automação deve falhar de forma segura: mensagem não enviada, categoria inválida, template ausente ou provider indisponível devem criar tarefa humana com contexto. | Alta | Planeado |
+| RNF91 | [ ] O CRM+ deve manter logs operacionais compreensíveis para o dono do negócio, não apenas logs técnicos para desenvolvedores. | Alta | Planeado |
+| RNF92 | [ ] Importações e sincronizações sociais devem ter relatório de sucesso, falha, duplicados, ignorados e próximos passos. | Média | Planeado |
+| RNF93 | [ ] Links rastreáveis devem ser estáveis, curtos quando possível e resilientes a mudanças de slug do produto/catálogo. | Média | Planeado |
+| RNF94 | [ ] O sistema deve permitir pausar rapidamente campanhas, afiliados, tracking, automações e integrações sociais sem desligar a loja inteira. | Alta | Planeado |
+| RNF95 | [ ] Decisões automáticas com baixa confiança devem ser explicáveis e encaminhadas para humano, preservando o motivo da decisão. | Alta | Planeado |
+
+### 4.11 Preparação Técnica do Backend CRM+
+
+| ID | Requisito Não Funcional | Prioridade | Estado |
+|---|---|---|---|
+| RNF96 | [ ] Toda nova tabela operacional deve ter índices por `negocioId`, estado e data quando for consultada em listas, dashboards ou jobs. | Alta | Planeado |
+| RNF97 | [ ] Nenhuma consulta de módulo comercial deve retornar dados de outro negócio sem relacionamento e permissão explícita. | Alta | Planeado |
+| RNF98 | [ ] Operações críticas com stock, pedido, pagamento, comissão e compartilhamento de cliente devem usar transação. | Alta | Planeado |
+| RNF99 | [ ] Jobs assíncronos devem ser reprocessáveis sem duplicar mensagens, pedidos, clientes, comissões ou eventos de tracking. | Alta | Planeado |
+| RNF100 | [ ] APIs de listagem devem nascer com paginação, filtros e ordenação previsível. | Alta | Planeado |
+| RNF101 | [ ] APIs públicas de loja, checkout e tracking devem ter rate limit separado das APIs autenticadas do painel. | Alta | Planeado |
+| RNF102 | [ ] O motor de política WhatsApp deve ser testável sem depender de Evolution, Cloud API ou n8n. | Alta | Planeado |
+| RNF103 | [~] O backend deve permitir feature flags/módulos por negócio sem deploy novo para cada ativação operacional. | Média | Parcial |
+| RNF104 | [ ] Eventos de domínio devem usar payloads estáveis e versionados para não quebrar n8n, relatórios ou automações futuras. | Alta | Planeado |
+| RNF105 | [ ] Auditoria e logs operacionais devem ser compreensíveis pelo dono/admin, não apenas por desenvolvedor. | Alta | Planeado |
+| RNF106 | [ ] Dados sensíveis de cliente devem ser minimizados em logs, eventos, URLs, cookies e relatórios de afiliados. | Alta | Planeado |
+| RNF107 | [~] Testes de regressão devem impedir voltar a usar código de produto, telefone ou nome como identificador global entre negócios. | Alta | Parcial |
+| RNF108 | [ ] O backend deve suportar migração gradual do modelo de reservas para pedidos sem quebrar vendas de live já existentes. | Alta | Planeado |
+| RNF109 | [ ] Novos módulos devem preservar fronteiras de domínio claras: Clientes, Pedidos, Produtos, Conversas, Campanhas, Loja, Afiliados, Social Inbox, Tracking e WhatsApp Policy. | Alta | Planeado |
+| RNF110 | [ ] Falhas de provider externo devem resultar em tarefa, retry ou estado falhado explícito, nunca em perda silenciosa de dado. | Alta | Planeado |
 
 ---
 
@@ -472,131 +706,199 @@ Esta etapa transforma o Bizy de painel de live em CRM operacional para lojas que
 
 | ID | Regra de Negócio | Estado |
 |---|---|---|
-| RN01 | Um comentário só é automaticamente válido quando possui intenção de compra, telefone angolano válido e código de peça. | [x] Implementado |
-| RN02 | A ordem entre telefone e código da peça não altera a validade do comentário. | [x] Implementado |
-| RN03 | Telefones aceitos devem ser móveis angolanos com 9 dígitos e prefixos válidos, com ou sem indicativo `244` ou `00244`. | [x] Implementado |
-| RN04 | Códigos de peça podem aparecer como número livre ou com rótulos como `peça`, `peca`, `produto`, `item` ou `#`. | [x] Implementado |
-| RN05 | Intenções reconhecidas incluem variações como `eu quero`, `eu queri`, `qro`, `qr`, `meu`, `é meu`, `pega`, `reserva`, `guarda` e `fica pra mim`. | [x] Implementado |
-| RN06 | Se faltar telefone, o comentário deve ir para revisão manual. | [x] Implementado |
-| RN07 | Se faltar código de peça, o comentário deve ir para revisão manual. | [x] Implementado |
-| RN07A | Se houver telefone e intenção de compra, mas faltar código da peça ou a peça não existir no catálogo, o cliente deve receber mensagem pedindo o código correto. | [x] Implementado |
-| RN08 | Se o telefone não for angolano válido, o comentário deve ir para revisão manual. | [x] Implementado |
-| RN09 | Se a confiança do parser ficar abaixo do limite operacional, o comentário deve ir para revisão manual. | [x] Implementado |
-| RN10 | Comentários sem intenção de compra devem ser ignorados, mas podem permanecer no histórico. | [x] Implementado |
+| RN01 | [x] Um comentário só é automaticamente válido quando possui intenção de compra, telefone angolano válido e código de peça. | Implementado |
+| RN02 | [x] A ordem entre telefone e código da peça não altera a validade do comentário. | Implementado |
+| RN03 | [x] Telefones aceitos devem ser móveis angolanos com 9 dígitos e prefixos válidos, com ou sem indicativo `244` ou `00244`. | Implementado |
+| RN04 | [x] Códigos de peça podem aparecer como número livre ou com rótulos como `peça`, `peca`, `produto`, `item` ou `#`. | Implementado |
+| RN05 | [x] Intenções reconhecidas incluem variações como `eu quero`, `eu queri`, `qro`, `qr`, `meu`, `é meu`, `pega`, `reserva`, `guarda` e `fica pra mim`. | Implementado |
+| RN06 | [x] Se faltar telefone, o comentário deve ir para revisão manual. | Implementado |
+| RN07 | [x] Se faltar código de peça, o comentário deve ir para revisão manual. | Implementado |
+| RN07A | [x] Se houver telefone e intenção de compra, mas faltar código da peça ou a peça não existir no catálogo, o cliente deve receber mensagem pedindo o código correto. | Implementado |
+| RN08 | [x] Se o telefone não for angolano válido, o comentário deve ir para revisão manual. | Implementado |
+| RN09 | [x] Se a confiança do parser ficar abaixo do limite operacional, o comentário deve ir para revisão manual. | Implementado |
+| RN10 | [x] Comentários sem intenção de compra devem ser ignorados, mas podem permanecer no histórico. | Implementado |
 
 ### 5.2 Catálogo e Stock
 
 | ID | Regra de Negócio | Estado |
 |---|---|---|
-| RN11 | Cada peça deve ter um código único. | [x] Implementado |
-| RN12 | Peças com quantidade zero devem ser tratadas como esgotadas ou indisponíveis. | [x] Implementado |
-| RN13 | Peças vendidas ou esgotadas não devem receber nova reserva automática. | [x] Implementado |
-| RN14 | O stock livre de uma peça é a quantidade total menos reservas que bloqueiam stock. | [x] Implementado |
-| RN15 | Reservas em `WAITING_PAYMENT`, `PENDING`, `RESERVED` ou `PAID` bloqueiam stock. | [x] Implementado |
-| RN16 | Reservas em `WAITLISTED` não bloqueiam stock. | [x] Implementado |
-| RN17 | Quando a quantidade paga atingir o stock total, a peça pode ser marcada como vendida. | [x] Implementado |
+| RN11 | [x] Cada peça deve ter um código único dentro do negócio/loja ao qual pertence. | Implementado |
+| RN12 | [x] Peças com quantidade zero devem ser tratadas como esgotadas ou indisponíveis. | Implementado |
+| RN13 | [x] Peças vendidas ou esgotadas não devem receber nova reserva automática. | Implementado |
+| RN14 | [x] O stock livre de uma peça é a quantidade total menos reservas que bloqueiam stock. | Implementado |
+| RN15 | [x] Reservas em `WAITING_PAYMENT`, `PENDING`, `RESERVED` ou `PAID` bloqueiam stock. | Implementado |
+| RN16 | [x] Reservas em `WAITLISTED` não bloqueiam stock. | Implementado |
+| RN17 | [x] Quando a quantidade paga atingir o stock total, a peça pode ser marcada como vendida. | Implementado |
 
 ### 5.3 Reservas e Fila
 
 | ID | Regra de Negócio | Estado |
 |---|---|---|
-| RN18 | O primeiro comentário válido para uma peça com stock livre ganha a reserva. | [x] Implementado |
-| RN19 | Clientes seguintes entram em fila quando não há stock livre. | [x] Implementado |
-| RN20 | O mesmo telefone não pode ter mais de uma reserva ativa para a mesma peça. | [x] Implementado |
-| RN21 | O mesmo cliente pode reservar peças diferentes durante a mesma live. | [x] Implementado |
-| RN22 | Reserva criada automaticamente deve iniciar como `WAITING_PAYMENT`. | [x] Implementado |
-| RN23 | Reserva em fila deve iniciar como `WAITLISTED` e sem expiração até ser promovida. | [x] Implementado |
-| RN24 | Uma reserva deve expirar quando o prazo configurado terminar sem pagamento confirmado. | [x] Implementado |
-| RN25 | Ao expirar uma reserva, o sistema deve promover o primeiro cliente da fila, se houver stock livre. | [x] Implementado |
-| RN26 | Ao cancelar uma reserva, o sistema deve promover o primeiro cliente da fila, se houver stock livre. | [x] Implementado |
-| RN27 | Reserva promovida da fila deve receber novo prazo de pagamento. | [x] Implementado |
-| RN28 | Para o piloto, o prazo recomendado de reserva é 15 minutos, mas deve permanecer configurável. | [x] Implementado |
+| RN18 | [x] O primeiro comentário válido para uma peça com stock livre ganha a reserva. | Implementado |
+| RN19 | [x] Clientes seguintes entram em fila quando não há stock livre. | Implementado |
+| RN20 | [x] O mesmo telefone não pode ter mais de uma reserva ativa para a mesma peça. | Implementado |
+| RN21 | [x] O mesmo cliente pode reservar peças diferentes durante a mesma live. | Implementado |
+| RN22 | [x] Reserva criada automaticamente deve iniciar como `WAITING_PAYMENT`. | Implementado |
+| RN23 | [x] Reserva em fila deve iniciar como `WAITLISTED` e sem expiração até ser promovida. | Implementado |
+| RN24 | [x] Uma reserva deve expirar quando o prazo configurado terminar sem pagamento confirmado. | Implementado |
+| RN25 | [x] Ao expirar uma reserva, o sistema deve promover o primeiro cliente da fila, se houver stock livre. | Implementado |
+| RN26 | [x] Ao cancelar uma reserva, o sistema deve promover o primeiro cliente da fila, se houver stock livre. | Implementado |
+| RN27 | [x] Reserva promovida da fila deve receber novo prazo de pagamento. | Implementado |
+| RN28 | [x] Para o piloto, o prazo recomendado de reserva é 15 minutos, mas deve permanecer configurável. | Implementado |
 
 ### 5.4 Revisão Manual
 
 | ID | Regra de Negócio | Estado |
 |---|---|---|
-| RN29 | Comentários em revisão manual não devem criar reserva automática até aprovação do vendedor. | [x] Implementado |
-| RN30 | O vendedor pode corrigir telefone e código da peça antes de aprovar a reserva. | [x] Implementado |
-| RN31 | Ao aprovar manualmente, o sistema deve aplicar as mesmas regras de stock, duplicidade e fila da reserva automática. | [x] Implementado |
-| RN32 | Ao rejeitar um comentário, nenhuma reserva deve ser criada e o motivo deve ficar registrado. | [x] Implementado |
-| RN33 | Correções manuais devem ficar auditáveis para análise de erros do parser. | [x] Implementado |
+| RN29 | [x] Comentários em revisão manual não devem criar reserva automática até aprovação do vendedor. | Implementado |
+| RN30 | [x] O vendedor pode corrigir telefone e código da peça antes de aprovar a reserva. | Implementado |
+| RN31 | [x] Ao aprovar manualmente, o sistema deve aplicar as mesmas regras de stock, duplicidade e fila da reserva automática. | Implementado |
+| RN32 | [x] Ao rejeitar um comentário, nenhuma reserva deve ser criada e o motivo deve ficar registrado. | Implementado |
+| RN33 | [x] Correções manuais devem ficar auditáveis para análise de erros do parser. | Implementado |
 
 ### 5.5 Pagamentos
 
 | ID | Regra de Negócio | Estado |
 |---|---|---|
-| RN34 | Comprovativo recebido não significa pagamento confirmado. | [x] Implementado |
-| RN34A | Comprovativo em `dataUrl` deve ser persistido como ficheiro interno antes de atualizar a reserva. | [x] Implementado |
-| RN35 | Pagamento só pode ser confirmado por ação do backend autorizada por vendedor, humano ou regra explícita. | [x] Implementado |
-| RN36 | Ao confirmar pagamento, a reserva deve passar para `PAID` e o pagamento para `CONFIRMADO`. | [x] Implementado |
-| RN37 | Ao rejeitar pagamento, o estado de pagamento deve ser `REJEITADO` e o motivo deve ser informado. | [x] Implementado |
-| RN38 | Reserva paga não deve expirar automaticamente. | [x] Implementado |
-| RN39 | Reserva paga não deve ser cancelada por fluxo automático sem ação explícita autorizada. | [x] Implementado |
+| RN34 | [x] Comprovativo recebido não significa pagamento confirmado. | Implementado |
+| RN34A | [x] Comprovativo em `dataUrl` deve ser persistido como ficheiro interno antes de atualizar a reserva. | Implementado |
+| RN35 | [x] Pagamento só pode ser confirmado por ação do backend autorizada por vendedor, humano ou regra explícita. | Implementado |
+| RN36 | [x] Ao confirmar pagamento, a reserva deve passar para `PAID` e o pagamento para `CONFIRMADO`. | Implementado |
+| RN37 | [x] Ao rejeitar pagamento, o estado de pagamento deve ser `REJEITADO` e o motivo deve ser informado. | Implementado |
+| RN38 | [x] Reserva paga não deve expirar automaticamente. | Implementado |
+| RN39 | [x] Reserva paga não deve ser cancelada por fluxo automático sem ação explícita autorizada. | Implementado |
 
 ### 5.6 WhatsApp e Atendimento
 
 | ID | Regra de Negócio | Estado |
 |---|---|---|
-| RN40 | Quando `N8N_ASSUME_WHATSAPP=true`, o backend emite eventos, mas não envia WhatsApp direto. | [x] Implementado |
-| RN41 | Quando `N8N_ASSUME_WHATSAPP=false` e `WHATSAPP_PROVIDER=evolution`, o backend envia mensagens pela Evolution API. | [x] Implementado |
-| RN41A | Quando `N8N_ASSUME_WHATSAPP=false` e `WHATSAPP_PROVIDER=cloud-api`, o backend envia mensagens pelo WhatsApp Cloud API oficial usando `WHATSAPP_CLOUD_PHONE_NUMBER_ID`, `WHATSAPP_CLOUD_ACCESS_TOKEN` e, quando configurado, `WHATSAPP_CLOUD_DEFAULT_TEMPLATE_NAME`. | [x] Implementado |
-| RN42 | A instância padrão conectada da Evolution deve ser preferida; se estiver fechada, o sistema pode escolher outra instância conectada. | [x] Implementado |
-| RN43 | Mensagens automáticas devem respeitar rate limit para evitar spam e duplicidade. | [x] Implementado |
-| RN43A | Mensagens WhatsApp devem passar por validação anti-spam antes de chegar ao provider externo. | [x] Implementado |
-| RN44 | O vendedor deve poder usar templates aprovados para IBAN, reserva, lembrete e pagamento. | [x] Implementado |
-| RN45 | Pedidos de desconto, troca de peça, comprovativo ilegível, cliente irritado ou cancelamento ambíguo devem ser encaminhados para humano. | [x] Implementado |
-| RN45A | Limpeza operacional de comentários e mensagens deve exigir sessão autenticada e confirmação `LIMPAR`, apagando apenas histórico de comunicação e preservando catálogo, reservas, usuários, sessões e instâncias WhatsApp. | [x] Implementado |
+| RN40 | [x] Quando `N8N_ASSUME_WHATSAPP=true`, o backend emite eventos, mas não envia WhatsApp direto. | Implementado |
+| RN41 | [x] Quando `N8N_ASSUME_WHATSAPP=false` e `WHATSAPP_PROVIDER=evolution`, o backend envia mensagens pela Evolution API. | Implementado |
+| RN41A | [x] Quando `N8N_ASSUME_WHATSAPP=false` e `WHATSAPP_PROVIDER=cloud-api`, o backend envia mensagens pelo WhatsApp Cloud API oficial usando `WHATSAPP_CLOUD_PHONE_NUMBER_ID`, `WHATSAPP_CLOUD_ACCESS_TOKEN` e, quando configurado, `WHATSAPP_CLOUD_DEFAULT_TEMPLATE_NAME`. | Implementado |
+| RN42 | [x] A instância padrão conectada da Evolution deve ser preferida; se estiver fechada, o sistema pode escolher outra instância conectada. | Implementado |
+| RN43 | [x] Mensagens automáticas devem respeitar rate limit para evitar spam e duplicidade. | Implementado |
+| RN43A | [x] Mensagens WhatsApp devem passar por validação anti-spam antes de chegar ao provider externo. | Implementado |
+| RN44 | [x] O vendedor deve poder usar templates aprovados para IBAN, reserva, lembrete e pagamento. | Implementado |
+| RN45 | [x] Pedidos de desconto, troca de peça, comprovativo ilegível, cliente irritado ou cancelamento ambíguo devem ser encaminhados para humano. | Implementado |
+| RN45A | [x] Limpeza operacional de comentários e mensagens deve exigir sessão autenticada e confirmação `LIMPAR`, apagando apenas histórico de comunicação e preservando catálogo, reservas, usuários, sessões e instâncias WhatsApp. | Implementado |
 
 ### 5.7 n8n, IA e Fonte de Verdade
 
 | ID | Regra de Negócio | Estado |
 |---|---|---|
-| RN46 | O backend é a fonte de verdade para stock, preço, reserva, pagamento e fila. | [x] Implementado |
-| RN47 | O n8n pode automatizar mensagens e follow-ups, mas não pode alterar dados fora dos endpoints autorizados. | [x] Implementado |
-| RN48 | A IA deve usar apenas dados retornados pelo backend. | [x] Implementado |
-| RN49 | A IA não pode inventar preço, stock, prazo, estado da reserva ou confirmação de pagamento. | [x] Implementado |
-| RN50 | Eventos para n8n devem ser enviados apenas para tipos permitidos pelo contrato de automação. | [x] Implementado |
-| RN51 | Se o n8n estiver indisponível, eventos devem permanecer na outbox para retry. | [x] Implementado |
+| RN46 | [x] O backend é a fonte de verdade para stock, preço, reserva, pagamento e fila. | Implementado |
+| RN47 | [x] O n8n pode automatizar mensagens e follow-ups, mas não pode alterar dados fora dos endpoints autorizados. | Implementado |
+| RN48 | [x] A IA deve usar apenas dados retornados pelo backend. | Implementado |
+| RN49 | [x] A IA não pode inventar preço, stock, prazo, estado da reserva ou confirmação de pagamento. | Implementado |
+| RN50 | [x] Eventos para n8n devem ser enviados apenas para tipos permitidos pelo contrato de automação. | Implementado |
+| RN51 | [x] Se o n8n estiver indisponível, eventos devem permanecer na outbox para retry. | Implementado |
 
 ### 5.8 Operação do Piloto
 
 | ID | Regra de Negócio | Estado |
 |---|---|---|
-| RN52 | O vendedor piloto deve cadastrar as peças antes da live. | [ ] Processo |
-| RN53 | Cada peça da live deve ter código simples e comunicado verbalmente ou visualmente durante a transmissão. | [ ] Processo |
-| RN54 | Antes da live, o WhatsApp deve estar conectado e a sessão do vendedor deve estar ativa. | [ ] Processo |
-| RN55 | Se TikTok ou provider automático falhar, o vendedor deve usar modo manual sem perder reservas já criadas. | [x] Implementado |
-| RN56 | A live piloto deve registrar métricas de comentários, reservas, revisões, pagamentos, expirações e erros. | [x] Implementado |
-| RN57 | A decisão pós-piloto deve considerar conversão, erros operacionais, satisfação do vendedor e uso em lives recorrentes. | [ ] Processo |
+| RN52 | [ ] O vendedor piloto deve cadastrar as peças antes da live. | Processo |
+| RN53 | [ ] Cada peça da live deve ter código simples e comunicado verbalmente ou visualmente durante a transmissão. | Processo |
+| RN54 | [ ] Antes da live, o WhatsApp deve estar conectado e a sessão do vendedor deve estar ativa. | Processo |
+| RN55 | [x] Se TikTok ou provider automático falhar, o vendedor deve usar modo manual sem perder reservas já criadas. | Implementado |
+| RN56 | [x] A live piloto deve registrar métricas de comentários, reservas, revisões, pagamentos, expirações e erros. | Implementado |
+| RN57 | [ ] A decisão pós-piloto deve considerar conversão, erros operacionais, satisfação do vendedor e uso em lives recorrentes. | Processo |
 
 ### 5.9 CRM de Loja, Clientes e Pedidos
 
 | ID | Regra de Negócio | Estado |
 |---|---|---|
-| RN58 | O telefone canónico é o identificador principal de cliente no CRM, sem impedir múltiplos nomes, usernames ou origens. | [ ] Planeado |
-| RN59 | Um cliente só pode ser fundido com outro mediante ação explícita de usuário autorizado. | [ ] Planeado |
-| RN60 | Cliente com opt-out ou sem consentimento não pode receber campanha promocional. | [ ] Planeado |
-| RN61 | Mensagens transacionais de pedido, pagamento e entrega podem ser enviadas quando necessárias à execução da venda e permitidas pelo provider/canal. | [ ] Planeado |
-| RN62 | Campanhas devem usar segmentos claros e nunca devem disparar para todos os clientes por padrão. | [ ] Planeado |
-| RN63 | Todo pedido deve ter cliente, pelo menos um item, valor total e estado operacional. | [ ] Planeado |
-| RN64 | Pedido pago não pode ser apagado; deve ser cancelado, devolvido, trocado ou ajustado com auditoria. | [ ] Planeado |
-| RN65 | Desconto exige motivo e, acima do limite configurado, aprovação de perfil autorizado. | [ ] Planeado |
-| RN66 | Produto sem stock disponível não deve ser vendido automaticamente, mas pode entrar em lista de interesse/reposição. | [ ] Planeado |
-| RN67 | Movimento manual de stock exige motivo e responsável. | [ ] Planeado |
-| RN68 | Categoria de produto só deve existir se melhorar filtro, catálogo ou relatório; categoria vazia deve ficar oculta. | [ ] Planeado |
-| RN69 | Pedido rascunho não é categoria principal; só aparece dentro do cliente, conversa ou funil quando houver carrinho/orçamento real. | [ ] Planeado |
-| RN70 | Relatório só entra no menu comercial se responder uma pergunta prática da loja. | [ ] Planeado |
-| RN71 | Relatórios técnicos de automação pertencem ao Admin/Sistema, não ao menu do vendedor. | [ ] Planeado |
-| RN72 | Conversa sem resposta dentro do SLA deve gerar tarefa ou alerta. | [ ] Planeado |
-| RN73 | Cliente VIP, reclamação e pagamento pendente devem ter prioridade visual superior a conversa comum. | [ ] Planeado |
-| RN74 | Chatbot autônomo não pode assumir atendimento crítico sem política explícita e aprovação humana quando o caso envolver pagamento, desconto, troca, reclamação ou cancelamento. | [ ] Planeado |
-| RN75 | Se uma mensagem de campanha falhar, o sistema deve registrar falha, motivo quando disponível e impedir reenvio infinito. | [ ] Planeado |
-| RN76 | Tarefa atrasada deve continuar visível no Painel até ser concluída, reagendada ou cancelada com motivo. | [ ] Planeado |
-| RN77 | Exportação de clientes deve respeitar permissões e registrar auditoria. | [ ] Planeado |
-| RN78 | Configurações técnicas não devem ser acessíveis a vendedor comum. | [ ] Planeado |
+| RN58 | [ ] O telefone canónico é o identificador principal de cliente no CRM, sem impedir múltiplos nomes, usernames ou origens. | Planeado |
+| RN59 | [ ] Um cliente só pode ser fundido com outro mediante ação explícita de usuário autorizado. | Planeado |
+| RN60 | [ ] Cliente com opt-out ou sem consentimento não pode receber campanha promocional. | Planeado |
+| RN61 | [ ] Mensagens transacionais de pedido, pagamento e entrega podem ser enviadas quando necessárias à execução da venda e permitidas pelo provider/canal. | Planeado |
+| RN62 | [ ] Campanhas devem usar segmentos claros e nunca devem disparar para todos os clientes por padrão. | Planeado |
+| RN63 | [x] Todo pedido deve ter cliente, pelo menos um item, valor total e estado operacional. | Implementado no backend de Pedidos |
+| RN64 | [~] Pedido pago não pode ser apagado; deve ser cancelado, devolvido, trocado ou ajustado com auditoria. | Parcial - não existe exclusão de pedido; falta trilha de auditoria detalhada para ajustes |
+| RN65 | [~] Desconto exige motivo e, acima do limite configurado, aprovação de perfil autorizado. | Parcial - motivo obrigatório implementado; falta limite configurável e aprovação |
+| RN66 | [ ] Produto sem stock disponível não deve ser vendido automaticamente, mas pode entrar em lista de interesse/reposição. | Planeado |
+| RN67 | [ ] Movimento manual de stock exige motivo e responsável. | Planeado |
+| RN68 | [ ] Categoria de produto só deve existir se melhorar filtro, catálogo ou relatório; categoria vazia deve ficar oculta. | Planeado |
+| RN69 | [ ] Pedido rascunho não é categoria principal; só aparece dentro do cliente, conversa ou funil quando houver carrinho/orçamento real. | Planeado |
+| RN70 | [ ] Relatório só entra no menu comercial se responder uma pergunta prática da loja. | Planeado |
+| RN71 | [ ] Relatórios técnicos de automação pertencem ao Admin/Sistema, não ao menu do vendedor. | Planeado |
+| RN72 | [ ] Conversa sem resposta dentro do SLA deve gerar tarefa ou alerta. | Planeado |
+| RN73 | [ ] Cliente VIP, reclamação e pagamento pendente devem ter prioridade visual superior a conversa comum. | Planeado |
+| RN74 | [ ] Chatbot autônomo não pode assumir atendimento crítico sem política explícita e aprovação humana quando o caso envolver pagamento, desconto, troca, reclamação ou cancelamento. | Planeado |
+| RN75 | [ ] Se uma mensagem de campanha falhar, o sistema deve registrar falha, motivo quando disponível e impedir reenvio infinito. | Planeado |
+| RN76 | [ ] Tarefa atrasada deve continuar visível no Painel até ser concluída, reagendada ou cancelada com motivo. | Planeado |
+| RN77 | [ ] Exportação de clientes deve respeitar permissões e registrar auditoria. | Planeado |
+| RN78 | [ ] Configurações técnicas não devem ser acessíveis a vendedor comum. | Planeado |
 
-### 5.10 Mapa de Navegação Pretendido para CRM
+### 5.10 CRM+ Social Commerce, Afiliados e WhatsApp Oficial
+
+| ID | Regra de Negócio | Estado |
+|---|---|---|
+| RN79 | [ ] A live é um canal de aquisição e venda, mas o núcleo do Bizy deve ser cliente, produto, pedido, conversa, pagamento, entrega, campanha e relatório. | Planeado |
+| RN80 | [ ] A identidade canônica do cliente deve priorizar telefone/email quando existirem, mantendo aliases sociais como TikTok, Instagram, Facebook, username e nome exibido. | Planeado |
+| RN81 | [ ] Uma visita anônima só vira cliente identificado quando o usuário fornece contacto, faz checkout, conversa pelo WhatsApp ou é associado por regra segura e permitida. | Planeado |
+| RN82 | [ ] Um link rastreável pode atribuir origem/campanha, mas não pode sobrescrever dados confirmados do cliente sem auditoria. | Planeado |
+| RN83 | [ ] A atribuição padrão deve ser configurável, mas o sistema deve mostrar claramente se a venda veio de live, site, WhatsApp, catálogo, campanha, afiliado, criador ou comentário social. | Planeado |
+| RN84 | [ ] Comissão de afiliado/criador só fica confirmada depois do pedido pago e dentro das regras de validade da atribuição. | Planeado |
+| RN85 | [ ] Cancelamento, devolução, chargeback, reembolso ou fraude devem reverter ou bloquear comissão. | Planeado |
+| RN86 | [ ] O dono/admin pode corrigir atribuição ou comissão manualmente, mas deve informar motivo e a alteração deve ficar auditada. | Planeado |
+| RN87 | [ ] Afiliados e criadores não devem ver dados privados de clientes além do necessário para acompanhar desempenho, comissão e suporte operacional permitido. | Planeado |
+| RN88 | [ ] Cliente com opt-out não pode receber marketing, campanhas, reativação, promoções de afiliados ou novidades. | Planeado |
+| RN89 | [ ] Mensagens de utilidade podem ser usadas para atualizações transacionais de pedido, pagamento, entrega, reserva, recibo e suporte operacional quando permitido pelo canal. | Planeado |
+| RN90 | [ ] Mensagens de autenticação devem ser usadas apenas para OTP, login, validação de identidade ou confirmação de ação sensível. | Planeado |
+| RN91 | [ ] Mensagens de serviço dependem de interação iniciada pelo cliente e da janela de atendimento permitida pelo WhatsApp/provedor. | Planeado |
+| RN92 | [ ] Mensagens de marketing incluem promoções, campanhas, novidades, reativação, cupões, catálogo promocional, cross-sell e divulgação de criadores/afiliados. | Planeado |
+| RN93 | [ ] Texto promocional não pode ser misturado em template de utilidade ou autenticação para contornar categoria. | Planeado |
+| RN94 | [ ] Todo envio WhatsApp iniciado pelo sistema deve passar por política de categoria antes de tentar envio. | Planeado |
+| RN95 | [ ] Se o template necessário não estiver aprovado, configurado ou compatível com a categoria, o sistema deve criar tarefa humana em vez de enviar mensagem errada. | Planeado |
+| RN96 | [ ] Carrinho abandonado, lead frio, cliente inativo e campanha de novidade são marketing salvo quando a regra oficial vigente permitir outra classificação clara. | Planeado |
+| RN97 | [ ] Pagamento pendente, recibo, entrega e atualização de pedido são utilidade quando não contêm promoção. | Planeado |
+| RN98 | [ ] Comentário social como `preço?`, `tem tamanho M?`, `entrega onde?` ou `quero` deve criar lead/oportunidade, não pedido confirmado automaticamente. | Planeado |
+| RN99 | [ ] Comentário com intenção incerta, reclamação, pedido de desconto, troca ou conflito deve gerar tarefa humana. | Planeado |
+| RN100 | [~] O valor de entrega e total do pedido devem ser calculados antes do cliente confirmar compra pelo site ou WhatsApp. | Parcial - cálculo feito na criação do pedido; falta checkout site/WhatsApp |
+| RN101 | [~] Stock só deve ser bloqueado quando pedido/reserva atingir estado configurado para bloqueio; simples visualização ou clique não bloqueia stock. | Parcial - criação de pedido valida stock e considera pedidos ativos; falta configuração por negócio e movimentos de stock |
+| RN102 | [ ] O checkout por WhatsApp deve preservar origem do link e produto selecionado para que o atendente não precise perguntar tudo outra vez. | Planeado |
+| RN103 | [ ] Cookies devem armazenar apenas identificadores técnicos, referência, campanha e timestamps, nunca telefone, email, nome ou endereço. | Planeado |
+| RN104 | [ ] O cliente deve conseguir comprar mesmo recusando cookies não essenciais, com perda apenas de parte da atribuição/analytics. | Planeado |
+| RN105 | [ ] Evento de tracking não confirmado não pode ser tratado como venda, apenas como sinal de intenção ou oportunidade. | Planeado |
+| RN106 | [ ] Dados capturados de redes sociais devem manter origem, link, provider, permissões e data para auditoria. | Planeado |
+| RN107 | [ ] Quando a API social não permitir determinada extração, a plataforma deve indicar limitação e oferecer alternativa operacional sem fingir automação inexistente. | Planeado |
+| RN108 | [ ] Automações devem priorizar recuperação comercial de baixo risco: lembrar pagamento, pedir endereço, enviar catálogo solicitado, avisar reposição e criar follow-up. | Planeado |
+| RN109 | [ ] Automações não devem confirmar pagamento, conceder desconto, prometer entrega, resolver reclamação ou cancelar pedido sem regra explícita e permissão adequada. | Planeado |
+| RN110 | [ ] Todo funil deve permitir intervenção manual, alteração de etapa com motivo e histórico da mudança. | Planeado |
+| RN111 | [ ] O negócio pode operar sem loja pública, sem afiliados ou sem social inbox, mas o núcleo de CRM deve permanecer consistente. | Planeado |
+| RN112 | [ ] Se o módulo estiver desativado, sua UI não deve aparecer como promessa vazia para o usuário final. | Planeado |
+| RN113 | [ ] Links de afiliado/criador devem expirar ou ser desativados quando o perfil for bloqueado, campanha encerrada ou produto indisponível. | Planeado |
+| RN114 | [ ] Pedido vindo de afiliado deve mostrar comissão estimada para o dono, mas o cliente final não precisa ver essa regra. | Planeado |
+| RN115 | [ ] Relatórios devem separar receita bruta, entrega, descontos, comissões e receita líquida estimada quando os dados existirem. | Planeado |
+| RN116 | [ ] O cliente deve poder pedir remoção/anonimização dos seus dados quando aplicável, preservando apenas dados fiscais/financeiros agregados exigidos por auditoria. | Planeado |
+| RN117 | [ ] Campanhas devem ter nome, objetivo, público, canal, template, janela de envio, limite e métrica de sucesso antes de serem disparadas. | Planeado |
+| RN118 | [ ] Toda campanha deve ter mecanismo de interrupção/pausa imediata pelo dono/admin. | Planeado |
+| RN119 | [ ] A plataforma deve distinguir métrica de vaidade de métrica operacional: visualização só importa quando ligada a lead, conversa, pedido ou venda. | Planeado |
+| RN120 | [ ] O documento de requisitos deve ser atualizado sempre que um novo canal, categoria WhatsApp, regra de comissão ou modelo de venda for adotado. | Processo |
+
+### 5.11 Regras de Negócio da Fundação Backend CRM+
+
+| ID | Regra de Negócio | Estado |
+|---|---|---|
+| RN121 | [~] Todo dado comercial pertence a um negócio, exceto entidades globais controladas, como identidade canónica de cliente e catálogos públicos quando explicitamente publicados. | Parcial |
+| RN122 | [ ] Compartilhamento de dados de cliente entre negócios exige relacionamento aprovado, escopo definido, motivo e auditoria. | Planeado |
+| RN123 | [ ] Uma loja não pode ver histórico comercial privado de outra loja sem consentimento, relação operacional ou regra explícita de compartilhamento. | Planeado |
+| RN124 | [ ] Cliente global identifica a pessoa; cliente do negócio representa a relação comercial daquela pessoa com uma loja específica. | Planeado |
+| RN125 | [~] Produto, pedido, conversa, campanha, tarefa, afiliado, comissão e tracking sempre devem carregar origem e negócio responsável. | Parcial - produtos, pedidos, clientes, reservas, comentários, conversas, mensagens, outbox e instâncias WhatsApp avançados |
+| RN126 | [~] Módulo desativado não pode executar automação, receber webhook ativo, disparar campanha ou aparecer como promessa visual na operação comercial. | Parcial - guardas comerciais ativas em módulos HTTP principais |
+| RN127 | [x] Código de produto só precisa ser único dentro do negócio, permitindo lojas diferentes usarem códigos iguais sem colisão. | Implementado |
+| RN128 | [ ] Pedido deve ser a entidade comercial principal; reserva continua como mecanismo de bloqueio temporário dentro de live, conversa ou checkout. | Planeado |
+| RN129 | [ ] Comissão de afiliado ou criador depende de pedido pago, atribuição válida e ausência de cancelamento/devolução/reembolso. | Planeado |
+| RN130 | [ ] Tracking ajuda atribuição, mas não substitui prova de pedido, pagamento ou consentimento. | Planeado |
+| RN131 | [ ] Toda mensagem WhatsApp iniciada pelo sistema precisa de categoria, motivo, entidade relacionada e fallback antes do envio. | Planeado |
+| RN132 | [ ] Quando houver conflito entre automação e segurança operacional, o backend deve preferir tarefa humana. | Planeado |
+| RN133 | [~] Exportação de clientes, pedidos, comissões ou relatórios só pode ocorrer por usuário autorizado e deve ficar auditada. | Parcial - exportação de clientes exige permissão; falta auditoria explícita do evento de exportação |
+| RN134 | [ ] Toda alteração manual em pagamento, desconto, comissão, stock, atribuição ou fusão de cliente exige responsável e motivo quando afetar dinheiro, entrega ou privacidade. | Planeado |
+| RN135 | [ ] Dados recebidos de redes sociais devem manter provider, permissões, link original e data da captura para diagnóstico e conformidade. | Planeado |
+| RN136 | [ ] O backend deve permitir operação mínima sem loja pública, sem afiliados ou sem social inbox, mantendo clientes, pedidos, produtos, conversas e pagamentos consistentes. | Planeado |
+
+### 5.12 Mapa de Navegação Pretendido para CRM
 
 | Área | Deve ficar | Deve sair/ficar oculto |
 |---|---|---|
@@ -616,16 +918,18 @@ Esta etapa transforma o Bizy de painel de live em CRM operacional para lojas que
 
 | ID | Item | Estado | Motivo |
 |---|---|---|---|
-| OOS01 | Multi-loja | [ ] Pós-MVP | Requer modelo de dados e permissões por loja |
-| OOS02 | Multi-vendedor avançado | [ ] Parcial CRM | Papéis mínimos entram no CRM; organograma avançado fica depois |
-| OOS03 | Entidades separadas `Cliente`, `Pedido`, `Pagamento` e `Entrega` | [ ] Em escopo CRM | Sai do fora de escopo e passa para RF85-RF111 |
-| OOS04 | Relatórios analíticos avançados | [ ] Parcial CRM | Relatórios úteis entram no CRM; exploração avançada fica depois |
-| OOS05 | Integração Instagram/Facebook | [ ] Pós-MVP | Depende de prioridade comercial e providers |
-| OOS06 | App mobile nativo | [ ] Pós-MVP | Frontend web responsivo atende piloto |
-| OOS07 | Reconciliação bancária automática | [ ] Pós-MVP | Requer integração financeira específica |
-| OOS08 | Chatbot IA autônomo | [ ] Pós-MVP | Assistente controlado entra no CRM; autonomia total continua fora |
-| OOS09 | Website/montra completa com páginas, menu e checkout público | [ ] Pós-MVP | Só entra quando houver estratégia clara de canal de venda fora de WhatsApp/live |
-| OOS10 | Calendário de agenda comercial completo | [ ] Pós-MVP | Só entra se tarefas e entregas exigirem visão calendário |
+| OOS01 | [~] Multi-loja | Parcial CRM+ | Fundação de banco iniciada; ainda faltam escopo total nas rotas, permissões e experiência de gestão entre negócios |
+| OOS02 | [ ] Multi-vendedor avançado | Parcial CRM | Papéis mínimos entram no CRM; organograma avançado fica depois |
+| OOS03 | [ ] Entidades separadas `Cliente`, `Pedido`, `Pagamento` e `Entrega` | Em escopo CRM | Sai do fora de escopo e passa para RF85-RF111 |
+| OOS04 | [ ] Relatórios analíticos avançados | Parcial CRM | Relatórios úteis entram no CRM; exploração avançada fica depois |
+| OOS05 | [ ] Integração Instagram/Facebook | Em escopo CRM+ | Entra como Social Inbox/Comentários Sociais em RF197-RF208, respeitando providers, permissões e fallback manual |
+| OOS06 | [ ] App mobile nativo | Pós-MVP | Frontend web responsivo atende piloto |
+| OOS07 | [ ] Reconciliação bancária automática | Pós-MVP | Requer integração financeira específica |
+| OOS08 | [ ] Chatbot IA autônomo | Pós-MVP | Assistente controlado entra no CRM; autonomia total continua fora |
+| OOS09 | [ ] Website/montra completa com páginas, menu e checkout público | Em escopo CRM+ | Entra como loja virtual, catálogo digital e checkout WhatsApp/site em RF157-RF174 |
+| OOS10 | [ ] Calendário de agenda comercial completo | Pós-MVP | Só entra se tarefas e entregas exigirem visão calendário |
+| OOS11 | [ ] Marketplace público multi-vendedor entre várias lojas independentes | Pós-MVP | O CRM+ prepara multi-loja, mas marketplace público exige regras próprias de catálogo, pagamento, disputa e reputação |
+| OOS12 | [ ] App nativo específico para afiliados/criadores | Pós-MVP | O primeiro passo deve ser painel/link web responsivo e relatórios simples de comissão |
 
 ---
 
@@ -661,6 +965,43 @@ O CRM completo pode ser considerado pronto para primeira operação de loja quan
 - [x] A experiência mobile não tiver scroll horizontal nas páginas de Clientes, Pedidos, Produtos, Conversas e Painel.
 - [x] A interface estiver migrada para `shadcn/ui` nos componentes recorrentes e novas telas deixarem de usar botões, inputs, cards, badges e modais feitos do zero.
 
+### 7.2 Critérios de Aceite da Etapa Bizy CRM+ Social Commerce
+
+O CRM+ Social Commerce pode ser considerado pronto para operação inicial quando:
+
+- [ ] Um negócio conseguir publicar loja virtual com URL própria, produtos, coleções, stock e página pública de produto.
+- [ ] O cliente conseguir comprar pelo WhatsApp com mensagem pré-preenchida e pelo checkout do site com total calculado.
+- [ ] O sistema calcular entrega por regra configurada e incluir o valor no total antes da confirmação.
+- [ ] O dono conseguir criar catálogo digital partilhável com produtos selecionados e disponibilidade correta.
+- [ ] Links rastreáveis de produto, catálogo, campanha, criador e afiliado registrarem origem, cliques, leads, pedidos e vendas atribuídas.
+- [ ] O tracking funcionar parcialmente sem cookies, mantendo operação de compra intacta.
+- [ ] O dono conseguir criar afiliado/criador, gerar link próprio, acompanhar vendas e calcular comissão de pedidos pagos.
+- [ ] O sistema reverter comissão quando pedido for cancelado, devolvido ou reembolsado.
+- [ ] Comentários sociais de posts, vídeos, fotos ou lives suportados forem capturados/importados, classificados e convertidos em lead, conversa, tarefa ou oportunidade.
+- [ ] O funil mostrar jornada do cliente desde visita/interação até pagamento, entrega, pós-venda e recompra.
+- [ ] Playbooks de recuperação criarem tarefas ou mensagens para carrinho abandonado, pagamento pendente, reserva expirada e cliente inativo.
+- [ ] Todo envio WhatsApp passar pela política de categoria: marketing, utilidade, autenticação ou serviço.
+- [ ] O sistema impedir envio quando template/categoria estiver ausente, incompatível ou sem aprovação, criando tarefa humana.
+- [ ] Opt-out e consentimento bloquearem campanhas e mensagens promocionais.
+- [ ] Relatórios mostrarem receita por canal, produto, campanha, criador, afiliado, social post e funil.
+- [ ] O dono/admin conseguir pausar campanhas, automações, afiliados e integrações sociais rapidamente.
+- [ ] A experiência mobile da loja pública, checkout, catálogo e principais telas CRM+ estiver sem scroll horizontal e com ações principais acessíveis.
+
+### 7.3 Critérios de Aceite da Fundação Backend CRM+
+
+O backend pode ser considerado pronto para receber os módulos CRM+ quando:
+
+- [ ] Todas as rotas comerciais resolverem `usuarioId`, `negocioId`, papel, permissões e módulos ativos antes de consultar dados.
+- [ ] Produtos, clientes, pedidos, conversas, mensagens, campanhas, tarefas, afiliados e tracking estiverem isolados por negócio.
+- [ ] Clientes globais e clientes por negócio estiverem deduplicados sem vazar histórico privado entre lojas.
+- [ ] Pedidos existirem como entidade comercial completa, com compatibilidade para reservas de live.
+- [ ] O motor de WhatsApp Policy bloquear envio sem categoria, template, consentimento ou janela válida.
+- [ ] Outbox/event bus suportar retry e idempotência para WhatsApp, n8n, campanhas, tracking, social inbox e comissões.
+- [ ] Permissões impedirem vendedor comum de acessar dados técnicos, tokens, configurações globais e exportações sensíveis.
+- [ ] Auditoria registrar ações críticas de dinheiro, cliente, stock, comissão, permissão e compartilhamento.
+- [ ] APIs novas tiverem testes de use-case, repositório e rota HTTP.
+- [ ] Migrations e seeds permitirem subir dev/staging/prod sem correção manual invisível.
+
 ---
 
 ## 8. Rastreabilidade Resumida
@@ -678,6 +1019,8 @@ O CRM completo pode ser considerado pronto para primeira operação de loja quan
 | n8n | RF64-RF70 | RNF22-RNF35 | RN46-RN51 |
 | Configuração e Deploy | RF71-RF75 | RNF48-RNF53 | RN52-RN57 |
 | CRM Completo de Loja | RF76-RF151 | RNF55-RNF72 | RN58-RN78 |
+| CRM+ Social Commerce | RF152-RF244 | RNF73-RNF95 | RN79-RN120 |
+| Fundação Backend CRM+ | RF245-RF270 | RNF96-RNF110 | RN121-RN136 |
 
 ---
 
@@ -690,3 +1033,8 @@ Estas referências não substituem as decisões do Bizy, mas ajudam a manter a p
 - Shopify Customer Segmentation: segmentos automáticos para comunicar a mensagem certa ao cliente certo. Fonte: <https://help.shopify.com/en/manual/customers/customer-segmentation>
 - Shopify Customer Reports: relatórios de clientes, coortes, clientes de alto valor e reativação. Fonte: <https://help.shopify.com/en/manual/reports-and-analytics/shopify-reports/report-types/customers-reports>
 - Meta WhatsApp Business Platform: mensagens iniciadas pela empresa exigem templates aprovados e respeito às políticas do canal. Fonte: <https://developers.facebook.com/docs/whatsapp>
+- Meta WhatsApp Cloud API: referência oficial para envio, templates, webhooks e operação da API oficial. Fonte: <https://developers.facebook.com/docs/whatsapp/cloud-api>
+- Meta Conversions API: referência para eventos server-side e atribuição futura de campanhas quando houver consentimento e configuração. Fonte: <https://developers.facebook.com/docs/marketing-api/conversions-api>
+- Meta Instagram Platform Webhooks: referência para receber eventos de contas/conteúdos suportados por permissões oficiais. Fonte: <https://developers.facebook.com/docs/instagram-platform/webhooks>
+- TikTok for Developers: referência para capacidades oficiais, limites e integrações possíveis com conteúdo e comentários. Fonte: <https://developers.tiktok.com/>
+- Observação operacional: categorias, templates, janelas de atendimento, preços e políticas do WhatsApp devem seguir a documentação oficial vigente no momento da implementação, porque regras de plataforma podem mudar.

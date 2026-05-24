@@ -6,9 +6,11 @@ import type {
   RepositorioAutenticacao,
   RepositorioAtendimento,
   RepositorioAuditoria,
+  RepositorioClientes,
   RepositorioComentarios,
   RepositorioInstanciasWhatsApp,
   RepositorioPecas,
+  RepositorioPedidos,
   RepositorioReservas,
   RepositorioSessoesLive
 } from "../../dominio/repositorios/contratos.js";
@@ -23,7 +25,9 @@ import { ConsultaAtendimentoOperacionalUseCase } from "../../use-case/ConsultaAt
 import { ConsultaIntegracoesUseCase } from "../../use-case/ConsultaIntegracoesUseCase.js";
 import { ConsultaOperacionalUseCase } from "../../use-case/ConsultaOperacionalUseCase.js";
 import { ConsultaPainelUseCase } from "../../use-case/ConsultaPainelUseCase.js";
+import { GestaoClientesCrmUseCase } from "../../use-case/GestaoClientesCrmUseCase.js";
 import { GestaoPecasUseCase } from "../../use-case/GestaoPecasUseCase.js";
+import { GestaoPedidosUseCase } from "../../use-case/GestaoPedidosUseCase.js";
 import { GestaoAtendimentoCrmUseCase } from "../../use-case/GestaoAtendimentoCrmUseCase.js";
 import { GestaoWhatsAppEvolutionUseCase } from "../../use-case/GestaoWhatsAppEvolutionUseCase.js";
 import { GerarReciboReservaUseCase } from "../../use-case/GerarReciboReservaUseCase.js";
@@ -39,9 +43,11 @@ import {
   RepositorioAutenticacaoMemoria,
   RepositorioAtendimentoMemoria,
   RepositorioAuditoriaMemoria,
+  RepositorioClientesMemoria,
   RepositorioComentariosMemoria,
   RepositorioInstanciasWhatsAppMemoria,
   RepositorioPecasMemoria,
+  RepositorioPedidosMemoria,
   RepositorioReservasMemoria,
   RepositorioSessoesLiveMemoria
 } from "../../use-case/repositorios/RepositorioMemoria.js";
@@ -49,9 +55,11 @@ import {
   RepositorioAutenticacaoPrisma,
   RepositorioAtendimentoPrisma,
   RepositorioAuditoriaPrisma,
+  RepositorioClientesPrisma,
   RepositorioComentariosPrisma,
   RepositorioInstanciasWhatsAppPrisma,
   RepositorioPecasPrisma,
+  RepositorioPedidosPrisma,
   RepositorioReservasPrisma,
   RepositorioSessoesLivePrisma
 } from "../../use-case/repositorios/RepositorioPrisma.js";
@@ -69,10 +77,12 @@ import { HubTempoReal } from "./HubTempoReal.js";
 
 export interface RepositoriosAplicacao {
   pecas: RepositorioPecas;
+  pedidos: RepositorioPedidos;
   reservas: RepositorioReservas;
   comentarios: RepositorioComentarios;
   autenticacao: RepositorioAutenticacao;
   atendimento: RepositorioAtendimento;
+  clientes: RepositorioClientes;
   instanciasWhatsApp: RepositorioInstanciasWhatsApp;
   sessoesLive: RepositorioSessoesLive;
   auditoria: RepositorioAuditoria;
@@ -110,6 +120,8 @@ export interface ContextoAplicacao {
   gestaoWhatsAppEvolution: GestaoWhatsAppEvolutionUseCase;
   monitorReservas: MonitorReservasUseCase;
   gestaoPecas: GestaoPecasUseCase;
+  gestaoPedidos: GestaoPedidosUseCase;
+  gestaoClientesCrm: GestaoClientesCrmUseCase;
   gestaoAtendimentoCrm: GestaoAtendimentoCrmUseCase;
   consultaIntegracoes: ConsultaIntegracoesUseCase;
   consultaPainel: ConsultaPainelUseCase;
@@ -186,7 +198,19 @@ export function criarContextoAplicacao(logger: FastifyBaseLogger): ContextoAplic
     Number(process.env.N8N_MINUTOS_ANTES_EXPIRAR ?? 2)
   );
   const gestaoPecas = new GestaoPecasUseCase(repositorios.pecas, eventos);
+  const gestaoPedidos = new GestaoPedidosUseCase(
+    repositorios.pedidos,
+    repositorios.clientes,
+    repositorios.pecas,
+    eventos
+  );
   const onboardingBizy = new OnboardingBizyUseCase(repositorios.autenticacao, gestaoPecas);
+  const gestaoClientesCrm = new GestaoClientesCrmUseCase(
+    repositorios.clientes,
+    repositorios.atendimento,
+    repositorios.reservas,
+    repositorios.pecas
+  );
   const gestaoAtendimentoCrm = new GestaoAtendimentoCrmUseCase(repositorios.atendimento);
   const consultaIntegracoes = new ConsultaIntegracoesUseCase();
   const consultaPainel = new ConsultaPainelUseCase(repositorios.pecas, repositorios.reservas, repositorios.comentarios);
@@ -208,14 +232,21 @@ export function criarContextoAplicacao(logger: FastifyBaseLogger): ContextoAplic
     repositorios.comentarios,
     repositorios.atendimento
   );
-  const atendimentoCrm = new AtendimentoCrmUseCase(eventos, repositorios.atendimento, repositorios.auditoria, logger);
+  const atendimentoCrm = new AtendimentoCrmUseCase(
+    eventos,
+    repositorios.atendimento,
+    repositorios.auditoria,
+    logger,
+    repositorios.clientes
+  );
   const receberMensagemWhatsApp = new ReceberMensagemWhatsAppUseCase(eventos);
   const processadorComentarios = new ProcessadorComentarios(
     interpretadorComentario,
     motorReservas,
     automacaoWhatsApp,
     repositorios.comentarios,
-    eventos
+    eventos,
+    repositorios.clientes
   );
   const revisaoComentarios = new RevisaoComentariosUseCase(
     repositorios.comentarios,
@@ -255,6 +286,8 @@ export function criarContextoAplicacao(logger: FastifyBaseLogger): ContextoAplic
     gestaoWhatsAppEvolution,
     monitorReservas,
     gestaoPecas,
+    gestaoPedidos,
+    gestaoClientesCrm,
     gestaoAtendimentoCrm,
     consultaIntegracoes,
     consultaPainel,
@@ -289,10 +322,12 @@ function criarRepositorios(): RepositoriosAplicacao {
     const pecas = new RepositorioPecasMemoria();
     return {
       pecas,
+      pedidos: new RepositorioPedidosMemoria(),
       reservas: new RepositorioReservasMemoria(pecas),
       comentarios: new RepositorioComentariosMemoria(),
       autenticacao: new RepositorioAutenticacaoMemoria(),
       atendimento: new RepositorioAtendimentoMemoria(),
+      clientes: new RepositorioClientesMemoria(),
       instanciasWhatsApp: new RepositorioInstanciasWhatsAppMemoria(),
       sessoesLive: new RepositorioSessoesLiveMemoria(),
       auditoria: new RepositorioAuditoriaMemoria(),
@@ -304,10 +339,12 @@ function criarRepositorios(): RepositoriosAplicacao {
 
   return {
     pecas: new RepositorioPecasPrisma(prisma),
+    pedidos: new RepositorioPedidosPrisma(prisma),
     reservas: new RepositorioReservasPrisma(prisma),
     comentarios: new RepositorioComentariosPrisma(prisma),
     autenticacao: new RepositorioAutenticacaoPrisma(prisma),
     atendimento: new RepositorioAtendimentoPrisma(prisma),
+    clientes: new RepositorioClientesPrisma(prisma),
     instanciasWhatsApp: new RepositorioInstanciasWhatsAppPrisma(prisma),
     sessoesLive: new RepositorioSessoesLivePrisma(prisma),
     auditoria: new RepositorioAuditoriaPrisma(prisma),
