@@ -4,6 +4,7 @@ import type {
   AtualizacaoConversaAtendimento,
   AtualizacaoEntregaPedido,
   AtualizacaoEstadoPedido,
+  AtualizacaoTarefaOperacional,
   Cliente360,
   ConfirmacaoPagamentoPedido,
   ConversaAtendimentoComMensagens,
@@ -203,6 +204,8 @@ export interface RepositorioAtendimento {
 export interface RepositorioTarefasOperacionais {
   criar(dados: NovaTarefaOperacional): Promise<TarefaOperacional>;
   listar(negocioId: string, filtros?: FiltrosTarefasOperacionais): Promise<TarefaOperacional[]>;
+  buscarPorId(id: string, negocioId: string): Promise<TarefaOperacional | null>;
+  atualizar(id: string, negocioId: string, dados: AtualizacaoTarefaOperacional): Promise<TarefaOperacional | null>;
 }
 
 export interface RepositorioClientes {

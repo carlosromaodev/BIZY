@@ -488,18 +488,24 @@ model TarefaOperacional {
   prioridade      String   @default("NORMAL")
   estado          String   @default("ABERTA")
   origem          String?
+  clienteId       String?
+  pedidoId        String?
   entidadeTipo    String?
   entidadeId      String?
   clienteTelefone String?
   responsavelId   String?
   prazoEm         DateTime?
+  observacao      String?
   contextoJson    String   @default("{}")
+  concluidaEm     DateTime?
   criadaEm        DateTime @default(now())
   atualizadoEm    DateTime @updatedAt
 
   @@index([negocioId, estado, criadaEm])
   @@index([negocioId, tipo, criadaEm])
   @@index([negocioId, prioridade, prazoEm])
+  @@index([clienteId, criadaEm])
+  @@index([pedidoId, criadaEm])
   @@index([clienteTelefone, criadaEm])
 }
 

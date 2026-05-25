@@ -38,6 +38,7 @@ import type {
   EventoTrackingComercial,
   FiltrosPedidos,
   FiltrosClientes360,
+  AtualizacaoTarefaOperacional,
   EventoSistema,
   HistoricoComissaoParceiro,
   InstanciaWhatsApp,
@@ -2121,6 +2122,7 @@ export class RepositorioTarefasOperacionaisMemoria implements RepositorioTarefas
 
   async criar(dados: NovaTarefaOperacional): Promise<TarefaOperacional> {
     const agora = new Date();
+    const estado = dados.estado ?? "ABERTA";
     const tarefa: TarefaOperacional = {
       id: randomUUID(),
       negocioId: dados.negocioId ?? null,
@@ -2128,14 +2130,18 @@ export class RepositorioTarefasOperacionaisMemoria implements RepositorioTarefas
       titulo: dados.titulo,
       descricao: dados.descricao,
       prioridade: dados.prioridade ?? "NORMAL",
-      estado: "ABERTA",
+      estado,
       origem: dados.origem ?? null,
+      clienteId: dados.clienteId ?? null,
+      pedidoId: dados.pedidoId ?? null,
       entidadeTipo: dados.entidadeTipo ?? null,
       entidadeId: dados.entidadeId ?? null,
       clienteTelefone: dados.clienteTelefone ?? null,
       responsavelId: dados.responsavelId ?? null,
       prazoEm: dados.prazoEm ?? null,
+      observacao: dados.observacao ?? null,
       contexto: dados.contexto ?? {},
+      concluidaEm: estado === "CONCLUIDA" ? agora : null,
       criadaEm: agora,
       atualizadoEm: agora
     };
@@ -2154,6 +2160,52 @@ export class RepositorioTarefasOperacionaisMemoria implements RepositorioTarefas
       .sort((a, b) => b.criadaEm.getTime() - a.criadaEm.getTime())
       .slice(0, limite);
   }
+
+  async buscarPorId(id: string, negocioId: string): Promise<TarefaOperacional | null> {
+    const tarefa = this.tarefas.get(id);
+    return tarefa?.negocioId === negocioId ? tarefa : null;
+  }
+
+  async atualizar(
+    id: string,
+    negocioId: string,
+    dados: AtualizacaoTarefaOperacional
+  ): Promise<TarefaOperacional | null> {
+    const atual = await this.buscarPorId(id, negocioId);
+    if (!atual) return null;
+
+    const agora = new Date();
+    const estado = dados.estado ?? atual.estado;
+    const atualizada: TarefaOperacional = {
+      ...atual,
+      ...removerIndefinidos({
+        tipo: dados.tipo,
+        titulo: dados.titulo,
+        descricao: dados.descricao,
+        prioridade: dados.prioridade,
+        estado,
+        origem: dados.origem,
+        clienteId: dados.clienteId,
+        pedidoId: dados.pedidoId,
+        entidadeTipo: dados.entidadeTipo,
+        entidadeId: dados.entidadeId,
+        clienteTelefone: dados.clienteTelefone,
+        responsavelId: dados.responsavelId,
+        prazoEm: dados.prazoEm,
+        observacao: dados.observacao
+      }),
+      contexto: dados.contexto ? { ...atual.contexto, ...dados.contexto } : atual.contexto,
+      concluidaEm: estado === "CONCLUIDA" ? atual.concluidaEm ?? agora : null,
+      atualizadoEm: agora
+    };
+
+    this.tarefas.set(id, atualizada);
+    return atualizada;
+  }
+}
+
+function removerIndefinidos<T extends Record<string, unknown>>(dados: T): Partial<T> {
+  return Object.fromEntries(Object.entries(dados).filter(([, valor]) => valor !== undefined)) as Partial<T>;
 }
 
 export class RepositorioAuditoriaMemoria implements RepositorioAuditoria {

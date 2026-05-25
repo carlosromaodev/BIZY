@@ -20,6 +20,7 @@ import type {
   AtualizacaoConversaAtendimento,
   AtualizacaoEntregaPedido,
   AtualizacaoEstadoPedido,
+  AtualizacaoTarefaOperacional,
   AtualizarPeca,
   CodigoLoginSms,
   ClienteAtendimento,
@@ -3027,12 +3028,16 @@ interface LinhaTarefaOperacional {
   prioridade: string;
   estado: string;
   origem: string | null;
+  clienteId: string | null;
+  pedidoId: string | null;
   entidadeTipo: string | null;
   entidadeId: string | null;
   clienteTelefone: string | null;
   responsavelId: string | null;
   prazoEm: Date | null;
+  observacao: string | null;
   contextoJson: string;
+  concluidaEm: Date | null;
   criadaEm: Date;
   atualizadoEm: Date;
 }
@@ -3048,26 +3053,36 @@ export class RepositorioTarefasOperacionaisPrisma implements RepositorioTarefasO
         "titulo",
         "descricao",
         "prioridade",
+        "estado",
         "origem",
+        "clienteId",
+        "pedidoId",
         "entidadeTipo",
         "entidadeId",
         "clienteTelefone",
         "responsavelId",
         "prazoEm",
-        "contextoJson"
+        "observacao",
+        "contextoJson",
+        "concluidaEm"
       ) VALUES (
         ${dados.negocioId ?? null},
         ${dados.tipo},
         ${dados.titulo},
         ${dados.descricao},
         ${dados.prioridade ?? "NORMAL"},
+        ${dados.estado ?? "ABERTA"},
         ${dados.origem ?? null},
+        ${dados.clienteId ?? null},
+        ${dados.pedidoId ?? null},
         ${dados.entidadeTipo ?? null},
         ${dados.entidadeId ?? null},
         ${dados.clienteTelefone ?? null},
         ${dados.responsavelId ?? null},
         ${dados.prazoEm ?? null},
-        ${JSON.stringify(dados.contexto ?? {})}
+        ${dados.observacao ?? null},
+        ${JSON.stringify(dados.contexto ?? {})},
+        ${(dados.estado ?? "ABERTA") === "CONCLUIDA" ? new Date() : null}
       )
       RETURNING *
     `;
@@ -3101,6 +3116,56 @@ export class RepositorioTarefasOperacionaisPrisma implements RepositorioTarefasO
     return linhas.map((linha) => this.mapearTarefa(linha));
   }
 
+  async buscarPorId(id: string, negocioId: string): Promise<TarefaOperacional | null> {
+    const linhas = await this.prisma.$queryRaw<LinhaTarefaOperacional[]>`
+      SELECT *
+      FROM "TarefaOperacional"
+      WHERE "id" = ${id} AND "negocioId" = ${negocioId}
+      LIMIT 1
+    `;
+
+    return linhas[0] ? this.mapearTarefa(linhas[0]) : null;
+  }
+
+  async atualizar(
+    id: string,
+    negocioId: string,
+    dados: AtualizacaoTarefaOperacional
+  ): Promise<TarefaOperacional | null> {
+    const atual = await this.buscarPorId(id, negocioId);
+    if (!atual) return null;
+
+    const estado = dados.estado ?? atual.estado;
+    const agora = new Date();
+    const concluidaEm = estado === "CONCLUIDA" ? atual.concluidaEm ?? agora : null;
+    const contexto = dados.contexto ? { ...atual.contexto, ...dados.contexto } : atual.contexto;
+    const linhas = await this.prisma.$queryRaw<LinhaTarefaOperacional[]>`
+      UPDATE "TarefaOperacional"
+      SET
+        "tipo" = ${dados.tipo ?? atual.tipo},
+        "titulo" = ${dados.titulo ?? atual.titulo},
+        "descricao" = ${dados.descricao ?? atual.descricao},
+        "prioridade" = ${dados.prioridade ?? atual.prioridade},
+        "estado" = ${estado},
+        "origem" = ${dados.origem !== undefined ? dados.origem : atual.origem},
+        "clienteId" = ${dados.clienteId !== undefined ? dados.clienteId : atual.clienteId},
+        "pedidoId" = ${dados.pedidoId !== undefined ? dados.pedidoId : atual.pedidoId},
+        "entidadeTipo" = ${dados.entidadeTipo !== undefined ? dados.entidadeTipo : atual.entidadeTipo},
+        "entidadeId" = ${dados.entidadeId !== undefined ? dados.entidadeId : atual.entidadeId},
+        "clienteTelefone" = ${dados.clienteTelefone !== undefined ? dados.clienteTelefone : atual.clienteTelefone},
+        "responsavelId" = ${dados.responsavelId !== undefined ? dados.responsavelId : atual.responsavelId},
+        "prazoEm" = ${dados.prazoEm !== undefined ? dados.prazoEm : atual.prazoEm},
+        "observacao" = ${dados.observacao !== undefined ? dados.observacao : atual.observacao},
+        "contextoJson" = ${JSON.stringify(contexto)},
+        "concluidaEm" = ${concluidaEm},
+        "atualizadoEm" = ${agora}
+      WHERE "id" = ${id} AND "negocioId" = ${negocioId}
+      RETURNING *
+    `;
+
+    return linhas[0] ? this.mapearTarefa(linhas[0]) : null;
+  }
+
   private mapearTarefa(linha: LinhaTarefaOperacional): TarefaOperacional {
     return {
       id: linha.id,
@@ -3111,12 +3176,16 @@ export class RepositorioTarefasOperacionaisPrisma implements RepositorioTarefasO
       prioridade: linha.prioridade as TarefaOperacional["prioridade"],
       estado: linha.estado as TarefaOperacional["estado"],
       origem: linha.origem,
+      clienteId: linha.clienteId,
+      pedidoId: linha.pedidoId,
       entidadeTipo: linha.entidadeTipo,
       entidadeId: linha.entidadeId,
       clienteTelefone: linha.clienteTelefone,
       responsavelId: linha.responsavelId,
       prazoEm: linha.prazoEm,
+      observacao: linha.observacao,
       contexto: this.lerObjeto(linha.contextoJson),
+      concluidaEm: linha.concluidaEm,
       criadaEm: linha.criadaEm,
       atualizadoEm: linha.atualizadoEm
     };

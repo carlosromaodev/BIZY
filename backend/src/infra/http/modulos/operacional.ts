@@ -1,5 +1,7 @@
 import {
   AtualizarConversaAtendimentoSchema,
+  AtualizarTarefaOperacionalSchema,
+  CriarTarefaOperacionalSchema,
   DefinirPoliticaAutomacaoAtendimentoSchema,
   RegistrarNotaInternaAtendimentoSchema,
   RegistrarSugestaoIaAtendimentoSchema
@@ -104,6 +106,53 @@ export const moduloOperacional: ModuloHttp = {
       });
 
       return { tarefas };
+    });
+
+    app.post("/tarefas", async (request, reply) => {
+      const contextoComercial = await exigirAcessoComercial(contexto, request, reply, {
+        permissao: "tarefas:gerir",
+        modulo: "crm",
+        mensagemPermissao: "Sem permissão para criar tarefas.",
+        mensagemModulo: "CRM desativado para este negócio."
+      });
+      if (!contextoComercial) return;
+
+      const dados = CriarTarefaOperacionalSchema.parse(request.body ?? {});
+      const tarefa = await contexto.gestaoTarefas.criarTarefa({
+        ...dados,
+        negocioId: contextoComercial.negocio.id
+      });
+
+      return reply.code(201).send({ tarefa });
+    });
+
+    app.get("/tarefas/:id", async (request, reply) => {
+      const contextoComercial = await exigirAcessoComercial(contexto, request, reply, {
+        permissao: "tarefas:ler",
+        modulo: "crm",
+        mensagemPermissao: "Sem permissão para consultar tarefas.",
+        mensagemModulo: "CRM desativado para este negócio."
+      });
+      if (!contextoComercial) return;
+
+      const { id } = request.params as { id: string };
+      const tarefa = await contexto.gestaoTarefas.obterTarefa(id, contextoComercial.negocio.id);
+      return { tarefa };
+    });
+
+    app.patch("/tarefas/:id", async (request, reply) => {
+      const contextoComercial = await exigirAcessoComercial(contexto, request, reply, {
+        permissao: "tarefas:gerir",
+        modulo: "crm",
+        mensagemPermissao: "Sem permissão para atualizar tarefas.",
+        mensagemModulo: "CRM desativado para este negócio."
+      });
+      if (!contextoComercial) return;
+
+      const { id } = request.params as { id: string };
+      const dados = AtualizarTarefaOperacionalSchema.parse(request.body ?? {});
+      const tarefa = await contexto.gestaoTarefas.atualizarTarefa(id, contextoComercial.negocio.id, dados);
+      return { tarefa };
     });
 
     app.get("/atendimento/conversas", async (request, reply) => {

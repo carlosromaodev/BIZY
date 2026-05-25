@@ -572,12 +572,16 @@ export interface TarefaOperacional {
   prioridade: PrioridadeTarefaOperacional;
   estado: EstadoTarefaOperacional;
   origem: string | null;
+  clienteId: string | null;
+  pedidoId: string | null;
   entidadeTipo: string | null;
   entidadeId: string | null;
   clienteTelefone: string | null;
   responsavelId: string | null;
   prazoEm: Date | null;
+  observacao: string | null;
   contexto: Record<string, unknown>;
+  concluidaEm: Date | null;
   criadaEm: Date;
   atualizadoEm: Date;
 }
@@ -588,12 +592,34 @@ export interface NovaTarefaOperacional {
   titulo: string;
   descricao: string;
   prioridade?: PrioridadeTarefaOperacional;
+  estado?: EstadoTarefaOperacional;
   origem?: string | null;
+  clienteId?: string | null;
+  pedidoId?: string | null;
   entidadeTipo?: string | null;
   entidadeId?: string | null;
   clienteTelefone?: string | null;
   responsavelId?: string | null;
   prazoEm?: Date | null;
+  observacao?: string | null;
+  contexto?: Record<string, unknown>;
+}
+
+export interface AtualizacaoTarefaOperacional {
+  tipo?: string;
+  titulo?: string;
+  descricao?: string;
+  prioridade?: PrioridadeTarefaOperacional;
+  estado?: EstadoTarefaOperacional;
+  origem?: string | null;
+  clienteId?: string | null;
+  pedidoId?: string | null;
+  entidadeTipo?: string | null;
+  entidadeId?: string | null;
+  clienteTelefone?: string | null;
+  responsavelId?: string | null;
+  prazoEm?: Date | null;
+  observacao?: string | null;
   contexto?: Record<string, unknown>;
 }
 

@@ -6,9 +6,11 @@ import {
   estadosPedido,
   estadosParceiroComercial,
   estadosPeca,
+  estadosTarefaOperacional,
   estadosRelacionamentoCliente,
   fontesLive,
   politicasAutomacaoAtendimento,
+  prioridadesTarefaOperacional,
   prioridadesConversaAtendimento,
   tiposComissaoParceiro,
   tiposEventoTrackingComercial,
@@ -314,6 +316,38 @@ export const AtualizarConversaAtendimentoSchema = z
   })
   .refine((dados) => Object.keys(dados).length > 0, {
     message: "Informe pelo menos um campo para atualizar a conversa."
+  });
+
+const CampoTarefaOpcionalSchema = z.preprocess(
+  (valor) => (typeof valor === "string" && valor.trim() === "" ? null : valor),
+  z.string().trim().min(1).max(120).nullable().optional()
+).transform((valor) => valor ?? null);
+
+export const CriarTarefaOperacionalSchema = z.object({
+  tipo: z.string().trim().min(2).max(80).transform((valor) => valor.toUpperCase()),
+  titulo: z.string().trim().min(3).max(160),
+  descricao: z.string().trim().max(2000).default(""),
+  prioridade: z.enum(prioridadesTarefaOperacional).default("NORMAL"),
+  estado: z.enum(estadosTarefaOperacional).default("ABERTA"),
+  origem: CampoTarefaOpcionalSchema.default("manual"),
+  clienteId: z.string().trim().uuid().nullable().optional().transform((valor) => valor ?? null),
+  pedidoId: z.string().trim().uuid().nullable().optional().transform((valor) => valor ?? null),
+  entidadeTipo: CampoTarefaOpcionalSchema,
+  entidadeId: CampoTarefaOpcionalSchema,
+  clienteTelefone: CampoTarefaOpcionalSchema,
+  responsavelId: CampoTarefaOpcionalSchema,
+  prazoEm: z.coerce.date().nullable().optional().transform((valor) => valor ?? null),
+  observacao: z.string().trim().max(2000).nullable().optional().transform((valor) => valor ?? null),
+  contexto: z.record(z.string(), z.unknown()).default({})
+});
+
+export const AtualizarTarefaOperacionalSchema = CriarTarefaOperacionalSchema.partial()
+  .omit({ tipo: true })
+  .extend({
+    tipo: z.string().trim().min(2).max(80).transform((valor) => valor.toUpperCase()).optional()
+  })
+  .refine((dados) => Object.keys(dados).length > 0, {
+    message: "Informe pelo menos um campo para atualizar a tarefa."
   });
 
 const TagsClienteSchema = z.array(z.string().trim().min(1).max(40)).max(20);
