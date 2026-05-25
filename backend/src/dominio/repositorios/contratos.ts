@@ -19,6 +19,7 @@ import type {
   NovoParceiroComercial,
   NovaReserva,
   NovaMensagemAtendimento,
+  NovaTarefaOperacional,
   NovoRegistroComentario,
   FiltrosPedidos,
   Peca,
@@ -32,6 +33,7 @@ import type {
   EstadoReserva,
   EventoSistema,
   EventoTrackingComercial,
+  FiltrosTarefasOperacionais,
   DadosCriacaoReservaComControleStock,
   DadosPublicacaoLoja,
   CodigoLoginSms,
@@ -59,7 +61,8 @@ import type {
   LinkAfiliado,
   ParceiroComercial,
   ResumoAfiliadosComerciais,
-  ResumoTrackingComercial
+  ResumoTrackingComercial,
+  TarefaOperacional
 } from "../tipos.js";
 
 export interface RepositorioPecas {
@@ -195,6 +198,11 @@ export interface RepositorioAtendimento {
     ResultadoLimpezaDadosComunicacao,
     "mensagensAtendimento" | "conversasAtendimento" | "clientesAtendimento"
   >>;
+}
+
+export interface RepositorioTarefasOperacionais {
+  criar(dados: NovaTarefaOperacional): Promise<TarefaOperacional>;
+  listar(negocioId: string, filtros?: FiltrosTarefasOperacionais): Promise<TarefaOperacional[]>;
 }
 
 export interface RepositorioClientes {

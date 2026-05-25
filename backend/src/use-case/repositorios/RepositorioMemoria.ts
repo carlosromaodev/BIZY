@@ -11,6 +11,7 @@ import type {
   RepositorioPedidos,
   RepositorioReservas,
   RepositorioSessoesLive,
+  RepositorioTarefasOperacionais,
   RepositorioTrackingComercial
 } from "../../dominio/repositorios/contratos.js";
 import type {
@@ -55,6 +56,7 @@ import type {
   NovaReserva,
   NovoOutboxMensagemWhatsApp,
   NovoRegistroSessaoLive,
+  NovaTarefaOperacional,
   NovoRegistroComentario,
   Peca,
   Pedido,
@@ -69,6 +71,8 @@ import type {
   ResumoOutboxMensagemWhatsApp,
   ResultadoInterpretacaoComentario,
   ResumoAfiliadosComerciais,
+  FiltrosTarefasOperacionais,
+  TarefaOperacional,
   TipoHistoricoComissaoParceiro
 } from "../../dominio/tipos.js";
 import { normalizarEmail, normalizarTelefone } from "../../dominio/servicos/normalizarContato.js";
@@ -2109,6 +2113,46 @@ export class RepositorioAtendimentoMemoria implements RepositorioAtendimento {
     ];
 
     return negocioIds.length === 1 ? negocioIds[0] : null;
+  }
+}
+
+export class RepositorioTarefasOperacionaisMemoria implements RepositorioTarefasOperacionais {
+  private readonly tarefas = new Map<string, TarefaOperacional>();
+
+  async criar(dados: NovaTarefaOperacional): Promise<TarefaOperacional> {
+    const agora = new Date();
+    const tarefa: TarefaOperacional = {
+      id: randomUUID(),
+      negocioId: dados.negocioId ?? null,
+      tipo: dados.tipo,
+      titulo: dados.titulo,
+      descricao: dados.descricao,
+      prioridade: dados.prioridade ?? "NORMAL",
+      estado: "ABERTA",
+      origem: dados.origem ?? null,
+      entidadeTipo: dados.entidadeTipo ?? null,
+      entidadeId: dados.entidadeId ?? null,
+      clienteTelefone: dados.clienteTelefone ?? null,
+      responsavelId: dados.responsavelId ?? null,
+      prazoEm: dados.prazoEm ?? null,
+      contexto: dados.contexto ?? {},
+      criadaEm: agora,
+      atualizadoEm: agora
+    };
+
+    this.tarefas.set(tarefa.id, tarefa);
+    return tarefa;
+  }
+
+  async listar(negocioId: string, filtros: FiltrosTarefasOperacionais = {}): Promise<TarefaOperacional[]> {
+    const limite = Math.max(1, Math.min(filtros.limite ?? 100, 500));
+    return [...this.tarefas.values()]
+      .filter((tarefa) => tarefa.negocioId === negocioId)
+      .filter((tarefa) => !filtros.tipo || tarefa.tipo === filtros.tipo)
+      .filter((tarefa) => !filtros.estado || tarefa.estado === filtros.estado)
+      .filter((tarefa) => filtros.responsavelId === undefined || tarefa.responsavelId === filtros.responsavelId)
+      .sort((a, b) => b.criadaEm.getTime() - a.criadaEm.getTime())
+      .slice(0, limite);
   }
 }
 

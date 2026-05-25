@@ -4,6 +4,7 @@ import {
   RegistrarNotaInternaAtendimentoSchema,
   RegistrarSugestaoIaAtendimentoSchema
 } from "../../../dominio/esquemas.js";
+import type { EstadoTarefaOperacional } from "../../../dominio/tipos.js";
 import { exigirAcessoComercial } from "../contextoComercial.js";
 import { exigirUsuarioAutenticado } from "../seguranca.js";
 import type { ModuloHttp } from "./ModuloHttp.js";
@@ -78,6 +79,31 @@ export const moduloOperacional: ModuloHttp = {
         negocioId: contextoComercial.negocio.id
       });
       return reply.code(202).send(resultado);
+    });
+
+    app.get("/tarefas", async (request, reply) => {
+      const contextoComercial = await exigirAcessoComercial(contexto, request, reply, {
+        permissao: "tarefas:ler",
+        modulo: "crm",
+        mensagemPermissao: "Sem permissão para consultar tarefas.",
+        mensagemModulo: "CRM desativado para este negócio."
+      });
+      if (!contextoComercial) return;
+
+      const query = (request.query ?? {}) as {
+        tipo?: string;
+        estado?: EstadoTarefaOperacional;
+        responsavelId?: string;
+        limite?: string;
+      };
+      const tarefas = await contexto.gestaoTarefas.listarTarefas(contextoComercial.negocio.id, {
+        tipo: query.tipo?.trim() || undefined,
+        estado: query.estado,
+        responsavelId: query.responsavelId?.trim() || undefined,
+        limite: Number.isFinite(Number(query.limite)) ? Number(query.limite) : undefined
+      });
+
+      return { tarefas };
     });
 
     app.get("/atendimento/conversas", async (request, reply) => {

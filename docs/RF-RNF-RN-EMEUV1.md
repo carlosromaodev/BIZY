@@ -1,7 +1,7 @@
 # Bizy / ÉMeu V1 - Requisitos Funcionais, Não Funcionais e Regras de Negócio
 
 Documento: `RF-RNF-RN-EMEUV1.md`
-Versão: 1.17
+Versão: 1.18
 Data: 2026-05-25
 Autor: Carlos
 Status: MVP base implementado; fundação backend Bizy CRM+ com Clientes 360, Pedidos, Catálogo/Stock, Loja Pública, Checkout, Entrega, Afiliados, Comissões e Lotes Financeiros em evolução
@@ -51,6 +51,8 @@ Atualização 1.15: o resumo de tracking comercial passou a devolver funil opera
 Atualização 1.16: adicionada política interna de envio WhatsApp por categoria oficial (`marketing`, `utility`, `authentication`, `service`), com classificação antes do provider, metadados de política no envio, bloqueio de marketing sem consentimento e bloqueio de serviço fora da janela declarada.
 
 Atualização 1.17: o catálogo interno de templates WhatsApp passou a expor categoria, idioma, provider, versão, estado de aprovação e eventos compatíveis, com filtros na API `/whatsapp/templates` e bloqueio de envio para templates ainda não aprovados.
+
+Atualização 1.18: adicionada fundação backend de tarefas operacionais, com persistência multi-negócio, rota `/tarefas` e criação automática de tarefa humana quando o envio WhatsApp é bloqueado por template/política antes do provider.
 
 ---
 
@@ -367,10 +369,10 @@ Esta etapa transforma o Bizy de painel de live em CRM operacional para lojas que
 
 | ID | Requisito Funcional | Prioridade | Estado |
 |---|---|---|---|
-| RF144 | [ ] O CRM deve criar tarefas manuais ou automáticas para follow-up, cobrança, entrega, reclamação, reposição e pós-venda. | Alta | Planeado |
-| RF145 | [ ] Cada tarefa deve ter responsável, cliente/pedido relacionado, prazo, prioridade, estado e observação. | Alta | Planeado |
+| RF144 | [~] O CRM deve criar tarefas manuais ou automáticas para follow-up, cobrança, entrega, reclamação, reposição e pós-venda. | Alta | Parcial - backend já cria tarefas automáticas para bloqueio seguro de WhatsApp; faltam criação manual, follow-up, cobrança, entrega, reclamação, reposição e pós-venda |
+| RF145 | [~] Cada tarefa deve ter responsável, cliente/pedido relacionado, prazo, prioridade, estado e observação. | Alta | Parcial - entidade de tarefa já possui negócio, tipo, prioridade, estado, responsável, prazo, telefone/entidade relacionada e contexto; faltam observações estruturadas e vínculos ricos de cliente/pedido |
 | RF146 | [ ] O vendedor deve ver `Minhas tarefas` no Painel, ordenadas por atraso e impacto comercial. | Alta | Planeado |
-| RF147 | [ ] O sistema deve criar tarefa automática quando pagamento vencer, mensagem falhar, cliente VIP ficar sem resposta ou pedido pago ficar sem entrega. | Alta | Planeado |
+| RF147 | [~] O sistema deve criar tarefa automática quando pagamento vencer, mensagem falhar, cliente VIP ficar sem resposta ou pedido pago ficar sem entrega. | Alta | Parcial - bloqueio de WhatsApp por política/template já cria tarefa automática; faltam pagamento vencido, falha final de provider, cliente VIP sem resposta e pedido pago sem entrega |
 | RF148 | [ ] O CRM deve suportar papéis mínimos: dono da loja, vendedor, atendente, financeiro, entregador e admin técnico. | Média | Planeado |
 | RF149 | [ ] Permissões devem controlar quem pode dar desconto, confirmar pagamento, cancelar pedido, exportar clientes e alterar configurações. | Alta | Planeado |
 | RF150 | [ ] A equipa deve poder transferir conversa/pedido/tarefa entre responsáveis com motivo opcional. | Média | Planeado |
@@ -493,7 +495,7 @@ Esta etapa posiciona o Bizy como uma plataforma de operação comercial para cri
 | RF223 | [ ] O sistema deve impedir texto promocional em mensagens de utilidade ou autenticação. | Alta | Planeado |
 | RF224 | [ ] Quando a janela de serviço estiver fechada, o sistema deve exigir template aprovado e categoria compatível com o evento. | Alta | Planeado |
 | RF225 | [~] Clientes com opt-out não devem receber marketing, mas podem receber mensagens transacionais permitidas e necessárias à execução do pedido. | Alta | Parcial - marketing manual sem consentimento explícito é bloqueado antes do provider; faltam opt-out persistente e validação centralizada por cliente/campanha |
-| RF226 | [~] Se a categoria ou template necessário não estiver configurado/aprovado, o sistema deve criar tarefa humana e não tentar envio inseguro. | Alta | Parcial - envio manual bloqueia templates não aprovados antes do provider; falta criação automática de tarefa humana com contexto |
+| RF226 | [~] Se a categoria ou template necessário não estiver configurado/aprovado, o sistema deve criar tarefa humana e não tentar envio inseguro. | Alta | Parcial - envio manual bloqueia templates não aprovados antes do provider e cria tarefa humana com contexto; faltam tarefas para templates ausentes em automações e compatibilidade por evento |
 | RF227 | [ ] Logs de mensagem devem guardar categoria, template, preço/categoria vigente quando disponível, resposta do provider, erro e estado final. | Alta | Planeado |
 | RF228 | [ ] A escolha de categoria deve ser configurável por tipo de evento, mas limitada por um motor de política para evitar uso indevido. | Alta | Planeado |
 | RF229 | [ ] Templates WhatsApp devem ter ciclo de vida: rascunho, enviado para aprovação, aprovado, rejeitado, pausado, substituído e descontinuado. | Média | Planeado |
@@ -512,7 +514,7 @@ Esta etapa posiciona o Bizy como uma plataforma de operação comercial para cri
 | RF237 | [ ] O sistema deve usar Kwanza como moeda padrão e preparar arquitetura para múltiplas moedas no futuro. | Média | Planeado |
 | RF238 | [~] A arquitetura deve preparar multi-loja, múltiplas linhas WhatsApp, múltiplos domínios e múltiplas equipas como evolução. | Média | Parcial |
 | RF239 | [~] Todos os canais públicos devem alimentar o mesmo núcleo de cliente, produto, pedido, conversa, pagamento e relatório. | Alta | Parcial - checkout público e afiliados já criam cliente, pedido, tracking e comissão; faltam social inbox, campanhas e pagamento público completo |
-| RF240 | [ ] Toda automação deve ter fallback humano claro, com tarefa, motivo e contexto suficiente para a equipa continuar. | Alta | Planeado |
+| RF240 | [~] Toda automação deve ter fallback humano claro, com tarefa, motivo e contexto suficiente para a equipa continuar. | Alta | Parcial - bloqueios de WhatsApp manual geram tarefa com motivo, telefone, template e contexto; faltam demais automações e fluxo de conclusão |
 | RF241 | [ ] Cada módulo deve ter estado vazio com próxima ação útil, sem cards decorativos ou métricas sem explicação. | Alta | Planeado |
 | RF242 | [ ] O CRM+ deve importar e exportar produtos, clientes, pedidos, afiliados, comissões e relatórios em formatos operacionais. | Média | Planeado |
 | RF243 | [~] Tracking deve funcionar parcialmente sem cookies usando UTM, código de referência, link curto e associação posterior ao telefone/cliente. | Alta | Parcial - UTM, origem e trackingId funcionam sem cookies; faltam link curto e associação posterior formal |
@@ -538,7 +540,7 @@ Esta etapa vem antes da implementação visual dos novos módulos. O objetivo é
 | RF256 | [~] O backend deve registrar tracking de links, UTM, referência, cookies técnicos, visitas, cliques WhatsApp, checkout iniciado, pedido e venda atribuída. | Alta | Parcial - trackingId, UTM, visitas, produto visto, clique WhatsApp, checkout iniciado, pedido criado, lead identificado e receita atribuída ao pedido implementados; faltam cookies técnicos e venda paga atribuída |
 | RF257 | [~] O backend deve suportar afiliados, criadores e revendedores com links próprios, regras de comissão, reversões, pagamentos e relatórios. | Alta | Parcial - parceiros, links próprios, comissão estimada/confirmada/paga/revertida, pagamento individual/lote, saldos, exportação CSV, auditoria e resumo implementados; faltam regras avançadas, portal do afiliado e relatórios avançados |
 | RF258 | [ ] O backend deve normalizar social inbox com comentários de redes sociais, posts, autores, intenção, tarefas e oportunidades. | Alta | Planeado |
-| RF259 | [ ] O backend deve ter funil e playbooks de recuperação com eventos, condições, ações, tarefas humanas e histórico de mudança. | Alta | Planeado |
+| RF259 | [~] O backend deve ter funil e playbooks de recuperação com eventos, condições, ações, tarefas humanas e histórico de mudança. | Alta | Parcial - fundação de tarefas humanas criada; faltam playbooks, condições, ações, histórico de mudança e ligação ao funil |
 | RF260 | [~] O backend deve implementar motor de política WhatsApp para classificar envios em marketing, utilidade, autenticação ou serviço antes de chamar o provider. | Alta | Parcial - motor interno implementado em AutomacaoWhatsApp com metadados de política e bloqueios mínimos; faltam persistência de templates aprovados, janela real e opt-out centralizado |
 | RF261 | [~] O backend deve gerir templates WhatsApp por categoria, idioma, estado de aprovação, provider, versão e compatibilidade com eventos. | Alta | Parcial - catálogo interno e API com filtros por categoria/evento/provider/aprovação implementados; falta persistência por negócio, sincronização com API oficial e versionamento histórico |
 | RF262 | [ ] O backend deve unificar outbox/event bus para WhatsApp, n8n, tracking, campanhas, social inbox, comissões e notificações internas. | Alta | Planeado |
@@ -666,7 +668,7 @@ Esta etapa vem antes da implementação visual dos novos módulos. O objetivo é
 | RNF65 | [ ] A aplicação deve manter textos curtos, orientados à ação e compreensíveis por vendedor não técnico. | Alta | Planeado |
 | RNF66 | [ ] O CRM deve registrar métricas de funil sem depender de serviços externos para operação básica. | Média | Planeado |
 | RNF67 | [~] Campanhas devem respeitar limites de envio, opt-out, consentimento e regras do provider WhatsApp usado. | Alta | Parcial - política de WhatsApp já bloqueia marketing sem consentimento explícito no envio manual; faltam campanhas, opt-out persistente e limites por provider |
-| RNF68 | [ ] Automações devem falhar de forma segura: se houver dúvida, criar tarefa humana em vez de executar ação crítica. | Alta | Planeado |
+| RNF68 | [~] Automações devem falhar de forma segura: se houver dúvida, criar tarefa humana em vez de executar ação crítica. | Alta | Parcial - WhatsApp bloqueado por template/política cria tarefa humana e não envia; faltam outros tipos de automação |
 | RNF69 | [ ] O sistema deve manter idempotência em importações, campanhas e webhooks para evitar duplicação de clientes, pedidos ou mensagens. | Alta | Planeado |
 | RNF70 | [ ] O CRM deve permitir evolução modular por domínios: Clientes, Pedidos, Produtos, Conversas, Campanhas, Relatórios e Configurações. | Alta | Planeado |
 | RNF71 | [x] O frontend deve usar `shadcn/ui` como fonte padrão de componentes de interface: botões, cards, badges, inputs, selects, tabelas, dialogs, sheets, tabs, skeletons e estados de feedback. | Alta | Implementado |
@@ -693,7 +695,7 @@ Esta etapa vem antes da implementação visual dos novos módulos. O objetivo é
 | RNF87 | [~] Eventos analíticos devem ser armazenados de forma eficiente para pelo menos 100.000 eventos sem travar a UI operacional. | Média | Parcial - eventos já são agregados no backend em resumo de tracking e funil, evitando cálculo bruto na UI; faltam paginação/consulta temporal e otimização para alto volume real |
 | RNF88 | [ ] Páginas públicas de loja e catálogo devem ser cacheáveis sempre que possível, sem expor dados privados ou stock incorreto. | Média | Planeado |
 | RNF89 | [ ] A UI deve ocultar módulos não ativados, mas preservar rotas e dados para reativação futura quando permitido. | Média | Planeado |
-| RNF90 | [~] Toda automação deve falhar de forma segura: mensagem não enviada, categoria inválida, template ausente ou provider indisponível devem criar tarefa humana com contexto. | Alta | Parcial - envios automáticos capturam falhas e preservam contexto/outbox; política bloqueia categorias inválidas em manual; faltam tarefas humanas automáticas para exceções de política |
+| RNF90 | [~] Toda automação deve falhar de forma segura: mensagem não enviada, categoria inválida, template ausente ou provider indisponível devem criar tarefa humana com contexto. | Alta | Parcial - envios automáticos capturam falhas e preservam contexto/outbox; política bloqueia categorias inválidas em manual; bloqueios manuais criam tarefa humana; faltam tarefas para provider indisponível e automações não WhatsApp |
 | RNF91 | [ ] O CRM+ deve manter logs operacionais compreensíveis para o dono do negócio, não apenas logs técnicos para desenvolvedores. | Alta | Planeado |
 | RNF92 | [ ] Importações e sincronizações sociais devem ter relatório de sucesso, falha, duplicados, ignorados e próximos passos. | Média | Planeado |
 | RNF93 | [ ] Links rastreáveis devem ser estáveis, curtos quando possível e resilientes a mudanças de slug do produto/catálogo. | Média | Planeado |
@@ -718,7 +720,7 @@ Esta etapa vem antes da implementação visual dos novos módulos. O objetivo é
 | RNF107 | [~] Testes de regressão devem impedir voltar a usar código de produto, telefone ou nome como identificador global entre negócios. | Alta | Parcial |
 | RNF108 | [ ] O backend deve suportar migração gradual do modelo de reservas para pedidos sem quebrar vendas de live já existentes. | Alta | Planeado |
 | RNF109 | [~] Novos módulos devem preservar fronteiras de domínio claras: Clientes, Pedidos, Produtos, Conversas, Campanhas, Loja, Afiliados, Social Inbox, Tracking e WhatsApp Policy. | Alta | Parcial - fronteiras de Clientes, Pedidos, Produtos, Loja Pública, Tracking e Afiliados implementadas; faltam Campanhas, Social Inbox e WhatsApp Policy |
-| RNF110 | [ ] Falhas de provider externo devem resultar em tarefa, retry ou estado falhado explícito, nunca em perda silenciosa de dado. | Alta | Planeado |
+| RNF110 | [~] Falhas de provider externo devem resultar em tarefa, retry ou estado falhado explícito, nunca em perda silenciosa de dado. | Alta | Parcial - WhatsApp bloqueado antes do provider cria tarefa e outbox WhatsApp preserva retry/falhas; faltam tarefas para falha final de provider e demais integrações |
 
 ---
 

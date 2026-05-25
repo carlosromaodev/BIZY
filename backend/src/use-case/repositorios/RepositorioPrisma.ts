@@ -11,6 +11,7 @@ import type {
   RepositorioPedidos,
   RepositorioReservas,
   RepositorioSessoesLive,
+  RepositorioTarefasOperacionais,
   RepositorioTrackingComercial
 } from "../../dominio/repositorios/contratos.js";
 import type {
@@ -61,6 +62,7 @@ import type {
   NovoRegistroComentario,
   NovoOutboxMensagemWhatsApp,
   NovoRegistroSessaoLive,
+  NovaTarefaOperacional,
   Peca,
   ParceiroComercial,
   Pedido,
@@ -79,6 +81,8 @@ import type {
   NegocioBizy,
   PerfilEstudantilUsuario,
   ResumoAfiliadosComerciais,
+  FiltrosTarefasOperacionais,
+  TarefaOperacional,
   ResumoTrackingComercial,
   TipoHistoricoComissaoParceiro,
   UsuarioSistema
@@ -3011,6 +3015,120 @@ export class RepositorioAtendimentoPrisma implements RepositorioAtendimento {
 
   private ehViolacaoDeUnicidade(erro: unknown): boolean {
     return erro instanceof Prisma.PrismaClientKnownRequestError && erro.code === "P2002";
+  }
+}
+
+interface LinhaTarefaOperacional {
+  id: string;
+  negocioId: string | null;
+  tipo: string;
+  titulo: string;
+  descricao: string;
+  prioridade: string;
+  estado: string;
+  origem: string | null;
+  entidadeTipo: string | null;
+  entidadeId: string | null;
+  clienteTelefone: string | null;
+  responsavelId: string | null;
+  prazoEm: Date | null;
+  contextoJson: string;
+  criadaEm: Date;
+  atualizadoEm: Date;
+}
+
+export class RepositorioTarefasOperacionaisPrisma implements RepositorioTarefasOperacionais {
+  constructor(private readonly prisma: PrismaClient) {}
+
+  async criar(dados: NovaTarefaOperacional): Promise<TarefaOperacional> {
+    const linhas = await this.prisma.$queryRaw<LinhaTarefaOperacional[]>`
+      INSERT INTO "TarefaOperacional" (
+        "negocioId",
+        "tipo",
+        "titulo",
+        "descricao",
+        "prioridade",
+        "origem",
+        "entidadeTipo",
+        "entidadeId",
+        "clienteTelefone",
+        "responsavelId",
+        "prazoEm",
+        "contextoJson"
+      ) VALUES (
+        ${dados.negocioId ?? null},
+        ${dados.tipo},
+        ${dados.titulo},
+        ${dados.descricao},
+        ${dados.prioridade ?? "NORMAL"},
+        ${dados.origem ?? null},
+        ${dados.entidadeTipo ?? null},
+        ${dados.entidadeId ?? null},
+        ${dados.clienteTelefone ?? null},
+        ${dados.responsavelId ?? null},
+        ${dados.prazoEm ?? null},
+        ${JSON.stringify(dados.contexto ?? {})}
+      )
+      RETURNING *
+    `;
+
+    return this.mapearTarefa(linhas[0]);
+  }
+
+  async listar(negocioId: string, filtros: FiltrosTarefasOperacionais = {}): Promise<TarefaOperacional[]> {
+    const limite = Math.max(1, Math.min(filtros.limite ?? 100, 500));
+    const condicoes: Prisma.Sql[] = [Prisma.sql`"negocioId" = ${negocioId}`];
+    if (filtros.tipo) condicoes.push(Prisma.sql`"tipo" = ${filtros.tipo}`);
+    if (filtros.estado) condicoes.push(Prisma.sql`"estado" = ${filtros.estado}`);
+    if (filtros.responsavelId !== undefined) {
+      condicoes.push(
+        filtros.responsavelId === null
+          ? Prisma.sql`"responsavelId" IS NULL`
+          : Prisma.sql`"responsavelId" = ${filtros.responsavelId}`
+      );
+    }
+
+    const linhas = await this.prisma.$queryRaw<LinhaTarefaOperacional[]>(
+      Prisma.sql`
+        SELECT *
+        FROM "TarefaOperacional"
+        WHERE ${Prisma.join(condicoes, " AND ")}
+        ORDER BY "criadaEm" DESC
+        LIMIT ${limite}
+      `
+    );
+
+    return linhas.map((linha) => this.mapearTarefa(linha));
+  }
+
+  private mapearTarefa(linha: LinhaTarefaOperacional): TarefaOperacional {
+    return {
+      id: linha.id,
+      negocioId: linha.negocioId,
+      tipo: linha.tipo,
+      titulo: linha.titulo,
+      descricao: linha.descricao,
+      prioridade: linha.prioridade as TarefaOperacional["prioridade"],
+      estado: linha.estado as TarefaOperacional["estado"],
+      origem: linha.origem,
+      entidadeTipo: linha.entidadeTipo,
+      entidadeId: linha.entidadeId,
+      clienteTelefone: linha.clienteTelefone,
+      responsavelId: linha.responsavelId,
+      prazoEm: linha.prazoEm,
+      contexto: this.lerObjeto(linha.contextoJson),
+      criadaEm: linha.criadaEm,
+      atualizadoEm: linha.atualizadoEm
+    };
+  }
+
+  private lerObjeto(valor: string): Record<string, unknown> {
+    try {
+      const json = JSON.parse(valor);
+      return json && typeof json === "object" && !Array.isArray(json) ? json as Record<string, unknown> : {};
+    } catch {
+      return {};
+    }
   }
 }
 

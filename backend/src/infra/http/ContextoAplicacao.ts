@@ -14,6 +14,7 @@ import type {
   RepositorioPedidos,
   RepositorioReservas,
   RepositorioSessoesLive,
+  RepositorioTarefasOperacionais,
   RepositorioTrackingComercial
 } from "../../dominio/repositorios/contratos.js";
 import { AutomacaoWhatsApp } from "../../dominio/servicos/AutomacaoWhatsApp.js";
@@ -32,6 +33,7 @@ import { GestaoClientesCrmUseCase } from "../../use-case/GestaoClientesCrmUseCas
 import { GestaoPecasUseCase } from "../../use-case/GestaoPecasUseCase.js";
 import { GestaoPedidosUseCase } from "../../use-case/GestaoPedidosUseCase.js";
 import { GestaoAtendimentoCrmUseCase } from "../../use-case/GestaoAtendimentoCrmUseCase.js";
+import { GestaoTarefasOperacionaisUseCase } from "../../use-case/GestaoTarefasOperacionaisUseCase.js";
 import { GestaoWhatsAppEvolutionUseCase } from "../../use-case/GestaoWhatsAppEvolutionUseCase.js";
 import { GerarReciboReservaUseCase } from "../../use-case/GerarReciboReservaUseCase.js";
 import { LimparDadosComunicacaoUseCase } from "../../use-case/LimparDadosComunicacaoUseCase.js";
@@ -55,6 +57,7 @@ import {
   RepositorioPedidosMemoria,
   RepositorioReservasMemoria,
   RepositorioSessoesLiveMemoria,
+  RepositorioTarefasOperacionaisMemoria,
   RepositorioTrackingComercialMemoria
 } from "../../use-case/repositorios/RepositorioMemoria.js";
 import {
@@ -69,6 +72,7 @@ import {
   RepositorioPedidosPrisma,
   RepositorioReservasPrisma,
   RepositorioSessoesLivePrisma,
+  RepositorioTarefasOperacionaisPrisma,
   RepositorioTrackingComercialPrisma
 } from "../../use-case/repositorios/RepositorioPrisma.js";
 import { criarPrismaCliente } from "../banco/prismaCliente.js";
@@ -96,6 +100,7 @@ export interface RepositoriosAplicacao {
   auditoria: RepositorioAuditoria;
   trackingComercial: RepositorioTrackingComercial;
   afiliados: RepositorioAfiliados;
+  tarefas: RepositorioTarefasOperacionais;
   verificarConexao?: () => Promise<void>;
   encerrar?: () => Promise<void>;
 }
@@ -134,6 +139,7 @@ export interface ContextoAplicacao {
   gestaoAfiliados: GestaoAfiliadosUseCase;
   gestaoClientesCrm: GestaoClientesCrmUseCase;
   gestaoAtendimentoCrm: GestaoAtendimentoCrmUseCase;
+  gestaoTarefas: GestaoTarefasOperacionaisUseCase;
   consultaIntegracoes: ConsultaIntegracoesUseCase;
   consultaPainel: ConsultaPainelUseCase;
   consultaAtendimentoN8n: ConsultaAtendimentoN8n;
@@ -162,8 +168,10 @@ export function criarContextoAplicacao(logger: FastifyBaseLogger): ContextoAplic
   const motorReservas = new MotorReservas(repositorios.pecas, repositorios.reservas, eventos, { minutosReserva });
   const provedorSms = criarProvedorSms();
   const provedorWhatsApp = criarProvedorWhatsApp(repositorios.instanciasWhatsApp);
+  const gestaoTarefas = new GestaoTarefasOperacionaisUseCase(repositorios.tarefas);
   const automacaoWhatsApp = new AutomacaoWhatsApp(provedorWhatsApp, eventos, minutosReserva, {
-    ativo: !n8nAssumeWhatsApp
+    ativo: !n8nAssumeWhatsApp,
+    registrarTarefaHumana: (dados) => gestaoTarefas.criarTarefa(dados).then(() => undefined)
   });
   const recuperacaoMensagensWhatsApp = new RecuperacaoMensagensWhatsAppUseCase(
     eventos,
@@ -311,6 +319,7 @@ export function criarContextoAplicacao(logger: FastifyBaseLogger): ContextoAplic
     gestaoAfiliados,
     gestaoClientesCrm,
     gestaoAtendimentoCrm,
+    gestaoTarefas,
     consultaIntegracoes,
     consultaPainel,
     consultaAtendimentoN8n,
@@ -356,6 +365,7 @@ function criarRepositorios(): RepositoriosAplicacao {
       auditoria: new RepositorioAuditoriaMemoria(),
       trackingComercial: new RepositorioTrackingComercialMemoria(),
       afiliados: new RepositorioAfiliadosMemoria(),
+      tarefas: new RepositorioTarefasOperacionaisMemoria(),
       verificarConexao: async () => undefined
     };
   }
@@ -375,6 +385,7 @@ function criarRepositorios(): RepositoriosAplicacao {
     auditoria: new RepositorioAuditoriaPrisma(prisma),
     trackingComercial: new RepositorioTrackingComercialPrisma(prisma),
     afiliados: new RepositorioAfiliadosPrisma(prisma),
+    tarefas: new RepositorioTarefasOperacionaisPrisma(prisma),
     verificarConexao: async () => {
       await prisma.$queryRaw`SELECT 1`;
     },

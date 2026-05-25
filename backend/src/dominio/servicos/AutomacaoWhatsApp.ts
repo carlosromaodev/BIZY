@@ -1,6 +1,6 @@
 import type { DespachadorEventos } from "../eventos/DespachadorEventos.js";
 import type { CategoriaMensagemWhatsApp, PoliticaEnvioWhatsApp, ProvedorWhatsApp } from "../provedores/ProvedorWhatsApp.js";
-import type { Peca, Reserva } from "../tipos.js";
+import type { NovaTarefaOperacional, Peca, Reserva } from "../tipos.js";
 import { PoliticaMensagensWhatsApp } from "./PoliticaMensagensWhatsApp.js";
 
 type TipoMensagemAutomatica =
@@ -49,6 +49,8 @@ export interface DadosMensagemManualWhatsApp {
   consentimentoMarketing?: boolean;
   janelaAtendimentoAtiva?: boolean;
 }
+
+type RegistradorTarefaHumana = (dados: NovaTarefaOperacional) => Promise<void> | void;
 
 const templatesWhatsApp: TemplateWhatsApp[] = [
   {
@@ -160,7 +162,7 @@ export class AutomacaoWhatsApp {
     private readonly provedorWhatsApp: ProvedorWhatsApp,
     private readonly eventos: DespachadorEventos,
     private readonly minutosReserva: number,
-    opcoes: { ativo?: boolean } = {}
+    private readonly opcoes: { ativo?: boolean; registrarTarefaHumana?: RegistradorTarefaHumana } = {}
   ) {
     this.ativo = opcoes.ativo ?? true;
   }
@@ -267,39 +269,44 @@ Assim que receber o código da peça, confirmo a disponibilidade e sigo com a tu
   }
 
   async enviarMensagemManual(dados: DadosMensagemManualWhatsApp) {
-    const template = dados.templateId ? this.exigirTemplate(dados.templateId) : null;
-    const conteudo = dados.mensagem?.trim() || (template ? this.renderizarTemplate(template, dados.variaveis ?? {}) : "");
-    const tipo = template?.tipo ?? "MANUAL";
-    const politica = this.politicaWhatsApp.avaliar({
-      tipo,
-      origem: "manual",
-      categoriaSolicitada: dados.categoria,
-      categoriaTemplate: template?.categoria,
-      consentimentoMarketing: dados.consentimentoMarketing,
-      janelaAtendimentoAtiva: dados.janelaAtendimentoAtiva
-    });
+    try {
+      const template = dados.templateId ? this.exigirTemplate(dados.templateId) : null;
+      const conteudo = dados.mensagem?.trim() || (template ? this.renderizarTemplate(template, dados.variaveis ?? {}) : "");
+      const tipo = template?.tipo ?? "MANUAL";
+      const politica = this.politicaWhatsApp.avaliar({
+        tipo,
+        origem: "manual",
+        categoriaSolicitada: dados.categoria,
+        categoriaTemplate: template?.categoria,
+        consentimentoMarketing: dados.consentimentoMarketing,
+        janelaAtendimentoAtiva: dados.janelaAtendimentoAtiva
+      });
 
-    const resultado = await this.enviarSemBloqueioAutomatico(
-      dados.telefone,
-      tipo,
-      conteudo,
-      {
-        negocioId: dados.negocioId ?? null,
-        origem: "painel",
-        templateId: template?.id ?? null,
-        variaveis: dados.variaveis ?? {}
-      },
-      politica
-    );
+      const resultado = await this.enviarSemBloqueioAutomatico(
+        dados.telefone,
+        tipo,
+        conteudo,
+        {
+          negocioId: dados.negocioId ?? null,
+          origem: "painel",
+          templateId: template?.id ?? null,
+          variaveis: dados.variaveis ?? {}
+        },
+        politica
+      );
 
-    return {
-      telefone: dados.telefone,
-      tipo,
-      conteudo,
-      template,
-      politica,
-      resultado
-    };
+      return {
+        telefone: dados.telefone,
+        tipo,
+        conteudo,
+        template,
+        politica,
+        resultado
+      };
+    } catch (erro) {
+      await this.registrarTarefaHumanaBloqueioManual(dados, erro);
+      throw erro;
+    }
   }
 
   private async enviarComRateLimit(
@@ -466,6 +473,35 @@ Assim que receber o código da peça, confirmo a disponibilidade e sigo com a tu
 
   private tipoUsaJanelaDeServico(tipo: string): boolean {
     return tipo === "PEDIR_CODIGO_PECA" || tipo === "PECA_VENDIDA";
+  }
+
+  private async registrarTarefaHumanaBloqueioManual(dados: DadosMensagemManualWhatsApp, erro: unknown) {
+    const registrador = this.opcoes.registrarTarefaHumana;
+    if (!registrador) return;
+
+    const mensagemErro = erro instanceof Error ? erro.message : "Envio WhatsApp bloqueado por política operacional.";
+    await registrador({
+      negocioId: dados.negocioId ?? null,
+      tipo: "WHATSAPP_POLICY_BLOCKED",
+      titulo: "Rever envio WhatsApp bloqueado",
+      descricao: mensagemErro,
+      prioridade: "ALTA",
+      origem: "whatsapp_policy",
+      entidadeTipo: dados.templateId ? "whatsapp_template" : "whatsapp_message",
+      entidadeId: dados.templateId ?? null,
+      clienteTelefone: dados.telefone,
+      contexto: {
+        erro: mensagemErro,
+        whatsapp: {
+          telefone: dados.telefone,
+          templateId: dados.templateId ?? null,
+          categoria: dados.categoria ?? null,
+          variaveis: dados.variaveis ?? {},
+          janelaAtendimentoAtiva: dados.janelaAtendimentoAtiva ?? null,
+          consentimentoMarketing: dados.consentimentoMarketing ?? null
+        }
+      }
+    });
   }
 
   private formatarKwanza(valor: number): string {

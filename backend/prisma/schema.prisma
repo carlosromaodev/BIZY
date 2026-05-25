@@ -472,9 +472,35 @@ model Negocio {
   comissoesParceiro       ComissaoParceiro[]
   historicoComissoesParceiro HistoricoComissaoParceiro[]
   lotesPagamentoComissao  LotePagamentoComissao[]
+  tarefasOperacionais     TarefaOperacional[]
 
   @@index([nomeComercial])
   @@index([slugPublico])
+}
+
+model TarefaOperacional {
+  id              String   @id @default(uuid())
+  negocioId       String?
+  negocio         Negocio? @relation(fields: [negocioId], references: [id])
+  tipo            String
+  titulo          String
+  descricao       String
+  prioridade      String   @default("NORMAL")
+  estado          String   @default("ABERTA")
+  origem          String?
+  entidadeTipo    String?
+  entidadeId      String?
+  clienteTelefone String?
+  responsavelId   String?
+  prazoEm         DateTime?
+  contextoJson    String   @default("{}")
+  criadaEm        DateTime @default(now())
+  atualizadoEm    DateTime @updatedAt
+
+  @@index([negocioId, estado, criadaEm])
+  @@index([negocioId, tipo, criadaEm])
+  @@index([negocioId, prioridade, prazoEm])
+  @@index([clienteTelefone, criadaEm])
 }
 
 model EventoTrackingComercial {

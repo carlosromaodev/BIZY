@@ -557,6 +557,53 @@ export interface ConversaAtendimentoComMensagens {
   mensagens: MensagemAtendimento[];
 }
 
+export const estadosTarefaOperacional = ["ABERTA", "EM_ANDAMENTO", "CONCLUIDA", "CANCELADA"] as const;
+export type EstadoTarefaOperacional = (typeof estadosTarefaOperacional)[number];
+
+export const prioridadesTarefaOperacional = ["BAIXA", "NORMAL", "ALTA", "URGENTE"] as const;
+export type PrioridadeTarefaOperacional = (typeof prioridadesTarefaOperacional)[number];
+
+export interface TarefaOperacional {
+  id: string;
+  negocioId: string | null;
+  tipo: string;
+  titulo: string;
+  descricao: string;
+  prioridade: PrioridadeTarefaOperacional;
+  estado: EstadoTarefaOperacional;
+  origem: string | null;
+  entidadeTipo: string | null;
+  entidadeId: string | null;
+  clienteTelefone: string | null;
+  responsavelId: string | null;
+  prazoEm: Date | null;
+  contexto: Record<string, unknown>;
+  criadaEm: Date;
+  atualizadoEm: Date;
+}
+
+export interface NovaTarefaOperacional {
+  negocioId?: string | null;
+  tipo: string;
+  titulo: string;
+  descricao: string;
+  prioridade?: PrioridadeTarefaOperacional;
+  origem?: string | null;
+  entidadeTipo?: string | null;
+  entidadeId?: string | null;
+  clienteTelefone?: string | null;
+  responsavelId?: string | null;
+  prazoEm?: Date | null;
+  contexto?: Record<string, unknown>;
+}
+
+export interface FiltrosTarefasOperacionais {
+  tipo?: string;
+  estado?: EstadoTarefaOperacional;
+  responsavelId?: string | null;
+  limite?: number;
+}
+
 export const estadosRelacionamentoCliente = [
   "ATIVO",
   "LEAD",
