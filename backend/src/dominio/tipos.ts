@@ -1060,6 +1060,38 @@ export interface LotePagamentoComissao {
   itens: ItemLotePagamentoComissao[];
 }
 
+export interface SaldoComissaoParceiro {
+  afiliadoId: string;
+  codigo: string;
+  nomePublico: string;
+  tipo: TipoParceiroComercial;
+  estado: EstadoParceiroComercial;
+  contacto: string | null;
+  quantidadeComissoesEstimadas: number;
+  quantidadeComissoesConfirmadas: number;
+  quantidadeComissoesPagas: number;
+  quantidadeComissoesRevertidas: number;
+  comissaoEstimadaEmKwanza: number;
+  comissaoConfirmadaEmKwanza: number;
+  comissaoPagaEmKwanza: number;
+  comissaoRevertidaEmKwanza: number;
+  saldoPendenteEmKwanza: number;
+  lotesPagos: number;
+}
+
+export interface ResumoSaldosComissoes {
+  totais: {
+    totalParceiros: number;
+    comissaoEstimadaEmKwanza: number;
+    comissaoConfirmadaEmKwanza: number;
+    comissaoPagaEmKwanza: number;
+    comissaoRevertidaEmKwanza: number;
+    saldoPendenteEmKwanza: number;
+    totalLotesPagos: number;
+  };
+  saldos: SaldoComissaoParceiro[];
+}
+
 export interface NovoLotePagamentoComissao {
   negocioId: string;
   comissaoIds: string[];

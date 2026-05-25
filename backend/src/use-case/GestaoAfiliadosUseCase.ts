@@ -7,7 +7,9 @@ import type {
   NovoParceiroComercial,
   ParceiroComercial,
   Pedido,
-  RegraComissaoParceiro
+  RegraComissaoParceiro,
+  ResumoSaldosComissoes,
+  SaldoComissaoParceiro
 } from "../dominio/tipos.js";
 
 export interface AtribuicaoAfiliadoResolvida {
@@ -103,6 +105,110 @@ export class GestaoAfiliadosUseCase {
     return { lotes: await this.afiliados.listarLotesPagamentoComissoes(negocioId) };
   }
 
+  async resumirSaldosComissoes(negocioId: string): Promise<ResumoSaldosComissoes> {
+    const [parceiros, comissoes, lotes] = await Promise.all([
+      this.afiliados.listarParceiros(negocioId),
+      this.afiliados.listarComissoes(negocioId),
+      this.afiliados.listarLotesPagamentoComissoes(negocioId)
+    ]);
+    const lotesPorAfiliado = new Map<string, Set<string>>();
+
+    for (const lote of lotes) {
+      if (lote.status !== "PAGO") continue;
+      for (const item of lote.itens) {
+        const ids = lotesPorAfiliado.get(item.afiliadoId) ?? new Set<string>();
+        ids.add(lote.id);
+        lotesPorAfiliado.set(item.afiliadoId, ids);
+      }
+    }
+
+    const saldos = parceiros.map<SaldoComissaoParceiro>((parceiro) => {
+      const comissoesDoParceiro = comissoes.filter((comissao) => comissao.afiliadoId === parceiro.id);
+      const comissoesEstimadas = comissoesDoParceiro.filter((comissao) => comissao.status === "ESTIMADA");
+      const comissoesConfirmadas = comissoesDoParceiro.filter((comissao) => comissao.status === "CONFIRMADA");
+      const comissoesPagas = comissoesDoParceiro.filter((comissao) => comissao.status === "PAGA");
+      const comissoesRevertidas = comissoesDoParceiro.filter((comissao) => comissao.status === "REVERTIDA");
+      const comissaoEstimadaEmKwanza = this.somarComissoes(comissoesEstimadas);
+      const comissaoConfirmadaEmKwanza = this.somarComissoes(comissoesConfirmadas);
+      const comissaoPagaEmKwanza = this.somarComissoes(comissoesPagas);
+      const comissaoRevertidaEmKwanza = this.somarComissoes(comissoesRevertidas);
+
+      return {
+        afiliadoId: parceiro.id,
+        codigo: parceiro.codigo,
+        nomePublico: parceiro.nomePublico,
+        tipo: parceiro.tipo,
+        estado: parceiro.estado,
+        contacto: parceiro.contacto,
+        quantidadeComissoesEstimadas: comissoesEstimadas.length,
+        quantidadeComissoesConfirmadas: comissoesConfirmadas.length,
+        quantidadeComissoesPagas: comissoesPagas.length,
+        quantidadeComissoesRevertidas: comissoesRevertidas.length,
+        comissaoEstimadaEmKwanza,
+        comissaoConfirmadaEmKwanza,
+        comissaoPagaEmKwanza,
+        comissaoRevertidaEmKwanza,
+        saldoPendenteEmKwanza: comissaoConfirmadaEmKwanza,
+        lotesPagos: lotesPorAfiliado.get(parceiro.id)?.size ?? 0
+      };
+    });
+
+    saldos.sort((a, b) => {
+      if (b.saldoPendenteEmKwanza !== a.saldoPendenteEmKwanza) {
+        return b.saldoPendenteEmKwanza - a.saldoPendenteEmKwanza;
+      }
+      if (b.comissaoPagaEmKwanza !== a.comissaoPagaEmKwanza) {
+        return b.comissaoPagaEmKwanza - a.comissaoPagaEmKwanza;
+      }
+      return a.nomePublico.localeCompare(b.nomePublico);
+    });
+
+    return {
+      totais: {
+        totalParceiros: saldos.length,
+        comissaoEstimadaEmKwanza: saldos.reduce((total, saldo) => total + saldo.comissaoEstimadaEmKwanza, 0),
+        comissaoConfirmadaEmKwanza: saldos.reduce((total, saldo) => total + saldo.comissaoConfirmadaEmKwanza, 0),
+        comissaoPagaEmKwanza: saldos.reduce((total, saldo) => total + saldo.comissaoPagaEmKwanza, 0),
+        comissaoRevertidaEmKwanza: saldos.reduce((total, saldo) => total + saldo.comissaoRevertidaEmKwanza, 0),
+        saldoPendenteEmKwanza: saldos.reduce((total, saldo) => total + saldo.saldoPendenteEmKwanza, 0),
+        totalLotesPagos: lotes.filter((lote) => lote.status === "PAGO").length
+      },
+      saldos
+    };
+  }
+
+  async exportarLotesPagamentoCsv(negocioId: string): Promise<string> {
+    const lotes = await this.afiliados.listarLotesPagamentoComissoes(negocioId);
+    const linhas: Array<Array<string | number | Date | null>> = [
+      [
+        "id",
+        "referenciaPagamento",
+        "status",
+        "periodoInicio",
+        "periodoFim",
+        "quantidadeComissoes",
+        "valorTotalEmKwanza",
+        "moeda",
+        "autorNome",
+        "criadoEm"
+      ],
+      ...lotes.map((lote) => [
+        lote.id,
+        lote.referenciaPagamento,
+        lote.status,
+        lote.periodoInicio,
+        lote.periodoFim,
+        lote.quantidadeComissoes,
+        lote.valorTotalEmKwanza,
+        lote.moeda,
+        lote.autorNome,
+        lote.criadoEm
+      ])
+    ];
+
+    return `${linhas.map((linha, indice) => linha.map((valor) => indice === 0 ? String(valor) : this.csv(valor)).join(",")).join("\n")}\n`;
+  }
+
   async listarAuditoriaComissao(id: string, negocioId: string) {
     const eventos = await this.afiliados.listarHistoricoComissao(id, negocioId);
     return eventos ? { eventos } : null;
@@ -162,6 +268,16 @@ export class GestaoAfiliadosUseCase {
       return Math.round((baseEmKwanza * (regra.percentual ?? 0)) / 100);
     }
     return Math.min(baseEmKwanza, regra.valorEmKwanza ?? 0);
+  }
+
+  private somarComissoes(comissoes: Array<{ valorEmKwanza: number }>): number {
+    return comissoes.reduce((total, comissao) => total + comissao.valorEmKwanza, 0);
+  }
+
+  private csv(valor: string | number | Date | null): string {
+    if (typeof valor === "number") return String(valor);
+    const normalizado = valor instanceof Date ? valor.toISOString() : valor ?? "";
+    return `"${String(normalizado).replace(/"/g, '""')}"`;
   }
 
   private comUrlPublica(link: LinkAfiliado): LinkAfiliado & { urlPublica: string } {

@@ -76,6 +76,33 @@ export const moduloAfiliados: ModuloHttp = {
       return contexto.gestaoAfiliados.listarComissoes(contextoComercial.negocio.id);
     });
 
+    app.get("/afiliados/comissoes/saldos", async (request, reply) => {
+      const contextoComercial = await exigirAcessoComercial(contexto, request, reply, {
+        permissao: "pagamentos:gerir",
+        modulo: "afiliados",
+        mensagemPermissao: "Sem permissão para consultar saldos de comissões.",
+        mensagemModulo: "Afiliados desativados para este negócio."
+      });
+      if (!contextoComercial) return;
+
+      return contexto.gestaoAfiliados.resumirSaldosComissoes(contextoComercial.negocio.id);
+    });
+
+    app.get("/afiliados/comissoes/lotes-pagamento/exportar.csv", async (request, reply) => {
+      const contextoComercial = await exigirAcessoComercial(contexto, request, reply, {
+        permissao: "pagamentos:gerir",
+        modulo: "afiliados",
+        mensagemPermissao: "Sem permissão para exportar lotes de pagamento de comissões.",
+        mensagemModulo: "Afiliados desativados para este negócio."
+      });
+      if (!contextoComercial) return;
+
+      const csv = await contexto.gestaoAfiliados.exportarLotesPagamentoCsv(contextoComercial.negocio.id);
+      reply.header("Content-Type", "text/csv; charset=utf-8");
+      reply.header("Content-Disposition", "attachment; filename=\"lotes-comissoes-bizy.csv\"");
+      return reply.send(csv);
+    });
+
     app.get("/afiliados/comissoes/lotes-pagamento", async (request, reply) => {
       const contextoComercial = await exigirAcessoComercial(contexto, request, reply, {
         permissao: "pagamentos:gerir",

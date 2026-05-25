@@ -650,4 +650,99 @@ describe("afiliados, criadores e comissões HTTP", () => {
       await app.close();
     }
   });
+
+  it("resume saldo financeiro por afiliado e exporta lotes de comissão em CSV", async () => {
+    const app = await criarAplicacao();
+
+    try {
+      const { loja, checkout } = await prepararPedidoAfiliado(app, {
+        telefoneLoja: "923600105",
+        slug: "loja-afiliados-financeiro",
+        codigoProduto: "AF6",
+        codigoAfiliado: "financeiro",
+        codigoLink: "FIN-AF6"
+      });
+      const checkoutDois = await criarCheckoutAfiliado(app, {
+        slug: "loja-afiliados-financeiro",
+        codigoProduto: "AF6",
+        codigoLink: "FIN-AF6",
+        nomeCliente: "Cliente saldo dois",
+        telefoneCliente: "923700011",
+        trackingId: "trk-fin-2"
+      });
+
+      for (const pedidoId of [checkout.pedido.id, checkoutDois.pedido.id]) {
+        const confirmarPagamento = await app.inject({
+          method: "POST",
+          url: `/pedidos/${pedidoId}/confirmar-pagamento`,
+          headers: loja,
+          payload: {
+            observacao: "Pago para relatório financeiro"
+          }
+        });
+        expect(confirmarPagamento.statusCode).toBe(200);
+      }
+
+      const comissoesConfirmadas = await app.inject({
+        method: "GET",
+        url: "/afiliados/comissoes",
+        headers: loja
+      });
+      expect(comissoesConfirmadas.statusCode).toBe(200);
+      const comissaoIds = comissoesConfirmadas.json().comissoes.map((comissao: { id: string }) => comissao.id);
+
+      const pagarLote = await app.inject({
+        method: "POST",
+        url: "/afiliados/comissoes/lotes-pagamento",
+        headers: loja,
+        payload: {
+          comissaoIds,
+          referenciaPagamento: "LOTE-FINANCEIRO-001",
+          observacao: "Fecho financeiro de criadores",
+          periodoInicio: "2026-05-16T00:00:00.000Z",
+          periodoFim: "2026-05-31T23:59:59.000Z"
+        }
+      });
+      expect(pagarLote.statusCode).toBe(201);
+
+      const saldos = await app.inject({
+        method: "GET",
+        url: "/afiliados/comissoes/saldos",
+        headers: loja
+      });
+      expect(saldos.statusCode).toBe(200);
+      expect(saldos.json().totais).toEqual(
+        expect.objectContaining({
+          comissaoPagaEmKwanza: 5_000,
+          saldoPendenteEmKwanza: 0,
+          totalLotesPagos: 1
+        })
+      );
+      expect(saldos.json().saldos[0]).toEqual(
+        expect.objectContaining({
+          codigo: "FINANCEIRO",
+          nomePublico: "Parceiro financeiro",
+          quantidadeComissoesPagas: 2,
+          comissaoPagaEmKwanza: 5_000,
+          saldoPendenteEmKwanza: 0,
+          lotesPagos: 1
+        })
+      );
+
+      const csv = await app.inject({
+        method: "GET",
+        url: "/afiliados/comissoes/lotes-pagamento/exportar.csv",
+        headers: loja
+      });
+      expect(csv.statusCode).toBe(200);
+      expect(csv.headers["content-type"]).toContain("text/csv");
+      expect(csv.body.split("\n")[0]).toBe(
+        "id,referenciaPagamento,status,periodoInicio,periodoFim,quantidadeComissoes,valorTotalEmKwanza,moeda,autorNome,criadoEm"
+      );
+      expect(csv.body).toContain(`"${pagarLote.json().id}","LOTE-FINANCEIRO-001","PAGO"`);
+      expect(csv.body).toContain(",2,5000,\"AOA\",\"Loja financeiro\",");
+    } finally {
+      await app.close();
+    }
+  });
 });
