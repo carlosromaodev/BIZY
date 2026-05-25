@@ -137,12 +137,12 @@ export class GestaoPecasUseCase {
   private normalizarAtualizacao(pecaAtual: Peca, dados: AtualizarPeca): AtualizarPeca {
     const quantidade = dados.quantidade ?? pecaAtual.quantidade;
 
-    if (dados.estado) {
-      return dados;
-    }
-
     if (quantidade === 0) {
       return { ...dados, estado: "ESGOTADA" };
+    }
+
+    if (dados.estado) {
+      return dados;
     }
 
     if (pecaAtual.estado === "ESGOTADA" && quantidade > 0) {

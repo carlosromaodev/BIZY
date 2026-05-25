@@ -1,7 +1,7 @@
 # Bizy / ÉMeu V1 - Requisitos Funcionais, Não Funcionais e Regras de Negócio
 
 Documento: `RF-RNF-RN-EMEUV1.md`
-Versão: 1.15
+Versão: 1.16
 Data: 2026-05-25
 Autor: Carlos
 Status: MVP base implementado; fundação backend Bizy CRM+ com Clientes 360, Pedidos, Catálogo/Stock, Loja Pública, Checkout, Entrega, Afiliados, Comissões e Lotes Financeiros em evolução
@@ -47,6 +47,8 @@ Atualização 1.13: adicionados lotes financeiros para pagamento de comissões c
 Atualização 1.14: adicionados saldos financeiros por afiliado/criador e exportação CSV dos lotes de pagamento de comissão, preparando operação de fecho, conciliação e prestação de contas para parceiros comerciais.
 
 Atualização 1.15: o resumo de tracking comercial passou a devolver funil operacional com visitas, produtos vistos, cliques WhatsApp, checkouts, pedidos, leads identificados, receita atribuída e taxas básicas de conversão.
+
+Atualização 1.16: adicionada política interna de envio WhatsApp por categoria oficial (`marketing`, `utility`, `authentication`, `service`), com classificação antes do provider, metadados de política no envio, bloqueio de marketing sem consentimento e bloqueio de serviço fora da janela declarada.
 
 ---
 
@@ -480,15 +482,15 @@ Esta etapa posiciona o Bizy como uma plataforma de operação comercial para cri
 
 | ID | Requisito Funcional | Prioridade | Estado |
 |---|---|---|---|
-| RF217 | [ ] O motor de mensagens deve classificar todo envio WhatsApp como `marketing`, `utilidade`, `autenticacao` ou `servico` antes de enviar. | Alta | Planeado |
-| RF218 | [ ] Conversas de serviço devem ser usadas para atendimento iniciado pelo cliente e dentro da janela permitida do canal, com texto livre quando aplicável. | Alta | Planeado |
+| RF217 | [~] O motor de mensagens deve classificar todo envio WhatsApp como `marketing`, `utilidade`, `autenticacao` ou `servico` antes de enviar. | Alta | Parcial - AutomacaoWhatsApp classifica envios manuais/templates e automáticos antes do provider, anexando política ao contexto; faltam UI de configuração e validação temporal real da janela de 24h |
+| RF218 | [~] Conversas de serviço devem ser usadas para atendimento iniciado pelo cliente e dentro da janela permitida do canal, com texto livre quando aplicável. | Alta | Parcial - texto livre manual e respostas de atendimento são classificados como serviço, e envio declarado fora da janela é bloqueado; falta cálculo automático pela última mensagem inbound |
 | RF219 | [ ] Templates de utilidade devem ser usados para eventos transacionais como pedido criado, pagamento pendente, pagamento confirmado, entrega, recibo, reserva expirada e atualização de fila/reposição. | Alta | Planeado |
 | RF220 | [ ] Templates de marketing devem ser usados para promoções, novidades, campanhas, reativação, cross-sell, catálogo, cupões e divulgações de afiliados/criadores. | Alta | Planeado |
 | RF221 | [ ] Templates de autenticação devem ser usados apenas para códigos OTP, login, validação de identidade e operações de segurança. | Alta | Planeado |
 | RF222 | [ ] Cada evento de mensagem deve registrar motivo, categoria, template, idioma, janela de atendimento, consentimento, entidade relacionada e fallback previsto. | Alta | Planeado |
 | RF223 | [ ] O sistema deve impedir texto promocional em mensagens de utilidade ou autenticação. | Alta | Planeado |
 | RF224 | [ ] Quando a janela de serviço estiver fechada, o sistema deve exigir template aprovado e categoria compatível com o evento. | Alta | Planeado |
-| RF225 | [ ] Clientes com opt-out não devem receber marketing, mas podem receber mensagens transacionais permitidas e necessárias à execução do pedido. | Alta | Planeado |
+| RF225 | [~] Clientes com opt-out não devem receber marketing, mas podem receber mensagens transacionais permitidas e necessárias à execução do pedido. | Alta | Parcial - marketing manual sem consentimento explícito é bloqueado antes do provider; faltam opt-out persistente e validação centralizada por cliente/campanha |
 | RF226 | [ ] Se a categoria ou template necessário não estiver configurado/aprovado, o sistema deve criar tarefa humana e não tentar envio inseguro. | Alta | Planeado |
 | RF227 | [ ] Logs de mensagem devem guardar categoria, template, preço/categoria vigente quando disponível, resposta do provider, erro e estado final. | Alta | Planeado |
 | RF228 | [ ] A escolha de categoria deve ser configurável por tipo de evento, mas limitada por um motor de política para evitar uso indevido. | Alta | Planeado |
@@ -535,7 +537,7 @@ Esta etapa vem antes da implementação visual dos novos módulos. O objetivo é
 | RF257 | [~] O backend deve suportar afiliados, criadores e revendedores com links próprios, regras de comissão, reversões, pagamentos e relatórios. | Alta | Parcial - parceiros, links próprios, comissão estimada/confirmada/paga/revertida, pagamento individual/lote, saldos, exportação CSV, auditoria e resumo implementados; faltam regras avançadas, portal do afiliado e relatórios avançados |
 | RF258 | [ ] O backend deve normalizar social inbox com comentários de redes sociais, posts, autores, intenção, tarefas e oportunidades. | Alta | Planeado |
 | RF259 | [ ] O backend deve ter funil e playbooks de recuperação com eventos, condições, ações, tarefas humanas e histórico de mudança. | Alta | Planeado |
-| RF260 | [ ] O backend deve implementar motor de política WhatsApp para classificar envios em marketing, utilidade, autenticação ou serviço antes de chamar o provider. | Alta | Planeado |
+| RF260 | [~] O backend deve implementar motor de política WhatsApp para classificar envios em marketing, utilidade, autenticação ou serviço antes de chamar o provider. | Alta | Parcial - motor interno implementado em AutomacaoWhatsApp com metadados de política e bloqueios mínimos; faltam persistência de templates aprovados, janela real e opt-out centralizado |
 | RF261 | [ ] O backend deve gerir templates WhatsApp por categoria, idioma, estado de aprovação, provider, versão e compatibilidade com eventos. | Alta | Planeado |
 | RF262 | [ ] O backend deve unificar outbox/event bus para WhatsApp, n8n, tracking, campanhas, social inbox, comissões e notificações internas. | Alta | Planeado |
 | RF263 | [~] O backend deve implementar permissões e papéis por negócio: dono, admin, vendedor, atendente, financeiro, entregador, afiliado/criador e suporte técnico. | Alta | Parcial |
@@ -661,7 +663,7 @@ Esta etapa vem antes da implementação visual dos novos módulos. O objetivo é
 | RNF64 | [x] O design system deve padronizar cards, listas, tabelas, filtros, badges, estados vazios e ações destrutivas antes de novas páginas CRM. | Alta | Implementado |
 | RNF65 | [ ] A aplicação deve manter textos curtos, orientados à ação e compreensíveis por vendedor não técnico. | Alta | Planeado |
 | RNF66 | [ ] O CRM deve registrar métricas de funil sem depender de serviços externos para operação básica. | Média | Planeado |
-| RNF67 | [ ] Campanhas devem respeitar limites de envio, opt-out, consentimento e regras do provider WhatsApp usado. | Alta | Planeado |
+| RNF67 | [~] Campanhas devem respeitar limites de envio, opt-out, consentimento e regras do provider WhatsApp usado. | Alta | Parcial - política de WhatsApp já bloqueia marketing sem consentimento explícito no envio manual; faltam campanhas, opt-out persistente e limites por provider |
 | RNF68 | [ ] Automações devem falhar de forma segura: se houver dúvida, criar tarefa humana em vez de executar ação crítica. | Alta | Planeado |
 | RNF69 | [ ] O sistema deve manter idempotência em importações, campanhas e webhooks para evitar duplicação de clientes, pedidos ou mensagens. | Alta | Planeado |
 | RNF70 | [ ] O CRM deve permitir evolução modular por domínios: Clientes, Pedidos, Produtos, Conversas, Campanhas, Relatórios e Configurações. | Alta | Planeado |
@@ -674,14 +676,14 @@ Esta etapa vem antes da implementação visual dos novos módulos. O objetivo é
 |---|---|---|---|
 | RNF73 | [ ] A loja pública, catálogo e checkout devem ser rápidos e utilizáveis em mobile, com prioridade para telas de 360px e conexões móveis comuns em Angola. | Alta | Planeado |
 | RNF74 | [ ] O checkout e o clique para WhatsApp não podem depender de tracking, cookies ou integrações sociais para funcionar. | Alta | Planeado |
-| RNF75 | [~] Tracking, social inbox, afiliados, checkout, funil, automações, catálogo, loja pública e WhatsApp policy devem ser módulos separados por fronteiras claras. | Alta | Parcial - módulos HTTP/use cases separados para loja pública, tracking e afiliados; faltam social inbox, funil, campanhas e WhatsApp policy |
+| RNF75 | [~] Tracking, social inbox, afiliados, checkout, funil, automações, catálogo, loja pública e WhatsApp policy devem ser módulos separados por fronteiras claras. | Alta | Parcial - módulos HTTP/use cases separados para loja pública, tracking, afiliados e política WhatsApp; faltam social inbox, funil e campanhas |
 | RNF76 | [ ] Eventos de tracking e automação devem usar outbox/event bus para não bloquear a operação principal de pedido, pagamento ou conversa. | Alta | Planeado |
 | RNF77 | [ ] Webhooks de redes sociais e WhatsApp devem ser idempotentes para evitar duplicar clientes, comentários, mensagens, pedidos ou comissões. | Alta | Planeado |
 | RNF78 | [ ] O sistema deve suportar limitações de providers sociais por adaptadores, permissões, rate limits e fallback manual documentado. | Alta | Planeado |
-| RNF79 | [ ] O motor de política WhatsApp deve ser testável, auditável e independente do provider concreto usado para envio. | Alta | Planeado |
-| RNF80 | [ ] A categoria WhatsApp escolhida para cada envio deve ficar rastreável para auditoria, custo, troubleshooting e melhoria operacional. | Alta | Planeado |
-| RNF81 | [ ] Mensagens de marketing, utilidade, autenticação e serviço devem ter validação automática de categoria antes de irem ao provider. | Alta | Planeado |
-| RNF82 | [ ] O sistema deve aplicar opt-out e consentimento antes de campanhas, reativações, divulgações de afiliados e mensagens promocionais. | Alta | Planeado |
+| RNF79 | [~] O motor de política WhatsApp deve ser testável, auditável e independente do provider concreto usado para envio. | Alta | Parcial - serviço de política testado em `whatsapp-politica.test.ts` e executado antes dos providers; faltam persistência/auditoria estruturada por tabela |
+| RNF80 | [~] A categoria WhatsApp escolhida para cada envio deve ficar rastreável para auditoria, custo, troubleshooting e melhoria operacional. | Alta | Parcial - categoria e política são anexadas ao contexto do envio e evento emitido; faltam colunas/relatórios dedicados |
+| RNF81 | [~] Mensagens de marketing, utilidade, autenticação e serviço devem ter validação automática de categoria antes de irem ao provider. | Alta | Parcial - validação automática inicial implementada para manual/templates e automações; faltam validações semânticas do texto e templates aprovados por provider |
+| RNF82 | [~] O sistema deve aplicar opt-out e consentimento antes de campanhas, reativações, divulgações de afiliados e mensagens promocionais. | Alta | Parcial - envio manual de marketing exige consentimento explícito; faltam campanhas, reativações, afiliados e opt-out persistente |
 | RNF83 | [ ] Cookies e identificadores de tracking não devem conter telefone, email, nome, endereço ou qualquer dado pessoal sensível. | Alta | Planeado |
 | RNF84 | [ ] A loja pública deve exibir texto claro sobre tracking/privacidade quando cookies ou eventos de marketing forem usados. | Alta | Planeado |
 | RNF85 | [ ] Relatórios de afiliados e criadores devem expor apenas dados necessários, evitando mostrar dados privados de clientes sem necessidade operacional. | Alta | Planeado |
@@ -689,7 +691,7 @@ Esta etapa vem antes da implementação visual dos novos módulos. O objetivo é
 | RNF87 | [~] Eventos analíticos devem ser armazenados de forma eficiente para pelo menos 100.000 eventos sem travar a UI operacional. | Média | Parcial - eventos já são agregados no backend em resumo de tracking e funil, evitando cálculo bruto na UI; faltam paginação/consulta temporal e otimização para alto volume real |
 | RNF88 | [ ] Páginas públicas de loja e catálogo devem ser cacheáveis sempre que possível, sem expor dados privados ou stock incorreto. | Média | Planeado |
 | RNF89 | [ ] A UI deve ocultar módulos não ativados, mas preservar rotas e dados para reativação futura quando permitido. | Média | Planeado |
-| RNF90 | [ ] Toda automação deve falhar de forma segura: mensagem não enviada, categoria inválida, template ausente ou provider indisponível devem criar tarefa humana com contexto. | Alta | Planeado |
+| RNF90 | [~] Toda automação deve falhar de forma segura: mensagem não enviada, categoria inválida, template ausente ou provider indisponível devem criar tarefa humana com contexto. | Alta | Parcial - envios automáticos capturam falhas e preservam contexto/outbox; política bloqueia categorias inválidas em manual; faltam tarefas humanas automáticas para exceções de política |
 | RNF91 | [ ] O CRM+ deve manter logs operacionais compreensíveis para o dono do negócio, não apenas logs técnicos para desenvolvedores. | Alta | Planeado |
 | RNF92 | [ ] Importações e sincronizações sociais devem ter relatório de sucesso, falha, duplicados, ignorados e próximos passos. | Média | Planeado |
 | RNF93 | [ ] Links rastreáveis devem ser estáveis, curtos quando possível e resilientes a mudanças de slug do produto/catálogo. | Média | Planeado |

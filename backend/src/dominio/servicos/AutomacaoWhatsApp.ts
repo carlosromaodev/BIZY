@@ -1,6 +1,7 @@
 import type { DespachadorEventos } from "../eventos/DespachadorEventos.js";
-import type { ProvedorWhatsApp } from "../provedores/ProvedorWhatsApp.js";
+import type { CategoriaMensagemWhatsApp, PoliticaEnvioWhatsApp, ProvedorWhatsApp } from "../provedores/ProvedorWhatsApp.js";
 import type { Peca, Reserva } from "../tipos.js";
+import { PoliticaMensagensWhatsApp } from "./PoliticaMensagensWhatsApp.js";
 
 type TipoMensagemAutomatica =
   | "RESERVA_CRIADA"
@@ -16,6 +17,7 @@ export interface TemplateWhatsApp {
   id: string;
   nome: string;
   tipo: string;
+  categoria: CategoriaMensagemWhatsApp;
   descricao: string;
   variaveis: string[];
   corpo: string;
@@ -27,6 +29,9 @@ export interface DadosMensagemManualWhatsApp {
   mensagem?: string;
   templateId?: string;
   variaveis?: Record<string, string>;
+  categoria?: CategoriaMensagemWhatsApp;
+  consentimentoMarketing?: boolean;
+  janelaAtendimentoAtiva?: boolean;
 }
 
 const templatesWhatsApp: TemplateWhatsApp[] = [
@@ -34,6 +39,7 @@ const templatesWhatsApp: TemplateWhatsApp[] = [
     id: "iban",
     nome: "Dados de pagamento",
     tipo: "MANUAL_IBAN",
+    categoria: "utility",
     descricao: "Envia IBAN, titular e referência para pagamento.",
     variaveis: ["nomeCliente", "codigoPeca", "nomePeca", "preco", "iban", "titular", "referencia"],
     corpo: `Olá, {nomeCliente}. Seguem os dados para pagamento da tua reserva.
@@ -50,6 +56,7 @@ Depois de pagar, envia o comprovativo por aqui para confirmação.`
     id: "reserva",
     nome: "Confirmação de reserva",
     tipo: "MANUAL_RESERVA",
+    categoria: "utility",
     descricao: "Confirma manualmente uma reserva feita durante a live.",
     variaveis: ["nomeCliente", "codigoPeca", "nomePeca", "preco", "minutosReserva"],
     corpo: `Olá, {nomeCliente}. A peça {codigoPeca} {nomePeca} ficou reservada para ti por {minutosReserva} minutos.
@@ -61,6 +68,7 @@ Para garantir a compra, faz o pagamento e envia o comprovativo.`
     id: "lembrete",
     nome: "Lembrete de expiração",
     tipo: "MANUAL_LEMBRETE",
+    categoria: "utility",
     descricao: "Lembra o cliente que a reserva está perto de expirar.",
     variaveis: ["nomeCliente", "codigoPeca", "minutosRestantes"],
     corpo: `Olá, {nomeCliente}. A tua reserva da peça {codigoPeca} expira em cerca de {minutosRestantes} minutos.
@@ -71,6 +79,7 @@ Se ainda quiseres ficar com ela, envia o comprovativo assim que fizeres o pagame
     id: "pagamento_confirmado",
     nome: "Pagamento confirmado",
     tipo: "MANUAL_PAGAMENTO_CONFIRMADO",
+    categoria: "utility",
     descricao: "Confirma pagamento validado pelo vendedor.",
     variaveis: ["nomeCliente", "codigoPeca"],
     corpo: `Pagamento confirmado, {nomeCliente}. A peça {codigoPeca} ficou marcada como paga. Obrigado pela compra!`
@@ -79,6 +88,7 @@ Se ainda quiseres ficar com ela, envia o comprovativo assim que fizeres o pagame
     id: "atendimento",
     nome: "Atendimento geral",
     tipo: "MANUAL_ATENDIMENTO",
+    categoria: "service",
     descricao: "Resposta curta de atendimento humano.",
     variaveis: ["nomeCliente", "mensagem"],
     corpo: `Olá, {nomeCliente}. {mensagem}`
@@ -89,6 +99,7 @@ export class AutomacaoWhatsApp {
   private readonly ultimosEnvios = new Map<string, number>();
   private readonly intervaloMinimoMs = 30_000;
   private readonly ativo: boolean;
+  private readonly politicaWhatsApp = new PoliticaMensagensWhatsApp();
 
   constructor(
     private readonly provedorWhatsApp: ProvedorWhatsApp,
@@ -202,19 +213,34 @@ Assim que receber o código da peça, confirmo a disponibilidade e sigo com a tu
     const template = dados.templateId ? this.exigirTemplate(dados.templateId) : null;
     const conteudo = dados.mensagem?.trim() || (template ? this.renderizarTemplate(template, dados.variaveis ?? {}) : "");
     const tipo = template?.tipo ?? "MANUAL";
-
-    const resultado = await this.enviarSemBloqueioAutomatico(dados.telefone, tipo, conteudo, {
-      negocioId: dados.negocioId ?? null,
-      origem: "painel",
-      templateId: template?.id ?? null,
-      variaveis: dados.variaveis ?? {}
+    const politica = this.politicaWhatsApp.avaliar({
+      tipo,
+      origem: "manual",
+      categoriaSolicitada: dados.categoria,
+      categoriaTemplate: template?.categoria,
+      consentimentoMarketing: dados.consentimentoMarketing,
+      janelaAtendimentoAtiva: dados.janelaAtendimentoAtiva
     });
+
+    const resultado = await this.enviarSemBloqueioAutomatico(
+      dados.telefone,
+      tipo,
+      conteudo,
+      {
+        negocioId: dados.negocioId ?? null,
+        origem: "painel",
+        templateId: template?.id ?? null,
+        variaveis: dados.variaveis ?? {}
+      },
+      politica
+    );
 
     return {
       telefone: dados.telefone,
       tipo,
       conteudo,
       template,
+      politica,
       resultado
     };
   }
@@ -239,15 +265,30 @@ Assim que receber o código da peça, confirmo a disponibilidade e sigo com a tu
 
     try {
       const negocioId = this.extrairNegocioIdDoContexto(contexto);
-      const resultado = await this.provedorWhatsApp.enviarMensagem({ telefone, conteudo, tipo, contexto });
+      const politica = this.politicaWhatsApp.avaliar({
+        tipo,
+        origem: "automatica",
+        janelaAtendimentoAtiva: this.tipoUsaJanelaDeServico(tipo)
+      });
+      const contextoComPolitica = this.comPolitica(contexto, politica);
+      const resultado = await this.provedorWhatsApp.enviarMensagem({
+        telefone,
+        conteudo,
+        tipo,
+        categoria: politica.categoria,
+        politica,
+        contexto: contextoComPolitica
+      });
       this.ultimosEnvios.set(chave, agora);
 
       this.eventos.emitir("WHATSAPP_MESSAGE_SENT", {
         negocioId,
         telefone,
         tipo,
+        categoriaWhatsApp: politica.categoria,
+        politicaWhatsApp: politica,
         conteudo,
-        contexto,
+        contexto: contextoComPolitica,
         provider: resultado.provider,
         idExterno: resultado.idExterno,
         enviadoEm: resultado.enviadoEm
@@ -270,17 +311,28 @@ Assim que receber o código da peça, confirmo a disponibilidade e sigo com a tu
     telefone: string,
     tipo: string,
     conteudo: string,
-    contexto: Record<string, unknown>
+    contexto: Record<string, unknown>,
+    politica: PoliticaEnvioWhatsApp
   ) {
-    const resultado = await this.provedorWhatsApp.enviarMensagem({ telefone, conteudo, tipo, contexto });
+    const contextoComPolitica = this.comPolitica(contexto, politica);
+    const resultado = await this.provedorWhatsApp.enviarMensagem({
+      telefone,
+      conteudo,
+      tipo,
+      categoria: politica.categoria,
+      politica,
+      contexto: contextoComPolitica
+    });
     const negocioId = this.extrairNegocioIdDoContexto(contexto);
 
     this.eventos.emitir("WHATSAPP_MESSAGE_SENT", {
       negocioId,
       telefone,
       tipo,
+      categoriaWhatsApp: politica.categoria,
+      politicaWhatsApp: politica,
       conteudo,
-      contexto,
+      contexto: contextoComPolitica,
       provider: resultado.provider,
       idExterno: resultado.idExterno,
       enviadoEm: resultado.enviadoEm
@@ -325,6 +377,17 @@ Assim que receber o código da peça, confirmo a disponibilidade e sigo com a tu
     if (typeof reserva?.negocioId === "string" && reserva.negocioId.trim()) return reserva.negocioId;
     if (typeof peca?.negocioId === "string" && peca.negocioId.trim()) return peca.negocioId;
     return null;
+  }
+
+  private comPolitica(contexto: Record<string, unknown>, politica: PoliticaEnvioWhatsApp) {
+    return {
+      ...contexto,
+      politicaWhatsApp: politica
+    };
+  }
+
+  private tipoUsaJanelaDeServico(tipo: string): boolean {
+    return tipo === "PEDIR_CODIGO_PECA" || tipo === "PECA_VENDIDA";
   }
 
   private formatarKwanza(valor: number): string {

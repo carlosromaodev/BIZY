@@ -15,6 +15,7 @@ import {
   tiposMovimentoStock,
   tiposParceiroComercial
 } from "./tipos.js";
+import { categoriasMensagemWhatsApp } from "./provedores/ProvedorWhatsApp.js";
 
 const TextoPerfilOpcionalSchema = z.preprocess(
   (valor) => (typeof valor === "string" && valor.trim() === "" ? null : valor),
@@ -289,7 +290,10 @@ export const EnviarMensagemWhatsAppManualSchema = z
     telefone: z.string().trim().min(8).max(30),
     mensagem: z.string().trim().min(1).max(2000).optional(),
     templateId: z.string().trim().min(1).max(60).optional(),
-    variaveis: z.record(z.string(), z.string()).default({})
+    variaveis: z.record(z.string(), z.string()).default({}),
+    categoria: z.enum(categoriasMensagemWhatsApp).optional(),
+    consentimentoMarketing: z.boolean().optional(),
+    janelaAtendimentoAtiva: z.boolean().optional()
   })
   .refine((dados) => Boolean(dados.mensagem || dados.templateId), {
     message: "Informe uma mensagem ou um templateId."
