@@ -18,7 +18,7 @@ const dadosFooter = {
   empresa: {
     nome: NOME_PRODUTO,
     descricao:
-      "CRM operacional para live commerce: comentários viram reservas, conversas e clientes com histórico no WhatsApp oficial."
+      "CRM+ para lojas, criadores e afiliados venderem por WhatsApp, live, catálogo e loja online com pedidos, stock, clientes e relatórios no mesmo lugar."
   },
   contacto: {
     email: "suporte@bizy.ao",
@@ -36,14 +36,14 @@ const linksSociais: Array<{ icon: LucideIcon; label: string; href: string }> = [
 ];
 
 const produtoLinks = [
-  { text: "Comentários da live", href: "/app/comentarios" },
-  { text: "Reservas", href: "/app/reservas" },
-  { text: "Conversas WhatsApp", href: "/app/conversas" },
-  { text: "Clientes", href: "/app/clientes" }
+  { text: "Loja e catálogo", href: "/app/catalogo" },
+  { text: "Pedidos", href: "/app/reservas" },
+  { text: "WhatsApp", href: "/app/conversas" },
+  { text: "Clientes CRM", href: "/app/clientes" }
 ];
 
 const operacaoLinks = [
-  { text: "Catálogo", href: "/app/catalogo" },
+  { text: "Afiliados", href: "/app/afiliados" },
   { text: "Pagamentos", href: "/app/reservas" },
   { text: "Campanhas", href: "/app/campanhas" },
   { text: "Relatórios", href: "/app/relatorios" }
@@ -52,7 +52,7 @@ const operacaoLinks = [
 const suporteLinks = [
   { text: "FAQ", href: "#faq" },
   { text: "Atendimento WhatsApp", href: "/app/conversas", hasIndicator: true },
-  { text: "Onboarding da loja", href: "/onboarding" },
+  { text: "Criar loja", href: "/onboarding" },
   { text: "Conexão WhatsApp", href: "/app/whatsapp" }
 ];
 

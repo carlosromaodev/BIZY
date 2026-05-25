@@ -3,15 +3,15 @@ import {
   BarChart3,
   CheckCircle2,
   GraduationCap,
+  Link2,
   Menu,
   MessageCircle,
-  Package,
   Radio,
   ReceiptText,
+  ShoppingBag,
   Smartphone,
   Store,
   Users,
-  WalletCards,
   X
 } from "lucide-react";
 import { motion, useReducedMotion, type Variants } from "framer-motion";
@@ -46,12 +46,12 @@ const MotionDiv = motion.div;
 const MotionSection = motion.section;
 
 const modulos = [
-  { icone: MessageCircle, titulo: "Atendimento", texto: "Conversas, notas, histórico e reenvio de mensagens no mesmo lugar." },
-  { icone: ReceiptText, titulo: "Pedidos", texto: "Reserva, fila, pagamento e expiração com regras de negócio claras." },
-  { icone: Package, titulo: "Produtos", texto: "Catálogo pronto para lives, códigos curtos, stock e fotos." },
-  { icone: Users, titulo: "Clientes", texto: "Perfil por telefone, username, origem, avatar e comportamento de compra." },
-  { icone: BarChart3, titulo: "Operação", texto: "Indicadores que mostram conversão, perdas e oportunidades de recuperação." },
-  { icone: Smartphone, titulo: "WhatsApp oficial", texto: "Confirmações, cobranças e suporte pelo número oficial da loja." }
+  { icone: Store, titulo: "Loja e catálogo", texto: "Produtos, fotos, stock, códigos, preços e links de venda prontos para publicar." },
+  { icone: ReceiptText, titulo: "Pedidos e checkout", texto: "Comentários, mensagens e compras viram pedidos com pagamento, prazo e entrega." },
+  { icone: MessageCircle, titulo: "WhatsApp e atendimento", texto: "Conversas, notas, histórico, reenvio e estado de entrega no mesmo lugar." },
+  { icone: Users, titulo: "Clientes e CRM", texto: "Telefone, nome, username, avatar, origem, compras e comportamento de recompra." },
+  { icone: Link2, titulo: "Afiliados e links", texto: "Links por produto, campanha ou parceiro com origem e resultado rastreáveis." },
+  { icone: BarChart3, titulo: "Relatórios", texto: "Vendas, conversão, produtos fortes, clientes recorrentes e oportunidades perdidas." }
 ];
 
 const vendedoresAtivos = [
@@ -63,80 +63,90 @@ const vendedoresAtivos = [
 ];
 
 const estatisticasHero = [
-  { valor: "200+", label: "comentários organizados", icone: MessageCircle },
-  { valor: "10 min", label: "reserva protegida", icone: ReceiptText },
-  { valor: "24h", label: "atendimento com contexto", icone: WalletCards },
-  { valor: "1 CRM", label: "clientes, pedidos e mensagens", icone: Store }
+  { valor: "1 central", label: "pedidos, clientes e conversas", icone: Store },
+  { valor: "WhatsApp", label: "atendimento e recuperação", icone: MessageCircle },
+  { valor: "Stock", label: "catálogo e loja online", icone: ShoppingBag },
+  { valor: "Links", label: "afiliados e campanhas", icone: Link2 }
 ];
 
 const perguntasOperacao = [
-  "Quem pediu o artigo 09 na live?",
-  "Qual reserva vence nos próximos 10 minutos?",
-  "Que cliente ainda não recebeu WhatsApp?",
-  "Qual produto está a vender mais rápido?",
-  "Quem mandou comprovativo de pagamento?",
+  "Que pedido chegou pelo WhatsApp?",
+  "Qual produto precisa de reposição?",
+  "Que cliente deve receber follow-up?",
+  "Qual link gerou mais vendas?",
+  "Quem comprou pelo catálogo digital?",
+  "Que entrega precisa ser calculada?",
+  "Qual afiliado trouxe este pedido?",
   "Que conversa precisa de resposta agora?",
   "Quais clientes voltaram a comprar?",
-  "Qual pedido ficou sem confirmação?",
-  "Que artigo precisa de reposição?",
-  "Quem comentou número angolano + código?",
-  "Qual atendimento está sem responsável?",
-  "Que campanha deve ser reenviada?"
+  "Qual campanha deve ser reenviada?",
+  "Que live converteu melhor?",
+  "Que carrinho ficou sem pagamento?"
 ];
 
 const featuresSistema = [
   {
-    descricao: "O Bizy lê a intenção, liga telefone angolano ao artigo e transforma o comentário em pedido rastreável.",
-    icone: MessageCircle,
-    titulo: "Comentários sem perda"
+    descricao: "Cria produtos, controla stock, publica catálogo digital e gera links de venda para WhatsApp, redes sociais e site.",
+    icone: Store,
+    titulo: "Loja pronta para vender"
   },
   {
-    descricao: "Reserva temporária, prazo, pagamento e estado do pedido ficam claros para a equipa e para o cliente.",
+    descricao: "Cada comentário, mensagem, link ou compra vira um pedido com produto, cliente, pagamento, prazo e entrega ligados.",
     icone: ReceiptText,
-    titulo: "Pedidos com regra"
+    titulo: "Pedidos com controlo"
   },
   {
-    descricao: "Cada telefone, username, userId, origem e avatar alimenta um perfil único para atendimento e recompra.",
+    descricao: "Telefone, nome, username, userId, avatar, origem e histórico alimentam um perfil único para atendimento e recompra.",
     icone: Users,
-    titulo: "Clientes com contexto"
+    titulo: "CRM de clientes"
   },
   {
-    descricao: "Mensagens oficiais, recuperação de falhas e histórico ficam no mesmo fluxo de atendimento.",
+    descricao: "Links por produto, campanha ou parceiro mostram de onde veio a venda e ajudam a calcular resultado de afiliados.",
+    icone: Link2,
+    titulo: "Afiliados e rastreio"
+  },
+  {
+    descricao: "Mensagens oficiais, templates certos e recuperação de falhas ficam no mesmo fluxo de atendimento.",
     icone: Smartphone,
     titulo: "WhatsApp oficial"
+  },
+  {
+    descricao: "Relatórios mostram conversão, produtos fortes, clientes recorrentes, campanhas e oportunidades perdidas.",
+    icone: BarChart3,
+    titulo: "Decisão por dados"
   }
 ];
 
 const linksNavegacao = [
-  { href: "#onboarding", label: "Conta" },
+  { href: "#onboarding", label: "Como funciona" },
   { href: "#modulos", label: "Módulos" },
   { href: "#pricing", label: "Preços" },
-  { href: "#faq", label: "FAQ" }
+  { href: "#faq", label: "Dúvidas" }
 ];
 
 const faqsBizyLeft = [
   {
-    question: "A plataforma envia WhatsApp automaticamente?",
+    question: "O Bizy serve apenas para vendas em live?",
     answer:
-      "Sim. O Bizy usa o provider configurado para iniciar mensagens pelo número oficial da loja, com histórico e estado de entrega visíveis na conversa."
+      "Não. A live é um dos canais. O Bizy também organiza vendas pelo WhatsApp, catálogo digital, loja online, links de produto, campanhas e afiliados."
   },
   {
-    question: "O Bizy substitui o WhatsApp?",
+    question: "O cliente pode comprar pelo WhatsApp ou pelo site?",
     answer:
-      "Não. Ele organiza a operação por cima do WhatsApp: comentários, reservas, clientes, produtos e mensagens ficam conectados no CRM."
+      "Sim. A loja pode atender pelo WhatsApp e também publicar produtos em páginas de venda com pedido, pagamento, entrega e cliente ligados ao CRM."
   },
   {
-    question: "Preciso cadastrar o negócio antes da live?",
+    question: "O sistema controla stock e catálogo?",
     answer:
-      "Sim. O cadastro define regras de reserva, canais, pagamento, entrega, equipa e catálogo para que a live comece com dados consistentes."
+      "Sim. Cada produto pode ter preço, fotos, código, stock, disponibilidade e links. Isso reduz venda duplicada e ajuda a equipa a saber o que ainda pode vender."
   },
   {
-    question: "Como o sistema entende um pedido no comentário?",
+    question: "Como o Bizy transforma comentários em pedidos?",
     answer:
-      "Ele procura um número angolano e o número do artigo no comentário. Quando encontra intenção de compra, cria a reserva e inicia o atendimento."
+      "Quando há dados suficientes, como telefone angolano e código do artigo, o Bizy cria um pedido rastreável e liga produto, cliente, conversa e pagamento."
   },
   {
-    question: "O que acontece quando o envio falha?",
+    question: "O que acontece quando uma mensagem WhatsApp falha?",
     answer:
       "A falha fica registada, a equipa vê o motivo disponível e pode reenviar. O fluxo foi pensado para recuperação, não para perder o cliente em silêncio."
   }
@@ -144,14 +154,14 @@ const faqsBizyLeft = [
 
 const faqsBizyRight = [
   {
-    question: "Consigo usar Gmail, telefone ou login estudantil?",
+    question: "Consigo usar afiliados e links rastreáveis?",
     answer:
-      "Sim. A conta pode começar por telefone, Gmail ou identidade estudantil quando a integração estiver configurada no backend."
+      "Sim. A visão do Bizy inclui links por produto, campanha ou afiliado para acompanhar origem, conversão e resultado comercial."
   },
   {
-    question: "O catálogo precisa ter códigos curtos?",
+    question: "O Bizy calcula entrega?",
     answer:
-      "Sim. Códigos como 01, 09 ou 012 tornam a captura da live mais rápida e reduzem confusão entre comentário, artigo e reserva."
+      "Sim. A entrega entra no pedido para a equipa conseguir informar valor, método e estado sem separar a conversa do histórico do cliente."
   },
   {
     question: "O cliente fica cadastrado automaticamente?",
@@ -159,14 +169,14 @@ const faqsBizyRight = [
       "Sempre que a API entregar dados disponíveis, o Bizy aproveita telefone, nome, username, userId e avatar para enriquecer o perfil do cliente."
   },
   {
-    question: "Posso acompanhar reservas e pagamentos?",
+    question: "Como o WhatsApp oficial entra na operação?",
     answer:
-      "Sim. Reservas, prazo, comprovativo, pagamento e estado do pedido ficam ligados à conversa e ao produto correspondente."
+      "O Bizy deve separar mensagens de serviço, utilidade, autenticação e marketing para enviar a comunicação certa no momento certo e evitar custo ou bloqueio desnecessário."
   },
   {
     question: "O preço é por módulo?",
     answer:
-      "Não. Os planos dão acesso ao fluxo completo: live, reservas, WhatsApp, catálogo, clientes e relatórios operacionais."
+      "Não. Os planos dão acesso ao fluxo completo: loja, catálogo, pedidos, WhatsApp, CRM de clientes, links, afiliados e relatórios."
   }
 ];
 
@@ -211,7 +221,7 @@ export function PaginaHome() {
                     <div className="rounded-xl bg-primary/10 p-4">
                       <span className="text-xs font-bold uppercase text-primary">Fluxo Bizy</span>
                       <p className="mt-1 text-sm font-semibold text-foreground">
-                        Comentário, reserva, conversa e pagamento a trabalhar como uma só operação.
+                        Loja, canais de venda, pedidos, clientes e relatórios a trabalhar como uma só operação.
                       </p>
                     </div>
                     <div className="grid grid-cols-2 gap-2">
@@ -301,7 +311,7 @@ export function PaginaHome() {
             </Badge>
             <h2 className="text-3xl font-medium tracking-tight" style={{ color: "#ffffff", fontFamily: PROMPT_FONT_FAMILY }}>Quem vem da UOR ou ISPTEC entra com a identidade académica.</h2>
             <p className="max-w-2xl text-sm leading-6" style={{ color: "rgb(255 255 255 / 0.72)" }}>
-              O Bizy aproveita dados confiáveis quando disponíveis, mas separa perfil pessoal dos dados comerciais da loja.
+              O Bizy permite começar com telefone, Gmail ou identidade académica e mantém os dados pessoais separados da operação comercial da loja.
             </p>
           </div>
           <div className="grid gap-2 text-sm">
@@ -321,13 +331,13 @@ export function PaginaHome() {
 
       <FAQSection
         buttonLabel="Ver preços"
-        description="Tudo que uma loja precisa saber antes de ligar comentários, reservas e WhatsApp num fluxo único de atendimento."
+        description="Tudo que uma loja, criador ou afiliado precisa saber antes de vender por WhatsApp, live, catálogo, links e loja online com tudo ligado ao CRM."
         faqsLeft={faqsBizyLeft}
         faqsRight={faqsBizyRight}
         id="faq"
         onButtonClick={() => document.querySelector("#pricing")?.scrollIntoView({ behavior: "smooth" })}
         subtitle="Perguntas frequentes"
-        title="Suporte do produto Bizy"
+        title="Dúvidas sobre o Bizy"
       />
 
       <Footer4Col />
@@ -353,7 +363,7 @@ function AvatarStack() {
         ))}
       </div>
       <span className="max-w-44 text-xs font-semibold leading-5 text-white/75">
-        Lojas em live a vender com atendimento organizado.
+        Lojas, criadores e equipas a vender com atendimento organizado.
       </span>
     </div>
   );
@@ -378,17 +388,16 @@ function BizyFeaturesSection() {
       <div className="mx-auto max-w-full">
         <div className="mx-auto flex max-w-5xl flex-col items-center justify-center space-y-4 px-5 text-center md:px-10">
           <Badge className="rounded-none border-[#d8ff72]/30 bg-[#d8ff72]/10 px-3 py-1.5 text-[#d8ff72] hover:bg-[#d8ff72]/10" variant="outline">
-            Operação diária
+            Social commerce
           </Badge>
           <h2
             className="max-w-3xl text-3xl font-medium leading-[1.05] tracking-normal sm:text-4xl lg:text-5xl"
             style={{ color: "#ffffff", fontFamily: PROMPT_FONT_FAMILY }}
           >
-            Removendo o ruído entre comentário, pedido e <span className="text-[#d8ff72]">atendimento</span>.
+            Tudo que a loja precisa para vender nas redes, no WhatsApp e no <span className="text-[#d8ff72]">site</span>.
           </h2>
           <p className="max-w-2xl text-base leading-7 text-white/72 md:text-lg">
-            O Bizy filtra o caos da live, mostra o que importa e entrega uma base operacional para vender com contexto,
-            prazo e relacionamento.
+            O Bizy organiza canais, produtos, pedidos, clientes, entregas, afiliados e relatórios para transformar interesse em venda acompanhada.
           </p>
 
           <div className="relative mx-auto max-w-3xl overflow-hidden pt-3">
@@ -419,7 +428,7 @@ function BizyFeaturesSection() {
           </div>
         </div>
 
-        <div className="mt-10 grid grid-cols-1 divide-dashed divide-[#d8ff72]/25 border-y border-dashed border-[#d8ff72]/25 sm:grid-cols-2 sm:divide-x lg:grid-cols-4">
+        <div className="mt-10 grid grid-cols-1 divide-dashed divide-[#d8ff72]/25 border-y border-dashed border-[#d8ff72]/25 sm:grid-cols-2 sm:divide-x lg:grid-cols-3">
           {featuresSistema.map((feature) => {
             const Icone = feature.icone;
             return (
@@ -498,19 +507,18 @@ function LiveCommerceHero({ motionPreset }: { motionPreset: ReturnType<typeof cr
           <MotionDiv className="w-full space-y-4 sm:w-1/2" variants={motionPreset.item}>
             <Badge className="w-fit gap-2 rounded-full border border-white/20 bg-black/20 px-3 py-1.5 text-white shadow-sm backdrop-blur-sm hover:bg-black/20">
               <Radio size={14} />
-              CRM para vendas em live e WhatsApp
+              CRM+ para social commerce
             </Badge>
             <h1
               className="text-3xl font-medium leading-[1.05] tracking-tight text-white sm:text-4xl md:text-5xl lg:text-6xl"
               style={{ color: "#ffffff", fontFamily: PROMPT_FONT_FAMILY, textShadow: "0 4px 28px rgb(0 0 0 / 0.48)" }}
             >
-              Vende na <span className="text-[#d8ff72]">live</span>. O{" "}
-              <span className="text-[#d8ff72]">{NOME_PRODUTO}</span> cuida do pedido, da conversa e do cliente.
+              Venda pelo <span className="text-[#d8ff72]">WhatsApp</span>, live e loja online sem perder pedidos.
             </h1>
             <div className="flex">
               <Button asChild size="lg" className="h-12 !rounded-none bg-white py-0 pl-5 pr-0 text-lg font-normal text-black hover:bg-white/95">
                 <Link style={{ borderRadius: 0, color: "#111111", fontFamily: PROMPT_FONT_FAMILY }} to="/login">
-                  <span style={{ color: "#111111" }}>Criar conta operacional</span>
+                  <span style={{ color: "#111111" }}>Começar agora</span>
                   <span className="ml-4 grid h-12 w-12 place-items-center border-l border-neutral-500/40" style={{ color: "#111111" }}>
                     <ArrowRight size={20} aria-hidden="true" />
                   </span>
@@ -524,7 +532,7 @@ function LiveCommerceHero({ motionPreset }: { motionPreset: ReturnType<typeof cr
               className="text-base font-medium italic leading-7 text-[#d8ff72] sm:text-right md:text-2xl md:leading-9"
               style={{ fontFamily: PROMPT_FONT_FAMILY }}
             >
-              Comentários viram reservas, reservas viram conversas e cada conversa fica ligada ao produto, pagamento e histórico do cliente.
+              O {NOME_PRODUTO} junta catálogo, stock, pedidos, conversas, pagamentos, entregas, clientes e relatórios num CRM feito para vender nas redes sociais.
             </p>
           </MotionDiv>
         </div>

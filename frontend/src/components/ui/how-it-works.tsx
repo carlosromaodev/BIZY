@@ -1,4 +1,4 @@
-import { CheckCircle2, MessageCircle, Radio, Store } from "lucide-react";
+import { BarChart3, MessageCircle, ShoppingBag, Store } from "lucide-react";
 import type React from "react";
 import { cn } from "@/lib/utils";
 import { PROMPT_FONT_FAMILY } from "@/lib/prompt-font";
@@ -15,36 +15,36 @@ interface StepCardProps {
 
 const stepsData = [
   {
-    icon: <CheckCircle2 className="h-6 w-6" />,
-    title: "Criar conta com contexto",
-    description:
-      "O vendedor entra com telefone, Gmail ou login estudantil e o Bizy separa a identidade pessoal dos dados comerciais da loja.",
-    benefits: [
-      "Verificação por código, OAuth ou identidade académica",
-      "Perfil pronto para equipa, permissões e histórico",
-      "Base limpa para associar clientes, reservas e mensagens"
-    ]
-  },
-  {
     icon: <Store className="h-6 w-6" />,
-    title: "Cadastrar negócio e catálogo",
+    title: "Montar loja e regras",
     description:
-      "A loja informa segmento, canais, métodos de pagamento, regras de reserva, entrega e produtos que entram nas lives.",
+      "Configura o negócio, a equipa, os métodos de pagamento, as zonas de entrega e as regras que vão controlar cada pedido.",
     benefits: [
-      "Artigos com código curto, preço, stock e foto",
-      "Reserva temporária configurada por regra da operação",
-      "Dados de pagamento e entrega preparados antes da live"
+      "Entrada por telefone, Gmail ou identidade académica",
+      "Permissões e dados comerciais separados por loja",
+      "Regras de pagamento, entrega, reserva e atendimento"
     ]
   },
   {
-    icon: <Radio className="h-6 w-6" />,
-    title: "Atender a live no CRM",
+    icon: <ShoppingBag className="h-6 w-6" />,
+    title: "Publicar produtos e canais",
     description:
-      "Comentários com telefone angolano e número do artigo viram pedidos, conversas WhatsApp e perfis de clientes com contexto.",
+      "Cadastra produtos com foto, preço, stock, código curto e links para vender pelo WhatsApp, live, catálogo ou loja online.",
     benefits: [
-      "Comentários convertidos em reservas rastreáveis",
-      "WhatsApp oficial com reenvio e recuperação de falhas",
-      "Histórico do cliente ligado a produto, pedido e pagamento"
+      "Catálogo digital e loja pública por slug",
+      "Links por produto, campanha ou afiliado",
+      "Stock e disponibilidade visíveis para a equipa"
+    ]
+  },
+  {
+    icon: <BarChart3 className="h-6 w-6" />,
+    title: "Atender, entregar e medir",
+    description:
+      "Cada comentário, mensagem, link ou compra vira um pedido acompanhado com cliente, conversa, pagamento, entrega e relatório.",
+    benefits: [
+      "WhatsApp oficial com histórico e recuperação",
+      "Perfil do cliente ligado a compras e origem",
+      "Relatórios de vendas, canais e oportunidades"
     ]
   }
 ];
@@ -97,11 +97,10 @@ export function HowItWorks({ className, id = "onboarding", ...props }: HowItWork
             Primeiro acesso
           </p>
           <h2 className="text-3xl font-bold tracking-tight text-[#06100d] sm:text-4xl" style={{ fontFamily: PROMPT_FONT_FAMILY, color: "#06100d" }}>
-            Como o Bizy começa a vender contigo
+            Como o Bizy organiza a tua operação
           </h2>
           <p className="mx-auto mt-3 max-w-2xl text-sm leading-6 text-[#53615a] sm:mt-4 sm:text-lg sm:leading-7">
-            O onboarding deixa de ser só cadastro: ele monta a base operacional para transformar live, WhatsApp,
-            catálogo e atendimento num CRM de loja.
+            Em poucos minutos, configuras a loja, os produtos, os canais de venda e as regras de atendimento para começar a vender com controlo.
           </p>
         </div>
 
@@ -140,7 +139,7 @@ export function HowItWorks({ className, id = "onboarding", ...props }: HowItWork
           <span className="font-semibold text-[#06100d]">Resultado esperado</span>
           <span className="flex items-center gap-2">
             <MessageCircle className="h-4 w-4 text-[#245c2c]" />
-            Comentários, reservas, WhatsApp e clientes ligados desde o primeiro dia.
+            Loja, WhatsApp, pedidos, clientes, afiliados e relatórios ligados desde o primeiro dia.
           </span>
         </div>
       </div>

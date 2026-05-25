@@ -8,31 +8,31 @@ import { cn } from "@/lib/utils";
 import { PROMPT_FONT_FAMILY } from "@/lib/prompt-font";
 
 const beneficios = [
-  "Comentários da live convertidos em reservas",
-  "Conversas WhatsApp com histórico do cliente",
-  "Catálogo, stock, pedidos e relatórios operacionais",
-  "Reenvio e recuperação de mensagens com falha"
+  "Loja online, catálogo digital e stock",
+  "Pedidos vindos de WhatsApp, live, site e links",
+  "CRM de clientes com histórico e origem",
+  "Afiliados, campanhas, relatórios e recuperação"
 ];
 
 const planos = [
   {
     nome: "Mensal",
-    descricao: "Para lojas que querem validar a operação durante as primeiras lives.",
+    descricao: "Para lojas que querem organizar vendas, atendimento e catálogo sem compromisso longo.",
     preco: "24 900 Kz",
     periodo: "/mês",
     precoAnterior: "29 900 Kz",
     desconto: "teste controlado",
-    cta: "Começar mensal",
+    cta: "Escolher mensal",
     destaque: false
   },
   {
     nome: "Anual",
-    descricao: "Melhor valor para equipas que já vendem por live e querem previsibilidade.",
+    descricao: "Melhor valor para equipas que vendem em vários canais e querem previsibilidade.",
     preco: "19 900 Kz",
     periodo: "/mês",
     precoAnterior: "24 900 Kz",
     desconto: "20% off",
-    cta: "Começar com anual",
+    cta: "Escolher anual",
     destaque: true,
     nota: "238 800 Kz cobrados por ano"
   }
@@ -55,10 +55,10 @@ export function Pricing() {
             </div>
           </div>
           <h2 className="text-center text-3xl font-bold tracking-tight text-white sm:text-4xl">
-            <span style={{ color: "#ffffff", fontFamily: PROMPT_FONT_FAMILY }}>Um preço simples para transformar live em operação.</span>
+            <span style={{ color: "#ffffff", fontFamily: PROMPT_FONT_FAMILY }}>Um preço simples para vender, atender e crescer.</span>
           </h2>
           <p className="mx-auto max-w-xl text-center text-sm leading-6 text-white/68 sm:text-base">
-            O Bizy cobra pelo sistema completo, não por pequenos módulos soltos. A equipa entra, vende, atende e acompanha tudo no mesmo CRM.
+            O Bizy cobra pelo sistema completo, não por pequenos módulos soltos. A equipa publica produtos, vende, atende clientes e acompanha resultados no mesmo CRM.
           </p>
         </motion.div>
 
@@ -154,7 +154,7 @@ export function Pricing() {
                 Acesso a todas as funções, sem taxa escondida.
               </span>
               <span className="hidden h-1 w-1 rounded-full bg-white/25 sm:block" />
-              <span>Setup assistido para primeira live incluído.</span>
+              <span>Setup assistido para primeira loja e canais incluído.</span>
             </div>
 
             <div className="grid gap-2 text-sm text-white/72 sm:grid-cols-2">

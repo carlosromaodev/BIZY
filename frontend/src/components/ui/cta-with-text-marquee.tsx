@@ -43,14 +43,16 @@ function VerticalMarquee({
 }
 
 const marqueeItems = [
-  "Comentários da live",
-  "Reservas com prazo",
+  "Loja online",
+  "Catálogo digital",
   "WhatsApp oficial",
-  "Clientes com contexto",
-  "Pagamentos ligados",
-  "Catálogo para lives",
-  "Reenvio automático",
-  "Equipa alinhada"
+  "Pedidos acompanhados",
+  "Stock atualizado",
+  "Entrega calculada",
+  "Afiliados",
+  "Links rastreáveis",
+  "Clientes com histórico",
+  "Relatórios de venda"
 ];
 
 export default function CTAWithTextMarquee() {
@@ -102,10 +104,10 @@ export default function CTAWithTextMarquee() {
               className="text-4xl font-medium leading-tight tracking-tight md:text-5xl lg:text-6xl"
               style={{ color: "#ffffff", fontFamily: PROMPT_FONT_FAMILY }}
             >
-              Começa a vender na live com o <span className="text-[#d8ff72]">Bizy</span>.
+              Transforma conversas em pedidos e pedidos em <span className="text-[#d8ff72]">clientes</span>.
             </h2>
             <p className="text-lg leading-relaxed text-white/72 md:text-xl">
-              Cria a conta, cadastra o negócio e deixa comentários, reservas, WhatsApp e clientes no mesmo fluxo de atendimento.
+              Começa com uma loja organizada e cresce com WhatsApp, catálogo, afiliados, automação e relatórios no mesmo lugar.
             </p>
             <div className="flex flex-wrap gap-4">
               <a
@@ -113,7 +115,7 @@ export default function CTAWithTextMarquee() {
                 href="/login"
                 style={{ color: "#000000", fontFamily: PROMPT_FONT_FAMILY }}
               >
-                <span className="relative z-10" style={{ color: "#000000" }}>Criar conta operacional</span>
+                <span className="relative z-10" style={{ color: "#000000" }}>Começar agora</span>
                 <span className="relative z-10 ml-4 grid h-12 w-12 place-items-center border-l border-black/20" style={{ color: "#000000" }}>
                   <ArrowRight size={18} />
                 </span>
@@ -123,7 +125,7 @@ export default function CTAWithTextMarquee() {
                 className="group relative inline-flex h-12 items-center overflow-hidden rounded-none border border-[#d8ff72]/25 bg-white/5 px-6 text-sm font-medium uppercase tracking-[0.08em] text-white transition-all duration-300 hover:scale-[1.02] hover:bg-white/10 hover:shadow-[0_18px_42px_rgba(0,0,0,0.24)]"
                 href="#onboarding"
               >
-                <span className="relative z-10">Ver fluxo inicial</span>
+                <span className="relative z-10">Ver como funciona</span>
                 <span className="absolute inset-0 translate-x-[-200%] bg-gradient-to-r from-transparent via-[#d8ff72]/20 to-transparent transition-transform duration-700 group-hover:translate-x-[200%]" />
               </a>
             </div>
