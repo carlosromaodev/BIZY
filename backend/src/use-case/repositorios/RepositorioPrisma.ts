@@ -8,6 +8,7 @@ import type {
   RepositorioClientes,
   RepositorioInstanciasWhatsApp,
   RepositorioPecas,
+  RepositorioFunilComercial,
   RepositorioPedidos,
   RepositorioPlaybooksRecuperacao,
   RepositorioReservas,
@@ -48,6 +49,7 @@ import type {
   FiltrosPedidos,
   FiltrosClientes360,
   FiltrosExecucoesPlaybookRecuperacao,
+  FiltrosMovimentosFunilComercial,
   FiltrosPlaybookRecuperacao,
   FiltrosSocialInbox,
   HistoricoComissaoParceiro,
@@ -56,12 +58,14 @@ import type {
   LinkAfiliado,
   LotePagamentoComissao,
   MensagemAtendimento,
+  MovimentoFunilComercial,
   MovimentoStock,
   NovaComissaoParceiro,
   NovaExecucaoPlaybookRecuperacao,
   NovaMensagemAtendimento,
   NovoEventoTrackingComercial,
   NovoLinkAfiliado,
+  NovoMovimentoFunilComercial,
   NovoPlaybookRecuperacao,
   NovoMovimentoStock,
   NovoParceiroComercial,
@@ -3359,6 +3363,102 @@ export class RepositorioPlaybooksRecuperacaoPrisma implements RepositorioPlayboo
       motivo: linha.motivo,
       contexto: this.lerObjeto(linha.contextoJson),
       criadaEm: linha.criadaEm
+    };
+  }
+
+  private lerObjeto(valor: string): Record<string, unknown> {
+    try {
+      const json = JSON.parse(valor);
+      return json && typeof json === "object" && !Array.isArray(json) ? json as Record<string, unknown> : {};
+    } catch {
+      return {};
+    }
+  }
+}
+
+interface LinhaMovimentoFunilComercial {
+  id: string;
+  negocioId: string;
+  entidadeTipo: string;
+  entidadeId: string;
+  etapaAnterior: string | null;
+  etapaNova: string;
+  motivo: string;
+  origem: string | null;
+  autorId: string | null;
+  contextoJson: string;
+  criadoEm: Date;
+}
+
+export class RepositorioFunilComercialPrisma implements RepositorioFunilComercial {
+  constructor(private readonly prisma: PrismaClient) {}
+
+  async registrarMovimento(dados: NovoMovimentoFunilComercial): Promise<MovimentoFunilComercial> {
+    const linhas = await this.prisma.$queryRaw<LinhaMovimentoFunilComercial[]>`
+      INSERT INTO "MovimentoFunilComercial" (
+        "negocioId",
+        "entidadeTipo",
+        "entidadeId",
+        "etapaAnterior",
+        "etapaNova",
+        "motivo",
+        "origem",
+        "autorId",
+        "contextoJson"
+      ) VALUES (
+        ${dados.negocioId},
+        ${dados.entidadeTipo},
+        ${dados.entidadeId},
+        ${dados.etapaAnterior ?? null},
+        ${dados.etapaNova},
+        ${dados.motivo},
+        ${dados.origem ?? null},
+        ${dados.autorId ?? null},
+        ${JSON.stringify(dados.contexto ?? {})}
+      )
+      RETURNING *
+    `;
+
+    return this.mapearMovimento(linhas[0]);
+  }
+
+  async listarMovimentos(
+    negocioId: string,
+    filtros: FiltrosMovimentosFunilComercial = {}
+  ): Promise<MovimentoFunilComercial[]> {
+    const limite = Math.max(1, Math.min(filtros.limite ?? 100, 500));
+    const condicoes: Prisma.Sql[] = [Prisma.sql`"negocioId" = ${negocioId}`];
+    if (filtros.entidadeTipo) condicoes.push(Prisma.sql`"entidadeTipo" = ${filtros.entidadeTipo}`);
+    if (filtros.entidadeId) condicoes.push(Prisma.sql`"entidadeId" = ${filtros.entidadeId}`);
+    if (filtros.etapaNova) condicoes.push(Prisma.sql`"etapaNova" = ${filtros.etapaNova}`);
+    if (filtros.origem) condicoes.push(Prisma.sql`"origem" = ${filtros.origem}`);
+
+    const linhas = await this.prisma.$queryRaw<LinhaMovimentoFunilComercial[]>(
+      Prisma.sql`
+        SELECT *
+        FROM "MovimentoFunilComercial"
+        WHERE ${Prisma.join(condicoes, " AND ")}
+        ORDER BY "criadoEm" DESC, "id" DESC
+        LIMIT ${limite}
+      `
+    );
+
+    return linhas.map((linha) => this.mapearMovimento(linha));
+  }
+
+  private mapearMovimento(linha: LinhaMovimentoFunilComercial): MovimentoFunilComercial {
+    return {
+      id: linha.id,
+      negocioId: linha.negocioId,
+      entidadeTipo: linha.entidadeTipo,
+      entidadeId: linha.entidadeId,
+      etapaAnterior: linha.etapaAnterior as MovimentoFunilComercial["etapaAnterior"],
+      etapaNova: linha.etapaNova as MovimentoFunilComercial["etapaNova"],
+      motivo: linha.motivo,
+      origem: linha.origem,
+      autorId: linha.autorId,
+      contexto: this.lerObjeto(linha.contextoJson),
+      criadoEm: linha.criadoEm
     };
   }
 

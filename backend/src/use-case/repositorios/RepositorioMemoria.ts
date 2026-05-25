@@ -6,6 +6,7 @@ import type {
   RepositorioAuditoria,
   RepositorioClientes,
   RepositorioComentarios,
+  RepositorioFunilComercial,
   RepositorioInstanciasWhatsApp,
   RepositorioPecas,
   RepositorioPedidos,
@@ -42,6 +43,7 @@ import type {
   FiltrosPedidos,
   FiltrosClientes360,
   FiltrosExecucoesPlaybookRecuperacao,
+  FiltrosMovimentosFunilComercial,
   FiltrosPlaybookRecuperacao,
   AtualizacaoTarefaOperacional,
   EventoSistema,
@@ -50,6 +52,7 @@ import type {
   ItemLotePagamentoComissao,
   LotePagamentoComissao,
   MensagemAtendimento,
+  MovimentoFunilComercial,
   MovimentoStock,
   NovaComissaoParceiro,
   NovaExecucaoPlaybookRecuperacao,
@@ -57,6 +60,7 @@ import type {
   NovoEventoTrackingComercial,
   NovoLotePagamentoComissao,
   NovoLinkAfiliado,
+  NovoMovimentoFunilComercial,
   NovoPlaybookRecuperacao,
   NovoMovimentoStock,
   NovoParceiroComercial,
@@ -2345,6 +2349,45 @@ export class RepositorioPlaybooksRecuperacaoMemoria implements RepositorioPlaybo
       .filter((execucao) => !filtros.entidadeTipo || execucao.entidadeTipo === filtros.entidadeTipo)
       .filter((execucao) => !filtros.entidadeId || execucao.entidadeId === filtros.entidadeId)
       .sort((a, b) => b.criadaEm.getTime() - a.criadaEm.getTime())
+      .slice(0, limite);
+  }
+}
+
+export class RepositorioFunilComercialMemoria implements RepositorioFunilComercial {
+  private readonly movimentos = new Map<string, MovimentoFunilComercial>();
+
+  async registrarMovimento(dados: NovoMovimentoFunilComercial): Promise<MovimentoFunilComercial> {
+    const criadoEm = new Date(Date.now() + this.movimentos.size);
+    const movimento: MovimentoFunilComercial = {
+      id: randomUUID(),
+      negocioId: dados.negocioId,
+      entidadeTipo: dados.entidadeTipo,
+      entidadeId: dados.entidadeId,
+      etapaAnterior: dados.etapaAnterior ?? null,
+      etapaNova: dados.etapaNova,
+      motivo: dados.motivo,
+      origem: dados.origem ?? null,
+      autorId: dados.autorId ?? null,
+      contexto: dados.contexto ?? {},
+      criadoEm
+    };
+
+    this.movimentos.set(movimento.id, movimento);
+    return movimento;
+  }
+
+  async listarMovimentos(
+    negocioId: string,
+    filtros: FiltrosMovimentosFunilComercial = {}
+  ): Promise<MovimentoFunilComercial[]> {
+    const limite = Math.max(1, Math.min(filtros.limite ?? 100, 500));
+    return [...this.movimentos.values()]
+      .filter((movimento) => movimento.negocioId === negocioId)
+      .filter((movimento) => !filtros.entidadeTipo || movimento.entidadeTipo === filtros.entidadeTipo)
+      .filter((movimento) => !filtros.entidadeId || movimento.entidadeId === filtros.entidadeId)
+      .filter((movimento) => !filtros.etapaNova || movimento.etapaNova === filtros.etapaNova)
+      .filter((movimento) => !filtros.origem || movimento.origem === filtros.origem)
+      .sort((a, b) => b.criadoEm.getTime() - a.criadoEm.getTime())
       .slice(0, limite);
   }
 }

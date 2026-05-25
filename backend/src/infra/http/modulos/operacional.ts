@@ -7,9 +7,11 @@ import {
   DefinirPoliticaAutomacaoAtendimentoSchema,
   ExecutarPlaybookRecuperacaoSchema,
   FiltrosExecucoesPlaybookRecuperacaoQuerySchema,
+  FiltrosMovimentosFunilComercialQuerySchema,
   FiltrosPlaybookRecuperacaoQuerySchema,
   FiltrosSocialInboxQuerySchema,
   RegistrarNotaInternaAtendimentoSchema,
+  RegistrarMovimentoFunilComercialSchema,
   RegistrarSugestaoIaAtendimentoSchema
 } from "../../../dominio/esquemas.js";
 import type { EstadoTarefaOperacional } from "../../../dominio/tipos.js";
@@ -207,6 +209,53 @@ export const moduloOperacional: ModuloHttp = {
       });
 
       return reply.code(201).send({ item });
+    });
+
+    app.get("/funil/etapas", async (request, reply) => {
+      const contextoComercial = await exigirAcessoComercial(contexto, request, reply, {
+        permissao: "funil:ler",
+        modulo: "funil",
+        mensagemPermissao: "Sem permissão para consultar funil.",
+        mensagemModulo: "Funil desativado para este negócio."
+      });
+      if (!contextoComercial) return;
+
+      return { etapas: contexto.gestaoFunilComercial.listarEtapas() };
+    });
+
+    app.get("/funil/movimentos", async (request, reply) => {
+      const contextoComercial = await exigirAcessoComercial(contexto, request, reply, {
+        permissao: "funil:ler",
+        modulo: "funil",
+        mensagemPermissao: "Sem permissão para consultar histórico do funil.",
+        mensagemModulo: "Funil desativado para este negócio."
+      });
+      if (!contextoComercial) return;
+
+      const filtros = FiltrosMovimentosFunilComercialQuerySchema.parse(request.query ?? {});
+      const movimentos = await contexto.gestaoFunilComercial.listarMovimentos(
+        contextoComercial.negocio.id,
+        filtros
+      );
+      return { movimentos };
+    });
+
+    app.post("/funil/movimentos", async (request, reply) => {
+      const contextoComercial = await exigirAcessoComercial(contexto, request, reply, {
+        permissao: "funil:gerir",
+        modulo: "funil",
+        mensagemPermissao: "Sem permissão para movimentar funil.",
+        mensagemModulo: "Funil desativado para este negócio."
+      });
+      if (!contextoComercial) return;
+
+      const dados = RegistrarMovimentoFunilComercialSchema.parse(request.body ?? {});
+      const movimento = await contexto.gestaoFunilComercial.registrarMovimento({
+        ...dados,
+        negocioId: contextoComercial.negocio.id
+      });
+
+      return reply.code(201).send({ movimento });
     });
 
     app.get("/playbooks/recuperacao", async (request, reply) => {

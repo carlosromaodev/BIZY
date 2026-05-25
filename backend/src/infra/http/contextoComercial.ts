@@ -22,7 +22,8 @@ const MODULOS_CORE = [
   "afiliados",
   "tracking",
   "social-inbox",
-  "automacoes"
+  "automacoes",
+  "funil"
 ] as const;
 
 const PERMISSOES_POR_PAPEL: Record<string, string[]> = {
@@ -39,6 +40,7 @@ const PERMISSOES_POR_PAPEL: Record<string, string[]> = {
     "tracking:ler",
     "social-inbox:gerir",
     "automacoes:gerir",
+    "funil:gerir",
     "campanhas:gerir",
     "relatorios:ver",
     "configuracoes:gerir"
@@ -56,12 +58,13 @@ const PERMISSOES_POR_PAPEL: Record<string, string[]> = {
     "tracking:ler",
     "social-inbox:gerir",
     "automacoes:gerir",
+    "funil:gerir",
     "campanhas:gerir",
     "relatorios:ver",
     "configuracoes:gerir"
   ],
-  VENDEDOR: ["catalogo:ler", "clientes:ler", "pedidos:gerir", "conversas:gerir", "tarefas:gerir", "relatorios:ver", "tracking:ler", "social-inbox:gerir", "automacoes:ler"],
-  ATENDENTE: ["clientes:ler", "pedidos:ler", "conversas:gerir", "tarefas:gerir", "social-inbox:gerir", "automacoes:ler"],
+  VENDEDOR: ["catalogo:ler", "clientes:ler", "pedidos:gerir", "conversas:gerir", "tarefas:gerir", "relatorios:ver", "tracking:ler", "social-inbox:gerir", "automacoes:ler", "funil:gerir"],
+  ATENDENTE: ["clientes:ler", "pedidos:ler", "conversas:gerir", "tarefas:gerir", "social-inbox:gerir", "automacoes:ler", "funil:gerir"],
   FINANCEIRO: ["clientes:ler", "pedidos:ler", "pagamentos:gerir", "relatorios:ver"],
   ENTREGADOR: ["pedidos:ler", "entregas:gerir"],
   AFILIADO: ["afiliados:ver", "relatorios:ver"],

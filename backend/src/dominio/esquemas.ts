@@ -10,6 +10,7 @@ import {
   estadosSocialInbox,
   estadosExecucaoPlaybookRecuperacao,
   estadosRelacionamentoCliente,
+  etapasFunilComercial,
   fontesLive,
   gatilhosPlaybookRecuperacao,
   intencoesSocialInbox,
@@ -433,6 +434,25 @@ export const FiltrosExecucoesPlaybookRecuperacaoQuerySchema = z.object({
   estado: z.enum(estadosExecucaoPlaybookRecuperacao).optional(),
   entidadeTipo: z.string().trim().min(1).max(80).optional(),
   entidadeId: z.string().trim().min(1).max(120).optional(),
+  limite: z.coerce.number().int().min(1).max(500).optional()
+});
+
+export const RegistrarMovimentoFunilComercialSchema = z.object({
+  entidadeTipo: z.string().trim().min(2).max(80).transform((valor) => valor.toLowerCase()),
+  entidadeId: z.string().trim().min(1).max(120),
+  etapaAnterior: z.enum(etapasFunilComercial).nullable().optional(),
+  etapaNova: z.enum(etapasFunilComercial),
+  motivo: z.string().trim().min(3).max(1000),
+  origem: CampoTarefaOpcionalSchema.default("manual"),
+  autorId: CampoTarefaOpcionalSchema,
+  contexto: z.record(z.string(), z.unknown()).default({})
+});
+
+export const FiltrosMovimentosFunilComercialQuerySchema = z.object({
+  entidadeTipo: z.string().trim().min(2).max(80).transform((valor) => valor.toLowerCase()).optional(),
+  entidadeId: z.string().trim().min(1).max(120).optional(),
+  etapaNova: z.enum(etapasFunilComercial).optional(),
+  origem: z.string().trim().min(1).max(80).optional(),
   limite: z.coerce.number().int().min(1).max(500).optional()
 });
 

@@ -476,6 +476,7 @@ model Negocio {
   socialInboxItens        SocialInboxItem[]
   playbooksRecuperacao    PlaybookRecuperacao[]
   execucoesPlaybookRecuperacao ExecucaoPlaybookRecuperacao[]
+  movimentosFunilComercial MovimentoFunilComercial[]
 
   @@index([nomeComercial])
   @@index([slugPublico])
@@ -555,6 +556,25 @@ model ExecucaoPlaybookRecuperacao {
   @@index([playbookId, criadaEm])
   @@index([entidadeTipo, entidadeId])
   @@index([clienteTelefone, criadaEm])
+}
+
+model MovimentoFunilComercial {
+  id             String   @id @default(uuid())
+  negocioId      String
+  negocio        Negocio  @relation(fields: [negocioId], references: [id])
+  entidadeTipo   String
+  entidadeId     String
+  etapaAnterior  String?
+  etapaNova      String
+  motivo         String
+  origem         String?
+  autorId        String?
+  contextoJson   String   @default("{}")
+  criadoEm       DateTime @default(now())
+
+  @@index([negocioId, entidadeTipo, entidadeId, criadoEm])
+  @@index([negocioId, etapaNova, criadoEm])
+  @@index([negocioId, origem, criadoEm])
 }
 
 model TarefaOperacional {

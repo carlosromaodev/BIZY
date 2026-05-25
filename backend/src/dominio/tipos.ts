@@ -783,6 +783,59 @@ export interface FiltrosExecucoesPlaybookRecuperacao {
   limite?: number;
 }
 
+export const etapasFunilComercial = [
+  "VISITA",
+  "PRODUTO_VISTO",
+  "WHATSAPP_CLICK",
+  "LEAD",
+  "CONVERSA",
+  "CHECKOUT",
+  "PEDIDO",
+  "PAGAMENTO_PENDENTE",
+  "PAGO",
+  "PREPARACAO",
+  "ENTREGA",
+  "ENTREGUE",
+  "POS_VENDA",
+  "RECOMPRA",
+  "PERDIDO"
+] as const;
+export type EtapaFunilComercial = (typeof etapasFunilComercial)[number];
+
+export interface MovimentoFunilComercial {
+  id: string;
+  negocioId: string;
+  entidadeTipo: string;
+  entidadeId: string;
+  etapaAnterior: EtapaFunilComercial | null;
+  etapaNova: EtapaFunilComercial;
+  motivo: string;
+  origem: string | null;
+  autorId: string | null;
+  contexto: Record<string, unknown>;
+  criadoEm: Date;
+}
+
+export interface NovoMovimentoFunilComercial {
+  negocioId: string;
+  entidadeTipo: string;
+  entidadeId: string;
+  etapaAnterior?: EtapaFunilComercial | null;
+  etapaNova: EtapaFunilComercial;
+  motivo: string;
+  origem?: string | null;
+  autorId?: string | null;
+  contexto?: Record<string, unknown>;
+}
+
+export interface FiltrosMovimentosFunilComercial {
+  entidadeTipo?: string;
+  entidadeId?: string;
+  etapaNova?: EtapaFunilComercial;
+  origem?: string;
+  limite?: number;
+}
+
 export const estadosRelacionamentoCliente = [
   "ATIVO",
   "LEAD",

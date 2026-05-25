@@ -9,6 +9,7 @@ import type {
   RepositorioAuditoria,
   RepositorioClientes,
   RepositorioComentarios,
+  RepositorioFunilComercial,
   RepositorioInstanciasWhatsApp,
   RepositorioPecas,
   RepositorioPedidos,
@@ -32,6 +33,7 @@ import { ConsultaOperacionalUseCase } from "../../use-case/ConsultaOperacionalUs
 import { ConsultaPainelUseCase } from "../../use-case/ConsultaPainelUseCase.js";
 import { GestaoAfiliadosUseCase } from "../../use-case/GestaoAfiliadosUseCase.js";
 import { GestaoClientesCrmUseCase } from "../../use-case/GestaoClientesCrmUseCase.js";
+import { GestaoFunilComercialUseCase } from "../../use-case/GestaoFunilComercialUseCase.js";
 import { GestaoPecasUseCase } from "../../use-case/GestaoPecasUseCase.js";
 import { GestaoPedidosUseCase } from "../../use-case/GestaoPedidosUseCase.js";
 import { GestaoPlaybooksRecuperacaoUseCase } from "../../use-case/GestaoPlaybooksRecuperacaoUseCase.js";
@@ -56,6 +58,7 @@ import {
   RepositorioAuditoriaMemoria,
   RepositorioClientesMemoria,
   RepositorioComentariosMemoria,
+  RepositorioFunilComercialMemoria,
   RepositorioInstanciasWhatsAppMemoria,
   RepositorioPecasMemoria,
   RepositorioPedidosMemoria,
@@ -73,6 +76,7 @@ import {
   RepositorioAuditoriaPrisma,
   RepositorioClientesPrisma,
   RepositorioComentariosPrisma,
+  RepositorioFunilComercialPrisma,
   RepositorioInstanciasWhatsAppPrisma,
   RepositorioPecasPrisma,
   RepositorioPedidosPrisma,
@@ -111,6 +115,7 @@ export interface RepositoriosAplicacao {
   tarefas: RepositorioTarefasOperacionais;
   socialInbox: RepositorioSocialInbox;
   playbooksRecuperacao: RepositorioPlaybooksRecuperacao;
+  funilComercial: RepositorioFunilComercial;
   verificarConexao?: () => Promise<void>;
   encerrar?: () => Promise<void>;
 }
@@ -152,6 +157,7 @@ export interface ContextoAplicacao {
   gestaoTarefas: GestaoTarefasOperacionaisUseCase;
   gestaoSocialInbox: GestaoSocialInboxUseCase;
   gestaoPlaybooksRecuperacao: GestaoPlaybooksRecuperacaoUseCase;
+  gestaoFunilComercial: GestaoFunilComercialUseCase;
   consultaIntegracoes: ConsultaIntegracoesUseCase;
   consultaPainel: ConsultaPainelUseCase;
   consultaAtendimentoN8n: ConsultaAtendimentoN8n;
@@ -250,6 +256,7 @@ export function criarContextoAplicacao(logger: FastifyBaseLogger): ContextoAplic
     repositorios.playbooksRecuperacao,
     repositorios.tarefas
   );
+  const gestaoFunilComercial = new GestaoFunilComercialUseCase(repositorios.funilComercial);
   const consultaIntegracoes = new ConsultaIntegracoesUseCase();
   const consultaPainel = new ConsultaPainelUseCase(repositorios.pecas, repositorios.reservas, repositorios.comentarios);
   const consultaAtendimentoN8n = new ConsultaAtendimentoN8n(
@@ -339,6 +346,7 @@ export function criarContextoAplicacao(logger: FastifyBaseLogger): ContextoAplic
     gestaoTarefas,
     gestaoSocialInbox,
     gestaoPlaybooksRecuperacao,
+    gestaoFunilComercial,
     consultaIntegracoes,
     consultaPainel,
     consultaAtendimentoN8n,
@@ -387,6 +395,7 @@ function criarRepositorios(): RepositoriosAplicacao {
       tarefas: new RepositorioTarefasOperacionaisMemoria(),
       socialInbox: new RepositorioSocialInboxMemoria(),
       playbooksRecuperacao: new RepositorioPlaybooksRecuperacaoMemoria(),
+      funilComercial: new RepositorioFunilComercialMemoria(),
       verificarConexao: async () => undefined
     };
   }
@@ -409,6 +418,7 @@ function criarRepositorios(): RepositoriosAplicacao {
     tarefas: new RepositorioTarefasOperacionaisPrisma(prisma),
     socialInbox: new RepositorioSocialInboxPrisma(prisma),
     playbooksRecuperacao: new RepositorioPlaybooksRecuperacaoPrisma(prisma),
+    funilComercial: new RepositorioFunilComercialPrisma(prisma),
     verificarConexao: async () => {
       await prisma.$queryRaw`SELECT 1`;
     },

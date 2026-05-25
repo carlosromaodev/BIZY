@@ -13,11 +13,13 @@ import type {
   ComissaoParceiro,
   ExecucaoPlaybookRecuperacao,
   FiltrosExecucoesPlaybookRecuperacao,
+  FiltrosMovimentosFunilComercial,
   HistoricoComissaoParceiro,
   LotePagamentoComissao,
   NovaPeca,
   NovaComissaoParceiro,
   NovaExecucaoPlaybookRecuperacao,
+  NovoMovimentoFunilComercial,
   NovoLotePagamentoComissao,
   NovoLinkAfiliado,
   NovoPlaybookRecuperacao,
@@ -67,6 +69,7 @@ import type {
   NovoMovimentoStock,
   NegocioBizy,
   LinkAfiliado,
+  MovimentoFunilComercial,
   ParceiroComercial,
   PlaybookRecuperacao,
   ResumoAfiliadosComerciais,
@@ -232,6 +235,14 @@ export interface RepositorioPlaybooksRecuperacao {
     negocioId: string,
     filtros?: FiltrosExecucoesPlaybookRecuperacao
   ): Promise<ExecucaoPlaybookRecuperacao[]>;
+}
+
+export interface RepositorioFunilComercial {
+  registrarMovimento(dados: NovoMovimentoFunilComercial): Promise<MovimentoFunilComercial>;
+  listarMovimentos(
+    negocioId: string,
+    filtros?: FiltrosMovimentosFunilComercial
+  ): Promise<MovimentoFunilComercial[]>;
 }
 
 export interface RepositorioClientes {
