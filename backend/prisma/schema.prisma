@@ -470,6 +470,7 @@ model Negocio {
   parceirosComerciais     ParceiroComercial[]
   linksAfiliados          LinkAfiliado[]
   comissoesParceiro       ComissaoParceiro[]
+  historicoComissoesParceiro HistoricoComissaoParceiro[]
 
   @@index([nomeComercial])
   @@index([slugPublico])
@@ -564,11 +565,38 @@ model ComissaoParceiro {
   observacaoPagamento String?
   revertidoEm     DateTime?
   atualizadoEm    DateTime            @updatedAt
+  historico        HistoricoComissaoParceiro[]
 
   @@unique([negocioId, pedidoId])
   @@index([negocioId, status])
   @@index([afiliadoId, status])
   @@index([linkId])
+}
+
+model HistoricoComissaoParceiro {
+  id              String            @id @default(uuid())
+  negocioId       String
+  negocio         Negocio           @relation(fields: [negocioId], references: [id])
+  comissaoId      String
+  comissao        ComissaoParceiro  @relation(fields: [comissaoId], references: [id])
+  afiliadoId      String
+  pedidoId        String
+  tipo            String
+  statusAnterior  String?
+  statusNovo      String
+  valorEmKwanza   Int
+  moeda           String            @default("AOA")
+  motivo          String?
+  referencia      String?
+  autorId         String?
+  autorNome       String?
+  metadataJson    String            @default("{}")
+  criadoEm        DateTime          @default(now())
+
+  @@index([negocioId, tipo, criadoEm])
+  @@index([comissaoId, criadoEm])
+  @@index([pedidoId])
+  @@index([afiliadoId])
 }
 
 model MembroNegocio {

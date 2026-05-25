@@ -38,6 +38,7 @@ import type {
   FiltrosPedidos,
   FiltrosClientes360,
   EventoSistema,
+  HistoricoComissaoParceiro,
   InstanciaWhatsApp,
   MensagemAtendimento,
   MovimentoStock,
@@ -64,7 +65,8 @@ import type {
   ResumoOutboxEventoN8n,
   ResumoOutboxMensagemWhatsApp,
   ResultadoInterpretacaoComentario,
-  ResumoAfiliadosComerciais
+  ResumoAfiliadosComerciais,
+  TipoHistoricoComissaoParceiro
 } from "../../dominio/tipos.js";
 import { normalizarEmail, normalizarTelefone } from "../../dominio/servicos/normalizarContato.js";
 import type {
@@ -268,6 +270,8 @@ export class RepositorioAfiliadosMemoria implements RepositorioAfiliados {
   private readonly parceiros = new Map<string, ParceiroComercial>();
   private readonly links = new Map<string, LinkAfiliado>();
   private readonly comissoes = new Map<string, ComissaoParceiro>();
+  private readonly historicoComissoes = new Map<string, HistoricoComissaoParceiro>();
+  private sequenciaHistorico = 0;
 
   async criarParceiro(dados: NovoParceiroComercial): Promise<ParceiroComercial> {
     const codigo = this.normalizarCodigo(dados.codigo);
@@ -383,6 +387,14 @@ export class RepositorioAfiliadosMemoria implements RepositorioAfiliados {
           atualizadoEm: agora
         };
     this.comissoes.set(comissao.id, comissao);
+    this.registrarHistoricoComissao(comissao, existente ? "ATUALIZADA" : "CRIADA", {
+      statusAnterior: existente?.status ?? null,
+      motivo: comissao.motivo,
+      metadata: {
+        baseEmKwanza: comissao.baseEmKwanza,
+        linkId: comissao.linkId
+      }
+    });
     return comissao;
   }
 
@@ -413,13 +425,18 @@ export class RepositorioAfiliadosMemoria implements RepositorioAfiliados {
       atualizadoEm: confirmadoEm
     };
     this.comissoes.set(atualizada.id, atualizada);
+    this.registrarHistoricoComissao(atualizada, "CONFIRMADA", {
+      statusAnterior: comissao.status,
+      criadoEm: confirmadoEm,
+      motivo: "Pagamento do pedido confirmado."
+    });
     return atualizada;
   }
 
   async marcarComissaoPaga(
     id: string,
     negocioId: string,
-    dados: { referenciaPagamento: string; observacao?: string | null; pagoEm?: Date }
+    dados: { referenciaPagamento: string; observacao?: string | null; pagoEm?: Date; autorId?: string | null; autorNome?: string | null }
   ): Promise<ComissaoParceiro | null> {
     const comissao = this.comissoes.get(id) ?? null;
     if (!comissao || comissao.negocioId !== negocioId) return null;
@@ -437,6 +454,14 @@ export class RepositorioAfiliadosMemoria implements RepositorioAfiliados {
       atualizadoEm: pagoEm
     };
     this.comissoes.set(atualizada.id, atualizada);
+    this.registrarHistoricoComissao(atualizada, "PAGA", {
+      statusAnterior: comissao.status,
+      criadoEm: pagoEm,
+      motivo: dados.observacao ?? null,
+      referencia: dados.referenciaPagamento,
+      autorId: dados.autorId ?? null,
+      autorNome: dados.autorNome ?? null
+    });
     return atualizada;
   }
 
@@ -459,7 +484,21 @@ export class RepositorioAfiliadosMemoria implements RepositorioAfiliados {
       atualizadoEm: revertidoEm
     };
     this.comissoes.set(atualizada.id, atualizada);
+    this.registrarHistoricoComissao(atualizada, "REVERTIDA", {
+      statusAnterior: comissao.status,
+      criadoEm: revertidoEm,
+      motivo
+    });
     return atualizada;
+  }
+
+  async listarHistoricoComissao(comissaoId: string, negocioId: string): Promise<HistoricoComissaoParceiro[] | null> {
+    const comissao = this.comissoes.get(comissaoId) ?? null;
+    if (!comissao || comissao.negocioId !== negocioId) return null;
+
+    return [...this.historicoComissoes.values()]
+      .filter((evento) => evento.negocioId === negocioId && evento.comissaoId === comissaoId)
+      .sort((a, b) => b.criadoEm.getTime() - a.criadoEm.getTime());
   }
 
   async resumir(negocioId: string): Promise<ResumoAfiliadosComerciais> {
@@ -515,6 +554,43 @@ export class RepositorioAfiliadosMemoria implements RepositorioAfiliados {
     return comissoes
       .filter((comissao) => comissao.status === status)
       .reduce((total, comissao) => total + comissao.valorEmKwanza, 0);
+  }
+
+  private registrarHistoricoComissao(
+    comissao: ComissaoParceiro,
+    tipo: TipoHistoricoComissaoParceiro,
+    dados: {
+      statusAnterior?: ComissaoParceiro["status"] | null;
+      motivo?: string | null;
+      referencia?: string | null;
+      autorId?: string | null;
+      autorNome?: string | null;
+      metadata?: Record<string, unknown>;
+      criadoEm?: Date;
+    } = {}
+  ): HistoricoComissaoParceiro {
+    const base = dados.criadoEm ?? new Date();
+    const criadoEm = new Date(base.getTime() + this.sequenciaHistorico++);
+    const evento: HistoricoComissaoParceiro = {
+      id: randomUUID(),
+      negocioId: comissao.negocioId,
+      comissaoId: comissao.id,
+      afiliadoId: comissao.afiliadoId,
+      pedidoId: comissao.pedidoId,
+      tipo,
+      statusAnterior: dados.statusAnterior ?? null,
+      statusNovo: comissao.status,
+      valorEmKwanza: comissao.valorEmKwanza,
+      moeda: comissao.moeda,
+      motivo: dados.motivo ?? null,
+      referencia: dados.referencia ?? null,
+      autorId: dados.autorId ?? null,
+      autorNome: dados.autorNome ?? null,
+      metadata: dados.metadata ?? {},
+      criadoEm
+    };
+    this.historicoComissoes.set(evento.id, evento);
+    return evento;
   }
 
   private normalizarCodigo(codigo: string): string {

@@ -39,6 +39,9 @@ export type TipoComissaoParceiro = (typeof tiposComissaoParceiro)[number];
 export const statusComissaoParceiro = ["ESTIMADA", "CONFIRMADA", "PAGA", "REVERTIDA", "CANCELADA"] as const;
 export type StatusComissaoParceiro = (typeof statusComissaoParceiro)[number];
 
+export const tiposHistoricoComissaoParceiro = ["CRIADA", "ATUALIZADA", "CONFIRMADA", "PAGA", "REVERTIDA", "CANCELADA"] as const;
+export type TipoHistoricoComissaoParceiro = (typeof tiposHistoricoComissaoParceiro)[number];
+
 export const estadosReserva = [
   "PENDING",
   "RESERVED",
@@ -1031,6 +1034,25 @@ export interface NovaComissaoParceiro {
   valorEmKwanza: number;
   moeda?: string;
   motivo?: string | null;
+}
+
+export interface HistoricoComissaoParceiro {
+  id: string;
+  negocioId: string;
+  comissaoId: string;
+  afiliadoId: string;
+  pedidoId: string;
+  tipo: TipoHistoricoComissaoParceiro;
+  statusAnterior: StatusComissaoParceiro | null;
+  statusNovo: StatusComissaoParceiro;
+  valorEmKwanza: number;
+  moeda: string;
+  motivo: string | null;
+  referencia: string | null;
+  autorId: string | null;
+  autorNome: string | null;
+  metadata: Record<string, unknown>;
+  criadoEm: Date;
 }
 
 export interface ResumoAfiliadosComerciais {

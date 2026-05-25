@@ -1,7 +1,7 @@
 # Bizy / ÉMeu V1 - Requisitos Funcionais, Não Funcionais e Regras de Negócio
 
 Documento: `RF-RNF-RN-EMEUV1.md`
-Versão: 1.11
+Versão: 1.12
 Data: 2026-05-25
 Autor: Carlos
 Status: MVP base implementado; fundação backend Bizy CRM+ com Clientes 360, Pedidos, Catálogo/Stock, Loja Pública, Checkout, Entrega, Afiliados e Comissões em evolução
@@ -39,6 +39,8 @@ Atualização 1.9: iniciado o checkout público pelo site e cálculo de entrega,
 Atualização 1.10: iniciado o backend de Afiliados/Criadores, com módulo comercial próprio, criação de parceiro, links rastreáveis com `ref`, atribuição no checkout público, comissão estimada no pedido atribuído e confirmação automática da comissão após pagamento confirmado.
 
 Atualização 1.11: ampliado o backend de Afiliados/Criadores com reversão automática de comissão quando pedido atribuído é cancelado, devolvido ou reembolsado, além de marcação operacional de comissão paga com referência e observação de pagamento.
+
+Atualização 1.12: adicionada auditoria operacional de comissões de afiliados/criadores, registrando criação, atualização, confirmação, pagamento e reversão com estado anterior, estado novo, valor, motivo, referência e autor quando houver ação humana.
 
 ---
 
@@ -435,7 +437,7 @@ Esta etapa posiciona o Bizy como uma plataforma de operação comercial para cri
 | RF192 | [ ] O sistema deve ter proteção antifraude básica contra autoindicação, leads duplicados e atribuições suspeitas. | Alta | Planeado |
 | RF193 | [ ] O afiliado/criador deve poder receber pacote de divulgação com links, fotos, textos sugeridos e regras da campanha. | Média | Planeado |
 | RF194 | [ ] Criadores e revendedores devem poder ter mini-loja pública com produtos autorizados e rastreamento próprio. | Média | Planeado |
-| RF195 | [~] O sistema deve gerar relatório de pagamento de comissões com período, vendas, reversões, saldo e histórico. | Alta | Parcial - comissão pode ser marcada como paga com referência/observação e o resumo separa confirmada, paga e revertida; faltam período, saldo formal, histórico financeiro e exportação |
+| RF195 | [~] O sistema deve gerar relatório de pagamento de comissões com período, vendas, reversões, saldo e histórico. | Alta | Parcial - comissão pode ser marcada como paga com referência/observação, possui auditoria por evento e o resumo separa confirmada, paga e revertida; faltam período, saldo formal, lote financeiro e exportação |
 | RF196 | [ ] O modo revendedor deve permitir preço especial, reserva de stock, margem estimada e regras separadas de entrega/retirada quando configurado. | Média | Planeado |
 
 #### 3.14.6 Social Inbox e Comentários de Redes Sociais
@@ -524,14 +526,14 @@ Esta etapa vem antes da implementação visual dos novos módulos. O objetivo é
 | RF254 | [~] O backend deve evoluir Produtos para suportar variantes, coleções, movimentos de stock, custo, margem, importação e catálogo digital. | Alta | Parcial - variantes, coleções, movimentos, custo e margem implementados; faltam importação e catálogo digital público |
 | RF255 | [~] O backend deve expor APIs públicas e privadas para loja virtual, página de produto, catálogo digital, checkout WhatsApp e checkout site. | Alta | Parcial - loja pública, página de produto, cálculo de entrega, checkout WhatsApp e checkout site básico implementados; faltam catálogos selecionáveis e checkout/pagamento completo |
 | RF256 | [~] O backend deve registrar tracking de links, UTM, referência, cookies técnicos, visitas, cliques WhatsApp, checkout iniciado, pedido e venda atribuída. | Alta | Parcial - trackingId, UTM, visitas, produto visto, clique WhatsApp, checkout iniciado e pedido criado implementados; faltam cookies técnicos e venda paga atribuída |
-| RF257 | [~] O backend deve suportar afiliados, criadores e revendedores com links próprios, regras de comissão, reversões, pagamentos e relatórios. | Alta | Parcial - parceiros, links próprios, comissão estimada/confirmada/paga/revertida, pagamento manual e resumo implementados; faltam regras avançadas, lotes financeiros, portal do afiliado e relatórios avançados |
+| RF257 | [~] O backend deve suportar afiliados, criadores e revendedores com links próprios, regras de comissão, reversões, pagamentos e relatórios. | Alta | Parcial - parceiros, links próprios, comissão estimada/confirmada/paga/revertida, pagamento manual, auditoria e resumo implementados; faltam regras avançadas, lotes financeiros, portal do afiliado e relatórios avançados |
 | RF258 | [ ] O backend deve normalizar social inbox com comentários de redes sociais, posts, autores, intenção, tarefas e oportunidades. | Alta | Planeado |
 | RF259 | [ ] O backend deve ter funil e playbooks de recuperação com eventos, condições, ações, tarefas humanas e histórico de mudança. | Alta | Planeado |
 | RF260 | [ ] O backend deve implementar motor de política WhatsApp para classificar envios em marketing, utilidade, autenticação ou serviço antes de chamar o provider. | Alta | Planeado |
 | RF261 | [ ] O backend deve gerir templates WhatsApp por categoria, idioma, estado de aprovação, provider, versão e compatibilidade com eventos. | Alta | Planeado |
 | RF262 | [ ] O backend deve unificar outbox/event bus para WhatsApp, n8n, tracking, campanhas, social inbox, comissões e notificações internas. | Alta | Planeado |
 | RF263 | [~] O backend deve implementar permissões e papéis por negócio: dono, admin, vendedor, atendente, financeiro, entregador, afiliado/criador e suporte técnico. | Alta | Parcial |
-| RF264 | [ ] O backend deve registrar auditoria de ações críticas: exportação, desconto, pagamento, cancelamento, fusão de cliente, compartilhamento, comissão e alteração de permissão. | Alta | Planeado |
+| RF264 | [~] O backend deve registrar auditoria de ações críticas: exportação, desconto, pagamento, cancelamento, fusão de cliente, compartilhamento, comissão e alteração de permissão. | Alta | Parcial - histórico de comissão registra criação, confirmação, pagamento e reversão; faltam trilhas formais para exportação, desconto, cancelamento, fusão, compartilhamento e permissões |
 | RF265 | [ ] Importações e exportações grandes devem rodar como jobs com estado, relatório de erros, idempotência e arquivo resultante. | Média | Planeado |
 | RF266 | [~] Módulos desativados devem bloquear rotas, automações e menus relacionados, preservando dados para reativação futura. | Alta | Parcial - guarda HTTP aplicada em rotas comerciais, conversas e WhatsApp |
 | RF267 | [ ] Webhooks, importações, campanhas e eventos públicos devem usar chaves de idempotência para evitar duplicidade. | Alta | Planeado |
@@ -677,7 +679,7 @@ Esta etapa vem antes da implementação visual dos novos módulos. O objetivo é
 | RNF83 | [ ] Cookies e identificadores de tracking não devem conter telefone, email, nome, endereço ou qualquer dado pessoal sensível. | Alta | Planeado |
 | RNF84 | [ ] A loja pública deve exibir texto claro sobre tracking/privacidade quando cookies ou eventos de marketing forem usados. | Alta | Planeado |
 | RNF85 | [ ] Relatórios de afiliados e criadores devem expor apenas dados necessários, evitando mostrar dados privados de clientes sem necessidade operacional. | Alta | Planeado |
-| RNF86 | [~] O cálculo de comissão deve ser reprocessável e auditável por período, pedido, afiliado, produto, reversão e pagamento. | Alta | Parcial - comissão por pedido/afiliado é persistida e atualizada por eventos de pagamento, cancelamento, devolução e reembolso, com pagamento manual referenciado; faltam reprocessamento por período/produto e auditoria financeira completa |
+| RNF86 | [~] O cálculo de comissão deve ser reprocessável e auditável por período, pedido, afiliado, produto, reversão e pagamento. | Alta | Parcial - comissão por pedido/afiliado é persistida e auditada por evento de criação, atualização, confirmação, pagamento e reversão; faltam reprocessamento por período/produto e auditoria financeira agregada |
 | RNF87 | [ ] Eventos analíticos devem ser armazenados de forma eficiente para pelo menos 100.000 eventos sem travar a UI operacional. | Média | Planeado |
 | RNF88 | [ ] Páginas públicas de loja e catálogo devem ser cacheáveis sempre que possível, sem expor dados privados ou stock incorreto. | Média | Planeado |
 | RNF89 | [ ] A UI deve ocultar módulos não ativados, mas preservar rotas e dados para reativação futura quando permitido. | Média | Planeado |
@@ -694,7 +696,7 @@ Esta etapa vem antes da implementação visual dos novos módulos. O objetivo é
 |---|---|---|---|
 | RNF96 | [~] Toda nova tabela operacional deve ter índices por `negocioId`, estado e data quando for consultada em listas, dashboards ou jobs. | Alta | Parcial - novas tabelas de afiliado/link/comissão têm índices por negócio/estado/status; faltam padronização para campanhas, social inbox e jobs futuros |
 | RNF97 | [ ] Nenhuma consulta de módulo comercial deve retornar dados de outro negócio sem relacionamento e permissão explícita. | Alta | Planeado |
-| RNF98 | [ ] Operações críticas com stock, pedido, pagamento, comissão e compartilhamento de cliente devem usar transação. | Alta | Planeado |
+| RNF98 | [~] Operações críticas com stock, pedido, pagamento, comissão e compartilhamento de cliente devem usar transação. | Alta | Parcial - confirmação, pagamento e reversão de comissão gravam estado e auditoria na mesma transação Prisma; faltam padronizar as demais áreas críticas |
 | RNF99 | [ ] Jobs assíncronos devem ser reprocessáveis sem duplicar mensagens, pedidos, clientes, comissões ou eventos de tracking. | Alta | Planeado |
 | RNF100 | [ ] APIs de listagem devem nascer com paginação, filtros e ordenação previsível. | Alta | Planeado |
 | RNF101 | [ ] APIs públicas de loja, checkout e tracking devem ter rate limit separado das APIs autenticadas do painel. | Alta | Planeado |
@@ -851,7 +853,7 @@ Esta etapa vem antes da implementação visual dos novos módulos. O objetivo é
 | RN83 | [~] A atribuição padrão deve ser configurável, mas o sistema deve mostrar claramente se a venda veio de live, site, WhatsApp, catálogo, campanha, afiliado, criador ou comentário social. | Parcial - origem/canal do checkout WhatsApp, checkout site, pedido público e pedido atribuído a afiliado/criador implementados; faltam campanha e comentário social |
 | RN84 | [x] Comissão de afiliado/criador só fica confirmada depois do pedido pago e dentro das regras de validade da atribuição. | Implementado no backend inicial de afiliados |
 | RN85 | [~] Cancelamento, devolução, chargeback, reembolso ou fraude devem reverter ou bloquear comissão. | Parcial - cancelamento, devolução e reembolso revertem comissão; faltam chargeback, fraude e bloqueio preventivo |
-| RN86 | [ ] O dono/admin pode corrigir atribuição ou comissão manualmente, mas deve informar motivo e a alteração deve ficar auditada. | Planeado |
+| RN86 | [~] O dono/admin pode corrigir atribuição ou comissão manualmente, mas deve informar motivo e a alteração deve ficar auditada. | Parcial - pagamento manual de comissão guarda referência, observação e autor; faltam correção manual de atribuição/comissão e motivo obrigatório para esses ajustes |
 | RN87 | [~] Afiliados e criadores não devem ver dados privados de clientes além do necessário para acompanhar desempenho, comissão e suporte operacional permitido. | Parcial - APIs de comissão/resumo não expõem dados privados do cliente; falta portal/permissão específica para afiliado |
 | RN88 | [ ] Cliente com opt-out não pode receber marketing, campanhas, reativação, promoções de afiliados ou novidades. | Planeado |
 | RN89 | [ ] Mensagens de utilidade podem ser usadas para atualizações transacionais de pedido, pagamento, entrega, reserva, recibo e suporte operacional quando permitido pelo canal. | Planeado |
@@ -904,7 +906,7 @@ Esta etapa vem antes da implementação visual dos novos módulos. O objetivo é
 | RN131 | [ ] Toda mensagem WhatsApp iniciada pelo sistema precisa de categoria, motivo, entidade relacionada e fallback antes do envio. | Planeado |
 | RN132 | [ ] Quando houver conflito entre automação e segurança operacional, o backend deve preferir tarefa humana. | Planeado |
 | RN133 | [~] Exportação de clientes, pedidos, comissões ou relatórios só pode ocorrer por usuário autorizado e deve ficar auditada. | Parcial - exportação de clientes exige permissão; falta auditoria explícita do evento de exportação |
-| RN134 | [ ] Toda alteração manual em pagamento, desconto, comissão, stock, atribuição ou fusão de cliente exige responsável e motivo quando afetar dinheiro, entrega ou privacidade. | Planeado |
+| RN134 | [~] Toda alteração manual em pagamento, desconto, comissão, stock, atribuição ou fusão de cliente exige responsável e motivo quando afetar dinheiro, entrega ou privacidade. | Parcial - pagamento manual de comissão registra responsável, referência e observação; faltam demais ações críticas |
 | RN135 | [ ] Dados recebidos de redes sociais devem manter provider, permissões, link original e data da captura para diagnóstico e conformidade. | Planeado |
 | RN136 | [ ] O backend deve permitir operação mínima sem loja pública, sem afiliados ou sem social inbox, mantendo clientes, pedidos, produtos, conversas e pagamentos consistentes. | Planeado |
 
@@ -1008,7 +1010,7 @@ O backend pode ser considerado pronto para receber os módulos CRM+ quando:
 - [ ] O motor de WhatsApp Policy bloquear envio sem categoria, template, consentimento ou janela válida.
 - [ ] Outbox/event bus suportar retry e idempotência para WhatsApp, n8n, campanhas, tracking, social inbox e comissões.
 - [ ] Permissões impedirem vendedor comum de acessar dados técnicos, tokens, configurações globais e exportações sensíveis.
-- [ ] Auditoria registrar ações críticas de dinheiro, cliente, stock, comissão, permissão e compartilhamento.
+- [~] Auditoria registrar ações críticas de dinheiro, cliente, stock, comissão, permissão e compartilhamento; comissão já tem trilha própria, faltam os demais domínios críticos.
 - [ ] APIs novas tiverem testes de use-case, repositório e rota HTTP.
 - [ ] Migrations e seeds permitirem subir dev/staging/prod sem correção manual invisível.
 

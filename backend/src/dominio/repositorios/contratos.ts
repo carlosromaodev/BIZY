@@ -10,6 +10,7 @@ import type {
   DadosPedidoResolvido,
   DadosCliente360,
   ComissaoParceiro,
+  HistoricoComissaoParceiro,
   NovaPeca,
   NovaComissaoParceiro,
   NovoLinkAfiliado,
@@ -91,7 +92,7 @@ export interface RepositorioAfiliados {
   marcarComissaoPaga(
     id: string,
     negocioId: string,
-    dados: { referenciaPagamento: string; observacao?: string | null; pagoEm?: Date }
+    dados: { referenciaPagamento: string; observacao?: string | null; pagoEm?: Date; autorId?: string | null; autorNome?: string | null }
   ): Promise<ComissaoParceiro | null>;
   reverterComissaoPorPedido(
     pedidoId: string,
@@ -99,6 +100,7 @@ export interface RepositorioAfiliados {
     motivo: string,
     revertidoEm?: Date
   ): Promise<ComissaoParceiro | null>;
+  listarHistoricoComissao(comissaoId: string, negocioId: string): Promise<HistoricoComissaoParceiro[] | null>;
   resumir(negocioId: string): Promise<ResumoAfiliadosComerciais>;
 }
 

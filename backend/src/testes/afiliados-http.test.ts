@@ -482,6 +482,28 @@ describe("afiliados, criadores e comissões HTTP", () => {
         })
       );
 
+      const auditoria = await app.inject({
+        method: "GET",
+        url: `/afiliados/comissoes/${comissaoId}/auditoria`,
+        headers: loja
+      });
+      expect(auditoria.statusCode).toBe(200);
+      expect(auditoria.json().eventos.map((evento: { tipo: string }) => evento.tipo)).toEqual([
+        "PAGA",
+        "CONFIRMADA",
+        "CRIADA"
+      ]);
+      expect(auditoria.json().eventos[0]).toEqual(
+        expect.objectContaining({
+          tipo: "PAGA",
+          statusAnterior: "CONFIRMADA",
+          statusNovo: "PAGA",
+          valorEmKwanza: 2_500,
+          referencia: "LOTE-AFILIADOS-001",
+          autorNome: "Loja cai"
+        })
+      );
+
       const resumo = await app.inject({
         method: "GET",
         url: "/afiliados/resumo",

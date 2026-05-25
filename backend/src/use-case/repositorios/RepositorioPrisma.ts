@@ -42,6 +42,7 @@ import type {
   EventoTrackingComercial,
   FiltrosPedidos,
   FiltrosClientes360,
+  HistoricoComissaoParceiro,
   InstanciaWhatsApp,
   LinkAfiliado,
   MensagemAtendimento,
@@ -76,6 +77,7 @@ import type {
   PerfilEstudantilUsuario,
   ResumoAfiliadosComerciais,
   ResumoTrackingComercial,
+  TipoHistoricoComissaoParceiro,
   UsuarioSistema
 } from "../../dominio/tipos.js";
 import { normalizarEmail, normalizarTelefone } from "../../dominio/servicos/normalizarContato.js";
@@ -443,33 +445,50 @@ export class RepositorioAfiliadosPrisma implements RepositorioAfiliados {
   }
 
   async criarOuAtualizarComissao(dados: NovaComissaoParceiro): Promise<ComissaoParceiro> {
-    const comissao = await this.prisma.comissaoParceiro.upsert({
-      where: {
-        negocioId_pedidoId: {
+    const existente = await this.prisma.comissaoParceiro.findUnique({
+      where: { negocioId_pedidoId: { negocioId: dados.negocioId, pedidoId: dados.pedidoId } }
+    });
+
+    const comissao = await this.prisma.$transaction(async (transacao) => {
+      const registro = await transacao.comissaoParceiro.upsert({
+        where: {
+          negocioId_pedidoId: {
+            negocioId: dados.negocioId,
+            pedidoId: dados.pedidoId
+          }
+        },
+        create: {
           negocioId: dados.negocioId,
-          pedidoId: dados.pedidoId
+          afiliadoId: dados.afiliadoId,
+          linkId: dados.linkId ?? null,
+          pedidoId: dados.pedidoId,
+          status: dados.status ?? "ESTIMADA",
+          baseEmKwanza: dados.baseEmKwanza,
+          valorEmKwanza: dados.valorEmKwanza,
+          moeda: dados.moeda ?? "AOA",
+          motivo: dados.motivo ?? null
+        },
+        update: {
+          afiliadoId: dados.afiliadoId,
+          linkId: dados.linkId ?? null,
+          status: dados.status ?? undefined,
+          baseEmKwanza: dados.baseEmKwanza,
+          valorEmKwanza: dados.valorEmKwanza,
+          moeda: dados.moeda ?? undefined,
+          motivo: dados.motivo ?? undefined
         }
-      },
-      create: {
-        negocioId: dados.negocioId,
-        afiliadoId: dados.afiliadoId,
-        linkId: dados.linkId ?? null,
-        pedidoId: dados.pedidoId,
-        status: dados.status ?? "ESTIMADA",
-        baseEmKwanza: dados.baseEmKwanza,
-        valorEmKwanza: dados.valorEmKwanza,
-        moeda: dados.moeda ?? "AOA",
-        motivo: dados.motivo ?? null
-      },
-      update: {
-        afiliadoId: dados.afiliadoId,
-        linkId: dados.linkId ?? null,
-        status: dados.status ?? undefined,
-        baseEmKwanza: dados.baseEmKwanza,
-        valorEmKwanza: dados.valorEmKwanza,
-        moeda: dados.moeda ?? undefined,
-        motivo: dados.motivo ?? undefined
-      }
+      });
+      await transacao.historicoComissaoParceiro.create({
+        data: this.dadosHistoricoComissao(registro, existente ? "ATUALIZADA" : "CRIADA", {
+          statusAnterior: existente?.status ?? null,
+          motivo: registro.motivo,
+          metadata: {
+            baseEmKwanza: registro.baseEmKwanza,
+            linkId: registro.linkId
+          }
+        })
+      });
+      return registro;
     });
     return this.mapearComissao(comissao);
   }
@@ -496,13 +515,23 @@ export class RepositorioAfiliadosPrisma implements RepositorioAfiliados {
     }
     if (existente.status === "CONFIRMADA") return this.mapearComissao(existente);
 
-    const comissao = await this.prisma.comissaoParceiro.update({
-      where: { id: existente.id },
-      data: {
-        status: "CONFIRMADA",
-        confirmadoEm,
-        revertidoEm: null
-      }
+    const comissao = await this.prisma.$transaction(async (transacao) => {
+      const registro = await transacao.comissaoParceiro.update({
+        where: { id: existente.id },
+        data: {
+          status: "CONFIRMADA",
+          confirmadoEm,
+          revertidoEm: null
+        }
+      });
+      await transacao.historicoComissaoParceiro.create({
+        data: this.dadosHistoricoComissao(registro, "CONFIRMADA", {
+          statusAnterior: existente.status,
+          motivo: "Pagamento do pedido confirmado.",
+          criadoEm: confirmadoEm
+        })
+      });
+      return registro;
     });
     return this.mapearComissao(comissao);
   }
@@ -510,7 +539,7 @@ export class RepositorioAfiliadosPrisma implements RepositorioAfiliados {
   async marcarComissaoPaga(
     id: string,
     negocioId: string,
-    dados: { referenciaPagamento: string; observacao?: string | null; pagoEm?: Date }
+    dados: { referenciaPagamento: string; observacao?: string | null; pagoEm?: Date; autorId?: string | null; autorNome?: string | null }
   ): Promise<ComissaoParceiro | null> {
     const existente = await this.prisma.comissaoParceiro.findFirst({ where: { id, negocioId } });
     if (!existente) return null;
@@ -519,14 +548,27 @@ export class RepositorioAfiliadosPrisma implements RepositorioAfiliados {
     }
 
     const pagoEm = dados.pagoEm ?? new Date();
-    const comissao = await this.prisma.comissaoParceiro.update({
-      where: { id: existente.id },
-      data: {
-        status: "PAGA",
-        pagoEm,
-        referenciaPagamento: dados.referenciaPagamento,
-        observacaoPagamento: dados.observacao ?? null
-      }
+    const comissao = await this.prisma.$transaction(async (transacao) => {
+      const registro = await transacao.comissaoParceiro.update({
+        where: { id: existente.id },
+        data: {
+          status: "PAGA",
+          pagoEm,
+          referenciaPagamento: dados.referenciaPagamento,
+          observacaoPagamento: dados.observacao ?? null
+        }
+      });
+      await transacao.historicoComissaoParceiro.create({
+        data: this.dadosHistoricoComissao(registro, "PAGA", {
+          statusAnterior: existente.status,
+          motivo: dados.observacao ?? null,
+          referencia: dados.referenciaPagamento,
+          autorId: dados.autorId ?? null,
+          autorNome: dados.autorNome ?? null,
+          criadoEm: pagoEm
+        })
+      });
+      return registro;
     });
     return this.mapearComissao(comissao);
   }
@@ -542,15 +584,39 @@ export class RepositorioAfiliadosPrisma implements RepositorioAfiliados {
     });
     if (!existente) return null;
 
-    const comissao = await this.prisma.comissaoParceiro.update({
-      where: { id: existente.id },
-      data: {
-        status: "REVERTIDA",
-        motivo,
-        revertidoEm
-      }
+    const comissao = await this.prisma.$transaction(async (transacao) => {
+      const registro = await transacao.comissaoParceiro.update({
+        where: { id: existente.id },
+        data: {
+          status: "REVERTIDA",
+          motivo,
+          revertidoEm
+        }
+      });
+      await transacao.historicoComissaoParceiro.create({
+        data: this.dadosHistoricoComissao(registro, "REVERTIDA", {
+          statusAnterior: existente.status,
+          motivo,
+          criadoEm: revertidoEm
+        })
+      });
+      return registro;
     });
     return this.mapearComissao(comissao);
+  }
+
+  async listarHistoricoComissao(comissaoId: string, negocioId: string): Promise<HistoricoComissaoParceiro[] | null> {
+    const comissao = await this.prisma.comissaoParceiro.findFirst({
+      where: { id: comissaoId, negocioId },
+      select: { id: true }
+    });
+    if (!comissao) return null;
+
+    const eventos = await this.prisma.historicoComissaoParceiro.findMany({
+      where: { comissaoId, negocioId },
+      orderBy: { criadoEm: "desc" }
+    });
+    return eventos.map((evento) => this.mapearHistoricoComissao(evento));
   }
 
   async resumir(negocioId: string): Promise<ResumoAfiliadosComerciais> {
@@ -667,6 +733,74 @@ export class RepositorioAfiliadosPrisma implements RepositorioAfiliados {
     return {
       ...comissao,
       status: comissao.status as ComissaoParceiro["status"]
+    };
+  }
+
+  private mapearHistoricoComissao(evento: {
+    id: string;
+    negocioId: string;
+    comissaoId: string;
+    afiliadoId: string;
+    pedidoId: string;
+    tipo: string;
+    statusAnterior: string | null;
+    statusNovo: string;
+    valorEmKwanza: number;
+    moeda: string;
+    motivo: string | null;
+    referencia: string | null;
+    autorId: string | null;
+    autorNome: string | null;
+    metadataJson: string;
+    criadoEm: Date;
+  }): HistoricoComissaoParceiro {
+    const { metadataJson, ...dados } = evento;
+    return {
+      ...dados,
+      tipo: evento.tipo as HistoricoComissaoParceiro["tipo"],
+      statusAnterior: evento.statusAnterior as HistoricoComissaoParceiro["statusAnterior"],
+      statusNovo: evento.statusNovo as HistoricoComissaoParceiro["statusNovo"],
+      metadata: this.lerObjeto(metadataJson)
+    };
+  }
+
+  private dadosHistoricoComissao(
+    comissao: {
+      id: string;
+      negocioId: string;
+      afiliadoId: string;
+      pedidoId: string;
+      status: string;
+      valorEmKwanza: number;
+      moeda: string;
+    },
+    tipo: TipoHistoricoComissaoParceiro,
+    dados: {
+      statusAnterior?: string | null;
+      motivo?: string | null;
+      referencia?: string | null;
+      autorId?: string | null;
+      autorNome?: string | null;
+      metadata?: Record<string, unknown>;
+      criadoEm?: Date;
+    } = {}
+  ) {
+    return {
+      negocioId: comissao.negocioId,
+      comissaoId: comissao.id,
+      afiliadoId: comissao.afiliadoId,
+      pedidoId: comissao.pedidoId,
+      tipo,
+      statusAnterior: dados.statusAnterior ?? null,
+      statusNovo: comissao.status,
+      valorEmKwanza: comissao.valorEmKwanza,
+      moeda: comissao.moeda,
+      motivo: dados.motivo ?? null,
+      referencia: dados.referencia ?? null,
+      autorId: dados.autorId ?? null,
+      autorNome: dados.autorNome ?? null,
+      metadataJson: this.serializar(dados.metadata ?? {}),
+      criadoEm: dados.criadoEm
     };
   }
 

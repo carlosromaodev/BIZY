@@ -75,6 +75,24 @@ export const moduloAfiliados: ModuloHttp = {
       return contexto.gestaoAfiliados.listarComissoes(contextoComercial.negocio.id);
     });
 
+    app.get("/afiliados/comissoes/:id/auditoria", async (request, reply) => {
+      const contextoComercial = await exigirAcessoComercial(contexto, request, reply, {
+        permissao: "afiliados:ler",
+        modulo: "afiliados",
+        mensagemPermissao: "Sem permissão para consultar auditoria de comissões.",
+        mensagemModulo: "Afiliados desativados para este negócio."
+      });
+      if (!contextoComercial) return;
+
+      const { id } = request.params as { id: string };
+      const auditoria = await contexto.gestaoAfiliados.listarAuditoriaComissao(id, contextoComercial.negocio.id);
+      if (!auditoria) {
+        return reply.code(404).send({ erro: "COMISSAO_NAO_ENCONTRADA", mensagem: "Comissão não encontrada." });
+      }
+
+      return auditoria;
+    });
+
     app.post("/afiliados/comissoes/:id/pagar", async (request, reply) => {
       const contextoComercial = await exigirAcessoComercial(contexto, request, reply, {
         permissao: "pagamentos:gerir",
@@ -91,7 +109,9 @@ export const moduloAfiliados: ModuloHttp = {
         contextoComercial.negocio.id,
         {
           referenciaPagamento: dados.referenciaPagamento,
-          observacao: dados.observacao
+          observacao: dados.observacao,
+          autorId: contextoComercial.usuario.id,
+          autorNome: contextoComercial.usuario.nome
         }
       );
       if (!comissao) {

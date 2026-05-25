@@ -83,9 +83,14 @@ export class GestaoAfiliadosUseCase {
   async marcarComissaoPaga(
     id: string,
     negocioId: string,
-    dados: { referenciaPagamento: string; observacao?: string | null }
+    dados: { referenciaPagamento: string; observacao?: string | null; autorId?: string | null; autorNome?: string | null }
   ) {
     return this.afiliados.marcarComissaoPaga(id, negocioId, dados);
+  }
+
+  async listarAuditoriaComissao(id: string, negocioId: string) {
+    const eventos = await this.afiliados.listarHistoricoComissao(id, negocioId);
+    return eventos ? { eventos } : null;
   }
 
   async resolverAtribuicao(
