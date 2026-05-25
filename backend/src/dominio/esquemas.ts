@@ -111,11 +111,53 @@ export const RegistrarEventoTrackingSchema = z.object({
   metadata: z.record(z.string(), z.unknown()).default({})
 });
 
+const ItemCheckoutPublicoSchema = z.object({
+  codigoPeca: z.string().trim().min(1).max(32),
+  quantidade: z.coerce.number().int().min(1).max(999)
+});
+
+const EntregaCheckoutPublicoSchema = z
+  .object({
+    tipo: z.enum(["ENTREGA", "RETIRADA"]).default("ENTREGA"),
+    provincia: TextoCatalogoOpcionalSchema,
+    municipio: TextoCatalogoOpcionalSchema,
+    bairro: TextoCatalogoOpcionalSchema,
+    endereco: z.string().trim().min(3).max(1000).nullable().optional().transform((valor) => valor ?? null)
+  })
+  .default({ tipo: "ENTREGA" });
+
 export const GerarCheckoutWhatsAppPublicoSchema = z.object({
   quantidade: z.coerce.number().int().min(1).max(999).default(1),
   variante: z.record(z.string(), z.string()).default({}),
   trackingId: z.string().trim().min(1).max(160).nullable().optional().transform((valor) => valor ?? null),
-  origem: z.string().trim().min(1).max(80).default("loja-publica")
+  origem: z.string().trim().min(1).max(80).default("loja-publica"),
+  entrega: EntregaCheckoutPublicoSchema.optional()
+});
+
+export const CalcularEntregaPublicaSchema = z.object({
+  itens: z.array(ItemCheckoutPublicoSchema).min(1).max(100),
+  entrega: EntregaCheckoutPublicoSchema
+});
+
+export const CriarCheckoutSitePublicoSchema = CalcularEntregaPublicaSchema.extend({
+  cliente: z
+    .object({
+      nome: TextoCatalogoOpcionalSchema,
+      telefone: TextoCatalogoOpcionalSchema,
+      email: z.preprocess(
+        (valor) => (typeof valor === "string" && valor.trim() === "" ? null : valor),
+        z.string().trim().email().max(160).nullable().optional()
+      ).transform((valor) => valor ?? null),
+      consentimentoMarketing: z.boolean().default(false),
+      consentimentoDados: z.boolean().default(false)
+    })
+    .refine((dados) => Boolean(dados.telefone || dados.email), {
+      message: "Informe telefone ou email para confirmar o pedido."
+    }),
+  trackingId: z.string().trim().min(1).max(160).nullable().optional().transform((valor) => valor ?? null),
+  origem: z.string().trim().min(1).max(80).default("loja-publica"),
+  canal: z.string().trim().min(1).max(80).default("site"),
+  observacao: z.string().trim().max(1000).nullable().optional().transform((valor) => valor ?? null)
 });
 
 export const IniciarLiveSchema = z.object({

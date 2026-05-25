@@ -270,7 +270,9 @@ export function criarContextoAplicacao(logger: FastifyBaseLogger): ContextoAplic
   const lojaPublica = new LojaPublicaUseCase(
     repositorios.autenticacao,
     repositorios.pecas,
-    repositorios.trackingComercial
+    repositorios.trackingComercial,
+    gestaoClientesCrm,
+    gestaoPedidos
   );
 
   const publicadorEventosN8n = new PublicadorEventosN8n(eventos, {

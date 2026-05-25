@@ -1,4 +1,6 @@
 import {
+  CalcularEntregaPublicaSchema,
+  CriarCheckoutSitePublicoSchema,
   GerarCheckoutWhatsAppPublicoSchema,
   PublicarLojaSchema,
   RegistrarEventoTrackingSchema
@@ -67,10 +69,23 @@ export const moduloLojaPublica: ModuloHttp = {
       });
     });
 
+    app.post("/publico/lojas/:slug/entrega/calcular", async (request) => {
+      const { slug } = request.params as { slug: string };
+      const dados = CalcularEntregaPublicaSchema.parse(request.body ?? {});
+      return contexto.lojaPublica.calcularEntrega(slug, dados);
+    });
+
     app.post("/publico/lojas/:slug/produtos/:codigo/whatsapp", async (request) => {
       const { slug, codigo } = request.params as { slug: string; codigo: string };
       const dados = GerarCheckoutWhatsAppPublicoSchema.parse(request.body ?? {});
       return contexto.lojaPublica.gerarCheckoutWhatsApp(slug, codigo, dados);
+    });
+
+    app.post("/publico/lojas/:slug/checkout", async (request, reply) => {
+      const { slug } = request.params as { slug: string };
+      const dados = CriarCheckoutSitePublicoSchema.parse(request.body ?? {});
+      const checkout = await contexto.lojaPublica.criarCheckoutSite(slug, dados);
+      return reply.code(201).send(checkout);
     });
 
     app.post("/publico/tracking/eventos", async (request, reply) => {

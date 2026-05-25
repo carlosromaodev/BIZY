@@ -237,4 +237,183 @@ describe("loja pública, catálogo digital e tracking HTTP", () => {
       await app.close();
     }
   });
+
+  it("calcula entrega e cria pedido pelo checkout público preservando origem e tracking", async () => {
+    const app = await criarAplicacao();
+
+    try {
+      const loja = await autenticar(app, "923444201", "Loja Checkout");
+
+      const negocio = await app.inject({
+        method: "POST",
+        url: "/onboarding/negocio",
+        headers: loja,
+        payload: {
+          nomeComercial: "Loja Checkout",
+          segmento: "Moda",
+          tipo: "LOJA",
+          telefone: "923444201",
+          whatsapp: "923444201",
+          provincia: "Luanda",
+          municipio: "Luanda",
+          endereco: "Rua da loja",
+          canaisVenda: ["site", "whatsapp"],
+          metodosPagamento: ["transferencia"],
+          entrega: {
+            taxaPadraoEmKwanza: 2500,
+            entregaGratisAcimaDeKwanza: 50000,
+            zonas: [
+              { municipio: "Luanda", bairro: "Talatona", taxaEmKwanza: 1500, prazo: "Hoje" },
+              { municipio: "Viana", taxaEmKwanza: 3000, prazo: "24h" }
+            ],
+            retiradaNaLoja: { ativa: true, instrucoes: "Retirar na Rua da loja." }
+          }
+        }
+      });
+      expect(negocio.statusCode).toBe(201);
+
+      await criarProduto(app, loja, "C1", 8);
+
+      const publicacao = await app.inject({
+        method: "PUT",
+        url: "/loja-publica/configuracao",
+        headers: loja,
+        payload: {
+          slug: "loja-checkout",
+          descricaoPublica: "Compra pelo site ou WhatsApp.",
+          publicada: true
+        }
+      });
+      expect(publicacao.statusCode).toBe(200);
+
+      const entrega = await app.inject({
+        method: "POST",
+        url: "/publico/lojas/loja-checkout/entrega/calcular",
+        payload: {
+          itens: [{ codigoPeca: "C1", quantidade: 2 }],
+          entrega: {
+            tipo: "ENTREGA",
+            provincia: "Luanda",
+            municipio: "Luanda",
+            bairro: "Talatona",
+            endereco: "Rua do cliente"
+          }
+        }
+      });
+      expect(entrega.statusCode).toBe(200);
+      expect(entrega.json()).toEqual(
+        expect.objectContaining({
+          subtotalEmKwanza: 25_000,
+          taxaEntregaEmKwanza: 1_500,
+          totalEmKwanza: 26_500,
+          moeda: "AOA"
+        })
+      );
+      expect(entrega.json().entrega).toEqual(
+        expect.objectContaining({
+          tipo: "ENTREGA",
+          regra: "zona",
+          prazo: "Hoje"
+        })
+      );
+
+      const whatsapp = await app.inject({
+        method: "POST",
+        url: "/publico/lojas/loja-checkout/produtos/C1/whatsapp",
+        payload: {
+          quantidade: 2,
+          variante: { tamanho: "M" },
+          trackingId: "trk-checkout-1",
+          origem: "link-afiliado-ana",
+          entrega: {
+            tipo: "ENTREGA",
+            provincia: "Luanda",
+            municipio: "Luanda",
+            bairro: "Talatona",
+            endereco: "Rua do cliente"
+          }
+        }
+      });
+      expect(whatsapp.statusCode).toBe(200);
+      expect(whatsapp.json().mensagem).toContain("Entrega estimada: 1 500 Kz");
+      expect(whatsapp.json().mensagem).toContain("Total estimado: 26 500 Kz");
+
+      const checkout = await app.inject({
+        method: "POST",
+        url: "/publico/lojas/loja-checkout/checkout",
+        payload: {
+          cliente: {
+            nome: "Cliente Site",
+            telefone: "923555666",
+            consentimentoDados: true,
+            consentimentoMarketing: false
+          },
+          itens: [{ codigoPeca: "C1", quantidade: 2 }],
+          entrega: {
+            tipo: "ENTREGA",
+            provincia: "Luanda",
+            municipio: "Luanda",
+            bairro: "Talatona",
+            endereco: "Rua do cliente"
+          },
+          trackingId: "trk-checkout-1",
+          origem: "link-afiliado-ana"
+        }
+      });
+      expect(checkout.statusCode).toBe(201);
+      expect(checkout.json()).toEqual(
+        expect.objectContaining({
+          origem: "link-afiliado-ana",
+          canal: "site",
+          subtotalEmKwanza: 25_000,
+          taxaEntregaEmKwanza: 1_500,
+          totalEmKwanza: 26_500
+        })
+      );
+      expect(checkout.json().pedido).toEqual(
+        expect.objectContaining({
+          numero: expect.any(Number),
+          estado: "AGUARDANDO_PAGAMENTO",
+          estadoPagamento: "PENDENTE"
+        })
+      );
+
+      const pedidos = await app.inject({
+        method: "GET",
+        url: "/pedidos",
+        headers: loja
+      });
+      expect(pedidos.statusCode).toBe(200);
+      expect(pedidos.json().pedidos).toEqual([
+        expect.objectContaining({
+          origem: "link-afiliado-ana",
+          canal: "site",
+          taxaEntregaEmKwanza: 1_500,
+          totalEmKwanza: 26_500,
+          enderecoEntrega: expect.stringContaining("Talatona")
+        })
+      ]);
+
+      const resumoTracking = await app.inject({
+        method: "GET",
+        url: "/loja-publica/tracking/resumo",
+        headers: loja
+      });
+      expect(resumoTracking.statusCode).toBe(200);
+      expect(resumoTracking.json().porTipo).toEqual(
+        expect.objectContaining({
+          WHATSAPP_CLICK: 1,
+          CHECKOUT_INICIADO: 1,
+          PEDIDO_CRIADO: 1
+        })
+      );
+      expect(resumoTracking.json().porOrigem).toEqual(
+        expect.objectContaining({
+          "link-afiliado-ana": 3
+        })
+      );
+    } finally {
+      await app.close();
+    }
+  });
 });
