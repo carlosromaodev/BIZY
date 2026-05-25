@@ -326,7 +326,8 @@ export class RepositorioTrackingComercialPrisma implements RepositorioTrackingCo
       totalEventos: mapeados.length,
       porTipo: this.contarPor(mapeados, (evento) => evento.tipo),
       porOrigem: this.contarPor(mapeados, (evento) => evento.origem ?? "sem_origem"),
-      porCanal: this.contarPor(mapeados, (evento) => evento.canal ?? "sem_canal")
+      porCanal: this.contarPor(mapeados, (evento) => evento.canal ?? "sem_canal"),
+      funil: this.montarFunil(mapeados)
     };
   }
 
@@ -359,6 +360,44 @@ export class RepositorioTrackingComercialPrisma implements RepositorioTrackingCo
       acumulador[chave] = (acumulador[chave] ?? 0) + 1;
       return acumulador;
     }, {} as Record<T, number>);
+  }
+
+  private montarFunil(eventos: EventoTrackingComercial[]): ResumoTrackingComercial["funil"] {
+    const contar = (tipo: EventoTrackingComercial["tipo"]) => eventos.filter((evento) => evento.tipo === tipo).length;
+    const pedidosCriados = eventos.filter((evento) => evento.tipo === "PEDIDO_CRIADO");
+    const leads = new Set(
+      eventos
+        .map((evento) => evento.metadata.clienteNegocioId)
+        .filter((clienteId): clienteId is string => typeof clienteId === "string" && Boolean(clienteId.trim()))
+    );
+    const receitaAtribuidaEmKwanza = pedidosCriados.reduce((total, evento) => {
+      const valor = evento.metadata.totalEmKwanza;
+      return total + (typeof valor === "number" && Number.isFinite(valor) ? valor : 0);
+    }, 0);
+    const visitas = contar("LOJA_VISITADA");
+    const produtosVistos = contar("PRODUTO_VISTO");
+    const cliquesWhatsApp = contar("WHATSAPP_CLICK");
+    const checkoutsIniciados = contar("CHECKOUT_INICIADO");
+
+    return {
+      visitas,
+      produtosVistos,
+      cliquesWhatsApp,
+      checkoutsIniciados,
+      pedidosCriados: pedidosCriados.length,
+      pagamentosConfirmados: contar("PAGAMENTO_CONFIRMADO"),
+      comprasEntregues: contar("COMPRA_ENTREGUE"),
+      leadsIdentificados: leads.size,
+      receitaAtribuidaEmKwanza,
+      taxaCheckoutPorVisita: this.percentual(checkoutsIniciados, visitas),
+      taxaPedidoPorCheckout: this.percentual(pedidosCriados.length, checkoutsIniciados),
+      taxaWhatsAppPorProduto: this.percentual(cliquesWhatsApp, produtosVistos)
+    };
+  }
+
+  private percentual(parte: number, total: number): number {
+    if (total <= 0) return 0;
+    return Math.round((parte / total) * 10_000) / 100;
   }
 
   private lerMapaStrings(valor: string): Record<string, string> {

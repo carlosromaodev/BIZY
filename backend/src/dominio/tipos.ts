@@ -945,6 +945,20 @@ export interface ResumoTrackingComercial {
   porTipo: Partial<Record<TipoEventoTrackingComercial, number>>;
   porOrigem: Record<string, number>;
   porCanal: Record<string, number>;
+  funil: {
+    visitas: number;
+    produtosVistos: number;
+    cliquesWhatsApp: number;
+    checkoutsIniciados: number;
+    pedidosCriados: number;
+    pagamentosConfirmados: number;
+    comprasEntregues: number;
+    leadsIdentificados: number;
+    receitaAtribuidaEmKwanza: number;
+    taxaCheckoutPorVisita: number;
+    taxaPedidoPorCheckout: number;
+    taxaWhatsAppPorProduto: number;
+  };
 }
 
 export interface RegraComissaoParceiro {

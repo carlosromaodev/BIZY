@@ -185,6 +185,16 @@ describe("loja pública, catálogo digital e tracking HTTP", () => {
             LOJA_VISITADA: 1,
             PRODUTO_VISTO: 1,
             WHATSAPP_CLICK: 1
+          }),
+          funil: expect.objectContaining({
+            visitas: 1,
+            produtosVistos: 1,
+            cliquesWhatsApp: 1,
+            checkoutsIniciados: 0,
+            pedidosCriados: 0,
+            leadsIdentificados: 0,
+            receitaAtribuidaEmKwanza: 0,
+            taxaWhatsAppPorProduto: 100
           })
         })
       );
@@ -410,6 +420,18 @@ describe("loja pública, catálogo digital e tracking HTTP", () => {
       expect(resumoTracking.json().porOrigem).toEqual(
         expect.objectContaining({
           "link-afiliado-ana": 3
+        })
+      );
+      expect(resumoTracking.json().funil).toEqual(
+        expect.objectContaining({
+          visitas: 0,
+          produtosVistos: 0,
+          cliquesWhatsApp: 1,
+          checkoutsIniciados: 1,
+          pedidosCriados: 1,
+          leadsIdentificados: 1,
+          receitaAtribuidaEmKwanza: 26_500,
+          taxaPedidoPorCheckout: 100
         })
       );
     } finally {

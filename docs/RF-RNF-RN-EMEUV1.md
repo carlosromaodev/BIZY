@@ -1,7 +1,7 @@
 # Bizy / ÉMeu V1 - Requisitos Funcionais, Não Funcionais e Regras de Negócio
 
 Documento: `RF-RNF-RN-EMEUV1.md`
-Versão: 1.14
+Versão: 1.15
 Data: 2026-05-25
 Autor: Carlos
 Status: MVP base implementado; fundação backend Bizy CRM+ com Clientes 360, Pedidos, Catálogo/Stock, Loja Pública, Checkout, Entrega, Afiliados, Comissões e Lotes Financeiros em evolução
@@ -45,6 +45,8 @@ Atualização 1.12: adicionada auditoria operacional de comissões de afiliados/
 Atualização 1.13: adicionados lotes financeiros para pagamento de comissões confirmadas, com período, referência, observação, autor, total, itens pagos, vínculo nas comissões e histórico auditável por pagamento em lote.
 
 Atualização 1.14: adicionados saldos financeiros por afiliado/criador e exportação CSV dos lotes de pagamento de comissão, preparando operação de fecho, conciliação e prestação de contas para parceiros comerciais.
+
+Atualização 1.15: o resumo de tracking comercial passou a devolver funil operacional com visitas, produtos vistos, cliques WhatsApp, checkouts, pedidos, leads identificados, receita atribuída e taxas básicas de conversão.
 
 ---
 
@@ -465,13 +467,13 @@ Esta etapa posiciona o Bizy como uma plataforma de operação comercial para cri
 
 | ID | Requisito Funcional | Prioridade | Estado |
 |---|---|---|---|
-| RF209 | [ ] O CRM+ deve mapear funil com etapas: visita, produto visto, WhatsApp click, lead, conversa, checkout, pedido, pagamento pendente, pago, preparação, entrega, entregue, pós-venda e recompra. | Alta | Planeado |
+| RF209 | [~] O CRM+ deve mapear funil com etapas: visita, produto visto, WhatsApp click, lead, conversa, checkout, pedido, pagamento pendente, pago, preparação, entrega, entregue, pós-venda e recompra. | Alta | Parcial - resumo backend de tracking cobre visita, produto visto, WhatsApp click, checkout, pedido, lead identificado, receita atribuída e taxas básicas; faltam conversa, pagamento, entrega, pós-venda e UI |
 | RF210 | [ ] Eventos de loja, WhatsApp, social, live, afiliado e checkout devem movimentar automaticamente o cliente/pedido no funil quando a regra for segura. | Alta | Planeado |
 | RF211 | [ ] O dono do negócio deve poder configurar playbooks de recuperação para carrinho abandonado, pagamento pendente, reserva expirada, cliente inativo, pós-venda e reposição de produto. | Alta | Planeado |
 | RF212 | [ ] Automações devem aceitar condições por segmento, evento, inatividade, stock, canal, categoria de mensagem, consentimento e responsável. | Alta | Planeado |
 | RF213 | [ ] Ações de automação devem incluir enviar template WhatsApp, criar tarefa, adicionar tag, notificar responsável, reservar produto, mover etapa do funil e adicionar a campanha. | Alta | Planeado |
 | RF214 | [ ] Casos sensíveis como desconto, pagamento, reclamação, troca, cancelamento e cliente irritado devem exigir aprovação humana ou tarefa. | Alta | Planeado |
-| RF215 | [ ] O painel deve mostrar oportunidades perdidas e recuperáveis: carrinhos, WhatsApp clicks sem compra, comentários com intenção, pedidos sem pagamento e clientes inativos. | Alta | Planeado |
+| RF215 | [~] O painel deve mostrar oportunidades perdidas e recuperáveis: carrinhos, WhatsApp clicks sem compra, comentários com intenção, pedidos sem pagamento e clientes inativos. | Alta | Parcial - backend já expõe números de cliques WhatsApp, checkouts, pedidos e taxas no resumo de funil; faltam listas acionáveis, comentários, clientes inativos e UI |
 | RF216 | [ ] Relatórios de automação devem mostrar vendas recuperadas, receita atribuída, mensagens enviadas, falhas, opt-out, conversões e intervenção humana. | Alta | Planeado |
 
 #### 3.14.8 WhatsApp Oficial: Categorias, Eventos e Metodologia
@@ -529,7 +531,7 @@ Esta etapa vem antes da implementação visual dos novos módulos. O objetivo é
 | RF253 | [~] O backend deve expor APIs de Pedidos com múltiplos itens, estados de funil, pagamento, entrega, desconto, comprovativos e origem comercial. | Alta | Parcial - APIs `/pedidos` implementadas para criar/listar/detalhar/exportar, confirmar pagamento e atualizar entrega |
 | RF254 | [~] O backend deve evoluir Produtos para suportar variantes, coleções, movimentos de stock, custo, margem, importação e catálogo digital. | Alta | Parcial - variantes, coleções, movimentos, custo e margem implementados; faltam importação e catálogo digital público |
 | RF255 | [~] O backend deve expor APIs públicas e privadas para loja virtual, página de produto, catálogo digital, checkout WhatsApp e checkout site. | Alta | Parcial - loja pública, página de produto, cálculo de entrega, checkout WhatsApp e checkout site básico implementados; faltam catálogos selecionáveis e checkout/pagamento completo |
-| RF256 | [~] O backend deve registrar tracking de links, UTM, referência, cookies técnicos, visitas, cliques WhatsApp, checkout iniciado, pedido e venda atribuída. | Alta | Parcial - trackingId, UTM, visitas, produto visto, clique WhatsApp, checkout iniciado e pedido criado implementados; faltam cookies técnicos e venda paga atribuída |
+| RF256 | [~] O backend deve registrar tracking de links, UTM, referência, cookies técnicos, visitas, cliques WhatsApp, checkout iniciado, pedido e venda atribuída. | Alta | Parcial - trackingId, UTM, visitas, produto visto, clique WhatsApp, checkout iniciado, pedido criado, lead identificado e receita atribuída ao pedido implementados; faltam cookies técnicos e venda paga atribuída |
 | RF257 | [~] O backend deve suportar afiliados, criadores e revendedores com links próprios, regras de comissão, reversões, pagamentos e relatórios. | Alta | Parcial - parceiros, links próprios, comissão estimada/confirmada/paga/revertida, pagamento individual/lote, saldos, exportação CSV, auditoria e resumo implementados; faltam regras avançadas, portal do afiliado e relatórios avançados |
 | RF258 | [ ] O backend deve normalizar social inbox com comentários de redes sociais, posts, autores, intenção, tarefas e oportunidades. | Alta | Planeado |
 | RF259 | [ ] O backend deve ter funil e playbooks de recuperação com eventos, condições, ações, tarefas humanas e histórico de mudança. | Alta | Planeado |
@@ -684,7 +686,7 @@ Esta etapa vem antes da implementação visual dos novos módulos. O objetivo é
 | RNF84 | [ ] A loja pública deve exibir texto claro sobre tracking/privacidade quando cookies ou eventos de marketing forem usados. | Alta | Planeado |
 | RNF85 | [ ] Relatórios de afiliados e criadores devem expor apenas dados necessários, evitando mostrar dados privados de clientes sem necessidade operacional. | Alta | Planeado |
 | RNF86 | [~] O cálculo de comissão deve ser reprocessável e auditável por período, pedido, afiliado, produto, reversão e pagamento. | Alta | Parcial - comissão por pedido/afiliado é persistida, auditada, resumida em saldo financeiro e exportável por lote; faltam reprocessamento por produto e conciliação financeira avançada |
-| RNF87 | [ ] Eventos analíticos devem ser armazenados de forma eficiente para pelo menos 100.000 eventos sem travar a UI operacional. | Média | Planeado |
+| RNF87 | [~] Eventos analíticos devem ser armazenados de forma eficiente para pelo menos 100.000 eventos sem travar a UI operacional. | Média | Parcial - eventos já são agregados no backend em resumo de tracking e funil, evitando cálculo bruto na UI; faltam paginação/consulta temporal e otimização para alto volume real |
 | RNF88 | [ ] Páginas públicas de loja e catálogo devem ser cacheáveis sempre que possível, sem expor dados privados ou stock incorreto. | Média | Planeado |
 | RNF89 | [ ] A UI deve ocultar módulos não ativados, mas preservar rotas e dados para reativação futura quando permitido. | Média | Planeado |
 | RNF90 | [ ] Toda automação deve falhar de forma segura: mensagem não enviada, categoria inválida, template ausente ou provider indisponível devem criar tarefa humana com contexto. | Alta | Planeado |
