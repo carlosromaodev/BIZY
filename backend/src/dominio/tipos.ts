@@ -27,6 +27,18 @@ export const tiposEventoTrackingComercial = [
 ] as const;
 export type TipoEventoTrackingComercial = (typeof tiposEventoTrackingComercial)[number];
 
+export const tiposParceiroComercial = ["AFILIADO", "CRIADOR", "REVENDEDOR"] as const;
+export type TipoParceiroComercial = (typeof tiposParceiroComercial)[number];
+
+export const estadosParceiroComercial = ["ATIVO", "PAUSADO", "BLOQUEADO"] as const;
+export type EstadoParceiroComercial = (typeof estadosParceiroComercial)[number];
+
+export const tiposComissaoParceiro = ["PERCENTUAL", "VALOR_FIXO"] as const;
+export type TipoComissaoParceiro = (typeof tiposComissaoParceiro)[number];
+
+export const statusComissaoParceiro = ["ESTIMADA", "CONFIRMADA", "REVERTIDA", "CANCELADA"] as const;
+export type StatusComissaoParceiro = (typeof statusComissaoParceiro)[number];
+
 export const estadosReserva = [
   "PENDING",
   "RESERVED",
@@ -923,6 +935,110 @@ export interface ResumoTrackingComercial {
   porTipo: Partial<Record<TipoEventoTrackingComercial, number>>;
   porOrigem: Record<string, number>;
   porCanal: Record<string, number>;
+}
+
+export interface RegraComissaoParceiro {
+  tipo: TipoComissaoParceiro;
+  percentual?: number;
+  valorEmKwanza?: number;
+}
+
+export interface ParceiroComercial {
+  id: string;
+  negocioId: string;
+  tipo: TipoParceiroComercial;
+  codigo: string;
+  nomePublico: string;
+  contacto: string | null;
+  estado: EstadoParceiroComercial;
+  regraComissao: RegraComissaoParceiro;
+  metodoPagamento: Record<string, unknown>;
+  criadoEm: Date;
+  atualizadoEm: Date;
+}
+
+export interface NovoParceiroComercial {
+  negocioId: string;
+  tipo: TipoParceiroComercial;
+  codigo: string;
+  nomePublico: string;
+  contacto?: string | null;
+  estado?: EstadoParceiroComercial;
+  regraComissao: RegraComissaoParceiro;
+  metodoPagamento?: Record<string, unknown>;
+}
+
+export interface LinkAfiliado {
+  id: string;
+  negocioId: string;
+  afiliadoId: string;
+  codigo: string;
+  destinoTipo: "LOJA" | "PRODUTO" | "CAMPANHA" | string;
+  slugLoja: string | null;
+  codigoProduto: string | null;
+  canal: string | null;
+  origemConteudo: string | null;
+  ativo: boolean;
+  expiraEm: Date | null;
+  criadoEm: Date;
+  atualizadoEm: Date;
+}
+
+export interface NovoLinkAfiliado {
+  negocioId: string;
+  afiliadoId: string;
+  codigo: string;
+  destinoTipo: "LOJA" | "PRODUTO" | "CAMPANHA" | string;
+  slugLoja?: string | null;
+  codigoProduto?: string | null;
+  canal?: string | null;
+  origemConteudo?: string | null;
+  ativo?: boolean;
+  expiraEm?: Date | null;
+}
+
+export interface ComissaoParceiro {
+  id: string;
+  negocioId: string;
+  afiliadoId: string;
+  linkId: string | null;
+  pedidoId: string;
+  status: StatusComissaoParceiro;
+  baseEmKwanza: number;
+  valorEmKwanza: number;
+  moeda: string;
+  motivo: string | null;
+  criadoEm: Date;
+  confirmadoEm: Date | null;
+  revertidoEm: Date | null;
+  atualizadoEm: Date;
+}
+
+export interface NovaComissaoParceiro {
+  negocioId: string;
+  afiliadoId: string;
+  linkId?: string | null;
+  pedidoId: string;
+  status?: StatusComissaoParceiro;
+  baseEmKwanza: number;
+  valorEmKwanza: number;
+  moeda?: string;
+  motivo?: string | null;
+}
+
+export interface ResumoAfiliadosComerciais {
+  totalParceiros: number;
+  totalLinks: number;
+  pedidosAtribuidos: number;
+  comissaoEstimadaEmKwanza: number;
+  comissaoConfirmadaEmKwanza: number;
+  ranking: Array<{
+    afiliadoId: string;
+    codigo: string;
+    nomePublico: string;
+    pedidos: number;
+    comissaoConfirmadaEmKwanza: number;
+  }>;
 }
 
 export interface CodigoLoginSms {

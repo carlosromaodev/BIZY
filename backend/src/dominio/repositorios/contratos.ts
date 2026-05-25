@@ -9,7 +9,11 @@ import type {
   ConversaAtendimentoComMensagens,
   DadosPedidoResolvido,
   DadosCliente360,
+  ComissaoParceiro,
   NovaPeca,
+  NovaComissaoParceiro,
+  NovoLinkAfiliado,
+  NovoParceiroComercial,
   NovaReserva,
   NovaMensagemAtendimento,
   NovoRegistroComentario,
@@ -49,6 +53,9 @@ import type {
   NovoEventoTrackingComercial,
   NovoMovimentoStock,
   NegocioBizy,
+  LinkAfiliado,
+  ParceiroComercial,
+  ResumoAfiliadosComerciais,
   ResumoTrackingComercial
 } from "../tipos.js";
 
@@ -65,6 +72,29 @@ export interface RepositorioPecas {
 export interface RepositorioTrackingComercial {
   registrarEvento(dados: NovoEventoTrackingComercial): Promise<EventoTrackingComercial>;
   resumirEventos(negocioId: string): Promise<ResumoTrackingComercial>;
+}
+
+export interface RepositorioAfiliados {
+  criarParceiro(dados: NovoParceiroComercial): Promise<ParceiroComercial>;
+  listarParceiros(negocioId: string): Promise<ParceiroComercial[]>;
+  buscarParceiroPorId(id: string, negocioId: string): Promise<ParceiroComercial | null>;
+  criarLink(dados: NovoLinkAfiliado): Promise<LinkAfiliado>;
+  listarLinks(negocioId: string): Promise<LinkAfiliado[]>;
+  buscarLinkPorCodigo(codigo: string, negocioId?: string): Promise<LinkAfiliado | null>;
+  criarOuAtualizarComissao(dados: NovaComissaoParceiro): Promise<ComissaoParceiro>;
+  listarComissoes(negocioId: string): Promise<ComissaoParceiro[]>;
+  confirmarComissaoPorPedido(
+    pedidoId: string,
+    negocioId: string,
+    confirmadoEm?: Date
+  ): Promise<ComissaoParceiro | null>;
+  reverterComissaoPorPedido(
+    pedidoId: string,
+    negocioId: string,
+    motivo: string,
+    revertidoEm?: Date
+  ): Promise<ComissaoParceiro | null>;
+  resumir(negocioId: string): Promise<ResumoAfiliadosComerciais>;
 }
 
 export interface RepositorioReservas {

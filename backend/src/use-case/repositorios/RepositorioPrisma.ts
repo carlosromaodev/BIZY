@@ -2,6 +2,7 @@ import { Prisma, type PrismaClient } from "@prisma/client";
 import type {
   RepositorioComentarios,
   RepositorioAutenticacao,
+  RepositorioAfiliados,
   RepositorioAtendimento,
   RepositorioAuditoria,
   RepositorioClientes,
@@ -26,6 +27,7 @@ import type {
   ConfirmacaoPagamentoPedido,
   ConversaAtendimento,
   ConversaAtendimentoComMensagens,
+  ComissaoParceiro,
   DadosCriacaoReservaComControleStock,
   DadosCliente360,
   DadosPedidoResolvido,
@@ -41,17 +43,22 @@ import type {
   FiltrosPedidos,
   FiltrosClientes360,
   InstanciaWhatsApp,
+  LinkAfiliado,
   MensagemAtendimento,
   MovimentoStock,
+  NovaComissaoParceiro,
   NovaMensagemAtendimento,
   NovoEventoTrackingComercial,
+  NovoLinkAfiliado,
   NovoMovimentoStock,
+  NovoParceiroComercial,
   NovaPeca,
   NovaReserva,
   NovoRegistroComentario,
   NovoOutboxMensagemWhatsApp,
   NovoRegistroSessaoLive,
   Peca,
+  ParceiroComercial,
   Pedido,
   RegistroOutboxEventoN8n,
   RegistroOutboxMensagemWhatsApp,
@@ -67,6 +74,7 @@ import type {
   DadosPerfilEstudantil,
   NegocioBizy,
   PerfilEstudantilUsuario,
+  ResumoAfiliadosComerciais,
   ResumoTrackingComercial,
   UsuarioSistema
 } from "../../dominio/tipos.js";
@@ -362,6 +370,306 @@ export class RepositorioTrackingComercialPrisma implements RepositorioTrackingCo
     } catch {
       return {};
     }
+  }
+}
+
+export class RepositorioAfiliadosPrisma implements RepositorioAfiliados {
+  constructor(private readonly prisma: PrismaClient) {}
+
+  async criarParceiro(dados: NovoParceiroComercial): Promise<ParceiroComercial> {
+    const parceiro = await this.prisma.parceiroComercial.create({
+      data: {
+        negocioId: dados.negocioId,
+        tipo: dados.tipo,
+        codigo: this.normalizarCodigo(dados.codigo),
+        nomePublico: dados.nomePublico,
+        contacto: dados.contacto ?? null,
+        estado: dados.estado ?? "ATIVO",
+        regraComissaoJson: this.serializar(dados.regraComissao),
+        metodoPagamentoJson: this.serializar(dados.metodoPagamento ?? {})
+      }
+    });
+    return this.mapearParceiro(parceiro);
+  }
+
+  async listarParceiros(negocioId: string): Promise<ParceiroComercial[]> {
+    const parceiros = await this.prisma.parceiroComercial.findMany({
+      where: { negocioId },
+      orderBy: { criadoEm: "desc" }
+    });
+    return parceiros.map((parceiro) => this.mapearParceiro(parceiro));
+  }
+
+  async buscarParceiroPorId(id: string, negocioId: string): Promise<ParceiroComercial | null> {
+    const parceiro = await this.prisma.parceiroComercial.findFirst({ where: { id, negocioId } });
+    return parceiro ? this.mapearParceiro(parceiro) : null;
+  }
+
+  async criarLink(dados: NovoLinkAfiliado): Promise<LinkAfiliado> {
+    const link = await this.prisma.linkAfiliado.create({
+      data: {
+        negocioId: dados.negocioId,
+        afiliadoId: dados.afiliadoId,
+        codigo: this.normalizarCodigo(dados.codigo),
+        destinoTipo: dados.destinoTipo,
+        slugLoja: dados.slugLoja ?? null,
+        codigoProduto: dados.codigoProduto ? this.normalizarCodigo(dados.codigoProduto) : null,
+        canal: dados.canal ?? null,
+        origemConteudo: dados.origemConteudo ?? null,
+        ativo: dados.ativo ?? true,
+        expiraEm: dados.expiraEm ?? null
+      }
+    });
+    return this.mapearLink(link);
+  }
+
+  async listarLinks(negocioId: string): Promise<LinkAfiliado[]> {
+    const links = await this.prisma.linkAfiliado.findMany({
+      where: { negocioId },
+      orderBy: { criadoEm: "desc" }
+    });
+    return links.map((link) => this.mapearLink(link));
+  }
+
+  async buscarLinkPorCodigo(codigo: string, negocioId?: string): Promise<LinkAfiliado | null> {
+    const normalizado = this.normalizarCodigo(codigo);
+    const link = await this.prisma.linkAfiliado.findFirst({
+      where: {
+        codigo: normalizado,
+        ...(negocioId ? { negocioId } : {})
+      }
+    });
+    return link ? this.mapearLink(link) : null;
+  }
+
+  async criarOuAtualizarComissao(dados: NovaComissaoParceiro): Promise<ComissaoParceiro> {
+    const comissao = await this.prisma.comissaoParceiro.upsert({
+      where: {
+        negocioId_pedidoId: {
+          negocioId: dados.negocioId,
+          pedidoId: dados.pedidoId
+        }
+      },
+      create: {
+        negocioId: dados.negocioId,
+        afiliadoId: dados.afiliadoId,
+        linkId: dados.linkId ?? null,
+        pedidoId: dados.pedidoId,
+        status: dados.status ?? "ESTIMADA",
+        baseEmKwanza: dados.baseEmKwanza,
+        valorEmKwanza: dados.valorEmKwanza,
+        moeda: dados.moeda ?? "AOA",
+        motivo: dados.motivo ?? null
+      },
+      update: {
+        afiliadoId: dados.afiliadoId,
+        linkId: dados.linkId ?? null,
+        status: dados.status ?? undefined,
+        baseEmKwanza: dados.baseEmKwanza,
+        valorEmKwanza: dados.valorEmKwanza,
+        moeda: dados.moeda ?? undefined,
+        motivo: dados.motivo ?? undefined
+      }
+    });
+    return this.mapearComissao(comissao);
+  }
+
+  async listarComissoes(negocioId: string): Promise<ComissaoParceiro[]> {
+    const comissoes = await this.prisma.comissaoParceiro.findMany({
+      where: { negocioId },
+      orderBy: { criadoEm: "desc" }
+    });
+    return comissoes.map((comissao) => this.mapearComissao(comissao));
+  }
+
+  async confirmarComissaoPorPedido(
+    pedidoId: string,
+    negocioId: string,
+    confirmadoEm = new Date()
+  ): Promise<ComissaoParceiro | null> {
+    const existente = await this.prisma.comissaoParceiro.findUnique({
+      where: { negocioId_pedidoId: { negocioId, pedidoId } }
+    });
+    if (!existente) return null;
+    if (existente.status === "REVERTIDA" || existente.status === "CANCELADA") return this.mapearComissao(existente);
+    if (existente.status === "CONFIRMADA") return this.mapearComissao(existente);
+
+    const comissao = await this.prisma.comissaoParceiro.update({
+      where: { id: existente.id },
+      data: {
+        status: "CONFIRMADA",
+        confirmadoEm,
+        revertidoEm: null
+      }
+    });
+    return this.mapearComissao(comissao);
+  }
+
+  async reverterComissaoPorPedido(
+    pedidoId: string,
+    negocioId: string,
+    motivo: string,
+    revertidoEm = new Date()
+  ): Promise<ComissaoParceiro | null> {
+    const existente = await this.prisma.comissaoParceiro.findUnique({
+      where: { negocioId_pedidoId: { negocioId, pedidoId } }
+    });
+    if (!existente) return null;
+
+    const comissao = await this.prisma.comissaoParceiro.update({
+      where: { id: existente.id },
+      data: {
+        status: "REVERTIDA",
+        motivo,
+        revertidoEm
+      }
+    });
+    return this.mapearComissao(comissao);
+  }
+
+  async resumir(negocioId: string): Promise<ResumoAfiliadosComerciais> {
+    const [parceiros, links, comissoes] = await Promise.all([
+      this.listarParceiros(negocioId),
+      this.listarLinks(negocioId),
+      this.listarComissoes(negocioId)
+    ]);
+    const parceiroPorId = new Map(parceiros.map((parceiro) => [parceiro.id, parceiro]));
+    const rankingPorAfiliado = new Map<
+      string,
+      { afiliadoId: string; codigo: string; nomePublico: string; pedidos: Set<string>; comissaoConfirmadaEmKwanza: number }
+    >();
+
+    for (const comissao of comissoes) {
+      const parceiro = parceiroPorId.get(comissao.afiliadoId);
+      const item = rankingPorAfiliado.get(comissao.afiliadoId) ?? {
+        afiliadoId: comissao.afiliadoId,
+        codigo: parceiro?.codigo ?? "",
+        nomePublico: parceiro?.nomePublico ?? "Parceiro removido",
+        pedidos: new Set<string>(),
+        comissaoConfirmadaEmKwanza: 0
+      };
+      item.pedidos.add(comissao.pedidoId);
+      if (comissao.status === "CONFIRMADA") item.comissaoConfirmadaEmKwanza += comissao.valorEmKwanza;
+      rankingPorAfiliado.set(comissao.afiliadoId, item);
+    }
+
+    return {
+      totalParceiros: parceiros.length,
+      totalLinks: links.length,
+      pedidosAtribuidos: new Set(comissoes.map((comissao) => comissao.pedidoId)).size,
+      comissaoEstimadaEmKwanza: this.somarComissoesPorStatus(comissoes, "ESTIMADA"),
+      comissaoConfirmadaEmKwanza: this.somarComissoesPorStatus(comissoes, "CONFIRMADA"),
+      ranking: [...rankingPorAfiliado.values()]
+        .map((item) => ({
+          ...item,
+          pedidos: item.pedidos.size
+        }))
+        .sort((a, b) => b.comissaoConfirmadaEmKwanza - a.comissaoConfirmadaEmKwanza)
+    };
+  }
+
+  private mapearParceiro(parceiro: {
+    id: string;
+    negocioId: string;
+    tipo: string;
+    codigo: string;
+    nomePublico: string;
+    contacto: string | null;
+    estado: string;
+    regraComissaoJson: string;
+    metodoPagamentoJson: string;
+    criadoEm: Date;
+    atualizadoEm: Date;
+  }): ParceiroComercial {
+    return {
+      ...parceiro,
+      tipo: parceiro.tipo as ParceiroComercial["tipo"],
+      estado: parceiro.estado as ParceiroComercial["estado"],
+      regraComissao: this.lerRegraComissao(parceiro.regraComissaoJson),
+      metodoPagamento: this.lerObjeto(parceiro.metodoPagamentoJson)
+    };
+  }
+
+  private mapearLink(link: {
+    id: string;
+    negocioId: string;
+    afiliadoId: string;
+    codigo: string;
+    destinoTipo: string;
+    slugLoja: string | null;
+    codigoProduto: string | null;
+    canal: string | null;
+    origemConteudo: string | null;
+    ativo: boolean;
+    expiraEm: Date | null;
+    criadoEm: Date;
+    atualizadoEm: Date;
+  }): LinkAfiliado {
+    return { ...link };
+  }
+
+  private mapearComissao(comissao: {
+    id: string;
+    negocioId: string;
+    afiliadoId: string;
+    linkId: string | null;
+    pedidoId: string;
+    status: string;
+    baseEmKwanza: number;
+    valorEmKwanza: number;
+    moeda: string;
+    motivo: string | null;
+    criadoEm: Date;
+    confirmadoEm: Date | null;
+    revertidoEm: Date | null;
+    atualizadoEm: Date;
+  }): ComissaoParceiro {
+    return {
+      ...comissao,
+      status: comissao.status as ComissaoParceiro["status"]
+    };
+  }
+
+  private somarComissoesPorStatus(comissoes: ComissaoParceiro[], status: ComissaoParceiro["status"]): number {
+    return comissoes
+      .filter((comissao) => comissao.status === status)
+      .reduce((total, comissao) => total + comissao.valorEmKwanza, 0);
+  }
+
+  private normalizarCodigo(codigo: string): string {
+    return codigo.trim().toUpperCase();
+  }
+
+  private lerObjeto(valor: string): Record<string, unknown> {
+    try {
+      const dados = JSON.parse(valor);
+      return dados && typeof dados === "object" && !Array.isArray(dados) ? dados as Record<string, unknown> : {};
+    } catch {
+      return {};
+    }
+  }
+
+  private lerRegraComissao(valor: string): ParceiroComercial["regraComissao"] {
+    const regra = this.lerObjeto(valor);
+    if (regra.tipo === "VALOR_FIXO") {
+      return {
+        tipo: "VALOR_FIXO",
+        valorEmKwanza: typeof regra.valorEmKwanza === "number" ? regra.valorEmKwanza : 0
+      };
+    }
+
+    return {
+      tipo: "PERCENTUAL",
+      percentual: typeof regra.percentual === "number" ? regra.percentual : 0
+    };
+  }
+
+  private serializar(valor: unknown): string {
+    return JSON.stringify(valor, (_chave, item) => {
+      if (item instanceof Date) return item.toISOString();
+      if (typeof item === "bigint") return item.toString();
+      return item;
+    });
   }
 }
 

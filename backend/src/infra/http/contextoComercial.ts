@@ -19,6 +19,7 @@ const MODULOS_CORE = [
   "pedidos",
   "whatsapp",
   "loja-publica",
+  "afiliados",
   "tracking"
 ] as const;
 
@@ -31,6 +32,7 @@ const PERMISSOES_POR_PAPEL: Record<string, string[]> = {
     "pagamentos:gerir",
     "conversas:gerir",
     "loja-publica:gerir",
+    "afiliados:gerir",
     "tracking:ler",
     "campanhas:gerir",
     "relatorios:ver",
@@ -44,6 +46,7 @@ const PERMISSOES_POR_PAPEL: Record<string, string[]> = {
     "pagamentos:gerir",
     "conversas:gerir",
     "loja-publica:gerir",
+    "afiliados:gerir",
     "tracking:ler",
     "campanhas:gerir",
     "relatorios:ver",

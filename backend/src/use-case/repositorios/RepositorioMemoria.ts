@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type {
   RepositorioAutenticacao,
+  RepositorioAfiliados,
   RepositorioAtendimento,
   RepositorioAuditoria,
   RepositorioClientes,
@@ -25,6 +26,7 @@ import type {
   ConfirmacaoPagamentoPedido,
   ConversaAtendimento,
   ConversaAtendimentoComMensagens,
+  ComissaoParceiro,
   DadosCriacaoReservaComControleStock,
   DadosCliente360,
   DadosPedidoResolvido,
@@ -39,9 +41,12 @@ import type {
   InstanciaWhatsApp,
   MensagemAtendimento,
   MovimentoStock,
+  NovaComissaoParceiro,
   NovaMensagemAtendimento,
   NovoEventoTrackingComercial,
+  NovoLinkAfiliado,
   NovoMovimentoStock,
+  NovoParceiroComercial,
   NovaPeca,
   NovaReserva,
   NovoOutboxMensagemWhatsApp,
@@ -49,6 +54,8 @@ import type {
   NovoRegistroComentario,
   Peca,
   Pedido,
+  ParceiroComercial,
+  LinkAfiliado,
   RegistroOutboxEventoN8n,
   RegistroOutboxMensagemWhatsApp,
   RegistroComentario,
@@ -56,7 +63,8 @@ import type {
   Reserva,
   ResumoOutboxEventoN8n,
   ResumoOutboxMensagemWhatsApp,
-  ResultadoInterpretacaoComentario
+  ResultadoInterpretacaoComentario,
+  ResumoAfiliadosComerciais
 } from "../../dominio/tipos.js";
 import { normalizarEmail, normalizarTelefone } from "../../dominio/servicos/normalizarContato.js";
 import type {
@@ -253,6 +261,224 @@ export class RepositorioTrackingComercialMemoria implements RepositorioTrackingC
       acumulador[chave] = (acumulador[chave] ?? 0) + 1;
       return acumulador;
     }, {} as Record<T, number>);
+  }
+}
+
+export class RepositorioAfiliadosMemoria implements RepositorioAfiliados {
+  private readonly parceiros = new Map<string, ParceiroComercial>();
+  private readonly links = new Map<string, LinkAfiliado>();
+  private readonly comissoes = new Map<string, ComissaoParceiro>();
+
+  async criarParceiro(dados: NovoParceiroComercial): Promise<ParceiroComercial> {
+    const codigo = this.normalizarCodigo(dados.codigo);
+    const duplicado = [...this.parceiros.values()].find(
+      (parceiro) => parceiro.negocioId === dados.negocioId && parceiro.codigo === codigo
+    );
+    if (duplicado) throw new Error(`Parceiro ${codigo} já existe neste negócio.`);
+
+    const agora = new Date();
+    const parceiro: ParceiroComercial = {
+      id: randomUUID(),
+      negocioId: dados.negocioId,
+      tipo: dados.tipo,
+      codigo,
+      nomePublico: dados.nomePublico,
+      contacto: dados.contacto ?? null,
+      estado: dados.estado ?? "ATIVO",
+      regraComissao: { ...dados.regraComissao },
+      metodoPagamento: dados.metodoPagamento ?? {},
+      criadoEm: agora,
+      atualizadoEm: agora
+    };
+    this.parceiros.set(parceiro.id, parceiro);
+    return parceiro;
+  }
+
+  async listarParceiros(negocioId: string): Promise<ParceiroComercial[]> {
+    return [...this.parceiros.values()]
+      .filter((parceiro) => parceiro.negocioId === negocioId)
+      .sort((a, b) => b.criadoEm.getTime() - a.criadoEm.getTime());
+  }
+
+  async buscarParceiroPorId(id: string, negocioId: string): Promise<ParceiroComercial | null> {
+    const parceiro = this.parceiros.get(id) ?? null;
+    return parceiro?.negocioId === negocioId ? parceiro : null;
+  }
+
+  async criarLink(dados: NovoLinkAfiliado): Promise<LinkAfiliado> {
+    const codigo = this.normalizarCodigo(dados.codigo);
+    if ([...this.links.values()].some((link) => link.codigo === codigo)) {
+      throw new Error(`Link ${codigo} já existe.`);
+    }
+
+    const agora = new Date();
+    const link: LinkAfiliado = {
+      id: randomUUID(),
+      negocioId: dados.negocioId,
+      afiliadoId: dados.afiliadoId,
+      codigo,
+      destinoTipo: dados.destinoTipo,
+      slugLoja: dados.slugLoja ?? null,
+      codigoProduto: dados.codigoProduto ? this.normalizarCodigo(dados.codigoProduto) : null,
+      canal: dados.canal ?? null,
+      origemConteudo: dados.origemConteudo ?? null,
+      ativo: dados.ativo ?? true,
+      expiraEm: dados.expiraEm ?? null,
+      criadoEm: agora,
+      atualizadoEm: agora
+    };
+    this.links.set(link.id, link);
+    return link;
+  }
+
+  async listarLinks(negocioId: string): Promise<LinkAfiliado[]> {
+    return [...this.links.values()]
+      .filter((link) => link.negocioId === negocioId)
+      .sort((a, b) => b.criadoEm.getTime() - a.criadoEm.getTime());
+  }
+
+  async buscarLinkPorCodigo(codigo: string, negocioId?: string): Promise<LinkAfiliado | null> {
+    const normalizado = this.normalizarCodigo(codigo);
+    return (
+      [...this.links.values()].find(
+        (link) => link.codigo === normalizado && (!negocioId || link.negocioId === negocioId)
+      ) ?? null
+    );
+  }
+
+  async criarOuAtualizarComissao(dados: NovaComissaoParceiro): Promise<ComissaoParceiro> {
+    const existente = [...this.comissoes.values()].find(
+      (comissao) => comissao.negocioId === dados.negocioId && comissao.pedidoId === dados.pedidoId
+    );
+    const agora = new Date();
+    const comissao: ComissaoParceiro = existente
+      ? {
+          ...existente,
+          afiliadoId: dados.afiliadoId,
+          linkId: dados.linkId ?? null,
+          status: dados.status ?? existente.status,
+          baseEmKwanza: dados.baseEmKwanza,
+          valorEmKwanza: dados.valorEmKwanza,
+          moeda: dados.moeda ?? existente.moeda,
+          motivo: dados.motivo ?? existente.motivo,
+          atualizadoEm: agora
+        }
+      : {
+          id: randomUUID(),
+          negocioId: dados.negocioId,
+          afiliadoId: dados.afiliadoId,
+          linkId: dados.linkId ?? null,
+          pedidoId: dados.pedidoId,
+          status: dados.status ?? "ESTIMADA",
+          baseEmKwanza: dados.baseEmKwanza,
+          valorEmKwanza: dados.valorEmKwanza,
+          moeda: dados.moeda ?? "AOA",
+          motivo: dados.motivo ?? null,
+          criadoEm: agora,
+          confirmadoEm: null,
+          revertidoEm: null,
+          atualizadoEm: agora
+        };
+    this.comissoes.set(comissao.id, comissao);
+    return comissao;
+  }
+
+  async listarComissoes(negocioId: string): Promise<ComissaoParceiro[]> {
+    return [...this.comissoes.values()]
+      .filter((comissao) => comissao.negocioId === negocioId)
+      .sort((a, b) => b.criadoEm.getTime() - a.criadoEm.getTime());
+  }
+
+  async confirmarComissaoPorPedido(
+    pedidoId: string,
+    negocioId: string,
+    confirmadoEm = new Date()
+  ): Promise<ComissaoParceiro | null> {
+    const comissao = [...this.comissoes.values()].find(
+      (item) => item.negocioId === negocioId && item.pedidoId === pedidoId
+    );
+    if (!comissao || comissao.status === "CONFIRMADA") return comissao ?? null;
+    if (comissao.status === "REVERTIDA" || comissao.status === "CANCELADA") return comissao;
+
+    const atualizada: ComissaoParceiro = {
+      ...comissao,
+      status: "CONFIRMADA",
+      confirmadoEm,
+      revertidoEm: null,
+      atualizadoEm: confirmadoEm
+    };
+    this.comissoes.set(atualizada.id, atualizada);
+    return atualizada;
+  }
+
+  async reverterComissaoPorPedido(
+    pedidoId: string,
+    negocioId: string,
+    motivo: string,
+    revertidoEm = new Date()
+  ): Promise<ComissaoParceiro | null> {
+    const comissao = [...this.comissoes.values()].find(
+      (item) => item.negocioId === negocioId && item.pedidoId === pedidoId
+    );
+    if (!comissao) return null;
+
+    const atualizada: ComissaoParceiro = {
+      ...comissao,
+      status: "REVERTIDA",
+      motivo,
+      revertidoEm,
+      atualizadoEm: revertidoEm
+    };
+    this.comissoes.set(atualizada.id, atualizada);
+    return atualizada;
+  }
+
+  async resumir(negocioId: string): Promise<ResumoAfiliadosComerciais> {
+    const parceiros = await this.listarParceiros(negocioId);
+    const links = await this.listarLinks(negocioId);
+    const comissoes = await this.listarComissoes(negocioId);
+    const rankingPorAfiliado = new Map<
+      string,
+      { afiliadoId: string; codigo: string; nomePublico: string; pedidos: Set<string>; comissaoConfirmadaEmKwanza: number }
+    >();
+
+    for (const comissao of comissoes) {
+      const parceiro = this.parceiros.get(comissao.afiliadoId);
+      const item = rankingPorAfiliado.get(comissao.afiliadoId) ?? {
+        afiliadoId: comissao.afiliadoId,
+        codigo: parceiro?.codigo ?? "",
+        nomePublico: parceiro?.nomePublico ?? "Parceiro removido",
+        pedidos: new Set<string>(),
+        comissaoConfirmadaEmKwanza: 0
+      };
+      item.pedidos.add(comissao.pedidoId);
+      if (comissao.status === "CONFIRMADA") item.comissaoConfirmadaEmKwanza += comissao.valorEmKwanza;
+      rankingPorAfiliado.set(comissao.afiliadoId, item);
+    }
+
+    return {
+      totalParceiros: parceiros.length,
+      totalLinks: links.length,
+      pedidosAtribuidos: new Set(comissoes.map((comissao) => comissao.pedidoId)).size,
+      comissaoEstimadaEmKwanza: this.somarComissoesPorStatus(comissoes, "ESTIMADA"),
+      comissaoConfirmadaEmKwanza: this.somarComissoesPorStatus(comissoes, "CONFIRMADA"),
+      ranking: [...rankingPorAfiliado.values()]
+        .map((item) => ({
+          ...item,
+          pedidos: item.pedidos.size
+        }))
+        .sort((a, b) => b.comissaoConfirmadaEmKwanza - a.comissaoConfirmadaEmKwanza)
+    };
+  }
+
+  private somarComissoesPorStatus(comissoes: ComissaoParceiro[], status: ComissaoParceiro["status"]): number {
+    return comissoes
+      .filter((comissao) => comissao.status === status)
+      .reduce((total, comissao) => total + comissao.valorEmKwanza, 0);
+  }
+
+  private normalizarCodigo(codigo: string): string {
+    return codigo.trim().toUpperCase();
   }
 }
 

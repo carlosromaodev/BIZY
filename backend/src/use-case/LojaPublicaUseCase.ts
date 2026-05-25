@@ -10,6 +10,7 @@ import type {
   Peca
 } from "../dominio/tipos.js";
 import type { GestaoClientesCrmUseCase } from "./GestaoClientesCrmUseCase.js";
+import type { AtribuicaoAfiliadoResolvida, GestaoAfiliadosUseCase } from "./GestaoAfiliadosUseCase.js";
 import type { GestaoPedidosUseCase } from "./GestaoPedidosUseCase.js";
 
 interface OpcoesTrackingPublico {
@@ -54,6 +55,7 @@ interface DadosCheckoutSitePublico extends DadosCalculoEntregaPublica {
     consentimentoDados: boolean;
   };
   trackingId?: string | null;
+  referencia?: string | null;
   origem: string;
   canal: string;
   observacao?: string | null;
@@ -82,7 +84,8 @@ export class LojaPublicaUseCase {
     private readonly pecas: RepositorioPecas,
     private readonly tracking: RepositorioTrackingComercial,
     private readonly clientesCrm: GestaoClientesCrmUseCase,
-    private readonly pedidos: GestaoPedidosUseCase
+    private readonly pedidos: GestaoPedidosUseCase,
+    private readonly afiliados?: GestaoAfiliadosUseCase
   ) {}
 
   async publicarLoja(negocioId: string, dados: DadosPublicacaoLoja) {
@@ -186,6 +189,9 @@ export class LojaPublicaUseCase {
   async criarCheckoutSite(slug: string, dados: DadosCheckoutSitePublico) {
     const negocio = await this.exigirLojaPublicada(slug);
     const resumo = await this.resolverResumoCheckout(negocio, dados.itens, dados.entrega);
+    const atribuicao = await this.afiliados?.resolverAtribuicao(negocio.id, dados.referencia) ?? null;
+    const origemEfetiva = atribuicao ? `afiliado:${atribuicao.parceiro.codigo}` : dados.origem;
+    const canalEfetivo = atribuicao?.link.canal ?? dados.canal;
 
     await this.registrarTrackingSilencioso({
       negocioId: negocio.id,
@@ -194,9 +200,12 @@ export class LojaPublicaUseCase {
       entidadeTipo: "CHECKOUT",
       entidadeId: dados.trackingId ?? null,
       trackingId: dados.trackingId ?? null,
-      origem: dados.origem,
-      canal: dados.canal,
+      origem: origemEfetiva,
+      canal: canalEfetivo,
       metadata: {
+        referencia: dados.referencia ?? null,
+        afiliadoId: atribuicao?.parceiro.id ?? null,
+        linkAfiliadoId: atribuicao?.link.id ?? null,
         subtotalEmKwanza: resumo.subtotalEmKwanza,
         taxaEntregaEmKwanza: resumo.taxaEntregaEmKwanza,
         totalEmKwanza: resumo.totalEmKwanza,
@@ -209,13 +218,16 @@ export class LojaPublicaUseCase {
       nome: dados.cliente.nome ?? null,
       telefone: dados.cliente.telefone ?? null,
       email: dados.cliente.email ?? null,
-      origem: dados.origem,
+      origem: origemEfetiva,
       tags: ["checkout_site"],
       preferencias: {
         ultimoCheckout: {
           slugLoja: negocio.slugPublico,
           trackingId: dados.trackingId ?? null,
-          canal: dados.canal
+          canal: canalEfetivo,
+          referencia: dados.referencia ?? null,
+          afiliadoId: atribuicao?.parceiro.id ?? null,
+          linkAfiliadoId: atribuicao?.link.id ?? null
         }
       },
       consentimentoMarketing: dados.cliente.consentimentoMarketing,
@@ -230,12 +242,20 @@ export class LojaPublicaUseCase {
         quantidade: item.quantidade,
         precoUnitarioEmKwanza: item.peca.precoEmKwanza
       })),
-      origem: dados.origem,
-      canal: dados.canal,
+      origem: origemEfetiva,
+      canal: canalEfetivo,
       taxaEntregaEmKwanza: resumo.taxaEntregaEmKwanza,
       enderecoEntrega: resumo.entrega.endereco,
-      observacao: this.montarObservacaoCheckout(dados, resumo)
+      observacao: this.montarObservacaoCheckout(dados, resumo, atribuicao)
     });
+
+    if (atribuicao && this.afiliados) {
+      await this.afiliados.registrarComissaoEstimativa({
+        negocioId: negocio.id,
+        pedido,
+        atribuicao
+      });
+    }
 
     await this.registrarTrackingSilencioso({
       negocioId: negocio.id,
@@ -244,13 +264,16 @@ export class LojaPublicaUseCase {
       entidadeTipo: "PEDIDO",
       entidadeId: pedido.id,
       trackingId: dados.trackingId ?? null,
-      origem: dados.origem,
-      canal: dados.canal,
+      origem: origemEfetiva,
+      canal: canalEfetivo,
       metadata: {
         pedidoId: pedido.id,
         numero: pedido.numero,
         totalEmKwanza: pedido.totalEmKwanza,
-        clienteNegocioId: cliente.id
+        clienteNegocioId: cliente.id,
+        referencia: dados.referencia ?? null,
+        afiliadoId: atribuicao?.parceiro.id ?? null,
+        linkAfiliadoId: atribuicao?.link.id ?? null
       }
     });
 
@@ -491,10 +514,15 @@ export class LojaPublicaUseCase {
     return linhas.join("\n");
   }
 
-  private montarObservacaoCheckout(dados: DadosCheckoutSitePublico, resumo: ResumoCheckoutPublico): string | null {
+  private montarObservacaoCheckout(
+    dados: DadosCheckoutSitePublico,
+    resumo: ResumoCheckoutPublico,
+    atribuicao: AtribuicaoAfiliadoResolvida | null
+  ): string | null {
     const contexto = [
       dados.observacao,
       `Checkout público. Origem: ${dados.origem}. Tracking: ${dados.trackingId ?? "sem_tracking"}.`,
+      atribuicao ? `Atribuição: ${atribuicao.parceiro.codigo} via link ${atribuicao.link.codigo}.` : null,
       `Entrega: ${resumo.entrega.descricao}`
     ].filter(Boolean);
 

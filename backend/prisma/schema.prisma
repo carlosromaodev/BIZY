@@ -121,6 +121,7 @@ model Pedido {
   criadoEm                DateTime        @default(now())
   atualizadoEm            DateTime        @updatedAt
   itens                   ItemPedido[]
+  comissoesParceiro       ComissaoParceiro[]
 
   @@unique([negocioId, numero])
   @@index([negocioId, estado, criadoEm])
@@ -466,6 +467,9 @@ model Negocio {
   compartilhamentosOrigem CompartilhamentoCliente[] @relation("CompartilhamentoClienteNegocioOrigem")
   compartilhamentosDestino CompartilhamentoCliente[] @relation("CompartilhamentoClienteNegocioDestino")
   eventosTrackingComercial EventoTrackingComercial[]
+  parceirosComerciais     ParceiroComercial[]
+  linksAfiliados          LinkAfiliado[]
+  comissoesParceiro       ComissaoParceiro[]
 
   @@index([nomeComercial])
   @@index([slugPublico])
@@ -492,6 +496,76 @@ model EventoTrackingComercial {
   @@index([negocioId, canal, criadoEm])
   @@index([slugLoja, criadoEm])
   @@index([trackingId, criadoEm])
+}
+
+model ParceiroComercial {
+  id                  String              @id @default(uuid())
+  negocioId           String
+  negocio             Negocio             @relation(fields: [negocioId], references: [id])
+  tipo                String
+  codigo              String
+  nomePublico         String
+  contacto            String?
+  estado              String              @default("ATIVO")
+  regraComissaoJson   String              @default("{}")
+  metodoPagamentoJson String              @default("{}")
+  criadoEm            DateTime            @default(now())
+  atualizadoEm        DateTime            @updatedAt
+  links               LinkAfiliado[]
+  comissoes           ComissaoParceiro[]
+
+  @@unique([negocioId, codigo])
+  @@index([negocioId, estado])
+  @@index([tipo, estado])
+}
+
+model LinkAfiliado {
+  id              String              @id @default(uuid())
+  negocioId       String
+  negocio         Negocio             @relation(fields: [negocioId], references: [id])
+  afiliadoId      String
+  afiliado        ParceiroComercial   @relation(fields: [afiliadoId], references: [id])
+  codigo          String              @unique
+  destinoTipo     String
+  slugLoja        String?
+  codigoProduto   String?
+  canal           String?
+  origemConteudo  String?
+  ativo           Boolean             @default(true)
+  expiraEm        DateTime?
+  criadoEm        DateTime            @default(now())
+  atualizadoEm    DateTime            @updatedAt
+  comissoes       ComissaoParceiro[]
+
+  @@index([negocioId, afiliadoId])
+  @@index([negocioId, ativo])
+  @@index([slugLoja, codigoProduto])
+}
+
+model ComissaoParceiro {
+  id              String              @id @default(uuid())
+  negocioId       String
+  negocio         Negocio             @relation(fields: [negocioId], references: [id])
+  afiliadoId      String
+  afiliado        ParceiroComercial   @relation(fields: [afiliadoId], references: [id])
+  linkId          String?
+  link            LinkAfiliado?       @relation(fields: [linkId], references: [id])
+  pedidoId        String
+  pedido          Pedido              @relation(fields: [pedidoId], references: [id])
+  status          String              @default("ESTIMADA")
+  baseEmKwanza    Int
+  valorEmKwanza   Int
+  moeda           String              @default("AOA")
+  motivo          String?
+  criadoEm        DateTime            @default(now())
+  confirmadoEm    DateTime?
+  revertidoEm     DateTime?
+  atualizadoEm    DateTime            @updatedAt
+
+  @@unique([negocioId, pedidoId])
+  @@index([negocioId, status])
+  @@index([afiliadoId, status])
+  @@index([linkId])
 }
 
 model MembroNegocio {

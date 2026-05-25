@@ -4,6 +4,7 @@ import type { LiveCommentProvider } from "../../dominio/provedores/LiveCommentPr
 import type { ProvedorWhatsApp } from "../../dominio/provedores/ProvedorWhatsApp.js";
 import type {
   RepositorioAutenticacao,
+  RepositorioAfiliados,
   RepositorioAtendimento,
   RepositorioAuditoria,
   RepositorioClientes,
@@ -26,6 +27,7 @@ import { ConsultaAtendimentoOperacionalUseCase } from "../../use-case/ConsultaAt
 import { ConsultaIntegracoesUseCase } from "../../use-case/ConsultaIntegracoesUseCase.js";
 import { ConsultaOperacionalUseCase } from "../../use-case/ConsultaOperacionalUseCase.js";
 import { ConsultaPainelUseCase } from "../../use-case/ConsultaPainelUseCase.js";
+import { GestaoAfiliadosUseCase } from "../../use-case/GestaoAfiliadosUseCase.js";
 import { GestaoClientesCrmUseCase } from "../../use-case/GestaoClientesCrmUseCase.js";
 import { GestaoPecasUseCase } from "../../use-case/GestaoPecasUseCase.js";
 import { GestaoPedidosUseCase } from "../../use-case/GestaoPedidosUseCase.js";
@@ -43,6 +45,7 @@ import { RecuperacaoMensagensWhatsAppUseCase } from "../../use-case/RecuperacaoM
 import { RevisaoComentariosUseCase } from "../../use-case/RevisaoComentariosUseCase.js";
 import {
   RepositorioAutenticacaoMemoria,
+  RepositorioAfiliadosMemoria,
   RepositorioAtendimentoMemoria,
   RepositorioAuditoriaMemoria,
   RepositorioClientesMemoria,
@@ -56,6 +59,7 @@ import {
 } from "../../use-case/repositorios/RepositorioMemoria.js";
 import {
   RepositorioAutenticacaoPrisma,
+  RepositorioAfiliadosPrisma,
   RepositorioAtendimentoPrisma,
   RepositorioAuditoriaPrisma,
   RepositorioClientesPrisma,
@@ -91,6 +95,7 @@ export interface RepositoriosAplicacao {
   sessoesLive: RepositorioSessoesLive;
   auditoria: RepositorioAuditoria;
   trackingComercial: RepositorioTrackingComercial;
+  afiliados: RepositorioAfiliados;
   verificarConexao?: () => Promise<void>;
   encerrar?: () => Promise<void>;
 }
@@ -126,6 +131,7 @@ export interface ContextoAplicacao {
   monitorReservas: MonitorReservasUseCase;
   gestaoPecas: GestaoPecasUseCase;
   gestaoPedidos: GestaoPedidosUseCase;
+  gestaoAfiliados: GestaoAfiliadosUseCase;
   gestaoClientesCrm: GestaoClientesCrmUseCase;
   gestaoAtendimentoCrm: GestaoAtendimentoCrmUseCase;
   consultaIntegracoes: ConsultaIntegracoesUseCase;
@@ -210,6 +216,7 @@ export function criarContextoAplicacao(logger: FastifyBaseLogger): ContextoAplic
     repositorios.pecas,
     eventos
   );
+  const gestaoAfiliados = new GestaoAfiliadosUseCase(repositorios.afiliados, eventos);
   const onboardingBizy = new OnboardingBizyUseCase(repositorios.autenticacao, gestaoPecas);
   const gestaoClientesCrm = new GestaoClientesCrmUseCase(
     repositorios.clientes,
@@ -272,7 +279,8 @@ export function criarContextoAplicacao(logger: FastifyBaseLogger): ContextoAplic
     repositorios.pecas,
     repositorios.trackingComercial,
     gestaoClientesCrm,
-    gestaoPedidos
+    gestaoPedidos,
+    gestaoAfiliados
   );
 
   const publicadorEventosN8n = new PublicadorEventosN8n(eventos, {
@@ -300,6 +308,7 @@ export function criarContextoAplicacao(logger: FastifyBaseLogger): ContextoAplic
     monitorReservas,
     gestaoPecas,
     gestaoPedidos,
+    gestaoAfiliados,
     gestaoClientesCrm,
     gestaoAtendimentoCrm,
     consultaIntegracoes,
@@ -346,6 +355,7 @@ function criarRepositorios(): RepositoriosAplicacao {
       sessoesLive: new RepositorioSessoesLiveMemoria(),
       auditoria: new RepositorioAuditoriaMemoria(),
       trackingComercial: new RepositorioTrackingComercialMemoria(),
+      afiliados: new RepositorioAfiliadosMemoria(),
       verificarConexao: async () => undefined
     };
   }
@@ -364,6 +374,7 @@ function criarRepositorios(): RepositoriosAplicacao {
     sessoesLive: new RepositorioSessoesLivePrisma(prisma),
     auditoria: new RepositorioAuditoriaPrisma(prisma),
     trackingComercial: new RepositorioTrackingComercialPrisma(prisma),
+    afiliados: new RepositorioAfiliadosPrisma(prisma),
     verificarConexao: async () => {
       await prisma.$queryRaw`SELECT 1`;
     },

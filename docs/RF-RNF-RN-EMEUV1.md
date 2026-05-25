@@ -1,10 +1,10 @@
 # Bizy / ÉMeu V1 - Requisitos Funcionais, Não Funcionais e Regras de Negócio
 
 Documento: `RF-RNF-RN-EMEUV1.md`
-Versão: 1.9
+Versão: 1.10
 Data: 2026-05-25
 Autor: Carlos
-Status: MVP base implementado; fundação backend Bizy CRM+ com Clientes 360, Pedidos, Catálogo/Stock, Loja Pública, Checkout e Entrega em evolução
+Status: MVP base implementado; fundação backend Bizy CRM+ com Clientes 360, Pedidos, Catálogo/Stock, Loja Pública, Checkout, Entrega, Afiliados e Comissões em evolução
 
 ---
 
@@ -35,6 +35,8 @@ Atualização 1.7: iniciado o backend de Produtos, Stock e Catálogo Comercial, 
 Atualização 1.8: iniciado o backend de Loja Pública, Catálogo Digital e Tracking, com publicação por slug, listagem pública de produtos vendáveis, página pública de produto, checkout WhatsApp pré-preenchido com origem e tracking básico de visitas, produto visto e clique WhatsApp.
 
 Atualização 1.9: iniciado o checkout público pelo site e cálculo de entrega, com regras por zona/bairro/município, taxa padrão, retirada na loja, entrega grátis por valor mínimo, criação de cliente/pedido a partir da loja pública e tracking de checkout iniciado e pedido criado.
+
+Atualização 1.10: iniciado o backend de Afiliados/Criadores, com módulo comercial próprio, criação de parceiro, links rastreáveis com `ref`, atribuição no checkout público, comissão estimada no pedido atribuído e confirmação automática da comissão após pagamento confirmado.
 
 ---
 
@@ -398,7 +400,7 @@ Esta etapa posiciona o Bizy como uma plataforma de operação comercial para cri
 | RF169 | [~] O cliente deve poder iniciar compra sem criar conta, mas a confirmação do pedido deve exigir contacto validável e aceite das condições necessárias. | Alta | Parcial - checkout público cria pedido sem conta e exige telefone ou email; faltam aceite formal de termos/políticas |
 | RF170 | [ ] Checkout abandonado deve criar lead/oportunidade recuperável, respeitando consentimento e regras do canal. | Alta | Planeado |
 | RF171 | [ ] A conversa deve permitir gerar orçamento/manual quote com produtos, entrega e validade. | Média | Planeado |
-| RF172 | [~] Pedidos vindos de live, WhatsApp, site, catálogo, afiliado ou comentário social devem alimentar a mesma entidade comercial de pedido/funil. | Alta | Parcial - pedidos manuais e checkout site alimentam a entidade Pedido; faltam afiliado, social e conversão automática de reserva/live |
+| RF172 | [~] Pedidos vindos de live, WhatsApp, site, catálogo, afiliado ou comentário social devem alimentar a mesma entidade comercial de pedido/funil. | Alta | Parcial - pedidos manuais, checkout site e checkout atribuído por afiliado alimentam a entidade Pedido; faltam social e conversão automática de reserva/live |
 | RF173 | [ ] Cada negócio deve configurar métodos de pagamento aceitos, dados bancários, instruções e mensagens de cobrança. | Alta | Planeado |
 | RF174 | [ ] O pedido deve acompanhar estados de preparação, entrega, retirada, conclusão, troca, devolução e cancelamento. | Alta | Planeado |
 
@@ -406,11 +408,11 @@ Esta etapa posiciona o Bizy como uma plataforma de operação comercial para cri
 
 | ID | Requisito Funcional | Prioridade | Estado |
 |---|---|---|---|
-| RF175 | [~] O sistema deve gerar links rastreáveis para produto, catálogo, campanha, afiliado, criador, vendedor, post social e live. | Alta | Parcial - loja/produto e clique WhatsApp rastreáveis implementados; faltam campanha, afiliado, criador, vendedor, post e live |
-| RF176 | [~] Links rastreáveis devem suportar UTM, código de referência, canal, campanha, criador, afiliado, vendedor e origem do conteúdo. | Alta | Parcial - UTM, canal, origem e trackingId implementados; faltam entidades específicas de campanha/criador/afiliado/vendedor |
+| RF175 | [~] O sistema deve gerar links rastreáveis para produto, catálogo, campanha, afiliado, criador, vendedor, post social e live. | Alta | Parcial - loja/produto, clique WhatsApp e links de produto por afiliado/criador implementados; faltam catálogo selecionável, campanha, vendedor, post e live |
+| RF176 | [~] Links rastreáveis devem suportar UTM, código de referência, canal, campanha, criador, afiliado, vendedor e origem do conteúdo. | Alta | Parcial - UTM, canal, origem, trackingId, `ref` e entidade de afiliado/criador implementados; faltam campanha e vendedor |
 | RF177 | [ ] O tracking deve associar visita anônima a lead, WhatsApp click, checkout ou pedido quando o cliente se identificar e houver base de consentimento aplicável. | Alta | Planeado |
 | RF178 | [~] O sistema deve registrar eventos como página vista, produto visto, catálogo visto, clique WhatsApp, checkout iniciado, pedido criado, pagamento confirmado e compra entregue. | Alta | Parcial - loja visitada, produto visto, clique WhatsApp, checkout iniciado e pedido criado implementados |
-| RF179 | [~] O dono do negócio deve ver conversão por link, produto, campanha, afiliado, criador, rede social e canal de venda. | Alta | Parcial - resumo por tipo, origem e canal inclui checkout e pedido; faltam receita atribuída, campanha, afiliado e criador |
+| RF179 | [~] O dono do negócio deve ver conversão por link, produto, campanha, afiliado, criador, rede social e canal de venda. | Alta | Parcial - resumo por tipo/origem/canal e resumo de afiliados com pedidos/comissões implementados; faltam receita por campanha, social post, ticket médio e conversão completa |
 | RF180 | [ ] O CRM+ deve suportar modelos de atribuição: primeiro toque, último toque, conversão assistida e ajuste manual auditado. | Média | Planeado |
 | RF181 | [ ] O prazo de atribuição por cookie/referral deve ser configurável por negócio, campanha ou afiliado. | Média | Planeado |
 | RF182 | [ ] A loja pública deve exibir consentimento/aviso de tracking quando necessário e permitir operação básica mesmo sem cookies. | Alta | Planeado |
@@ -421,13 +423,13 @@ Esta etapa posiciona o Bizy como uma plataforma de operação comercial para cri
 
 | ID | Requisito Funcional | Prioridade | Estado |
 |---|---|---|---|
-| RF185 | [ ] O dono do negócio deve poder criar perfis de afiliado/criador com código, nome público, contacto, comissão, método de pagamento e estado. | Alta | Planeado |
+| RF185 | [x] O dono do negócio deve poder criar perfis de afiliado/criador com código, nome público, contacto, comissão, método de pagamento e estado. | Alta | Implementado no backend |
 | RF186 | [ ] Produtos, coleções e catálogos devem poder ser associados a afiliados, criadores ou revendedores específicos. | Alta | Planeado |
-| RF187 | [ ] Cada afiliado deve ter links rastreáveis próprios para produtos, catálogos e campanhas. | Alta | Planeado |
-| RF188 | [ ] O afiliado deve ter painel ou relatório com cliques, leads, pedidos, vendas pagas, conversão e comissão estimada. | Média | Planeado |
-| RF189 | [ ] O dono do negócio deve ver ranking de afiliados/criadores por receita, pedidos pagos, conversão, ticket médio e comissões pendentes. | Alta | Planeado |
-| RF190 | [ ] Regras de comissão devem suportar percentual, valor fixo, comissão por produto, por coleção, por campanha e por meta alcançada. | Alta | Planeado |
-| RF191 | [ ] Comissão só deve ficar confirmada depois do pagamento do pedido; cancelamentos, devoluções ou reembolsos devem reverter a comissão. | Alta | Planeado |
+| RF187 | [~] Cada afiliado deve ter links rastreáveis próprios para produtos, catálogos e campanhas. | Alta | Parcial - link próprio para produto implementado; faltam catálogos e campanhas |
+| RF188 | [~] O afiliado deve ter painel ou relatório com cliques, leads, pedidos, vendas pagas, conversão e comissão estimada. | Média | Parcial - API de comissões e resumo por afiliado implementada; faltam cliques/leads por link e UI própria do afiliado |
+| RF189 | [~] O dono do negócio deve ver ranking de afiliados/criadores por receita, pedidos pagos, conversão, ticket médio e comissões pendentes. | Alta | Parcial - ranking por pedidos atribuídos e comissão confirmada implementado; faltam receita líquida, ticket médio, conversão e pendências por período |
+| RF190 | [~] Regras de comissão devem suportar percentual, valor fixo, comissão por produto, por coleção, por campanha e por meta alcançada. | Alta | Parcial - percentual e valor fixo por parceiro implementados; faltam regras por produto, coleção, campanha e meta |
+| RF191 | [~] Comissão só deve ficar confirmada depois do pagamento do pedido; cancelamentos, devoluções ou reembolsos devem reverter a comissão. | Alta | Parcial - confirmação automática após pagamento implementada; faltam eventos de cancelamento, devolução e reembolso ligados à reversão |
 | RF192 | [ ] O sistema deve ter proteção antifraude básica contra autoindicação, leads duplicados e atribuições suspeitas. | Alta | Planeado |
 | RF193 | [ ] O afiliado/criador deve poder receber pacote de divulgação com links, fotos, textos sugeridos e regras da campanha. | Média | Planeado |
 | RF194 | [ ] Criadores e revendedores devem poder ter mini-loja pública com produtos autorizados e rastreamento próprio. | Média | Planeado |
@@ -491,11 +493,11 @@ Esta etapa posiciona o Bizy como uma plataforma de operação comercial para cri
 | RF232 | [ ] Módulos devem ser controlados por configuração/plano, sem expor páginas vazias para quem não ativou a função. | Alta | Planeado |
 | RF233 | [ ] A loja pública deve funcionar mesmo sem social inbox conectada. | Alta | Planeado |
 | RF234 | [ ] A social inbox deve funcionar mesmo sem loja pública publicada. | Alta | Planeado |
-| RF235 | [ ] O módulo de afiliados deve funcionar com checkout por WhatsApp antes do checkout completo do site estar maduro. | Alta | Planeado |
+| RF235 | [~] O módulo de afiliados deve funcionar com checkout por WhatsApp antes do checkout completo do site estar maduro. | Alta | Parcial - afiliado funciona no checkout público do site; falta atribuição direta no checkout WhatsApp |
 | RF236 | [~] A entrega deve aceitar cálculo automático, tabela manual, retirada na loja e orçamento humano. | Alta | Parcial - cálculo automático por configuração manual, retirada e entrega grátis implementados; falta orçamento humano |
 | RF237 | [ ] O sistema deve usar Kwanza como moeda padrão e preparar arquitetura para múltiplas moedas no futuro. | Média | Planeado |
 | RF238 | [~] A arquitetura deve preparar multi-loja, múltiplas linhas WhatsApp, múltiplos domínios e múltiplas equipas como evolução. | Média | Parcial |
-| RF239 | [~] Todos os canais públicos devem alimentar o mesmo núcleo de cliente, produto, pedido, conversa, pagamento e relatório. | Alta | Parcial - checkout público já cria cliente, pedido e tracking; faltam social inbox, campanhas, afiliados e pagamento completo |
+| RF239 | [~] Todos os canais públicos devem alimentar o mesmo núcleo de cliente, produto, pedido, conversa, pagamento e relatório. | Alta | Parcial - checkout público e afiliados já criam cliente, pedido, tracking e comissão; faltam social inbox, campanhas e pagamento público completo |
 | RF240 | [ ] Toda automação deve ter fallback humano claro, com tarefa, motivo e contexto suficiente para a equipa continuar. | Alta | Planeado |
 | RF241 | [ ] Cada módulo deve ter estado vazio com próxima ação útil, sem cards decorativos ou métricas sem explicação. | Alta | Planeado |
 | RF242 | [ ] O CRM+ deve importar e exportar produtos, clientes, pedidos, afiliados, comissões e relatórios em formatos operacionais. | Média | Planeado |
@@ -520,7 +522,7 @@ Esta etapa vem antes da implementação visual dos novos módulos. O objetivo é
 | RF254 | [~] O backend deve evoluir Produtos para suportar variantes, coleções, movimentos de stock, custo, margem, importação e catálogo digital. | Alta | Parcial - variantes, coleções, movimentos, custo e margem implementados; faltam importação e catálogo digital público |
 | RF255 | [~] O backend deve expor APIs públicas e privadas para loja virtual, página de produto, catálogo digital, checkout WhatsApp e checkout site. | Alta | Parcial - loja pública, página de produto, cálculo de entrega, checkout WhatsApp e checkout site básico implementados; faltam catálogos selecionáveis e checkout/pagamento completo |
 | RF256 | [~] O backend deve registrar tracking de links, UTM, referência, cookies técnicos, visitas, cliques WhatsApp, checkout iniciado, pedido e venda atribuída. | Alta | Parcial - trackingId, UTM, visitas, produto visto, clique WhatsApp, checkout iniciado e pedido criado implementados; faltam cookies técnicos e venda paga atribuída |
-| RF257 | [ ] O backend deve suportar afiliados, criadores e revendedores com links próprios, regras de comissão, reversões, pagamentos e relatórios. | Alta | Planeado |
+| RF257 | [~] O backend deve suportar afiliados, criadores e revendedores com links próprios, regras de comissão, reversões, pagamentos e relatórios. | Alta | Parcial - parceiros, links próprios, comissão estimada/confirmada e resumo implementados; faltam pagamento de comissões, reversões operacionais completas e relatórios avançados |
 | RF258 | [ ] O backend deve normalizar social inbox com comentários de redes sociais, posts, autores, intenção, tarefas e oportunidades. | Alta | Planeado |
 | RF259 | [ ] O backend deve ter funil e playbooks de recuperação com eventos, condições, ações, tarefas humanas e histórico de mudança. | Alta | Planeado |
 | RF260 | [ ] O backend deve implementar motor de política WhatsApp para classificar envios em marketing, utilidade, autenticação ou serviço antes de chamar o provider. | Alta | Planeado |
@@ -662,7 +664,7 @@ Esta etapa vem antes da implementação visual dos novos módulos. O objetivo é
 |---|---|---|---|
 | RNF73 | [ ] A loja pública, catálogo e checkout devem ser rápidos e utilizáveis em mobile, com prioridade para telas de 360px e conexões móveis comuns em Angola. | Alta | Planeado |
 | RNF74 | [ ] O checkout e o clique para WhatsApp não podem depender de tracking, cookies ou integrações sociais para funcionar. | Alta | Planeado |
-| RNF75 | [ ] Tracking, social inbox, afiliados, checkout, funil, automações, catálogo, loja pública e WhatsApp policy devem ser módulos separados por fronteiras claras. | Alta | Planeado |
+| RNF75 | [~] Tracking, social inbox, afiliados, checkout, funil, automações, catálogo, loja pública e WhatsApp policy devem ser módulos separados por fronteiras claras. | Alta | Parcial - módulos HTTP/use cases separados para loja pública, tracking e afiliados; faltam social inbox, funil, campanhas e WhatsApp policy |
 | RNF76 | [ ] Eventos de tracking e automação devem usar outbox/event bus para não bloquear a operação principal de pedido, pagamento ou conversa. | Alta | Planeado |
 | RNF77 | [ ] Webhooks de redes sociais e WhatsApp devem ser idempotentes para evitar duplicar clientes, comentários, mensagens, pedidos ou comissões. | Alta | Planeado |
 | RNF78 | [ ] O sistema deve suportar limitações de providers sociais por adaptadores, permissões, rate limits e fallback manual documentado. | Alta | Planeado |
@@ -673,7 +675,7 @@ Esta etapa vem antes da implementação visual dos novos módulos. O objetivo é
 | RNF83 | [ ] Cookies e identificadores de tracking não devem conter telefone, email, nome, endereço ou qualquer dado pessoal sensível. | Alta | Planeado |
 | RNF84 | [ ] A loja pública deve exibir texto claro sobre tracking/privacidade quando cookies ou eventos de marketing forem usados. | Alta | Planeado |
 | RNF85 | [ ] Relatórios de afiliados e criadores devem expor apenas dados necessários, evitando mostrar dados privados de clientes sem necessidade operacional. | Alta | Planeado |
-| RNF86 | [ ] O cálculo de comissão deve ser reprocessável e auditável por período, pedido, afiliado, produto, reversão e pagamento. | Alta | Planeado |
+| RNF86 | [~] O cálculo de comissão deve ser reprocessável e auditável por período, pedido, afiliado, produto, reversão e pagamento. | Alta | Parcial - comissão por pedido/afiliado é persistida e atualizada por evento de pagamento; faltam reprocessamento por período, produto e rotina formal de reversão/pagamento |
 | RNF87 | [ ] Eventos analíticos devem ser armazenados de forma eficiente para pelo menos 100.000 eventos sem travar a UI operacional. | Média | Planeado |
 | RNF88 | [ ] Páginas públicas de loja e catálogo devem ser cacheáveis sempre que possível, sem expor dados privados ou stock incorreto. | Média | Planeado |
 | RNF89 | [ ] A UI deve ocultar módulos não ativados, mas preservar rotas e dados para reativação futura quando permitido. | Média | Planeado |
@@ -688,7 +690,7 @@ Esta etapa vem antes da implementação visual dos novos módulos. O objetivo é
 
 | ID | Requisito Não Funcional | Prioridade | Estado |
 |---|---|---|---|
-| RNF96 | [ ] Toda nova tabela operacional deve ter índices por `negocioId`, estado e data quando for consultada em listas, dashboards ou jobs. | Alta | Planeado |
+| RNF96 | [~] Toda nova tabela operacional deve ter índices por `negocioId`, estado e data quando for consultada em listas, dashboards ou jobs. | Alta | Parcial - novas tabelas de afiliado/link/comissão têm índices por negócio/estado/status; faltam padronização para campanhas, social inbox e jobs futuros |
 | RNF97 | [ ] Nenhuma consulta de módulo comercial deve retornar dados de outro negócio sem relacionamento e permissão explícita. | Alta | Planeado |
 | RNF98 | [ ] Operações críticas com stock, pedido, pagamento, comissão e compartilhamento de cliente devem usar transação. | Alta | Planeado |
 | RNF99 | [ ] Jobs assíncronos devem ser reprocessáveis sem duplicar mensagens, pedidos, clientes, comissões ou eventos de tracking. | Alta | Planeado |
@@ -701,7 +703,7 @@ Esta etapa vem antes da implementação visual dos novos módulos. O objetivo é
 | RNF106 | [ ] Dados sensíveis de cliente devem ser minimizados em logs, eventos, URLs, cookies e relatórios de afiliados. | Alta | Planeado |
 | RNF107 | [~] Testes de regressão devem impedir voltar a usar código de produto, telefone ou nome como identificador global entre negócios. | Alta | Parcial |
 | RNF108 | [ ] O backend deve suportar migração gradual do modelo de reservas para pedidos sem quebrar vendas de live já existentes. | Alta | Planeado |
-| RNF109 | [ ] Novos módulos devem preservar fronteiras de domínio claras: Clientes, Pedidos, Produtos, Conversas, Campanhas, Loja, Afiliados, Social Inbox, Tracking e WhatsApp Policy. | Alta | Planeado |
+| RNF109 | [~] Novos módulos devem preservar fronteiras de domínio claras: Clientes, Pedidos, Produtos, Conversas, Campanhas, Loja, Afiliados, Social Inbox, Tracking e WhatsApp Policy. | Alta | Parcial - fronteiras de Clientes, Pedidos, Produtos, Loja Pública, Tracking e Afiliados implementadas; faltam Campanhas, Social Inbox e WhatsApp Policy |
 | RNF110 | [ ] Falhas de provider externo devem resultar em tarefa, retry ou estado falhado explícito, nunca em perda silenciosa de dado. | Alta | Planeado |
 
 ---
@@ -844,11 +846,11 @@ Esta etapa vem antes da implementação visual dos novos módulos. O objetivo é
 | RN80 | [ ] A identidade canônica do cliente deve priorizar telefone/email quando existirem, mantendo aliases sociais como TikTok, Instagram, Facebook, username e nome exibido. | Planeado |
 | RN81 | [~] Uma visita anônima só vira cliente identificado quando o usuário fornece contacto, faz checkout, conversa pelo WhatsApp ou é associado por regra segura e permitida. | Parcial - checkout público só cria cliente identificado quando telefone ou email é informado |
 | RN82 | [ ] Um link rastreável pode atribuir origem/campanha, mas não pode sobrescrever dados confirmados do cliente sem auditoria. | Planeado |
-| RN83 | [~] A atribuição padrão deve ser configurável, mas o sistema deve mostrar claramente se a venda veio de live, site, WhatsApp, catálogo, campanha, afiliado, criador ou comentário social. | Parcial - origem/canal do checkout WhatsApp, checkout site e pedido público implementados; faltam entidades formais de campanha/afiliado/criador |
-| RN84 | [ ] Comissão de afiliado/criador só fica confirmada depois do pedido pago e dentro das regras de validade da atribuição. | Planeado |
+| RN83 | [~] A atribuição padrão deve ser configurável, mas o sistema deve mostrar claramente se a venda veio de live, site, WhatsApp, catálogo, campanha, afiliado, criador ou comentário social. | Parcial - origem/canal do checkout WhatsApp, checkout site, pedido público e pedido atribuído a afiliado/criador implementados; faltam campanha e comentário social |
+| RN84 | [x] Comissão de afiliado/criador só fica confirmada depois do pedido pago e dentro das regras de validade da atribuição. | Implementado no backend inicial de afiliados |
 | RN85 | [ ] Cancelamento, devolução, chargeback, reembolso ou fraude devem reverter ou bloquear comissão. | Planeado |
 | RN86 | [ ] O dono/admin pode corrigir atribuição ou comissão manualmente, mas deve informar motivo e a alteração deve ficar auditada. | Planeado |
-| RN87 | [ ] Afiliados e criadores não devem ver dados privados de clientes além do necessário para acompanhar desempenho, comissão e suporte operacional permitido. | Planeado |
+| RN87 | [~] Afiliados e criadores não devem ver dados privados de clientes além do necessário para acompanhar desempenho, comissão e suporte operacional permitido. | Parcial - APIs de comissão/resumo não expõem dados privados do cliente; falta portal/permissão específica para afiliado |
 | RN88 | [ ] Cliente com opt-out não pode receber marketing, campanhas, reativação, promoções de afiliados ou novidades. | Planeado |
 | RN89 | [ ] Mensagens de utilidade podem ser usadas para atualizações transacionais de pedido, pagamento, entrega, reserva, recibo e suporte operacional quando permitido pelo canal. | Planeado |
 | RN90 | [ ] Mensagens de autenticação devem ser usadas apenas para OTP, login, validação de identidade ou confirmação de ação sensível. | Planeado |
@@ -874,8 +876,8 @@ Esta etapa vem antes da implementação visual dos novos módulos. O objetivo é
 | RN110 | [ ] Todo funil deve permitir intervenção manual, alteração de etapa com motivo e histórico da mudança. | Planeado |
 | RN111 | [ ] O negócio pode operar sem loja pública, sem afiliados ou sem social inbox, mas o núcleo de CRM deve permanecer consistente. | Planeado |
 | RN112 | [ ] Se o módulo estiver desativado, sua UI não deve aparecer como promessa vazia para o usuário final. | Planeado |
-| RN113 | [ ] Links de afiliado/criador devem expirar ou ser desativados quando o perfil for bloqueado, campanha encerrada ou produto indisponível. | Planeado |
-| RN114 | [ ] Pedido vindo de afiliado deve mostrar comissão estimada para o dono, mas o cliente final não precisa ver essa regra. | Planeado |
+| RN113 | [~] Links de afiliado/criador devem expirar ou ser desativados quando o perfil for bloqueado, campanha encerrada ou produto indisponível. | Parcial - checkout ignora link expirado/inativo e parceiro pausado/bloqueado; faltam campanha encerrada e rotas operacionais de pausa |
+| RN114 | [x] Pedido vindo de afiliado deve mostrar comissão estimada para o dono, mas o cliente final não precisa ver essa regra. | Implementado via API administrativa de comissões |
 | RN115 | [ ] Relatórios devem separar receita bruta, entrega, descontos, comissões e receita líquida estimada quando os dados existirem. | Planeado |
 | RN116 | [ ] O cliente deve poder pedir remoção/anonimização dos seus dados quando aplicável, preservando apenas dados fiscais/financeiros agregados exigidos por auditoria. | Planeado |
 | RN117 | [ ] Campanhas devem ter nome, objetivo, público, canal, template, janela de envio, limite e métrica de sucesso antes de serem disparadas. | Planeado |
@@ -891,11 +893,11 @@ Esta etapa vem antes da implementação visual dos novos módulos. O objetivo é
 | RN122 | [ ] Compartilhamento de dados de cliente entre negócios exige relacionamento aprovado, escopo definido, motivo e auditoria. | Planeado |
 | RN123 | [ ] Uma loja não pode ver histórico comercial privado de outra loja sem consentimento, relação operacional ou regra explícita de compartilhamento. | Planeado |
 | RN124 | [ ] Cliente global identifica a pessoa; cliente do negócio representa a relação comercial daquela pessoa com uma loja específica. | Planeado |
-| RN125 | [~] Produto, pedido, conversa, campanha, tarefa, afiliado, comissão e tracking sempre devem carregar origem e negócio responsável. | Parcial - produtos, pedidos, clientes, reservas, comentários, conversas, mensagens, outbox e instâncias WhatsApp avançados |
+| RN125 | [~] Produto, pedido, conversa, campanha, tarefa, afiliado, comissão e tracking sempre devem carregar origem e negócio responsável. | Parcial - produtos, pedidos, clientes, reservas, comentários, conversas, mensagens, outbox, instâncias WhatsApp, afiliados, comissões e tracking avançados |
 | RN126 | [~] Módulo desativado não pode executar automação, receber webhook ativo, disparar campanha ou aparecer como promessa visual na operação comercial. | Parcial - guardas comerciais ativas em módulos HTTP principais |
 | RN127 | [x] Código de produto só precisa ser único dentro do negócio, permitindo lojas diferentes usarem códigos iguais sem colisão. | Implementado |
 | RN128 | [ ] Pedido deve ser a entidade comercial principal; reserva continua como mecanismo de bloqueio temporário dentro de live, conversa ou checkout. | Planeado |
-| RN129 | [ ] Comissão de afiliado ou criador depende de pedido pago, atribuição válida e ausência de cancelamento/devolução/reembolso. | Planeado |
+| RN129 | [~] Comissão de afiliado ou criador depende de pedido pago, atribuição válida e ausência de cancelamento/devolução/reembolso. | Parcial - pedido pago e atribuição válida implementados; faltam bloqueio/reversão automática por cancelamento, devolução ou reembolso |
 | RN130 | [ ] Tracking ajuda atribuição, mas não substitui prova de pedido, pagamento ou consentimento. | Planeado |
 | RN131 | [ ] Toda mensagem WhatsApp iniciada pelo sistema precisa de categoria, motivo, entidade relacionada e fallback antes do envio. | Planeado |
 | RN132 | [ ] Quando houver conflito entre automação e segurança operacional, o backend deve preferir tarefa humana. | Planeado |
@@ -979,9 +981,9 @@ O CRM+ Social Commerce pode ser considerado pronto para operação inicial quand
 - [~] O cliente conseguir comprar pelo WhatsApp com mensagem pré-preenchida e pelo checkout do site com total calculado.
 - [~] O sistema calcular entrega por regra configurada e incluir o valor no total antes da confirmação.
 - [ ] O dono conseguir criar catálogo digital partilhável com produtos selecionados e disponibilidade correta.
-- [ ] Links rastreáveis de produto, catálogo, campanha, criador e afiliado registrarem origem, cliques, leads, pedidos e vendas atribuídas.
+- [~] Links rastreáveis de produto, criador e afiliado registrarem referência, origem, checkout, pedido e comissão atribuída; faltam cliques/leads completos, catálogo e campanha.
 - [~] O tracking funcionar parcialmente sem cookies, mantendo operação de compra intacta.
-- [ ] O dono conseguir criar afiliado/criador, gerar link próprio, acompanhar vendas e calcular comissão de pedidos pagos.
+- [~] O dono conseguir criar afiliado/criador, gerar link próprio, acompanhar pedidos atribuídos e confirmar comissão após pagamento; faltam UI, cliques/leads e pagamento de comissão.
 - [ ] O sistema reverter comissão quando pedido for cancelado, devolvido ou reembolsado.
 - [ ] Comentários sociais de posts, vídeos, fotos ou lives suportados forem capturados/importados, classificados e convertidos em lead, conversa, tarefa ou oportunidade.
 - [ ] O funil mostrar jornada do cliente desde visita/interação até pagamento, entrega, pós-venda e recompra.
@@ -998,7 +1000,7 @@ O CRM+ Social Commerce pode ser considerado pronto para operação inicial quand
 O backend pode ser considerado pronto para receber os módulos CRM+ quando:
 
 - [ ] Todas as rotas comerciais resolverem `usuarioId`, `negocioId`, papel, permissões e módulos ativos antes de consultar dados.
-- [ ] Produtos, clientes, pedidos, conversas, mensagens, campanhas, tarefas, afiliados e tracking estiverem isolados por negócio.
+- [~] Produtos, clientes, pedidos, conversas, mensagens, afiliados, comissões e tracking estiverem isolados por negócio; faltam campanhas e tarefas.
 - [ ] Clientes globais e clientes por negócio estiverem deduplicados sem vazar histórico privado entre lojas.
 - [ ] Pedidos existirem como entidade comercial completa, com compatibilidade para reservas de live.
 - [ ] O motor de WhatsApp Policy bloquear envio sem categoria, template, consentimento ou janela válida.

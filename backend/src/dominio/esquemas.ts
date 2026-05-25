@@ -4,13 +4,16 @@ import {
   estadosEntregaPedido,
   estadosPagamentoPedido,
   estadosPedido,
+  estadosParceiroComercial,
   estadosPeca,
   estadosRelacionamentoCliente,
   fontesLive,
   politicasAutomacaoAtendimento,
   prioridadesConversaAtendimento,
+  tiposComissaoParceiro,
   tiposEventoTrackingComercial,
-  tiposMovimentoStock
+  tiposMovimentoStock,
+  tiposParceiroComercial
 } from "./tipos.js";
 
 const TextoPerfilOpcionalSchema = z.preprocess(
@@ -155,9 +158,59 @@ export const CriarCheckoutSitePublicoSchema = CalcularEntregaPublicaSchema.exten
       message: "Informe telefone ou email para confirmar o pedido."
     }),
   trackingId: z.string().trim().min(1).max(160).nullable().optional().transform((valor) => valor ?? null),
+  referencia: z.string().trim().min(1).max(120).nullable().optional().transform((valor) => valor ?? null),
   origem: z.string().trim().min(1).max(80).default("loja-publica"),
   canal: z.string().trim().min(1).max(80).default("site"),
   observacao: z.string().trim().max(1000).nullable().optional().transform((valor) => valor ?? null)
+});
+
+export const CriarAfiliadoSchema = z.object({
+  tipo: z.enum(tiposParceiroComercial).default("AFILIADO"),
+  codigo: z
+    .string()
+    .trim()
+    .min(2)
+    .max(48)
+    .transform((valor) => valor.toUpperCase())
+    .refine((valor) => /^[A-Z0-9][A-Z0-9_-]*$/.test(valor), {
+      message: "Use um código com letras, números, hífen ou underscore."
+    }),
+  nomePublico: z.string().trim().min(2).max(120),
+  contacto: TextoCatalogoOpcionalSchema,
+  estado: z.enum(estadosParceiroComercial).default("ATIVO"),
+  regraComissao: z
+    .object({
+      tipo: z.enum(tiposComissaoParceiro),
+      percentual: z.coerce.number().min(0).max(100).optional(),
+      valorEmKwanza: z.coerce.number().int().min(0).optional()
+    })
+    .refine(
+      (regra) =>
+        regra.tipo === "PERCENTUAL"
+          ? typeof regra.percentual === "number"
+          : typeof regra.valorEmKwanza === "number",
+      { message: "Informe percentual ou valor fixo conforme o tipo de comissão." }
+    ),
+  metodoPagamento: z.record(z.string(), z.unknown()).default({})
+});
+
+export const CriarLinkAfiliadoSchema = z.object({
+  codigo: z
+    .string()
+    .trim()
+    .min(2)
+    .max(80)
+    .transform((valor) => valor.toUpperCase())
+    .refine((valor) => /^[A-Z0-9][A-Z0-9_-]*$/.test(valor), {
+      message: "Use um código com letras, números, hífen ou underscore."
+    }),
+  destinoTipo: z.string().trim().min(2).max(40).transform((valor) => valor.toUpperCase()),
+  slugLoja: TextoCatalogoOpcionalSchema,
+  codigoProduto: TextoCatalogoOpcionalSchema.transform((valor) => valor?.toUpperCase() ?? null),
+  canal: TextoCatalogoOpcionalSchema,
+  origemConteudo: TextoCatalogoOpcionalSchema,
+  ativo: z.boolean().default(true),
+  expiraEm: z.coerce.date().nullable().optional().transform((valor) => valor ?? null)
 });
 
 export const IniciarLiveSchema = z.object({

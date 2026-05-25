@@ -1,3 +1,4 @@
+import { moduloAfiliados } from "./afiliados.js";
 import { moduloAutenticacao } from "./autenticacao.js";
 import { moduloCatalogo } from "./catalogo.js";
 import { moduloClientes } from "./clientes.js";
@@ -21,6 +22,7 @@ export const modulosHttp = [
   moduloCatalogo,
   moduloClientes,
   moduloLojaPublica,
+  moduloAfiliados,
   moduloDiagnosticos,
   moduloMedia,
   moduloPedidos,
