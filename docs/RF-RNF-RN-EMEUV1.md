@@ -1,7 +1,7 @@
 # Bizy / ÉMeu V1 - Requisitos Funcionais, Não Funcionais e Regras de Negócio
 
 Documento: `RF-RNF-RN-EMEUV1.md`
-Versão: 1.23
+Versão: 1.24
 Data: 2026-05-25
 Autor: Carlos
 Status: MVP base implementado; fundação backend Bizy CRM+ com Clientes 360, Pedidos, Catálogo/Stock, Loja Pública, Checkout, Entrega, Afiliados, Comissões e Lotes Financeiros em evolução
@@ -63,6 +63,8 @@ Atualização 1.21: adicionada fundação backend de Playbooks de Recuperação,
 Atualização 1.22: adicionada fundação backend de Funil Comercial, com etapas padronizadas, registro manual/API de movimentos por entidade, motivo obrigatório, origem, autor, contexto e histórico consultável para preparar automações seguras e intervenção humana.
 
 Atualização 1.23: Playbooks de Recuperação agora alimentam o Funil Comercial e geram Oportunidades Recuperáveis acionáveis, com valor estimado, tarefa vinculada, movimento de funil, responsável, observação e atualização operacional de estado.
+
+Atualização 1.24: adicionada governança backend de módulos por negócio, com catálogo de módulos CRM+, rota `/negocio/modulos`, ativação/desativação operacional, configuração em JSON e bloqueio real de rotas quando módulo opcional está desativado.
 
 ---
 
@@ -397,7 +399,7 @@ Esta etapa posiciona o Bizy como uma plataforma de operação comercial para cri
 | ID | Requisito Funcional | Prioridade | Estado |
 |---|---|---|---|
 | RF152 | [ ] O Bizy deve suportar perfis de negócio como loja tradicional, criador/influenciador, afiliado, revendedor, social seller e marca que vende em múltiplos canais. | Alta | Planeado |
-| RF153 | [ ] O dono do negócio deve poder ativar ou desativar módulos conforme a operação: loja virtual, catálogo digital, afiliados, social inbox, campanhas, checkout, entrega, stock, relatórios e automações. | Alta | Planeado |
+| RF153 | [~] O dono do negócio deve poder ativar ou desativar módulos conforme a operação: loja virtual, catálogo digital, afiliados, social inbox, campanhas, checkout, entrega, stock, relatórios e automações. | Alta | Parcial - backend lista catálogo de módulos e ativa/desativa por negócio; falta UI e políticas específicas por módulo |
 | RF154 | [ ] O onboarding do negócio deve capturar modelo de venda, canais ativos, áreas de entrega, métodos de pagamento, regras de comissão, política de troca/devolução, contas sociais e tipo de produto vendido. | Alta | Planeado |
 | RF155 | [ ] O painel deve priorizar indicadores de dinheiro, oportunidade e operação: vendas, pedidos parados, leads recuperáveis, stock em risco, campanhas que geram receita e afiliados que vendem. | Alta | Planeado |
 | RF156 | [ ] Funcionalidades técnicas devem continuar separadas da operação comercial, mantendo o vendedor focado em atender, vender, cobrar, entregar e recuperar clientes. | Alta | Planeado |
@@ -900,8 +902,8 @@ Esta etapa vem antes da implementação visual dos novos módulos. O objetivo é
 | RN108 | [~] Automações devem priorizar recuperação comercial de baixo risco: lembrar pagamento, pedir endereço, enviar catálogo solicitado, avisar reposição e criar follow-up. | Parcial - playbooks começam com criação de follow-up humano para gatilhos de recuperação; faltam mensagens/templates seguros e ações específicas por cenário |
 | RN109 | [ ] Automações não devem confirmar pagamento, conceder desconto, prometer entrega, resolver reclamação ou cancelar pedido sem regra explícita e permissão adequada. | Planeado |
 | RN110 | [~] Todo funil deve permitir intervenção manual, alteração de etapa com motivo e histórico da mudança. | Parcial - backend registra movimento manual/API com etapa, motivo, origem, autor, contexto e histórico por entidade; falta UI de intervenção |
-| RN111 | [ ] O negócio pode operar sem loja pública, sem afiliados ou sem social inbox, mas o núcleo de CRM deve permanecer consistente. | Planeado |
-| RN112 | [ ] Se o módulo estiver desativado, sua UI não deve aparecer como promessa vazia para o usuário final. | Planeado |
+| RN111 | [~] O negócio pode operar sem loja pública, sem afiliados ou sem social inbox, mas o núcleo de CRM deve permanecer consistente. | Parcial - backend mantém `crm` obrigatório e permite desligar módulos opcionais; falta refletir tudo na UI |
+| RN112 | [~] Se o módulo estiver desativado, sua UI não deve aparecer como promessa vazia para o usuário final. | Parcial - backend já bloqueia rotas por módulo desativado; falta esconder navegação/componentes no frontend |
 | RN113 | [~] Links de afiliado/criador devem expirar ou ser desativados quando o perfil for bloqueado, campanha encerrada ou produto indisponível. | Parcial - checkout ignora link expirado/inativo e parceiro pausado/bloqueado; faltam campanha encerrada e rotas operacionais de pausa |
 | RN114 | [x] Pedido vindo de afiliado deve mostrar comissão estimada para o dono, mas o cliente final não precisa ver essa regra. | Implementado via API administrativa de comissões |
 | RN115 | [ ] Relatórios devem separar receita bruta, entrega, descontos, comissões e receita líquida estimada quando os dados existirem. | Planeado |
@@ -1025,7 +1027,7 @@ O CRM+ Social Commerce pode ser considerado pronto para operação inicial quand
 
 O backend pode ser considerado pronto para receber os módulos CRM+ quando:
 
-- [ ] Todas as rotas comerciais resolverem `usuarioId`, `negocioId`, papel, permissões e módulos ativos antes de consultar dados.
+- [~] Todas as rotas comerciais resolverem `usuarioId`, `negocioId`, papel, permissões e módulos ativos antes de consultar dados; fundação HTTP e governança de módulos já existem, faltam varredura final e cobertura em módulos futuros.
 - [~] Produtos, clientes, pedidos, conversas, mensagens, afiliados, comissões e tracking estiverem isolados por negócio; faltam campanhas e tarefas.
 - [ ] Clientes globais e clientes por negócio estiverem deduplicados sem vazar histórico privado entre lojas.
 - [ ] Pedidos existirem como entidade comercial completa, com compatibilidade para reservas de live.

@@ -1,4 +1,5 @@
 import type { FastifyReply, FastifyRequest } from "fastify";
+import { modulosNegocioPadrao } from "../../dominio/tipos.js";
 import type { DadosNegocioBizy, NegocioBizy, UsuarioSistema } from "../../dominio/tipos.js";
 import type { ContextoAplicacao } from "./ContextoAplicacao.js";
 import { exigirUsuarioAutenticado } from "./seguranca.js";
@@ -10,21 +11,6 @@ export interface ContextoComercialHttp {
   permissoes: string[];
   modulosAtivos: string[];
 }
-
-const MODULOS_CORE = [
-  "crm",
-  "catalogo",
-  "conversas",
-  "reservas",
-  "pedidos",
-  "whatsapp",
-  "loja-publica",
-  "afiliados",
-  "tracking",
-  "social-inbox",
-  "automacoes",
-  "funil"
-] as const;
 
 const PERMISSOES_POR_PAPEL: Record<string, string[]> = {
   DONO: [
@@ -192,8 +178,19 @@ function normalizarPapel(papel?: string | null): string {
 }
 
 async function modulosAtivosDoNegocio(contexto: ContextoAplicacao, negocioId: string): Promise<string[]> {
-  const modulosConfigurados = await contexto.repositorios.autenticacao.listarModulosAtivosPorNegocio(negocioId);
-  return modulosConfigurados.length > 0 ? modulosConfigurados : [...MODULOS_CORE];
+  const modulosConfigurados = await contexto.repositorios.autenticacao.listarModulosPorNegocio(negocioId);
+  if (modulosConfigurados.length === 0) return [...modulosNegocioPadrao];
+
+  const ativos = new Set<string>(modulosNegocioPadrao);
+  for (const modulo of modulosConfigurados) {
+    if (modulo.ativo) {
+      ativos.add(modulo.modulo);
+    } else {
+      ativos.delete(modulo.modulo);
+    }
+  }
+
+  return [...ativos];
 }
 
 function dadosNegocioLegado(usuario: UsuarioSistema): DadosNegocioBizy {

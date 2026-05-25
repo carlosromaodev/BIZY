@@ -1199,6 +1199,198 @@ export interface DadosPerfilEstudantil {
 
 export type TipoNegocioBizy = "LOJA" | "CRIADOR" | "REVENDEDOR" | "SERVICO" | string;
 
+export const modulosNegocioDisponiveis = [
+  "crm",
+  "catalogo",
+  "conversas",
+  "reservas",
+  "pedidos",
+  "whatsapp",
+  "loja-publica",
+  "afiliados",
+  "tracking",
+  "social-inbox",
+  "automacoes",
+  "funil",
+  "campanhas",
+  "relatorios",
+  "entregas",
+  "stock",
+  "checkout",
+  "catalogo-digital"
+] as const;
+export type ModuloNegocioCodigo = (typeof modulosNegocioDisponiveis)[number];
+
+export const modulosNegocioPadrao: ModuloNegocioCodigo[] = [
+  "crm",
+  "catalogo",
+  "conversas",
+  "reservas",
+  "pedidos",
+  "whatsapp",
+  "loja-publica",
+  "afiliados",
+  "tracking",
+  "social-inbox",
+  "automacoes",
+  "funil"
+];
+
+export const modulosNegocioObrigatorios: ModuloNegocioCodigo[] = ["crm"];
+export type CategoriaModuloNegocio = "NUCLEO" | "VENDA" | "OPERACAO" | "CRESCIMENTO" | "AUTOMACAO" | "DADOS";
+
+export interface DefinicaoModuloNegocio {
+  modulo: ModuloNegocioCodigo;
+  nome: string;
+  descricao: string;
+  categoria: CategoriaModuloNegocio;
+  obrigatorio: boolean;
+}
+
+export const catalogoModulosNegocio: DefinicaoModuloNegocio[] = [
+  {
+    modulo: "crm",
+    nome: "CRM base",
+    descricao: "Clientes, tarefas e operação mínima do negócio.",
+    categoria: "NUCLEO",
+    obrigatorio: true
+  },
+  {
+    modulo: "catalogo",
+    nome: "Produtos e stock",
+    descricao: "Cadastro, disponibilidade e gestão operacional de produtos.",
+    categoria: "VENDA",
+    obrigatorio: false
+  },
+  {
+    modulo: "conversas",
+    nome: "Conversas",
+    descricao: "Atendimento por WhatsApp, comentários e eventos comerciais.",
+    categoria: "OPERACAO",
+    obrigatorio: false
+  },
+  {
+    modulo: "reservas",
+    nome: "Reservas",
+    descricao: "Bloqueio temporário de produtos em live, conversa ou checkout.",
+    categoria: "VENDA",
+    obrigatorio: false
+  },
+  {
+    modulo: "pedidos",
+    nome: "Pedidos",
+    descricao: "Pedidos completos, pagamento, entrega e histórico comercial.",
+    categoria: "VENDA",
+    obrigatorio: false
+  },
+  {
+    modulo: "whatsapp",
+    nome: "WhatsApp",
+    descricao: "Envio, templates, outbox e política oficial de mensagens.",
+    categoria: "OPERACAO",
+    obrigatorio: false
+  },
+  {
+    modulo: "loja-publica",
+    nome: "Loja virtual",
+    descricao: "Página pública por slug, produto público e checkout.",
+    categoria: "VENDA",
+    obrigatorio: false
+  },
+  {
+    modulo: "afiliados",
+    nome: "Afiliados e criadores",
+    descricao: "Parceiros, links rastreáveis, comissões e saldos.",
+    categoria: "CRESCIMENTO",
+    obrigatorio: false
+  },
+  {
+    modulo: "tracking",
+    nome: "Tracking comercial",
+    descricao: "Eventos de visita, produto visto, clique WhatsApp e atribuição.",
+    categoria: "DADOS",
+    obrigatorio: false
+  },
+  {
+    modulo: "social-inbox",
+    nome: "Social Inbox",
+    descricao: "Comentários sociais, intenção de compra e tarefas humanas.",
+    categoria: "CRESCIMENTO",
+    obrigatorio: false
+  },
+  {
+    modulo: "automacoes",
+    nome: "Automações",
+    descricao: "Playbooks, recuperação comercial e tarefas automáticas seguras.",
+    categoria: "AUTOMACAO",
+    obrigatorio: false
+  },
+  {
+    modulo: "funil",
+    nome: "Funil comercial",
+    descricao: "Histórico de etapa por cliente, pedido, conversa ou lead.",
+    categoria: "DADOS",
+    obrigatorio: false
+  },
+  {
+    modulo: "campanhas",
+    nome: "Campanhas",
+    descricao: "Segmentos, templates aprovados, limites e resultados.",
+    categoria: "CRESCIMENTO",
+    obrigatorio: false
+  },
+  {
+    modulo: "relatorios",
+    nome: "Relatórios",
+    descricao: "Indicadores de venda, atendimento, produto e campanha.",
+    categoria: "DADOS",
+    obrigatorio: false
+  },
+  {
+    modulo: "entregas",
+    nome: "Entregas",
+    descricao: "Separação, rota, estado de entrega e responsáveis.",
+    categoria: "OPERACAO",
+    obrigatorio: false
+  },
+  {
+    modulo: "stock",
+    nome: "Stock avançado",
+    descricao: "Movimentos, alertas, reposição e produtos em risco.",
+    categoria: "OPERACAO",
+    obrigatorio: false
+  },
+  {
+    modulo: "checkout",
+    nome: "Checkout",
+    descricao: "Cálculo de entrega, total e origem antes da compra.",
+    categoria: "VENDA",
+    obrigatorio: false
+  },
+  {
+    modulo: "catalogo-digital",
+    nome: "Catálogo digital",
+    descricao: "Catálogos partilháveis com seleção de produtos e disponibilidade.",
+    categoria: "VENDA",
+    obrigatorio: false
+  }
+];
+
+export interface ModuloNegocioConfigurado {
+  id: string;
+  negocioId: string;
+  modulo: ModuloNegocioCodigo;
+  ativo: boolean;
+  configuracao: Record<string, unknown>;
+  criadoEm: Date;
+  atualizadoEm: Date;
+}
+
+export interface AtualizacaoModuloNegocio {
+  ativo: boolean;
+  configuracao?: Record<string, unknown>;
+}
+
 export interface DadosNegocioBizy {
   nomeComercial: string;
   segmento: string;

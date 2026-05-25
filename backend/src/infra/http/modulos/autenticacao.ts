@@ -1,11 +1,14 @@
 import { createHmac, randomUUID } from "node:crypto";
 import {
   ConfirmarCodigoLoginSchema,
+  AtualizarModuloNegocioSchema,
   CriarProdutoInicialOnboardingSchema,
   LoginEstudantilSchema,
+  ModuloNegocioParametroSchema,
   SalvarNegocioOnboardingSchema,
   SolicitarCodigoLoginSchema
 } from "../../../dominio/esquemas.js";
+import { exigirPermissaoComercial } from "../contextoComercial.js";
 import { ehErroInfraestrutura } from "../errosHttp.js";
 import { exigirUsuarioAutenticado, extrairTokenBearer } from "../seguranca.js";
 import type { ModuloHttp } from "./ModuloHttp.js";
@@ -161,6 +164,42 @@ export const moduloAutenticacao: ModuloHttp = {
       const dados = CriarProdutoInicialOnboardingSchema.parse(request.body);
       const produto = await contexto.onboardingBizy.criarProdutoInicial(usuario.id, dados);
       return reply.code(201).send({ produto });
+    });
+
+    app.get("/negocio/modulos", async (request, reply) => {
+      const contextoComercial = await exigirPermissaoComercial(
+        contexto,
+        request,
+        reply,
+        "configuracoes:gerir",
+        "Sem permissão para consultar módulos do negócio."
+      );
+      if (!contextoComercial) return;
+
+      return contexto.gestaoModulosNegocio.listar(contextoComercial.negocio.id);
+    });
+
+    app.patch("/negocio/modulos/:modulo", async (request, reply) => {
+      const contextoComercial = await exigirPermissaoComercial(
+        contexto,
+        request,
+        reply,
+        "configuracoes:gerir",
+        "Sem permissão para alterar módulos do negócio."
+      );
+      if (!contextoComercial) return;
+
+      const params = ModuloNegocioParametroSchema.parse(request.params);
+      const dados = AtualizarModuloNegocioSchema.parse(request.body ?? {});
+
+      try {
+        return await contexto.gestaoModulosNegocio.atualizar(contextoComercial.negocio.id, params.modulo, dados);
+      } catch (erro) {
+        return reply.code(400).send({
+          erro: "MODULO_NEGOCIO_INVALIDO",
+          mensagem: erro instanceof Error ? erro.message : "Não foi possível alterar o módulo."
+        });
+      }
     });
   }
 };

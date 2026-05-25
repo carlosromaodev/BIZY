@@ -24,6 +24,7 @@ import type {
   AtualizacaoConversaAtendimento,
   AtualizacaoEntregaPedido,
   AtualizacaoEstadoPedido,
+  AtualizacaoModuloNegocio,
   AtualizacaoOportunidadeRecuperacao,
   AtualizarPeca,
   CodigoLoginSms,
@@ -56,6 +57,8 @@ import type {
   LotePagamentoComissao,
   MensagemAtendimento,
   MovimentoFunilComercial,
+  ModuloNegocioCodigo,
+  ModuloNegocioConfigurado,
   MovimentoStock,
   NovaComissaoParceiro,
   NovaExecucaoPlaybookRecuperacao,
@@ -107,6 +110,7 @@ import type {
   ResumoTrackingComercial,
   UsuarioSistema
 } from "../../dominio/tipos.js";
+import { modulosNegocioPadrao } from "../../dominio/tipos.js";
 
 const estadosQueBloqueiamStock: EstadoReserva[] = ["PENDING", "RESERVED", "WAITING_PAYMENT", "PAID"];
 const estadosAtivosParaDuplicidade: EstadoReserva[] = ["PENDING", "RESERVED", "WAITING_PAYMENT", "WAITLISTED"];
@@ -1048,7 +1052,7 @@ export class RepositorioAutenticacaoMemoria implements RepositorioAutenticacao {
   private readonly perfisEstudantis = new Map<string, PerfilEstudantilUsuario>();
   private readonly negocios = new Map<string, NegocioBizy>();
   private readonly negocioPrincipalPorUsuario = new Map<string, string>();
-  private readonly modulosAtivosPorNegocio = new Map<string, Set<string>>();
+  private readonly modulosPorNegocio = new Map<string, Map<string, ModuloNegocioConfigurado>>();
   private readonly codigos = new Map<string, CodigoLoginSms>();
   private readonly sessoes = new Map<string, {
     id: string;
@@ -1257,7 +1261,50 @@ export class RepositorioAutenticacaoMemoria implements RepositorioAutenticacao {
   }
 
   async listarModulosAtivosPorNegocio(negocioId: string): Promise<string[]> {
-    return [...(this.modulosAtivosPorNegocio.get(negocioId) ?? [])];
+    const configurados = await this.listarModulosPorNegocio(negocioId);
+    if (configurados.length === 0) return [];
+
+    const ativos = new Set<string>(modulosNegocioPadrao);
+    for (const modulo of configurados) {
+      if (modulo.ativo) {
+        ativos.add(modulo.modulo);
+      } else {
+        ativos.delete(modulo.modulo);
+      }
+    }
+
+    return [...ativos];
+  }
+
+  async listarModulosPorNegocio(negocioId: string): Promise<ModuloNegocioConfigurado[]> {
+    return [...(this.modulosPorNegocio.get(negocioId)?.values() ?? [])].sort((a, b) =>
+      a.modulo.localeCompare(b.modulo)
+    );
+  }
+
+  async salvarModuloNegocio(
+    negocioId: string,
+    modulo: ModuloNegocioCodigo,
+    dados: AtualizacaoModuloNegocio
+  ): Promise<ModuloNegocioConfigurado> {
+    if (!this.negocios.has(negocioId)) throw new Error("Negócio não encontrado.");
+
+    const agora = new Date();
+    const modulos = this.modulosPorNegocio.get(negocioId) ?? new Map<string, ModuloNegocioConfigurado>();
+    const existente = modulos.get(modulo);
+    const atualizado: ModuloNegocioConfigurado = {
+      id: existente?.id ?? randomUUID(),
+      negocioId,
+      modulo,
+      ativo: dados.ativo,
+      configuracao: dados.configuracao ?? existente?.configuracao ?? {},
+      criadoEm: existente?.criadoEm ?? agora,
+      atualizadoEm: agora
+    };
+
+    modulos.set(modulo, atualizado);
+    this.modulosPorNegocio.set(negocioId, modulos);
+    return atualizado;
   }
 
   async marcarUsuarioOnboardingCompleto(usuarioId: string, data: Date): Promise<UsuarioSistema> {

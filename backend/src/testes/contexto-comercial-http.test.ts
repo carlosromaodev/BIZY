@@ -79,7 +79,8 @@ describe("contexto comercial HTTP", () => {
         autenticacao: {
           buscarNegocioPrincipalPorUsuario: vi.fn().mockResolvedValue(null),
           salvarNegocioUsuario: vi.fn().mockResolvedValue(negocio),
-          listarModulosAtivosPorNegocio: vi.fn().mockResolvedValue([])
+          listarModulosAtivosPorNegocio: vi.fn().mockResolvedValue([]),
+          listarModulosPorNegocio: vi.fn().mockResolvedValue([])
         }
       }
     } as unknown as ContextoAplicacao;
@@ -112,7 +113,20 @@ describe("contexto comercial HTTP", () => {
   });
 
   it("usa módulos ativos configurados no negócio quando existirem", async () => {
-    const listarModulosAtivosPorNegocio = vi.fn().mockResolvedValue(["crm", "loja-publica", "afiliados"]);
+    const listarModulosPorNegocio = vi.fn().mockResolvedValue([
+      {
+        modulo: "catalogo",
+        ativo: false
+      },
+      {
+        modulo: "loja-publica",
+        ativo: true
+      },
+      {
+        modulo: "afiliados",
+        ativo: true
+      }
+    ]);
     const contexto = {
       autenticacaoTelefone: {
         obterSessao: vi.fn().mockResolvedValue(usuario)
@@ -121,7 +135,8 @@ describe("contexto comercial HTTP", () => {
         autenticacao: {
           buscarNegocioPrincipalPorUsuario: vi.fn().mockResolvedValue(negocio),
           salvarNegocioUsuario: vi.fn(),
-          listarModulosAtivosPorNegocio
+          listarModulosAtivosPorNegocio: vi.fn().mockResolvedValue([]),
+          listarModulosPorNegocio
         }
       }
     } as unknown as ContextoAplicacao;
@@ -133,8 +148,11 @@ describe("contexto comercial HTTP", () => {
       reply as never
     );
 
-    expect(resultado?.modulosAtivos).toEqual(["crm", "loja-publica", "afiliados"]);
-    expect(listarModulosAtivosPorNegocio).toHaveBeenCalledWith("negocio_1");
+    expect(resultado?.modulosAtivos).toEqual(
+      expect.arrayContaining(["crm", "loja-publica", "afiliados", "conversas"])
+    );
+    expect(resultado?.modulosAtivos).not.toContain("catalogo");
+    expect(listarModulosPorNegocio).toHaveBeenCalledWith("negocio_1");
   });
 
   it("autoriza leitura quando o papel possui permissão de gestão do mesmo domínio", async () => {
@@ -145,7 +163,8 @@ describe("contexto comercial HTTP", () => {
       repositorios: {
         autenticacao: {
           buscarNegocioPrincipalPorUsuario: vi.fn().mockResolvedValue(negocio),
-          listarModulosAtivosPorNegocio: vi.fn().mockResolvedValue([])
+          listarModulosAtivosPorNegocio: vi.fn().mockResolvedValue([]),
+          listarModulosPorNegocio: vi.fn().mockResolvedValue([])
         }
       }
     } as unknown as ContextoAplicacao;
@@ -174,7 +193,8 @@ describe("contexto comercial HTTP", () => {
             ...negocio,
             usuarioPapel: "ENTREGADOR"
           }),
-          listarModulosAtivosPorNegocio: vi.fn().mockResolvedValue([])
+          listarModulosAtivosPorNegocio: vi.fn().mockResolvedValue([]),
+          listarModulosPorNegocio: vi.fn().mockResolvedValue([])
         }
       }
     } as unknown as ContextoAplicacao;
@@ -204,7 +224,8 @@ describe("contexto comercial HTTP", () => {
       repositorios: {
         autenticacao: {
           buscarNegocioPrincipalPorUsuario: vi.fn().mockResolvedValue(negocio),
-          listarModulosAtivosPorNegocio: vi.fn().mockResolvedValue(["crm", "reservas"])
+          listarModulosAtivosPorNegocio: vi.fn().mockResolvedValue(["crm", "reservas"]),
+          listarModulosPorNegocio: vi.fn().mockResolvedValue([{ modulo: "catalogo", ativo: false }])
         }
       }
     } as unknown as ContextoAplicacao;

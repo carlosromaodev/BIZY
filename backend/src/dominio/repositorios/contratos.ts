@@ -4,6 +4,7 @@ import type {
   AtualizacaoConversaAtendimento,
   AtualizacaoEntregaPedido,
   AtualizacaoEstadoPedido,
+  AtualizacaoModuloNegocio,
   AtualizacaoOportunidadeRecuperacao,
   AtualizacaoTarefaOperacional,
   Cliente360,
@@ -73,6 +74,7 @@ import type {
   NegocioBizy,
   LinkAfiliado,
   MovimentoFunilComercial,
+  ModuloNegocioConfigurado,
   OportunidadeRecuperacao,
   ParceiroComercial,
   PlaybookRecuperacao,
@@ -307,6 +309,12 @@ export interface RepositorioAutenticacao {
   atualizarPublicacaoLoja(negocioId: string, dados: DadosPublicacaoLoja): Promise<NegocioBizy>;
   buscarNegocioPorSlugPublico(slug: string): Promise<NegocioBizy | null>;
   listarModulosAtivosPorNegocio(negocioId: string): Promise<string[]>;
+  listarModulosPorNegocio(negocioId: string): Promise<ModuloNegocioConfigurado[]>;
+  salvarModuloNegocio(
+    negocioId: string,
+    modulo: ModuloNegocioConfigurado["modulo"],
+    dados: AtualizacaoModuloNegocio
+  ): Promise<ModuloNegocioConfigurado>;
   marcarUsuarioOnboardingCompleto(usuarioId: string, data: Date): Promise<UsuarioSistema>;
   criarCodigoSms(dados: {
     telefone: string;

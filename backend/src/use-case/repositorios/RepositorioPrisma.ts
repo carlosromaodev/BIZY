@@ -24,6 +24,7 @@ import type {
   AtualizacaoConversaAtendimento,
   AtualizacaoEntregaPedido,
   AtualizacaoEstadoPedido,
+  AtualizacaoModuloNegocio,
   AtualizacaoOportunidadeRecuperacao,
   AtualizacaoTarefaOperacional,
   AtualizarPeca,
@@ -62,6 +63,8 @@ import type {
   LotePagamentoComissao,
   MensagemAtendimento,
   MovimentoFunilComercial,
+  ModuloNegocioCodigo,
+  ModuloNegocioConfigurado,
   MovimentoStock,
   NovaComissaoParceiro,
   NovaExecucaoPlaybookRecuperacao,
@@ -108,6 +111,7 @@ import type {
   TipoHistoricoComissaoParceiro,
   UsuarioSistema
 } from "../../dominio/tipos.js";
+import { modulosNegocioPadrao } from "../../dominio/tipos.js";
 import { normalizarEmail, normalizarTelefone } from "../../dominio/servicos/normalizarContato.js";
 
 const estadosQueBloqueiamStock: EstadoReserva[] = ["PENDING", "RESERVED", "WAITING_PAYMENT", "PAID"];
@@ -2012,20 +2016,66 @@ export class RepositorioAutenticacaoPrisma implements RepositorioAutenticacao {
   }
 
   async listarModulosAtivosPorNegocio(negocioId: string): Promise<string[]> {
+    const totalConfigurado = await this.prisma.moduloNegocio.count({ where: { negocioId } });
+    if (totalConfigurado === 0) return [];
+
     const modulos = await this.prisma.moduloNegocio.findMany({
-      where: {
-        negocioId,
-        ativo: true
-      },
+      where: { negocioId },
       orderBy: {
         modulo: "asc"
       },
       select: {
-        modulo: true
+        modulo: true,
+        ativo: true
       }
     });
 
-    return modulos.map((modulo) => modulo.modulo);
+    const ativos = new Set<string>(modulosNegocioPadrao);
+    for (const modulo of modulos) {
+      if (modulo.ativo) {
+        ativos.add(modulo.modulo);
+      } else {
+        ativos.delete(modulo.modulo);
+      }
+    }
+
+    return [...ativos];
+  }
+
+  async listarModulosPorNegocio(negocioId: string): Promise<ModuloNegocioConfigurado[]> {
+    const modulos = await this.prisma.moduloNegocio.findMany({
+      where: { negocioId },
+      orderBy: { modulo: "asc" }
+    });
+
+    return modulos.map((modulo) => this.mapearModuloNegocio(modulo));
+  }
+
+  async salvarModuloNegocio(
+    negocioId: string,
+    modulo: ModuloNegocioCodigo,
+    dados: AtualizacaoModuloNegocio
+  ): Promise<ModuloNegocioConfigurado> {
+    const salvo = await this.prisma.moduloNegocio.upsert({
+      where: {
+        negocioId_modulo: {
+          negocioId,
+          modulo
+        }
+      },
+      create: {
+        negocioId,
+        modulo,
+        ativo: dados.ativo,
+        configuracaoJson: JSON.stringify(dados.configuracao ?? {})
+      },
+      update: {
+        ativo: dados.ativo,
+        configuracaoJson: JSON.stringify(dados.configuracao ?? {})
+      }
+    });
+
+    return this.mapearModuloNegocio(salvo);
   }
 
   async marcarUsuarioOnboardingCompleto(usuarioId: string, data: Date): Promise<UsuarioSistema> {
@@ -2186,6 +2236,26 @@ export class RepositorioAutenticacaoPrisma implements RepositorioAutenticacao {
       usuarioPapel,
       criadoEm: negocio.criadoEm,
       atualizadoEm: negocio.atualizadoEm
+    };
+  }
+
+  private mapearModuloNegocio(modulo: {
+    id: string;
+    negocioId: string;
+    modulo: string;
+    ativo: boolean;
+    configuracaoJson: string;
+    criadoEm: Date;
+    atualizadoEm: Date;
+  }): ModuloNegocioConfigurado {
+    return {
+      id: modulo.id,
+      negocioId: modulo.negocioId,
+      modulo: modulo.modulo as ModuloNegocioCodigo,
+      ativo: modulo.ativo,
+      configuracao: this.lerObjeto(modulo.configuracaoJson),
+      criadoEm: modulo.criadoEm,
+      atualizadoEm: modulo.atualizadoEm
     };
   }
 

@@ -35,6 +35,7 @@ import { ConsultaPainelUseCase } from "../../use-case/ConsultaPainelUseCase.js";
 import { GestaoAfiliadosUseCase } from "../../use-case/GestaoAfiliadosUseCase.js";
 import { GestaoClientesCrmUseCase } from "../../use-case/GestaoClientesCrmUseCase.js";
 import { GestaoFunilComercialUseCase } from "../../use-case/GestaoFunilComercialUseCase.js";
+import { GestaoModulosNegocioUseCase } from "../../use-case/GestaoModulosNegocioUseCase.js";
 import { GestaoOportunidadesRecuperacaoUseCase } from "../../use-case/GestaoOportunidadesRecuperacaoUseCase.js";
 import { GestaoPecasUseCase } from "../../use-case/GestaoPecasUseCase.js";
 import { GestaoPedidosUseCase } from "../../use-case/GestaoPedidosUseCase.js";
@@ -163,6 +164,7 @@ export interface ContextoAplicacao {
   gestaoSocialInbox: GestaoSocialInboxUseCase;
   gestaoPlaybooksRecuperacao: GestaoPlaybooksRecuperacaoUseCase;
   gestaoFunilComercial: GestaoFunilComercialUseCase;
+  gestaoModulosNegocio: GestaoModulosNegocioUseCase;
   gestaoOportunidadesRecuperacao: GestaoOportunidadesRecuperacaoUseCase;
   consultaIntegracoes: ConsultaIntegracoesUseCase;
   consultaPainel: ConsultaPainelUseCase;
@@ -265,6 +267,7 @@ export function criarContextoAplicacao(logger: FastifyBaseLogger): ContextoAplic
     repositorios.oportunidadesRecuperacao
   );
   const gestaoFunilComercial = new GestaoFunilComercialUseCase(repositorios.funilComercial);
+  const gestaoModulosNegocio = new GestaoModulosNegocioUseCase(repositorios.autenticacao);
   const gestaoOportunidadesRecuperacao = new GestaoOportunidadesRecuperacaoUseCase(
     repositorios.oportunidadesRecuperacao
   );
@@ -358,6 +361,7 @@ export function criarContextoAplicacao(logger: FastifyBaseLogger): ContextoAplic
     gestaoSocialInbox,
     gestaoPlaybooksRecuperacao,
     gestaoFunilComercial,
+    gestaoModulosNegocio,
     gestaoOportunidadesRecuperacao,
     consultaIntegracoes,
     consultaPainel,

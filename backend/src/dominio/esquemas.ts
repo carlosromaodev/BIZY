@@ -15,6 +15,7 @@ import {
   fontesLive,
   gatilhosPlaybookRecuperacao,
   intencoesSocialInbox,
+  modulosNegocioDisponiveis,
   politicasAutomacaoAtendimento,
   prioridadesTarefaOperacional,
   prioridadesConversaAtendimento,
@@ -48,6 +49,15 @@ const VariantesPecaSchema = z
     z.array(z.string().trim().min(1).max(80)).max(60)
   )
   .default({});
+
+export const ModuloNegocioParametroSchema = z.object({
+  modulo: z.enum(modulosNegocioDisponiveis)
+});
+
+export const AtualizarModuloNegocioSchema = z.object({
+  ativo: z.boolean(),
+  configuracao: z.record(z.string(), z.unknown()).default({})
+});
 
 export const ComentarioLiveSchema = z.object({
   source: z.enum(fontesLive),
