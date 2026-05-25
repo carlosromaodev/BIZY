@@ -2,6 +2,7 @@ import { z } from "zod";
 import {
   estadosConversaAtendimento,
   estadosEntregaPedido,
+  estadosOportunidadeRecuperacao,
   estadosPagamentoPedido,
   estadosPedido,
   estadosParceiroComercial,
@@ -455,6 +456,26 @@ export const FiltrosMovimentosFunilComercialQuerySchema = z.object({
   origem: z.string().trim().min(1).max(80).optional(),
   limite: z.coerce.number().int().min(1).max(500).optional()
 });
+
+export const FiltrosOportunidadesRecuperacaoQuerySchema = z.object({
+  gatilho: z.enum(gatilhosPlaybookRecuperacao).optional(),
+  estado: z.enum(estadosOportunidadeRecuperacao).optional(),
+  entidadeTipo: z.string().trim().min(1).max(80).optional(),
+  entidadeId: z.string().trim().min(1).max(120).optional(),
+  responsavelId: z.string().trim().min(1).max(120).nullable().optional(),
+  limite: z.coerce.number().int().min(1).max(500).optional()
+});
+
+export const AtualizarOportunidadeRecuperacaoSchema = z
+  .object({
+    estado: z.enum(estadosOportunidadeRecuperacao).optional(),
+    responsavelId: CampoTarefaOpcionalSchema,
+    observacao: z.string().trim().max(2000).nullable().optional().transform((valor) => valor ?? null),
+    contexto: z.record(z.string(), z.unknown()).optional()
+  })
+  .refine((dados) => Object.keys(dados).length > 0, {
+    message: "Informe pelo menos um campo para atualizar a oportunidade."
+  });
 
 const TagsClienteSchema = z.array(z.string().trim().min(1).max(40)).max(20);
 

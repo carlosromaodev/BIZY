@@ -836,6 +836,71 @@ export interface FiltrosMovimentosFunilComercial {
   limite?: number;
 }
 
+export const estadosOportunidadeRecuperacao = [
+  "ABERTA",
+  "EM_ATENDIMENTO",
+  "RECUPERADA",
+  "PERDIDA",
+  "CANCELADA"
+] as const;
+export type EstadoOportunidadeRecuperacao = (typeof estadosOportunidadeRecuperacao)[number];
+
+export interface OportunidadeRecuperacao {
+  id: string;
+  negocioId: string;
+  gatilho: GatilhoPlaybookRecuperacao;
+  estado: EstadoOportunidadeRecuperacao;
+  entidadeTipo: string | null;
+  entidadeId: string | null;
+  clienteTelefone: string | null;
+  playbookId: string | null;
+  execucaoPlaybookId: string | null;
+  tarefaId: string | null;
+  movimentoFunilId: string | null;
+  valorEstimadoEmKwanza: number | null;
+  motivo: string;
+  responsavelId: string | null;
+  observacao: string | null;
+  contexto: Record<string, unknown>;
+  criadaEm: Date;
+  atualizadaEm: Date;
+  encerradaEm: Date | null;
+}
+
+export interface NovaOportunidadeRecuperacao {
+  negocioId: string;
+  gatilho: GatilhoPlaybookRecuperacao;
+  estado?: EstadoOportunidadeRecuperacao;
+  entidadeTipo?: string | null;
+  entidadeId?: string | null;
+  clienteTelefone?: string | null;
+  playbookId?: string | null;
+  execucaoPlaybookId?: string | null;
+  tarefaId?: string | null;
+  movimentoFunilId?: string | null;
+  valorEstimadoEmKwanza?: number | null;
+  motivo: string;
+  responsavelId?: string | null;
+  observacao?: string | null;
+  contexto?: Record<string, unknown>;
+}
+
+export interface AtualizacaoOportunidadeRecuperacao {
+  estado?: EstadoOportunidadeRecuperacao;
+  responsavelId?: string | null;
+  observacao?: string | null;
+  contexto?: Record<string, unknown>;
+}
+
+export interface FiltrosOportunidadesRecuperacao {
+  gatilho?: GatilhoPlaybookRecuperacao;
+  estado?: EstadoOportunidadeRecuperacao;
+  entidadeTipo?: string;
+  entidadeId?: string;
+  responsavelId?: string | null;
+  limite?: number;
+}
+
 export const estadosRelacionamentoCliente = [
   "ATIVO",
   "LEAD",

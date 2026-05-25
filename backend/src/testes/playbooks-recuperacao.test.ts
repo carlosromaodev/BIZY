@@ -111,6 +111,27 @@ describe("Playbooks de recuperação", () => {
           })
         })
       );
+      expect(executada.json().movimentoFunil).toEqual(
+        expect.objectContaining({
+          entidadeTipo: "pedido",
+          entidadeId: "pedido-temp-001",
+          etapaNova: "PAGAMENTO_PENDENTE",
+          motivo: "Playbook Recuperar pagamento pendente executado.",
+          origem: "playbook_recuperacao"
+        })
+      );
+      expect(executada.json().oportunidade).toEqual(
+        expect.objectContaining({
+          gatilho: "PAGAMENTO_PENDENTE",
+          estado: "ABERTA",
+          entidadeTipo: "pedido",
+          entidadeId: "pedido-temp-001",
+          clienteTelefone: "923456710",
+          valorEstimadoEmKwanza: 12000,
+          tarefaId: executada.json().tarefa.id,
+          movimentoFunilId: executada.json().movimentoFunil.id
+        })
+      );
 
       const tarefas = await app.inject({
         method: "GET",
@@ -140,6 +161,42 @@ describe("Playbooks de recuperação", () => {
           estado: "EXECUTADA"
         })
       ]);
+
+      const oportunidades = await app.inject({
+        method: "GET",
+        url: "/recuperacao/oportunidades?estado=ABERTA&gatilho=PAGAMENTO_PENDENTE",
+        headers
+      });
+
+      expect(oportunidades.statusCode).toBe(200);
+      expect(oportunidades.json().oportunidades).toEqual([
+        expect.objectContaining({
+          id: executada.json().oportunidade.id,
+          estado: "ABERTA",
+          tarefaId: executada.json().tarefa.id
+        })
+      ]);
+
+      const assumida = await app.inject({
+        method: "PATCH",
+        url: `/recuperacao/oportunidades/${executada.json().oportunidade.id}`,
+        headers,
+        payload: {
+          estado: "EM_ATENDIMENTO",
+          responsavelId: "financeiro-01",
+          observacao: "Cliente será contactado antes do fim do dia."
+        }
+      });
+
+      expect(assumida.statusCode).toBe(200);
+      expect(assumida.json().oportunidade).toEqual(
+        expect.objectContaining({
+          id: executada.json().oportunidade.id,
+          estado: "EM_ATENDIMENTO",
+          responsavelId: "financeiro-01",
+          observacao: "Cliente será contactado antes do fim do dia."
+        })
+      );
     } finally {
       await app.close();
     }

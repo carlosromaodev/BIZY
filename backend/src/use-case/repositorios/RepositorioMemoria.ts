@@ -8,6 +8,7 @@ import type {
   RepositorioComentarios,
   RepositorioFunilComercial,
   RepositorioInstanciasWhatsApp,
+  RepositorioOportunidadesRecuperacao,
   RepositorioPecas,
   RepositorioPedidos,
   RepositorioPlaybooksRecuperacao,
@@ -23,6 +24,7 @@ import type {
   AtualizacaoConversaAtendimento,
   AtualizacaoEntregaPedido,
   AtualizacaoEstadoPedido,
+  AtualizacaoOportunidadeRecuperacao,
   AtualizarPeca,
   CodigoLoginSms,
   ClienteAtendimento,
@@ -44,6 +46,7 @@ import type {
   FiltrosClientes360,
   FiltrosExecucoesPlaybookRecuperacao,
   FiltrosMovimentosFunilComercial,
+  FiltrosOportunidadesRecuperacao,
   FiltrosPlaybookRecuperacao,
   AtualizacaoTarefaOperacional,
   EventoSistema,
@@ -57,6 +60,7 @@ import type {
   NovaComissaoParceiro,
   NovaExecucaoPlaybookRecuperacao,
   NovaMensagemAtendimento,
+  NovaOportunidadeRecuperacao,
   NovoEventoTrackingComercial,
   NovoLotePagamentoComissao,
   NovoLinkAfiliado,
@@ -72,6 +76,7 @@ import type {
   NovoRegistroComentario,
   Peca,
   Pedido,
+  OportunidadeRecuperacao,
   ParceiroComercial,
   PlaybookRecuperacao,
   LinkAfiliado,
@@ -2389,6 +2394,90 @@ export class RepositorioFunilComercialMemoria implements RepositorioFunilComerci
       .filter((movimento) => !filtros.origem || movimento.origem === filtros.origem)
       .sort((a, b) => b.criadoEm.getTime() - a.criadoEm.getTime())
       .slice(0, limite);
+  }
+}
+
+export class RepositorioOportunidadesRecuperacaoMemoria implements RepositorioOportunidadesRecuperacao {
+  private readonly oportunidades = new Map<string, OportunidadeRecuperacao>();
+
+  async criar(dados: NovaOportunidadeRecuperacao): Promise<OportunidadeRecuperacao> {
+    const agora = new Date();
+    const estado = dados.estado ?? "ABERTA";
+    const oportunidade: OportunidadeRecuperacao = {
+      id: randomUUID(),
+      negocioId: dados.negocioId,
+      gatilho: dados.gatilho,
+      estado,
+      entidadeTipo: dados.entidadeTipo ?? null,
+      entidadeId: dados.entidadeId ?? null,
+      clienteTelefone: dados.clienteTelefone ?? null,
+      playbookId: dados.playbookId ?? null,
+      execucaoPlaybookId: dados.execucaoPlaybookId ?? null,
+      tarefaId: dados.tarefaId ?? null,
+      movimentoFunilId: dados.movimentoFunilId ?? null,
+      valorEstimadoEmKwanza: dados.valorEstimadoEmKwanza ?? null,
+      motivo: dados.motivo,
+      responsavelId: dados.responsavelId ?? null,
+      observacao: dados.observacao ?? null,
+      contexto: dados.contexto ?? {},
+      criadaEm: agora,
+      atualizadaEm: agora,
+      encerradaEm: this.ehEstadoFinal(estado) ? agora : null
+    };
+
+    this.oportunidades.set(oportunidade.id, oportunidade);
+    return oportunidade;
+  }
+
+  async listar(
+    negocioId: string,
+    filtros: FiltrosOportunidadesRecuperacao = {}
+  ): Promise<OportunidadeRecuperacao[]> {
+    const limite = Math.max(1, Math.min(filtros.limite ?? 100, 500));
+    return [...this.oportunidades.values()]
+      .filter((oportunidade) => oportunidade.negocioId === negocioId)
+      .filter((oportunidade) => !filtros.gatilho || oportunidade.gatilho === filtros.gatilho)
+      .filter((oportunidade) => !filtros.estado || oportunidade.estado === filtros.estado)
+      .filter((oportunidade) => !filtros.entidadeTipo || oportunidade.entidadeTipo === filtros.entidadeTipo)
+      .filter((oportunidade) => !filtros.entidadeId || oportunidade.entidadeId === filtros.entidadeId)
+      .filter((oportunidade) =>
+        filtros.responsavelId === undefined ? true : oportunidade.responsavelId === filtros.responsavelId
+      )
+      .sort((a, b) => b.criadaEm.getTime() - a.criadaEm.getTime())
+      .slice(0, limite);
+  }
+
+  async buscarPorId(id: string, negocioId: string): Promise<OportunidadeRecuperacao | null> {
+    const oportunidade = this.oportunidades.get(id);
+    return oportunidade?.negocioId === negocioId ? oportunidade : null;
+  }
+
+  async atualizar(
+    id: string,
+    negocioId: string,
+    dados: AtualizacaoOportunidadeRecuperacao
+  ): Promise<OportunidadeRecuperacao | null> {
+    const atual = await this.buscarPorId(id, negocioId);
+    if (!atual) return null;
+
+    const agora = new Date();
+    const estado = dados.estado ?? atual.estado;
+    const oportunidade: OportunidadeRecuperacao = {
+      ...atual,
+      estado,
+      responsavelId: dados.responsavelId !== undefined ? dados.responsavelId : atual.responsavelId,
+      observacao: dados.observacao !== undefined ? dados.observacao : atual.observacao,
+      contexto: dados.contexto ? { ...atual.contexto, ...dados.contexto } : atual.contexto,
+      encerradaEm: this.ehEstadoFinal(estado) ? atual.encerradaEm ?? agora : null,
+      atualizadaEm: agora
+    };
+
+    this.oportunidades.set(id, oportunidade);
+    return oportunidade;
+  }
+
+  private ehEstadoFinal(estado: OportunidadeRecuperacao["estado"]): boolean {
+    return estado === "RECUPERADA" || estado === "PERDIDA" || estado === "CANCELADA";
   }
 }
 

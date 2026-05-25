@@ -477,6 +477,7 @@ model Negocio {
   playbooksRecuperacao    PlaybookRecuperacao[]
   execucoesPlaybookRecuperacao ExecucaoPlaybookRecuperacao[]
   movimentosFunilComercial MovimentoFunilComercial[]
+  oportunidadesRecuperacao OportunidadeRecuperacao[]
 
   @@index([nomeComercial])
   @@index([slugPublico])
@@ -575,6 +576,36 @@ model MovimentoFunilComercial {
   @@index([negocioId, entidadeTipo, entidadeId, criadoEm])
   @@index([negocioId, etapaNova, criadoEm])
   @@index([negocioId, origem, criadoEm])
+}
+
+model OportunidadeRecuperacao {
+  id                     String   @id @default(uuid())
+  negocioId              String
+  negocio                Negocio  @relation(fields: [negocioId], references: [id])
+  gatilho                String
+  estado                 String   @default("ABERTA")
+  entidadeTipo           String?
+  entidadeId             String?
+  clienteTelefone        String?
+  playbookId             String?
+  execucaoPlaybookId     String?
+  tarefaId               String?
+  movimentoFunilId       String?
+  valorEstimadoEmKwanza  Int?
+  motivo                 String
+  responsavelId          String?
+  observacao             String?
+  contextoJson           String   @default("{}")
+  criadaEm               DateTime @default(now())
+  atualizadaEm           DateTime @updatedAt
+  encerradaEm            DateTime?
+
+  @@index([negocioId, estado, criadaEm])
+  @@index([negocioId, gatilho, criadaEm])
+  @@index([negocioId, entidadeTipo, entidadeId])
+  @@index([clienteTelefone, criadaEm])
+  @@index([tarefaId])
+  @@index([movimentoFunilId])
 }
 
 model TarefaOperacional {

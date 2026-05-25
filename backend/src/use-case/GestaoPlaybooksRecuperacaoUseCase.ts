@@ -1,8 +1,11 @@
 import type {
+  RepositorioFunilComercial,
+  RepositorioOportunidadesRecuperacao,
   RepositorioPlaybooksRecuperacao,
   RepositorioTarefasOperacionais
 } from "../dominio/repositorios/contratos.js";
 import type {
+  EtapaFunilComercial,
   FiltrosExecucoesPlaybookRecuperacao,
   FiltrosPlaybookRecuperacao,
   NovaExecucaoPlaybookRecuperacao,
@@ -22,7 +25,9 @@ export interface EventoExecucaoPlaybookRecuperacao {
 export class GestaoPlaybooksRecuperacaoUseCase {
   constructor(
     private readonly playbooks: RepositorioPlaybooksRecuperacao,
-    private readonly tarefas: RepositorioTarefasOperacionais
+    private readonly tarefas: RepositorioTarefasOperacionais,
+    private readonly funil: RepositorioFunilComercial,
+    private readonly oportunidades: RepositorioOportunidadesRecuperacao
   ) {}
 
   criarPlaybook(dados: NovoPlaybookRecuperacao) {
@@ -54,7 +59,7 @@ export class GestaoPlaybooksRecuperacaoUseCase {
         motivo: "Playbook inativo.",
         contexto: contextoEvento
       });
-      return { execucao, tarefa: null };
+      return { execucao, tarefa: null, movimentoFunil: null, oportunidade: null };
     }
 
     const tarefa = await this.tarefas.criar({
@@ -92,7 +97,32 @@ export class GestaoPlaybooksRecuperacaoUseCase {
       }
     });
 
-    return { execucao, tarefa };
+    const movimentoFunil = await this.registrarMovimentoFunil(playbook, evento, contextoEvento);
+    const oportunidade = await this.oportunidades.criar({
+      negocioId,
+      gatilho: playbook.gatilho,
+      estado: "ABERTA",
+      entidadeTipo: evento.entidadeTipo ?? null,
+      entidadeId: evento.entidadeId ?? null,
+      clienteTelefone: evento.clienteTelefone ?? null,
+      playbookId: playbook.id,
+      execucaoPlaybookId: execucao.id,
+      tarefaId: tarefa.id,
+      movimentoFunilId: movimentoFunil?.id ?? null,
+      valorEstimadoEmKwanza: this.extrairValorEstimado(contextoEvento),
+      motivo: `Playbook ${playbook.nome} executado.`,
+      responsavelId: playbook.responsavelId,
+      contexto: {
+        playbook: {
+          id: playbook.id,
+          nome: playbook.nome,
+          gatilho: playbook.gatilho
+        },
+        evento: contextoEvento
+      }
+    });
+
+    return { execucao, tarefa, movimentoFunil, oportunidade };
   }
 
   private async obterPlaybook(id: string, negocioId: string) {
@@ -142,5 +172,46 @@ export class GestaoPlaybooksRecuperacaoUseCase {
   private calcularPrazo(atrasoMinutos: number): Date | null {
     if (atrasoMinutos <= 0) return null;
     return new Date(Date.now() + atrasoMinutos * 60_000);
+  }
+
+  private registrarMovimentoFunil(
+    playbook: PlaybookRecuperacao,
+    evento: EventoExecucaoPlaybookRecuperacao,
+    contextoEvento: Record<string, unknown>
+  ) {
+    if (!evento.entidadeTipo || !evento.entidadeId) return null;
+
+    return this.funil.registrarMovimento({
+      negocioId: playbook.negocioId,
+      entidadeTipo: evento.entidadeTipo,
+      entidadeId: evento.entidadeId,
+      etapaNova: this.etapaPorGatilho(playbook.gatilho),
+      motivo: `Playbook ${playbook.nome} executado.`,
+      origem: "playbook_recuperacao",
+      contexto: {
+        playbookId: playbook.id,
+        gatilho: playbook.gatilho,
+        evento: contextoEvento
+      }
+    });
+  }
+
+  private etapaPorGatilho(gatilho: PlaybookRecuperacao["gatilho"]): EtapaFunilComercial {
+    const mapa: Record<PlaybookRecuperacao["gatilho"], EtapaFunilComercial> = {
+      CARRINHO_ABANDONADO: "CHECKOUT",
+      PAGAMENTO_PENDENTE: "PAGAMENTO_PENDENTE",
+      RESERVA_EXPIRADA: "PEDIDO",
+      CLIENTE_INATIVO: "LEAD",
+      POS_VENDA: "POS_VENDA",
+      REPOSICAO_PRODUTO: "LEAD",
+      SOCIAL_LEAD: "LEAD"
+    };
+
+    return mapa[gatilho];
+  }
+
+  private extrairValorEstimado(contexto: Record<string, unknown>): number | null {
+    const valor = contexto.totalEmKwanza ?? contexto.valorEstimadoEmKwanza ?? contexto.valorEmKwanza;
+    return typeof valor === "number" && Number.isFinite(valor) ? Math.max(0, Math.trunc(valor)) : null;
   }
 }

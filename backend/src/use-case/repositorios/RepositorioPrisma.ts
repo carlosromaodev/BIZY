@@ -9,6 +9,7 @@ import type {
   RepositorioInstanciasWhatsApp,
   RepositorioPecas,
   RepositorioFunilComercial,
+  RepositorioOportunidadesRecuperacao,
   RepositorioPedidos,
   RepositorioPlaybooksRecuperacao,
   RepositorioReservas,
@@ -23,6 +24,7 @@ import type {
   AtualizacaoConversaAtendimento,
   AtualizacaoEntregaPedido,
   AtualizacaoEstadoPedido,
+  AtualizacaoOportunidadeRecuperacao,
   AtualizacaoTarefaOperacional,
   AtualizarPeca,
   CodigoLoginSms,
@@ -50,6 +52,7 @@ import type {
   FiltrosClientes360,
   FiltrosExecucoesPlaybookRecuperacao,
   FiltrosMovimentosFunilComercial,
+  FiltrosOportunidadesRecuperacao,
   FiltrosPlaybookRecuperacao,
   FiltrosSocialInbox,
   HistoricoComissaoParceiro,
@@ -63,6 +66,7 @@ import type {
   NovaComissaoParceiro,
   NovaExecucaoPlaybookRecuperacao,
   NovaMensagemAtendimento,
+  NovaOportunidadeRecuperacao,
   NovoEventoTrackingComercial,
   NovoLinkAfiliado,
   NovoMovimentoFunilComercial,
@@ -78,6 +82,7 @@ import type {
   NovaTarefaOperacional,
   NovoSocialInboxItem,
   Peca,
+  OportunidadeRecuperacao,
   ParceiroComercial,
   PlaybookRecuperacao,
   Pedido,
@@ -3469,6 +3474,182 @@ export class RepositorioFunilComercialPrisma implements RepositorioFunilComercia
     } catch {
       return {};
     }
+  }
+}
+
+interface LinhaOportunidadeRecuperacao {
+  id: string;
+  negocioId: string;
+  gatilho: string;
+  estado: string;
+  entidadeTipo: string | null;
+  entidadeId: string | null;
+  clienteTelefone: string | null;
+  playbookId: string | null;
+  execucaoPlaybookId: string | null;
+  tarefaId: string | null;
+  movimentoFunilId: string | null;
+  valorEstimadoEmKwanza: number | null;
+  motivo: string;
+  responsavelId: string | null;
+  observacao: string | null;
+  contextoJson: string;
+  criadaEm: Date;
+  atualizadaEm: Date;
+  encerradaEm: Date | null;
+}
+
+export class RepositorioOportunidadesRecuperacaoPrisma implements RepositorioOportunidadesRecuperacao {
+  constructor(private readonly prisma: PrismaClient) {}
+
+  async criar(dados: NovaOportunidadeRecuperacao): Promise<OportunidadeRecuperacao> {
+    const estado = dados.estado ?? "ABERTA";
+    const linhas = await this.prisma.$queryRaw<LinhaOportunidadeRecuperacao[]>`
+      INSERT INTO "OportunidadeRecuperacao" (
+        "negocioId",
+        "gatilho",
+        "estado",
+        "entidadeTipo",
+        "entidadeId",
+        "clienteTelefone",
+        "playbookId",
+        "execucaoPlaybookId",
+        "tarefaId",
+        "movimentoFunilId",
+        "valorEstimadoEmKwanza",
+        "motivo",
+        "responsavelId",
+        "observacao",
+        "contextoJson",
+        "encerradaEm"
+      ) VALUES (
+        ${dados.negocioId},
+        ${dados.gatilho},
+        ${estado},
+        ${dados.entidadeTipo ?? null},
+        ${dados.entidadeId ?? null},
+        ${dados.clienteTelefone ?? null},
+        ${dados.playbookId ?? null},
+        ${dados.execucaoPlaybookId ?? null},
+        ${dados.tarefaId ?? null},
+        ${dados.movimentoFunilId ?? null},
+        ${dados.valorEstimadoEmKwanza ?? null},
+        ${dados.motivo},
+        ${dados.responsavelId ?? null},
+        ${dados.observacao ?? null},
+        ${JSON.stringify(dados.contexto ?? {})},
+        ${this.ehEstadoFinal(estado) ? new Date() : null}
+      )
+      RETURNING *
+    `;
+
+    return this.mapearOportunidade(linhas[0]);
+  }
+
+  async listar(
+    negocioId: string,
+    filtros: FiltrosOportunidadesRecuperacao = {}
+  ): Promise<OportunidadeRecuperacao[]> {
+    const limite = Math.max(1, Math.min(filtros.limite ?? 100, 500));
+    const condicoes: Prisma.Sql[] = [Prisma.sql`"negocioId" = ${negocioId}`];
+    if (filtros.gatilho) condicoes.push(Prisma.sql`"gatilho" = ${filtros.gatilho}`);
+    if (filtros.estado) condicoes.push(Prisma.sql`"estado" = ${filtros.estado}`);
+    if (filtros.entidadeTipo) condicoes.push(Prisma.sql`"entidadeTipo" = ${filtros.entidadeTipo}`);
+    if (filtros.entidadeId) condicoes.push(Prisma.sql`"entidadeId" = ${filtros.entidadeId}`);
+    if (filtros.responsavelId !== undefined) {
+      condicoes.push(
+        filtros.responsavelId === null
+          ? Prisma.sql`"responsavelId" IS NULL`
+          : Prisma.sql`"responsavelId" = ${filtros.responsavelId}`
+      );
+    }
+
+    const linhas = await this.prisma.$queryRaw<LinhaOportunidadeRecuperacao[]>(
+      Prisma.sql`
+        SELECT *
+        FROM "OportunidadeRecuperacao"
+        WHERE ${Prisma.join(condicoes, " AND ")}
+        ORDER BY "criadaEm" DESC
+        LIMIT ${limite}
+      `
+    );
+
+    return linhas.map((linha) => this.mapearOportunidade(linha));
+  }
+
+  async buscarPorId(id: string, negocioId: string): Promise<OportunidadeRecuperacao | null> {
+    const linhas = await this.prisma.$queryRaw<LinhaOportunidadeRecuperacao[]>`
+      SELECT *
+      FROM "OportunidadeRecuperacao"
+      WHERE "id" = ${id} AND "negocioId" = ${negocioId}
+      LIMIT 1
+    `;
+
+    return linhas[0] ? this.mapearOportunidade(linhas[0]) : null;
+  }
+
+  async atualizar(
+    id: string,
+    negocioId: string,
+    dados: AtualizacaoOportunidadeRecuperacao
+  ): Promise<OportunidadeRecuperacao | null> {
+    const atual = await this.buscarPorId(id, negocioId);
+    if (!atual) return null;
+
+    const estado = dados.estado ?? atual.estado;
+    const encerradaEm = this.ehEstadoFinal(estado) ? atual.encerradaEm ?? new Date() : null;
+    const contexto = dados.contexto ? { ...atual.contexto, ...dados.contexto } : atual.contexto;
+    const linhas = await this.prisma.$queryRaw<LinhaOportunidadeRecuperacao[]>`
+      UPDATE "OportunidadeRecuperacao"
+      SET
+        "estado" = ${estado},
+        "responsavelId" = ${dados.responsavelId !== undefined ? dados.responsavelId : atual.responsavelId},
+        "observacao" = ${dados.observacao !== undefined ? dados.observacao : atual.observacao},
+        "contextoJson" = ${JSON.stringify(contexto)},
+        "encerradaEm" = ${encerradaEm},
+        "atualizadaEm" = ${new Date()}
+      WHERE "id" = ${id} AND "negocioId" = ${negocioId}
+      RETURNING *
+    `;
+
+    return linhas[0] ? this.mapearOportunidade(linhas[0]) : null;
+  }
+
+  private mapearOportunidade(linha: LinhaOportunidadeRecuperacao): OportunidadeRecuperacao {
+    return {
+      id: linha.id,
+      negocioId: linha.negocioId,
+      gatilho: linha.gatilho as OportunidadeRecuperacao["gatilho"],
+      estado: linha.estado as OportunidadeRecuperacao["estado"],
+      entidadeTipo: linha.entidadeTipo,
+      entidadeId: linha.entidadeId,
+      clienteTelefone: linha.clienteTelefone,
+      playbookId: linha.playbookId,
+      execucaoPlaybookId: linha.execucaoPlaybookId,
+      tarefaId: linha.tarefaId,
+      movimentoFunilId: linha.movimentoFunilId,
+      valorEstimadoEmKwanza: linha.valorEstimadoEmKwanza,
+      motivo: linha.motivo,
+      responsavelId: linha.responsavelId,
+      observacao: linha.observacao,
+      contexto: this.lerObjeto(linha.contextoJson),
+      criadaEm: linha.criadaEm,
+      atualizadaEm: linha.atualizadaEm,
+      encerradaEm: linha.encerradaEm
+    };
+  }
+
+  private lerObjeto(valor: string): Record<string, unknown> {
+    try {
+      const json = JSON.parse(valor);
+      return json && typeof json === "object" && !Array.isArray(json) ? json as Record<string, unknown> : {};
+    } catch {
+      return {};
+    }
+  }
+
+  private ehEstadoFinal(estado: string): boolean {
+    return estado === "RECUPERADA" || estado === "PERDIDA" || estado === "CANCELADA";
   }
 }
 

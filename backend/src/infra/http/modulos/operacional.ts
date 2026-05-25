@@ -1,5 +1,6 @@
 import {
   AtualizarConversaAtendimentoSchema,
+  AtualizarOportunidadeRecuperacaoSchema,
   AtualizarTarefaOperacionalSchema,
   CriarTarefaOperacionalSchema,
   CriarPlaybookRecuperacaoSchema,
@@ -8,6 +9,7 @@ import {
   ExecutarPlaybookRecuperacaoSchema,
   FiltrosExecucoesPlaybookRecuperacaoQuerySchema,
   FiltrosMovimentosFunilComercialQuerySchema,
+  FiltrosOportunidadesRecuperacaoQuerySchema,
   FiltrosPlaybookRecuperacaoQuerySchema,
   FiltrosSocialInboxQuerySchema,
   RegistrarNotaInternaAtendimentoSchema,
@@ -256,6 +258,42 @@ export const moduloOperacional: ModuloHttp = {
       });
 
       return reply.code(201).send({ movimento });
+    });
+
+    app.get("/recuperacao/oportunidades", async (request, reply) => {
+      const contextoComercial = await exigirAcessoComercial(contexto, request, reply, {
+        permissao: "automacoes:ler",
+        modulo: "automacoes",
+        mensagemPermissao: "Sem permissão para consultar oportunidades de recuperação.",
+        mensagemModulo: "Automações desativadas para este negócio."
+      });
+      if (!contextoComercial) return;
+
+      const filtros = FiltrosOportunidadesRecuperacaoQuerySchema.parse(request.query ?? {});
+      const oportunidades = await contexto.gestaoOportunidadesRecuperacao.listarOportunidades(
+        contextoComercial.negocio.id,
+        filtros
+      );
+      return { oportunidades };
+    });
+
+    app.patch("/recuperacao/oportunidades/:id", async (request, reply) => {
+      const contextoComercial = await exigirAcessoComercial(contexto, request, reply, {
+        permissao: "automacoes:gerir",
+        modulo: "automacoes",
+        mensagemPermissao: "Sem permissão para atualizar oportunidades de recuperação.",
+        mensagemModulo: "Automações desativadas para este negócio."
+      });
+      if (!contextoComercial) return;
+
+      const { id } = request.params as { id: string };
+      const dados = AtualizarOportunidadeRecuperacaoSchema.parse(request.body ?? {});
+      const oportunidade = await contexto.gestaoOportunidadesRecuperacao.atualizarOportunidade(
+        id,
+        contextoComercial.negocio.id,
+        dados
+      );
+      return { oportunidade };
     });
 
     app.get("/playbooks/recuperacao", async (request, reply) => {

@@ -4,6 +4,7 @@ import type {
   AtualizacaoConversaAtendimento,
   AtualizacaoEntregaPedido,
   AtualizacaoEstadoPedido,
+  AtualizacaoOportunidadeRecuperacao,
   AtualizacaoTarefaOperacional,
   Cliente360,
   ConfirmacaoPagamentoPedido,
@@ -14,11 +15,13 @@ import type {
   ExecucaoPlaybookRecuperacao,
   FiltrosExecucoesPlaybookRecuperacao,
   FiltrosMovimentosFunilComercial,
+  FiltrosOportunidadesRecuperacao,
   HistoricoComissaoParceiro,
   LotePagamentoComissao,
   NovaPeca,
   NovaComissaoParceiro,
   NovaExecucaoPlaybookRecuperacao,
+  NovaOportunidadeRecuperacao,
   NovoMovimentoFunilComercial,
   NovoLotePagamentoComissao,
   NovoLinkAfiliado,
@@ -70,6 +73,7 @@ import type {
   NegocioBizy,
   LinkAfiliado,
   MovimentoFunilComercial,
+  OportunidadeRecuperacao,
   ParceiroComercial,
   PlaybookRecuperacao,
   ResumoAfiliadosComerciais,
@@ -243,6 +247,17 @@ export interface RepositorioFunilComercial {
     negocioId: string,
     filtros?: FiltrosMovimentosFunilComercial
   ): Promise<MovimentoFunilComercial[]>;
+}
+
+export interface RepositorioOportunidadesRecuperacao {
+  criar(dados: NovaOportunidadeRecuperacao): Promise<OportunidadeRecuperacao>;
+  listar(negocioId: string, filtros?: FiltrosOportunidadesRecuperacao): Promise<OportunidadeRecuperacao[]>;
+  buscarPorId(id: string, negocioId: string): Promise<OportunidadeRecuperacao | null>;
+  atualizar(
+    id: string,
+    negocioId: string,
+    dados: AtualizacaoOportunidadeRecuperacao
+  ): Promise<OportunidadeRecuperacao | null>;
 }
 
 export interface RepositorioClientes {

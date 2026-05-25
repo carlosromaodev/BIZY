@@ -11,6 +11,7 @@ import type {
   RepositorioComentarios,
   RepositorioFunilComercial,
   RepositorioInstanciasWhatsApp,
+  RepositorioOportunidadesRecuperacao,
   RepositorioPecas,
   RepositorioPedidos,
   RepositorioPlaybooksRecuperacao,
@@ -34,6 +35,7 @@ import { ConsultaPainelUseCase } from "../../use-case/ConsultaPainelUseCase.js";
 import { GestaoAfiliadosUseCase } from "../../use-case/GestaoAfiliadosUseCase.js";
 import { GestaoClientesCrmUseCase } from "../../use-case/GestaoClientesCrmUseCase.js";
 import { GestaoFunilComercialUseCase } from "../../use-case/GestaoFunilComercialUseCase.js";
+import { GestaoOportunidadesRecuperacaoUseCase } from "../../use-case/GestaoOportunidadesRecuperacaoUseCase.js";
 import { GestaoPecasUseCase } from "../../use-case/GestaoPecasUseCase.js";
 import { GestaoPedidosUseCase } from "../../use-case/GestaoPedidosUseCase.js";
 import { GestaoPlaybooksRecuperacaoUseCase } from "../../use-case/GestaoPlaybooksRecuperacaoUseCase.js";
@@ -60,6 +62,7 @@ import {
   RepositorioComentariosMemoria,
   RepositorioFunilComercialMemoria,
   RepositorioInstanciasWhatsAppMemoria,
+  RepositorioOportunidadesRecuperacaoMemoria,
   RepositorioPecasMemoria,
   RepositorioPedidosMemoria,
   RepositorioPlaybooksRecuperacaoMemoria,
@@ -78,6 +81,7 @@ import {
   RepositorioComentariosPrisma,
   RepositorioFunilComercialPrisma,
   RepositorioInstanciasWhatsAppPrisma,
+  RepositorioOportunidadesRecuperacaoPrisma,
   RepositorioPecasPrisma,
   RepositorioPedidosPrisma,
   RepositorioPlaybooksRecuperacaoPrisma,
@@ -116,6 +120,7 @@ export interface RepositoriosAplicacao {
   socialInbox: RepositorioSocialInbox;
   playbooksRecuperacao: RepositorioPlaybooksRecuperacao;
   funilComercial: RepositorioFunilComercial;
+  oportunidadesRecuperacao: RepositorioOportunidadesRecuperacao;
   verificarConexao?: () => Promise<void>;
   encerrar?: () => Promise<void>;
 }
@@ -158,6 +163,7 @@ export interface ContextoAplicacao {
   gestaoSocialInbox: GestaoSocialInboxUseCase;
   gestaoPlaybooksRecuperacao: GestaoPlaybooksRecuperacaoUseCase;
   gestaoFunilComercial: GestaoFunilComercialUseCase;
+  gestaoOportunidadesRecuperacao: GestaoOportunidadesRecuperacaoUseCase;
   consultaIntegracoes: ConsultaIntegracoesUseCase;
   consultaPainel: ConsultaPainelUseCase;
   consultaAtendimentoN8n: ConsultaAtendimentoN8n;
@@ -254,9 +260,14 @@ export function criarContextoAplicacao(logger: FastifyBaseLogger): ContextoAplic
   const gestaoSocialInbox = new GestaoSocialInboxUseCase(repositorios.socialInbox, repositorios.tarefas);
   const gestaoPlaybooksRecuperacao = new GestaoPlaybooksRecuperacaoUseCase(
     repositorios.playbooksRecuperacao,
-    repositorios.tarefas
+    repositorios.tarefas,
+    repositorios.funilComercial,
+    repositorios.oportunidadesRecuperacao
   );
   const gestaoFunilComercial = new GestaoFunilComercialUseCase(repositorios.funilComercial);
+  const gestaoOportunidadesRecuperacao = new GestaoOportunidadesRecuperacaoUseCase(
+    repositorios.oportunidadesRecuperacao
+  );
   const consultaIntegracoes = new ConsultaIntegracoesUseCase();
   const consultaPainel = new ConsultaPainelUseCase(repositorios.pecas, repositorios.reservas, repositorios.comentarios);
   const consultaAtendimentoN8n = new ConsultaAtendimentoN8n(
@@ -347,6 +358,7 @@ export function criarContextoAplicacao(logger: FastifyBaseLogger): ContextoAplic
     gestaoSocialInbox,
     gestaoPlaybooksRecuperacao,
     gestaoFunilComercial,
+    gestaoOportunidadesRecuperacao,
     consultaIntegracoes,
     consultaPainel,
     consultaAtendimentoN8n,
@@ -396,6 +408,7 @@ function criarRepositorios(): RepositoriosAplicacao {
       socialInbox: new RepositorioSocialInboxMemoria(),
       playbooksRecuperacao: new RepositorioPlaybooksRecuperacaoMemoria(),
       funilComercial: new RepositorioFunilComercialMemoria(),
+      oportunidadesRecuperacao: new RepositorioOportunidadesRecuperacaoMemoria(),
       verificarConexao: async () => undefined
     };
   }
@@ -419,6 +432,7 @@ function criarRepositorios(): RepositoriosAplicacao {
     socialInbox: new RepositorioSocialInboxPrisma(prisma),
     playbooksRecuperacao: new RepositorioPlaybooksRecuperacaoPrisma(prisma),
     funilComercial: new RepositorioFunilComercialPrisma(prisma),
+    oportunidadesRecuperacao: new RepositorioOportunidadesRecuperacaoPrisma(prisma),
     verificarConexao: async () => {
       await prisma.$queryRaw`SELECT 1`;
     },

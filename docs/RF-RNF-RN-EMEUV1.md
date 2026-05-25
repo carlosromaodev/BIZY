@@ -1,7 +1,7 @@
 # Bizy / ÉMeu V1 - Requisitos Funcionais, Não Funcionais e Regras de Negócio
 
 Documento: `RF-RNF-RN-EMEUV1.md`
-Versão: 1.22
+Versão: 1.23
 Data: 2026-05-25
 Autor: Carlos
 Status: MVP base implementado; fundação backend Bizy CRM+ com Clientes 360, Pedidos, Catálogo/Stock, Loja Pública, Checkout, Entrega, Afiliados, Comissões e Lotes Financeiros em evolução
@@ -61,6 +61,8 @@ Atualização 1.20: adicionada fundação backend de Social Inbox para registrar
 Atualização 1.21: adicionada fundação backend de Playbooks de Recuperação, com configuração multi-negócio, gatilhos comerciais, condições em JSON, ação segura de criação de tarefa humana, execução por evento e trilha/listagem de execuções para futura ligação ao funil.
 
 Atualização 1.22: adicionada fundação backend de Funil Comercial, com etapas padronizadas, registro manual/API de movimentos por entidade, motivo obrigatório, origem, autor, contexto e histórico consultável para preparar automações seguras e intervenção humana.
+
+Atualização 1.23: Playbooks de Recuperação agora alimentam o Funil Comercial e geram Oportunidades Recuperáveis acionáveis, com valor estimado, tarefa vinculada, movimento de funil, responsável, observação e atualização operacional de estado.
 
 ---
 
@@ -482,13 +484,13 @@ Esta etapa posiciona o Bizy como uma plataforma de operação comercial para cri
 | ID | Requisito Funcional | Prioridade | Estado |
 |---|---|---|---|
 | RF209 | [~] O CRM+ deve mapear funil com etapas: visita, produto visto, WhatsApp click, lead, conversa, checkout, pedido, pagamento pendente, pago, preparação, entrega, entregue, pós-venda e recompra. | Alta | Parcial - etapas padronizadas expostas por API e resumo de tracking cobre sinais principais; faltam UI e ligação automática completa com conversa, entrega e pós-venda |
-| RF210 | [~] Eventos de loja, WhatsApp, social, live, afiliado e checkout devem movimentar automaticamente o cliente/pedido no funil quando a regra for segura. | Alta | Parcial - API registra movimentos com origem/contexto e infere etapa anterior; faltam disparos automáticos por evento real |
+| RF210 | [~] Eventos de loja, WhatsApp, social, live, afiliado e checkout devem movimentar automaticamente o cliente/pedido no funil quando a regra for segura. | Alta | Parcial - API registra movimentos com origem/contexto e playbooks já criam movimento de funil na execução; faltam disparos automáticos por evento real fora do playbook |
 | RF211 | [~] O dono do negócio deve poder configurar playbooks de recuperação para carrinho abandonado, pagamento pendente, reserva expirada, cliente inativo, pós-venda e reposição de produto. | Alta | Parcial - backend cria/lista playbooks por negócio com gatilhos principais e execução; faltam UI, edição/pausa avançada e ligação automática aos eventos reais |
 | RF212 | [~] Automações devem aceitar condições por segmento, evento, inatividade, stock, canal, categoria de mensagem, consentimento e responsável. | Alta | Parcial - playbooks guardam condições flexíveis em JSON e responsável; faltam validação semântica por segmento, stock, consentimento e categoria WhatsApp |
 | RF213 | [~] Ações de automação devem incluir enviar template WhatsApp, criar tarefa, adicionar tag, notificar responsável, reservar produto, mover etapa do funil e adicionar a campanha. | Alta | Parcial - ação segura `CRIAR_TAREFA` implementada com contexto e responsável; demais ações ficam planeadas para fases com política e auditoria |
 | RF214 | [~] Casos sensíveis como desconto, pagamento, reclamação, troca, cancelamento e cliente irritado devem exigir aprovação humana ou tarefa. | Alta | Parcial - playbooks executam recuperação inicial por tarefa humana em vez de mensagem automática; faltam regras específicas por caso sensível |
-| RF215 | [~] O painel deve mostrar oportunidades perdidas e recuperáveis: carrinhos, WhatsApp clicks sem compra, comentários com intenção, pedidos sem pagamento e clientes inativos. | Alta | Parcial - backend já expõe números de cliques WhatsApp, checkouts, pedidos e taxas no resumo de funil; faltam listas acionáveis, comentários, clientes inativos e UI |
-| RF216 | [ ] Relatórios de automação devem mostrar vendas recuperadas, receita atribuída, mensagens enviadas, falhas, opt-out, conversões e intervenção humana. | Alta | Planeado |
+| RF215 | [~] O painel deve mostrar oportunidades perdidas e recuperáveis: carrinhos, WhatsApp clicks sem compra, comentários com intenção, pedidos sem pagamento e clientes inativos. | Alta | Parcial - backend lista oportunidades recuperáveis geradas por playbooks com estado, valor estimado, tarefa e responsável; faltam geração por eventos de carrinho/clique/cliente inativo e UI |
+| RF216 | [~] Relatórios de automação devem mostrar vendas recuperadas, receita atribuída, mensagens enviadas, falhas, opt-out, conversões e intervenção humana. | Alta | Parcial - oportunidades de recuperação têm estado e valor estimado para futura receita recuperada; faltam relatório agregado, opt-out e conversões automáticas |
 
 #### 3.14.8 WhatsApp Oficial: Categorias, Eventos e Metodologia
 
@@ -548,7 +550,7 @@ Esta etapa vem antes da implementação visual dos novos módulos. O objetivo é
 | RF256 | [~] O backend deve registrar tracking de links, UTM, referência, cookies técnicos, visitas, cliques WhatsApp, checkout iniciado, pedido e venda atribuída. | Alta | Parcial - trackingId, UTM, visitas, produto visto, clique WhatsApp, checkout iniciado, pedido criado, lead identificado e receita atribuída ao pedido implementados; faltam cookies técnicos e venda paga atribuída |
 | RF257 | [~] O backend deve suportar afiliados, criadores e revendedores com links próprios, regras de comissão, reversões, pagamentos e relatórios. | Alta | Parcial - parceiros, links próprios, comissão estimada/confirmada/paga/revertida, pagamento individual/lote, saldos, exportação CSV, auditoria e resumo implementados; faltam regras avançadas, portal do afiliado e relatórios avançados |
 | RF258 | [~] O backend deve normalizar social inbox com comentários de redes sociais, posts, autores, intenção, tarefas e oportunidades. | Alta | Parcial - endpoint `/social/inbox/itens` registra canal, provider, post, autor, texto, intenção, confiança, telefone, entidades/contexto e cria tarefa para intenção de compra; faltam conectores oficiais, deduplicação, anexos/media e oportunidades estruturadas |
-| RF259 | [~] O backend deve ter funil e playbooks de recuperação com eventos, condições, ações, tarefas humanas e histórico de mudança. | Alta | Parcial - tarefas humanas, Social Inbox, Playbooks de Recuperação e Funil Comercial com histórico de movimentos já existem; faltam vínculo automático entre execuções do playbook e mudança de etapa |
+| RF259 | [~] O backend deve ter funil e playbooks de recuperação com eventos, condições, ações, tarefas humanas e histórico de mudança. | Alta | Parcial - playbooks criam tarefa humana, execução, movimento de funil e oportunidade recuperável; faltam agregados por período, campanhas e ações além de tarefa |
 | RF260 | [~] O backend deve implementar motor de política WhatsApp para classificar envios em marketing, utilidade, autenticação ou serviço antes de chamar o provider. | Alta | Parcial - motor interno implementado em AutomacaoWhatsApp com metadados de política e bloqueios mínimos; faltam persistência de templates aprovados, janela real e opt-out centralizado |
 | RF261 | [~] O backend deve gerir templates WhatsApp por categoria, idioma, estado de aprovação, provider, versão e compatibilidade com eventos. | Alta | Parcial - catálogo interno e API com filtros por categoria/evento/provider/aprovação implementados; falta persistência por negócio, sincronização com API oficial e versionamento histórico |
 | RF262 | [ ] O backend deve unificar outbox/event bus para WhatsApp, n8n, tracking, campanhas, social inbox, comissões e notificações internas. | Alta | Planeado |
