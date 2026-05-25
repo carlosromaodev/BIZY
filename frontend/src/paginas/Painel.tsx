@@ -1,17 +1,23 @@
 import {
   Activity,
+  AlertTriangle,
   Boxes,
   CircleDollarSign,
+  ClipboardList,
   Clock3,
+  MessageCircle,
   MessageSquareText,
+  PackageSearch,
   Radio,
   Send,
   Signal,
   Square,
+  Truck,
   UserRoundCheck,
+  WalletCards,
   Zap
 } from "lucide-react";
-import { type FormEvent, useEffect, useMemo, useState } from "react";
+import { type FormEvent, type ReactNode, useEffect, useMemo, useState } from "react";
 import { requisitarApi, obterUrlEventos } from "../api";
 import { CabecalhoPagina, ResumoIndicadores } from "../componentes/Shell";
 import { Button } from "@/components/ui/button";
@@ -24,13 +30,44 @@ import {
   SelectTrigger,
   SelectValue
 } from "@/components/ui/select";
-import { type ResumoPainel, resumoInicial, estadosReservaAtiva } from "../tipos";
+import { type RespostaConversas, type ResumoPainel, resumoInicial, estadosReservaAtiva } from "../tipos";
 import { formatarDataCurta, formatarKwanza, formatarTempoRestante, obterPrecoDaPeca } from "../utilidades";
 
 function obterUsernameTikTokPadrao() {
   const configurado = import.meta.env.VITE_TIKTOK_LIVE_USERNAME_PADRAO?.trim();
   const username = configurado && configurado.length > 0 ? configurado : "@loja_teste";
   return username.startsWith("@") ? username : `@${username}`;
+}
+
+type TomIndicadorHoje = "atencao" | "neutro" | "perigo" | "principal" | "sucesso";
+
+interface TarefaPainel {
+  id: string;
+  titulo: string;
+  descricao: string;
+  prioridade: "BAIXA" | "NORMAL" | "ALTA" | "URGENTE";
+  estado: "ABERTA" | "EM_ANDAMENTO" | "CONCLUIDA" | "CANCELADA";
+  prazoEm: string | null;
+}
+
+interface RespostaTarefasPainel {
+  tarefas: TarefaPainel[];
+}
+
+function dataEhHoje(valor: string | null | undefined): boolean {
+  if (!valor) return false;
+  const data = new Date(valor);
+  const hoje = new Date();
+  return (
+    data.getFullYear() === hoje.getFullYear() &&
+    data.getMonth() === hoje.getMonth() &&
+    data.getDate() === hoje.getDate()
+  );
+}
+
+function tarefaEstaAtrasada(tarefa: TarefaPainel): boolean {
+  if (!tarefa.prazoEm || !["ABERTA", "EM_ANDAMENTO"].includes(tarefa.estado)) return false;
+  return Number(new Date(tarefa.prazoEm)) < Date.now();
 }
 
 export function PaginaPainel() {
@@ -40,6 +77,8 @@ export function PaginaPainel() {
   const [liveUsername, setLiveUsername] = useState(obterUsernameTikTokPadrao);
   const [providerLive, setProviderLive] = useState("manual");
   const [comentarioManual, setComentarioManual] = useState("eu quero 923456789 peça 4");
+  const [conversas, setConversas] = useState<RespostaConversas["conversas"]>([]);
+  const [tarefas, setTarefas] = useState<TarefaPainel[]>([]);
 
   const reservasAtivas = useMemo(
     () => resumo.reservas.filter((r) => estadosReservaAtiva.includes(r.estado)),
@@ -85,6 +124,37 @@ export function PaginaPainel() {
 
   const pecasDisponiveis = resumo.pecas.filter((p) => p.estado === "DISPONIVEL").length;
   const aguardandoPagamento = resumo.reservas.filter((r) => r.estado === "WAITING_PAYMENT").length;
+  const pedidosNovosHoje = useMemo(
+    () => resumo.reservas.filter((reserva) => dataEhHoje(reserva.criadaEm)).length,
+    [resumo.reservas]
+  );
+  const conversasSemResposta = useMemo(
+    () =>
+      conversas.filter((conversa) =>
+        conversa.mensagensNaoLidas > 0 ||
+        ["NOVA", "ABERTA", "AGUARDANDO_HUMANO"].includes(conversa.estadoCrm)
+      ).length,
+    [conversas]
+  );
+  const produtosStockBaixo = useMemo(
+    () => resumo.pecas.filter((peca) => peca.estado !== "VENDIDA" && peca.quantidade <= 2).length,
+    [resumo.pecas]
+  );
+  const entregasPendentes = useMemo(
+    () => resumo.reservas.filter((reserva) => reserva.estado === "PAID").length,
+    [resumo.reservas]
+  );
+  const faturacaoDia = useMemo(
+    () =>
+      resumo.reservas
+        .filter((reserva) => reserva.estado === "PAID" && dataEhHoje(reserva.criadaEm))
+        .reduce((total, reserva) => total + obterPrecoDaPeca(resumo.pecas, reserva.codigoPeca), 0),
+    [resumo.pecas, resumo.reservas]
+  );
+  const tarefasAtrasadas = useMemo(
+    () => tarefas.filter(tarefaEstaAtrasada).length,
+    [tarefas]
+  );
   const liveAtual = useMemo(
     () => resumo.lives.find((live) => live.status !== "ENCERRADA") ?? null,
     [resumo.lives]
@@ -98,8 +168,17 @@ export function PaginaPainel() {
     : "Inativa";
 
   async function carregarResumo() {
-    const resposta = await requisitarApi<ResumoPainel>("/painel/resumo");
-    setResumo(resposta);
+    const [respostaResumo, respostaConversas, respostaTarefas] = await Promise.allSettled([
+      requisitarApi<ResumoPainel>("/painel/resumo"),
+      requisitarApi<RespostaConversas>("/atendimento/conversas"),
+      requisitarApi<RespostaTarefasPainel>("/tarefas?estado=ABERTA&limite=8")
+    ]);
+
+    if (respostaResumo.status === "rejected") throw respostaResumo.reason;
+
+    setResumo(respostaResumo.value);
+    setConversas(respostaConversas.status === "fulfilled" ? respostaConversas.value.conversas : []);
+    setTarefas(respostaTarefas.status === "fulfilled" ? respostaTarefas.value.tarefas : []);
   }
 
   useEffect(() => {
@@ -220,6 +299,67 @@ export function PaginaPainel() {
             }
           ]}
         />
+      </section>
+
+      <section aria-label="Hoje na loja" className="grid gap-3">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-wide text-primary">Hoje na loja</p>
+            <h2 className="text-lg font-semibold">Prioridades comerciais</h2>
+          </div>
+          <span className="text-sm text-muted-foreground">Acompanhe o que pede ação antes de vender mais.</span>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <IndicadorHoje
+            detalhe="criados hoje"
+            icone={<ClipboardList />}
+            titulo="Pedidos novos"
+            tom={pedidosNovosHoje ? "principal" : "neutro"}
+            valor={pedidosNovosHoje}
+          />
+          <IndicadorHoje
+            detalhe="aguardam cobrança"
+            icone={<WalletCards />}
+            titulo="Pagamentos pendentes"
+            tom={aguardandoPagamento ? "atencao" : "sucesso"}
+            valor={aguardandoPagamento}
+          />
+          <IndicadorHoje
+            detalhe="precisam de resposta"
+            icone={<MessageCircle />}
+            titulo="Conversas sem resposta"
+            tom={conversasSemResposta ? "atencao" : "sucesso"}
+            valor={conversasSemResposta}
+          />
+          <IndicadorHoje
+            detalhe="stock crítico ou esgotado"
+            icone={<PackageSearch />}
+            titulo="Stock baixo"
+            tom={produtosStockBaixo ? "perigo" : "sucesso"}
+            valor={produtosStockBaixo}
+          />
+          <IndicadorHoje
+            detalhe="pagas e por acompanhar"
+            icone={<Truck />}
+            titulo="Entregas pendentes"
+            tom={entregasPendentes ? "atencao" : "neutro"}
+            valor={entregasPendentes}
+          />
+          <IndicadorHoje
+            detalhe="pagamentos confirmados hoje"
+            icone={<CircleDollarSign />}
+            titulo="Faturação do dia"
+            tom={faturacaoDia ? "sucesso" : "neutro"}
+            valor={formatarKwanza(faturacaoDia)}
+          />
+          <IndicadorHoje
+            detalhe="tarefas com prazo vencido"
+            icone={<AlertTriangle />}
+            titulo="Tarefas atrasadas"
+            tom={tarefasAtrasadas ? "perigo" : "sucesso"}
+            valor={tarefasAtrasadas}
+          />
+        </div>
       </section>
 
       <section className="grid painel-commerce-grid gap-4 lg:grid-cols-3">
@@ -358,5 +498,38 @@ export function PaginaPainel() {
 
       <footer className="rounded-lg border bg-card px-4 py-3 text-sm text-muted-foreground" aria-live="polite">{mensagem}</footer>
     </>
+  );
+}
+
+function IndicadorHoje({
+  detalhe,
+  icone,
+  titulo,
+  tom,
+  valor
+}: {
+  detalhe: string;
+  icone: ReactNode;
+  titulo: string;
+  tom: TomIndicadorHoje;
+  valor: ReactNode;
+}) {
+  const tons = {
+    atencao: "bg-warning/10 text-warning",
+    neutro: "bg-muted text-muted-foreground",
+    perigo: "bg-destructive/10 text-destructive",
+    principal: "bg-primary/10 text-primary",
+    sucesso: "bg-success/10 text-success"
+  } satisfies Record<TomIndicadorHoje, string>;
+
+  return (
+    <Card size="sm">
+      <CardContent className="grid grid-cols-[2rem_minmax(0,1fr)] items-center gap-x-2 gap-y-1 p-3">
+        <span className={`row-span-2 grid h-8 w-8 place-items-center rounded-lg ${tons[tom]}`}>{icone}</span>
+        <span className="truncate text-xs font-semibold text-muted-foreground">{titulo}</span>
+        <strong className="truncate text-xl font-bold leading-none tabular-nums">{valor}</strong>
+        <small className="col-span-2 text-xs text-muted-foreground sm:col-start-2">{detalhe}</small>
+      </CardContent>
+    </Card>
   );
 }

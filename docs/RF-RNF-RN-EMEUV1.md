@@ -1,10 +1,10 @@
 # Bizy / ÉMeu V1 - Requisitos Funcionais, Não Funcionais e Regras de Negócio
 
 Documento: `RF-RNF-RN-EMEUV1.md`
-Versão: 1.28
+Versão: 1.29
 Data: 2026-05-25
 Autor: Carlos
-Status: MVP base implementado; fundação backend Bizy CRM+ com Clientes 360, Pedidos, Catálogo/Stock, Loja Pública, Checkout, Entrega, Afiliados, Comissões, Lotes Financeiros, navegação comercial e busca global em evolução
+Status: MVP base implementado; fundação backend Bizy CRM+ com Clientes 360, Pedidos, Catálogo/Stock, Loja Pública, Checkout, Entrega, Afiliados, Comissões, Lotes Financeiros, navegação comercial, busca global e painel diário em evolução
 
 ---
 
@@ -73,6 +73,8 @@ Atualização 1.26: compartilhamento de cliente passou a exigir motivo explícit
 Atualização 1.27: exportação CSV de clientes passou a registrar evento operacional `CLIENTS_EXPORTED` com negócio, usuário, recurso, formato, quantidade e filtros, além de expor consulta auditada em `/auditoria/eventos`.
 
 Atualização 1.28: navegação do frontend separada por operação comercial e Admin/Sistema, com rotas técnicas ocultas para perfis não autorizados, dock mobile com cinco atalhos principais, menu `Mais` para módulos secundários e pesquisa global comercial sobre clientes/conversas, pedidos e produtos.
+
+Atualização 1.29: Painel passou a incluir a área "Hoje na loja", reunindo pedidos novos, pagamentos pendentes, conversas sem resposta, stock baixo, entregas pendentes, faturação do dia e tarefas atrasadas em cartões compactos de ação diária.
 
 ---
 
@@ -294,7 +296,7 @@ Esta etapa transforma o Bizy de painel de live em CRM operacional para lojas que
 | RF76 | [x] A navegação principal do CRM deve conter apenas módulos de uso frequente: Painel, Pedidos, Produtos, Clientes, Conversas, Campanhas, Relatórios e Configurações da Loja. | Alta | Implementado no frontend |
 | RF77 | [x] Funcionalidades técnicas como n8n, providers, filas internas, saúde da automação e logs devem sair da navegação da loja e ficar em área Admin/Sistema acessível apenas a perfis autorizados. | Alta | Implementado no frontend com separação de rotas e guarda por perfil |
 | RF78 | [x] O sistema deve remover ou ocultar submenus sem utilidade operacional imediata, como `Drafts`, `Calendário`, `Resumo`, `Categoria`, `Descontos`, `Chatbot`, `Explorar`, `Relatórios` vazios, `Site`, `Montra`, `Finalizar compra`, `Apresentação`, `Menu` e `Páginas`, até existir fluxo real para cada um. | Alta | Implementado na navegação atual |
-| RF79 | [ ] O módulo Painel deve mostrar o que a loja precisa fazer hoje: pedidos novos, pagamentos pendentes, conversas sem resposta, produtos com stock baixo, entregas pendentes, faturação do dia e tarefas atrasadas. | Alta | Planeado |
+| RF79 | [x] O módulo Painel deve mostrar o que a loja precisa fazer hoje: pedidos novos, pagamentos pendentes, conversas sem resposta, produtos com stock baixo, entregas pendentes, faturação do dia e tarefas atrasadas. | Alta | Implementado no frontend |
 | RF80 | [~] A interface deve oferecer pesquisa global por cliente, telefone, produto, código de peça, pedido, conversa e comprovativo. | Alta | Parcial - pesquisa global já cobre clientes/conversas, pedidos, produtos, códigos e estados de pagamento; falta busca em anexos/ficheiros de comprovativo |
 | RF81 | [x] A navegação mobile deve priorizar até 5 atalhos: Painel, Pedidos, Clientes, Conversas e Mais. | Alta | Implementado |
 | RF82 | [x] O menu `Mais` no mobile deve agrupar Produtos, Campanhas, Relatórios, Configurações da Loja e Admin/Sistema quando permitido. | Média | Implementado |
