@@ -158,6 +158,28 @@ describe("clientes 360 HTTP", () => {
       expect(exportacao.body).toContain("telefone,nome,email,estadoRelacionamento");
       expect(exportacao.body).toContain("937624785,Cliente A,cliente.a@example.com,BLOQUEADO");
       expect(exportacao.body).not.toContain("Cliente B");
+
+      const auditoriaExportacao = await app.inject({
+        method: "GET",
+        url: "/auditoria/eventos?tipo=CLIENTS_EXPORTED",
+        headers: lojaA
+      });
+      expect(auditoriaExportacao.statusCode).toBe(200);
+      expect(auditoriaExportacao.json().eventos).toEqual([
+        expect.objectContaining({
+          tipo: "CLIENTS_EXPORTED",
+          dados: expect.objectContaining({
+            recurso: "clientes",
+            formato: "csv",
+            quantidade: 1,
+            filtros: expect.objectContaining({
+              limite: 10000
+            })
+          })
+        })
+      ]);
+      expect(auditoriaExportacao.json().eventos[0].dados.negocioId).toBe(clienteA.json().negocioId);
+      expect(auditoriaExportacao.json().eventos[0].dados.usuarioId).toBeTruthy();
     } finally {
       await app.close();
     }

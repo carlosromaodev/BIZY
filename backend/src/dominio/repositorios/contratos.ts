@@ -68,6 +68,7 @@ import type {
   ResultadoLimpezaDadosComunicacao,
   ResumoOutboxEventoN8n,
   ResumoOutboxMensagemWhatsApp,
+  TipoEventoSistema,
   UsuarioSistema,
   DadosIdentidadeAutenticacao,
   DadosPerfilEstudantil,
@@ -167,6 +168,11 @@ export interface RepositorioReservas {
 
 export interface RepositorioAuditoria {
   registrarEventoSistema(evento: EventoSistema): Promise<void>;
+  listarEventosSistema(filtros?: {
+    negocioId?: string | null;
+    tipo?: TipoEventoSistema;
+    limite?: number;
+  }): Promise<EventoSistema[]>;
   registrarMensagemWhatsApp(dados: {
     negocioId?: string | null;
     telefone: string;

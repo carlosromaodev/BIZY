@@ -122,10 +122,18 @@ export const moduloClientes: ModuloHttp = {
       });
       if (!contextoComercial) return;
 
-      const csv = await contexto.gestaoClientesCrm.exportarCsv(contextoComercial.negocio.id);
+      const exportacao = await contexto.gestaoClientesCrm.exportarCsv(contextoComercial.negocio.id);
+      contexto.eventos.emitir("CLIENTS_EXPORTED", {
+        negocioId: contextoComercial.negocio.id,
+        usuarioId: contextoComercial.usuario.id,
+        recurso: "clientes",
+        formato: "csv",
+        quantidade: exportacao.quantidade,
+        filtros: exportacao.filtros
+      });
       reply.header("Content-Type", "text/csv; charset=utf-8");
       reply.header("Content-Disposition", "attachment; filename=\"clientes-bizy.csv\"");
-      return reply.send(csv);
+      return reply.send(exportacao.csv);
     });
 
     app.get("/clientes/compartilhamentos/recebidos", async (request, reply) => {

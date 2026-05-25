@@ -4211,6 +4211,24 @@ export class RepositorioAuditoriaPrisma implements RepositorioAuditoria {
     });
   }
 
+  async listarEventosSistema(filtros: {
+    negocioId?: string | null;
+    tipo?: EventoSistema["tipo"];
+    limite?: number;
+  } = {}): Promise<EventoSistema[]> {
+    const where: Prisma.EventoSistemaWhereInput = {};
+    if (filtros.negocioId !== undefined) where.negocioId = filtros.negocioId ?? null;
+    if (filtros.tipo) where.tipo = filtros.tipo;
+
+    const eventos = await this.prisma.eventoSistema.findMany({
+      where,
+      orderBy: { criadoEm: "desc" },
+      take: Math.max(1, Math.min(filtros.limite ?? 100, 500))
+    });
+
+    return eventos.map((evento) => this.mapearEventoSistema(evento));
+  }
+
   async registrarMensagemWhatsApp(dados: {
     negocioId?: string | null;
     telefone: string;
@@ -4449,6 +4467,20 @@ export class RepositorioAuditoriaPrisma implements RepositorioAuditoria {
     return {
       mensagensWhatsapp: mensagensWhatsapp.count,
       outboxWhatsapp: outboxWhatsapp.count
+    };
+  }
+
+  private mapearEventoSistema(registro: {
+    id: string;
+    tipo: string;
+    dadosJson: string;
+    criadoEm: Date;
+  }): EventoSistema {
+    return {
+      id: registro.id,
+      tipo: registro.tipo as EventoSistema["tipo"],
+      dados: this.parseJson(registro.dadosJson),
+      criadoEm: registro.criadoEm
     };
   }
 

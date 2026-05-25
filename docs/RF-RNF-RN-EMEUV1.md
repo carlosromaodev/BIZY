@@ -1,7 +1,7 @@
 # Bizy / ÉMeu V1 - Requisitos Funcionais, Não Funcionais e Regras de Negócio
 
 Documento: `RF-RNF-RN-EMEUV1.md`
-Versão: 1.26
+Versão: 1.27
 Data: 2026-05-25
 Autor: Carlos
 Status: MVP base implementado; fundação backend Bizy CRM+ com Clientes 360, Pedidos, Catálogo/Stock, Loja Pública, Checkout, Entrega, Afiliados, Comissões e Lotes Financeiros em evolução
@@ -69,6 +69,8 @@ Atualização 1.24: adicionada governança backend de módulos por negócio, com
 Atualização 1.25: adicionada API operacional de relacionamento entre negócios e compartilhamento seguro de clientes, exigindo relação aprovada, consentimento de dados, escopo limitado e auditoria, com consulta sanitizada pela loja destino sem histórico comercial privado.
 
 Atualização 1.26: compartilhamento de cliente passou a exigir motivo explícito, persistir esse motivo no banco, permitir revogação auditada com motivo e remover automaticamente o acesso da loja destino quando o compartilhamento é revogado.
+
+Atualização 1.27: exportação CSV de clientes passou a registrar evento operacional `CLIENTS_EXPORTED` com negócio, usuário, recurso, formato, quantidade e filtros, além de expor consulta auditada em `/auditoria/eventos`.
 
 ---
 
@@ -312,7 +314,7 @@ Esta etapa transforma o Bizy de painel de live em CRM operacional para lojas que
 | RF93 | [ ] O sistema deve registrar preferências do cliente, como tamanho, cor, categoria favorita, faixa de preço, bairro de entrega e observações de atendimento. | Média | Planeado |
 | RF94 | [~] O CRM deve calcular indicadores por cliente: total gasto, pedidos pagos, pedidos cancelados, reservas expiradas, tempo médio de pagamento e data da última compra. | Alta | Parcial - API calcula reservas, reservas pagas, total comprado, mensagens, conversas abertas e última interação |
 | RF95 | [x] O vendedor deve poder marcar cliente como bloqueado, sem WhatsApp, sem consentimento, inadimplente ou prioridade alta. | Alta | Implementado no backend por `estadoRelacionamento` |
-| RF96 | [~] O sistema deve permitir exportar clientes filtrados com campos úteis para operação e marketing autorizado. | Média | Parcial - exportação CSV autenticada implementada; falta job/auditoria e filtros avançados de marketing |
+| RF96 | [~] O sistema deve permitir exportar clientes filtrados com campos úteis para operação e marketing autorizado. | Média | Parcial - exportação CSV autenticada e auditada implementada; faltam job e filtros avançados de marketing |
 
 #### 3.13.3 Pedidos, Cobrança e Entrega
 
@@ -561,7 +563,7 @@ Esta etapa vem antes da implementação visual dos novos módulos. O objetivo é
 | RF261 | [~] O backend deve gerir templates WhatsApp por categoria, idioma, estado de aprovação, provider, versão e compatibilidade com eventos. | Alta | Parcial - catálogo interno e API com filtros por categoria/evento/provider/aprovação implementados; falta persistência por negócio, sincronização com API oficial e versionamento histórico |
 | RF262 | [ ] O backend deve unificar outbox/event bus para WhatsApp, n8n, tracking, campanhas, social inbox, comissões e notificações internas. | Alta | Planeado |
 | RF263 | [~] O backend deve implementar permissões e papéis por negócio: dono, admin, vendedor, atendente, financeiro, entregador, afiliado/criador e suporte técnico. | Alta | Parcial |
-| RF264 | [~] O backend deve registrar auditoria de ações críticas: exportação, desconto, pagamento, cancelamento, fusão de cliente, compartilhamento, comissão e alteração de permissão. | Alta | Parcial - comissão registra criação, confirmação, pagamento individual/lote e reversão; compartilhamento de cliente registra criação e revogação; faltam trilhas formais para exportação, desconto, cancelamento, fusão e permissões |
+| RF264 | [~] O backend deve registrar auditoria de ações críticas: exportação, desconto, pagamento, cancelamento, fusão de cliente, compartilhamento, comissão e alteração de permissão. | Alta | Parcial - exportação de clientes registra evento operacional; comissão registra criação, confirmação, pagamento individual/lote e reversão; compartilhamento de cliente registra criação e revogação; faltam trilhas formais para desconto, cancelamento, fusão e permissões |
 | RF265 | [ ] Importações e exportações grandes devem rodar como jobs com estado, relatório de erros, idempotência e arquivo resultante. | Média | Planeado |
 | RF266 | [~] Módulos desativados devem bloquear rotas, automações e menus relacionados, preservando dados para reativação futura. | Alta | Parcial - guarda HTTP aplicada em rotas comerciais, conversas e WhatsApp |
 | RF267 | [ ] Webhooks, importações, campanhas e eventos públicos devem usar chaves de idempotência para evitar duplicidade. | Alta | Planeado |
@@ -675,8 +677,8 @@ Esta etapa vem antes da implementação visual dos novos módulos. O objetivo é
 | RNF56 | [x] O CRM deve continuar responsivo e utilizável em telemóveis de 360px de largura sem scroll horizontal. | Alta | Implementado |
 | RNF57 | [ ] Listas de clientes, pedidos, produtos e conversas devem suportar paginação, filtros e busca sem travar com pelo menos 10.000 registros. | Alta | Planeado |
 | RNF58 | [ ] A busca global deve responder em até 1 segundo para bases pequenas e manter feedback de carregamento em bases maiores. | Média | Planeado |
-| RNF59 | [ ] Dados pessoais de clientes devem ser protegidos com controlo de acesso por papel e auditoria de exportação. | Alta | Planeado |
-| RNF60 | [ ] Exportações de clientes, pedidos e relatórios devem registrar usuário, filtro usado, data e quantidade exportada. | Alta | Planeado |
+| RNF59 | [~] Dados pessoais de clientes devem ser protegidos com controlo de acesso por papel e auditoria de exportação. | Alta | Parcial - exportação de clientes exige permissão e registra auditoria; faltam políticas por papel mais finas e auditoria nas demais exportações |
+| RNF60 | [~] Exportações de clientes, pedidos e relatórios devem registrar usuário, filtro usado, data e quantidade exportada. | Alta | Parcial - clientes já registram usuário, filtros, data e quantidade; faltam pedidos e relatórios |
 | RNF61 | [ ] O CRM deve manter backups e estratégia de recuperação para clientes, pedidos, mensagens, comprovativos e produtos. | Alta | Planeado |
 | RNF62 | [ ] A interface deve distinguir claramente operação comercial de configuração técnica. | Alta | Planeado |
 | RNF63 | [ ] Páginas sem funcionalidade real não devem ser publicadas na navegação principal. | Alta | Planeado |
@@ -867,7 +869,7 @@ Esta etapa vem antes da implementação visual dos novos módulos. O objetivo é
 | RN74 | [ ] Chatbot autônomo não pode assumir atendimento crítico sem política explícita e aprovação humana quando o caso envolver pagamento, desconto, troca, reclamação ou cancelamento. | Planeado |
 | RN75 | [ ] Se uma mensagem de campanha falhar, o sistema deve registrar falha, motivo quando disponível e impedir reenvio infinito. | Planeado |
 | RN76 | [ ] Tarefa atrasada deve continuar visível no Painel até ser concluída, reagendada ou cancelada com motivo. | Planeado |
-| RN77 | [ ] Exportação de clientes deve respeitar permissões e registrar auditoria. | Planeado |
+| RN77 | [x] Exportação de clientes deve respeitar permissões e registrar auditoria. | Implementado no backend |
 | RN78 | [ ] Configurações técnicas não devem ser acessíveis a vendedor comum. | Planeado |
 
 ### 5.10 CRM+ Social Commerce, Afiliados e WhatsApp Oficial
@@ -933,7 +935,7 @@ Esta etapa vem antes da implementação visual dos novos módulos. O objetivo é
 | RN130 | [ ] Tracking ajuda atribuição, mas não substitui prova de pedido, pagamento ou consentimento. | Planeado |
 | RN131 | [ ] Toda mensagem WhatsApp iniciada pelo sistema precisa de categoria, motivo, entidade relacionada e fallback antes do envio. | Planeado |
 | RN132 | [ ] Quando houver conflito entre automação e segurança operacional, o backend deve preferir tarefa humana. | Planeado |
-| RN133 | [~] Exportação de clientes, pedidos, comissões ou relatórios só pode ocorrer por usuário autorizado e deve ficar auditada. | Parcial - exportação de clientes exige permissão; falta auditoria explícita do evento de exportação |
+| RN133 | [~] Exportação de clientes, pedidos, comissões ou relatórios só pode ocorrer por usuário autorizado e deve ficar auditada. | Parcial - exportação de clientes exige permissão e registra evento auditado; faltam pedidos, comissões e relatórios |
 | RN134 | [~] Toda alteração manual em pagamento, desconto, comissão, stock, atribuição ou fusão de cliente exige responsável e motivo quando afetar dinheiro, entrega ou privacidade. | Parcial - pagamento individual/lote de comissão registra responsável, referência e observação; faltam demais ações críticas |
 | RN135 | [ ] Dados recebidos de redes sociais devem manter provider, permissões, link original e data da captura para diagnóstico e conformidade. | Planeado |
 | RN136 | [ ] O backend deve permitir operação mínima sem loja pública, sem afiliados ou sem social inbox, mantendo clientes, pedidos, produtos, conversas e pagamentos consistentes. | Planeado |
@@ -1038,7 +1040,7 @@ O backend pode ser considerado pronto para receber os módulos CRM+ quando:
 - [ ] O motor de WhatsApp Policy bloquear envio sem categoria, template, consentimento ou janela válida.
 - [ ] Outbox/event bus suportar retry e idempotência para WhatsApp, n8n, campanhas, tracking, social inbox e comissões.
 - [ ] Permissões impedirem vendedor comum de acessar dados técnicos, tokens, configurações globais e exportações sensíveis.
-- [~] Auditoria registrar ações críticas de dinheiro, cliente, stock, comissão, permissão e compartilhamento; comissão já tem trilha própria inclusive pagamento em lote e compartilhamento registra criação/revogação, faltam os demais domínios críticos.
+- [~] Auditoria registrar ações críticas de dinheiro, cliente, stock, comissão, permissão e compartilhamento; exportação de clientes, comissão e compartilhamento já têm trilhas, faltam os demais domínios críticos.
 - [ ] APIs novas tiverem testes de use-case, repositório e rota HTTP.
 - [ ] Migrations e seeds permitirem subir dev/staging/prod sem correção manual invisível.
 

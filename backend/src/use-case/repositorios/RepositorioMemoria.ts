@@ -2716,6 +2716,19 @@ export class RepositorioAuditoriaMemoria implements RepositorioAuditoria {
     this.eventos.set(evento.id, evento);
   }
 
+  async listarEventosSistema(filtros: {
+    negocioId?: string | null;
+    tipo?: EventoSistema["tipo"];
+    limite?: number;
+  } = {}): Promise<EventoSistema[]> {
+    const limite = Math.max(1, Math.min(filtros.limite ?? 100, 500));
+    return [...this.eventos.values()]
+      .filter((evento) => !filtros.tipo || evento.tipo === filtros.tipo)
+      .filter((evento) => filtros.negocioId === undefined || this.obterNegocioIdEvento(evento) === (filtros.negocioId ?? null))
+      .sort((a, b) => b.criadoEm.getTime() - a.criadoEm.getTime())
+      .slice(0, limite);
+  }
+
   async registrarMensagemWhatsApp(dados: {
     negocioId?: string | null;
     telefone: string;
@@ -2736,6 +2749,19 @@ export class RepositorioAuditoriaMemoria implements RepositorioAuditoria {
       idExterno: dados.idExterno ?? null,
       enviadaEm: dados.enviadaEm ?? new Date()
     });
+  }
+
+  private obterNegocioIdEvento(evento: EventoSistema): string | null {
+    const direto = evento.dados.negocioId;
+    if (typeof direto === "string" && direto.trim()) return direto;
+
+    const contexto = this.obterObjeto(evento.dados.contexto);
+    const negocioContexto = contexto.negocioId;
+    return typeof negocioContexto === "string" && negocioContexto.trim() ? negocioContexto : null;
+  }
+
+  private obterObjeto(valor: unknown): Record<string, unknown> {
+    return valor && typeof valor === "object" && !Array.isArray(valor) ? (valor as Record<string, unknown>) : {};
   }
 
   async criarEventoN8n(evento: EventoSistema): Promise<RegistroOutboxEventoN8n> {

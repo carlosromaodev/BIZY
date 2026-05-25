@@ -81,8 +81,9 @@ export class GestaoClientesCrmUseCase {
     };
   }
 
-  async exportarCsv(negocioId: string): Promise<string> {
-    const { clientes } = await this.listarClientes(negocioId, { limite: 10_000 });
+  async exportarCsv(negocioId: string): Promise<{ csv: string; quantidade: number; filtros: FiltrosClientes360 }> {
+    const filtros: FiltrosClientes360 = { limite: 10_000 };
+    const { clientes } = await this.listarClientes(negocioId, filtros);
     const linhas = [
       [
         "telefone",
@@ -106,7 +107,11 @@ export class GestaoClientesCrmUseCase {
       ])
     ];
 
-    return `${linhas.map((linha) => linha.map((valor) => this.csv(valor)).join(",")).join("\n")}\n`;
+    return {
+      csv: `${linhas.map((linha) => linha.map((valor) => this.csv(valor)).join(",")).join("\n")}\n`,
+      quantidade: clientes.length,
+      filtros
+    };
   }
 
   private calcularMetricas(

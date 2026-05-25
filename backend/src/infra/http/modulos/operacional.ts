@@ -16,7 +16,7 @@ import {
   RegistrarMovimentoFunilComercialSchema,
   RegistrarSugestaoIaAtendimentoSchema
 } from "../../../dominio/esquemas.js";
-import type { EstadoTarefaOperacional } from "../../../dominio/tipos.js";
+import { tiposEventoSistema, type EstadoTarefaOperacional, type TipoEventoSistema } from "../../../dominio/tipos.js";
 import { exigirAcessoComercial } from "../contextoComercial.js";
 import { exigirUsuarioAutenticado } from "../seguranca.js";
 import type { ModuloHttp } from "./ModuloHttp.js";
@@ -73,6 +73,29 @@ export const moduloOperacional: ModuloHttp = {
       if (!contextoComercial) return;
 
       return contexto.repositorios.auditoria.resumirMensagensWhatsAppOutbox(contextoComercial.negocio.id);
+    });
+
+    app.get("/auditoria/eventos", async (request, reply) => {
+      const contextoComercial = await exigirAcessoComercial(contexto, request, reply, {
+        permissao: "configuracoes:gerir",
+        modulo: "crm",
+        mensagemPermissao: "Sem permissão para consultar auditoria operacional.",
+        mensagemModulo: "CRM desativado para este negócio."
+      });
+      if (!contextoComercial) return;
+
+      const query = (request.query ?? {}) as { tipo?: string; limite?: string };
+      const tipo = tiposEventoSistema.includes(query.tipo as TipoEventoSistema)
+        ? (query.tipo as TipoEventoSistema)
+        : undefined;
+      const limite = Number(query.limite ?? 100);
+      const eventos = await contexto.repositorios.auditoria.listarEventosSistema({
+        negocioId: contextoComercial.negocio.id,
+        tipo,
+        limite: Number.isFinite(limite) ? limite : 100
+      });
+
+      return { eventos };
     });
 
     app.post("/automacoes/whatsapp/outbox/reprocessar", async (request, reply) => {
