@@ -936,6 +936,85 @@ export interface Cliente360 {
   atualizadoEm: Date;
 }
 
+export const tiposRelacaoNegocio = ["PARCERIA_DADOS", "OPERACAO_CONJUNTA", "AFILIACAO", "ENTREGA"] as const;
+export type TipoRelacaoNegocio = (typeof tiposRelacaoNegocio)[number];
+
+export const estadosRelacaoNegocio = ["PENDENTE", "APROVADA", "REJEITADA", "REVOGADA"] as const;
+export type EstadoRelacaoNegocio = (typeof estadosRelacaoNegocio)[number];
+
+export const statusCompartilhamentoCliente = ["PENDENTE", "ATIVO", "REVOGADO", "EXPIRADO"] as const;
+export type StatusCompartilhamentoCliente = (typeof statusCompartilhamentoCliente)[number];
+
+export interface RelacaoNegocioCompartilhamento {
+  id: string;
+  negocioOrigemId: string;
+  negocioDestinoId: string;
+  tipo: TipoRelacaoNegocio;
+  estado: EstadoRelacaoNegocio;
+  escopo: Record<string, unknown>;
+  criadoPorUsuarioId: string | null;
+  aprovadoEm: Date | null;
+  expiraEm: Date | null;
+  criadoEm: Date;
+  atualizadoEm: Date;
+}
+
+export interface NovaRelacaoNegocio {
+  negocioOrigemId: string;
+  negocioDestinoId: string;
+  tipo: TipoRelacaoNegocio;
+  escopo?: Record<string, unknown>;
+  criadoPorUsuarioId?: string | null;
+  expiraEm?: Date | null;
+}
+
+export interface AtualizacaoRelacaoNegocio {
+  estado: EstadoRelacaoNegocio;
+  atorUsuarioId?: string | null;
+}
+
+export interface CompartilhamentoClienteSeguro {
+  id: string;
+  relacaoId: string | null;
+  clienteGlobalId: string;
+  clienteNegocioOrigemId: string | null;
+  negocioOrigemId: string;
+  negocioDestinoId: string;
+  escopo: Record<string, unknown>;
+  baseLegal: string;
+  consentimentoCliente: boolean;
+  status: StatusCompartilhamentoCliente;
+  aprovadoPorUsuarioId: string | null;
+  expiraEm: Date | null;
+  criadoEm: Date;
+  atualizadoEm: Date;
+}
+
+export interface NovoCompartilhamentoCliente {
+  relacaoId?: string | null;
+  cliente: Cliente360;
+  negocioOrigemId: string;
+  negocioDestinoId: string;
+  escopo?: Record<string, unknown>;
+  baseLegal: string;
+  consentimentoCliente: boolean;
+  atorUsuarioId?: string | null;
+  expiraEm?: Date | null;
+}
+
+export interface AuditoriaCompartilhamentoCliente {
+  id: string;
+  compartilhamentoId: string;
+  atorUsuarioId: string | null;
+  acao: string;
+  dados: Record<string, unknown>;
+  criadoEm: Date;
+}
+
+export interface CompartilhamentoClienteRecebido extends CompartilhamentoClienteSeguro {
+  cliente: Record<string, unknown>;
+}
+
 export interface DadosCliente360 {
   negocioId: string;
   telefone?: string | null;

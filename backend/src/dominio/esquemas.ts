@@ -11,6 +11,7 @@ import {
   estadosSocialInbox,
   estadosExecucaoPlaybookRecuperacao,
   estadosRelacionamentoCliente,
+  estadosRelacaoNegocio,
   etapasFunilComercial,
   fontesLive,
   gatilhosPlaybookRecuperacao,
@@ -24,6 +25,7 @@ import {
   tiposComissaoParceiro,
   tiposEventoTrackingComercial,
   tiposMovimentoStock,
+  tiposRelacaoNegocio,
   tiposParceiroComercial
 } from "./tipos.js";
 import { categoriasMensagemWhatsApp } from "./provedores/ProvedorWhatsApp.js";
@@ -522,6 +524,26 @@ export const AtualizarClienteCrmSchema = ClienteCrmBaseSchema.partial()
   .refine((dados) => Object.keys(dados).length > 0, {
     message: "Informe pelo menos um campo para atualizar o cliente."
   });
+
+export const CriarRelacaoNegocioSchema = z.object({
+  negocioDestinoId: z.string().trim().uuid(),
+  tipo: z.enum(tiposRelacaoNegocio).default("PARCERIA_DADOS"),
+  escopo: z.record(z.string(), z.unknown()).default({}),
+  expiraEm: z.coerce.date().nullable().optional().transform((valor) => valor ?? null)
+});
+
+export const AtualizarRelacaoNegocioSchema = z.object({
+  estado: z.enum(estadosRelacaoNegocio)
+});
+
+export const CriarCompartilhamentoClienteSchema = z.object({
+  negocioDestinoId: z.string().trim().uuid(),
+  relacaoId: z.string().trim().uuid().nullable().optional().transform((valor) => valor ?? null),
+  escopo: z.record(z.string(), z.unknown()).default({}),
+  baseLegal: z.string().trim().min(3).max(80).default("CONSENTIMENTO"),
+  consentimentoCliente: z.boolean(),
+  expiraEm: z.coerce.date().nullable().optional().transform((valor) => valor ?? null)
+});
 
 export const CriarPedidoSchema = z.object({
   clienteId: z.string().trim().uuid(),

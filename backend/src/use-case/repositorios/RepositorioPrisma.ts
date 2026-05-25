@@ -6,6 +6,7 @@ import type {
   RepositorioAtendimento,
   RepositorioAuditoria,
   RepositorioClientes,
+  RepositorioCompartilhamentoClientes,
   RepositorioInstanciasWhatsApp,
   RepositorioPecas,
   RepositorioFunilComercial,
@@ -26,11 +27,15 @@ import type {
   AtualizacaoEstadoPedido,
   AtualizacaoModuloNegocio,
   AtualizacaoOportunidadeRecuperacao,
+  AtualizacaoRelacaoNegocio,
   AtualizacaoTarefaOperacional,
   AtualizarPeca,
+  AuditoriaCompartilhamentoCliente,
   CodigoLoginSms,
   ClienteAtendimento,
   Cliente360,
+  CompartilhamentoClienteRecebido,
+  CompartilhamentoClienteSeguro,
   ComentarioLive,
   ConfirmacaoPagamentoPedido,
   ConversaAtendimento,
@@ -70,6 +75,8 @@ import type {
   NovaExecucaoPlaybookRecuperacao,
   NovaMensagemAtendimento,
   NovaOportunidadeRecuperacao,
+  NovaRelacaoNegocio,
+  NovoCompartilhamentoCliente,
   NovoEventoTrackingComercial,
   NovoLinkAfiliado,
   NovoMovimentoFunilComercial,
@@ -108,6 +115,7 @@ import type {
   TarefaOperacional,
   SocialInboxItem,
   ResumoTrackingComercial,
+  RelacaoNegocioCompartilhamento,
   TipoHistoricoComissaoParceiro,
   UsuarioSistema
 } from "../../dominio/tipos.js";
@@ -2716,6 +2724,240 @@ export class RepositorioClientesPrisma implements RepositorioClientes {
     try {
       const json = JSON.parse(valor);
       return json && typeof json === "object" && !Array.isArray(json) ? json : {};
+    } catch {
+      return {};
+    }
+  }
+
+  private serializar(valor: unknown): string {
+    return JSON.stringify(valor, (_chave, item) => {
+      if (item instanceof Date) return item.toISOString();
+      if (typeof item === "bigint") return item.toString();
+      return item;
+    });
+  }
+}
+
+export class RepositorioCompartilhamentoClientesPrisma implements RepositorioCompartilhamentoClientes {
+  constructor(private readonly prisma: PrismaClient) {}
+
+  async criarRelacao(dados: NovaRelacaoNegocio): Promise<RelacaoNegocioCompartilhamento> {
+    const relacao = await this.prisma.relacaoNegocio.upsert({
+      where: {
+        negocioOrigemId_negocioDestinoId_tipo: {
+          negocioOrigemId: dados.negocioOrigemId,
+          negocioDestinoId: dados.negocioDestinoId,
+          tipo: dados.tipo
+        }
+      },
+      create: {
+        negocioOrigemId: dados.negocioOrigemId,
+        negocioDestinoId: dados.negocioDestinoId,
+        tipo: dados.tipo,
+        estado: "PENDENTE",
+        escopoJson: this.serializar(dados.escopo ?? {}),
+        criadoPorUsuarioId: dados.criadoPorUsuarioId ?? null,
+        expiraEm: dados.expiraEm ?? null
+      },
+      update: {}
+    });
+
+    return this.mapearRelacao(relacao);
+  }
+
+  async buscarRelacaoPorId(id: string): Promise<RelacaoNegocioCompartilhamento | null> {
+    const relacao = await this.prisma.relacaoNegocio.findUnique({ where: { id } });
+    return relacao ? this.mapearRelacao(relacao) : null;
+  }
+
+  async atualizarRelacao(
+    id: string,
+    dados: AtualizacaoRelacaoNegocio
+  ): Promise<RelacaoNegocioCompartilhamento | null> {
+    const existente = await this.prisma.relacaoNegocio.findUnique({ where: { id } });
+    if (!existente) return null;
+
+    const relacao = await this.prisma.relacaoNegocio.update({
+      where: { id },
+      data: {
+        estado: dados.estado,
+        aprovadoEm: dados.estado === "APROVADA" ? new Date() : existente.aprovadoEm
+      }
+    });
+
+    return this.mapearRelacao(relacao);
+  }
+
+  async criarCompartilhamento(dados: NovoCompartilhamentoCliente): Promise<{
+    compartilhamento: CompartilhamentoClienteSeguro;
+    auditoria: AuditoriaCompartilhamentoCliente[];
+  }> {
+    return this.prisma.$transaction(async (tx) => {
+      const compartilhamento = await tx.compartilhamentoCliente.create({
+        data: {
+          relacaoId: dados.relacaoId ?? null,
+          clienteGlobalId: dados.cliente.clienteGlobalId,
+          clienteNegocioOrigemId: dados.cliente.id,
+          negocioOrigemId: dados.negocioOrigemId,
+          negocioDestinoId: dados.negocioDestinoId,
+          escopoJson: this.serializar(dados.escopo ?? {}),
+          baseLegal: dados.baseLegal,
+          consentimentoCliente: dados.consentimentoCliente,
+          status: "ATIVO",
+          aprovadoPorUsuarioId: dados.atorUsuarioId ?? null,
+          expiraEm: dados.expiraEm ?? null
+        }
+      });
+      const auditoria = await tx.auditoriaCompartilhamentoCliente.create({
+        data: {
+          compartilhamentoId: compartilhamento.id,
+          atorUsuarioId: dados.atorUsuarioId ?? null,
+          acao: "CRIADO",
+          dadosJson: this.serializar({
+            status: compartilhamento.status,
+            escopo: dados.escopo ?? {},
+            baseLegal: dados.baseLegal
+          })
+        }
+      });
+
+      return {
+        compartilhamento: this.mapearCompartilhamento(compartilhamento),
+        auditoria: [this.mapearAuditoria(auditoria)]
+      };
+    });
+  }
+
+  async listarRecebidos(negocioDestinoId: string, agora = new Date()): Promise<CompartilhamentoClienteRecebido[]> {
+    const compartilhamentos = await this.prisma.compartilhamentoCliente.findMany({
+      where: {
+        negocioDestinoId,
+        status: "ATIVO",
+        OR: [{ expiraEm: null }, { expiraEm: { gt: agora } }]
+      },
+      include: {
+        clienteNegocioOrigem: true
+      },
+      orderBy: { criadoEm: "desc" }
+    });
+
+    return compartilhamentos.map((compartilhamento) => ({
+      ...this.mapearCompartilhamento(compartilhamento),
+      cliente: this.filtrarClientePorEscopo(compartilhamento.clienteNegocioOrigem, compartilhamento.escopoJson)
+    }));
+  }
+
+  private mapearRelacao(relacao: {
+    id: string;
+    negocioOrigemId: string;
+    negocioDestinoId: string;
+    tipo: string;
+    estado: string;
+    escopoJson: string;
+    criadoPorUsuarioId: string | null;
+    aprovadoEm: Date | null;
+    expiraEm: Date | null;
+    criadoEm: Date;
+    atualizadoEm: Date;
+  }): RelacaoNegocioCompartilhamento {
+    return {
+      id: relacao.id,
+      negocioOrigemId: relacao.negocioOrigemId,
+      negocioDestinoId: relacao.negocioDestinoId,
+      tipo: relacao.tipo as RelacaoNegocioCompartilhamento["tipo"],
+      estado: relacao.estado as RelacaoNegocioCompartilhamento["estado"],
+      escopo: this.lerObjeto(relacao.escopoJson),
+      criadoPorUsuarioId: relacao.criadoPorUsuarioId,
+      aprovadoEm: relacao.aprovadoEm,
+      expiraEm: relacao.expiraEm,
+      criadoEm: relacao.criadoEm,
+      atualizadoEm: relacao.atualizadoEm
+    };
+  }
+
+  private mapearCompartilhamento(compartilhamento: {
+    id: string;
+    relacaoId: string | null;
+    clienteGlobalId: string;
+    clienteNegocioOrigemId: string | null;
+    negocioOrigemId: string;
+    negocioDestinoId: string;
+    escopoJson: string;
+    baseLegal: string;
+    consentimentoCliente: boolean;
+    status: string;
+    aprovadoPorUsuarioId: string | null;
+    expiraEm: Date | null;
+    criadoEm: Date;
+    atualizadoEm: Date;
+  }): CompartilhamentoClienteSeguro {
+    return {
+      id: compartilhamento.id,
+      relacaoId: compartilhamento.relacaoId,
+      clienteGlobalId: compartilhamento.clienteGlobalId,
+      clienteNegocioOrigemId: compartilhamento.clienteNegocioOrigemId,
+      negocioOrigemId: compartilhamento.negocioOrigemId,
+      negocioDestinoId: compartilhamento.negocioDestinoId,
+      escopo: this.lerObjeto(compartilhamento.escopoJson),
+      baseLegal: compartilhamento.baseLegal,
+      consentimentoCliente: compartilhamento.consentimentoCliente,
+      status: compartilhamento.status as CompartilhamentoClienteSeguro["status"],
+      aprovadoPorUsuarioId: compartilhamento.aprovadoPorUsuarioId,
+      expiraEm: compartilhamento.expiraEm,
+      criadoEm: compartilhamento.criadoEm,
+      atualizadoEm: compartilhamento.atualizadoEm
+    };
+  }
+
+  private mapearAuditoria(auditoria: {
+    id: string;
+    compartilhamentoId: string;
+    atorUsuarioId: string | null;
+    acao: string;
+    dadosJson: string;
+    criadoEm: Date;
+  }): AuditoriaCompartilhamentoCliente {
+    return {
+      id: auditoria.id,
+      compartilhamentoId: auditoria.compartilhamentoId,
+      atorUsuarioId: auditoria.atorUsuarioId,
+      acao: auditoria.acao,
+      dados: this.lerObjeto(auditoria.dadosJson),
+      criadoEm: auditoria.criadoEm
+    };
+  }
+
+  private filtrarClientePorEscopo(
+    cliente: {
+      nome: string | null;
+      telefone: string | null;
+      email: string | null;
+      username: string | null;
+      avatarUrl: string | null;
+      preferenciasJson: string;
+    } | null,
+    escopoJson: string
+  ) {
+    if (!cliente) return {};
+    const escopo = this.lerObjeto(escopoJson);
+    const campos = Array.isArray(escopo.campos) ? escopo.campos.filter((campo) => typeof campo === "string") : [];
+    const permitido = new Set(campos.length > 0 ? campos : ["nome", "telefone"]);
+    const resultado: Record<string, unknown> = {};
+
+    if (permitido.has("nome")) resultado.nome = cliente.nome;
+    if (permitido.has("telefone") || permitido.has("whatsapp")) resultado.telefone = cliente.telefone;
+    if (permitido.has("email")) resultado.email = cliente.email;
+    if (permitido.has("username")) resultado.username = cliente.username;
+    if (permitido.has("avatarUrl")) resultado.avatarUrl = cliente.avatarUrl;
+    if (permitido.has("preferencias")) resultado.preferencias = this.lerObjeto(cliente.preferenciasJson);
+
+    return resultado;
+  }
+
+  private lerObjeto(valor: string): Record<string, unknown> {
+    try {
+      const dados = JSON.parse(valor);
+      return dados && typeof dados === "object" && !Array.isArray(dados) ? dados as Record<string, unknown> : {};
     } catch {
       return {};
     }

@@ -5,6 +5,7 @@ import type {
   RepositorioAtendimento,
   RepositorioAuditoria,
   RepositorioClientes,
+  RepositorioCompartilhamentoClientes,
   RepositorioComentarios,
   RepositorioFunilComercial,
   RepositorioInstanciasWhatsApp,
@@ -26,10 +27,14 @@ import type {
   AtualizacaoEstadoPedido,
   AtualizacaoModuloNegocio,
   AtualizacaoOportunidadeRecuperacao,
+  AtualizacaoRelacaoNegocio,
   AtualizarPeca,
+  AuditoriaCompartilhamentoCliente,
   CodigoLoginSms,
   ClienteAtendimento,
   Cliente360,
+  CompartilhamentoClienteRecebido,
+  CompartilhamentoClienteSeguro,
   ConfirmacaoPagamentoPedido,
   ConversaAtendimento,
   ConversaAtendimentoComMensagens,
@@ -64,6 +69,8 @@ import type {
   NovaExecucaoPlaybookRecuperacao,
   NovaMensagemAtendimento,
   NovaOportunidadeRecuperacao,
+  NovaRelacaoNegocio,
+  NovoCompartilhamentoCliente,
   NovoEventoTrackingComercial,
   NovoLotePagamentoComissao,
   NovoLinkAfiliado,
@@ -82,6 +89,7 @@ import type {
   OportunidadeRecuperacao,
   ParceiroComercial,
   PlaybookRecuperacao,
+  RelacaoNegocioCompartilhamento,
   LinkAfiliado,
   RegistroOutboxEventoN8n,
   RegistroOutboxMensagemWhatsApp,
@@ -1798,6 +1806,130 @@ export class RepositorioClientesMemoria implements RepositorioClientes {
 
   private normalizarTags(tags: string[]): string[] {
     return [...new Set(tags.map((tag) => tag.trim()).filter(Boolean))];
+  }
+}
+
+export class RepositorioCompartilhamentoClientesMemoria implements RepositorioCompartilhamentoClientes {
+  private readonly relacoes = new Map<string, RelacaoNegocioCompartilhamento>();
+  private readonly compartilhamentos = new Map<string, CompartilhamentoClienteSeguro>();
+  private readonly auditorias = new Map<string, AuditoriaCompartilhamentoCliente[]>();
+  private readonly snapshotsClientes = new Map<string, Cliente360>();
+
+  async criarRelacao(dados: NovaRelacaoNegocio): Promise<RelacaoNegocioCompartilhamento> {
+    const existente = [...this.relacoes.values()].find(
+      (relacao) =>
+        relacao.negocioOrigemId === dados.negocioOrigemId &&
+        relacao.negocioDestinoId === dados.negocioDestinoId &&
+        relacao.tipo === dados.tipo
+    );
+    if (existente) return existente;
+
+    const agora = new Date();
+    const relacao: RelacaoNegocioCompartilhamento = {
+      id: randomUUID(),
+      negocioOrigemId: dados.negocioOrigemId,
+      negocioDestinoId: dados.negocioDestinoId,
+      tipo: dados.tipo,
+      estado: "PENDENTE",
+      escopo: dados.escopo ?? {},
+      criadoPorUsuarioId: dados.criadoPorUsuarioId ?? null,
+      aprovadoEm: null,
+      expiraEm: dados.expiraEm ?? null,
+      criadoEm: agora,
+      atualizadoEm: agora
+    };
+
+    this.relacoes.set(relacao.id, relacao);
+    return relacao;
+  }
+
+  async buscarRelacaoPorId(id: string): Promise<RelacaoNegocioCompartilhamento | null> {
+    return this.relacoes.get(id) ?? null;
+  }
+
+  async atualizarRelacao(
+    id: string,
+    dados: AtualizacaoRelacaoNegocio
+  ): Promise<RelacaoNegocioCompartilhamento | null> {
+    const atual = this.relacoes.get(id);
+    if (!atual) return null;
+
+    const atualizada: RelacaoNegocioCompartilhamento = {
+      ...atual,
+      estado: dados.estado,
+      aprovadoEm: dados.estado === "APROVADA" ? new Date() : atual.aprovadoEm,
+      atualizadoEm: new Date()
+    };
+    this.relacoes.set(id, atualizada);
+    return atualizada;
+  }
+
+  async criarCompartilhamento(dados: NovoCompartilhamentoCliente): Promise<{
+    compartilhamento: CompartilhamentoClienteSeguro;
+    auditoria: AuditoriaCompartilhamentoCliente[];
+  }> {
+    const agora = new Date();
+    const compartilhamento: CompartilhamentoClienteSeguro = {
+      id: randomUUID(),
+      relacaoId: dados.relacaoId ?? null,
+      clienteGlobalId: dados.cliente.clienteGlobalId,
+      clienteNegocioOrigemId: dados.cliente.id,
+      negocioOrigemId: dados.negocioOrigemId,
+      negocioDestinoId: dados.negocioDestinoId,
+      escopo: dados.escopo ?? {},
+      baseLegal: dados.baseLegal,
+      consentimentoCliente: dados.consentimentoCliente,
+      status: "ATIVO",
+      aprovadoPorUsuarioId: dados.atorUsuarioId ?? null,
+      expiraEm: dados.expiraEm ?? null,
+      criadoEm: agora,
+      atualizadoEm: agora
+    };
+    const auditoria: AuditoriaCompartilhamentoCliente = {
+      id: randomUUID(),
+      compartilhamentoId: compartilhamento.id,
+      atorUsuarioId: dados.atorUsuarioId ?? null,
+      acao: "CRIADO",
+      dados: {
+        status: compartilhamento.status,
+        escopo: compartilhamento.escopo,
+        baseLegal: compartilhamento.baseLegal
+      },
+      criadoEm: agora
+    };
+
+    this.compartilhamentos.set(compartilhamento.id, compartilhamento);
+    this.auditorias.set(compartilhamento.id, [auditoria]);
+    this.snapshotsClientes.set(compartilhamento.id, dados.cliente);
+    return { compartilhamento, auditoria: [auditoria] };
+  }
+
+  async listarRecebidos(negocioDestinoId: string, agora = new Date()): Promise<CompartilhamentoClienteRecebido[]> {
+    return [...this.compartilhamentos.values()]
+      .filter((compartilhamento) => compartilhamento.negocioDestinoId === negocioDestinoId)
+      .filter((compartilhamento) => compartilhamento.status === "ATIVO")
+      .filter((compartilhamento) => !compartilhamento.expiraEm || compartilhamento.expiraEm > agora)
+      .map((compartilhamento) => ({
+        ...compartilhamento,
+        cliente: this.filtrarClientePorEscopo(this.snapshotsClientes.get(compartilhamento.id), compartilhamento.escopo)
+      }))
+      .sort((a, b) => b.criadoEm.getTime() - a.criadoEm.getTime());
+  }
+
+  private filtrarClientePorEscopo(cliente: Cliente360 | undefined, escopo: Record<string, unknown>) {
+    if (!cliente) return {};
+    const campos = Array.isArray(escopo.campos) ? escopo.campos.filter((campo) => typeof campo === "string") : [];
+    const permitido = new Set(campos.length > 0 ? campos : ["nome", "telefone"]);
+    const resultado: Record<string, unknown> = {};
+
+    if (permitido.has("nome")) resultado.nome = cliente.nome;
+    if (permitido.has("telefone") || permitido.has("whatsapp")) resultado.telefone = cliente.telefone;
+    if (permitido.has("email")) resultado.email = cliente.email;
+    if (permitido.has("username")) resultado.username = cliente.username;
+    if (permitido.has("avatarUrl")) resultado.avatarUrl = cliente.avatarUrl;
+    if (permitido.has("preferencias")) resultado.preferencias = cliente.preferencias;
+
+    return resultado;
   }
 }
 

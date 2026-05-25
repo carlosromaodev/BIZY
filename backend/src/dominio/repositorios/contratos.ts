@@ -6,8 +6,12 @@ import type {
   AtualizacaoEstadoPedido,
   AtualizacaoModuloNegocio,
   AtualizacaoOportunidadeRecuperacao,
+  AtualizacaoRelacaoNegocio,
   AtualizacaoTarefaOperacional,
+  AuditoriaCompartilhamentoCliente,
   Cliente360,
+  CompartilhamentoClienteRecebido,
+  CompartilhamentoClienteSeguro,
   ConfirmacaoPagamentoPedido,
   ConversaAtendimentoComMensagens,
   DadosPedidoResolvido,
@@ -23,6 +27,8 @@ import type {
   NovaComissaoParceiro,
   NovaExecucaoPlaybookRecuperacao,
   NovaOportunidadeRecuperacao,
+  NovaRelacaoNegocio,
+  NovoCompartilhamentoCliente,
   NovoMovimentoFunilComercial,
   NovoLotePagamentoComissao,
   NovoLinkAfiliado,
@@ -78,6 +84,7 @@ import type {
   OportunidadeRecuperacao,
   ParceiroComercial,
   PlaybookRecuperacao,
+  RelacaoNegocioCompartilhamento,
   ResumoAfiliadosComerciais,
   ResumoTrackingComercial,
   SocialInboxItem,
@@ -268,6 +275,17 @@ export interface RepositorioClientes {
   listar(negocioId: string, filtros?: FiltrosClientes360): Promise<Cliente360[]>;
   buscarPorId(id: string, negocioId: string): Promise<Cliente360 | null>;
   atualizar(id: string, negocioId: string, dados: AtualizacaoCliente360): Promise<Cliente360 | null>;
+}
+
+export interface RepositorioCompartilhamentoClientes {
+  criarRelacao(dados: NovaRelacaoNegocio): Promise<RelacaoNegocioCompartilhamento>;
+  buscarRelacaoPorId(id: string): Promise<RelacaoNegocioCompartilhamento | null>;
+  atualizarRelacao(id: string, dados: AtualizacaoRelacaoNegocio): Promise<RelacaoNegocioCompartilhamento | null>;
+  criarCompartilhamento(dados: NovoCompartilhamentoCliente): Promise<{
+    compartilhamento: CompartilhamentoClienteSeguro;
+    auditoria: AuditoriaCompartilhamentoCliente[];
+  }>;
+  listarRecebidos(negocioDestinoId: string, agora?: Date): Promise<CompartilhamentoClienteRecebido[]>;
 }
 
 export interface RepositorioPedidos {

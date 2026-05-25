@@ -1,7 +1,7 @@
 # Bizy / ÉMeu V1 - Requisitos Funcionais, Não Funcionais e Regras de Negócio
 
 Documento: `RF-RNF-RN-EMEUV1.md`
-Versão: 1.24
+Versão: 1.25
 Data: 2026-05-25
 Autor: Carlos
 Status: MVP base implementado; fundação backend Bizy CRM+ com Clientes 360, Pedidos, Catálogo/Stock, Loja Pública, Checkout, Entrega, Afiliados, Comissões e Lotes Financeiros em evolução
@@ -65,6 +65,8 @@ Atualização 1.22: adicionada fundação backend de Funil Comercial, com etapas
 Atualização 1.23: Playbooks de Recuperação agora alimentam o Funil Comercial e geram Oportunidades Recuperáveis acionáveis, com valor estimado, tarefa vinculada, movimento de funil, responsável, observação e atualização operacional de estado.
 
 Atualização 1.24: adicionada governança backend de módulos por negócio, com catálogo de módulos CRM+, rota `/negocio/modulos`, ativação/desativação operacional, configuração em JSON e bloqueio real de rotas quando módulo opcional está desativado.
+
+Atualização 1.25: adicionada API operacional de relacionamento entre negócios e compartilhamento seguro de clientes, exigindo relação aprovada, consentimento de dados, escopo limitado e auditoria, com consulta sanitizada pela loja destino sem histórico comercial privado.
 
 ---
 
@@ -540,7 +542,7 @@ Esta etapa vem antes da implementação visual dos novos módulos. O objetivo é
 |---|---|---|---|
 | RF245 | [x] O banco deve ter `Negocio` como fronteira principal de tenant, permitindo que produtos e instâncias WhatsApp sejam únicos por negócio. | Alta | Implementado |
 | RF246 | [x] O banco deve separar `ClienteGlobal` de `ClienteNegocio`, permitindo identidade canónica compartilhável sem misturar dados comerciais privados de cada loja. | Alta | Implementado |
-| RF247 | [x] O banco deve suportar relacionamento entre negócios, compartilhamento controlado de clientes e auditoria de compartilhamento. | Alta | Implementado |
+| RF247 | [x] O banco deve suportar relacionamento entre negócios, compartilhamento controlado de clientes e auditoria de compartilhamento. | Alta | Implementado - modelos Prisma e API operacional inicial disponíveis |
 | RF248 | [x] O banco deve ter configuração de módulos por negócio para ativar/desativar CRM, loja pública, afiliados, social inbox, campanhas, checkout e automações. | Alta | Implementado |
 | RF249 | [x] Entidades operacionais existentes, como reservas, comentários, conversas, mensagens, outbox e instâncias WhatsApp, devem carregar `negocioId` para preparação multi-tenant. | Alta | Implementado na fundação operacional |
 | RF250 | [~] Todas as rotas operacionais devem resolver o negócio atual do usuário autenticado e filtrar dados por `negocioId`. | Alta | Parcial - catálogo, painel, reservas, pedidos, comentários, conversas, clientes, WhatsApp/Evolution e outbox WhatsApp protegidos |
@@ -557,7 +559,7 @@ Esta etapa vem antes da implementação visual dos novos módulos. O objetivo é
 | RF261 | [~] O backend deve gerir templates WhatsApp por categoria, idioma, estado de aprovação, provider, versão e compatibilidade com eventos. | Alta | Parcial - catálogo interno e API com filtros por categoria/evento/provider/aprovação implementados; falta persistência por negócio, sincronização com API oficial e versionamento histórico |
 | RF262 | [ ] O backend deve unificar outbox/event bus para WhatsApp, n8n, tracking, campanhas, social inbox, comissões e notificações internas. | Alta | Planeado |
 | RF263 | [~] O backend deve implementar permissões e papéis por negócio: dono, admin, vendedor, atendente, financeiro, entregador, afiliado/criador e suporte técnico. | Alta | Parcial |
-| RF264 | [~] O backend deve registrar auditoria de ações críticas: exportação, desconto, pagamento, cancelamento, fusão de cliente, compartilhamento, comissão e alteração de permissão. | Alta | Parcial - histórico de comissão registra criação, confirmação, pagamento individual/lote e reversão; faltam trilhas formais para exportação, desconto, cancelamento, fusão, compartilhamento e permissões |
+| RF264 | [~] O backend deve registrar auditoria de ações críticas: exportação, desconto, pagamento, cancelamento, fusão de cliente, compartilhamento, comissão e alteração de permissão. | Alta | Parcial - comissão registra criação, confirmação, pagamento individual/lote e reversão; compartilhamento de cliente registra criação; faltam trilhas formais para exportação, desconto, cancelamento, fusão e permissões |
 | RF265 | [ ] Importações e exportações grandes devem rodar como jobs com estado, relatório de erros, idempotência e arquivo resultante. | Média | Planeado |
 | RF266 | [~] Módulos desativados devem bloquear rotas, automações e menus relacionados, preservando dados para reativação futura. | Alta | Parcial - guarda HTTP aplicada em rotas comerciais, conversas e WhatsApp |
 | RF267 | [ ] Webhooks, importações, campanhas e eventos públicos devem usar chaves de idempotência para evitar duplicidade. | Alta | Planeado |
@@ -719,8 +721,8 @@ Esta etapa vem antes da implementação visual dos novos módulos. O objetivo é
 | ID | Requisito Não Funcional | Prioridade | Estado |
 |---|---|---|---|
 | RNF96 | [~] Toda nova tabela operacional deve ter índices por `negocioId`, estado e data quando for consultada em listas, dashboards ou jobs. | Alta | Parcial - novas tabelas de afiliado/link/comissão/lote financeiro têm índices por negócio/estado/status/data; faltam padronização para campanhas, social inbox e jobs futuros |
-| RNF97 | [ ] Nenhuma consulta de módulo comercial deve retornar dados de outro negócio sem relacionamento e permissão explícita. | Alta | Planeado |
-| RNF98 | [~] Operações críticas com stock, pedido, pagamento, comissão e compartilhamento de cliente devem usar transação. | Alta | Parcial - confirmação, pagamento individual/lote e reversão de comissão gravam estado e auditoria na mesma transação Prisma; faltam padronizar as demais áreas críticas |
+| RNF97 | [~] Nenhuma consulta de módulo comercial deve retornar dados de outro negócio sem relacionamento e permissão explícita. | Alta | Parcial - rotas comerciais filtram por negócio; compartilhamento de cliente exige relação aprovada, consentimento e escopo limitado; faltam demais exceções multi-loja |
+| RNF98 | [~] Operações críticas com stock, pedido, pagamento, comissão e compartilhamento de cliente devem usar transação. | Alta | Parcial - confirmação, pagamento individual/lote e reversão de comissão gravam estado e auditoria na mesma transação Prisma; compartilhamento de cliente grava compartilhamento e auditoria em transação; faltam padronizar as demais áreas críticas |
 | RNF99 | [ ] Jobs assíncronos devem ser reprocessáveis sem duplicar mensagens, pedidos, clientes, comissões ou eventos de tracking. | Alta | Planeado |
 | RNF100 | [ ] APIs de listagem devem nascer com paginação, filtros e ordenação previsível. | Alta | Planeado |
 | RNF101 | [ ] APIs públicas de loja, checkout e tracking devem ter rate limit separado das APIs autenticadas do painel. | Alta | Planeado |
@@ -918,8 +920,8 @@ Esta etapa vem antes da implementação visual dos novos módulos. O objetivo é
 | ID | Regra de Negócio | Estado |
 |---|---|---|
 | RN121 | [~] Todo dado comercial pertence a um negócio, exceto entidades globais controladas, como identidade canónica de cliente e catálogos públicos quando explicitamente publicados. | Parcial |
-| RN122 | [ ] Compartilhamento de dados de cliente entre negócios exige relacionamento aprovado, escopo definido, motivo e auditoria. | Planeado |
-| RN123 | [ ] Uma loja não pode ver histórico comercial privado de outra loja sem consentimento, relação operacional ou regra explícita de compartilhamento. | Planeado |
+| RN122 | [~] Compartilhamento de dados de cliente entre negócios exige relacionamento aprovado, escopo definido, motivo e auditoria. | Parcial - API exige relação aprovada, consentimento e escopo; auditoria `CRIADO` registrada; falta motivo explícito e ciclo completo de revogação |
+| RN123 | [~] Uma loja não pode ver histórico comercial privado de outra loja sem consentimento, relação operacional ou regra explícita de compartilhamento. | Parcial - consulta recebida retorna dados sanitizados por escopo e não inclui tags, pedidos ou histórico comercial; falta UI e políticas avançadas |
 | RN124 | [ ] Cliente global identifica a pessoa; cliente do negócio representa a relação comercial daquela pessoa com uma loja específica. | Planeado |
 | RN125 | [~] Produto, pedido, conversa, campanha, tarefa, afiliado, comissão e tracking sempre devem carregar origem e negócio responsável. | Parcial - produtos, pedidos, clientes, reservas, comentários, conversas, mensagens, outbox, instâncias WhatsApp, afiliados, comissões e tracking avançados |
 | RN126 | [~] Módulo desativado não pode executar automação, receber webhook ativo, disparar campanha ou aparecer como promessa visual na operação comercial. | Parcial - guardas comerciais ativas em módulos HTTP principais |
@@ -1029,12 +1031,12 @@ O backend pode ser considerado pronto para receber os módulos CRM+ quando:
 
 - [~] Todas as rotas comerciais resolverem `usuarioId`, `negocioId`, papel, permissões e módulos ativos antes de consultar dados; fundação HTTP e governança de módulos já existem, faltam varredura final e cobertura em módulos futuros.
 - [~] Produtos, clientes, pedidos, conversas, mensagens, afiliados, comissões e tracking estiverem isolados por negócio; faltam campanhas e tarefas.
-- [ ] Clientes globais e clientes por negócio estiverem deduplicados sem vazar histórico privado entre lojas.
+- [~] Clientes globais e clientes por negócio estiverem deduplicados sem vazar histórico privado entre lojas; compartilhamento recebido já sanitiza dados por escopo, faltam fusão, portal de consentimento e políticas avançadas.
 - [ ] Pedidos existirem como entidade comercial completa, com compatibilidade para reservas de live.
 - [ ] O motor de WhatsApp Policy bloquear envio sem categoria, template, consentimento ou janela válida.
 - [ ] Outbox/event bus suportar retry e idempotência para WhatsApp, n8n, campanhas, tracking, social inbox e comissões.
 - [ ] Permissões impedirem vendedor comum de acessar dados técnicos, tokens, configurações globais e exportações sensíveis.
-- [~] Auditoria registrar ações críticas de dinheiro, cliente, stock, comissão, permissão e compartilhamento; comissão já tem trilha própria inclusive pagamento em lote, faltam os demais domínios críticos.
+- [~] Auditoria registrar ações críticas de dinheiro, cliente, stock, comissão, permissão e compartilhamento; comissão já tem trilha própria inclusive pagamento em lote e compartilhamento registra criação, faltam os demais domínios críticos.
 - [ ] APIs novas tiverem testes de use-case, repositório e rota HTTP.
 - [ ] Migrations e seeds permitirem subir dev/staging/prod sem correção manual invisível.
 

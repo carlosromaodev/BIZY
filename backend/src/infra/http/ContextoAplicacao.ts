@@ -8,6 +8,7 @@ import type {
   RepositorioAtendimento,
   RepositorioAuditoria,
   RepositorioClientes,
+  RepositorioCompartilhamentoClientes,
   RepositorioComentarios,
   RepositorioFunilComercial,
   RepositorioInstanciasWhatsApp,
@@ -34,6 +35,7 @@ import { ConsultaOperacionalUseCase } from "../../use-case/ConsultaOperacionalUs
 import { ConsultaPainelUseCase } from "../../use-case/ConsultaPainelUseCase.js";
 import { GestaoAfiliadosUseCase } from "../../use-case/GestaoAfiliadosUseCase.js";
 import { GestaoClientesCrmUseCase } from "../../use-case/GestaoClientesCrmUseCase.js";
+import { GestaoCompartilhamentoClientesUseCase } from "../../use-case/GestaoCompartilhamentoClientesUseCase.js";
 import { GestaoFunilComercialUseCase } from "../../use-case/GestaoFunilComercialUseCase.js";
 import { GestaoModulosNegocioUseCase } from "../../use-case/GestaoModulosNegocioUseCase.js";
 import { GestaoOportunidadesRecuperacaoUseCase } from "../../use-case/GestaoOportunidadesRecuperacaoUseCase.js";
@@ -60,6 +62,7 @@ import {
   RepositorioAtendimentoMemoria,
   RepositorioAuditoriaMemoria,
   RepositorioClientesMemoria,
+  RepositorioCompartilhamentoClientesMemoria,
   RepositorioComentariosMemoria,
   RepositorioFunilComercialMemoria,
   RepositorioInstanciasWhatsAppMemoria,
@@ -79,6 +82,7 @@ import {
   RepositorioAtendimentoPrisma,
   RepositorioAuditoriaPrisma,
   RepositorioClientesPrisma,
+  RepositorioCompartilhamentoClientesPrisma,
   RepositorioComentariosPrisma,
   RepositorioFunilComercialPrisma,
   RepositorioInstanciasWhatsAppPrisma,
@@ -112,6 +116,7 @@ export interface RepositoriosAplicacao {
   autenticacao: RepositorioAutenticacao;
   atendimento: RepositorioAtendimento;
   clientes: RepositorioClientes;
+  compartilhamentoClientes: RepositorioCompartilhamentoClientes;
   instanciasWhatsApp: RepositorioInstanciasWhatsApp;
   sessoesLive: RepositorioSessoesLive;
   auditoria: RepositorioAuditoria;
@@ -159,6 +164,7 @@ export interface ContextoAplicacao {
   gestaoPedidos: GestaoPedidosUseCase;
   gestaoAfiliados: GestaoAfiliadosUseCase;
   gestaoClientesCrm: GestaoClientesCrmUseCase;
+  gestaoCompartilhamentoClientes: GestaoCompartilhamentoClientesUseCase;
   gestaoAtendimentoCrm: GestaoAtendimentoCrmUseCase;
   gestaoTarefas: GestaoTarefasOperacionaisUseCase;
   gestaoSocialInbox: GestaoSocialInboxUseCase;
@@ -258,6 +264,10 @@ export function criarContextoAplicacao(logger: FastifyBaseLogger): ContextoAplic
     repositorios.reservas,
     repositorios.pecas
   );
+  const gestaoCompartilhamentoClientes = new GestaoCompartilhamentoClientesUseCase(
+    repositorios.clientes,
+    repositorios.compartilhamentoClientes
+  );
   const gestaoAtendimentoCrm = new GestaoAtendimentoCrmUseCase(repositorios.atendimento);
   const gestaoSocialInbox = new GestaoSocialInboxUseCase(repositorios.socialInbox, repositorios.tarefas);
   const gestaoPlaybooksRecuperacao = new GestaoPlaybooksRecuperacaoUseCase(
@@ -356,6 +366,7 @@ export function criarContextoAplicacao(logger: FastifyBaseLogger): ContextoAplic
     gestaoPedidos,
     gestaoAfiliados,
     gestaoClientesCrm,
+    gestaoCompartilhamentoClientes,
     gestaoAtendimentoCrm,
     gestaoTarefas,
     gestaoSocialInbox,
@@ -403,6 +414,7 @@ function criarRepositorios(): RepositoriosAplicacao {
       autenticacao: new RepositorioAutenticacaoMemoria(),
       atendimento: new RepositorioAtendimentoMemoria(),
       clientes: new RepositorioClientesMemoria(),
+      compartilhamentoClientes: new RepositorioCompartilhamentoClientesMemoria(),
       instanciasWhatsApp: new RepositorioInstanciasWhatsAppMemoria(),
       sessoesLive: new RepositorioSessoesLiveMemoria(),
       auditoria: new RepositorioAuditoriaMemoria(),
@@ -427,6 +439,7 @@ function criarRepositorios(): RepositoriosAplicacao {
     autenticacao: new RepositorioAutenticacaoPrisma(prisma),
     atendimento: new RepositorioAtendimentoPrisma(prisma),
     clientes: new RepositorioClientesPrisma(prisma),
+    compartilhamentoClientes: new RepositorioCompartilhamentoClientesPrisma(prisma),
     instanciasWhatsApp: new RepositorioInstanciasWhatsAppPrisma(prisma),
     sessoesLive: new RepositorioSessoesLivePrisma(prisma),
     auditoria: new RepositorioAuditoriaPrisma(prisma),
