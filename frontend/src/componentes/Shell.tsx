@@ -1,18 +1,33 @@
 import {
   ChevronLeft,
   ChevronRight,
+  Loader2,
   LogOut,
   Menu,
+  MessageCircle,
   MoreHorizontal,
+  Package,
+  ReceiptText,
+  Search,
+  Users,
 } from "lucide-react";
 import { type CSSProperties, type ReactNode, useEffect, useState } from "react";
 import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
 import { obterUsuario, removerToken, removerUsuario, requisitarApi } from "../api";
 import { LogoBizy, NOME_PRODUTO } from "../marca/bizy";
-import { rotasPrivadas, secoesNavegacao } from "../rotasApp";
+import {
+  rotasAdminSistema,
+  rotasComerciais,
+  secoesComerciais,
+  usuarioPodeVerAdminSistema,
+  type RotaPrivada
+} from "../rotasApp";
+import type { Peca, Reserva, RespostaConversas } from "../tipos";
+import { formatarKwanza } from "../utilidades";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import {
@@ -24,8 +39,14 @@ import {
 } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 
-const rotasMobilePrincipais = rotasPrivadas.filter((rota) =>
+const caminhosMobilePrincipais = ["/app", "/app/reservas", "/app/clientes", "/app/conversas"];
+
+const rotasMobilePrincipais = rotasComerciais.filter((rota) =>
   ["/app", "/app/reservas", "/app/clientes", "/app/conversas"].includes(rota.caminho)
+);
+
+const rotasMaisMobile = rotasComerciais.filter((rota) =>
+  !caminhosMobilePrincipais.includes(rota.caminho)
 );
 
 export function Shell({ children }: { children: ReactNode }) {
@@ -34,6 +55,7 @@ export function Shell({ children }: { children: ReactNode }) {
   const usuario = obterUsuario();
   const [recolhida, setRecolhida] = useState(() => localStorage.getItem("emeu_sidebar_recolhida") === "1");
   const [menuMobileAberto, setMenuMobileAberto] = useState(false);
+  const podeVerAdminSistema = usuarioPodeVerAdminSistema(usuario?.papel);
 
   useEffect(() => {
     localStorage.setItem("emeu_sidebar_recolhida", recolhida ? "1" : "0");
@@ -84,7 +106,7 @@ export function Shell({ children }: { children: ReactNode }) {
           </SheetHeader>
           <ScrollArea className="h-[calc(100dvh-88px)]">
             <nav className="app-desktop-nav grid gap-5 p-4">
-              <NavegacaoPrincipal recolhida={false} />
+              <NavegacaoPrincipal recolhida={false} mostrarAdmin={podeVerAdminSistema} mostrarDescricaoMobile />
               <Separator />
               <Button variant="outline" className="justify-start" onClick={() => void sair()}>
                 <LogOut size={18} />
@@ -119,7 +141,7 @@ export function Shell({ children }: { children: ReactNode }) {
 
         <ScrollArea className="flex-1">
           <nav className="app-desktop-nav grid gap-5 p-3">
-            <NavegacaoPrincipal recolhida={recolhida} />
+            <NavegacaoPrincipal recolhida={recolhida} mostrarAdmin={podeVerAdminSistema} />
           </nav>
         </ScrollArea>
 
@@ -144,6 +166,7 @@ export function Shell({ children }: { children: ReactNode }) {
 
       <main className={cn("app-route-surface min-h-dvh", recolhida ? "lg:ml-20" : "lg:ml-[17rem]")}>
         <div className="app-conteudo">
+          <BuscaGlobalComercial />
           {children}
         </div>
       </main>
@@ -193,44 +216,281 @@ export function Shell({ children }: { children: ReactNode }) {
   );
 }
 
-function NavegacaoPrincipal({ recolhida }: { recolhida: boolean }) {
+function NavegacaoPrincipal({
+  recolhida,
+  mostrarAdmin = false,
+  mostrarDescricaoMobile = false
+}: {
+  recolhida: boolean;
+  mostrarAdmin?: boolean;
+  mostrarDescricaoMobile?: boolean;
+}) {
   const location = useLocation();
 
   return (
     <>
-      {secoesNavegacao.map((secao) => (
-        <div className="app-nav-section grid gap-1" key={secao}>
-          {!recolhida && <span className="app-nav-section-label px-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{secao}</span>}
-          {rotasPrivadas
-            .filter((item) => item.secao === secao)
-            .map((item, index) => {
-              const ativo = item.fim ? location.pathname === item.caminho : location.pathname.startsWith(item.caminho);
-
-              return (
-                <NavLink
-                  key={item.caminho}
-                  to={item.caminho}
-                  end={item.fim}
-                  aria-current={ativo ? "page" : undefined}
-                  style={{ "--nav-index": index } as CSSProperties}
-                  className={() =>
-                    cn(
-                      "app-nav-link flex h-10 items-center gap-3 rounded-lg px-3 text-sm font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground",
-                      ativo && "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground [&_span]:text-primary-foreground [&_svg]:text-primary-foreground",
-                      recolhida && "justify-center px-0"
-                    )
-                  }
-                  title={recolhida ? item.rotulo : undefined}
-                >
-                  <span className="app-nav-icon" aria-hidden="true">{item.icone}</span>
-                  {!recolhida && <span className="app-nav-label">{item.rotulo}</span>}
-                  {ativo && <span className="sr-only">Atalho ativo</span>}
-                </NavLink>
-              );
-            })}
-        </div>
+      {secoesComerciais.map((secao) => (
+        <ListaRotasNavegacao
+          key={secao}
+          locationPathname={location.pathname}
+          recolhida={recolhida}
+          rotas={rotasComerciais.filter((item) => item.secao === secao)}
+          secao={secao}
+        />
       ))}
+
+      {mostrarDescricaoMobile && (
+        <p className="rounded-lg bg-muted/60 px-3 py-2 text-xs leading-5 text-muted-foreground">
+          Produtos, campanhas, relatórios e configurações ficam em Mais no telemóvel.
+          {rotasMaisMobile.length > 0 && <span className="sr-only"> {rotasMaisMobile.map((rota) => rota.rotulo).join(", ")}</span>}
+        </p>
+      )}
+
+      {mostrarAdmin && (
+        <>
+          <Separator />
+          <ListaRotasNavegacao
+            locationPathname={location.pathname}
+            recolhida={recolhida}
+            rotas={rotasAdminSistema}
+            secao="Admin/Sistema"
+          />
+        </>
+      )}
     </>
+  );
+}
+
+function ListaRotasNavegacao({
+  locationPathname,
+  recolhida,
+  rotas,
+  secao
+}: {
+  locationPathname: string;
+  recolhida: boolean;
+  rotas: RotaPrivada[];
+  secao: RotaPrivada["secao"];
+}) {
+  if (!rotas.length) return null;
+
+  return (
+    <div className="app-nav-section grid gap-1" key={secao}>
+      {!recolhida && <span className="app-nav-section-label px-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{secao}</span>}
+      {rotas.map((item, index) => {
+        const ativo = item.fim ? locationPathname === item.caminho : locationPathname.startsWith(item.caminho);
+
+        return (
+          <NavLink
+            key={item.caminho}
+            to={item.caminho}
+            end={item.fim}
+            aria-current={ativo ? "page" : undefined}
+            style={{ "--nav-index": index } as CSSProperties}
+            className={() =>
+              cn(
+                "app-nav-link flex h-10 items-center gap-3 rounded-lg px-3 text-sm font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground",
+                ativo && "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground [&_span]:text-primary-foreground [&_svg]:text-primary-foreground",
+                recolhida && "justify-center px-0"
+              )
+            }
+            title={recolhida ? item.rotulo : undefined}
+          >
+            <span className="app-nav-icon" aria-hidden="true">{item.icone}</span>
+            {!recolhida && <span className="app-nav-label">{item.rotulo}</span>}
+            {ativo && <span className="sr-only">Atalho ativo</span>}
+          </NavLink>
+        );
+      })}
+    </div>
+  );
+}
+
+type TipoResultadoBusca = "cliente" | "conversa" | "pedido" | "produto";
+
+interface ResultadoBuscaGlobal {
+  detalhe: string;
+  destino: string;
+  id: string;
+  tipo: TipoResultadoBusca;
+  titulo: string;
+}
+
+function normalizarBusca(valor: string): string {
+  return valor
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+}
+
+function correspondeAoTermo(termo: string, valores: Array<string | number | null | undefined>): boolean {
+  return valores.some((valor) => normalizarBusca(String(valor ?? "")).includes(termo));
+}
+
+function montarResultadosBuscaGlobal({
+  conversas,
+  pecas,
+  reservas,
+  termo
+}: {
+  conversas: RespostaConversas["conversas"];
+  pecas: Peca[];
+  reservas: Reserva[];
+  termo: string;
+}): ResultadoBuscaGlobal[] {
+  const resultados: ResultadoBuscaGlobal[] = [];
+
+  for (const conversa of conversas) {
+    if (!correspondeAoTermo(termo, [conversa.nomeCliente, conversa.telefone, conversa.ultimaMensagem, conversa.pecaRelacionada, ...conversa.tags])) continue;
+    resultados.push({
+      detalhe: `${conversa.telefone} · ${conversa.estadoCrm.toLowerCase().replace(/_/g, " ")}`,
+      destino: "/app/conversas",
+      id: `conversa-${conversa.id}`,
+      tipo: conversa.mensagensNaoLidas > 0 ? "conversa" : "cliente",
+      titulo: conversa.nomeCliente || "Cliente sem nome"
+    });
+  }
+
+  for (const reserva of reservas) {
+    if (!correspondeAoTermo(termo, [reserva.codigoPeca, reserva.nomeCliente, reserva.telefoneCliente, reserva.usernameCliente, reserva.estado, reserva.estadoPagamento, reserva.comentarioOriginal])) continue;
+    resultados.push({
+      detalhe: `${reserva.nomeCliente || "Cliente"} · ${reserva.telefoneCliente} · ${reserva.estado.toLowerCase().replace(/_/g, " ")}`,
+      destino: "/app/reservas",
+      id: `pedido-${reserva.id}`,
+      tipo: "pedido",
+      titulo: `Pedido #${reserva.codigoPeca}`
+    });
+  }
+
+  for (const peca of pecas) {
+    if (!correspondeAoTermo(termo, [peca.codigo, peca.nome, peca.descricao, peca.estado])) continue;
+    resultados.push({
+      detalhe: `${formatarKwanza(peca.precoEmKwanza)} · stock ${peca.quantidade}`,
+      destino: "/app/catalogo",
+      id: `produto-${peca.id}`,
+      tipo: "produto",
+      titulo: `#${peca.codigo} ${peca.nome}`
+    });
+  }
+
+  return resultados.slice(0, 8);
+}
+
+function IconeResultadoBusca({ tipo }: { tipo: TipoResultadoBusca }) {
+  const className = "h-4 w-4";
+  if (tipo === "produto") return <Package className={className} />;
+  if (tipo === "pedido") return <ReceiptText className={className} />;
+  if (tipo === "conversa") return <MessageCircle className={className} />;
+  return <Users className={className} />;
+}
+
+function BuscaGlobalComercial() {
+  const navigate = useNavigate();
+  const [termo, setTermo] = useState("");
+  const [resultados, setResultados] = useState<ResultadoBuscaGlobal[]>([]);
+  const [carregando, setCarregando] = useState(false);
+  const [erro, setErro] = useState("");
+
+  useEffect(() => {
+    const termoNormalizado = normalizarBusca(termo);
+    if (termoNormalizado.length < 2) {
+      setResultados([]);
+      setErro("");
+      setCarregando(false);
+      return undefined;
+    }
+
+    let cancelado = false;
+    setCarregando(true);
+    const temporizador = window.setTimeout(async () => {
+      const [respostaConversas, reservas, pecas] = await Promise.allSettled([
+        requisitarApi<RespostaConversas>("/atendimento/conversas"),
+        requisitarApi<Reserva[]>("/reservas"),
+        requisitarApi<Peca[]>("/pecas")
+      ]);
+
+      if (cancelado) return;
+
+      if (respostaConversas.status === "rejected" || reservas.status === "rejected" || pecas.status === "rejected") {
+        setErro("Não foi possível pesquisar agora. Verifique a API e tente novamente.");
+        setResultados([]);
+        setCarregando(false);
+        return;
+      }
+
+      setResultados(montarResultadosBuscaGlobal({
+        conversas: respostaConversas.value.conversas,
+        pecas: pecas.value,
+        reservas: reservas.value,
+        termo: termoNormalizado
+      }));
+      setErro("");
+      setCarregando(false);
+    }, 250);
+
+    return () => {
+      cancelado = true;
+      window.clearTimeout(temporizador);
+    };
+  }, [termo]);
+
+  function abrirResultado(resultado: ResultadoBuscaGlobal) {
+    setTermo("");
+    setResultados([]);
+    navigate(resultado.destino);
+  }
+
+  const mostrarPainel = termo.trim().length >= 2;
+
+  return (
+    <section className="app-global-search grid gap-2" aria-label="Pesquisa global comercial">
+      <div className="relative">
+        <Search className="pointer-events-none absolute left-3 top-1/2 z-10 -translate-y-1/2 text-muted-foreground" size={16} />
+        <Input
+          aria-label="Buscar cliente, telefone, produto, pedido ou conversa"
+          className="h-11 rounded-xl bg-card pl-9 pr-10 shadow-sm"
+          placeholder="Buscar cliente, telefone, produto, pedido..."
+          style={{ paddingLeft: "2.25rem", paddingRight: "2.5rem" }}
+          value={termo}
+          onChange={(evento) => setTermo(evento.target.value)}
+        />
+        {carregando && <Loader2 className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-muted-foreground" aria-hidden="true" />}
+      </div>
+      <p className="text-xs text-muted-foreground">Pesquise por cliente, telefone, produto, código, pedido ou conversa.</p>
+
+      {mostrarPainel && (
+        <Card size="sm" className="border-border/80 shadow-sm">
+          <CardContent className="grid gap-1 p-2">
+            {erro ? (
+              <p className="px-2 py-3 text-sm text-destructive" role="status">{erro}</p>
+            ) : resultados.length ? (
+              resultados.map((resultado) => (
+                <Button
+                  key={resultado.id}
+                  type="button"
+                  variant="ghost"
+                  className="h-auto w-full justify-start gap-3 rounded-lg px-3 py-2 text-left"
+                  onClick={() => abrirResultado(resultado)}
+                >
+                  <span className="grid h-8 w-8 place-items-center rounded-lg bg-primary/10 text-primary">
+                    <IconeResultadoBusca tipo={resultado.tipo} />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate font-semibold">{resultado.titulo}</span>
+                    <span className="block truncate text-xs text-muted-foreground">{resultado.detalhe}</span>
+                  </span>
+                </Button>
+              ))
+            ) : (
+              <p className="px-2 py-3 text-sm text-muted-foreground" role="status">
+                Nenhum resultado encontrado neste CRM.
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      )}
+    </section>
   );
 }
 

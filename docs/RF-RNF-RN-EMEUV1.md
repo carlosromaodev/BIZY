@@ -1,10 +1,10 @@
 # Bizy / ÉMeu V1 - Requisitos Funcionais, Não Funcionais e Regras de Negócio
 
 Documento: `RF-RNF-RN-EMEUV1.md`
-Versão: 1.27
+Versão: 1.28
 Data: 2026-05-25
 Autor: Carlos
-Status: MVP base implementado; fundação backend Bizy CRM+ com Clientes 360, Pedidos, Catálogo/Stock, Loja Pública, Checkout, Entrega, Afiliados, Comissões e Lotes Financeiros em evolução
+Status: MVP base implementado; fundação backend Bizy CRM+ com Clientes 360, Pedidos, Catálogo/Stock, Loja Pública, Checkout, Entrega, Afiliados, Comissões, Lotes Financeiros, navegação comercial e busca global em evolução
 
 ---
 
@@ -71,6 +71,8 @@ Atualização 1.25: adicionada API operacional de relacionamento entre negócios
 Atualização 1.26: compartilhamento de cliente passou a exigir motivo explícito, persistir esse motivo no banco, permitir revogação auditada com motivo e remover automaticamente o acesso da loja destino quando o compartilhamento é revogado.
 
 Atualização 1.27: exportação CSV de clientes passou a registrar evento operacional `CLIENTS_EXPORTED` com negócio, usuário, recurso, formato, quantidade e filtros, além de expor consulta auditada em `/auditoria/eventos`.
+
+Atualização 1.28: navegação do frontend separada por operação comercial e Admin/Sistema, com rotas técnicas ocultas para perfis não autorizados, dock mobile com cinco atalhos principais, menu `Mais` para módulos secundários e pesquisa global comercial sobre clientes/conversas, pedidos e produtos.
 
 ---
 
@@ -289,15 +291,15 @@ Esta etapa transforma o Bizy de painel de live em CRM operacional para lojas que
 
 | ID | Requisito Funcional | Prioridade | Estado |
 |---|---|---|---|
-| RF76 | [ ] A navegação principal do CRM deve conter apenas módulos de uso frequente: Painel, Pedidos, Produtos, Clientes, Conversas, Campanhas, Relatórios e Configurações da Loja. | Alta | Planeado |
-| RF77 | [ ] Funcionalidades técnicas como n8n, providers, filas internas, saúde da automação e logs devem sair da navegação da loja e ficar em área Admin/Sistema acessível apenas a perfis autorizados. | Alta | Planeado |
-| RF78 | [ ] O sistema deve remover ou ocultar submenus sem utilidade operacional imediata, como `Drafts`, `Calendário`, `Resumo`, `Categoria`, `Descontos`, `Chatbot`, `Explorar`, `Relatórios` vazios, `Site`, `Montra`, `Finalizar compra`, `Apresentação`, `Menu` e `Páginas`, até existir fluxo real para cada um. | Alta | Planeado |
+| RF76 | [x] A navegação principal do CRM deve conter apenas módulos de uso frequente: Painel, Pedidos, Produtos, Clientes, Conversas, Campanhas, Relatórios e Configurações da Loja. | Alta | Implementado no frontend |
+| RF77 | [x] Funcionalidades técnicas como n8n, providers, filas internas, saúde da automação e logs devem sair da navegação da loja e ficar em área Admin/Sistema acessível apenas a perfis autorizados. | Alta | Implementado no frontend com separação de rotas e guarda por perfil |
+| RF78 | [x] O sistema deve remover ou ocultar submenus sem utilidade operacional imediata, como `Drafts`, `Calendário`, `Resumo`, `Categoria`, `Descontos`, `Chatbot`, `Explorar`, `Relatórios` vazios, `Site`, `Montra`, `Finalizar compra`, `Apresentação`, `Menu` e `Páginas`, até existir fluxo real para cada um. | Alta | Implementado na navegação atual |
 | RF79 | [ ] O módulo Painel deve mostrar o que a loja precisa fazer hoje: pedidos novos, pagamentos pendentes, conversas sem resposta, produtos com stock baixo, entregas pendentes, faturação do dia e tarefas atrasadas. | Alta | Planeado |
-| RF80 | [ ] A interface deve oferecer pesquisa global por cliente, telefone, produto, código de peça, pedido, conversa e comprovativo. | Alta | Planeado |
-| RF81 | [ ] A navegação mobile deve priorizar até 5 atalhos: Painel, Pedidos, Clientes, Conversas e Mais. | Alta | Planeado |
-| RF82 | [ ] O menu `Mais` no mobile deve agrupar Produtos, Campanhas, Relatórios, Configurações da Loja e Admin/Sistema quando permitido. | Média | Planeado |
-| RF83 | [ ] Telas vazias devem explicar a próxima ação útil, como importar clientes, criar produto, criar pedido, conectar WhatsApp ou enviar primeira campanha. | Alta | Planeado |
-| RF84 | [ ] O sistema deve evitar páginas decorativas, estatísticas vazias ou configurações técnicas expostas à vendedora sem ação clara. | Alta | Planeado |
+| RF80 | [~] A interface deve oferecer pesquisa global por cliente, telefone, produto, código de peça, pedido, conversa e comprovativo. | Alta | Parcial - pesquisa global já cobre clientes/conversas, pedidos, produtos, códigos e estados de pagamento; falta busca em anexos/ficheiros de comprovativo |
+| RF81 | [x] A navegação mobile deve priorizar até 5 atalhos: Painel, Pedidos, Clientes, Conversas e Mais. | Alta | Implementado |
+| RF82 | [x] O menu `Mais` no mobile deve agrupar Produtos, Campanhas, Relatórios, Configurações da Loja e Admin/Sistema quando permitido. | Média | Implementado |
+| RF83 | [~] Telas vazias devem explicar a próxima ação útil, como importar clientes, criar produto, criar pedido, conectar WhatsApp ou enviar primeira campanha. | Alta | Parcial - padrão de estado vazio existe e cobre páginas principais; falta revisão fina de todos os casos novos |
+| RF84 | [x] O sistema deve evitar páginas decorativas, estatísticas vazias ou configurações técnicas expostas à vendedora sem ação clara. | Alta | Implementado na navegação comercial atual |
 
 #### 3.13.2 Clientes 360
 
@@ -673,17 +675,17 @@ Esta etapa vem antes da implementação visual dos novos módulos. O objetivo é
 
 | ID | Requisito Não Funcional | Prioridade | Estado |
 |---|---|---|---|
-| RNF55 | [ ] A navegação comercial deve permitir chegar às ações principais em até 2 cliques no desktop e 2 toques no mobile. | Alta | Planeado |
+| RNF55 | [x] A navegação comercial deve permitir chegar às ações principais em até 2 cliques no desktop e 2 toques no mobile. | Alta | Implementado na navegação principal e no dock mobile |
 | RNF56 | [x] O CRM deve continuar responsivo e utilizável em telemóveis de 360px de largura sem scroll horizontal. | Alta | Implementado |
 | RNF57 | [ ] Listas de clientes, pedidos, produtos e conversas devem suportar paginação, filtros e busca sem travar com pelo menos 10.000 registros. | Alta | Planeado |
-| RNF58 | [ ] A busca global deve responder em até 1 segundo para bases pequenas e manter feedback de carregamento em bases maiores. | Média | Planeado |
+| RNF58 | [x] A busca global deve responder em até 1 segundo para bases pequenas e manter feedback de carregamento em bases maiores. | Média | Implementado com debounce e estado de carregamento |
 | RNF59 | [~] Dados pessoais de clientes devem ser protegidos com controlo de acesso por papel e auditoria de exportação. | Alta | Parcial - exportação de clientes exige permissão e registra auditoria; faltam políticas por papel mais finas e auditoria nas demais exportações |
 | RNF60 | [~] Exportações de clientes, pedidos e relatórios devem registrar usuário, filtro usado, data e quantidade exportada. | Alta | Parcial - clientes já registram usuário, filtros, data e quantidade; faltam pedidos e relatórios |
 | RNF61 | [ ] O CRM deve manter backups e estratégia de recuperação para clientes, pedidos, mensagens, comprovativos e produtos. | Alta | Planeado |
-| RNF62 | [ ] A interface deve distinguir claramente operação comercial de configuração técnica. | Alta | Planeado |
-| RNF63 | [ ] Páginas sem funcionalidade real não devem ser publicadas na navegação principal. | Alta | Planeado |
+| RNF62 | [x] A interface deve distinguir claramente operação comercial de configuração técnica. | Alta | Implementado por CRM/Loja versus Admin/Sistema |
+| RNF63 | [x] Páginas sem funcionalidade real não devem ser publicadas na navegação principal. | Alta | Implementado na navegação atual |
 | RNF64 | [x] O design system deve padronizar cards, listas, tabelas, filtros, badges, estados vazios e ações destrutivas antes de novas páginas CRM. | Alta | Implementado |
-| RNF65 | [ ] A aplicação deve manter textos curtos, orientados à ação e compreensíveis por vendedor não técnico. | Alta | Planeado |
+| RNF65 | [~] A aplicação deve manter textos curtos, orientados à ação e compreensíveis por vendedor não técnico. | Alta | Parcial - navegação e pesquisa foram simplificadas; falta revisão textual completa das páginas novas |
 | RNF66 | [ ] O CRM deve registrar métricas de funil sem depender de serviços externos para operação básica. | Média | Planeado |
 | RNF67 | [~] Campanhas devem respeitar limites de envio, opt-out, consentimento e regras do provider WhatsApp usado. | Alta | Parcial - política de WhatsApp já bloqueia marketing sem consentimento explícito no envio manual; faltam campanhas, opt-out persistente e limites por provider |
 | RNF68 | [~] Automações devem falhar de forma segura: se houver dúvida, criar tarefa humana em vez de executar ação crítica. | Alta | Parcial - WhatsApp bloqueado por template/política cria tarefa humana e não envia; faltam outros tipos de automação |
@@ -863,7 +865,7 @@ Esta etapa vem antes da implementação visual dos novos módulos. O objetivo é
 | RN68 | [~] Categoria de produto só deve existir se melhorar filtro, catálogo ou relatório; categoria vazia deve ficar oculta. | Parcial - resumo expõe apenas categorias usadas; falta ocultar no frontend |
 | RN69 | [ ] Pedido rascunho não é categoria principal; só aparece dentro do cliente, conversa ou funil quando houver carrinho/orçamento real. | Planeado |
 | RN70 | [ ] Relatório só entra no menu comercial se responder uma pergunta prática da loja. | Planeado |
-| RN71 | [ ] Relatórios técnicos de automação pertencem ao Admin/Sistema, não ao menu do vendedor. | Planeado |
+| RN71 | [x] Relatórios técnicos de automação pertencem ao Admin/Sistema, não ao menu do vendedor. | Implementado na navegação atual |
 | RN72 | [ ] Conversa sem resposta dentro do SLA deve gerar tarefa ou alerta. | Planeado |
 | RN73 | [ ] Cliente VIP, reclamação e pagamento pendente devem ter prioridade visual superior a conversa comum. | Planeado |
 | RN74 | [ ] Chatbot autônomo não pode assumir atendimento crítico sem política explícita e aprovação humana quando o caso envolver pagamento, desconto, troca, reclamação ou cancelamento. | Planeado |

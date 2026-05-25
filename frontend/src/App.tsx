@@ -1,13 +1,14 @@
 import { type ReactNode, useEffect, useState } from "react";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
-import { EVENTO_SESSAO_EXPIRADA, obterToken } from "./api";
+import { EVENTO_SESSAO_EXPIRADA, obterToken, obterUsuario } from "./api";
 import { ProvedorNotificacoes } from "./componentes/Notificacoes";
 import { Shell } from "./componentes/Shell";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { rotasPrivadas, rotasPrivadasOcultas, rotasPublicas } from "./rotasApp";
+import { rotasPrivadas, rotasPrivadasOcultas, rotasPublicas, usuarioPodeVerAdminSistema } from "./rotasApp";
 
-function RotaPrivada({ children }: { children: ReactNode }) {
+function RotaPrivada({ children, requerAdminSistema = false }: { children: ReactNode; requerAdminSistema?: boolean }) {
   const [autenticado, setAutenticado] = useState(() => Boolean(obterToken()));
+  const usuario = obterUsuario();
 
   useEffect(() => {
     const atualizarSessao = () => setAutenticado(Boolean(obterToken()));
@@ -20,12 +21,15 @@ function RotaPrivada({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  return autenticado ? <>{children}</> : <Navigate to="/login" replace />;
+  if (!autenticado) return <Navigate to="/login" replace />;
+  if (requerAdminSistema && !usuarioPodeVerAdminSistema(usuario?.papel)) return <Navigate to="/app" replace />;
+
+  return <>{children}</>;
 }
 
-function LayoutApp({ children }: { children: ReactNode }) {
+function LayoutApp({ children, requerAdminSistema = false }: { children: ReactNode; requerAdminSistema?: boolean }) {
   return (
-    <RotaPrivada>
+    <RotaPrivada requerAdminSistema={requerAdminSistema}>
       <Shell>{children}</Shell>
     </RotaPrivada>
   );
@@ -42,7 +46,11 @@ export function App() {
             ))}
 
             {rotasPrivadas.map((rota) => (
-              <Route key={rota.caminho} path={rota.caminho} element={<LayoutApp>{rota.elemento}</LayoutApp>} />
+              <Route
+                key={rota.caminho}
+                path={rota.caminho}
+                element={<LayoutApp requerAdminSistema={rota.requerAdminSistema}>{rota.elemento}</LayoutApp>}
+              />
             ))}
 
             {rotasPrivadasOcultas.map((rota) => (
