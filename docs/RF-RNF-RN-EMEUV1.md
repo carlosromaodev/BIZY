@@ -1,7 +1,7 @@
 # Bizy / ÉMeu V1 - Requisitos Funcionais, Não Funcionais e Regras de Negócio
 
 Documento: `RF-RNF-RN-EMEUV1.md`
-Versão: 1.19
+Versão: 1.20
 Data: 2026-05-25
 Autor: Carlos
 Status: MVP base implementado; fundação backend Bizy CRM+ com Clientes 360, Pedidos, Catálogo/Stock, Loja Pública, Checkout, Entrega, Afiliados, Comissões e Lotes Financeiros em evolução
@@ -55,6 +55,8 @@ Atualização 1.17: o catálogo interno de templates WhatsApp passou a expor cat
 Atualização 1.18: adicionada fundação backend de tarefas operacionais, com persistência multi-negócio, rota `/tarefas` e criação automática de tarefa humana quando o envio WhatsApp é bloqueado por template/política antes do provider.
 
 Atualização 1.19: tarefas operacionais passaram a ter criação manual, consulta individual, atualização de estado/responsável/observação/contexto e suporte de persistência para cliente, pedido, conclusão e observação.
+
+Atualização 1.20: adicionada fundação backend de Social Inbox para registrar comentários/mensagens/menções de redes sociais, guardar autor/perfil/post/intenção e criar tarefa comercial automática quando há intenção de compra com confiança suficiente.
 
 ---
 
@@ -515,7 +517,7 @@ Esta etapa posiciona o Bizy como uma plataforma de operação comercial para cri
 | RF236 | [~] A entrega deve aceitar cálculo automático, tabela manual, retirada na loja e orçamento humano. | Alta | Parcial - cálculo automático por configuração manual, retirada e entrega grátis implementados; falta orçamento humano |
 | RF237 | [ ] O sistema deve usar Kwanza como moeda padrão e preparar arquitetura para múltiplas moedas no futuro. | Média | Planeado |
 | RF238 | [~] A arquitetura deve preparar multi-loja, múltiplas linhas WhatsApp, múltiplos domínios e múltiplas equipas como evolução. | Média | Parcial |
-| RF239 | [~] Todos os canais públicos devem alimentar o mesmo núcleo de cliente, produto, pedido, conversa, pagamento e relatório. | Alta | Parcial - checkout público e afiliados já criam cliente, pedido, tracking e comissão; faltam social inbox, campanhas e pagamento público completo |
+| RF239 | [~] Todos os canais públicos devem alimentar o mesmo núcleo de cliente, produto, pedido, conversa, pagamento e relatório. | Alta | Parcial - checkout público e afiliados já criam cliente, pedido, tracking e comissão; Social Inbox já captura comentários e cria tarefas de lead; faltam campanhas, pagamento público completo e associação automática ao cliente 360 |
 | RF240 | [~] Toda automação deve ter fallback humano claro, com tarefa, motivo e contexto suficiente para a equipa continuar. | Alta | Parcial - bloqueios de WhatsApp manual geram tarefa com motivo, telefone, template e contexto, e a equipa já consegue atualizar/concluir a tarefa; faltam demais automações e histórico detalhado |
 | RF241 | [ ] Cada módulo deve ter estado vazio com próxima ação útil, sem cards decorativos ou métricas sem explicação. | Alta | Planeado |
 | RF242 | [ ] O CRM+ deve importar e exportar produtos, clientes, pedidos, afiliados, comissões e relatórios em formatos operacionais. | Média | Planeado |
@@ -541,8 +543,8 @@ Esta etapa vem antes da implementação visual dos novos módulos. O objetivo é
 | RF255 | [~] O backend deve expor APIs públicas e privadas para loja virtual, página de produto, catálogo digital, checkout WhatsApp e checkout site. | Alta | Parcial - loja pública, página de produto, cálculo de entrega, checkout WhatsApp e checkout site básico implementados; faltam catálogos selecionáveis e checkout/pagamento completo |
 | RF256 | [~] O backend deve registrar tracking de links, UTM, referência, cookies técnicos, visitas, cliques WhatsApp, checkout iniciado, pedido e venda atribuída. | Alta | Parcial - trackingId, UTM, visitas, produto visto, clique WhatsApp, checkout iniciado, pedido criado, lead identificado e receita atribuída ao pedido implementados; faltam cookies técnicos e venda paga atribuída |
 | RF257 | [~] O backend deve suportar afiliados, criadores e revendedores com links próprios, regras de comissão, reversões, pagamentos e relatórios. | Alta | Parcial - parceiros, links próprios, comissão estimada/confirmada/paga/revertida, pagamento individual/lote, saldos, exportação CSV, auditoria e resumo implementados; faltam regras avançadas, portal do afiliado e relatórios avançados |
-| RF258 | [ ] O backend deve normalizar social inbox com comentários de redes sociais, posts, autores, intenção, tarefas e oportunidades. | Alta | Planeado |
-| RF259 | [~] O backend deve ter funil e playbooks de recuperação com eventos, condições, ações, tarefas humanas e histórico de mudança. | Alta | Parcial - fundação de tarefas humanas criada com criação manual, filtros e atualização; faltam playbooks, condições, ações, histórico de mudança e ligação ao funil |
+| RF258 | [~] O backend deve normalizar social inbox com comentários de redes sociais, posts, autores, intenção, tarefas e oportunidades. | Alta | Parcial - endpoint `/social/inbox/itens` registra canal, provider, post, autor, texto, intenção, confiança, telefone, entidades/contexto e cria tarefa para intenção de compra; faltam conectores oficiais, deduplicação, anexos/media e oportunidades estruturadas |
+| RF259 | [~] O backend deve ter funil e playbooks de recuperação com eventos, condições, ações, tarefas humanas e histórico de mudança. | Alta | Parcial - fundação de tarefas humanas criada com criação manual, filtros, atualização e leads vindos do Social Inbox; faltam playbooks, condições, ações, histórico de mudança e ligação ao funil |
 | RF260 | [~] O backend deve implementar motor de política WhatsApp para classificar envios em marketing, utilidade, autenticação ou serviço antes de chamar o provider. | Alta | Parcial - motor interno implementado em AutomacaoWhatsApp com metadados de política e bloqueios mínimos; faltam persistência de templates aprovados, janela real e opt-out centralizado |
 | RF261 | [~] O backend deve gerir templates WhatsApp por categoria, idioma, estado de aprovação, provider, versão e compatibilidade com eventos. | Alta | Parcial - catálogo interno e API com filtros por categoria/evento/provider/aprovação implementados; falta persistência por negócio, sincronização com API oficial e versionamento histórico |
 | RF262 | [ ] O backend deve unificar outbox/event bus para WhatsApp, n8n, tracking, campanhas, social inbox, comissões e notificações internas. | Alta | Planeado |

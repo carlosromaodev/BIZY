@@ -11,6 +11,7 @@ import type {
   RepositorioPedidos,
   RepositorioReservas,
   RepositorioSessoesLive,
+  RepositorioSocialInbox,
   RepositorioTarefasOperacionais,
   RepositorioTrackingComercial
 } from "../../dominio/repositorios/contratos.js";
@@ -44,6 +45,7 @@ import type {
   EventoTrackingComercial,
   FiltrosPedidos,
   FiltrosClientes360,
+  FiltrosSocialInbox,
   HistoricoComissaoParceiro,
   InstanciaWhatsApp,
   ItemLotePagamentoComissao,
@@ -64,6 +66,7 @@ import type {
   NovoOutboxMensagemWhatsApp,
   NovoRegistroSessaoLive,
   NovaTarefaOperacional,
+  NovoSocialInboxItem,
   Peca,
   ParceiroComercial,
   Pedido,
@@ -84,6 +87,7 @@ import type {
   ResumoAfiliadosComerciais,
   FiltrosTarefasOperacionais,
   TarefaOperacional,
+  SocialInboxItem,
   ResumoTrackingComercial,
   TipoHistoricoComissaoParceiro,
   UsuarioSistema
@@ -3016,6 +3020,149 @@ export class RepositorioAtendimentoPrisma implements RepositorioAtendimento {
 
   private ehViolacaoDeUnicidade(erro: unknown): boolean {
     return erro instanceof Prisma.PrismaClientKnownRequestError && erro.code === "P2002";
+  }
+}
+
+interface LinhaSocialInboxItem {
+  id: string;
+  negocioId: string;
+  canal: string;
+  provider: string;
+  tipo: string;
+  estado: string;
+  postId: string | null;
+  postUrl: string | null;
+  autorId: string | null;
+  autorUsername: string | null;
+  autorNome: string | null;
+  autorAvatarUrl: string | null;
+  texto: string;
+  intencao: string;
+  confianca: number;
+  clienteTelefone: string | null;
+  clienteId: string | null;
+  entidadesJson: string;
+  contextoJson: string;
+  criadoEm: Date;
+  atualizadoEm: Date;
+}
+
+export class RepositorioSocialInboxPrisma implements RepositorioSocialInbox {
+  constructor(private readonly prisma: PrismaClient) {}
+
+  async criar(dados: NovoSocialInboxItem): Promise<SocialInboxItem> {
+    const linhas = await this.prisma.$queryRaw<LinhaSocialInboxItem[]>`
+      INSERT INTO "SocialInboxItem" (
+        "negocioId",
+        "canal",
+        "provider",
+        "tipo",
+        "estado",
+        "postId",
+        "postUrl",
+        "autorId",
+        "autorUsername",
+        "autorNome",
+        "autorAvatarUrl",
+        "texto",
+        "intencao",
+        "confianca",
+        "clienteTelefone",
+        "clienteId",
+        "entidadesJson",
+        "contextoJson"
+      ) VALUES (
+        ${dados.negocioId},
+        ${dados.canal},
+        ${dados.provider},
+        ${dados.tipo},
+        ${dados.estado ?? "NOVO"},
+        ${dados.postId ?? null},
+        ${dados.postUrl ?? null},
+        ${dados.autorId ?? null},
+        ${dados.autorUsername ?? null},
+        ${dados.autorNome ?? null},
+        ${dados.autorAvatarUrl ?? null},
+        ${dados.texto},
+        ${dados.intencao ?? "SEM_INTENCAO"},
+        ${dados.confianca ?? 0},
+        ${dados.clienteTelefone ?? null},
+        ${dados.clienteId ?? null},
+        ${JSON.stringify(dados.entidades ?? {})},
+        ${JSON.stringify(dados.contexto ?? {})}
+      )
+      RETURNING *
+    `;
+
+    return this.mapearItem(linhas[0]);
+  }
+
+  async listar(negocioId: string, filtros: FiltrosSocialInbox = {}): Promise<SocialInboxItem[]> {
+    const limite = Math.max(1, Math.min(filtros.limite ?? 100, 500));
+    const condicoes: Prisma.Sql[] = [Prisma.sql`"negocioId" = ${negocioId}`];
+    if (filtros.canal) condicoes.push(Prisma.sql`"canal" = ${filtros.canal}`);
+    if (filtros.estado) condicoes.push(Prisma.sql`"estado" = ${filtros.estado}`);
+    if (filtros.intencao) condicoes.push(Prisma.sql`"intencao" = ${filtros.intencao}`);
+    if (filtros.autorUsername) condicoes.push(Prisma.sql`"autorUsername" = ${filtros.autorUsername}`);
+    if (filtros.clienteTelefone) condicoes.push(Prisma.sql`"clienteTelefone" = ${filtros.clienteTelefone}`);
+
+    const linhas = await this.prisma.$queryRaw<LinhaSocialInboxItem[]>(
+      Prisma.sql`
+        SELECT *
+        FROM "SocialInboxItem"
+        WHERE ${Prisma.join(condicoes, " AND ")}
+        ORDER BY "criadoEm" DESC
+        LIMIT ${limite}
+      `
+    );
+
+    return linhas.map((linha) => this.mapearItem(linha));
+  }
+
+  async buscarPorId(id: string, negocioId: string): Promise<SocialInboxItem | null> {
+    const linhas = await this.prisma.$queryRaw<LinhaSocialInboxItem[]>`
+      SELECT *
+      FROM "SocialInboxItem"
+      WHERE "id" = ${id} AND "negocioId" = ${negocioId}
+      LIMIT 1
+    `;
+
+    return linhas[0] ? this.mapearItem(linhas[0]) : null;
+  }
+
+  private mapearItem(linha: LinhaSocialInboxItem): SocialInboxItem {
+    return {
+      id: linha.id,
+      negocioId: linha.negocioId,
+      canal: linha.canal,
+      provider: linha.provider,
+      tipo: linha.tipo as SocialInboxItem["tipo"],
+      estado: linha.estado as SocialInboxItem["estado"],
+      postId: linha.postId,
+      postUrl: linha.postUrl,
+      autorId: linha.autorId,
+      autorUsername: linha.autorUsername,
+      autorNome: linha.autorNome,
+      autorAvatarUrl: linha.autorAvatarUrl,
+      texto: linha.texto,
+      intencao: linha.intencao as SocialInboxItem["intencao"],
+      confianca: linha.confianca,
+      clienteTelefone: linha.clienteTelefone,
+      clienteId: linha.clienteId,
+      entidades: this.lerObjeto(linha.entidadesJson),
+      contexto: this.lerObjeto(linha.contextoJson),
+      criadoEm: linha.criadoEm,
+      atualizadoEm: linha.atualizadoEm
+    };
+  }
+
+  private lerObjeto(valor: string): Record<string, unknown> {
+    try {
+      const json = JSON.parse(valor);
+      return json && typeof json === "object" && !Array.isArray(json) ? json as Record<string, unknown> : {};
+    } catch {
+      return {};
+    }
   }
 }
 

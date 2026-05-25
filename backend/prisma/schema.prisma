@@ -473,9 +473,41 @@ model Negocio {
   historicoComissoesParceiro HistoricoComissaoParceiro[]
   lotesPagamentoComissao  LotePagamentoComissao[]
   tarefasOperacionais     TarefaOperacional[]
+  socialInboxItens        SocialInboxItem[]
 
   @@index([nomeComercial])
   @@index([slugPublico])
+}
+
+model SocialInboxItem {
+  id              String   @id @default(uuid())
+  negocioId       String
+  negocio         Negocio  @relation(fields: [negocioId], references: [id])
+  canal           String
+  provider        String
+  tipo            String
+  estado          String   @default("NOVO")
+  postId          String?
+  postUrl         String?
+  autorId         String?
+  autorUsername   String?
+  autorNome       String?
+  autorAvatarUrl  String?
+  texto           String
+  intencao        String   @default("SEM_INTENCAO")
+  confianca       Float    @default(0)
+  clienteTelefone String?
+  clienteId       String?
+  entidadesJson   String   @default("{}")
+  contextoJson    String   @default("{}")
+  criadoEm        DateTime @default(now())
+  atualizadoEm    DateTime @updatedAt
+
+  @@index([negocioId, estado, criadoEm])
+  @@index([negocioId, intencao, criadoEm])
+  @@index([negocioId, canal, criadoEm])
+  @@index([clienteTelefone, criadoEm])
+  @@index([autorUsername, criadoEm])
 }
 
 model TarefaOperacional {

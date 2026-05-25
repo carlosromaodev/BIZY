@@ -2,7 +2,9 @@ import {
   AtualizarConversaAtendimentoSchema,
   AtualizarTarefaOperacionalSchema,
   CriarTarefaOperacionalSchema,
+  CriarSocialInboxItemSchema,
   DefinirPoliticaAutomacaoAtendimentoSchema,
+  FiltrosSocialInboxQuerySchema,
   RegistrarNotaInternaAtendimentoSchema,
   RegistrarSugestaoIaAtendimentoSchema
 } from "../../../dominio/esquemas.js";
@@ -153,6 +155,54 @@ export const moduloOperacional: ModuloHttp = {
       const dados = AtualizarTarefaOperacionalSchema.parse(request.body ?? {});
       const tarefa = await contexto.gestaoTarefas.atualizarTarefa(id, contextoComercial.negocio.id, dados);
       return { tarefa };
+    });
+
+    app.get("/social/inbox/itens", async (request, reply) => {
+      const contextoComercial = await exigirAcessoComercial(contexto, request, reply, {
+        permissao: "social-inbox:ler",
+        modulo: "social-inbox",
+        mensagemPermissao: "Sem permissão para consultar social inbox.",
+        mensagemModulo: "Social Inbox desativado para este negócio."
+      });
+      if (!contextoComercial) return;
+
+      const filtros = FiltrosSocialInboxQuerySchema.parse(request.query ?? {});
+      const itens = await contexto.gestaoSocialInbox.listarItens(contextoComercial.negocio.id, filtros);
+      return { itens };
+    });
+
+    app.post("/social/inbox/itens", async (request, reply) => {
+      const contextoComercial = await exigirAcessoComercial(contexto, request, reply, {
+        permissao: "social-inbox:gerir",
+        modulo: "social-inbox",
+        mensagemPermissao: "Sem permissão para gerir social inbox.",
+        mensagemModulo: "Social Inbox desativado para este negócio."
+      });
+      if (!contextoComercial) return;
+
+      const dados = CriarSocialInboxItemSchema.parse(request.body ?? {});
+      const item = await contexto.gestaoSocialInbox.criarItem({
+        negocioId: contextoComercial.negocio.id,
+        canal: dados.canal,
+        provider: dados.provider,
+        tipo: dados.tipo,
+        estado: dados.estado,
+        postId: dados.postId,
+        postUrl: dados.postUrl,
+        autorId: dados.autor.id,
+        autorUsername: dados.autor.username,
+        autorNome: dados.autor.nome,
+        autorAvatarUrl: dados.autor.avatarUrl,
+        texto: dados.texto,
+        intencao: dados.intencao,
+        confianca: dados.confianca,
+        clienteTelefone: dados.clienteTelefone,
+        clienteId: dados.clienteId,
+        entidades: dados.entidades,
+        contexto: dados.contexto
+      });
+
+      return reply.code(201).send({ item });
     });
 
     app.get("/atendimento/conversas", async (request, reply) => {

@@ -630,6 +630,69 @@ export interface FiltrosTarefasOperacionais {
   limite?: number;
 }
 
+export const tiposSocialInbox = ["COMENTARIO", "MENSAGEM", "MENCAO", "AVALIACAO"] as const;
+export type TipoSocialInbox = (typeof tiposSocialInbox)[number];
+
+export const estadosSocialInbox = ["NOVO", "EM_ATENDIMENTO", "CONVERTIDO", "IGNORADO", "ARQUIVADO"] as const;
+export type EstadoSocialInbox = (typeof estadosSocialInbox)[number];
+
+export const intencoesSocialInbox = ["COMPRA", "DUVIDA", "RECLAMACAO", "ELOGIO", "SEM_INTENCAO"] as const;
+export type IntencaoSocialInbox = (typeof intencoesSocialInbox)[number];
+
+export interface SocialInboxItem {
+  id: string;
+  negocioId: string;
+  canal: string;
+  provider: string;
+  tipo: TipoSocialInbox;
+  estado: EstadoSocialInbox;
+  postId: string | null;
+  postUrl: string | null;
+  autorId: string | null;
+  autorUsername: string | null;
+  autorNome: string | null;
+  autorAvatarUrl: string | null;
+  texto: string;
+  intencao: IntencaoSocialInbox;
+  confianca: number;
+  clienteTelefone: string | null;
+  clienteId: string | null;
+  entidades: Record<string, unknown>;
+  contexto: Record<string, unknown>;
+  criadoEm: Date;
+  atualizadoEm: Date;
+}
+
+export interface NovoSocialInboxItem {
+  negocioId: string;
+  canal: string;
+  provider: string;
+  tipo: TipoSocialInbox;
+  estado?: EstadoSocialInbox;
+  postId?: string | null;
+  postUrl?: string | null;
+  autorId?: string | null;
+  autorUsername?: string | null;
+  autorNome?: string | null;
+  autorAvatarUrl?: string | null;
+  texto: string;
+  intencao?: IntencaoSocialInbox;
+  confianca?: number;
+  clienteTelefone?: string | null;
+  clienteId?: string | null;
+  entidades?: Record<string, unknown>;
+  contexto?: Record<string, unknown>;
+}
+
+export interface FiltrosSocialInbox {
+  canal?: string;
+  estado?: EstadoSocialInbox;
+  intencao?: IntencaoSocialInbox;
+  autorUsername?: string;
+  clienteTelefone?: string;
+  limite?: number;
+}
+
 export const estadosRelacionamentoCliente = [
   "ATIVO",
   "LEAD",

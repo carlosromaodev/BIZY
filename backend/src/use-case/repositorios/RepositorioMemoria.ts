@@ -11,6 +11,7 @@ import type {
   RepositorioPedidos,
   RepositorioReservas,
   RepositorioSessoesLive,
+  RepositorioSocialInbox,
   RepositorioTarefasOperacionais,
   RepositorioTrackingComercial
 } from "../../dominio/repositorios/contratos.js";
@@ -73,7 +74,10 @@ import type {
   ResultadoInterpretacaoComentario,
   ResumoAfiliadosComerciais,
   FiltrosTarefasOperacionais,
+  FiltrosSocialInbox,
+  NovoSocialInboxItem,
   TarefaOperacional,
+  SocialInboxItem,
   TipoHistoricoComissaoParceiro
 } from "../../dominio/tipos.js";
 import { normalizarEmail, normalizarTelefone } from "../../dominio/servicos/normalizarContato.js";
@@ -2206,6 +2210,58 @@ export class RepositorioTarefasOperacionaisMemoria implements RepositorioTarefas
 
 function removerIndefinidos<T extends Record<string, unknown>>(dados: T): Partial<T> {
   return Object.fromEntries(Object.entries(dados).filter(([, valor]) => valor !== undefined)) as Partial<T>;
+}
+
+export class RepositorioSocialInboxMemoria implements RepositorioSocialInbox {
+  private readonly itens = new Map<string, SocialInboxItem>();
+
+  async criar(dados: NovoSocialInboxItem): Promise<SocialInboxItem> {
+    const agora = new Date();
+    const item: SocialInboxItem = {
+      id: randomUUID(),
+      negocioId: dados.negocioId,
+      canal: dados.canal,
+      provider: dados.provider,
+      tipo: dados.tipo,
+      estado: dados.estado ?? "NOVO",
+      postId: dados.postId ?? null,
+      postUrl: dados.postUrl ?? null,
+      autorId: dados.autorId ?? null,
+      autorUsername: dados.autorUsername ?? null,
+      autorNome: dados.autorNome ?? null,
+      autorAvatarUrl: dados.autorAvatarUrl ?? null,
+      texto: dados.texto,
+      intencao: dados.intencao ?? "SEM_INTENCAO",
+      confianca: dados.confianca ?? 0,
+      clienteTelefone: dados.clienteTelefone ?? null,
+      clienteId: dados.clienteId ?? null,
+      entidades: dados.entidades ?? {},
+      contexto: dados.contexto ?? {},
+      criadoEm: agora,
+      atualizadoEm: agora
+    };
+
+    this.itens.set(item.id, item);
+    return item;
+  }
+
+  async listar(negocioId: string, filtros: FiltrosSocialInbox = {}): Promise<SocialInboxItem[]> {
+    const limite = Math.max(1, Math.min(filtros.limite ?? 100, 500));
+    return [...this.itens.values()]
+      .filter((item) => item.negocioId === negocioId)
+      .filter((item) => !filtros.canal || item.canal === filtros.canal)
+      .filter((item) => !filtros.estado || item.estado === filtros.estado)
+      .filter((item) => !filtros.intencao || item.intencao === filtros.intencao)
+      .filter((item) => !filtros.autorUsername || item.autorUsername === filtros.autorUsername)
+      .filter((item) => !filtros.clienteTelefone || item.clienteTelefone === filtros.clienteTelefone)
+      .sort((a, b) => b.criadoEm.getTime() - a.criadoEm.getTime())
+      .slice(0, limite);
+  }
+
+  async buscarPorId(id: string, negocioId: string): Promise<SocialInboxItem | null> {
+    const item = this.itens.get(id);
+    return item?.negocioId === negocioId ? item : null;
+  }
 }
 
 export class RepositorioAuditoriaMemoria implements RepositorioAuditoria {

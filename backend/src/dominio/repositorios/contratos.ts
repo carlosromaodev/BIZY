@@ -21,6 +21,7 @@ import type {
   NovaReserva,
   NovaMensagemAtendimento,
   NovaTarefaOperacional,
+  NovoSocialInboxItem,
   NovoRegistroComentario,
   FiltrosPedidos,
   Peca,
@@ -35,6 +36,7 @@ import type {
   EventoSistema,
   EventoTrackingComercial,
   FiltrosTarefasOperacionais,
+  FiltrosSocialInbox,
   DadosCriacaoReservaComControleStock,
   DadosPublicacaoLoja,
   CodigoLoginSms,
@@ -63,6 +65,7 @@ import type {
   ParceiroComercial,
   ResumoAfiliadosComerciais,
   ResumoTrackingComercial,
+  SocialInboxItem,
   TarefaOperacional
 } from "../tipos.js";
 
@@ -206,6 +209,12 @@ export interface RepositorioTarefasOperacionais {
   listar(negocioId: string, filtros?: FiltrosTarefasOperacionais): Promise<TarefaOperacional[]>;
   buscarPorId(id: string, negocioId: string): Promise<TarefaOperacional | null>;
   atualizar(id: string, negocioId: string, dados: AtualizacaoTarefaOperacional): Promise<TarefaOperacional | null>;
+}
+
+export interface RepositorioSocialInbox {
+  criar(dados: NovoSocialInboxItem): Promise<SocialInboxItem>;
+  listar(negocioId: string, filtros?: FiltrosSocialInbox): Promise<SocialInboxItem[]>;
+  buscarPorId(id: string, negocioId: string): Promise<SocialInboxItem | null>;
 }
 
 export interface RepositorioClientes {

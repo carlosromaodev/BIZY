@@ -20,7 +20,8 @@ const MODULOS_CORE = [
   "whatsapp",
   "loja-publica",
   "afiliados",
-  "tracking"
+  "tracking",
+  "social-inbox"
 ] as const;
 
 const PERMISSOES_POR_PAPEL: Record<string, string[]> = {
@@ -35,6 +36,7 @@ const PERMISSOES_POR_PAPEL: Record<string, string[]> = {
     "loja-publica:gerir",
     "afiliados:gerir",
     "tracking:ler",
+    "social-inbox:gerir",
     "campanhas:gerir",
     "relatorios:ver",
     "configuracoes:gerir"
@@ -50,12 +52,13 @@ const PERMISSOES_POR_PAPEL: Record<string, string[]> = {
     "loja-publica:gerir",
     "afiliados:gerir",
     "tracking:ler",
+    "social-inbox:gerir",
     "campanhas:gerir",
     "relatorios:ver",
     "configuracoes:gerir"
   ],
-  VENDEDOR: ["catalogo:ler", "clientes:ler", "pedidos:gerir", "conversas:gerir", "tarefas:gerir", "relatorios:ver", "tracking:ler"],
-  ATENDENTE: ["clientes:ler", "pedidos:ler", "conversas:gerir", "tarefas:gerir"],
+  VENDEDOR: ["catalogo:ler", "clientes:ler", "pedidos:gerir", "conversas:gerir", "tarefas:gerir", "relatorios:ver", "tracking:ler", "social-inbox:gerir"],
+  ATENDENTE: ["clientes:ler", "pedidos:ler", "conversas:gerir", "tarefas:gerir", "social-inbox:gerir"],
   FINANCEIRO: ["clientes:ler", "pedidos:ler", "pagamentos:gerir", "relatorios:ver"],
   ENTREGADOR: ["pedidos:ler", "entregas:gerir"],
   AFILIADO: ["afiliados:ver", "relatorios:ver"],
