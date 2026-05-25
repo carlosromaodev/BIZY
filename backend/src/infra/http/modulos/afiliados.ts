@@ -1,6 +1,7 @@
 import {
   CriarAfiliadoSchema,
-  CriarLinkAfiliadoSchema
+  CriarLinkAfiliadoSchema,
+  PagarComissaoParceiroSchema
 } from "../../../dominio/esquemas.js";
 import { exigirAcessoComercial } from "../contextoComercial.js";
 import type { ModuloHttp } from "./ModuloHttp.js";
@@ -72,6 +73,32 @@ export const moduloAfiliados: ModuloHttp = {
       if (!contextoComercial) return;
 
       return contexto.gestaoAfiliados.listarComissoes(contextoComercial.negocio.id);
+    });
+
+    app.post("/afiliados/comissoes/:id/pagar", async (request, reply) => {
+      const contextoComercial = await exigirAcessoComercial(contexto, request, reply, {
+        permissao: "pagamentos:gerir",
+        modulo: "afiliados",
+        mensagemPermissao: "Sem permissão para pagar comissões.",
+        mensagemModulo: "Afiliados desativados para este negócio."
+      });
+      if (!contextoComercial) return;
+
+      const { id } = request.params as { id: string };
+      const dados = PagarComissaoParceiroSchema.parse(request.body ?? {});
+      const comissao = await contexto.gestaoAfiliados.marcarComissaoPaga(
+        id,
+        contextoComercial.negocio.id,
+        {
+          referenciaPagamento: dados.referenciaPagamento,
+          observacao: dados.observacao
+        }
+      );
+      if (!comissao) {
+        return reply.code(404).send({ erro: "COMISSAO_NAO_ENCONTRADA", mensagem: "Comissão não encontrada." });
+      }
+
+      return comissao;
     });
 
     app.get("/afiliados/resumo", async (request, reply) => {

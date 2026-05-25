@@ -375,6 +375,7 @@ export const CriarPedidoSchema = z.object({
 export const AtualizarEstadoPedidoSchema = z
   .object({
     estado: z.enum(estadosPedido).optional(),
+    estadoPagamento: z.enum(estadosPagamentoPedido).optional(),
     observacao: z.string().trim().max(1000).nullable().optional().transform((valor) => valor ?? null),
     responsavelId: TextoPerfilOpcionalSchema
   })
@@ -384,6 +385,11 @@ export const AtualizarEstadoPedidoSchema = z
 
 export const ConfirmarPagamentoPedidoSchema = z.object({
   comprovativoPagamentoUrl: z.string().trim().url().max(2048).nullable().optional().transform((valor) => valor ?? null),
+  observacao: z.string().trim().max(1000).nullable().optional().transform((valor) => valor ?? null)
+});
+
+export const PagarComissaoParceiroSchema = z.object({
+  referenciaPagamento: z.string().trim().min(3).max(120),
   observacao: z.string().trim().max(1000).nullable().optional().transform((valor) => valor ?? null)
 });
 

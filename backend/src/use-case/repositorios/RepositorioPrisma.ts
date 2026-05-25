@@ -491,7 +491,9 @@ export class RepositorioAfiliadosPrisma implements RepositorioAfiliados {
       where: { negocioId_pedidoId: { negocioId, pedidoId } }
     });
     if (!existente) return null;
-    if (existente.status === "REVERTIDA" || existente.status === "CANCELADA") return this.mapearComissao(existente);
+    if (existente.status === "REVERTIDA" || existente.status === "CANCELADA" || existente.status === "PAGA") {
+      return this.mapearComissao(existente);
+    }
     if (existente.status === "CONFIRMADA") return this.mapearComissao(existente);
 
     const comissao = await this.prisma.comissaoParceiro.update({
@@ -500,6 +502,30 @@ export class RepositorioAfiliadosPrisma implements RepositorioAfiliados {
         status: "CONFIRMADA",
         confirmadoEm,
         revertidoEm: null
+      }
+    });
+    return this.mapearComissao(comissao);
+  }
+
+  async marcarComissaoPaga(
+    id: string,
+    negocioId: string,
+    dados: { referenciaPagamento: string; observacao?: string | null; pagoEm?: Date }
+  ): Promise<ComissaoParceiro | null> {
+    const existente = await this.prisma.comissaoParceiro.findFirst({ where: { id, negocioId } });
+    if (!existente) return null;
+    if (existente.status !== "CONFIRMADA") {
+      throw new Error("Apenas comissão confirmada pode ser marcada como paga.");
+    }
+
+    const pagoEm = dados.pagoEm ?? new Date();
+    const comissao = await this.prisma.comissaoParceiro.update({
+      where: { id: existente.id },
+      data: {
+        status: "PAGA",
+        pagoEm,
+        referenciaPagamento: dados.referenciaPagamento,
+        observacaoPagamento: dados.observacao ?? null
       }
     });
     return this.mapearComissao(comissao);
@@ -536,7 +562,14 @@ export class RepositorioAfiliadosPrisma implements RepositorioAfiliados {
     const parceiroPorId = new Map(parceiros.map((parceiro) => [parceiro.id, parceiro]));
     const rankingPorAfiliado = new Map<
       string,
-      { afiliadoId: string; codigo: string; nomePublico: string; pedidos: Set<string>; comissaoConfirmadaEmKwanza: number }
+      {
+        afiliadoId: string;
+        codigo: string;
+        nomePublico: string;
+        pedidos: Set<string>;
+        comissaoConfirmadaEmKwanza: number;
+        comissaoPagaEmKwanza: number;
+      }
     >();
 
     for (const comissao of comissoes) {
@@ -546,10 +579,12 @@ export class RepositorioAfiliadosPrisma implements RepositorioAfiliados {
         codigo: parceiro?.codigo ?? "",
         nomePublico: parceiro?.nomePublico ?? "Parceiro removido",
         pedidos: new Set<string>(),
-        comissaoConfirmadaEmKwanza: 0
+        comissaoConfirmadaEmKwanza: 0,
+        comissaoPagaEmKwanza: 0
       };
       item.pedidos.add(comissao.pedidoId);
       if (comissao.status === "CONFIRMADA") item.comissaoConfirmadaEmKwanza += comissao.valorEmKwanza;
+      if (comissao.status === "PAGA") item.comissaoPagaEmKwanza += comissao.valorEmKwanza;
       rankingPorAfiliado.set(comissao.afiliadoId, item);
     }
 
@@ -559,6 +594,8 @@ export class RepositorioAfiliadosPrisma implements RepositorioAfiliados {
       pedidosAtribuidos: new Set(comissoes.map((comissao) => comissao.pedidoId)).size,
       comissaoEstimadaEmKwanza: this.somarComissoesPorStatus(comissoes, "ESTIMADA"),
       comissaoConfirmadaEmKwanza: this.somarComissoesPorStatus(comissoes, "CONFIRMADA"),
+      comissaoPagaEmKwanza: this.somarComissoesPorStatus(comissoes, "PAGA"),
+      comissaoRevertidaEmKwanza: this.somarComissoesPorStatus(comissoes, "REVERTIDA"),
       ranking: [...rankingPorAfiliado.values()]
         .map((item) => ({
           ...item,
@@ -621,6 +658,9 @@ export class RepositorioAfiliadosPrisma implements RepositorioAfiliados {
     motivo: string | null;
     criadoEm: Date;
     confirmadoEm: Date | null;
+    pagoEm: Date | null;
+    referenciaPagamento: string | null;
+    observacaoPagamento: string | null;
     revertidoEm: Date | null;
     atualizadoEm: Date;
   }): ComissaoParceiro {
@@ -1101,6 +1141,7 @@ export class RepositorioPedidosPrisma implements RepositorioPedidos {
       where: { id },
       data: {
         estado: dados.estado,
+        estadoPagamento: dados.estadoPagamento,
         observacao: dados.observacao ?? undefined,
         responsavelId: dados.responsavelId ?? undefined,
         canceladoEm: dados.estado === "CANCELADO" ? new Date() : undefined

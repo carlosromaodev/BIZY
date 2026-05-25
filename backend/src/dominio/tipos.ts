@@ -36,7 +36,7 @@ export type EstadoParceiroComercial = (typeof estadosParceiroComercial)[number];
 export const tiposComissaoParceiro = ["PERCENTUAL", "VALOR_FIXO"] as const;
 export type TipoComissaoParceiro = (typeof tiposComissaoParceiro)[number];
 
-export const statusComissaoParceiro = ["ESTIMADA", "CONFIRMADA", "REVERTIDA", "CANCELADA"] as const;
+export const statusComissaoParceiro = ["ESTIMADA", "CONFIRMADA", "PAGA", "REVERTIDA", "CANCELADA"] as const;
 export type StatusComissaoParceiro = (typeof statusComissaoParceiro)[number];
 
 export const estadosReserva = [
@@ -73,6 +73,9 @@ export const tiposEventoSistema = [
   "PAYMENT_REJECTED",
   "ORDER_CREATED",
   "ORDER_PAYMENT_CONFIRMED",
+  "ORDER_CANCELLED",
+  "ORDER_RETURNED",
+  "ORDER_REFUNDED",
   "ORDER_READY_TO_SHIP",
   "ORDER_DELIVERED",
   "WHATSAPP_MESSAGE_RECEIVED",
@@ -767,6 +770,7 @@ export interface FiltrosPedidos {
 
 export interface AtualizacaoEstadoPedido {
   estado?: EstadoPedido;
+  estadoPagamento?: EstadoPagamentoPedido;
   observacao?: string | null;
   responsavelId?: string | null;
 }
@@ -1010,6 +1014,9 @@ export interface ComissaoParceiro {
   motivo: string | null;
   criadoEm: Date;
   confirmadoEm: Date | null;
+  pagoEm: Date | null;
+  referenciaPagamento: string | null;
+  observacaoPagamento: string | null;
   revertidoEm: Date | null;
   atualizadoEm: Date;
 }
@@ -1032,12 +1039,15 @@ export interface ResumoAfiliadosComerciais {
   pedidosAtribuidos: number;
   comissaoEstimadaEmKwanza: number;
   comissaoConfirmadaEmKwanza: number;
+  comissaoPagaEmKwanza: number;
+  comissaoRevertidaEmKwanza: number;
   ranking: Array<{
     afiliadoId: string;
     codigo: string;
     nomePublico: string;
     pedidos: number;
     comissaoConfirmadaEmKwanza: number;
+    comissaoPagaEmKwanza: number;
   }>;
 }
 

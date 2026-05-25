@@ -88,6 +88,11 @@ export interface RepositorioAfiliados {
     negocioId: string,
     confirmadoEm?: Date
   ): Promise<ComissaoParceiro | null>;
+  marcarComissaoPaga(
+    id: string,
+    negocioId: string,
+    dados: { referenciaPagamento: string; observacao?: string | null; pagoEm?: Date }
+  ): Promise<ComissaoParceiro | null>;
   reverterComissaoPorPedido(
     pedidoId: string,
     negocioId: string,

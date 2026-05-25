@@ -376,6 +376,9 @@ export class RepositorioAfiliadosMemoria implements RepositorioAfiliados {
           motivo: dados.motivo ?? null,
           criadoEm: agora,
           confirmadoEm: null,
+          pagoEm: null,
+          referenciaPagamento: null,
+          observacaoPagamento: null,
           revertidoEm: null,
           atualizadoEm: agora
         };
@@ -398,7 +401,9 @@ export class RepositorioAfiliadosMemoria implements RepositorioAfiliados {
       (item) => item.negocioId === negocioId && item.pedidoId === pedidoId
     );
     if (!comissao || comissao.status === "CONFIRMADA") return comissao ?? null;
-    if (comissao.status === "REVERTIDA" || comissao.status === "CANCELADA") return comissao;
+    if (comissao.status === "REVERTIDA" || comissao.status === "CANCELADA" || comissao.status === "PAGA") {
+      return comissao;
+    }
 
     const atualizada: ComissaoParceiro = {
       ...comissao,
@@ -406,6 +411,30 @@ export class RepositorioAfiliadosMemoria implements RepositorioAfiliados {
       confirmadoEm,
       revertidoEm: null,
       atualizadoEm: confirmadoEm
+    };
+    this.comissoes.set(atualizada.id, atualizada);
+    return atualizada;
+  }
+
+  async marcarComissaoPaga(
+    id: string,
+    negocioId: string,
+    dados: { referenciaPagamento: string; observacao?: string | null; pagoEm?: Date }
+  ): Promise<ComissaoParceiro | null> {
+    const comissao = this.comissoes.get(id) ?? null;
+    if (!comissao || comissao.negocioId !== negocioId) return null;
+    if (comissao.status !== "CONFIRMADA") {
+      throw new Error("Apenas comissão confirmada pode ser marcada como paga.");
+    }
+
+    const pagoEm = dados.pagoEm ?? new Date();
+    const atualizada: ComissaoParceiro = {
+      ...comissao,
+      status: "PAGA",
+      pagoEm,
+      referenciaPagamento: dados.referenciaPagamento,
+      observacaoPagamento: dados.observacao ?? null,
+      atualizadoEm: pagoEm
     };
     this.comissoes.set(atualizada.id, atualizada);
     return atualizada;
@@ -439,7 +468,14 @@ export class RepositorioAfiliadosMemoria implements RepositorioAfiliados {
     const comissoes = await this.listarComissoes(negocioId);
     const rankingPorAfiliado = new Map<
       string,
-      { afiliadoId: string; codigo: string; nomePublico: string; pedidos: Set<string>; comissaoConfirmadaEmKwanza: number }
+      {
+        afiliadoId: string;
+        codigo: string;
+        nomePublico: string;
+        pedidos: Set<string>;
+        comissaoConfirmadaEmKwanza: number;
+        comissaoPagaEmKwanza: number;
+      }
     >();
 
     for (const comissao of comissoes) {
@@ -449,10 +485,12 @@ export class RepositorioAfiliadosMemoria implements RepositorioAfiliados {
         codigo: parceiro?.codigo ?? "",
         nomePublico: parceiro?.nomePublico ?? "Parceiro removido",
         pedidos: new Set<string>(),
-        comissaoConfirmadaEmKwanza: 0
+        comissaoConfirmadaEmKwanza: 0,
+        comissaoPagaEmKwanza: 0
       };
       item.pedidos.add(comissao.pedidoId);
       if (comissao.status === "CONFIRMADA") item.comissaoConfirmadaEmKwanza += comissao.valorEmKwanza;
+      if (comissao.status === "PAGA") item.comissaoPagaEmKwanza += comissao.valorEmKwanza;
       rankingPorAfiliado.set(comissao.afiliadoId, item);
     }
 
@@ -462,6 +500,8 @@ export class RepositorioAfiliadosMemoria implements RepositorioAfiliados {
       pedidosAtribuidos: new Set(comissoes.map((comissao) => comissao.pedidoId)).size,
       comissaoEstimadaEmKwanza: this.somarComissoesPorStatus(comissoes, "ESTIMADA"),
       comissaoConfirmadaEmKwanza: this.somarComissoesPorStatus(comissoes, "CONFIRMADA"),
+      comissaoPagaEmKwanza: this.somarComissoesPorStatus(comissoes, "PAGA"),
+      comissaoRevertidaEmKwanza: this.somarComissoesPorStatus(comissoes, "REVERTIDA"),
       ranking: [...rankingPorAfiliado.values()]
         .map((item) => ({
           ...item,
@@ -1554,6 +1594,7 @@ export class RepositorioPedidosMemoria implements RepositorioPedidos {
     const atualizado: Pedido = {
       ...pedido,
       estado: dados.estado ?? pedido.estado,
+      estadoPagamento: dados.estadoPagamento ?? pedido.estadoPagamento,
       observacao: dados.observacao ?? pedido.observacao,
       responsavelId: dados.responsavelId ?? pedido.responsavelId,
       canceladoEm: dados.estado === "CANCELADO" ? new Date() : pedido.canceladoEm,

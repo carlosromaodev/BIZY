@@ -26,6 +26,17 @@ export class GestaoAfiliadosUseCase {
 
       void this.afiliados.confirmarComissaoPorPedido(pedidoId, negocioId).catch(() => undefined);
     });
+    for (const tipo of ["ORDER_CANCELLED", "ORDER_RETURNED", "ORDER_REFUNDED"] as const) {
+      eventos?.aoReceber(tipo, (evento) => {
+        const pedidoId = typeof evento.dados.pedidoId === "string" ? evento.dados.pedidoId : null;
+        const negocioId = typeof evento.dados.negocioId === "string" ? evento.dados.negocioId : null;
+        if (!pedidoId || !negocioId) return;
+
+        const motivoEvento = typeof evento.dados.motivo === "string" ? evento.dados.motivo : null;
+        const motivo = `${this.rotuloEventoReversao(tipo)}: ${motivoEvento ?? "Pedido deixou de ser elegível para comissão."}`;
+        void this.afiliados.reverterComissaoPorPedido(pedidoId, negocioId, motivo).catch(() => undefined);
+      });
+    }
   }
 
   async criarParceiro(negocioId: string, dados: Omit<NovoParceiroComercial, "negocioId">) {
@@ -67,6 +78,14 @@ export class GestaoAfiliadosUseCase {
 
   async resumir(negocioId: string) {
     return this.afiliados.resumir(negocioId);
+  }
+
+  async marcarComissaoPaga(
+    id: string,
+    negocioId: string,
+    dados: { referenciaPagamento: string; observacao?: string | null }
+  ) {
+    return this.afiliados.marcarComissaoPaga(id, negocioId, dados);
   }
 
   async resolverAtribuicao(
@@ -148,5 +167,14 @@ export class GestaoAfiliadosUseCase {
 
   private normalizarCodigo(codigo: string): string {
     return codigo.trim().toUpperCase();
+  }
+
+  private rotuloEventoReversao(tipo: "ORDER_CANCELLED" | "ORDER_RETURNED" | "ORDER_REFUNDED"): string {
+    const rotulos = {
+      ORDER_CANCELLED: "CANCELADO",
+      ORDER_RETURNED: "DEVOLVIDO",
+      ORDER_REFUNDED: "REEMBOLSADO"
+    } satisfies Record<typeof tipo, string>;
+    return rotulos[tipo];
   }
 }

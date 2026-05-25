@@ -100,6 +100,27 @@ export class GestaoPedidosUseCase {
     if (pedido.estado === "PRONTO_ENTREGA") {
       this.eventos.emitir("ORDER_READY_TO_SHIP", { negocioId, pedidoId: pedido.id });
     }
+    if (pedido.estado === "CANCELADO") {
+      this.eventos.emitir("ORDER_CANCELLED", {
+        negocioId,
+        pedidoId: pedido.id,
+        motivo: dados.observacao ?? "Pedido cancelado."
+      });
+    }
+    if (pedido.estado === "DEVOLVIDO") {
+      this.eventos.emitir("ORDER_RETURNED", {
+        negocioId,
+        pedidoId: pedido.id,
+        motivo: dados.observacao ?? "Pedido devolvido."
+      });
+    }
+    if (pedido.estadoPagamento === "REEMBOLSADO") {
+      this.eventos.emitir("ORDER_REFUNDED", {
+        negocioId,
+        pedidoId: pedido.id,
+        motivo: dados.observacao ?? "Pedido reembolsado."
+      });
+    }
 
     return pedido;
   }

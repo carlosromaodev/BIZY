@@ -1,7 +1,7 @@
 # Bizy / ÉMeu V1 - Requisitos Funcionais, Não Funcionais e Regras de Negócio
 
 Documento: `RF-RNF-RN-EMEUV1.md`
-Versão: 1.10
+Versão: 1.11
 Data: 2026-05-25
 Autor: Carlos
 Status: MVP base implementado; fundação backend Bizy CRM+ com Clientes 360, Pedidos, Catálogo/Stock, Loja Pública, Checkout, Entrega, Afiliados e Comissões em evolução
@@ -37,6 +37,8 @@ Atualização 1.8: iniciado o backend de Loja Pública, Catálogo Digital e Trac
 Atualização 1.9: iniciado o checkout público pelo site e cálculo de entrega, com regras por zona/bairro/município, taxa padrão, retirada na loja, entrega grátis por valor mínimo, criação de cliente/pedido a partir da loja pública e tracking de checkout iniciado e pedido criado.
 
 Atualização 1.10: iniciado o backend de Afiliados/Criadores, com módulo comercial próprio, criação de parceiro, links rastreáveis com `ref`, atribuição no checkout público, comissão estimada no pedido atribuído e confirmação automática da comissão após pagamento confirmado.
+
+Atualização 1.11: ampliado o backend de Afiliados/Criadores com reversão automática de comissão quando pedido atribuído é cancelado, devolvido ou reembolsado, além de marcação operacional de comissão paga com referência e observação de pagamento.
 
 ---
 
@@ -426,14 +428,14 @@ Esta etapa posiciona o Bizy como uma plataforma de operação comercial para cri
 | RF185 | [x] O dono do negócio deve poder criar perfis de afiliado/criador com código, nome público, contacto, comissão, método de pagamento e estado. | Alta | Implementado no backend |
 | RF186 | [ ] Produtos, coleções e catálogos devem poder ser associados a afiliados, criadores ou revendedores específicos. | Alta | Planeado |
 | RF187 | [~] Cada afiliado deve ter links rastreáveis próprios para produtos, catálogos e campanhas. | Alta | Parcial - link próprio para produto implementado; faltam catálogos e campanhas |
-| RF188 | [~] O afiliado deve ter painel ou relatório com cliques, leads, pedidos, vendas pagas, conversão e comissão estimada. | Média | Parcial - API de comissões e resumo por afiliado implementada; faltam cliques/leads por link e UI própria do afiliado |
-| RF189 | [~] O dono do negócio deve ver ranking de afiliados/criadores por receita, pedidos pagos, conversão, ticket médio e comissões pendentes. | Alta | Parcial - ranking por pedidos atribuídos e comissão confirmada implementado; faltam receita líquida, ticket médio, conversão e pendências por período |
+| RF188 | [~] O afiliado deve ter painel ou relatório com cliques, leads, pedidos, vendas pagas, conversão e comissão estimada. | Média | Parcial - API de comissões e resumo por afiliado implementada com valores estimados, confirmados, pagos e revertidos; faltam cliques/leads por link e UI própria do afiliado |
+| RF189 | [~] O dono do negócio deve ver ranking de afiliados/criadores por receita, pedidos pagos, conversão, ticket médio e comissões pendentes. | Alta | Parcial - ranking por pedidos atribuídos, comissão confirmada e comissão paga implementado; faltam receita líquida, ticket médio, conversão e pendências por período |
 | RF190 | [~] Regras de comissão devem suportar percentual, valor fixo, comissão por produto, por coleção, por campanha e por meta alcançada. | Alta | Parcial - percentual e valor fixo por parceiro implementados; faltam regras por produto, coleção, campanha e meta |
-| RF191 | [~] Comissão só deve ficar confirmada depois do pagamento do pedido; cancelamentos, devoluções ou reembolsos devem reverter a comissão. | Alta | Parcial - confirmação automática após pagamento implementada; faltam eventos de cancelamento, devolução e reembolso ligados à reversão |
+| RF191 | [x] Comissão só deve ficar confirmada depois do pagamento do pedido; cancelamentos, devoluções ou reembolsos devem reverter a comissão. | Alta | Implementado no backend |
 | RF192 | [ ] O sistema deve ter proteção antifraude básica contra autoindicação, leads duplicados e atribuições suspeitas. | Alta | Planeado |
 | RF193 | [ ] O afiliado/criador deve poder receber pacote de divulgação com links, fotos, textos sugeridos e regras da campanha. | Média | Planeado |
 | RF194 | [ ] Criadores e revendedores devem poder ter mini-loja pública com produtos autorizados e rastreamento próprio. | Média | Planeado |
-| RF195 | [ ] O sistema deve gerar relatório de pagamento de comissões com período, vendas, reversões, saldo e histórico. | Alta | Planeado |
+| RF195 | [~] O sistema deve gerar relatório de pagamento de comissões com período, vendas, reversões, saldo e histórico. | Alta | Parcial - comissão pode ser marcada como paga com referência/observação e o resumo separa confirmada, paga e revertida; faltam período, saldo formal, histórico financeiro e exportação |
 | RF196 | [ ] O modo revendedor deve permitir preço especial, reserva de stock, margem estimada e regras separadas de entrega/retirada quando configurado. | Média | Planeado |
 
 #### 3.14.6 Social Inbox e Comentários de Redes Sociais
@@ -522,7 +524,7 @@ Esta etapa vem antes da implementação visual dos novos módulos. O objetivo é
 | RF254 | [~] O backend deve evoluir Produtos para suportar variantes, coleções, movimentos de stock, custo, margem, importação e catálogo digital. | Alta | Parcial - variantes, coleções, movimentos, custo e margem implementados; faltam importação e catálogo digital público |
 | RF255 | [~] O backend deve expor APIs públicas e privadas para loja virtual, página de produto, catálogo digital, checkout WhatsApp e checkout site. | Alta | Parcial - loja pública, página de produto, cálculo de entrega, checkout WhatsApp e checkout site básico implementados; faltam catálogos selecionáveis e checkout/pagamento completo |
 | RF256 | [~] O backend deve registrar tracking de links, UTM, referência, cookies técnicos, visitas, cliques WhatsApp, checkout iniciado, pedido e venda atribuída. | Alta | Parcial - trackingId, UTM, visitas, produto visto, clique WhatsApp, checkout iniciado e pedido criado implementados; faltam cookies técnicos e venda paga atribuída |
-| RF257 | [~] O backend deve suportar afiliados, criadores e revendedores com links próprios, regras de comissão, reversões, pagamentos e relatórios. | Alta | Parcial - parceiros, links próprios, comissão estimada/confirmada e resumo implementados; faltam pagamento de comissões, reversões operacionais completas e relatórios avançados |
+| RF257 | [~] O backend deve suportar afiliados, criadores e revendedores com links próprios, regras de comissão, reversões, pagamentos e relatórios. | Alta | Parcial - parceiros, links próprios, comissão estimada/confirmada/paga/revertida, pagamento manual e resumo implementados; faltam regras avançadas, lotes financeiros, portal do afiliado e relatórios avançados |
 | RF258 | [ ] O backend deve normalizar social inbox com comentários de redes sociais, posts, autores, intenção, tarefas e oportunidades. | Alta | Planeado |
 | RF259 | [ ] O backend deve ter funil e playbooks de recuperação com eventos, condições, ações, tarefas humanas e histórico de mudança. | Alta | Planeado |
 | RF260 | [ ] O backend deve implementar motor de política WhatsApp para classificar envios em marketing, utilidade, autenticação ou serviço antes de chamar o provider. | Alta | Planeado |
@@ -675,7 +677,7 @@ Esta etapa vem antes da implementação visual dos novos módulos. O objetivo é
 | RNF83 | [ ] Cookies e identificadores de tracking não devem conter telefone, email, nome, endereço ou qualquer dado pessoal sensível. | Alta | Planeado |
 | RNF84 | [ ] A loja pública deve exibir texto claro sobre tracking/privacidade quando cookies ou eventos de marketing forem usados. | Alta | Planeado |
 | RNF85 | [ ] Relatórios de afiliados e criadores devem expor apenas dados necessários, evitando mostrar dados privados de clientes sem necessidade operacional. | Alta | Planeado |
-| RNF86 | [~] O cálculo de comissão deve ser reprocessável e auditável por período, pedido, afiliado, produto, reversão e pagamento. | Alta | Parcial - comissão por pedido/afiliado é persistida e atualizada por evento de pagamento; faltam reprocessamento por período, produto e rotina formal de reversão/pagamento |
+| RNF86 | [~] O cálculo de comissão deve ser reprocessável e auditável por período, pedido, afiliado, produto, reversão e pagamento. | Alta | Parcial - comissão por pedido/afiliado é persistida e atualizada por eventos de pagamento, cancelamento, devolução e reembolso, com pagamento manual referenciado; faltam reprocessamento por período/produto e auditoria financeira completa |
 | RNF87 | [ ] Eventos analíticos devem ser armazenados de forma eficiente para pelo menos 100.000 eventos sem travar a UI operacional. | Média | Planeado |
 | RNF88 | [ ] Páginas públicas de loja e catálogo devem ser cacheáveis sempre que possível, sem expor dados privados ou stock incorreto. | Média | Planeado |
 | RNF89 | [ ] A UI deve ocultar módulos não ativados, mas preservar rotas e dados para reativação futura quando permitido. | Média | Planeado |
@@ -848,7 +850,7 @@ Esta etapa vem antes da implementação visual dos novos módulos. O objetivo é
 | RN82 | [ ] Um link rastreável pode atribuir origem/campanha, mas não pode sobrescrever dados confirmados do cliente sem auditoria. | Planeado |
 | RN83 | [~] A atribuição padrão deve ser configurável, mas o sistema deve mostrar claramente se a venda veio de live, site, WhatsApp, catálogo, campanha, afiliado, criador ou comentário social. | Parcial - origem/canal do checkout WhatsApp, checkout site, pedido público e pedido atribuído a afiliado/criador implementados; faltam campanha e comentário social |
 | RN84 | [x] Comissão de afiliado/criador só fica confirmada depois do pedido pago e dentro das regras de validade da atribuição. | Implementado no backend inicial de afiliados |
-| RN85 | [ ] Cancelamento, devolução, chargeback, reembolso ou fraude devem reverter ou bloquear comissão. | Planeado |
+| RN85 | [~] Cancelamento, devolução, chargeback, reembolso ou fraude devem reverter ou bloquear comissão. | Parcial - cancelamento, devolução e reembolso revertem comissão; faltam chargeback, fraude e bloqueio preventivo |
 | RN86 | [ ] O dono/admin pode corrigir atribuição ou comissão manualmente, mas deve informar motivo e a alteração deve ficar auditada. | Planeado |
 | RN87 | [~] Afiliados e criadores não devem ver dados privados de clientes além do necessário para acompanhar desempenho, comissão e suporte operacional permitido. | Parcial - APIs de comissão/resumo não expõem dados privados do cliente; falta portal/permissão específica para afiliado |
 | RN88 | [ ] Cliente com opt-out não pode receber marketing, campanhas, reativação, promoções de afiliados ou novidades. | Planeado |
@@ -897,7 +899,7 @@ Esta etapa vem antes da implementação visual dos novos módulos. O objetivo é
 | RN126 | [~] Módulo desativado não pode executar automação, receber webhook ativo, disparar campanha ou aparecer como promessa visual na operação comercial. | Parcial - guardas comerciais ativas em módulos HTTP principais |
 | RN127 | [x] Código de produto só precisa ser único dentro do negócio, permitindo lojas diferentes usarem códigos iguais sem colisão. | Implementado |
 | RN128 | [ ] Pedido deve ser a entidade comercial principal; reserva continua como mecanismo de bloqueio temporário dentro de live, conversa ou checkout. | Planeado |
-| RN129 | [~] Comissão de afiliado ou criador depende de pedido pago, atribuição válida e ausência de cancelamento/devolução/reembolso. | Parcial - pedido pago e atribuição válida implementados; faltam bloqueio/reversão automática por cancelamento, devolução ou reembolso |
+| RN129 | [x] Comissão de afiliado ou criador depende de pedido pago, atribuição válida e ausência de cancelamento/devolução/reembolso. | Implementado no backend |
 | RN130 | [ ] Tracking ajuda atribuição, mas não substitui prova de pedido, pagamento ou consentimento. | Planeado |
 | RN131 | [ ] Toda mensagem WhatsApp iniciada pelo sistema precisa de categoria, motivo, entidade relacionada e fallback antes do envio. | Planeado |
 | RN132 | [ ] Quando houver conflito entre automação e segurança operacional, o backend deve preferir tarefa humana. | Planeado |
@@ -983,8 +985,8 @@ O CRM+ Social Commerce pode ser considerado pronto para operação inicial quand
 - [ ] O dono conseguir criar catálogo digital partilhável com produtos selecionados e disponibilidade correta.
 - [~] Links rastreáveis de produto, criador e afiliado registrarem referência, origem, checkout, pedido e comissão atribuída; faltam cliques/leads completos, catálogo e campanha.
 - [~] O tracking funcionar parcialmente sem cookies, mantendo operação de compra intacta.
-- [~] O dono conseguir criar afiliado/criador, gerar link próprio, acompanhar pedidos atribuídos e confirmar comissão após pagamento; faltam UI, cliques/leads e pagamento de comissão.
-- [ ] O sistema reverter comissão quando pedido for cancelado, devolvido ou reembolsado.
+- [~] O dono conseguir criar afiliado/criador, gerar link próprio, acompanhar pedidos atribuídos, confirmar comissão após pagamento e marcar comissão como paga; faltam UI, cliques/leads, lotes financeiros e portal do afiliado.
+- [x] O sistema reverter comissão quando pedido for cancelado, devolvido ou reembolsado.
 - [ ] Comentários sociais de posts, vídeos, fotos ou lives suportados forem capturados/importados, classificados e convertidos em lead, conversa, tarefa ou oportunidade.
 - [ ] O funil mostrar jornada do cliente desde visita/interação até pagamento, entrega, pós-venda e recompra.
 - [ ] Playbooks de recuperação criarem tarefas ou mensagens para carrinho abandonado, pagamento pendente, reserva expirada e cliente inativo.

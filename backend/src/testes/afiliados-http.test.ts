@@ -49,6 +49,83 @@ async function criarProduto(
   return resposta.json();
 }
 
+async function prepararPedidoAfiliado(
+  app: Awaited<ReturnType<typeof criarAplicacao>>,
+  opcoes: { telefoneLoja: string; slug: string; codigoProduto: string; codigoAfiliado: string; codigoLink: string }
+) {
+  const loja = await autenticar(app, opcoes.telefoneLoja, `Loja ${opcoes.codigoAfiliado}`);
+
+  await criarProduto(app, loja, opcoes.codigoProduto);
+
+  const publicacao = await app.inject({
+    method: "PUT",
+    url: "/loja-publica/configuracao",
+    headers: loja,
+    payload: {
+      slug: opcoes.slug,
+      descricaoPublica: "Produtos para venda com criadores.",
+      publicada: true
+    }
+  });
+  expect(publicacao.statusCode).toBe(200);
+
+  const afiliado = await app.inject({
+    method: "POST",
+    url: "/afiliados",
+    headers: loja,
+    payload: {
+      tipo: "AFILIADO",
+      codigo: opcoes.codigoAfiliado,
+      nomePublico: `Parceiro ${opcoes.codigoAfiliado}`,
+      contacto: "923700001",
+      metodoPagamento: { iban: "AO06000000000000000000000" },
+      regraComissao: {
+        tipo: "PERCENTUAL",
+        percentual: 10
+      }
+    }
+  });
+  expect(afiliado.statusCode).toBe(201);
+
+  const link = await app.inject({
+    method: "POST",
+    url: `/afiliados/${afiliado.json().id}/links`,
+    headers: loja,
+    payload: {
+      codigo: opcoes.codigoLink,
+      destinoTipo: "PRODUTO",
+      slugLoja: opcoes.slug,
+      codigoProduto: opcoes.codigoProduto,
+      canal: "tiktok",
+      origemConteudo: "video-look-01"
+    }
+  });
+  expect(link.statusCode).toBe(201);
+
+  const checkout = await app.inject({
+    method: "POST",
+    url: `/publico/lojas/${opcoes.slug}/checkout`,
+    payload: {
+      cliente: {
+        nome: `Cliente ${opcoes.codigoAfiliado}`,
+        telefone: "923700009",
+        consentimentoDados: true,
+        consentimentoMarketing: false
+      },
+      itens: [{ codigoPeca: opcoes.codigoProduto, quantidade: 2 }],
+      entrega: {
+        tipo: "RETIRADA"
+      },
+      referencia: opcoes.codigoLink,
+      trackingId: `trk-${opcoes.codigoAfiliado}`,
+      origem: "bio-tiktok"
+    }
+  });
+  expect(checkout.statusCode).toBe(201);
+
+  return { loja, afiliado: afiliado.json(), link: link.json(), checkout: checkout.json() };
+}
+
 describe("afiliados, criadores e comissões HTTP", () => {
   beforeEach(() => {
     process.env = {
@@ -230,6 +307,191 @@ describe("afiliados, criadores e comissões HTTP", () => {
           nomePublico: "Ana Vendas",
           pedidos: 1,
           comissaoConfirmadaEmKwanza: 2_500
+        })
+      );
+    } finally {
+      await app.close();
+    }
+  });
+
+  it("reverte comissão confirmada quando pedido atribuído é cancelado", async () => {
+    const app = await criarAplicacao();
+
+    try {
+      const { loja, checkout } = await prepararPedidoAfiliado(app, {
+        telefoneLoja: "923600101",
+        slug: "loja-afiliados-cancelamento",
+        codigoProduto: "AF2",
+        codigoAfiliado: "bia",
+        codigoLink: "BIA-AF2"
+      });
+
+      const confirmarPagamento = await app.inject({
+        method: "POST",
+        url: `/pedidos/${checkout.pedido.id}/confirmar-pagamento`,
+        headers: loja,
+        payload: {
+          observacao: "Pago antes do cancelamento"
+        }
+      });
+      expect(confirmarPagamento.statusCode).toBe(200);
+
+      const cancelarPedido = await app.inject({
+        method: "PATCH",
+        url: `/pedidos/${checkout.pedido.id}/estado`,
+        headers: loja,
+        payload: {
+          estado: "CANCELADO",
+          observacao: "Cliente desistiu antes da entrega"
+        }
+      });
+      expect(cancelarPedido.statusCode).toBe(200);
+
+      const comissoes = await app.inject({
+        method: "GET",
+        url: "/afiliados/comissoes",
+        headers: loja
+      });
+      expect(comissoes.statusCode).toBe(200);
+      expect(comissoes.json().comissoes[0]).toEqual(
+        expect.objectContaining({
+          pedidoId: checkout.pedido.id,
+          status: "REVERTIDA",
+          motivo: expect.stringContaining("CANCELADO"),
+          revertidoEm: expect.any(String)
+        })
+      );
+
+      const resumo = await app.inject({
+        method: "GET",
+        url: "/afiliados/resumo",
+        headers: loja
+      });
+      expect(resumo.statusCode).toBe(200);
+      expect(resumo.json()).toEqual(
+        expect.objectContaining({
+          comissaoConfirmadaEmKwanza: 0,
+          comissaoEstimadaEmKwanza: 0,
+          comissaoRevertidaEmKwanza: 2_500
+        })
+      );
+    } finally {
+      await app.close();
+    }
+  });
+
+  it("reverte comissão confirmada quando pedido atribuído é reembolsado", async () => {
+    const app = await criarAplicacao();
+
+    try {
+      const { loja, checkout } = await prepararPedidoAfiliado(app, {
+        telefoneLoja: "923600103",
+        slug: "loja-afiliados-reembolso",
+        codigoProduto: "AF4",
+        codigoAfiliado: "dri",
+        codigoLink: "DRI-AF4"
+      });
+
+      const confirmarPagamento = await app.inject({
+        method: "POST",
+        url: `/pedidos/${checkout.pedido.id}/confirmar-pagamento`,
+        headers: loja,
+        payload: {
+          observacao: "Pago antes do reembolso"
+        }
+      });
+      expect(confirmarPagamento.statusCode).toBe(200);
+
+      const reembolsarPedido = await app.inject({
+        method: "PATCH",
+        url: `/pedidos/${checkout.pedido.id}/estado`,
+        headers: loja,
+        payload: {
+          estadoPagamento: "REEMBOLSADO",
+          observacao: "Cliente recebeu reembolso integral"
+        }
+      });
+      expect(reembolsarPedido.statusCode).toBe(200);
+
+      const comissoes = await app.inject({
+        method: "GET",
+        url: "/afiliados/comissoes",
+        headers: loja
+      });
+      expect(comissoes.statusCode).toBe(200);
+      expect(comissoes.json().comissoes[0]).toEqual(
+        expect.objectContaining({
+          pedidoId: checkout.pedido.id,
+          status: "REVERTIDA",
+          motivo: expect.stringContaining("REEMBOLSADO"),
+          revertidoEm: expect.any(String)
+        })
+      );
+    } finally {
+      await app.close();
+    }
+  });
+
+  it("marca comissão confirmada como paga com referência operacional", async () => {
+    const app = await criarAplicacao();
+
+    try {
+      const { loja, checkout } = await prepararPedidoAfiliado(app, {
+        telefoneLoja: "923600102",
+        slug: "loja-afiliados-pagamento",
+        codigoProduto: "AF3",
+        codigoAfiliado: "cai",
+        codigoLink: "CAI-AF3"
+      });
+
+      const confirmarPagamento = await app.inject({
+        method: "POST",
+        url: `/pedidos/${checkout.pedido.id}/confirmar-pagamento`,
+        headers: loja,
+        payload: {
+          observacao: "Pago por transferência"
+        }
+      });
+      expect(confirmarPagamento.statusCode).toBe(200);
+
+      const comissoesConfirmadas = await app.inject({
+        method: "GET",
+        url: "/afiliados/comissoes",
+        headers: loja
+      });
+      expect(comissoesConfirmadas.statusCode).toBe(200);
+      const comissaoId = comissoesConfirmadas.json().comissoes[0].id;
+
+      const pagarComissao = await app.inject({
+        method: "POST",
+        url: `/afiliados/comissoes/${comissaoId}/pagar`,
+        headers: loja,
+        payload: {
+          referenciaPagamento: "LOTE-AFILIADOS-001",
+          observacao: "Transferência enviada para o IBAN cadastrado"
+        }
+      });
+      expect(pagarComissao.statusCode).toBe(200);
+      expect(pagarComissao.json()).toEqual(
+        expect.objectContaining({
+          id: comissaoId,
+          status: "PAGA",
+          referenciaPagamento: "LOTE-AFILIADOS-001",
+          observacaoPagamento: "Transferência enviada para o IBAN cadastrado",
+          pagoEm: expect.any(String)
+        })
+      );
+
+      const resumo = await app.inject({
+        method: "GET",
+        url: "/afiliados/resumo",
+        headers: loja
+      });
+      expect(resumo.statusCode).toBe(200);
+      expect(resumo.json()).toEqual(
+        expect.objectContaining({
+          comissaoConfirmadaEmKwanza: 0,
+          comissaoPagaEmKwanza: 2_500
         })
       );
     } finally {

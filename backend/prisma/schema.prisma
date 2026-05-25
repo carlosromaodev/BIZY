@@ -559,6 +559,9 @@ model ComissaoParceiro {
   motivo          String?
   criadoEm        DateTime            @default(now())
   confirmadoEm    DateTime?
+  pagoEm          DateTime?
+  referenciaPagamento String?
+  observacaoPagamento String?
   revertidoEm     DateTime?
   atualizadoEm    DateTime            @updatedAt
 
