@@ -474,6 +474,8 @@ model Negocio {
   lotesPagamentoComissao  LotePagamentoComissao[]
   tarefasOperacionais     TarefaOperacional[]
   socialInboxItens        SocialInboxItem[]
+  playbooksRecuperacao    PlaybookRecuperacao[]
+  execucoesPlaybookRecuperacao ExecucaoPlaybookRecuperacao[]
 
   @@index([nomeComercial])
   @@index([slugPublico])
@@ -508,6 +510,51 @@ model SocialInboxItem {
   @@index([negocioId, canal, criadoEm])
   @@index([clienteTelefone, criadoEm])
   @@index([autorUsername, criadoEm])
+}
+
+model PlaybookRecuperacao {
+  id                 String                        @id @default(uuid())
+  negocioId          String
+  negocio            Negocio                       @relation(fields: [negocioId], references: [id])
+  nome               String
+  gatilho            String
+  ativo              Boolean                       @default(true)
+  atrasoMinutos      Int                           @default(0)
+  condicoesJson      String                        @default("{}")
+  acao               String                        @default("CRIAR_TAREFA")
+  tituloTarefa       String?
+  descricaoTarefa    String?
+  prioridadeTarefa   String                        @default("NORMAL")
+  responsavelId      String?
+  criadoEm           DateTime                      @default(now())
+  atualizadoEm       DateTime                      @updatedAt
+  execucoes          ExecucaoPlaybookRecuperacao[]
+
+  @@index([negocioId, gatilho, ativo])
+  @@index([negocioId, criadoEm])
+}
+
+model ExecucaoPlaybookRecuperacao {
+  id              String               @id @default(uuid())
+  negocioId       String
+  negocio         Negocio              @relation(fields: [negocioId], references: [id])
+  playbookId      String
+  playbook        PlaybookRecuperacao  @relation(fields: [playbookId], references: [id], onDelete: Cascade)
+  gatilho         String
+  entidadeTipo    String?
+  entidadeId      String?
+  clienteTelefone String?
+  estado          String
+  tarefaId        String?
+  motivo          String?
+  contextoJson    String               @default("{}")
+  criadaEm        DateTime             @default(now())
+
+  @@index([negocioId, gatilho, criadaEm])
+  @@index([negocioId, estado, criadaEm])
+  @@index([playbookId, criadaEm])
+  @@index([entidadeTipo, entidadeId])
+  @@index([clienteTelefone, criadaEm])
 }
 
 model TarefaOperacional {

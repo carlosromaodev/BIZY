@@ -2,8 +2,12 @@ import {
   AtualizarConversaAtendimentoSchema,
   AtualizarTarefaOperacionalSchema,
   CriarTarefaOperacionalSchema,
+  CriarPlaybookRecuperacaoSchema,
   CriarSocialInboxItemSchema,
   DefinirPoliticaAutomacaoAtendimentoSchema,
+  ExecutarPlaybookRecuperacaoSchema,
+  FiltrosExecucoesPlaybookRecuperacaoQuerySchema,
+  FiltrosPlaybookRecuperacaoQuerySchema,
   FiltrosSocialInboxQuerySchema,
   RegistrarNotaInternaAtendimentoSchema,
   RegistrarSugestaoIaAtendimentoSchema
@@ -203,6 +207,78 @@ export const moduloOperacional: ModuloHttp = {
       });
 
       return reply.code(201).send({ item });
+    });
+
+    app.get("/playbooks/recuperacao", async (request, reply) => {
+      const contextoComercial = await exigirAcessoComercial(contexto, request, reply, {
+        permissao: "automacoes:ler",
+        modulo: "automacoes",
+        mensagemPermissao: "Sem permissão para consultar playbooks de recuperação.",
+        mensagemModulo: "Automações desativadas para este negócio."
+      });
+      if (!contextoComercial) return;
+
+      const filtros = FiltrosPlaybookRecuperacaoQuerySchema.parse(request.query ?? {});
+      const playbooks = await contexto.gestaoPlaybooksRecuperacao.listarPlaybooks(
+        contextoComercial.negocio.id,
+        filtros
+      );
+      return { playbooks };
+    });
+
+    app.post("/playbooks/recuperacao", async (request, reply) => {
+      const contextoComercial = await exigirAcessoComercial(contexto, request, reply, {
+        permissao: "automacoes:gerir",
+        modulo: "automacoes",
+        mensagemPermissao: "Sem permissão para criar playbooks de recuperação.",
+        mensagemModulo: "Automações desativadas para este negócio."
+      });
+      if (!contextoComercial) return;
+
+      const dados = CriarPlaybookRecuperacaoSchema.parse(request.body ?? {});
+      const playbook = await contexto.gestaoPlaybooksRecuperacao.criarPlaybook({
+        ...dados,
+        negocioId: contextoComercial.negocio.id
+      });
+
+      return reply.code(201).send({ playbook });
+    });
+
+    app.get("/playbooks/recuperacao/execucoes", async (request, reply) => {
+      const contextoComercial = await exigirAcessoComercial(contexto, request, reply, {
+        permissao: "automacoes:ler",
+        modulo: "automacoes",
+        mensagemPermissao: "Sem permissão para consultar execuções de playbooks.",
+        mensagemModulo: "Automações desativadas para este negócio."
+      });
+      if (!contextoComercial) return;
+
+      const filtros = FiltrosExecucoesPlaybookRecuperacaoQuerySchema.parse(request.query ?? {});
+      const execucoes = await contexto.gestaoPlaybooksRecuperacao.listarExecucoes(
+        contextoComercial.negocio.id,
+        filtros
+      );
+      return { execucoes };
+    });
+
+    app.post("/playbooks/recuperacao/:id/executar", async (request, reply) => {
+      const contextoComercial = await exigirAcessoComercial(contexto, request, reply, {
+        permissao: "automacoes:gerir",
+        modulo: "automacoes",
+        mensagemPermissao: "Sem permissão para executar playbooks de recuperação.",
+        mensagemModulo: "Automações desativadas para este negócio."
+      });
+      if (!contextoComercial) return;
+
+      const { id } = request.params as { id: string };
+      const dados = ExecutarPlaybookRecuperacaoSchema.parse(request.body ?? {});
+      const resultado = await contexto.gestaoPlaybooksRecuperacao.executarPlaybook(
+        id,
+        contextoComercial.negocio.id,
+        dados
+      );
+
+      return reply.code(202).send(resultado);
     });
 
     app.get("/atendimento/conversas", async (request, reply) => {

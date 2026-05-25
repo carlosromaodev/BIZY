@@ -9,6 +9,7 @@ import type {
   RepositorioInstanciasWhatsApp,
   RepositorioPecas,
   RepositorioPedidos,
+  RepositorioPlaybooksRecuperacao,
   RepositorioReservas,
   RepositorioSessoesLive,
   RepositorioSocialInbox,
@@ -41,10 +42,13 @@ import type {
   EstadoPeca,
   EstadoPedido,
   EstadoReserva,
+  ExecucaoPlaybookRecuperacao,
   EventoSistema,
   EventoTrackingComercial,
   FiltrosPedidos,
   FiltrosClientes360,
+  FiltrosExecucoesPlaybookRecuperacao,
+  FiltrosPlaybookRecuperacao,
   FiltrosSocialInbox,
   HistoricoComissaoParceiro,
   InstanciaWhatsApp,
@@ -54,9 +58,11 @@ import type {
   MensagemAtendimento,
   MovimentoStock,
   NovaComissaoParceiro,
+  NovaExecucaoPlaybookRecuperacao,
   NovaMensagemAtendimento,
   NovoEventoTrackingComercial,
   NovoLinkAfiliado,
+  NovoPlaybookRecuperacao,
   NovoMovimentoStock,
   NovoParceiroComercial,
   NovaPeca,
@@ -69,6 +75,7 @@ import type {
   NovoSocialInboxItem,
   Peca,
   ParceiroComercial,
+  PlaybookRecuperacao,
   Pedido,
   RegistroOutboxEventoN8n,
   RegistroOutboxMensagemWhatsApp,
@@ -3153,6 +3160,205 @@ export class RepositorioSocialInboxPrisma implements RepositorioSocialInbox {
       contexto: this.lerObjeto(linha.contextoJson),
       criadoEm: linha.criadoEm,
       atualizadoEm: linha.atualizadoEm
+    };
+  }
+
+  private lerObjeto(valor: string): Record<string, unknown> {
+    try {
+      const json = JSON.parse(valor);
+      return json && typeof json === "object" && !Array.isArray(json) ? json as Record<string, unknown> : {};
+    } catch {
+      return {};
+    }
+  }
+}
+
+interface LinhaPlaybookRecuperacao {
+  id: string;
+  negocioId: string;
+  nome: string;
+  gatilho: string;
+  ativo: boolean;
+  atrasoMinutos: number;
+  condicoesJson: string;
+  acao: string;
+  tituloTarefa: string | null;
+  descricaoTarefa: string | null;
+  prioridadeTarefa: string;
+  responsavelId: string | null;
+  criadoEm: Date;
+  atualizadoEm: Date;
+}
+
+interface LinhaExecucaoPlaybookRecuperacao {
+  id: string;
+  negocioId: string;
+  playbookId: string;
+  gatilho: string;
+  entidadeTipo: string | null;
+  entidadeId: string | null;
+  clienteTelefone: string | null;
+  estado: string;
+  tarefaId: string | null;
+  motivo: string | null;
+  contextoJson: string;
+  criadaEm: Date;
+}
+
+export class RepositorioPlaybooksRecuperacaoPrisma implements RepositorioPlaybooksRecuperacao {
+  constructor(private readonly prisma: PrismaClient) {}
+
+  async criar(dados: NovoPlaybookRecuperacao): Promise<PlaybookRecuperacao> {
+    const linhas = await this.prisma.$queryRaw<LinhaPlaybookRecuperacao[]>`
+      INSERT INTO "PlaybookRecuperacao" (
+        "negocioId",
+        "nome",
+        "gatilho",
+        "ativo",
+        "atrasoMinutos",
+        "condicoesJson",
+        "acao",
+        "tituloTarefa",
+        "descricaoTarefa",
+        "prioridadeTarefa",
+        "responsavelId"
+      ) VALUES (
+        ${dados.negocioId},
+        ${dados.nome},
+        ${dados.gatilho},
+        ${dados.ativo ?? true},
+        ${dados.atrasoMinutos ?? 0},
+        ${JSON.stringify(dados.condicoes ?? {})},
+        ${dados.acao ?? "CRIAR_TAREFA"},
+        ${dados.tituloTarefa ?? null},
+        ${dados.descricaoTarefa ?? null},
+        ${dados.prioridadeTarefa ?? "NORMAL"},
+        ${dados.responsavelId ?? null}
+      )
+      RETURNING *
+    `;
+
+    return this.mapearPlaybook(linhas[0]);
+  }
+
+  async listar(negocioId: string, filtros: FiltrosPlaybookRecuperacao = {}): Promise<PlaybookRecuperacao[]> {
+    const limite = Math.max(1, Math.min(filtros.limite ?? 100, 500));
+    const condicoes: Prisma.Sql[] = [Prisma.sql`"negocioId" = ${negocioId}`];
+    if (filtros.gatilho) condicoes.push(Prisma.sql`"gatilho" = ${filtros.gatilho}`);
+    if (filtros.ativo !== undefined) condicoes.push(Prisma.sql`"ativo" = ${filtros.ativo}`);
+
+    const linhas = await this.prisma.$queryRaw<LinhaPlaybookRecuperacao[]>(
+      Prisma.sql`
+        SELECT *
+        FROM "PlaybookRecuperacao"
+        WHERE ${Prisma.join(condicoes, " AND ")}
+        ORDER BY "criadoEm" DESC
+        LIMIT ${limite}
+      `
+    );
+
+    return linhas.map((linha) => this.mapearPlaybook(linha));
+  }
+
+  async buscarPorId(id: string, negocioId: string): Promise<PlaybookRecuperacao | null> {
+    const linhas = await this.prisma.$queryRaw<LinhaPlaybookRecuperacao[]>`
+      SELECT *
+      FROM "PlaybookRecuperacao"
+      WHERE "id" = ${id} AND "negocioId" = ${negocioId}
+      LIMIT 1
+    `;
+
+    return linhas[0] ? this.mapearPlaybook(linhas[0]) : null;
+  }
+
+  async registrarExecucao(dados: NovaExecucaoPlaybookRecuperacao): Promise<ExecucaoPlaybookRecuperacao> {
+    const linhas = await this.prisma.$queryRaw<LinhaExecucaoPlaybookRecuperacao[]>`
+      INSERT INTO "ExecucaoPlaybookRecuperacao" (
+        "negocioId",
+        "playbookId",
+        "gatilho",
+        "entidadeTipo",
+        "entidadeId",
+        "clienteTelefone",
+        "estado",
+        "tarefaId",
+        "motivo",
+        "contextoJson"
+      ) VALUES (
+        ${dados.negocioId},
+        ${dados.playbookId},
+        ${dados.gatilho},
+        ${dados.entidadeTipo ?? null},
+        ${dados.entidadeId ?? null},
+        ${dados.clienteTelefone ?? null},
+        ${dados.estado},
+        ${dados.tarefaId ?? null},
+        ${dados.motivo ?? null},
+        ${JSON.stringify(dados.contexto ?? {})}
+      )
+      RETURNING *
+    `;
+
+    return this.mapearExecucao(linhas[0]);
+  }
+
+  async listarExecucoes(
+    negocioId: string,
+    filtros: FiltrosExecucoesPlaybookRecuperacao = {}
+  ): Promise<ExecucaoPlaybookRecuperacao[]> {
+    const limite = Math.max(1, Math.min(filtros.limite ?? 100, 500));
+    const condicoes: Prisma.Sql[] = [Prisma.sql`"negocioId" = ${negocioId}`];
+    if (filtros.gatilho) condicoes.push(Prisma.sql`"gatilho" = ${filtros.gatilho}`);
+    if (filtros.estado) condicoes.push(Prisma.sql`"estado" = ${filtros.estado}`);
+    if (filtros.entidadeTipo) condicoes.push(Prisma.sql`"entidadeTipo" = ${filtros.entidadeTipo}`);
+    if (filtros.entidadeId) condicoes.push(Prisma.sql`"entidadeId" = ${filtros.entidadeId}`);
+
+    const linhas = await this.prisma.$queryRaw<LinhaExecucaoPlaybookRecuperacao[]>(
+      Prisma.sql`
+        SELECT *
+        FROM "ExecucaoPlaybookRecuperacao"
+        WHERE ${Prisma.join(condicoes, " AND ")}
+        ORDER BY "criadaEm" DESC
+        LIMIT ${limite}
+      `
+    );
+
+    return linhas.map((linha) => this.mapearExecucao(linha));
+  }
+
+  private mapearPlaybook(linha: LinhaPlaybookRecuperacao): PlaybookRecuperacao {
+    return {
+      id: linha.id,
+      negocioId: linha.negocioId,
+      nome: linha.nome,
+      gatilho: linha.gatilho as PlaybookRecuperacao["gatilho"],
+      ativo: linha.ativo,
+      atrasoMinutos: linha.atrasoMinutos,
+      condicoes: this.lerObjeto(linha.condicoesJson),
+      acao: linha.acao as PlaybookRecuperacao["acao"],
+      tituloTarefa: linha.tituloTarefa,
+      descricaoTarefa: linha.descricaoTarefa,
+      prioridadeTarefa: linha.prioridadeTarefa as PlaybookRecuperacao["prioridadeTarefa"],
+      responsavelId: linha.responsavelId,
+      criadoEm: linha.criadoEm,
+      atualizadoEm: linha.atualizadoEm
+    };
+  }
+
+  private mapearExecucao(linha: LinhaExecucaoPlaybookRecuperacao): ExecucaoPlaybookRecuperacao {
+    return {
+      id: linha.id,
+      negocioId: linha.negocioId,
+      playbookId: linha.playbookId,
+      gatilho: linha.gatilho as ExecucaoPlaybookRecuperacao["gatilho"],
+      entidadeTipo: linha.entidadeTipo,
+      entidadeId: linha.entidadeId,
+      clienteTelefone: linha.clienteTelefone,
+      estado: linha.estado as ExecucaoPlaybookRecuperacao["estado"],
+      tarefaId: linha.tarefaId,
+      motivo: linha.motivo,
+      contexto: this.lerObjeto(linha.contextoJson),
+      criadaEm: linha.criadaEm
     };
   }
 

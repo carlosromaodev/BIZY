@@ -11,12 +11,16 @@ import type {
   DadosPedidoResolvido,
   DadosCliente360,
   ComissaoParceiro,
+  ExecucaoPlaybookRecuperacao,
+  FiltrosExecucoesPlaybookRecuperacao,
   HistoricoComissaoParceiro,
   LotePagamentoComissao,
   NovaPeca,
   NovaComissaoParceiro,
+  NovaExecucaoPlaybookRecuperacao,
   NovoLotePagamentoComissao,
   NovoLinkAfiliado,
+  NovoPlaybookRecuperacao,
   NovoParceiroComercial,
   NovaReserva,
   NovaMensagemAtendimento,
@@ -35,6 +39,7 @@ import type {
   EstadoReserva,
   EventoSistema,
   EventoTrackingComercial,
+  FiltrosPlaybookRecuperacao,
   FiltrosTarefasOperacionais,
   FiltrosSocialInbox,
   DadosCriacaoReservaComControleStock,
@@ -63,6 +68,7 @@ import type {
   NegocioBizy,
   LinkAfiliado,
   ParceiroComercial,
+  PlaybookRecuperacao,
   ResumoAfiliadosComerciais,
   ResumoTrackingComercial,
   SocialInboxItem,
@@ -215,6 +221,17 @@ export interface RepositorioSocialInbox {
   criar(dados: NovoSocialInboxItem): Promise<SocialInboxItem>;
   listar(negocioId: string, filtros?: FiltrosSocialInbox): Promise<SocialInboxItem[]>;
   buscarPorId(id: string, negocioId: string): Promise<SocialInboxItem | null>;
+}
+
+export interface RepositorioPlaybooksRecuperacao {
+  criar(dados: NovoPlaybookRecuperacao): Promise<PlaybookRecuperacao>;
+  listar(negocioId: string, filtros?: FiltrosPlaybookRecuperacao): Promise<PlaybookRecuperacao[]>;
+  buscarPorId(id: string, negocioId: string): Promise<PlaybookRecuperacao | null>;
+  registrarExecucao(dados: NovaExecucaoPlaybookRecuperacao): Promise<ExecucaoPlaybookRecuperacao>;
+  listarExecucoes(
+    negocioId: string,
+    filtros?: FiltrosExecucoesPlaybookRecuperacao
+  ): Promise<ExecucaoPlaybookRecuperacao[]>;
 }
 
 export interface RepositorioClientes {

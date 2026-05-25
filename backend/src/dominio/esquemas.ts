@@ -8,12 +8,15 @@ import {
   estadosPeca,
   estadosTarefaOperacional,
   estadosSocialInbox,
+  estadosExecucaoPlaybookRecuperacao,
   estadosRelacionamentoCliente,
   fontesLive,
+  gatilhosPlaybookRecuperacao,
   intencoesSocialInbox,
   politicasAutomacaoAtendimento,
   prioridadesTarefaOperacional,
   prioridadesConversaAtendimento,
+  acoesPlaybookRecuperacao,
   tiposSocialInbox,
   tiposComissaoParceiro,
   tiposEventoTrackingComercial,
@@ -386,6 +389,50 @@ export const FiltrosSocialInboxQuerySchema = z.object({
   intencao: z.enum(intencoesSocialInbox).optional(),
   autorUsername: z.string().trim().min(1).max(120).optional(),
   clienteTelefone: z.string().trim().min(1).max(30).optional(),
+  limite: z.coerce.number().int().min(1).max(500).optional()
+});
+
+const BooleanQuerySchema = z.preprocess((valor) => {
+  if (typeof valor === "string") {
+    if (valor.toLowerCase() === "true") return true;
+    if (valor.toLowerCase() === "false") return false;
+  }
+  return valor;
+}, z.boolean().optional());
+
+export const CriarPlaybookRecuperacaoSchema = z.object({
+  nome: z.string().trim().min(3).max(160),
+  gatilho: z.enum(gatilhosPlaybookRecuperacao),
+  ativo: z.boolean().default(true),
+  atrasoMinutos: z.coerce.number().int().min(0).max(43_200).default(0),
+  condicoes: z.record(z.string(), z.unknown()).default({}),
+  acao: z.enum(acoesPlaybookRecuperacao).default("CRIAR_TAREFA"),
+  tituloTarefa: z.string().trim().min(3).max(160).nullable().optional().transform((valor) => valor ?? null),
+  descricaoTarefa: z.string().trim().max(2000).nullable().optional().transform((valor) => valor ?? null),
+  prioridadeTarefa: z.enum(prioridadesTarefaOperacional).default("NORMAL"),
+  responsavelId: CampoTarefaOpcionalSchema
+});
+
+export const ExecutarPlaybookRecuperacaoSchema = z.object({
+  entidadeTipo: CampoTarefaOpcionalSchema,
+  entidadeId: CampoTarefaOpcionalSchema,
+  clienteTelefone: CampoTarefaOpcionalSchema,
+  clienteId: z.string().trim().uuid().nullable().optional().transform((valor) => valor ?? null),
+  pedidoId: z.string().trim().uuid().nullable().optional().transform((valor) => valor ?? null),
+  contexto: z.record(z.string(), z.unknown()).default({})
+});
+
+export const FiltrosPlaybookRecuperacaoQuerySchema = z.object({
+  gatilho: z.enum(gatilhosPlaybookRecuperacao).optional(),
+  ativo: BooleanQuerySchema,
+  limite: z.coerce.number().int().min(1).max(500).optional()
+});
+
+export const FiltrosExecucoesPlaybookRecuperacaoQuerySchema = z.object({
+  gatilho: z.enum(gatilhosPlaybookRecuperacao).optional(),
+  estado: z.enum(estadosExecucaoPlaybookRecuperacao).optional(),
+  entidadeTipo: z.string().trim().min(1).max(80).optional(),
+  entidadeId: z.string().trim().min(1).max(120).optional(),
   limite: z.coerce.number().int().min(1).max(500).optional()
 });
 

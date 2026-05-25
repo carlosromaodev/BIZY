@@ -9,6 +9,7 @@ import type {
   RepositorioInstanciasWhatsApp,
   RepositorioPecas,
   RepositorioPedidos,
+  RepositorioPlaybooksRecuperacao,
   RepositorioReservas,
   RepositorioSessoesLive,
   RepositorioSocialInbox,
@@ -37,8 +38,11 @@ import type {
   EstadoPeca,
   EstadoReserva,
   EventoTrackingComercial,
+  ExecucaoPlaybookRecuperacao,
   FiltrosPedidos,
   FiltrosClientes360,
+  FiltrosExecucoesPlaybookRecuperacao,
+  FiltrosPlaybookRecuperacao,
   AtualizacaoTarefaOperacional,
   EventoSistema,
   HistoricoComissaoParceiro,
@@ -48,10 +52,12 @@ import type {
   MensagemAtendimento,
   MovimentoStock,
   NovaComissaoParceiro,
+  NovaExecucaoPlaybookRecuperacao,
   NovaMensagemAtendimento,
   NovoEventoTrackingComercial,
   NovoLotePagamentoComissao,
   NovoLinkAfiliado,
+  NovoPlaybookRecuperacao,
   NovoMovimentoStock,
   NovoParceiroComercial,
   NovaPeca,
@@ -63,6 +69,7 @@ import type {
   Peca,
   Pedido,
   ParceiroComercial,
+  PlaybookRecuperacao,
   LinkAfiliado,
   RegistroOutboxEventoN8n,
   RegistroOutboxMensagemWhatsApp,
@@ -2261,6 +2268,84 @@ export class RepositorioSocialInboxMemoria implements RepositorioSocialInbox {
   async buscarPorId(id: string, negocioId: string): Promise<SocialInboxItem | null> {
     const item = this.itens.get(id);
     return item?.negocioId === negocioId ? item : null;
+  }
+}
+
+export class RepositorioPlaybooksRecuperacaoMemoria implements RepositorioPlaybooksRecuperacao {
+  private readonly playbooks = new Map<string, PlaybookRecuperacao>();
+  private readonly execucoes = new Map<string, ExecucaoPlaybookRecuperacao>();
+
+  async criar(dados: NovoPlaybookRecuperacao): Promise<PlaybookRecuperacao> {
+    const agora = new Date();
+    const playbook: PlaybookRecuperacao = {
+      id: randomUUID(),
+      negocioId: dados.negocioId,
+      nome: dados.nome,
+      gatilho: dados.gatilho,
+      ativo: dados.ativo ?? true,
+      atrasoMinutos: dados.atrasoMinutos ?? 0,
+      condicoes: dados.condicoes ?? {},
+      acao: dados.acao ?? "CRIAR_TAREFA",
+      tituloTarefa: dados.tituloTarefa ?? null,
+      descricaoTarefa: dados.descricaoTarefa ?? null,
+      prioridadeTarefa: dados.prioridadeTarefa ?? "NORMAL",
+      responsavelId: dados.responsavelId ?? null,
+      criadoEm: agora,
+      atualizadoEm: agora
+    };
+
+    this.playbooks.set(playbook.id, playbook);
+    return playbook;
+  }
+
+  async listar(negocioId: string, filtros: FiltrosPlaybookRecuperacao = {}): Promise<PlaybookRecuperacao[]> {
+    const limite = Math.max(1, Math.min(filtros.limite ?? 100, 500));
+    return [...this.playbooks.values()]
+      .filter((playbook) => playbook.negocioId === negocioId)
+      .filter((playbook) => !filtros.gatilho || playbook.gatilho === filtros.gatilho)
+      .filter((playbook) => filtros.ativo === undefined || playbook.ativo === filtros.ativo)
+      .sort((a, b) => b.criadoEm.getTime() - a.criadoEm.getTime())
+      .slice(0, limite);
+  }
+
+  async buscarPorId(id: string, negocioId: string): Promise<PlaybookRecuperacao | null> {
+    const playbook = this.playbooks.get(id);
+    return playbook?.negocioId === negocioId ? playbook : null;
+  }
+
+  async registrarExecucao(dados: NovaExecucaoPlaybookRecuperacao): Promise<ExecucaoPlaybookRecuperacao> {
+    const execucao: ExecucaoPlaybookRecuperacao = {
+      id: randomUUID(),
+      negocioId: dados.negocioId,
+      playbookId: dados.playbookId,
+      gatilho: dados.gatilho,
+      entidadeTipo: dados.entidadeTipo ?? null,
+      entidadeId: dados.entidadeId ?? null,
+      clienteTelefone: dados.clienteTelefone ?? null,
+      estado: dados.estado,
+      tarefaId: dados.tarefaId ?? null,
+      motivo: dados.motivo ?? null,
+      contexto: dados.contexto ?? {},
+      criadaEm: new Date()
+    };
+
+    this.execucoes.set(execucao.id, execucao);
+    return execucao;
+  }
+
+  async listarExecucoes(
+    negocioId: string,
+    filtros: FiltrosExecucoesPlaybookRecuperacao = {}
+  ): Promise<ExecucaoPlaybookRecuperacao[]> {
+    const limite = Math.max(1, Math.min(filtros.limite ?? 100, 500));
+    return [...this.execucoes.values()]
+      .filter((execucao) => execucao.negocioId === negocioId)
+      .filter((execucao) => !filtros.gatilho || execucao.gatilho === filtros.gatilho)
+      .filter((execucao) => !filtros.estado || execucao.estado === filtros.estado)
+      .filter((execucao) => !filtros.entidadeTipo || execucao.entidadeTipo === filtros.entidadeTipo)
+      .filter((execucao) => !filtros.entidadeId || execucao.entidadeId === filtros.entidadeId)
+      .sort((a, b) => b.criadaEm.getTime() - a.criadaEm.getTime())
+      .slice(0, limite);
   }
 }
 

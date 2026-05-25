@@ -693,6 +693,96 @@ export interface FiltrosSocialInbox {
   limite?: number;
 }
 
+export const gatilhosPlaybookRecuperacao = [
+  "CARRINHO_ABANDONADO",
+  "PAGAMENTO_PENDENTE",
+  "RESERVA_EXPIRADA",
+  "CLIENTE_INATIVO",
+  "POS_VENDA",
+  "REPOSICAO_PRODUTO",
+  "SOCIAL_LEAD"
+] as const;
+export type GatilhoPlaybookRecuperacao = (typeof gatilhosPlaybookRecuperacao)[number];
+
+export const acoesPlaybookRecuperacao = ["CRIAR_TAREFA"] as const;
+export type AcaoPlaybookRecuperacao = (typeof acoesPlaybookRecuperacao)[number];
+
+export const estadosExecucaoPlaybookRecuperacao = ["EXECUTADA", "IGNORADA", "FALHOU"] as const;
+export type EstadoExecucaoPlaybookRecuperacao = (typeof estadosExecucaoPlaybookRecuperacao)[number];
+
+export interface PlaybookRecuperacao {
+  id: string;
+  negocioId: string;
+  nome: string;
+  gatilho: GatilhoPlaybookRecuperacao;
+  ativo: boolean;
+  atrasoMinutos: number;
+  condicoes: Record<string, unknown>;
+  acao: AcaoPlaybookRecuperacao;
+  tituloTarefa: string | null;
+  descricaoTarefa: string | null;
+  prioridadeTarefa: PrioridadeTarefaOperacional;
+  responsavelId: string | null;
+  criadoEm: Date;
+  atualizadoEm: Date;
+}
+
+export interface NovoPlaybookRecuperacao {
+  negocioId: string;
+  nome: string;
+  gatilho: GatilhoPlaybookRecuperacao;
+  ativo?: boolean;
+  atrasoMinutos?: number;
+  condicoes?: Record<string, unknown>;
+  acao?: AcaoPlaybookRecuperacao;
+  tituloTarefa?: string | null;
+  descricaoTarefa?: string | null;
+  prioridadeTarefa?: PrioridadeTarefaOperacional;
+  responsavelId?: string | null;
+}
+
+export interface FiltrosPlaybookRecuperacao {
+  gatilho?: GatilhoPlaybookRecuperacao;
+  ativo?: boolean;
+  limite?: number;
+}
+
+export interface ExecucaoPlaybookRecuperacao {
+  id: string;
+  negocioId: string;
+  playbookId: string;
+  gatilho: GatilhoPlaybookRecuperacao;
+  entidadeTipo: string | null;
+  entidadeId: string | null;
+  clienteTelefone: string | null;
+  estado: EstadoExecucaoPlaybookRecuperacao;
+  tarefaId: string | null;
+  motivo: string | null;
+  contexto: Record<string, unknown>;
+  criadaEm: Date;
+}
+
+export interface NovaExecucaoPlaybookRecuperacao {
+  negocioId: string;
+  playbookId: string;
+  gatilho: GatilhoPlaybookRecuperacao;
+  entidadeTipo?: string | null;
+  entidadeId?: string | null;
+  clienteTelefone?: string | null;
+  estado: EstadoExecucaoPlaybookRecuperacao;
+  tarefaId?: string | null;
+  motivo?: string | null;
+  contexto?: Record<string, unknown>;
+}
+
+export interface FiltrosExecucoesPlaybookRecuperacao {
+  gatilho?: GatilhoPlaybookRecuperacao;
+  estado?: EstadoExecucaoPlaybookRecuperacao;
+  entidadeTipo?: string;
+  entidadeId?: string;
+  limite?: number;
+}
+
 export const estadosRelacionamentoCliente = [
   "ATIVO",
   "LEAD",
