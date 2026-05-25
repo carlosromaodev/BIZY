@@ -297,9 +297,10 @@ export function PaginaLogin() {
             ["criar", "Criar conta"],
             ["entrar", "Entrar"]
           ] as const).map(([valor, rotulo]) => (
-            <button
+            <Button
               key={valor}
               type="button"
+              variant="ghost"
               className={cn(
                 "h-10 rounded-xl border border-transparent text-sm font-bold transition-all active:border-[#d8ff72]",
                 fluxoIdentidade === valor
@@ -315,7 +316,7 @@ export function PaginaLogin() {
               }
             >
               {rotulo}
-            </button>
+            </Button>
           ))}
         </div>
 
@@ -448,9 +449,10 @@ export function PaginaLogin() {
               <form onSubmit={entrarEstudante} className="grid gap-4">
                 <div className="grid grid-cols-2 gap-2">
                   {(["uor", "isptec"] as const).map((provider) => (
-                    <button
+                    <Button
                       key={provider}
                       type="button"
+                      variant="ghost"
                       className={cn(
                         "h-11 rounded-2xl border px-3 text-sm font-bold transition-all active:border-[#d8ff72]",
                         providerEstudantil === provider
@@ -470,7 +472,7 @@ export function PaginaLogin() {
                       aria-pressed={providerEstudantil === provider}
                     >
                       {provider === "uor" ? "UOR" : "ISPTEC"}
-                    </button>
+                    </Button>
                   ))}
                 </div>
 
@@ -480,9 +482,10 @@ export function PaginaLogin() {
                       ["studentNumber", "Número"],
                       ["username", "Username"]
                     ] as const).map(([valor, rotulo]) => (
-                      <button
+                      <Button
                         key={valor}
                         type="button"
+                        variant="ghost"
                         className={cn(
                           "h-9 rounded-xl border border-transparent text-sm font-semibold transition-all active:border-[#d8ff72]",
                           tipoIdentificador === valor ? "bg-[#d8ff72] text-[#050706] shadow-sm" : "text-white/68"
@@ -499,7 +502,7 @@ export function PaginaLogin() {
                         aria-pressed={tipoIdentificador === valor}
                       >
                         {rotulo}
-                      </button>
+                      </Button>
                     ))}
                   </div>
                 ) : null}
@@ -534,14 +537,16 @@ export function PaginaLogin() {
                       onChange={(e) => setPalavraPasse(e.target.value)}
                       className={cn(CLASSE_CAMPO_ESCURO, "pr-11")}
                     />
-                    <button
+                    <Button
                       type="button"
-                      className="absolute right-2 top-1/2 grid size-8 -translate-y-1/2 place-items-center rounded-lg text-white/50 transition-colors hover:bg-white/8 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#d8ff72]/25"
+                      variant="ghost"
+                      size="icon"
+                      className="absolute right-2 top-1/2 size-8 -translate-y-1/2 rounded-lg text-white/50 transition-colors hover:bg-white/8 hover:text-white focus-visible:ring-[#d8ff72]/25"
                       onClick={() => setMostrarPasse((valor) => !valor)}
                       aria-label={mostrarPasse ? "Ocultar palavra-passe" : "Mostrar palavra-passe"}
                     >
                       {mostrarPasse ? <EyeOff size={16} /> : <Eye size={16} />}
-                    </button>
+                    </Button>
                   </div>
                 </div>
 

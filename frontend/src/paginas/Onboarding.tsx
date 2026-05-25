@@ -372,9 +372,10 @@ function SelecaoCompacta({
       <Label className="text-white/82">{titulo}</Label>
       <div className="flex flex-wrap gap-2">
         {itens.map((item) => (
-          <button
+          <Button
             key={item}
             type="button"
+            variant="ghost"
             style={
               ativos.includes(item)
                 ? { backgroundColor: "#d8ff72", border: "1px solid transparent", color: "#050706" }
@@ -390,7 +391,7 @@ function SelecaoCompacta({
             aria-pressed={ativos.includes(item)}
           >
             {item}
-          </button>
+          </Button>
         ))}
       </div>
     </div>

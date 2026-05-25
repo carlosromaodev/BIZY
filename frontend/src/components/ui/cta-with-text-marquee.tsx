@@ -66,6 +66,7 @@ export default function CTAWithTextMarquee() {
     const updateOpacity = () => {
       const items = marqueeContainer.querySelectorAll<HTMLElement>(".marquee-item");
       const containerRect = marqueeContainer.getBoundingClientRect();
+      if (containerRect.height <= 0) return;
       const centerY = containerRect.top + containerRect.height / 2;
 
       items.forEach((item) => {
@@ -90,28 +91,37 @@ export default function CTAWithTextMarquee() {
     };
   }, []);
 
+  const mobileChips = marqueeItems.slice(0, 6);
+
   return (
-    <section className="relative flex items-center justify-center overflow-hidden bg-[#050706] px-6 py-16 text-white lg:min-h-[86svh]" style={{ fontFamily: PROMPT_FONT_FAMILY }}>
+    <section className="relative flex items-center justify-center overflow-hidden bg-[#050706] px-5 py-12 text-white sm:px-6 lg:min-h-[76svh] lg:py-16" style={{ fontFamily: PROMPT_FONT_FAMILY }}>
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_20%,rgba(216,255,114,0.14),transparent_28%),radial-gradient(circle_at_82%_72%,rgba(22,101,52,0.16),transparent_30%)]" />
       <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-[#d8ff72]/30" />
       <div className="relative z-10 w-full max-w-7xl animate-fade-in-up">
-        <div className="grid grid-cols-1 items-center gap-12 lg:grid-cols-2 lg:gap-24">
-          <div className="max-w-xl space-y-8">
+        <div className="grid grid-cols-1 items-center gap-8 lg:grid-cols-2 lg:gap-24">
+          <div className="max-w-xl space-y-6 lg:space-y-8">
             <div className="inline-flex rounded-none border border-[#d8ff72]/30 bg-[#d8ff72]/10 px-3 py-1 text-xs font-medium uppercase tracking-[0.16em] text-[#d8ff72]">
               Pronto para operar
             </div>
             <h2
-              className="text-4xl font-medium leading-tight tracking-tight md:text-5xl lg:text-6xl"
+              className="text-3xl font-medium leading-tight tracking-tight md:text-5xl lg:text-6xl"
               style={{ color: "#ffffff", fontFamily: PROMPT_FONT_FAMILY }}
             >
               Transforma conversas em pedidos e pedidos em <span className="text-[#d8ff72]">clientes</span>.
             </h2>
-            <p className="text-lg leading-relaxed text-white/72 md:text-xl">
+            <p className="text-base leading-7 text-white/72 md:text-xl md:leading-relaxed">
               Começa com uma loja organizada e cresce com WhatsApp, catálogo, afiliados, automação e relatórios no mesmo lugar.
             </p>
-            <div className="flex flex-wrap gap-4">
+            <div className="grid grid-cols-2 gap-2 lg:hidden">
+              {mobileChips.map((item) => (
+                <span className="border border-[#d8ff72]/18 bg-white/[0.04] px-3 py-2 text-sm text-white/78" key={item}>
+                  {item}
+                </span>
+              ))}
+            </div>
+            <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:gap-4">
               <a
-                className="group relative inline-flex h-12 items-center overflow-hidden rounded-none bg-[#d8ff72] px-6 text-sm font-medium uppercase tracking-[0.08em] text-black transition-all duration-300 hover:scale-[1.02] hover:shadow-[0_18px_42px_rgba(216,255,114,0.22)]"
+                className="group relative inline-flex h-12 w-full items-center justify-between overflow-hidden rounded-none bg-[#d8ff72] px-5 text-sm font-medium uppercase tracking-[0.08em] text-black transition-all duration-300 hover:scale-[1.02] hover:shadow-[0_18px_42px_rgba(216,255,114,0.22)] sm:w-auto sm:px-6"
                 href="/login"
                 style={{ color: "#000000", fontFamily: PROMPT_FONT_FAMILY }}
               >
@@ -122,7 +132,7 @@ export default function CTAWithTextMarquee() {
                 <span className="absolute inset-0 translate-x-[-200%] bg-gradient-to-r from-transparent via-white/35 to-transparent transition-transform duration-700 group-hover:translate-x-[200%]" />
               </a>
               <a
-                className="group relative inline-flex h-12 items-center overflow-hidden rounded-none border border-[#d8ff72]/25 bg-white/5 px-6 text-sm font-medium uppercase tracking-[0.08em] text-white transition-all duration-300 hover:scale-[1.02] hover:bg-white/10 hover:shadow-[0_18px_42px_rgba(0,0,0,0.24)]"
+                className="group relative inline-flex h-12 w-full items-center justify-center overflow-hidden rounded-none border border-[#d8ff72]/25 bg-white/5 px-5 text-sm font-medium uppercase tracking-[0.08em] text-white transition-all duration-300 hover:scale-[1.02] hover:bg-white/10 hover:shadow-[0_18px_42px_rgba(0,0,0,0.24)] sm:w-auto sm:px-6"
                 href="#onboarding"
               >
                 <span className="relative z-10">Ver como funciona</span>
@@ -132,7 +142,7 @@ export default function CTAWithTextMarquee() {
           </div>
 
           <div
-            className="relative flex h-[360px] items-center justify-center md:h-[560px] lg:h-[680px]"
+            className="relative hidden h-[360px] items-center justify-center md:h-[560px] lg:flex lg:h-[620px]"
             ref={marqueeRef}
           >
             <div className="relative h-full w-full">

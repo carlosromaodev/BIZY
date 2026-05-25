@@ -383,24 +383,24 @@ function BizyFeaturesSection() {
   return (
     <section
       id="modulos"
-      className="relative overflow-hidden bg-[linear-gradient(180deg,#06100d_0%,#0d1512_52%,#050706_100%)] pt-20 text-white sm:pt-32"
+      className="relative overflow-hidden bg-[linear-gradient(180deg,#06100d_0%,#0d1512_52%,#050706_100%)] pt-12 text-white sm:pt-28"
     >
       <div className="mx-auto max-w-full">
-        <div className="mx-auto flex max-w-5xl flex-col items-center justify-center space-y-4 px-5 text-center md:px-10">
+        <div className="mx-auto flex max-w-5xl flex-col items-center justify-center space-y-3 px-5 text-center md:px-10">
           <Badge className="rounded-none border-[#d8ff72]/30 bg-[#d8ff72]/10 px-3 py-1.5 text-[#d8ff72] hover:bg-[#d8ff72]/10" variant="outline">
             Social commerce
           </Badge>
           <h2
-            className="max-w-3xl text-3xl font-medium leading-[1.05] tracking-normal sm:text-4xl lg:text-5xl"
+            className="max-w-3xl text-2xl font-medium leading-[1.08] tracking-normal sm:text-4xl lg:text-5xl"
             style={{ color: "#ffffff", fontFamily: PROMPT_FONT_FAMILY }}
           >
             Tudo que a loja precisa para vender nas redes, no WhatsApp e no <span className="text-[#d8ff72]">site</span>.
           </h2>
-          <p className="max-w-2xl text-base leading-7 text-white/72 md:text-lg">
+          <p className="max-w-2xl text-sm leading-6 text-white/72 md:text-lg md:leading-7">
             O Bizy organiza canais, produtos, pedidos, clientes, entregas, afiliados e relatórios para transformar interesse em venda acompanhada.
           </p>
 
-          <div className="relative mx-auto max-w-3xl overflow-hidden pt-3">
+          <div className="relative mx-auto hidden max-w-3xl overflow-hidden pt-3 md:block">
             <div className="absolute left-0 z-10 h-full w-20 bg-[linear-gradient(to_right,#06100d,transparent)]" />
             <div className="absolute right-0 z-10 h-full w-20 bg-[linear-gradient(to_left,#06100d,transparent)]" />
 
@@ -428,21 +428,21 @@ function BizyFeaturesSection() {
           </div>
         </div>
 
-        <div className="mt-10 grid grid-cols-1 divide-dashed divide-[#d8ff72]/25 border-y border-dashed border-[#d8ff72]/25 sm:grid-cols-2 sm:divide-x lg:grid-cols-3">
+        <div className="mt-8 grid grid-cols-1 divide-dashed divide-[#d8ff72]/25 border-y border-dashed border-[#d8ff72]/25 sm:grid-cols-2 sm:divide-x lg:mt-10 lg:grid-cols-3">
           {featuresSistema.map((feature) => {
             const Icone = feature.icone;
             return (
               <div
-                className="flex flex-col gap-5 border-b border-dashed border-[#d8ff72]/25 px-5 py-8 last:border-b-0 sm:border-b-0 lg:px-6 lg:py-10"
+                className="grid grid-cols-[2.75rem_minmax(0,1fr)] gap-4 border-b border-dashed border-[#d8ff72]/25 px-5 py-5 last:border-b-0 sm:border-b-0 lg:flex lg:flex-col lg:gap-5 lg:px-6 lg:py-10"
                 key={feature.titulo}
               >
-                <Icone className="size-12 text-[#d8ff72]" strokeWidth={1.6} />
+                <Icone className="size-10 text-[#d8ff72] lg:size-12" strokeWidth={1.6} />
 
-                <div className="flex flex-col gap-2 pt-10 lg:pt-20">
-                  <h3 className="text-2xl font-medium tracking-tight sm:text-3xl" style={{ color: "#ffffff", fontFamily: PROMPT_FONT_FAMILY }}>
+                <div className="flex min-w-0 flex-col gap-1.5 lg:gap-2 lg:pt-16">
+                  <h3 className="text-xl font-medium tracking-tight sm:text-2xl lg:text-3xl" style={{ color: "#ffffff", fontFamily: PROMPT_FONT_FAMILY }}>
                     {feature.titulo}
                   </h3>
-                  <p className="leading-relaxed text-white/70">{feature.descricao}</p>
+                  <p className="text-sm leading-6 text-white/68 sm:text-base sm:leading-relaxed">{feature.descricao}</p>
                 </div>
               </div>
             );
@@ -456,7 +456,7 @@ function BizyFeaturesSection() {
 function StatsMarquee() {
   return (
     <Marquee
-      className="w-full border-y border-white/15 bg-black/30 py-2 backdrop-blur-sm [--duration:30s] [--gap:2rem]"
+      className="hidden w-full border-y border-white/15 bg-black/30 py-2 backdrop-blur-sm [--duration:30s] [--gap:2rem] sm:flex"
       pauseOnHover
       repeat={4}
     >
@@ -473,6 +473,28 @@ function StatsMarquee() {
         );
       })}
     </Marquee>
+  );
+}
+
+function MobileHeroSignals() {
+  return (
+    <div className="grid grid-cols-2 gap-2 sm:hidden">
+      {estatisticasHero.slice(0, 4).map((stat) => {
+        const Icone = stat.icone;
+        return (
+          <span
+            className="inline-flex min-h-11 items-center gap-2 rounded-full border border-white/12 bg-black/28 px-3 py-2 text-xs font-semibold text-white/78 backdrop-blur"
+            key={stat.label}
+          >
+            <Icone className="size-4 shrink-0 text-[#d8ff72]" />
+            <span className="min-w-0 truncate">
+              <strong className="text-[#d8ff72]">{stat.valor}</strong>
+              <span className="sr-only">: {stat.label}</span>
+            </span>
+          </span>
+        );
+      })}
+    </div>
   );
 }
 
@@ -496,21 +518,22 @@ function LiveCommerceHero({ motionPreset }: { motionPreset: ReturnType<typeof cr
       <div className="absolute inset-0 bg-[linear-gradient(0deg,rgba(0,0,0,0.74)_0%,rgba(0,0,0,0.08)_56%,rgba(0,0,0,0.28)_100%)]" />
 
       <div className="relative z-10 w-full max-w-4xl px-4 text-white sm:px-8 lg:px-16">
-        <MotionDiv className="space-y-4" variants={motionPreset.item}>
+        <MotionDiv className="space-y-3 sm:space-y-4" variants={motionPreset.item}>
           <AvatarStack />
+          <MobileHeroSignals />
           <StatsMarquee />
         </MotionDiv>
       </div>
 
-      <div className="relative z-10 w-full px-4 pb-16 pt-6 sm:px-8 sm:pb-24 lg:px-16 lg:pb-32">
-        <div className="flex flex-col gap-6 sm:flex-row sm:items-end">
-          <MotionDiv className="w-full space-y-4 sm:w-1/2" variants={motionPreset.item}>
+      <div className="relative z-10 w-full px-4 pb-10 pt-5 sm:px-8 sm:pb-24 lg:px-16 lg:pb-32">
+        <div className="flex flex-col gap-5 sm:flex-row sm:items-end">
+          <MotionDiv className="w-full space-y-3 sm:w-1/2 sm:space-y-4" variants={motionPreset.item}>
             <Badge className="w-fit gap-2 rounded-full border border-white/20 bg-black/20 px-3 py-1.5 text-white shadow-sm backdrop-blur-sm hover:bg-black/20">
               <Radio size={14} />
               CRM+ para social commerce
             </Badge>
             <h1
-              className="text-3xl font-medium leading-[1.05] tracking-tight text-white sm:text-4xl md:text-5xl lg:text-6xl"
+              className="text-[2.55rem] font-medium leading-[1.03] tracking-tight text-white sm:text-4xl md:text-5xl lg:text-6xl"
               style={{ color: "#ffffff", fontFamily: PROMPT_FONT_FAMILY, textShadow: "0 4px 28px rgb(0 0 0 / 0.48)" }}
             >
               Venda pelo <span className="text-[#d8ff72]">WhatsApp</span>, live e loja online sem perder pedidos.
@@ -529,7 +552,7 @@ function LiveCommerceHero({ motionPreset }: { motionPreset: ReturnType<typeof cr
 
           <MotionDiv className="w-full sm:w-1/2" variants={motionPreset.painel}>
             <p
-              className="text-base font-medium italic leading-7 text-[#d8ff72] sm:text-right md:text-2xl md:leading-9"
+              className="max-w-xl text-base font-medium italic leading-7 text-[#d8ff72] sm:ml-auto sm:text-right md:text-2xl md:leading-9"
               style={{ fontFamily: PROMPT_FONT_FAMILY }}
             >
               O {NOME_PRODUTO} junta catálogo, stock, pedidos, conversas, pagamentos, entregas, clientes e relatórios num CRM feito para vender nas redes sociais.

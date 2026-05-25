@@ -18,7 +18,6 @@ describe("design interno Comercio suave", () => {
       "--commerce-shadow-modal:",
       "--commerce-green:",
       "--commerce-green-soft:",
-      "--commerce-wine:",
       "--commerce-warning-soft:",
       "--commerce-danger-soft:",
       "--motion-ui-fast:",
@@ -26,6 +25,7 @@ describe("design interno Comercio suave", () => {
       "--motion-ui-spring:",
       "@media (prefers-reduced-motion: reduce)"
     ].forEach((token) => expect(css).toContain(token));
+    expect(css).not.toContain("--commerce-wine:");
   });
 
   it("aplica shadcn premium em cards, botoes, campos, badges, dialogs e sheets", () => {
