@@ -17,6 +17,29 @@ class ProvedorWhatsAppCaptura implements ProvedorWhatsApp {
 }
 
 describe("política WhatsApp por categoria oficial", () => {
+  it("expõe catálogo de templates por categoria, evento, provider e aprovação", () => {
+    const automacao = new AutomacaoWhatsApp(new ProvedorWhatsAppCaptura(), new DespachadorEventos(), 10);
+
+    const templates = automacao.listarTemplates({
+      categoria: "utility",
+      evento: "PAYMENT_PENDING",
+      provider: "whatsapp_cloud_api",
+      apenasAprovados: true
+    });
+
+    expect(templates).toEqual([
+      expect.objectContaining({
+        id: "iban",
+        categoria: "utility",
+        idioma: "pt_AO",
+        provider: "whatsapp_cloud_api",
+        versao: 1,
+        estadoAprovacao: "aprovado",
+        eventosCompativeis: expect.arrayContaining(["PAYMENT_PENDING"])
+      })
+    ]);
+  });
+
   it("classifica templates operacionais como utilidade antes de chamar o provider", async () => {
     const provedor = new ProvedorWhatsAppCaptura();
     const automacao = new AutomacaoWhatsApp(provedor, new DespachadorEventos(), 10);
@@ -81,6 +104,24 @@ describe("política WhatsApp por categoria oficial", () => {
       })
     );
     expect(provedor.mensagens[0].categoria).toBe("service");
+  });
+
+  it("bloqueia envio manual com template ainda não aprovado", async () => {
+    const provedor = new ProvedorWhatsAppCaptura();
+    const automacao = new AutomacaoWhatsApp(provedor, new DespachadorEventos(), 10);
+
+    await expect(
+      automacao.enviarMensagemManual({
+        telefone: "923456789",
+        templateId: "marketing_reengajamento",
+        consentimentoMarketing: true,
+        variaveis: {
+          nomeCliente: "Cliente",
+          cupom: "BIZY10"
+        }
+      })
+    ).rejects.toThrow("Template WhatsApp marketing_reengajamento ainda não está aprovado para envio.");
+    expect(provedor.mensagens).toHaveLength(0);
   });
 
   it("bloqueia marketing sem consentimento explícito antes de chamar o provider", async () => {

@@ -1,4 +1,5 @@
 import { CriarInstanciaWhatsAppSchema, EnviarMensagemWhatsAppManualSchema } from "../../../dominio/esquemas.js";
+import type { FiltrosTemplatesWhatsApp } from "../../../dominio/servicos/AutomacaoWhatsApp.js";
 import { exigirAcessoComercial } from "../contextoComercial.js";
 import { exigirUsuarioAutenticado } from "../seguranca.js";
 import type { ModuloHttp } from "./ModuloHttp.js";
@@ -31,7 +32,7 @@ export const moduloIntegracoes: ModuloHttp = {
       });
       if (!contextoComercial) return;
 
-      return { templates: contexto.automacaoWhatsApp.listarTemplates() };
+      return { templates: contexto.automacaoWhatsApp.listarTemplates(normalizarFiltrosTemplates(request.query)) };
     });
 
     app.post("/whatsapp/mensagens", async (request, reply) => {
@@ -137,3 +138,15 @@ export const moduloIntegracoes: ModuloHttp = {
     });
   }
 };
+
+function normalizarFiltrosTemplates(query: unknown): FiltrosTemplatesWhatsApp {
+  const dados = (query ?? {}) as Record<string, string | undefined>;
+
+  return {
+    categoria: dados.categoria as FiltrosTemplatesWhatsApp["categoria"],
+    evento: dados.evento?.trim() || undefined,
+    provider: dados.provider as FiltrosTemplatesWhatsApp["provider"],
+    apenasAprovados: dados.apenasAprovados === "true",
+    estadoAprovacao: dados.estadoAprovacao as FiltrosTemplatesWhatsApp["estadoAprovacao"]
+  };
+}

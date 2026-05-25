@@ -728,6 +728,24 @@ describe("Fluxo operacional dos módulos", () => {
         expect.arrayContaining([expect.objectContaining({ id: "iban" }), expect.objectContaining({ id: "atendimento" })])
       );
 
+      const templatesPagamento = await app.inject({
+        method: "GET",
+        url: "/whatsapp/templates?categoria=utility&evento=PAYMENT_PENDING&provider=whatsapp_cloud_api&apenasAprovados=true",
+        headers: headersAutenticados
+      });
+      expect(templatesPagamento.statusCode).toBe(200);
+      expect(templatesPagamento.json().templates).toEqual([
+        expect.objectContaining({
+          id: "iban",
+          categoria: "utility",
+          idioma: "pt_AO",
+          provider: "whatsapp_cloud_api",
+          versao: 1,
+          estadoAprovacao: "aprovado",
+          eventosCompativeis: expect.arrayContaining(["PAYMENT_PENDING"])
+        })
+      ]);
+
       const envioManual = await app.inject({
         method: "POST",
         url: "/whatsapp/mensagens",

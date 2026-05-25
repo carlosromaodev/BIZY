@@ -1,7 +1,7 @@
 # Bizy / ÉMeu V1 - Requisitos Funcionais, Não Funcionais e Regras de Negócio
 
 Documento: `RF-RNF-RN-EMEUV1.md`
-Versão: 1.16
+Versão: 1.17
 Data: 2026-05-25
 Autor: Carlos
 Status: MVP base implementado; fundação backend Bizy CRM+ com Clientes 360, Pedidos, Catálogo/Stock, Loja Pública, Checkout, Entrega, Afiliados, Comissões e Lotes Financeiros em evolução
@@ -49,6 +49,8 @@ Atualização 1.14: adicionados saldos financeiros por afiliado/criador e export
 Atualização 1.15: o resumo de tracking comercial passou a devolver funil operacional com visitas, produtos vistos, cliques WhatsApp, checkouts, pedidos, leads identificados, receita atribuída e taxas básicas de conversão.
 
 Atualização 1.16: adicionada política interna de envio WhatsApp por categoria oficial (`marketing`, `utility`, `authentication`, `service`), com classificação antes do provider, metadados de política no envio, bloqueio de marketing sem consentimento e bloqueio de serviço fora da janela declarada.
+
+Atualização 1.17: o catálogo interno de templates WhatsApp passou a expor categoria, idioma, provider, versão, estado de aprovação e eventos compatíveis, com filtros na API `/whatsapp/templates` e bloqueio de envio para templates ainda não aprovados.
 
 ---
 
@@ -487,11 +489,11 @@ Esta etapa posiciona o Bizy como uma plataforma de operação comercial para cri
 | RF219 | [ ] Templates de utilidade devem ser usados para eventos transacionais como pedido criado, pagamento pendente, pagamento confirmado, entrega, recibo, reserva expirada e atualização de fila/reposição. | Alta | Planeado |
 | RF220 | [ ] Templates de marketing devem ser usados para promoções, novidades, campanhas, reativação, cross-sell, catálogo, cupões e divulgações de afiliados/criadores. | Alta | Planeado |
 | RF221 | [ ] Templates de autenticação devem ser usados apenas para códigos OTP, login, validação de identidade e operações de segurança. | Alta | Planeado |
-| RF222 | [ ] Cada evento de mensagem deve registrar motivo, categoria, template, idioma, janela de atendimento, consentimento, entidade relacionada e fallback previsto. | Alta | Planeado |
+| RF222 | [~] Cada evento de mensagem deve registrar motivo, categoria, template, idioma, janela de atendimento, consentimento, entidade relacionada e fallback previsto. | Alta | Parcial - envios WhatsApp já carregam política/categoria e templates expõem idioma/provider/versão/eventos; faltam persistência do template usado, consentimento por cliente e fallback/tarefa humana estruturada |
 | RF223 | [ ] O sistema deve impedir texto promocional em mensagens de utilidade ou autenticação. | Alta | Planeado |
 | RF224 | [ ] Quando a janela de serviço estiver fechada, o sistema deve exigir template aprovado e categoria compatível com o evento. | Alta | Planeado |
 | RF225 | [~] Clientes com opt-out não devem receber marketing, mas podem receber mensagens transacionais permitidas e necessárias à execução do pedido. | Alta | Parcial - marketing manual sem consentimento explícito é bloqueado antes do provider; faltam opt-out persistente e validação centralizada por cliente/campanha |
-| RF226 | [ ] Se a categoria ou template necessário não estiver configurado/aprovado, o sistema deve criar tarefa humana e não tentar envio inseguro. | Alta | Planeado |
+| RF226 | [~] Se a categoria ou template necessário não estiver configurado/aprovado, o sistema deve criar tarefa humana e não tentar envio inseguro. | Alta | Parcial - envio manual bloqueia templates não aprovados antes do provider; falta criação automática de tarefa humana com contexto |
 | RF227 | [ ] Logs de mensagem devem guardar categoria, template, preço/categoria vigente quando disponível, resposta do provider, erro e estado final. | Alta | Planeado |
 | RF228 | [ ] A escolha de categoria deve ser configurável por tipo de evento, mas limitada por um motor de política para evitar uso indevido. | Alta | Planeado |
 | RF229 | [ ] Templates WhatsApp devem ter ciclo de vida: rascunho, enviado para aprovação, aprovado, rejeitado, pausado, substituído e descontinuado. | Média | Planeado |
@@ -538,7 +540,7 @@ Esta etapa vem antes da implementação visual dos novos módulos. O objetivo é
 | RF258 | [ ] O backend deve normalizar social inbox com comentários de redes sociais, posts, autores, intenção, tarefas e oportunidades. | Alta | Planeado |
 | RF259 | [ ] O backend deve ter funil e playbooks de recuperação com eventos, condições, ações, tarefas humanas e histórico de mudança. | Alta | Planeado |
 | RF260 | [~] O backend deve implementar motor de política WhatsApp para classificar envios em marketing, utilidade, autenticação ou serviço antes de chamar o provider. | Alta | Parcial - motor interno implementado em AutomacaoWhatsApp com metadados de política e bloqueios mínimos; faltam persistência de templates aprovados, janela real e opt-out centralizado |
-| RF261 | [ ] O backend deve gerir templates WhatsApp por categoria, idioma, estado de aprovação, provider, versão e compatibilidade com eventos. | Alta | Planeado |
+| RF261 | [~] O backend deve gerir templates WhatsApp por categoria, idioma, estado de aprovação, provider, versão e compatibilidade com eventos. | Alta | Parcial - catálogo interno e API com filtros por categoria/evento/provider/aprovação implementados; falta persistência por negócio, sincronização com API oficial e versionamento histórico |
 | RF262 | [ ] O backend deve unificar outbox/event bus para WhatsApp, n8n, tracking, campanhas, social inbox, comissões e notificações internas. | Alta | Planeado |
 | RF263 | [~] O backend deve implementar permissões e papéis por negócio: dono, admin, vendedor, atendente, financeiro, entregador, afiliado/criador e suporte técnico. | Alta | Parcial |
 | RF264 | [~] O backend deve registrar auditoria de ações críticas: exportação, desconto, pagamento, cancelamento, fusão de cliente, compartilhamento, comissão e alteração de permissão. | Alta | Parcial - histórico de comissão registra criação, confirmação, pagamento individual/lote e reversão; faltam trilhas formais para exportação, desconto, cancelamento, fusão, compartilhamento e permissões |
@@ -682,7 +684,7 @@ Esta etapa vem antes da implementação visual dos novos módulos. O objetivo é
 | RNF78 | [ ] O sistema deve suportar limitações de providers sociais por adaptadores, permissões, rate limits e fallback manual documentado. | Alta | Planeado |
 | RNF79 | [~] O motor de política WhatsApp deve ser testável, auditável e independente do provider concreto usado para envio. | Alta | Parcial - serviço de política testado em `whatsapp-politica.test.ts` e executado antes dos providers; faltam persistência/auditoria estruturada por tabela |
 | RNF80 | [~] A categoria WhatsApp escolhida para cada envio deve ficar rastreável para auditoria, custo, troubleshooting e melhoria operacional. | Alta | Parcial - categoria e política são anexadas ao contexto do envio e evento emitido; faltam colunas/relatórios dedicados |
-| RNF81 | [~] Mensagens de marketing, utilidade, autenticação e serviço devem ter validação automática de categoria antes de irem ao provider. | Alta | Parcial - validação automática inicial implementada para manual/templates e automações; faltam validações semânticas do texto e templates aprovados por provider |
+| RNF81 | [~] Mensagens de marketing, utilidade, autenticação e serviço devem ter validação automática de categoria antes de irem ao provider. | Alta | Parcial - validação automática inicial implementada para manual/templates e automações, incluindo bloqueio de templates não aprovados; faltam validações semânticas do texto e sincronização de aprovação por provider |
 | RNF82 | [~] O sistema deve aplicar opt-out e consentimento antes de campanhas, reativações, divulgações de afiliados e mensagens promocionais. | Alta | Parcial - envio manual de marketing exige consentimento explícito; faltam campanhas, reativações, afiliados e opt-out persistente |
 | RNF83 | [ ] Cookies e identificadores de tracking não devem conter telefone, email, nome, endereço ou qualquer dado pessoal sensível. | Alta | Planeado |
 | RNF84 | [ ] A loja pública deve exibir texto claro sobre tracking/privacidade quando cookies ou eventos de marketing forem usados. | Alta | Planeado |

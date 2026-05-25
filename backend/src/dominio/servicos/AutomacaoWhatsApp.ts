@@ -13,11 +13,27 @@ type TipoMensagemAutomatica =
   | "PECA_VENDIDA"
   | "PEDIR_CODIGO_PECA";
 
+type EstadoAprovacaoTemplateWhatsApp = "aprovado" | "pendente" | "rascunho" | "rejeitado";
+type ProviderTemplateWhatsApp = "whatsapp_cloud_api" | "evolution" | "console";
+
+export interface FiltrosTemplatesWhatsApp {
+  categoria?: CategoriaMensagemWhatsApp;
+  evento?: string;
+  provider?: ProviderTemplateWhatsApp;
+  apenasAprovados?: boolean;
+  estadoAprovacao?: EstadoAprovacaoTemplateWhatsApp;
+}
+
 export interface TemplateWhatsApp {
   id: string;
   nome: string;
   tipo: string;
   categoria: CategoriaMensagemWhatsApp;
+  idioma: string;
+  provider: ProviderTemplateWhatsApp;
+  versao: number;
+  estadoAprovacao: EstadoAprovacaoTemplateWhatsApp;
+  eventosCompativeis: string[];
   descricao: string;
   variaveis: string[];
   corpo: string;
@@ -40,6 +56,11 @@ const templatesWhatsApp: TemplateWhatsApp[] = [
     nome: "Dados de pagamento",
     tipo: "MANUAL_IBAN",
     categoria: "utility",
+    idioma: "pt_AO",
+    provider: "whatsapp_cloud_api",
+    versao: 1,
+    estadoAprovacao: "aprovado",
+    eventosCompativeis: ["PAYMENT_PENDING", "PAYMENT_INSTRUCTIONS", "RESERVATION_PAYMENT"],
     descricao: "Envia IBAN, titular e referência para pagamento.",
     variaveis: ["nomeCliente", "codigoPeca", "nomePeca", "preco", "iban", "titular", "referencia"],
     corpo: `Olá, {nomeCliente}. Seguem os dados para pagamento da tua reserva.
@@ -57,6 +78,11 @@ Depois de pagar, envia o comprovativo por aqui para confirmação.`
     nome: "Confirmação de reserva",
     tipo: "MANUAL_RESERVA",
     categoria: "utility",
+    idioma: "pt_AO",
+    provider: "whatsapp_cloud_api",
+    versao: 1,
+    estadoAprovacao: "aprovado",
+    eventosCompativeis: ["RESERVATION_CREATED", "ORDER_CREATED"],
     descricao: "Confirma manualmente uma reserva feita durante a live.",
     variaveis: ["nomeCliente", "codigoPeca", "nomePeca", "preco", "minutosReserva"],
     corpo: `Olá, {nomeCliente}. A peça {codigoPeca} {nomePeca} ficou reservada para ti por {minutosReserva} minutos.
@@ -69,6 +95,11 @@ Para garantir a compra, faz o pagamento e envia o comprovativo.`
     nome: "Lembrete de expiração",
     tipo: "MANUAL_LEMBRETE",
     categoria: "utility",
+    idioma: "pt_AO",
+    provider: "whatsapp_cloud_api",
+    versao: 1,
+    estadoAprovacao: "aprovado",
+    eventosCompativeis: ["RESERVATION_EXPIRING", "PAYMENT_REMINDER"],
     descricao: "Lembra o cliente que a reserva está perto de expirar.",
     variaveis: ["nomeCliente", "codigoPeca", "minutosRestantes"],
     corpo: `Olá, {nomeCliente}. A tua reserva da peça {codigoPeca} expira em cerca de {minutosRestantes} minutos.
@@ -80,6 +111,11 @@ Se ainda quiseres ficar com ela, envia o comprovativo assim que fizeres o pagame
     nome: "Pagamento confirmado",
     tipo: "MANUAL_PAGAMENTO_CONFIRMADO",
     categoria: "utility",
+    idioma: "pt_AO",
+    provider: "whatsapp_cloud_api",
+    versao: 1,
+    estadoAprovacao: "aprovado",
+    eventosCompativeis: ["PAYMENT_CONFIRMED", "ORDER_PAID"],
     descricao: "Confirma pagamento validado pelo vendedor.",
     variaveis: ["nomeCliente", "codigoPeca"],
     corpo: `Pagamento confirmado, {nomeCliente}. A peça {codigoPeca} ficou marcada como paga. Obrigado pela compra!`
@@ -89,9 +125,28 @@ Se ainda quiseres ficar com ela, envia o comprovativo assim que fizeres o pagame
     nome: "Atendimento geral",
     tipo: "MANUAL_ATENDIMENTO",
     categoria: "service",
+    idioma: "pt_AO",
+    provider: "evolution",
+    versao: 1,
+    estadoAprovacao: "aprovado",
+    eventosCompativeis: ["SERVICE_REPLY", "CUSTOMER_SUPPORT"],
     descricao: "Resposta curta de atendimento humano.",
     variaveis: ["nomeCliente", "mensagem"],
     corpo: `Olá, {nomeCliente}. {mensagem}`
+  },
+  {
+    id: "marketing_reengajamento",
+    nome: "Reativação com cupom",
+    tipo: "MANUAL_MARKETING_REENGAJAMENTO",
+    categoria: "marketing",
+    idioma: "pt_AO",
+    provider: "whatsapp_cloud_api",
+    versao: 1,
+    estadoAprovacao: "pendente",
+    eventosCompativeis: ["CUSTOMER_REENGAGEMENT", "CAMPAIGN_BROADCAST", "AFFILIATE_PROMOTION"],
+    descricao: "Mensagem promocional para clientes com consentimento. Só pode enviar quando estiver aprovada.",
+    variaveis: ["nomeCliente", "cupom"],
+    corpo: `Olá, {nomeCliente}. Temos novidades na loja e um cupom especial para ti: {cupom}.`
   }
 ];
 
@@ -205,8 +260,10 @@ Assim que receber o código da peça, confirmo a disponibilidade e sigo com a tu
     );
   }
 
-  listarTemplates(): TemplateWhatsApp[] {
-    return templatesWhatsApp.map((template) => ({ ...template }));
+  listarTemplates(filtros: FiltrosTemplatesWhatsApp = {}): TemplateWhatsApp[] {
+    return templatesWhatsApp
+      .filter((template) => this.templateAtendeFiltros(template, filtros))
+      .map((template) => this.clonarTemplate(template));
   }
 
   async enviarMensagemManual(dados: DadosMensagemManualWhatsApp) {
@@ -348,7 +405,28 @@ Assim que receber o código da peça, confirmo a disponibilidade e sigo com a tu
       throw new Error(`Template WhatsApp ${templateId} não encontrado.`);
     }
 
-    return template;
+    if (template.estadoAprovacao !== "aprovado") {
+      throw new Error(`Template WhatsApp ${templateId} ainda não está aprovado para envio.`);
+    }
+
+    return this.clonarTemplate(template);
+  }
+
+  private templateAtendeFiltros(template: TemplateWhatsApp, filtros: FiltrosTemplatesWhatsApp): boolean {
+    if (filtros.categoria && template.categoria !== filtros.categoria) return false;
+    if (filtros.provider && template.provider !== filtros.provider) return false;
+    if (filtros.apenasAprovados && template.estadoAprovacao !== "aprovado") return false;
+    if (filtros.estadoAprovacao && template.estadoAprovacao !== filtros.estadoAprovacao) return false;
+    if (filtros.evento && !template.eventosCompativeis.includes(filtros.evento)) return false;
+    return true;
+  }
+
+  private clonarTemplate(template: TemplateWhatsApp): TemplateWhatsApp {
+    return {
+      ...template,
+      variaveis: [...template.variaveis],
+      eventosCompativeis: [...template.eventosCompativeis]
+    };
   }
 
   private renderizarTemplate(template: TemplateWhatsApp, variaveis: Record<string, string>): string {
