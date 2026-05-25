@@ -3,7 +3,8 @@ import {
   AtualizarRelacaoNegocioSchema,
   CriarClienteCrmSchema,
   CriarCompartilhamentoClienteSchema,
-  CriarRelacaoNegocioSchema
+  CriarRelacaoNegocioSchema,
+  RevogarCompartilhamentoClienteSchema
 } from "../../../dominio/esquemas.js";
 import { estadosRelacionamentoCliente } from "../../../dominio/tipos.js";
 import { exigirAcessoComercial } from "../contextoComercial.js";
@@ -142,6 +143,32 @@ export const moduloClientes: ModuloHttp = {
       return { compartilhamentos };
     });
 
+    app.post("/clientes/compartilhamentos/:id/revogar", async (request, reply) => {
+      const contextoComercial = await exigirAcessoComercial(contexto, request, reply, {
+        permissao: "clientes:gerir",
+        modulo: "crm",
+        mensagemPermissao: "Sem permissão para revogar compartilhamento de cliente.",
+        mensagemModulo: "CRM desativado para este negócio."
+      });
+      if (!contextoComercial) return;
+
+      const { id } = request.params as { id: string };
+      const dados = RevogarCompartilhamentoClienteSchema.parse(request.body ?? {});
+      try {
+        return await contexto.gestaoCompartilhamentoClientes.revogarCompartilhamento({
+          compartilhamentoId: id,
+          negocioAtualId: contextoComercial.negocio.id,
+          atorUsuarioId: contextoComercial.usuario.id,
+          motivo: dados.motivo
+        });
+      } catch (erro) {
+        return reply.code(400).send({
+          erro: "COMPARTILHAMENTO_CLIENTE_INVALIDO",
+          mensagem: erro instanceof Error ? erro.message : "Não foi possível revogar compartilhamento de cliente."
+        });
+      }
+    });
+
     app.post("/clientes/:id/compartilhamentos", async (request, reply) => {
       const contextoComercial = await exigirAcessoComercial(contexto, request, reply, {
         permissao: "clientes:gerir",
@@ -160,6 +187,7 @@ export const moduloClientes: ModuloHttp = {
           negocioDestinoId: dados.negocioDestinoId,
           relacaoId: dados.relacaoId,
           escopo: dados.escopo,
+          motivo: dados.motivo,
           baseLegal: dados.baseLegal,
           consentimentoCliente: dados.consentimentoCliente,
           atorUsuarioId: contextoComercial.usuario.id,

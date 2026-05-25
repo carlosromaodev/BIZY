@@ -1877,6 +1877,7 @@ export class RepositorioCompartilhamentoClientesMemoria implements RepositorioCo
       negocioOrigemId: dados.negocioOrigemId,
       negocioDestinoId: dados.negocioDestinoId,
       escopo: dados.escopo ?? {},
+      motivo: dados.motivo,
       baseLegal: dados.baseLegal,
       consentimentoCliente: dados.consentimentoCliente,
       status: "ATIVO",
@@ -1893,6 +1894,7 @@ export class RepositorioCompartilhamentoClientesMemoria implements RepositorioCo
       dados: {
         status: compartilhamento.status,
         escopo: compartilhamento.escopo,
+        motivo: compartilhamento.motivo,
         baseLegal: compartilhamento.baseLegal
       },
       criadoEm: agora
@@ -1902,6 +1904,41 @@ export class RepositorioCompartilhamentoClientesMemoria implements RepositorioCo
     this.auditorias.set(compartilhamento.id, [auditoria]);
     this.snapshotsClientes.set(compartilhamento.id, dados.cliente);
     return { compartilhamento, auditoria: [auditoria] };
+  }
+
+  async buscarCompartilhamentoPorId(id: string): Promise<CompartilhamentoClienteSeguro | null> {
+    return this.compartilhamentos.get(id) ?? null;
+  }
+
+  async revogarCompartilhamento(
+    id: string,
+    dados: { atorUsuarioId?: string | null; motivo: string }
+  ): Promise<{ compartilhamento: CompartilhamentoClienteSeguro; auditoria: AuditoriaCompartilhamentoCliente[] } | null> {
+    const atual = this.compartilhamentos.get(id);
+    if (!atual) return null;
+
+    const agora = new Date();
+    const revogado: CompartilhamentoClienteSeguro = {
+      ...atual,
+      status: "REVOGADO",
+      atualizadoEm: agora
+    };
+    const auditoria: AuditoriaCompartilhamentoCliente = {
+      id: randomUUID(),
+      compartilhamentoId: id,
+      atorUsuarioId: dados.atorUsuarioId ?? null,
+      acao: "REVOGADO",
+      dados: {
+        statusAnterior: atual.status,
+        statusNovo: revogado.status,
+        motivo: dados.motivo
+      },
+      criadoEm: agora
+    };
+
+    this.compartilhamentos.set(id, revogado);
+    this.auditorias.set(id, [...(this.auditorias.get(id) ?? []), auditoria]);
+    return { compartilhamento: revogado, auditoria: [auditoria] };
   }
 
   async listarRecebidos(negocioDestinoId: string, agora = new Date()): Promise<CompartilhamentoClienteRecebido[]> {

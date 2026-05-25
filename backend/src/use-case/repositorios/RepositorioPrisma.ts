@@ -2801,6 +2801,7 @@ export class RepositorioCompartilhamentoClientesPrisma implements RepositorioCom
           negocioOrigemId: dados.negocioOrigemId,
           negocioDestinoId: dados.negocioDestinoId,
           escopoJson: this.serializar(dados.escopo ?? {}),
+          motivo: dados.motivo,
           baseLegal: dados.baseLegal,
           consentimentoCliente: dados.consentimentoCliente,
           status: "ATIVO",
@@ -2816,7 +2817,47 @@ export class RepositorioCompartilhamentoClientesPrisma implements RepositorioCom
           dadosJson: this.serializar({
             status: compartilhamento.status,
             escopo: dados.escopo ?? {},
+            motivo: dados.motivo,
             baseLegal: dados.baseLegal
+          })
+        }
+      });
+
+      return {
+        compartilhamento: this.mapearCompartilhamento(compartilhamento),
+        auditoria: [this.mapearAuditoria(auditoria)]
+      };
+    });
+  }
+
+  async buscarCompartilhamentoPorId(id: string): Promise<CompartilhamentoClienteSeguro | null> {
+    const compartilhamento = await this.prisma.compartilhamentoCliente.findUnique({ where: { id } });
+    return compartilhamento ? this.mapearCompartilhamento(compartilhamento) : null;
+  }
+
+  async revogarCompartilhamento(
+    id: string,
+    dados: { atorUsuarioId?: string | null; motivo: string }
+  ): Promise<{ compartilhamento: CompartilhamentoClienteSeguro; auditoria: AuditoriaCompartilhamentoCliente[] } | null> {
+    const existente = await this.prisma.compartilhamentoCliente.findUnique({ where: { id } });
+    if (!existente) return null;
+
+    return this.prisma.$transaction(async (tx) => {
+      const compartilhamento = await tx.compartilhamentoCliente.update({
+        where: { id },
+        data: {
+          status: "REVOGADO"
+        }
+      });
+      const auditoria = await tx.auditoriaCompartilhamentoCliente.create({
+        data: {
+          compartilhamentoId: id,
+          atorUsuarioId: dados.atorUsuarioId ?? null,
+          acao: "REVOGADO",
+          dadosJson: this.serializar({
+            statusAnterior: existente.status,
+            statusNovo: compartilhamento.status,
+            motivo: dados.motivo
           })
         }
       });
@@ -2883,6 +2924,7 @@ export class RepositorioCompartilhamentoClientesPrisma implements RepositorioCom
     negocioOrigemId: string;
     negocioDestinoId: string;
     escopoJson: string;
+    motivo: string;
     baseLegal: string;
     consentimentoCliente: boolean;
     status: string;
@@ -2899,6 +2941,7 @@ export class RepositorioCompartilhamentoClientesPrisma implements RepositorioCom
       negocioOrigemId: compartilhamento.negocioOrigemId,
       negocioDestinoId: compartilhamento.negocioDestinoId,
       escopo: this.lerObjeto(compartilhamento.escopoJson),
+      motivo: compartilhamento.motivo,
       baseLegal: compartilhamento.baseLegal,
       consentimentoCliente: compartilhamento.consentimentoCliente,
       status: compartilhamento.status as CompartilhamentoClienteSeguro["status"],

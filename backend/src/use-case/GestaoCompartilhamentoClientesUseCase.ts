@@ -73,6 +73,7 @@ export class GestaoCompartilhamentoClientesUseCase {
     negocioDestinoId: string;
     relacaoId?: string | null;
     escopo?: Record<string, unknown>;
+    motivo: string;
     baseLegal: string;
     consentimentoCliente: boolean;
     atorUsuarioId?: string | null;
@@ -100,6 +101,7 @@ export class GestaoCompartilhamentoClientesUseCase {
       negocioOrigemId: dados.negocioOrigemId,
       negocioDestinoId: dados.negocioDestinoId,
       escopo: dados.escopo ?? {},
+      motivo: dados.motivo,
       baseLegal: dados.baseLegal,
       consentimentoCliente: dados.consentimentoCliente,
       atorUsuarioId: dados.atorUsuarioId ?? null,
@@ -107,6 +109,31 @@ export class GestaoCompartilhamentoClientesUseCase {
     };
 
     return this.compartilhamentos.criarCompartilhamento(novoCompartilhamento);
+  }
+
+  async revogarCompartilhamento(dados: {
+    compartilhamentoId: string;
+    negocioAtualId: string;
+    atorUsuarioId?: string | null;
+    motivo: string;
+  }) {
+    const compartilhamento = await this.compartilhamentos.buscarCompartilhamentoPorId(dados.compartilhamentoId);
+    if (!compartilhamento) throw new Error("Compartilhamento de cliente não encontrado.");
+
+    if (![compartilhamento.negocioOrigemId, compartilhamento.negocioDestinoId].includes(dados.negocioAtualId)) {
+      throw new Error("Apenas negócios envolvidos podem revogar o compartilhamento.");
+    }
+
+    if (compartilhamento.status !== "ATIVO") {
+      throw new Error("Apenas compartilhamentos ativos podem ser revogados.");
+    }
+
+    const resultado = await this.compartilhamentos.revogarCompartilhamento(dados.compartilhamentoId, {
+      atorUsuarioId: dados.atorUsuarioId ?? null,
+      motivo: dados.motivo
+    });
+    if (!resultado) throw new Error("Compartilhamento de cliente não encontrado.");
+    return resultado;
   }
 
   listarRecebidos(negocioDestinoId: string, agora = new Date()) {

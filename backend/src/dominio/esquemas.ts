@@ -540,9 +540,14 @@ export const CriarCompartilhamentoClienteSchema = z.object({
   negocioDestinoId: z.string().trim().uuid(),
   relacaoId: z.string().trim().uuid().nullable().optional().transform((valor) => valor ?? null),
   escopo: z.record(z.string(), z.unknown()).default({}),
+  motivo: z.string().trim().min(3).max(500),
   baseLegal: z.string().trim().min(3).max(80).default("CONSENTIMENTO"),
   consentimentoCliente: z.boolean(),
   expiraEm: z.coerce.date().nullable().optional().transform((valor) => valor ?? null)
+});
+
+export const RevogarCompartilhamentoClienteSchema = z.object({
+  motivo: z.string().trim().min(3).max(500)
 });
 
 export const CriarPedidoSchema = z.object({

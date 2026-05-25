@@ -67,6 +67,7 @@ describe("Compartilhamento seguro de clientes", () => {
           escopo: {
             campos: ["nome", "telefone", "preferencias"]
           },
+          motivo: "Atendimento conjunto com parceiro de entrega.",
           baseLegal: "CONSENTIMENTO",
           consentimentoCliente: true
         }
@@ -119,6 +120,7 @@ describe("Compartilhamento seguro de clientes", () => {
           escopo: {
             campos: ["nome", "telefone", "preferencias"]
           },
+          motivo: "Atendimento conjunto com parceiro de entrega.",
           baseLegal: "CONSENTIMENTO",
           consentimentoCliente: true
         }
@@ -130,6 +132,7 @@ describe("Compartilhamento seguro de clientes", () => {
           negocioOrigemId: origem.negocio.id,
           negocioDestinoId: destino.negocio.id,
           status: "ATIVO",
+          motivo: "Atendimento conjunto com parceiro de entrega.",
           baseLegal: "CONSENTIMENTO",
           consentimentoCliente: true
         })
@@ -162,6 +165,42 @@ describe("Compartilhamento seguro de clientes", () => {
       ]);
       expect(JSON.stringify(recebidos.json())).not.toContain("pedidos");
       expect(JSON.stringify(recebidos.json())).not.toContain("vip");
+
+      const revogado = await app.inject({
+        method: "POST",
+        url: `/clientes/compartilhamentos/${compartilhado.json().compartilhamento.id}/revogar`,
+        headers: origem.headers,
+        payload: {
+          motivo: "Cliente pediu para limitar o acesso da loja parceira."
+        }
+      });
+
+      expect(revogado.statusCode).toBe(200);
+      expect(revogado.json().compartilhamento).toEqual(
+        expect.objectContaining({
+          id: compartilhado.json().compartilhamento.id,
+          status: "REVOGADO"
+        })
+      );
+      expect(revogado.json().auditoria).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            acao: "REVOGADO",
+            dados: expect.objectContaining({
+              motivo: "Cliente pediu para limitar o acesso da loja parceira."
+            })
+          })
+        ])
+      );
+
+      const recebidosDepoisRevogacao = await app.inject({
+        method: "GET",
+        url: "/clientes/compartilhamentos/recebidos",
+        headers: destino.headers
+      });
+
+      expect(recebidosDepoisRevogacao.statusCode).toBe(200);
+      expect(recebidosDepoisRevogacao.json().compartilhamentos).toEqual([]);
     } finally {
       await app.close();
     }

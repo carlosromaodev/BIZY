@@ -981,6 +981,7 @@ export interface CompartilhamentoClienteSeguro {
   negocioOrigemId: string;
   negocioDestinoId: string;
   escopo: Record<string, unknown>;
+  motivo: string;
   baseLegal: string;
   consentimentoCliente: boolean;
   status: StatusCompartilhamentoCliente;
@@ -996,6 +997,7 @@ export interface NovoCompartilhamentoCliente {
   negocioOrigemId: string;
   negocioDestinoId: string;
   escopo?: Record<string, unknown>;
+  motivo: string;
   baseLegal: string;
   consentimentoCliente: boolean;
   atorUsuarioId?: string | null;

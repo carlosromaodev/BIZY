@@ -916,6 +916,7 @@ model CompartilhamentoCliente {
   negocioDestinoId      String
   negocioDestino        Negocio         @relation("CompartilhamentoClienteNegocioDestino", fields: [negocioDestinoId], references: [id])
   escopoJson            String          @default("{}")
+  motivo                String          @default("Compartilhamento autorizado para operação comercial.")
   baseLegal             String          @default("CONSENTIMENTO")
   consentimentoCliente  Boolean         @default(false)
   status                String          @default("PENDENTE")

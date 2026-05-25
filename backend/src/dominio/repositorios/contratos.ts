@@ -285,6 +285,14 @@ export interface RepositorioCompartilhamentoClientes {
     compartilhamento: CompartilhamentoClienteSeguro;
     auditoria: AuditoriaCompartilhamentoCliente[];
   }>;
+  buscarCompartilhamentoPorId(id: string): Promise<CompartilhamentoClienteSeguro | null>;
+  revogarCompartilhamento(
+    id: string,
+    dados: { atorUsuarioId?: string | null; motivo: string }
+  ): Promise<{
+    compartilhamento: CompartilhamentoClienteSeguro;
+    auditoria: AuditoriaCompartilhamentoCliente[];
+  } | null>;
   listarRecebidos(negocioDestinoId: string, agora?: Date): Promise<CompartilhamentoClienteRecebido[]>;
 }
 
