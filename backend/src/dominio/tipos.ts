@@ -42,6 +42,9 @@ export type StatusComissaoParceiro = (typeof statusComissaoParceiro)[number];
 export const tiposHistoricoComissaoParceiro = ["CRIADA", "ATUALIZADA", "CONFIRMADA", "PAGA", "REVERTIDA", "CANCELADA"] as const;
 export type TipoHistoricoComissaoParceiro = (typeof tiposHistoricoComissaoParceiro)[number];
 
+export const statusLotePagamentoComissao = ["PAGO", "CANCELADO"] as const;
+export type StatusLotePagamentoComissao = (typeof statusLotePagamentoComissao)[number];
+
 export const estadosReserva = [
   "PENDING",
   "RESERVED",
@@ -1010,6 +1013,7 @@ export interface ComissaoParceiro {
   afiliadoId: string;
   linkId: string | null;
   pedidoId: string;
+  lotePagamentoId: string | null;
   status: StatusComissaoParceiro;
   baseEmKwanza: number;
   valorEmKwanza: number;
@@ -1022,6 +1026,49 @@ export interface ComissaoParceiro {
   observacaoPagamento: string | null;
   revertidoEm: Date | null;
   atualizadoEm: Date;
+}
+
+export interface ItemLotePagamentoComissao {
+  id: string;
+  negocioId: string;
+  loteId: string;
+  comissaoId: string;
+  afiliadoId: string;
+  pedidoId: string;
+  valorEmKwanza: number;
+  moeda: string;
+  statusAnterior: StatusComissaoParceiro;
+  statusNovo: StatusComissaoParceiro;
+  criadoEm: Date;
+}
+
+export interface LotePagamentoComissao {
+  id: string;
+  negocioId: string;
+  referenciaPagamento: string;
+  observacao: string | null;
+  status: StatusLotePagamentoComissao;
+  quantidadeComissoes: number;
+  valorTotalEmKwanza: number;
+  moeda: string;
+  periodoInicio: Date | null;
+  periodoFim: Date | null;
+  autorId: string | null;
+  autorNome: string | null;
+  criadoEm: Date;
+  atualizadoEm: Date;
+  itens: ItemLotePagamentoComissao[];
+}
+
+export interface NovoLotePagamentoComissao {
+  negocioId: string;
+  comissaoIds: string[];
+  referenciaPagamento: string;
+  observacao?: string | null;
+  periodoInicio?: Date | null;
+  periodoFim?: Date | null;
+  autorId?: string | null;
+  autorNome?: string | null;
 }
 
 export interface NovaComissaoParceiro {

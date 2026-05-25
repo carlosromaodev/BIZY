@@ -1,6 +1,7 @@
 import {
   CriarAfiliadoSchema,
   CriarLinkAfiliadoSchema,
+  CriarLotePagamentoComissaoSchema,
   PagarComissaoParceiroSchema
 } from "../../../dominio/esquemas.js";
 import { exigirAcessoComercial } from "../contextoComercial.js";
@@ -73,6 +74,44 @@ export const moduloAfiliados: ModuloHttp = {
       if (!contextoComercial) return;
 
       return contexto.gestaoAfiliados.listarComissoes(contextoComercial.negocio.id);
+    });
+
+    app.get("/afiliados/comissoes/lotes-pagamento", async (request, reply) => {
+      const contextoComercial = await exigirAcessoComercial(contexto, request, reply, {
+        permissao: "pagamentos:gerir",
+        modulo: "afiliados",
+        mensagemPermissao: "Sem permissão para consultar lotes de pagamento de comissões.",
+        mensagemModulo: "Afiliados desativados para este negócio."
+      });
+      if (!contextoComercial) return;
+
+      return contexto.gestaoAfiliados.listarLotesPagamentoComissoes(contextoComercial.negocio.id);
+    });
+
+    app.post("/afiliados/comissoes/lotes-pagamento", async (request, reply) => {
+      const contextoComercial = await exigirAcessoComercial(contexto, request, reply, {
+        permissao: "pagamentos:gerir",
+        modulo: "afiliados",
+        mensagemPermissao: "Sem permissão para pagar comissões em lote.",
+        mensagemModulo: "Afiliados desativados para este negócio."
+      });
+      if (!contextoComercial) return;
+
+      const dados = CriarLotePagamentoComissaoSchema.parse(request.body ?? {});
+      const lote = await contexto.gestaoAfiliados.criarLotePagamentoComissoes(
+        contextoComercial.negocio.id,
+        {
+          comissaoIds: dados.comissaoIds,
+          referenciaPagamento: dados.referenciaPagamento,
+          observacao: dados.observacao,
+          periodoInicio: dados.periodoInicio,
+          periodoFim: dados.periodoFim,
+          autorId: contextoComercial.usuario.id,
+          autorNome: contextoComercial.usuario.nome
+        }
+      );
+
+      return reply.code(201).send(lote);
     });
 
     app.get("/afiliados/comissoes/:id/auditoria", async (request, reply) => {

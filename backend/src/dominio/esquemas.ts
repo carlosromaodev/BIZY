@@ -393,6 +393,25 @@ export const PagarComissaoParceiroSchema = z.object({
   observacao: z.string().trim().max(1000).nullable().optional().transform((valor) => valor ?? null)
 });
 
+export const CriarLotePagamentoComissaoSchema = z
+  .object({
+    comissaoIds: z
+      .array(z.string().trim().uuid())
+      .min(1, "Informe pelo menos uma comissão para pagar.")
+      .max(200, "Um lote pode pagar no máximo 200 comissões por vez.")
+      .refine((ids) => new Set(ids).size === ids.length, {
+        message: "Não repita a mesma comissão no lote."
+      }),
+    referenciaPagamento: z.string().trim().min(3).max(120),
+    observacao: z.string().trim().max(1000).nullable().optional().transform((valor) => valor ?? null),
+    periodoInicio: z.coerce.date().nullable().optional().transform((valor) => valor ?? null),
+    periodoFim: z.coerce.date().nullable().optional().transform((valor) => valor ?? null)
+  })
+  .refine((dados) => !dados.periodoInicio || !dados.periodoFim || dados.periodoFim >= dados.periodoInicio, {
+    message: "O fim do período deve ser posterior ao início.",
+    path: ["periodoFim"]
+  });
+
 export const AtualizarEntregaPedidoSchema = z.object({
   estadoEntrega: z.enum(estadosEntregaPedido),
   observacao: z.string().trim().max(1000).nullable().optional().transform((valor) => valor ?? null),

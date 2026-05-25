@@ -2,6 +2,7 @@ import type { DespachadorEventos } from "../dominio/eventos/DespachadorEventos.j
 import type { RepositorioAfiliados } from "../dominio/repositorios/contratos.js";
 import type {
   LinkAfiliado,
+  NovoLotePagamentoComissao,
   NovoLinkAfiliado,
   NovoParceiroComercial,
   ParceiroComercial,
@@ -86,6 +87,20 @@ export class GestaoAfiliadosUseCase {
     dados: { referenciaPagamento: string; observacao?: string | null; autorId?: string | null; autorNome?: string | null }
   ) {
     return this.afiliados.marcarComissaoPaga(id, negocioId, dados);
+  }
+
+  async criarLotePagamentoComissoes(
+    negocioId: string,
+    dados: Omit<NovoLotePagamentoComissao, "negocioId">
+  ) {
+    return this.afiliados.criarLotePagamentoComissoes({
+      ...dados,
+      negocioId
+    });
+  }
+
+  async listarLotesPagamentoComissoes(negocioId: string) {
+    return { lotes: await this.afiliados.listarLotesPagamentoComissoes(negocioId) };
   }
 
   async listarAuditoriaComissao(id: string, negocioId: string) {

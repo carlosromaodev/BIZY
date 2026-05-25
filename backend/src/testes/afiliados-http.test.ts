@@ -126,6 +126,40 @@ async function prepararPedidoAfiliado(
   return { loja, afiliado: afiliado.json(), link: link.json(), checkout: checkout.json() };
 }
 
+async function criarCheckoutAfiliado(
+  app: Awaited<ReturnType<typeof criarAplicacao>>,
+  opcoes: {
+    slug: string;
+    codigoProduto: string;
+    codigoLink: string;
+    nomeCliente: string;
+    telefoneCliente: string;
+    trackingId: string;
+  }
+) {
+  const checkout = await app.inject({
+    method: "POST",
+    url: `/publico/lojas/${opcoes.slug}/checkout`,
+    payload: {
+      cliente: {
+        nome: opcoes.nomeCliente,
+        telefone: opcoes.telefoneCliente,
+        consentimentoDados: true,
+        consentimentoMarketing: false
+      },
+      itens: [{ codigoPeca: opcoes.codigoProduto, quantidade: 2 }],
+      entrega: {
+        tipo: "RETIRADA"
+      },
+      referencia: opcoes.codigoLink,
+      trackingId: opcoes.trackingId,
+      origem: "bio-tiktok"
+    }
+  });
+  expect(checkout.statusCode).toBe(201);
+  return checkout.json();
+}
+
 describe("afiliados, criadores e comissões HTTP", () => {
   beforeEach(() => {
     process.env = {
@@ -514,6 +548,102 @@ describe("afiliados, criadores e comissões HTTP", () => {
         expect.objectContaining({
           comissaoConfirmadaEmKwanza: 0,
           comissaoPagaEmKwanza: 2_500
+        })
+      );
+    } finally {
+      await app.close();
+    }
+  });
+
+  it("paga comissões confirmadas em lote com total, itens e auditoria", async () => {
+    const app = await criarAplicacao();
+
+    try {
+      const { loja, checkout } = await prepararPedidoAfiliado(app, {
+        telefoneLoja: "923600104",
+        slug: "loja-afiliados-lote",
+        codigoProduto: "AF5",
+        codigoAfiliado: "eve",
+        codigoLink: "EVE-AF5"
+      });
+      const checkoutDois = await criarCheckoutAfiliado(app, {
+        slug: "loja-afiliados-lote",
+        codigoProduto: "AF5",
+        codigoLink: "EVE-AF5",
+        nomeCliente: "Cliente lote dois",
+        telefoneCliente: "923700010",
+        trackingId: "trk-eve-2"
+      });
+
+      for (const pedidoId of [checkout.pedido.id, checkoutDois.pedido.id]) {
+        const confirmarPagamento = await app.inject({
+          method: "POST",
+          url: `/pedidos/${pedidoId}/confirmar-pagamento`,
+          headers: loja,
+          payload: {
+            observacao: "Pago para lote financeiro"
+          }
+        });
+        expect(confirmarPagamento.statusCode).toBe(200);
+      }
+
+      const comissoesConfirmadas = await app.inject({
+        method: "GET",
+        url: "/afiliados/comissoes",
+        headers: loja
+      });
+      expect(comissoesConfirmadas.statusCode).toBe(200);
+      const comissaoIds = comissoesConfirmadas.json().comissoes.map((comissao: { id: string }) => comissao.id);
+      expect(comissaoIds).toHaveLength(2);
+
+      const pagarLote = await app.inject({
+        method: "POST",
+        url: "/afiliados/comissoes/lotes-pagamento",
+        headers: loja,
+        payload: {
+          comissaoIds,
+          referenciaPagamento: "LOTE-MAIO-CRIADORES-001",
+          observacao: "Pagamento quinzenal de criadores",
+          periodoInicio: "2026-05-01T00:00:00.000Z",
+          periodoFim: "2026-05-15T23:59:59.000Z"
+        }
+      });
+      expect(pagarLote.statusCode).toBe(201);
+      expect(pagarLote.json()).toEqual(
+        expect.objectContaining({
+          status: "PAGO",
+          referenciaPagamento: "LOTE-MAIO-CRIADORES-001",
+          quantidadeComissoes: 2,
+          valorTotalEmKwanza: 5_000,
+          autorNome: "Loja eve"
+        })
+      );
+      expect(pagarLote.json().itens).toHaveLength(2);
+
+      const comissoesPagas = await app.inject({
+        method: "GET",
+        url: "/afiliados/comissoes",
+        headers: loja
+      });
+      expect(comissoesPagas.statusCode).toBe(200);
+      expect(comissoesPagas.json().comissoes).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ status: "PAGA", lotePagamentoId: pagarLote.json().id }),
+          expect.objectContaining({ status: "PAGA", lotePagamentoId: pagarLote.json().id })
+        ])
+      );
+
+      const lotes = await app.inject({
+        method: "GET",
+        url: "/afiliados/comissoes/lotes-pagamento",
+        headers: loja
+      });
+      expect(lotes.statusCode).toBe(200);
+      expect(lotes.json().lotes[0]).toEqual(
+        expect.objectContaining({
+          id: pagarLote.json().id,
+          quantidadeComissoes: 2,
+          valorTotalEmKwanza: 5_000
         })
       );
     } finally {

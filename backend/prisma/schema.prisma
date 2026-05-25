@@ -471,6 +471,7 @@ model Negocio {
   linksAfiliados          LinkAfiliado[]
   comissoesParceiro       ComissaoParceiro[]
   historicoComissoesParceiro HistoricoComissaoParceiro[]
+  lotesPagamentoComissao  LotePagamentoComissao[]
 
   @@index([nomeComercial])
   @@index([slugPublico])
@@ -553,6 +554,8 @@ model ComissaoParceiro {
   link            LinkAfiliado?       @relation(fields: [linkId], references: [id])
   pedidoId        String
   pedido          Pedido              @relation(fields: [pedidoId], references: [id])
+  lotePagamentoId String?
+  lotePagamento   LotePagamentoComissao? @relation("ComissaoLotePagamento", fields: [lotePagamentoId], references: [id])
   status          String              @default("ESTIMADA")
   baseEmKwanza    Int
   valorEmKwanza   Int
@@ -566,11 +569,13 @@ model ComissaoParceiro {
   revertidoEm     DateTime?
   atualizadoEm    DateTime            @updatedAt
   historico        HistoricoComissaoParceiro[]
+  itensLotePagamento ItemLotePagamentoComissao[]
 
   @@unique([negocioId, pedidoId])
   @@index([negocioId, status])
   @@index([afiliadoId, status])
   @@index([linkId])
+  @@index([lotePagamentoId])
 }
 
 model HistoricoComissaoParceiro {
@@ -597,6 +602,52 @@ model HistoricoComissaoParceiro {
   @@index([comissaoId, criadoEm])
   @@index([pedidoId])
   @@index([afiliadoId])
+}
+
+model LotePagamentoComissao {
+  id                    String              @id @default(uuid())
+  negocioId             String
+  negocio               Negocio             @relation(fields: [negocioId], references: [id])
+  referenciaPagamento   String
+  observacao            String?
+  status                String              @default("PAGO")
+  quantidadeComissoes   Int
+  valorTotalEmKwanza    Int
+  moeda                 String              @default("AOA")
+  periodoInicio         DateTime?
+  periodoFim            DateTime?
+  autorId               String?
+  autorNome             String?
+  criadoEm              DateTime            @default(now())
+  atualizadoEm          DateTime            @updatedAt
+  comissoes             ComissaoParceiro[]   @relation("ComissaoLotePagamento")
+  itens                 ItemLotePagamentoComissao[]
+
+  @@index([negocioId, criadoEm])
+  @@index([negocioId, status])
+  @@index([referenciaPagamento])
+}
+
+model ItemLotePagamentoComissao {
+  id              String              @id @default(uuid())
+  negocioId       String
+  loteId          String
+  lote            LotePagamentoComissao @relation(fields: [loteId], references: [id])
+  comissaoId      String
+  comissao        ComissaoParceiro    @relation(fields: [comissaoId], references: [id])
+  afiliadoId      String
+  pedidoId        String
+  valorEmKwanza   Int
+  moeda           String              @default("AOA")
+  statusAnterior  String
+  statusNovo      String
+  criadoEm        DateTime            @default(now())
+
+  @@unique([loteId, comissaoId])
+  @@index([negocioId, loteId])
+  @@index([comissaoId])
+  @@index([afiliadoId])
+  @@index([pedidoId])
 }
 
 model MembroNegocio {

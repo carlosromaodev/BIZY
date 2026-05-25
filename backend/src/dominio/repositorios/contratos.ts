@@ -11,8 +11,10 @@ import type {
   DadosCliente360,
   ComissaoParceiro,
   HistoricoComissaoParceiro,
+  LotePagamentoComissao,
   NovaPeca,
   NovaComissaoParceiro,
+  NovoLotePagamentoComissao,
   NovoLinkAfiliado,
   NovoParceiroComercial,
   NovaReserva,
@@ -101,6 +103,8 @@ export interface RepositorioAfiliados {
     revertidoEm?: Date
   ): Promise<ComissaoParceiro | null>;
   listarHistoricoComissao(comissaoId: string, negocioId: string): Promise<HistoricoComissaoParceiro[] | null>;
+  criarLotePagamentoComissoes(dados: NovoLotePagamentoComissao): Promise<LotePagamentoComissao>;
+  listarLotesPagamentoComissoes(negocioId: string): Promise<LotePagamentoComissao[]>;
   resumir(negocioId: string): Promise<ResumoAfiliadosComerciais>;
 }
 

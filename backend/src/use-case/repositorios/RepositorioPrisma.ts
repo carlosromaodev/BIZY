@@ -44,7 +44,9 @@ import type {
   FiltrosClientes360,
   HistoricoComissaoParceiro,
   InstanciaWhatsApp,
+  ItemLotePagamentoComissao,
   LinkAfiliado,
+  LotePagamentoComissao,
   MensagemAtendimento,
   MovimentoStock,
   NovaComissaoParceiro,
@@ -55,6 +57,7 @@ import type {
   NovoParceiroComercial,
   NovaPeca,
   NovaReserva,
+  NovoLotePagamentoComissao,
   NovoRegistroComentario,
   NovoOutboxMensagemWhatsApp,
   NovoRegistroSessaoLive,
@@ -555,7 +558,8 @@ export class RepositorioAfiliadosPrisma implements RepositorioAfiliados {
           status: "PAGA",
           pagoEm,
           referenciaPagamento: dados.referenciaPagamento,
-          observacaoPagamento: dados.observacao ?? null
+          observacaoPagamento: dados.observacao ?? null,
+          lotePagamentoId: null
         }
       });
       await transacao.historicoComissaoParceiro.create({
@@ -617,6 +621,102 @@ export class RepositorioAfiliadosPrisma implements RepositorioAfiliados {
       orderBy: { criadoEm: "desc" }
     });
     return eventos.map((evento) => this.mapearHistoricoComissao(evento));
+  }
+
+  async criarLotePagamentoComissoes(dados: NovoLotePagamentoComissao): Promise<LotePagamentoComissao> {
+    const comissaoIds = [...new Set(dados.comissaoIds)];
+    const loteId = await this.prisma.$transaction(async (transacao) => {
+      const comissoes = await transacao.comissaoParceiro.findMany({
+        where: {
+          negocioId: dados.negocioId,
+          id: { in: comissaoIds }
+        }
+      });
+
+      if (comissoes.length !== comissaoIds.length) {
+        throw new Error("Todas as comissões do lote precisam existir no negócio.");
+      }
+
+      const comissaoInvalida = comissoes.find((comissao) => comissao.status !== "CONFIRMADA");
+      if (comissaoInvalida) {
+        throw new Error("Apenas comissões confirmadas podem entrar num lote de pagamento.");
+      }
+
+      const agora = new Date();
+      const valorTotalEmKwanza = comissoes.reduce((total, comissao) => total + comissao.valorEmKwanza, 0);
+      const lote = await transacao.lotePagamentoComissao.create({
+        data: {
+          negocioId: dados.negocioId,
+          referenciaPagamento: dados.referenciaPagamento,
+          observacao: dados.observacao ?? null,
+          status: "PAGO",
+          quantidadeComissoes: comissoes.length,
+          valorTotalEmKwanza,
+          moeda: comissoes[0]?.moeda ?? "AOA",
+          periodoInicio: dados.periodoInicio ?? null,
+          periodoFim: dados.periodoFim ?? null,
+          autorId: dados.autorId ?? null,
+          autorNome: dados.autorNome ?? null,
+          criadoEm: agora
+        }
+      });
+
+      for (const comissao of comissoes) {
+        const registro = await transacao.comissaoParceiro.update({
+          where: { id: comissao.id },
+          data: {
+            status: "PAGA",
+            pagoEm: agora,
+            referenciaPagamento: dados.referenciaPagamento,
+            observacaoPagamento: dados.observacao ?? null,
+            lotePagamentoId: lote.id
+          }
+        });
+        await transacao.itemLotePagamentoComissao.create({
+          data: {
+            negocioId: dados.negocioId,
+            loteId: lote.id,
+            comissaoId: registro.id,
+            afiliadoId: registro.afiliadoId,
+            pedidoId: registro.pedidoId,
+            valorEmKwanza: registro.valorEmKwanza,
+            moeda: registro.moeda,
+            statusAnterior: comissao.status,
+            statusNovo: registro.status,
+            criadoEm: agora
+          }
+        });
+        await transacao.historicoComissaoParceiro.create({
+          data: this.dadosHistoricoComissao(registro, "PAGA", {
+            statusAnterior: comissao.status,
+            motivo: dados.observacao ?? null,
+            referencia: dados.referenciaPagamento,
+            autorId: dados.autorId ?? null,
+            autorNome: dados.autorNome ?? null,
+            metadata: { lotePagamentoId: lote.id },
+            criadoEm: agora
+          })
+        });
+      }
+
+      return lote.id;
+    });
+
+    const lote = await this.prisma.lotePagamentoComissao.findFirst({
+      where: { id: loteId, negocioId: dados.negocioId },
+      include: { itens: { orderBy: { criadoEm: "asc" } } }
+    });
+    if (!lote) throw new Error("Lote de pagamento não encontrado após criação.");
+    return this.mapearLotePagamentoComissao(lote);
+  }
+
+  async listarLotesPagamentoComissoes(negocioId: string): Promise<LotePagamentoComissao[]> {
+    const lotes = await this.prisma.lotePagamentoComissao.findMany({
+      where: { negocioId },
+      include: { itens: { orderBy: { criadoEm: "asc" } } },
+      orderBy: { criadoEm: "desc" }
+    });
+    return lotes.map((lote) => this.mapearLotePagamentoComissao(lote));
   }
 
   async resumir(negocioId: string): Promise<ResumoAfiliadosComerciais> {
@@ -717,6 +817,7 @@ export class RepositorioAfiliadosPrisma implements RepositorioAfiliados {
     afiliadoId: string;
     linkId: string | null;
     pedidoId: string;
+    lotePagamentoId: string | null;
     status: string;
     baseEmKwanza: number;
     valorEmKwanza: number;
@@ -733,6 +834,62 @@ export class RepositorioAfiliadosPrisma implements RepositorioAfiliados {
     return {
       ...comissao,
       status: comissao.status as ComissaoParceiro["status"]
+    };
+  }
+
+  private mapearLotePagamentoComissao(lote: {
+    id: string;
+    negocioId: string;
+    referenciaPagamento: string;
+    observacao: string | null;
+    status: string;
+    quantidadeComissoes: number;
+    valorTotalEmKwanza: number;
+    moeda: string;
+    periodoInicio: Date | null;
+    periodoFim: Date | null;
+    autorId: string | null;
+    autorNome: string | null;
+    criadoEm: Date;
+    atualizadoEm: Date;
+    itens: Array<{
+      id: string;
+      negocioId: string;
+      loteId: string;
+      comissaoId: string;
+      afiliadoId: string;
+      pedidoId: string;
+      valorEmKwanza: number;
+      moeda: string;
+      statusAnterior: string;
+      statusNovo: string;
+      criadoEm: Date;
+    }>;
+  }): LotePagamentoComissao {
+    return {
+      ...lote,
+      status: lote.status as LotePagamentoComissao["status"],
+      itens: lote.itens.map((item) => this.mapearItemLotePagamentoComissao(item))
+    };
+  }
+
+  private mapearItemLotePagamentoComissao(item: {
+    id: string;
+    negocioId: string;
+    loteId: string;
+    comissaoId: string;
+    afiliadoId: string;
+    pedidoId: string;
+    valorEmKwanza: number;
+    moeda: string;
+    statusAnterior: string;
+    statusNovo: string;
+    criadoEm: Date;
+  }): ItemLotePagamentoComissao {
+    return {
+      ...item,
+      statusAnterior: item.statusAnterior as ItemLotePagamentoComissao["statusAnterior"],
+      statusNovo: item.statusNovo as ItemLotePagamentoComissao["statusNovo"]
     };
   }
 

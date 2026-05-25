@@ -40,11 +40,14 @@ import type {
   EventoSistema,
   HistoricoComissaoParceiro,
   InstanciaWhatsApp,
+  ItemLotePagamentoComissao,
+  LotePagamentoComissao,
   MensagemAtendimento,
   MovimentoStock,
   NovaComissaoParceiro,
   NovaMensagemAtendimento,
   NovoEventoTrackingComercial,
+  NovoLotePagamentoComissao,
   NovoLinkAfiliado,
   NovoMovimentoStock,
   NovoParceiroComercial,
@@ -271,6 +274,8 @@ export class RepositorioAfiliadosMemoria implements RepositorioAfiliados {
   private readonly links = new Map<string, LinkAfiliado>();
   private readonly comissoes = new Map<string, ComissaoParceiro>();
   private readonly historicoComissoes = new Map<string, HistoricoComissaoParceiro>();
+  private readonly lotesPagamentoComissoes = new Map<string, LotePagamentoComissao>();
+  private readonly itensLotePagamentoComissoes = new Map<string, ItemLotePagamentoComissao>();
   private sequenciaHistorico = 0;
 
   async criarParceiro(dados: NovoParceiroComercial): Promise<ParceiroComercial> {
@@ -373,6 +378,7 @@ export class RepositorioAfiliadosMemoria implements RepositorioAfiliados {
           afiliadoId: dados.afiliadoId,
           linkId: dados.linkId ?? null,
           pedidoId: dados.pedidoId,
+          lotePagamentoId: null,
           status: dados.status ?? "ESTIMADA",
           baseEmKwanza: dados.baseEmKwanza,
           valorEmKwanza: dados.valorEmKwanza,
@@ -451,6 +457,7 @@ export class RepositorioAfiliadosMemoria implements RepositorioAfiliados {
       pagoEm,
       referenciaPagamento: dados.referenciaPagamento,
       observacaoPagamento: dados.observacao ?? null,
+      lotePagamentoId: null,
       atualizadoEm: pagoEm
     };
     this.comissoes.set(atualizada.id, atualizada);
@@ -498,6 +505,98 @@ export class RepositorioAfiliadosMemoria implements RepositorioAfiliados {
 
     return [...this.historicoComissoes.values()]
       .filter((evento) => evento.negocioId === negocioId && evento.comissaoId === comissaoId)
+      .sort((a, b) => b.criadoEm.getTime() - a.criadoEm.getTime());
+  }
+
+  async criarLotePagamentoComissoes(dados: NovoLotePagamentoComissao): Promise<LotePagamentoComissao> {
+    const comissaoIds = [...new Set(dados.comissaoIds)];
+    const comissoes = comissaoIds
+      .map((id) => this.comissoes.get(id) ?? null)
+      .filter((comissao): comissao is ComissaoParceiro => !!comissao && comissao.negocioId === dados.negocioId);
+
+    if (comissoes.length !== comissaoIds.length) {
+      throw new Error("Todas as comissões do lote precisam existir no negócio.");
+    }
+
+    const comissaoInvalida = comissoes.find((comissao) => comissao.status !== "CONFIRMADA");
+    if (comissaoInvalida) {
+      throw new Error("Apenas comissões confirmadas podem entrar num lote de pagamento.");
+    }
+
+    const agora = new Date();
+    const loteId = randomUUID();
+    const itens: ItemLotePagamentoComissao[] = [];
+    const valorTotalEmKwanza = comissoes.reduce((total, comissao) => total + comissao.valorEmKwanza, 0);
+
+    for (const comissao of comissoes) {
+      const atualizada: ComissaoParceiro = {
+        ...comissao,
+        status: "PAGA",
+        pagoEm: agora,
+        referenciaPagamento: dados.referenciaPagamento,
+        observacaoPagamento: dados.observacao ?? null,
+        lotePagamentoId: loteId,
+        atualizadoEm: agora
+      };
+      this.comissoes.set(atualizada.id, atualizada);
+
+      const item: ItemLotePagamentoComissao = {
+        id: randomUUID(),
+        negocioId: dados.negocioId,
+        loteId,
+        comissaoId: atualizada.id,
+        afiliadoId: atualizada.afiliadoId,
+        pedidoId: atualizada.pedidoId,
+        valorEmKwanza: atualizada.valorEmKwanza,
+        moeda: atualizada.moeda,
+        statusAnterior: comissao.status,
+        statusNovo: atualizada.status,
+        criadoEm: agora
+      };
+      this.itensLotePagamentoComissoes.set(item.id, item);
+      itens.push(item);
+
+      this.registrarHistoricoComissao(atualizada, "PAGA", {
+        statusAnterior: comissao.status,
+        criadoEm: agora,
+        motivo: dados.observacao ?? null,
+        referencia: dados.referenciaPagamento,
+        autorId: dados.autorId ?? null,
+        autorNome: dados.autorNome ?? null,
+        metadata: { lotePagamentoId: loteId }
+      });
+    }
+
+    const lote: LotePagamentoComissao = {
+      id: loteId,
+      negocioId: dados.negocioId,
+      referenciaPagamento: dados.referenciaPagamento,
+      observacao: dados.observacao ?? null,
+      status: "PAGO",
+      quantidadeComissoes: itens.length,
+      valorTotalEmKwanza,
+      moeda: comissoes[0]?.moeda ?? "AOA",
+      periodoInicio: dados.periodoInicio ?? null,
+      periodoFim: dados.periodoFim ?? null,
+      autorId: dados.autorId ?? null,
+      autorNome: dados.autorNome ?? null,
+      criadoEm: agora,
+      atualizadoEm: agora,
+      itens
+    };
+    this.lotesPagamentoComissoes.set(lote.id, lote);
+    return lote;
+  }
+
+  async listarLotesPagamentoComissoes(negocioId: string): Promise<LotePagamentoComissao[]> {
+    return [...this.lotesPagamentoComissoes.values()]
+      .filter((lote) => lote.negocioId === negocioId)
+      .map((lote) => ({
+        ...lote,
+        itens: [...this.itensLotePagamentoComissoes.values()]
+          .filter((item) => item.loteId === lote.id)
+          .sort((a, b) => a.criadoEm.getTime() - b.criadoEm.getTime())
+      }))
       .sort((a, b) => b.criadoEm.getTime() - a.criadoEm.getTime());
   }
 
