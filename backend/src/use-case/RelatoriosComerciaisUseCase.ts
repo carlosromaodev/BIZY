@@ -80,6 +80,12 @@ export class RelatoriosComerciaisUseCase {
     const reservasComIntencao = reservasDoRelatorio.filter((reserva) => !filtros.dataInicio || reserva.criadaEm >= filtros.dataInicio);
     const reservasPagas = reservasComIntencao.filter((reserva) => reserva.estado === "PAID");
     const desempenhoCampanhas = await this.calcularDesempenhoCampanhas(negocioId, pedidosDoRelatorio, clientes);
+    const oportunidadesPerdidas = await this.calcularOportunidadesPerdidas(
+      negocioId,
+      pedidosDoRelatorio,
+      reservasDoRelatorio,
+      conversas
+    );
 
     return {
       geradoEm: new Date().toISOString(),
@@ -109,11 +115,7 @@ export class RelatoriosComerciaisUseCase {
       },
       atendimento: this.calcularMetricasAtendimento(conversas, tarefas),
       campanhas: desempenhoCampanhas,
-      oportunidadesPerdidas: {
-        pedidosAguardandoPagamento: pagamentosPendentes.length,
-        reservasExpiradas: reservasDoRelatorio.filter((reserva) => reserva.estado === "EXPIRED").length,
-        conversasSemResposta: conversas.filter((item) => item.conversa.estado === "NOVA" || item.conversa.estado === "AGUARDANDO_HUMANO").length
-      },
+      oportunidadesPerdidas,
       retencao: {
         clientesRecorrentes: [...clientesComPedidosPagos.values()].filter((total) => total >= 2).length,
         clientesEmRisco: clientes.filter((cliente) => Date.now() - cliente.ultimaInteracaoEm.getTime() > 30 * 86_400_000).length
@@ -195,7 +197,11 @@ export class RelatoriosComerciaisUseCase {
         "campanhasRespostas",
         "campanhasOptOut",
         "campanhasFalhas",
-        "campanhasPedidosGerados"
+        "campanhasPedidosGerados",
+        "clientesQuePerguntaramENaoCompraram",
+        "comprovativosNaoEnviados",
+        "socialLeadsSemAtendimento",
+        "whatsappClicksSemCompra"
       ],
       [
         String(relatorio.metricas.pedidosPagos),
@@ -214,7 +220,11 @@ export class RelatoriosComerciaisUseCase {
         String(relatorio.campanhas.respostas),
         String(relatorio.campanhas.optOut),
         String(relatorio.campanhas.falhas),
-        String(relatorio.campanhas.pedidosGerados)
+        String(relatorio.campanhas.pedidosGerados),
+        String(relatorio.oportunidadesPerdidas.clientesQuePerguntaramENaoCompraram),
+        String(relatorio.oportunidadesPerdidas.comprovativosNaoEnviados),
+        String(relatorio.oportunidadesPerdidas.socialLeadsSemAtendimento),
+        String(relatorio.oportunidadesPerdidas.whatsappClicksSemCompra)
       ]
     ];
     return {
@@ -590,6 +600,50 @@ export class RelatoriosComerciaisUseCase {
     return [...segmentos];
   }
 
+  private async calcularOportunidadesPerdidas(
+    negocioId: string,
+    pedidos: Pedido[],
+    reservas: Reserva[],
+    conversas: ConversaAtendimentoComMensagens[]
+  ) {
+    const pedidosPagos = pedidos.filter((pedido) => pedido.estadoPagamento === "CONFIRMADO" || pedido.estado === "PAGO" || pedido.estado === "ENTREGUE");
+    const clientesComCompra = new Set(pedidosPagos.map((pedido) => pedido.clienteNegocioId));
+    const clientesQuePerguntaram = new Set<string>();
+
+    for (const conversa of conversas) {
+      const temPerguntaCliente = conversa.mensagens.some((mensagem) => mensagem.direcao === "INBOUND" || mensagem.remetente === "cliente");
+      if (!temPerguntaCliente) continue;
+      const chaveCliente = conversa.conversa.clienteNegocioId ?? conversa.cliente.id ?? conversa.conversa.telefone;
+      if (conversa.conversa.clienteNegocioId && clientesComCompra.has(conversa.conversa.clienteNegocioId)) continue;
+      clientesQuePerguntaram.add(chaveCliente);
+    }
+
+    const eventos = await (this.tracking?.listarEventos(negocioId, { limite: 20_000 }) ?? Promise.resolve([]));
+    const trackingComPedido = new Set(
+      eventos
+        .filter((evento) => evento.trackingId && (evento.tipo === "PEDIDO_CRIADO" || evento.tipo === "PAGAMENTO_CONFIRMADO"))
+        .map((evento) => evento.trackingId!)
+    );
+    const whatsappClicksSemCompra = new Set(
+      eventos
+        .filter((evento) => evento.tipo === "WHATSAPP_CLICK")
+        .filter((evento) => !evento.trackingId || !trackingComPedido.has(evento.trackingId))
+        .map((evento) => evento.trackingId ?? evento.id)
+    );
+
+    const social = await (this.socialInbox?.listar(negocioId, { limite: 20_000 }) ?? Promise.resolve([]));
+
+    return {
+      pedidosAguardandoPagamento: pedidos.filter((pedido) => pedido.estadoPagamento === "PENDENTE" || pedido.estado === "AGUARDANDO_PAGAMENTO").length,
+      reservasExpiradas: reservas.filter((reserva) => reserva.estado === "EXPIRED").length,
+      conversasSemResposta: conversas.filter((item) => item.conversa.estado === "NOVA" || item.conversa.estado === "AGUARDANDO_HUMANO").length,
+      clientesQuePerguntaramENaoCompraram: clientesQuePerguntaram.size,
+      comprovativosNaoEnviados: pedidos.filter((pedido) => pedido.estadoPagamento === "PENDENTE" && !pedido.comprovativoPagamentoUrl).length,
+      socialLeadsSemAtendimento: social.filter((item) => item.intencao === "COMPRA" && ["NOVO", "EM_ATENDIMENTO"].includes(item.estado)).length,
+      whatsappClicksSemCompra: whatsappClicksSemCompra.size
+    };
+  }
+
   private filtrarPecasPorColecao(pecas: Peca[], filtros: FiltrosRelatorioComercial) {
     const colecao = this.normalizarTextoFiltro(filtros.colecao);
     if (!colecao) return pecas;
@@ -694,6 +748,9 @@ export class RelatoriosComerciaisUseCase {
         ${this.cardPdf("Pedidos aguardando pagamento", String(relatorio.oportunidadesPerdidas.pedidosAguardandoPagamento))}
         ${this.cardPdf("Reservas expiradas", String(relatorio.oportunidadesPerdidas.reservasExpiradas))}
         ${this.cardPdf("Conversas sem resposta", String(relatorio.oportunidadesPerdidas.conversasSemResposta))}
+        ${this.cardPdf("Perguntaram e não compraram", String(relatorio.oportunidadesPerdidas.clientesQuePerguntaramENaoCompraram))}
+        ${this.cardPdf("Comprovativos não enviados", String(relatorio.oportunidadesPerdidas.comprovativosNaoEnviados))}
+        ${this.cardPdf("Cliques WhatsApp sem compra", String(relatorio.oportunidadesPerdidas.whatsappClicksSemCompra))}
         ${this.cardPdf("Clientes em risco", String(relatorio.retencao.clientesEmRisco))}
       </section>
 

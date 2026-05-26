@@ -112,6 +112,8 @@ Atualização 1.46: Relatório comercial passou a medir desempenho real de atend
 
 Atualização 1.47: Relatório comercial passou a incluir desempenho de campanhas com receita atribuída, respostas, opt-out, falhas, pedidos gerados e segmentos que converteram, cruzando campanhas, itens, tracking e pedidos pagos sem duplicar receita por pedido.
 
+Atualização 1.48: Relatório comercial passou a sinalizar oportunidades perdidas e recuperáveis com clientes que perguntaram e não compraram, comprovativos não enviados, leads sociais sem atendimento e cliques WhatsApp sem compra, além de pedidos pendentes, reservas expiradas e conversas sem resposta.
+
 ---
 
 ## 2. Legenda
@@ -419,7 +421,7 @@ Esta etapa transforma o Bizy de painel de live em CRM operacional para lojas que
 | RF138 | [x] O vendedor deve exportar relatórios em CSV e PDF simples para operação diária. | Média | Implementado no backend em `/relatorios/comercial.csv` e `/relatorios/comercial.pdf`, ambos auditados |
 | RF139 | [x] O sistema deve gerar resumo diário automático com vendas, pendências e tarefas para o dia seguinte. | Média | Implementado no backend em `/relatorios/resumo-diario` |
 | RF140 | [x] O CRM deve permitir filtrar relatórios por período, canal, produto, coleção, responsável e estado do pedido. | Média | Implementado no backend em `/relatorios/comercial`, `/relatorios/resumo-diario`, CSV e PDF com filtro `colecao` |
-| RF141 | [~] O painel deve mostrar oportunidades perdidas, como clientes que perguntaram e não compraram, reserva expirada e comprovativo não enviado. | Alta | Parcial - backend calcula pedidos aguardando pagamento e oportunidades de recuperação; faltam todos os sinais de conversa/social e UI final |
+| RF141 | [x] O painel deve mostrar oportunidades perdidas, como clientes que perguntaram e não compraram, reserva expirada e comprovativo não enviado. | Alta | Implementado no relatório comercial com pedidos aguardando pagamento, reservas expiradas, conversas sem resposta, clientes que perguntaram e não compraram, comprovativos não enviados, leads sociais sem atendimento e cliques WhatsApp sem compra |
 | RF142 | [~] O CRM deve medir retenção simples: clientes que voltaram a comprar, tempo desde última compra e clientes em risco de sumir. | Média | Parcial - relatório comercial calcula clientes recorrentes e em risco; falta coorte/tempo médio detalhado |
 | RF143 | [x] Relatórios técnicos de automação devem ficar no Admin/Sistema, não no menu comercial da loja. | Alta | Implementado na navegação/rotas técnicas atuais |
 
