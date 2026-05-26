@@ -44,7 +44,8 @@ async function criarPeca(
   codigo: string,
   quantidade = 5,
   precoEmKwanza = 12_000,
-  custoEmKwanza = 8_000
+  custoEmKwanza = 8_000,
+  opcoes: { colecao?: string | null } = {}
 ) {
   const resposta = await app.inject({
     method: "POST",
@@ -57,6 +58,7 @@ async function criarPeca(
       precoEmKwanza,
       custoEmKwanza,
       quantidade,
+      colecao: opcoes.colecao,
       fotos: [`https://example.com/${codigo}.png`]
     }
   });
@@ -439,8 +441,8 @@ describe("backend CRM+ requisitos operacionais", () => {
 
     try {
       const loja = await autenticar(app, "923444301", "Loja CRM Relatórios");
-      await criarPeca(app, loja, "RL-1", 10, 20_000, 12_000);
-      await criarPeca(app, loja, "RL-2", 10, 5_000, 4_000);
+      await criarPeca(app, loja, "RL-1", 10, 20_000, 12_000, { colecao: "Live atual" });
+      await criarPeca(app, loja, "RL-2", 10, 5_000, 4_000, { colecao: "Reposição" });
       const cliente = await criarCliente(app, loja);
 
       const pedidoPago = await app.inject({
@@ -502,6 +504,25 @@ describe("backend CRM+ requisitos operacionais", () => {
           pedidosAguardandoPagamento: 1
         })
       );
+
+      const relatorioColecao = await app.inject({
+        method: "GET",
+        url: "/relatorios/comercial?colecao=Live%20atual",
+        headers: loja
+      });
+      expect(relatorioColecao.statusCode).toBe(200);
+      expect(relatorioColecao.json().filtros.colecao).toBe("Live atual");
+      expect(relatorioColecao.json().metricas).toEqual(
+        expect.objectContaining({
+          pedidosPagos: 1,
+          pagamentosPendentes: 0,
+          receitaBrutaEmKwanza: 40_000
+        })
+      );
+      expect(relatorioColecao.json().rankings.produtosMaisVendidos).toEqual([
+        expect.objectContaining({ codigoPeca: "RL-1" })
+      ]);
+      expect(relatorioColecao.json().rankings.produtosMaiorMargem.map((produto: { codigoPeca: string }) => produto.codigoPeca)).toEqual(["RL-1"]);
 
       const resumoDiario = await app.inject({ method: "GET", url: "/relatorios/resumo-diario", headers: loja });
       expect(resumoDiario.statusCode).toBe(200);

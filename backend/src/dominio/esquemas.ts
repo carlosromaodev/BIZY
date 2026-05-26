@@ -848,6 +848,7 @@ export const FiltrosRelatorioComercialQuerySchema = z.object({
   dataFim: z.coerce.date().optional(),
   canal: z.string().trim().min(1).max(80).optional(),
   produto: z.string().trim().min(1).max(120).optional(),
+  colecao: z.string().trim().min(1).max(120).optional(),
   estado: z.enum(estadosPedido).optional(),
   responsavelId: z.string().trim().min(1).max(120).optional()
 });

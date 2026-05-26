@@ -8,7 +8,7 @@ import type {
   RepositorioTarefasOperacionais,
   RepositorioTrackingComercial
 } from "../dominio/repositorios/contratos.js";
-import type { EventoTrackingComercial, FiltrosPedidos, Pedido, Peca } from "../dominio/tipos.js";
+import type { EventoTrackingComercial, FiltrosPedidos, Pedido, Peca, Reserva } from "../dominio/tipos.js";
 import { escapeHtml, formatDateLabel, renderPdfFromHtml, type OpcoesRenderPdf } from "../infra/pdf/PdfRenderer.js";
 
 export interface FiltrosRelatorioComercial {
@@ -16,6 +16,7 @@ export interface FiltrosRelatorioComercial {
   dataFim?: Date;
   canal?: string;
   produto?: string;
+  colecao?: string;
   estado?: Pedido["estado"];
   responsavelId?: string;
 }
@@ -52,22 +53,26 @@ export class RelatoriosComerciaisUseCase {
       this.atendimento.listarConversasComMensagens(10_000, negocioId),
       this.tarefas.listar(negocioId, { limite: 10_000 })
     ]);
-    const pecasPorCodigo = new Map(pecas.map((peca) => [peca.codigo, peca]));
-    const pedidosPagos = pedidos.filter((pedido) => pedido.estadoPagamento === "CONFIRMADO" || pedido.estado === "PAGO" || pedido.estado === "ENTREGUE");
-    const pagamentosPendentes = pedidos.filter((pedido) => pedido.estadoPagamento === "PENDENTE" || pedido.estado === "AGUARDANDO_PAGAMENTO");
-    const receitaBrutaEmKwanza = pedidos.reduce((total, pedido) => total + pedido.subtotalEmKwanza, 0);
-    const descontosEmKwanza = pedidos.reduce((total, pedido) => total + pedido.descontoEmKwanza, 0);
-    const entregaEmKwanza = pedidos.reduce((total, pedido) => total + pedido.taxaEntregaEmKwanza, 0);
+    const pecasDoRelatorio = this.filtrarPecasPorColecao(pecas, filtros);
+    const codigosDaColecao = this.obterCodigosDaColecao(pecasDoRelatorio, filtros);
+    const pedidosDoRelatorio = this.filtrarPedidosPorColecao(pedidos, codigosDaColecao, filtros);
+    const reservasDoRelatorio = this.filtrarReservasPorColecao(reservas, codigosDaColecao, filtros);
+    const pecasPorCodigo = new Map(pecasDoRelatorio.map((peca) => [peca.codigo, peca]));
+    const pedidosPagos = pedidosDoRelatorio.filter((pedido) => pedido.estadoPagamento === "CONFIRMADO" || pedido.estado === "PAGO" || pedido.estado === "ENTREGUE");
+    const pagamentosPendentes = pedidosDoRelatorio.filter((pedido) => pedido.estadoPagamento === "PENDENTE" || pedido.estado === "AGUARDANDO_PAGAMENTO");
+    const receitaBrutaEmKwanza = pedidosDoRelatorio.reduce((total, pedido) => total + pedido.subtotalEmKwanza, 0);
+    const descontosEmKwanza = pedidosDoRelatorio.reduce((total, pedido) => total + pedido.descontoEmKwanza, 0);
+    const entregaEmKwanza = pedidosDoRelatorio.reduce((total, pedido) => total + pedido.taxaEntregaEmKwanza, 0);
     const receitaLiquidaEstimadaEmKwanza = receitaBrutaEmKwanza - descontosEmKwanza + entregaEmKwanza;
     const clientesComPedidosPagos = this.contarPedidosPagosPorCliente(pedidosPagos);
-    const reservasComIntencao = reservas.filter((reserva) => !filtros.dataInicio || reserva.criadaEm >= filtros.dataInicio);
+    const reservasComIntencao = reservasDoRelatorio.filter((reserva) => !filtros.dataInicio || reserva.criadaEm >= filtros.dataInicio);
     const reservasPagas = reservasComIntencao.filter((reserva) => reserva.estado === "PAID");
 
     return {
       geradoEm: new Date().toISOString(),
       filtros,
       metricas: {
-        pedidosCriados: pedidos.length,
+        pedidosCriados: pedidosDoRelatorio.length,
         pedidosPagos: pedidosPagos.length,
         pagamentosPendentes: pagamentosPendentes.length,
         ticketMedioEmKwanza: pedidosPagos.length
@@ -85,9 +90,9 @@ export class RelatoriosComerciaisUseCase {
       },
       rankings: {
         produtosMaisVendidos: this.ranquearProdutosVendidos(pedidosPagos, pecasPorCodigo),
-        produtosEncalhados: this.listarProdutosEncalhados(pecas, pedidosPagos),
-        produtosMaiorMargem: this.ranquearProdutosPorMargem(pecas),
-        produtosReservaPerdida: this.ranquearReservasPerdidas(reservas, pecasPorCodigo)
+        produtosEncalhados: this.listarProdutosEncalhados(pecasDoRelatorio, pedidosPagos),
+        produtosMaiorMargem: this.ranquearProdutosPorMargem(pecasDoRelatorio),
+        produtosReservaPerdida: this.ranquearReservasPerdidas(reservasDoRelatorio, pecasPorCodigo)
       },
       atendimento: {
         conversasAbertas: conversas.filter((item) => !["RESOLVIDA", "ENCERRADA"].includes(item.conversa.estado)).length,
@@ -97,7 +102,7 @@ export class RelatoriosComerciaisUseCase {
       },
       oportunidadesPerdidas: {
         pedidosAguardandoPagamento: pagamentosPendentes.length,
-        reservasExpiradas: reservas.filter((reserva) => reserva.estado === "EXPIRED").length,
+        reservasExpiradas: reservasDoRelatorio.filter((reserva) => reserva.estado === "EXPIRED").length,
         conversasSemResposta: conversas.filter((item) => item.conversa.estado === "NOVA" || item.conversa.estado === "AGUARDANDO_HUMANO").length
       },
       retencao: {
@@ -336,10 +341,37 @@ export class RelatoriosComerciaisUseCase {
     return mapa;
   }
 
+  private filtrarPecasPorColecao(pecas: Peca[], filtros: FiltrosRelatorioComercial) {
+    const colecao = this.normalizarTextoFiltro(filtros.colecao);
+    if (!colecao) return pecas;
+    return pecas.filter((peca) => this.normalizarTextoFiltro(peca.colecao) === colecao);
+  }
+
+  private obterCodigosDaColecao(pecas: Peca[], filtros: FiltrosRelatorioComercial) {
+    if (!this.normalizarTextoFiltro(filtros.colecao)) return null;
+    return new Set(pecas.map((peca) => peca.codigo));
+  }
+
+  private filtrarPedidosPorColecao(pedidos: Pedido[], codigosDaColecao: Set<string> | null, filtros: FiltrosRelatorioComercial) {
+    if (!this.normalizarTextoFiltro(filtros.colecao)) return pedidos;
+    if (!codigosDaColecao?.size) return [];
+    return pedidos.filter((pedido) => pedido.itens.some((item) => codigosDaColecao.has(item.codigoPeca)));
+  }
+
+  private filtrarReservasPorColecao(reservas: Reserva[], codigosDaColecao: Set<string> | null, filtros: FiltrosRelatorioComercial) {
+    if (!this.normalizarTextoFiltro(filtros.colecao)) return reservas;
+    if (!codigosDaColecao?.size) return [];
+    return reservas.filter((reserva) => codigosDaColecao.has(reserva.codigoPeca));
+  }
+
   private dentroDoPeriodo(data: Date, filtros: FiltrosRelatorioComercial) {
     if (filtros.dataInicio && data < filtros.dataInicio) return false;
     if (filtros.dataFim && data > filtros.dataFim) return false;
     return true;
+  }
+
+  private normalizarTextoFiltro(valor?: string | null) {
+    return valor?.trim().toLocaleLowerCase("pt-AO") || null;
   }
 
   private renderizarHtmlRelatorioComercial(relatorio: Awaited<ReturnType<RelatoriosComerciaisUseCase["gerarRelatorio"]>>) {
