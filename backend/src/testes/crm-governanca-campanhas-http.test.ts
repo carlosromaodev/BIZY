@@ -137,6 +137,22 @@ describe("CRM+ governança, campanhas, eventos e jobs", () => {
         ])
       );
 
+      const campanhaSemSegmentoClaro = await app.inject({
+        method: "POST",
+        url: "/campanhas",
+        headers,
+        payload: {
+          nome: "Campanha sem segmento",
+          objetivo: "Evitar disparo amplo por acidente",
+          canal: "whatsapp",
+          templateId: templateRascunho.json().template.id,
+          categoria: "marketing",
+          limiteDiario: 100
+        }
+      });
+      expect(campanhaSemSegmentoClaro.statusCode).toBe(400);
+      expect(campanhaSemSegmentoClaro.json().mensagem).toContain("segmento");
+
       const campanha = await app.inject({
         method: "POST",
         url: "/campanhas",

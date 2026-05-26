@@ -92,6 +92,8 @@ Atualização 1.36: exportação CSV de clientes passou a aceitar filtros de bus
 
 Atualização 1.37: resumo do catálogo passou a devolver alertas operacionais de produtos com stock baixo, stock sem giro, ranking de vendidos e produtos reservados sem pagamento, alimentando decisões rápidas de reposição, cobrança e promoção.
 
+Atualização 1.38: campanhas WhatsApp passaram a bloquear criação sem segmento claro, evitando disparo acidental para todos os clientes; segmentos aceites devem usar filtros operacionais como tag, estado de relacionamento, origem ou consentimento de marketing.
+
 ---
 
 ## 2. Legenda
@@ -874,7 +876,7 @@ Esta etapa vem antes da implementação visual dos novos módulos. O objetivo é
 | RN59 | [x] Um cliente só pode ser fundido com outro mediante ação explícita de usuário autorizado. | Implementado no backend com preview e motivo obrigatório |
 | RN60 | [x] Cliente com opt-out ou sem consentimento não pode receber campanha promocional. | Implementado no backend de campanhas marketing |
 | RN61 | [~] Mensagens transacionais de pedido, pagamento e entrega podem ser enviadas quando necessárias à execução da venda e permitidas pelo provider/canal. | Parcial - política classifica utility/service e templates utilidade existem; faltam amarração de todos os eventos de pedido |
-| RN62 | [~] Campanhas devem usar segmentos claros e nunca devem disparar para todos os clientes por padrão. | Parcial - campanha exige segmento/preview e consentimento; falta bloqueio estrito de segmento vazio |
+| RN62 | [x] Campanhas devem usar segmentos claros e nunca devem disparar para todos os clientes por padrão. | Implementado no backend com bloqueio de segmento vazio e filtros claros por tag, estado de relacionamento, origem ou consentimento de marketing |
 | RN63 | [x] Todo pedido deve ter cliente, pelo menos um item, valor total e estado operacional. | Implementado no backend de Pedidos |
 | RN64 | [~] Pedido pago não pode ser apagado; deve ser cancelado, devolvido, trocado ou ajustado com auditoria. | Parcial - não existe exclusão de pedido; falta trilha de auditoria detalhada para ajustes |
 | RN65 | [~] Desconto exige motivo e, acima do limite configurado, aprovação de perfil autorizado. | Parcial - motivo obrigatório implementado; falta limite configurável e aprovação |

@@ -98,6 +98,7 @@ export class GestaoCampanhasCrmUseCase {
     if (dados.categoria !== "marketing") {
       throw new Error("Campanhas WhatsApp devem usar categoria marketing.");
     }
+    const segmento = this.validarSegmentoClaro(dados.segmento);
 
     const campanha = await this.campanhas.criar({
       negocioId: dados.negocioId,
@@ -106,7 +107,7 @@ export class GestaoCampanhasCrmUseCase {
       canal: dados.canal,
       templateId: dados.templateId,
       categoria: dados.categoria,
-      segmento: dados.segmento ?? {},
+      segmento,
       limiteDiario: dados.limiteDiario,
       janelaInicio: dados.janelaEnvio?.inicio ?? null,
       janelaFim: dados.janelaEnvio?.fim ?? null,
@@ -261,6 +262,7 @@ export class GestaoCampanhasCrmUseCase {
   }
 
   private async prepararDestinatarios(campanha: CampanhaCrm, template: TemplateWhatsAppNegocio) {
+    this.validarSegmentoClaro(campanha.segmento);
     const clientes = await this.clientes.listar(campanha.negocioId, { limite: campanha.limiteDiario });
     const elegiveis = clientes.filter((cliente) => this.clienteAtendeSegmento(cliente, campanha.segmento));
     const destinatarios = [];
@@ -298,14 +300,52 @@ export class GestaoCampanhasCrmUseCase {
     };
   }
 
-  private clienteAtendeSegmento(cliente: Cliente360, segmento: Record<string, unknown>): boolean {
-    const tags = segmento.tags;
-    if (Array.isArray(tags) && tags.length > 0) {
-      return tags.some((tag) => typeof tag === "string" && cliente.tags.includes(tag));
+  private validarSegmentoClaro(segmento?: Record<string, unknown>): Record<string, unknown> {
+    const normalizado = segmento ?? {};
+    if (!this.segmentoTemFiltroAplicavel(normalizado)) {
+      throw new Error(
+        "Campanha não pode ser criada sem segmento claro. Defina tag, estado de relacionamento, origem ou consentimento de marketing."
+      );
     }
+    return normalizado;
+  }
+
+  private segmentoTemFiltroAplicavel(segmento: Record<string, unknown>): boolean {
+    const tags = segmento.tags;
+    if (Array.isArray(tags) && tags.some((tag) => typeof tag === "string" && tag.trim().length > 0)) return true;
+    if (typeof segmento.estadoRelacionamento === "string" && segmento.estadoRelacionamento.trim().length > 0) return true;
+    if (typeof segmento.origem === "string" && segmento.origem.trim().length > 0) return true;
+    if (typeof segmento.consentimentoMarketing === "boolean") return true;
+    return false;
+  }
+
+  private clienteAtendeSegmento(cliente: Cliente360, segmento: Record<string, unknown>): boolean {
+    let filtroAplicado = false;
+    const tags = segmento.tags;
+    if (Array.isArray(tags) && tags.some((tag) => typeof tag === "string" && tag.trim().length > 0)) {
+      filtroAplicado = true;
+      if (!tags.some((tag) => typeof tag === "string" && cliente.tags.includes(tag.trim()))) return false;
+    }
+
     const estadoRelacionamento = segmento.estadoRelacionamento;
-    if (typeof estadoRelacionamento === "string" && cliente.estadoRelacionamento !== estadoRelacionamento) return false;
-    return true;
+    if (typeof estadoRelacionamento === "string" && estadoRelacionamento.trim().length > 0) {
+      filtroAplicado = true;
+      if (cliente.estadoRelacionamento !== estadoRelacionamento.trim()) return false;
+    }
+
+    const origem = segmento.origem;
+    if (typeof origem === "string" && origem.trim().length > 0) {
+      filtroAplicado = true;
+      if ((cliente.origem ?? "").toLocaleLowerCase("pt-AO") !== origem.trim().toLocaleLowerCase("pt-AO")) return false;
+    }
+
+    const consentimentoMarketing = segmento.consentimentoMarketing;
+    if (typeof consentimentoMarketing === "boolean") {
+      filtroAplicado = true;
+      if (cliente.consentimentoMarketing !== consentimentoMarketing) return false;
+    }
+
+    return filtroAplicado;
   }
 
   private renderizar(template: TemplateWhatsAppNegocio, cliente: Cliente360): string {
