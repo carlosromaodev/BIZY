@@ -129,7 +129,10 @@ export class RelatoriosComerciaisUseCase {
     };
   }
 
-  async exportarCsv(negocioId: string, filtros: FiltrosRelatorioComercial = {}) {
+  async exportarCsv(
+    negocioId: string,
+    filtros: FiltrosRelatorioComercial = {}
+  ): Promise<{ csv: string; quantidade: number; filtros: FiltrosRelatorioComercial }> {
     const relatorio = await this.gerarRelatorio(negocioId, filtros);
     const linhas = [
       [
@@ -151,7 +154,11 @@ export class RelatoriosComerciaisUseCase {
         String(relatorio.metricas.ticketMedioEmKwanza)
       ]
     ];
-    return `${linhas.map((linha) => linha.map((valor) => this.csv(valor)).join(",")).join("\n")}\n`;
+    return {
+      csv: `${linhas.map((linha) => linha.map((valor) => this.csv(valor)).join(",")).join("\n")}\n`,
+      quantidade: 1,
+      filtros
+    };
   }
 
   async gerarRelatorioSocialReceita(negocioId: string) {

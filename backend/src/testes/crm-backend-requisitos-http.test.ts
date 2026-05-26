@@ -518,6 +518,24 @@ describe("backend CRM+ requisitos operacionais", () => {
       expect(csv.body).toContain("pedidosPagos,pagamentosPendentes,receitaBrutaEmKwanza");
       expect(csv.body).toContain("1,1,45000");
 
+      const auditoriaRelatorio = await app.inject({
+        method: "GET",
+        url: "/auditoria/eventos?tipo=REPORTS_EXPORTED",
+        headers: loja
+      });
+      expect(auditoriaRelatorio.statusCode).toBe(200);
+      expect(auditoriaRelatorio.json().eventos).toEqual([
+        expect.objectContaining({
+          tipo: "REPORTS_EXPORTED",
+          dados: expect.objectContaining({
+            recurso: "relatorio_comercial",
+            formato: "csv",
+            quantidade: 1,
+            filtros: {}
+          })
+        })
+      ]);
+
       const configuracaoPagamento = await app.inject({
         method: "PATCH",
         url: "/negocio/pagamentos",

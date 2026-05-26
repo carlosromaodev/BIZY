@@ -4,7 +4,7 @@ Documento: `RF-RNF-RN-EMEUV1.md`
 Versão: 1.33
 Data: 2026-05-25
 Autor: Carlos
-Status: MVP base implementado; fundação backend Bizy CRM+ com Clientes 360, Pedidos, Catálogo/Stock, Loja Pública, Checkout, Entrega, Afiliados, Comissões, Lotes Financeiros, Campanhas, Governança, Jobs, Eventos Operacionais, Inbox Comercial, SLA, Social Inbox seguro, transferência operacional, política WhatsApp, descontos aprováveis, carrinho abandonado, antifraude de afiliados, anonimização, logs operacionais, navegação comercial, busca global, auditoria de exportação de pedidos e painel diário em evolução
+Status: MVP base implementado; fundação backend Bizy CRM+ com Clientes 360, Pedidos, Catálogo/Stock, Loja Pública, Checkout, Entrega, Afiliados, Comissões, Lotes Financeiros, Campanhas, Governança, Jobs, Eventos Operacionais, Inbox Comercial, SLA, Social Inbox seguro, transferência operacional, política WhatsApp, descontos aprováveis, carrinho abandonado, antifraude de afiliados, anonimização, logs operacionais, navegação comercial, busca global, auditoria de exportações comerciais e painel diário em evolução
 
 ---
 
@@ -85,6 +85,8 @@ Atualização 1.32: backend CRM+ recebeu transferência operacional de conversa/
 Atualização 1.33: backend CRM+ fechou novas lacunas operacionais com solicitação/aprovação auditada de descontos em pedidos, oportunidade de carrinho abandonado com consentimento e deduplicação, pacote de divulgação para afiliados/criadores, resolução pública de link curto rastreável, bloqueio de autoindicação de afiliado, relatório social-receita, auditoria operacional legível e anonimização de cliente preservando histórico financeiro.
 
 Atualização 1.34: exportação CSV de pedidos passou a incluir resumo de itens, filtros por cliente/produto cobertos por teste e evento auditável `ORDERS_EXPORTED` com usuário, negócio, quantidade e filtros. A política WhatsApp passou a classificar carrinho abandonado, lead frio, cliente inativo, novidades, reengajamento, campanhas e divulgação de afiliados/criadores como `marketing` por padrão, exigindo consentimento antes do provider.
+
+Atualização 1.35: exportação CSV do relatório comercial passou a registrar evento auditável `REPORTS_EXPORTED` com usuário, negócio, quantidade, formato e filtros, fechando a trilha mínima de auditoria para clientes, pedidos e relatórios.
 
 ---
 
@@ -692,7 +694,7 @@ Esta etapa vem antes da implementação visual dos novos módulos. O objetivo é
 | RNF57 | [~] Listas de clientes, pedidos, produtos e conversas devem suportar paginação, filtros e busca sem travar com pelo menos 10.000 registros. | Alta | Parcial - APIs principais aceitam limite/filtros e exportações usam teto operacional; falta paginação padronizada em todos os módulos e teste de carga |
 | RNF58 | [x] A busca global deve responder em até 1 segundo para bases pequenas e manter feedback de carregamento em bases maiores. | Média | Implementado com debounce e estado de carregamento |
 | RNF59 | [~] Dados pessoais de clientes devem ser protegidos com controlo de acesso por papel e auditoria de exportação. | Alta | Parcial - exportação de clientes exige permissão e registra auditoria; faltam políticas por papel mais finas e auditoria nas demais exportações |
-| RNF60 | [~] Exportações de clientes, pedidos e relatórios devem registrar usuário, filtro usado, data e quantidade exportada. | Alta | Parcial - clientes e pedidos já registram usuário, filtros, data e quantidade; faltam relatórios comerciais |
+| RNF60 | [x] Exportações de clientes, pedidos e relatórios devem registrar usuário, filtro usado, data e quantidade exportada. | Alta | Implementado para clientes, pedidos e relatório comercial CSV por eventos auditáveis `CLIENTS_EXPORTED`, `ORDERS_EXPORTED` e `REPORTS_EXPORTED` |
 | RNF61 | [ ] O CRM deve manter backups e estratégia de recuperação para clientes, pedidos, mensagens, comprovativos e produtos. | Alta | Planeado |
 | RNF62 | [x] A interface deve distinguir claramente operação comercial de configuração técnica. | Alta | Implementado por CRM/Loja versus Admin/Sistema |
 | RNF63 | [x] Páginas sem funcionalidade real não devem ser publicadas na navegação principal. | Alta | Implementado na navegação atual |

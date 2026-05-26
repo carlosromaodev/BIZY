@@ -71,10 +71,18 @@ export const moduloPainel: ModuloHttp = {
       if (!contextoComercial) return;
 
       const filtros = FiltrosRelatorioComercialQuerySchema.parse(request.query ?? {});
-      const csv = await contexto.relatoriosComerciais.exportarCsv(contextoComercial.negocio.id, filtros);
+      const exportacao = await contexto.relatoriosComerciais.exportarCsv(contextoComercial.negocio.id, filtros);
+      contexto.eventos.emitir("REPORTS_EXPORTED", {
+        negocioId: contextoComercial.negocio.id,
+        usuarioId: contextoComercial.usuario.id,
+        recurso: "relatorio_comercial",
+        formato: "csv",
+        quantidade: exportacao.quantidade,
+        filtros: exportacao.filtros
+      });
       reply.header("Content-Type", "text/csv; charset=utf-8");
       reply.header("Content-Disposition", "attachment; filename=\"relatorio-comercial-bizy.csv\"");
-      return reply.send(csv);
+      return reply.send(exportacao.csv);
     });
   }
 };
