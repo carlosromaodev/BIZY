@@ -1484,6 +1484,8 @@ export interface NovoPedido {
   comprovativoPagamentoUrl?: string | null;
   observacao?: string | null;
   responsavelId?: string | null;
+  podeAprovarDesconto?: boolean;
+  limiteDescontoSemAprovacaoPercentual?: number;
 }
 
 export interface DadosPedidoResolvido extends Omit<NovoPedido, "itens"> {

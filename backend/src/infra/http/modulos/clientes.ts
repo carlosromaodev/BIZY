@@ -98,7 +98,7 @@ export const moduloClientes: ModuloHttp = {
 
     app.post("/clientes/importar.csv", async (request, reply) => {
       const contextoComercial = await exigirAcessoComercial(contexto, request, reply, {
-        permissao: "clientes:gerir",
+        permissao: "clientes:exportar",
         modulo: "crm",
         mensagemPermissao: "Sem permissão para importar clientes.",
         mensagemModulo: "CRM desativado para este negócio."

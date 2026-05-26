@@ -308,6 +308,59 @@ describe("pedidos HTTP", () => {
     }
   });
 
+  it("exige motivo operacional para cancelar pedido", async () => {
+    const app = await criarAplicacao();
+
+    try {
+      const loja = await autenticar(app, "923222140", "Loja Cancelamento Pedido");
+      await criarPeca(app, loja, "CAN-1", 2, 11_000);
+      const cliente = await criarCliente(app, loja, {
+        telefone: "937624790",
+        nome: "Cliente Cancelamento",
+        email: "cancelamento@example.com"
+      });
+
+      const pedido = await app.inject({
+        method: "POST",
+        url: "/pedidos",
+        headers: loja,
+        payload: {
+          clienteId: cliente.id,
+          itens: [{ codigoPeca: "CAN-1", quantidade: 1 }]
+        }
+      });
+      expect(pedido.statusCode).toBe(201);
+
+      const semMotivo = await app.inject({
+        method: "PATCH",
+        url: `/pedidos/${pedido.json().id}/estado`,
+        headers: loja,
+        payload: { estado: "CANCELADO" }
+      });
+      expect(semMotivo.statusCode).toBe(400);
+      expect(semMotivo.json().mensagem).toContain("motivo");
+
+      const comMotivo = await app.inject({
+        method: "PATCH",
+        url: `/pedidos/${pedido.json().id}/estado`,
+        headers: loja,
+        payload: {
+          estado: "CANCELADO",
+          observacao: "Cliente desistiu antes do pagamento."
+        }
+      });
+      expect(comMotivo.statusCode).toBe(200);
+      expect(comMotivo.json()).toEqual(
+        expect.objectContaining({
+          estado: "CANCELADO",
+          canceladoEm: expect.any(String)
+        })
+      );
+    } finally {
+      await app.close();
+    }
+  });
+
   it("reutiliza endereço salvo do cliente ao criar pedido", async () => {
     const app = await criarAplicacao();
 

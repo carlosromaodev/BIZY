@@ -29,7 +29,10 @@ const PERMISSOES_POR_PAPEL: Record<string, string[]> = {
     "funil:gerir",
     "campanhas:gerir",
     "relatorios:ver",
-    "configuracoes:gerir"
+    "configuracoes:gerir",
+    "descontos:aprovar",
+    "pedidos:cancelar",
+    "clientes:exportar"
   ],
   ADMIN: [
     "negocio:gerir",
@@ -47,11 +50,14 @@ const PERMISSOES_POR_PAPEL: Record<string, string[]> = {
     "funil:gerir",
     "campanhas:gerir",
     "relatorios:ver",
-    "configuracoes:gerir"
+    "configuracoes:gerir",
+    "descontos:aprovar",
+    "pedidos:cancelar",
+    "clientes:exportar"
   ],
   VENDEDOR: ["catalogo:ler", "clientes:ler", "pedidos:gerir", "conversas:gerir", "tarefas:gerir", "relatorios:ver", "tracking:ler", "social-inbox:gerir", "automacoes:ler", "funil:gerir"],
   ATENDENTE: ["clientes:ler", "pedidos:ler", "conversas:gerir", "tarefas:gerir", "social-inbox:gerir", "automacoes:ler", "funil:gerir"],
-  FINANCEIRO: ["clientes:ler", "pedidos:ler", "pagamentos:gerir", "relatorios:ver"],
+  FINANCEIRO: ["clientes:ler", "pedidos:ler", "pagamentos:gerir", "descontos:aprovar", "relatorios:ver"],
   ENTREGADOR: ["pedidos:ler", "entregas:gerir"],
   AFILIADO: ["afiliados:ver", "relatorios:ver"],
   CRIADOR: ["afiliados:ver", "relatorios:ver"]
@@ -171,6 +177,27 @@ export function temPermissao(permissoes: string[], permissaoNecessaria: string):
 
   const [dominio, acao] = permissaoNecessaria.split(":");
   return acao === "ler" && permissoes.includes(`${dominio}:gerir`);
+}
+
+export function descontoExigeAprovacao(
+  subtotalEmKwanza: number,
+  descontoEmKwanza: number,
+  limiteSemAprovacaoPercentual = 10
+): boolean {
+  if (descontoEmKwanza <= 0) return false;
+  if (subtotalEmKwanza <= 0) return true;
+
+  const limitePercentual = Math.min(Math.max(limiteSemAprovacaoPercentual, 0), 100);
+  const limiteEmKwanza = Math.floor((subtotalEmKwanza * limitePercentual) / 100);
+  return descontoEmKwanza > limiteEmKwanza;
+}
+
+export function obterLimiteDescontoSemAprovacaoPercentual(negocio: Pick<NegocioBizy, "entrega">): number {
+  const politica = negocio.entrega.politicaComercial ?? negocio.entrega.politicas ?? {};
+  if (!politica || typeof politica !== "object") return 10;
+
+  const valor = (politica as Record<string, unknown>).limiteDescontoSemAprovacaoPercentual;
+  return typeof valor === "number" && Number.isFinite(valor) ? valor : 10;
 }
 
 export function moduloAtivo(modulosAtivos: string[], moduloNecessario: string): boolean {

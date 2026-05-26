@@ -122,6 +122,8 @@ Atualização 1.51: Painel passou a expor `minhasTarefas` e `tarefasOperacionais
 
 Atualização 1.52: Tarefas operacionais passaram a validar vínculos de cliente e pedido no backend, preenchendo automaticamente o cliente a partir do pedido e recusando tarefas com cliente ou pedido inexistente/inconsistente.
 
+Atualização 1.53: Permissões comerciais ficaram mais finas para ações críticas: desconto acima do limite exige perfil autorizado, aprovação de desconto usa permissão própria, cancelamento de pedido exige permissão e motivo, e exportação de clientes tem permissão dedicada.
+
 ---
 
 ## 2. Legenda
@@ -442,7 +444,7 @@ Esta etapa transforma o Bizy de painel de live em CRM operacional para lojas que
 | RF146 | [x] O vendedor deve ver `Minhas tarefas` no Painel, ordenadas por atraso e impacto comercial. | Alta | Implementado no backend do Painel com `minhasTarefas`, resumo operacional, ordenação por atraso/prioridade/tipo e classificação de impacto comercial |
 | RF147 | [x] O sistema deve criar tarefa automática quando pagamento vencer, mensagem falhar, cliente VIP ficar sem resposta ou pedido pago ficar sem entrega. | Alta | Implementado no backend com tarefas de bloqueio/falha WhatsApp, cobrança vencida, cliente VIP sem resposta e pedido pago sem entrega via rotina automática |
 | RF148 | [x] O CRM deve suportar papéis mínimos: dono da loja, vendedor, atendente, financeiro, entregador e admin técnico. | Média | Implementado no backend com catálogo de papéis e membros por negócio |
-| RF149 | [~] Permissões devem controlar quem pode dar desconto, confirmar pagamento, cancelar pedido, exportar clientes e alterar configurações. | Alta | Parcial - permissões por papel controlam módulos/ações principais; falta política fina para desconto acima de limite e cancelamentos específicos |
+| RF149 | [x] Permissões devem controlar quem pode dar desconto, confirmar pagamento, cancelar pedido, exportar clientes e alterar configurações. | Alta | Implementado no backend com permissões por papel para pagamentos, aprovação de desconto, cancelamento, exportação de clientes e configurações, incluindo limite de desconto sem aprovação e motivo obrigatório no cancelamento |
 | RF150 | [x] A equipa deve poder transferir conversa/pedido/tarefa entre responsáveis com motivo opcional. | Média | Implementado no backend por `/operacional/transferencias` com nota/observação de motivo |
 | RF151 | [~] O sistema deve registrar auditoria de ações humanas críticas, incluindo quem fez, quando fez e qual dado foi alterado. | Alta | Parcial - exportação, comissão, compartilhamento, jobs/eventos e fusão de cliente têm trilhas; faltam todas as alterações financeiras/stock/permissão com diff detalhado |
 
@@ -907,7 +909,7 @@ Esta etapa vem antes da implementação visual dos novos módulos. O objetivo é
 | RN62 | [x] Campanhas devem usar segmentos claros e nunca devem disparar para todos os clientes por padrão. | Implementado no backend com bloqueio de segmento vazio e filtros claros por tag, estado de relacionamento, origem ou consentimento de marketing |
 | RN63 | [x] Todo pedido deve ter cliente, pelo menos um item, valor total e estado operacional. | Implementado no backend de Pedidos |
 | RN64 | [~] Pedido pago não pode ser apagado; deve ser cancelado, devolvido, trocado ou ajustado com auditoria. | Parcial - não existe exclusão de pedido; falta trilha de auditoria detalhada para ajustes |
-| RN65 | [~] Desconto exige motivo e, acima do limite configurado, aprovação de perfil autorizado. | Parcial - motivo obrigatório implementado; falta limite configurável e aprovação |
+| RN65 | [x] Desconto exige motivo e, acima do limite configurado, aprovação de perfil autorizado. | Implementado no backend com motivo obrigatório, limite percentual configurável por negócio e permissão `descontos:aprovar` para aplicar descontos acima do limite |
 | RN66 | [~] Produto sem stock disponível não deve ser vendido automaticamente, mas pode entrar em lista de interesse/reposição. | Parcial - venda automática bloqueia stock indisponível; lista de interesse/reposição ainda falta |
 | RN67 | [x] Movimento manual de stock exige motivo e responsável. | Implementado no backend |
 | RN68 | [~] Categoria de produto só deve existir se melhorar filtro, catálogo ou relatório; categoria vazia deve ficar oculta. | Parcial - resumo expõe apenas categorias usadas; falta ocultar no frontend |

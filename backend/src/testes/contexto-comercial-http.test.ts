@@ -1,9 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
 import type { ContextoAplicacao } from "../infra/http/ContextoAplicacao.js";
 import {
+  descontoExigeAprovacao,
   exigirModuloComercial,
   exigirPermissaoComercial,
-  resolverContextoComercial
+  permissoesDoPapel,
+  resolverContextoComercial,
+  temPermissao
 } from "../infra/http/contextoComercial.js";
 import type { NegocioBizy, UsuarioSistema } from "../dominio/tipos.js";
 
@@ -246,6 +249,19 @@ describe("contexto comercial HTTP", () => {
       mensagem: "Catálogo desativado para este negócio.",
       modulo: "catalogo"
     });
+  });
+
+  it("separa permissões críticas de desconto e cancelamento por papel", () => {
+    expect(permissoesDoPapel("DONO")).toEqual(
+      expect.arrayContaining(["descontos:aprovar", "pedidos:cancelar", "configuracoes:gerir"])
+    );
+    expect(permissoesDoPapel("FINANCEIRO")).toEqual(
+      expect.arrayContaining(["pagamentos:gerir", "descontos:aprovar"])
+    );
+    expect(temPermissao(permissoesDoPapel("VENDEDOR"), "descontos:aprovar")).toBe(false);
+    expect(temPermissao(permissoesDoPapel("VENDEDOR"), "pedidos:cancelar")).toBe(false);
+    expect(descontoExigeAprovacao(10_000, 1_000, 10)).toBe(false);
+    expect(descontoExigeAprovacao(10_000, 1_001, 10)).toBe(true);
   });
 
   it("interrompe com 401 quando a sessão não existe", async () => {

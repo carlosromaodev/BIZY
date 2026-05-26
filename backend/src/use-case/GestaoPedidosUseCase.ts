@@ -48,6 +48,12 @@ export class GestaoPedidosUseCase {
     const itens = await this.resolverItens(dados);
     const subtotalEmKwanza = itens.reduce((total, item) => total + item.subtotalEmKwanza, 0);
     const descontoEmKwanza = dados.descontoEmKwanza ?? 0;
+    this.validarPoliticaDesconto(
+      subtotalEmKwanza,
+      descontoEmKwanza,
+      dados.podeAprovarDesconto,
+      dados.limiteDescontoSemAprovacaoPercentual
+    );
     const taxaEntregaEmKwanza = dados.taxaEntregaEmKwanza ?? 0;
     const totalEmKwanza = subtotalEmKwanza - descontoEmKwanza + taxaEntregaEmKwanza;
 
@@ -108,6 +114,10 @@ export class GestaoPedidosUseCase {
   }
 
   async atualizarEstado(id: string, negocioId: string, dados: AtualizacaoEstadoPedido): Promise<Pedido> {
+    if (dados.estado === "CANCELADO" && !dados.observacao?.trim()) {
+      throw new Error("Cancelamento de pedido exige motivo operacional para auditoria.");
+    }
+
     const pedido = await this.pedidos.atualizarEstado(id, negocioId, dados);
     if (!pedido) throw new Error(`Pedido ${id} não encontrado.`);
 
@@ -214,6 +224,12 @@ export class GestaoPedidosUseCase {
     const itens = await this.resolverItens(dados);
     const subtotalEmKwanza = itens.reduce((total, item) => total + item.subtotalEmKwanza, 0);
     const descontoEmKwanza = dados.descontoEmKwanza ?? 0;
+    this.validarPoliticaDesconto(
+      subtotalEmKwanza,
+      descontoEmKwanza,
+      dados.podeAprovarDesconto,
+      dados.limiteDescontoSemAprovacaoPercentual
+    );
     const taxaEntregaEmKwanza = dados.taxaEntregaEmKwanza ?? 0;
     const totalEmKwanza = subtotalEmKwanza - descontoEmKwanza + taxaEntregaEmKwanza;
     if (totalEmKwanza < 0) throw new Error("Desconto não pode deixar o total do orçamento negativo.");
@@ -623,6 +639,23 @@ export class GestaoPedidosUseCase {
     }
     if (descontoEmKwanza > pedido.subtotalEmKwanza) {
       throw new Error("Desconto não pode ser maior que o subtotal do pedido.");
+    }
+  }
+
+  private validarPoliticaDesconto(
+    subtotalEmKwanza: number,
+    descontoEmKwanza: number,
+    podeAprovarDesconto = false,
+    limiteSemAprovacaoPercentual = 10
+  ): void {
+    if (descontoEmKwanza <= 0 || podeAprovarDesconto) return;
+
+    const limitePercentual = Math.min(Math.max(limiteSemAprovacaoPercentual, 0), 100);
+    const limiteEmKwanza = Math.floor((subtotalEmKwanza * limitePercentual) / 100);
+    if (descontoEmKwanza > limiteEmKwanza) {
+      throw new Error(
+        `Desconto acima de ${limitePercentual}% exige aprovação de perfil autorizado antes de aplicar no pedido.`
+      );
     }
   }
 }

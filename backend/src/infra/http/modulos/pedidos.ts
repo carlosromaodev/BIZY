@@ -10,7 +10,12 @@ import {
   RecuperarPedidosParadosSchema,
   SolicitarDescontoPedidoSchema
 } from "../../../dominio/esquemas.js";
-import { exigirAcessoComercial } from "../contextoComercial.js";
+import {
+  exigirAcessoComercial,
+  obterLimiteDescontoSemAprovacaoPercentual,
+  temPermissao,
+  type ContextoComercialHttp
+} from "../contextoComercial.js";
 import type { ModuloHttp } from "./ModuloHttp.js";
 
 export const moduloPedidos: ModuloHttp = {
@@ -54,7 +59,8 @@ export const moduloPedidos: ModuloHttp = {
         enderecoEntregaId: dados.enderecoEntregaId,
         comprovativoPagamentoUrl: dados.comprovativoPagamentoUrl,
         observacao: dados.observacao,
-        responsavelId: dados.responsavelId
+        responsavelId: dados.responsavelId,
+        ...politicaDescontoDoContexto(contextoComercial)
       });
       return reply.code(201).send(pedido);
     });
@@ -82,7 +88,8 @@ export const moduloPedidos: ModuloHttp = {
         enderecoEntregaId: dados.enderecoEntregaId,
         observacao: dados.observacao,
         responsavelId: dados.responsavelId,
-        validadeMinutos: dados.validadeMinutos
+        validadeMinutos: dados.validadeMinutos,
+        ...politicaDescontoDoContexto(contextoComercial)
       });
       return reply.code(201).send(orcamento);
     });
@@ -179,6 +186,20 @@ export const moduloPedidos: ModuloHttp = {
 
       const { id } = request.params as { id: string };
       const dados = AtualizarEstadoPedidoSchema.parse(request.body ?? {});
+      if (dados.estado === "CANCELADO") {
+        if (!temPermissao(contextoComercial.permissoes, "pedidos:cancelar")) {
+          return reply.code(403).send({
+            erro: "PERMISSAO_NEGADA",
+            mensagem: "Sem permissão para cancelar pedidos."
+          });
+        }
+        if (!dados.observacao?.trim()) {
+          return reply.code(400).send({
+            erro: "MOTIVO_CANCELAMENTO_OBRIGATORIO",
+            mensagem: "Cancelamento de pedido exige motivo operacional para auditoria."
+          });
+        }
+      }
       return contexto.gestaoPedidos.atualizarEstado(id, contextoComercial.negocio.id, dados);
     });
 
@@ -218,7 +239,7 @@ export const moduloPedidos: ModuloHttp = {
 
     app.post("/pedidos/:id/descontos/aprovar", async (request, reply) => {
       const contextoComercial = await exigirAcessoComercial(contexto, request, reply, {
-        permissao: "pagamentos:gerir",
+        permissao: "descontos:aprovar",
         modulo: "pedidos",
         mensagemPermissao: "Sem permissão para aprovar desconto.",
         mensagemModulo: "Pedidos desativados para este negócio."
@@ -276,3 +297,10 @@ export const moduloPedidos: ModuloHttp = {
     });
   }
 };
+
+function politicaDescontoDoContexto(contextoComercial: ContextoComercialHttp) {
+  return {
+    podeAprovarDesconto: temPermissao(contextoComercial.permissoes, "descontos:aprovar"),
+    limiteDescontoSemAprovacaoPercentual: obterLimiteDescontoSemAprovacaoPercentual(contextoComercial.negocio)
+  };
+}
