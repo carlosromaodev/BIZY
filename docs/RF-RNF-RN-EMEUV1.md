@@ -106,6 +106,8 @@ Atualização 1.43: Cadastro manual de cliente passou a aceitar WhatsApp como co
 
 Atualização 1.44: Relatório comercial passou a cobrir o ranking completo de produtos exigido para CRM de loja: mais vendidos, encalhados, maior margem e reserva perdida, ordenando perdas por quantidade e impacto financeiro estimado.
 
+Atualização 1.45: Inbox comercial passou a expor `/atendimento/conversas/filtros`, agregando contadores e conversas para sem resposta, pagamento pendente, entrega pendente, VIP, reclamação, campanha respondida e meu atendimento com base em estado CRM, prioridade, tags, responsável, reserva/pedido e contexto das mensagens.
+
 ---
 
 ## 2. Legenda
@@ -399,7 +401,7 @@ Esta etapa transforma o Bizy de painel de live em CRM operacional para lojas que
 | RF129 | [~] O sistema deve mostrar resultado de campanha: enviados, entregues, lidos, respondidos, falhados, pedidos gerados e receita atribuída. | Média | Parcial - backend calcula selecionados, bloqueados, enfileirados e estados dos itens; faltam atualização automática por webhooks/receita atribuída |
 | RF130 | [x] Clientes sem consentimento ou com opt-out não devem receber campanhas, mas podem receber mensagens transacionais permitidas. | Alta | Implementado no backend para campanhas marketing com política WhatsApp e bloqueio por consentimento |
 | RF131 | [~] O CRM deve permitir sequências pós-venda: agradecer compra, pedir endereço, lembrar pagamento, confirmar entrega e reativar cliente inativo. | Média | Parcial - playbooks, templates utilidade e ações de conversa cobrem cobrança/endereço/entrega de forma segura; falta sequenciador temporal completo |
-| RF132 | [~] A caixa de entrada deve ter filtros úteis: sem resposta, pagamento pendente, entrega pendente, VIP, reclamação, campanha respondida e meu atendimento. | Alta | Parcial - backend possui estado/prioridade/tags/responsável e tarefas SLA/reclamação; falta endpoint agregado de filtros avançados e UI final |
+| RF132 | [x] A caixa de entrada deve ter filtros úteis: sem resposta, pagamento pendente, entrega pendente, VIP, reclamação, campanha respondida e meu atendimento. | Alta | Implementado no backend com `/atendimento/conversas/filtros`, devolvendo contadores e conversas por filtro operacional |
 
 #### 3.13.6 Relatórios que a Loja Usa
 

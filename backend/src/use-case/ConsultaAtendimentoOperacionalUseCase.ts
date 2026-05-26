@@ -15,6 +15,9 @@ import type {
 } from "../dominio/tipos.js";
 
 const estadosReservaAtiva = ["PENDING", "RESERVED", "WAITING_PAYMENT"] as const;
+const estadosConversaSemResposta = ["NOVA", "AGUARDANDO_HUMANO"] as const;
+
+type ConversaOperacional = Awaited<ReturnType<ConsultaAtendimentoOperacionalUseCase["listarConversas"]>>["conversas"][number];
 
 export class ConsultaAtendimentoOperacionalUseCase {
   constructor(
@@ -73,6 +76,68 @@ export class ConsultaAtendimentoOperacionalUseCase {
       conversas: [...grupos.values()]
         .map((grupo) => this.mapearConversa(grupo, pecasPorCodigo))
         .sort((a, b) => new Date(b.ultimaAtualizacao).getTime() - new Date(a.ultimaAtualizacao).getTime())
+    };
+  }
+
+  async listarFiltrosConversas(negocioId: string | null | undefined, usuarioId: string) {
+    const { conversas } = await this.listarConversas(negocioId);
+    const filtros = [
+      {
+        id: "sem_resposta",
+        rotulo: "Sem resposta",
+        descricao: "Conversas novas, aguardando humano ou com a última mensagem do cliente.",
+        conversas: conversas.filter((conversa) => this.ehSemResposta(conversa))
+      },
+      {
+        id: "pagamento_pendente",
+        rotulo: "Pagamento pendente",
+        descricao: "Conversas com pedido ou reserva aguardando pagamento.",
+        conversas: conversas.filter((conversa) => this.temPagamentoPendente(conversa))
+      },
+      {
+        id: "entrega_pendente",
+        rotulo: "Entrega pendente",
+        descricao: "Conversas marcadas para entrega, expedição ou retirada pendente.",
+        conversas: conversas.filter((conversa) =>
+          this.temAlgumaTag(conversa, ["entrega_pendente", "pedido_pago_sem_entrega", "preparacao", "envio_pendente"])
+        )
+      },
+      {
+        id: "vip",
+        rotulo: "VIP",
+        descricao: "Clientes marcados como VIP ou conversas de prioridade alta.",
+        conversas: conversas.filter(
+          (conversa) => this.temAlgumaTag(conversa, ["vip", "cliente_vip"]) || ["ALTA", "URGENTE"].includes(conversa.prioridade)
+        )
+      },
+      {
+        id: "reclamacao",
+        rotulo: "Reclamação",
+        descricao: "Casos marcados ou detectados como reclamação, problema, troca ou devolução.",
+        conversas: conversas.filter((conversa) => this.temReclamacao(conversa))
+      },
+      {
+        id: "campanha_respondida",
+        rotulo: "Campanha respondida",
+        descricao: "Clientes que responderam a campanhas ou mensagens promocionais rastreadas.",
+        conversas: conversas.filter((conversa) => this.temCampanhaRespondida(conversa))
+      },
+      {
+        id: "meu_atendimento",
+        rotulo: "Meu atendimento",
+        descricao: "Conversas atribuídas ao usuário autenticado.",
+        conversas: conversas.filter((conversa) => conversa.responsavelId === usuarioId)
+      }
+    ];
+
+    return {
+      filtros: filtros.map((filtro) => ({
+        id: filtro.id,
+        rotulo: filtro.rotulo,
+        descricao: filtro.descricao,
+        total: filtro.conversas.length,
+        conversas: filtro.conversas
+      }))
     };
   }
 
@@ -200,6 +265,46 @@ export class ConsultaAtendimentoOperacionalUseCase {
     if (estadosReservaAtiva.includes(reserva.estado as typeof estadosReservaAtiva[number])) return "ativo";
     if (reserva.estado === "PAID") return "automacao";
     return "encerrado";
+  }
+
+  private ehSemResposta(conversa: ConversaOperacional) {
+    const ultimaMensagem = conversa.mensagens.at(-1);
+    return (
+      conversa.mensagensNaoLidas > 0 ||
+      estadosConversaSemResposta.includes(conversa.estadoCrm as typeof estadosConversaSemResposta[number]) ||
+      ultimaMensagem?.remetente === "cliente"
+    );
+  }
+
+  private temPagamentoPendente(conversa: ConversaOperacional) {
+    return (
+      conversa.estadoCrm === "AGUARDANDO_PAGAMENTO" ||
+      ["PENDING", "RESERVED", "WAITING_PAYMENT"].includes(conversa.reservaAtual?.estado ?? "") ||
+      this.temAlgumaTag(conversa, ["pagamento", "pagamento_pendente", "pedido_aberto"])
+    );
+  }
+
+  private temReclamacao(conversa: ConversaOperacional) {
+    if (this.temAlgumaTag(conversa, ["reclamacao", "reclamação", "troca", "devolucao", "devolução"])) return true;
+
+    return conversa.mensagens.some((mensagem) =>
+      /\b(reclama[cç][aã]o|problema|troca|devolu[cç][aã]o|reembolso|atrasou|falhou)\b/i.test(mensagem.conteudo)
+    );
+  }
+
+  private temCampanhaRespondida(conversa: ConversaOperacional) {
+    if (this.temAlgumaTag(conversa, ["campanha_respondida", "campanha-respondida", "respondeu_campanha"])) return true;
+
+    return conversa.mensagens.some((mensagem) => {
+      if (!("contexto" in mensagem)) return false;
+      const contexto = mensagem.contexto;
+      return Boolean(contexto?.campanhaId || contexto?.campanha || contexto?.campaignId);
+    });
+  }
+
+  private temAlgumaTag(conversa: ConversaOperacional, tagsEsperadas: string[]) {
+    const tags = conversa.tags.map((tag) => tag.trim().toLowerCase());
+    return tagsEsperadas.some((tagEsperada) => tags.includes(tagEsperada));
   }
 
   private obterOuCriarGrupo(

@@ -4,6 +4,11 @@ import { criarAplicacao } from "../infra/http/criarAplicacao.js";
 const ambienteOriginal = { ...process.env };
 
 async function autenticar(app: Awaited<ReturnType<typeof criarAplicacao>>, telefone: string, nome: string) {
+  const sessao = await autenticarComUsuario(app, telefone, nome);
+  return sessao.headers;
+}
+
+async function autenticarComUsuario(app: Awaited<ReturnType<typeof criarAplicacao>>, telefone: string, nome: string) {
   const respostaCodigo = await app.inject({
     method: "POST",
     url: "/auth/telefone/solicitar-codigo",
@@ -18,7 +23,10 @@ async function autenticar(app: Awaited<ReturnType<typeof criarAplicacao>>, telef
   });
   expect(respostaSessao.statusCode).toBe(200);
 
-  return { authorization: `Bearer ${respostaSessao.json().token}` };
+  return {
+    headers: { authorization: `Bearer ${respostaSessao.json().token}` },
+    usuarioId: respostaSessao.json().usuario.id as string
+  };
 }
 
 async function criarPeca(app: Awaited<ReturnType<typeof criarAplicacao>>, headers: Record<string, string>, codigo: string) {
@@ -218,6 +226,128 @@ describe("CRM+ inbox, automações seguras e tracking privado", () => {
           })
         ])
       );
+    } finally {
+      await app.close();
+    }
+  });
+
+  it("agrega filtros comerciais do inbox para sem resposta, pendências, VIP e meu atendimento", async () => {
+    const app = await criarAplicacao();
+
+    try {
+      const sessao = await autenticarComUsuario(app, "923810201", "Loja Filtros Inbox");
+      const { headers, usuarioId } = sessao;
+      const negocio = await app.inject({
+        method: "POST",
+        url: "/onboarding/negocio",
+        headers,
+        payload: {
+          nomeComercial: "Loja Filtros Inbox",
+          segmento: "Moda",
+          tipo: "LOJA",
+          whatsapp: "923810201"
+        }
+      });
+      expect(negocio.statusCode).toBe(201);
+      const negocioId = negocio.json().negocio.id as string;
+      await criarPeca(app, headers, "FILTRO-1");
+
+      const webhook = await app.inject({
+        method: "POST",
+        url: "/webhooks/evolution",
+        payload: {
+          event: "messages.upsert",
+          instance: "bizy-filtros",
+          negocioId,
+          data: {
+            key: {
+              remoteJid: "244937801222@s.whatsapp.net",
+              fromMe: false,
+              id: "msg-filtro-1"
+            },
+            pushName: "Cliente VIP",
+            message: {
+              conversation: "Tenho uma reclamação e quero comprar o produto FILTRO-1"
+            }
+          }
+        }
+      });
+      expect(webhook.statusCode).toBe(202);
+
+      const conversas = await app.inject({ method: "GET", url: "/atendimento/conversas", headers });
+      expect(conversas.statusCode).toBe(200);
+      const conversaId = conversas.json().conversas[0].conversaCrmId as string;
+
+      const atualizada = await app.inject({
+        method: "PATCH",
+        url: `/atendimento/conversas/${conversaId}`,
+        headers,
+        payload: {
+          estado: "AGUARDANDO_HUMANO",
+          prioridade: "URGENTE",
+          responsavelId: usuarioId,
+          tags: ["vip", "reclamacao", "campanha_respondida", "entrega_pendente"]
+        }
+      });
+      expect(atualizada.statusCode).toBe(200);
+
+      const pedido = await app.inject({
+        method: "POST",
+        url: `/atendimento/conversas/${conversaId}/pedidos`,
+        headers,
+        payload: {
+          itens: [{ codigoPeca: "FILTRO-1", quantidade: 1 }],
+          taxaEntregaEmKwanza: 1000,
+          enderecoEntrega: "Talatona, Condomínio do cliente",
+          origem: "conversa_whatsapp",
+          canal: "whatsapp",
+          responsavelId: usuarioId
+        }
+      });
+      expect(pedido.statusCode).toBe(201);
+
+      const atendimentoHumano = await app.inject({
+        method: "PATCH",
+        url: `/atendimento/conversas/${conversaId}`,
+        headers,
+        payload: {
+          estado: "AGUARDANDO_HUMANO",
+          prioridade: "URGENTE",
+          responsavelId: usuarioId,
+          tags: ["vip", "reclamacao", "campanha_respondida", "entrega_pendente", "pagamento_pendente"]
+        }
+      });
+      expect(atendimentoHumano.statusCode).toBe(200);
+
+      const filtros = await app.inject({
+        method: "GET",
+        url: "/atendimento/conversas/filtros",
+        headers
+      });
+
+      expect(filtros.statusCode).toBe(200);
+      const porId = Object.fromEntries(
+        filtros.json().filtros.map((filtro: { id: string }) => [filtro.id, filtro])
+      ) as Record<string, { total: number; conversas: Array<Record<string, unknown>> }>;
+
+      for (const id of [
+        "sem_resposta",
+        "pagamento_pendente",
+        "entrega_pendente",
+        "vip",
+        "reclamacao",
+        "campanha_respondida",
+        "meu_atendimento"
+      ]) {
+        expect(porId[id].total).toBe(1);
+        expect(porId[id].conversas[0]).toEqual(
+          expect.objectContaining({
+            conversaCrmId: conversaId,
+            responsavelId: usuarioId,
+            telefone: "937801222"
+          })
+        );
+      }
     } finally {
       await app.close();
     }

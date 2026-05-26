@@ -532,6 +532,21 @@ export const moduloOperacional: ModuloHttp = {
       return contexto.consultaAtendimentoOperacional.listarConversas(contextoComercial.negocio.id);
     });
 
+    app.get("/atendimento/conversas/filtros", async (request, reply) => {
+      const contextoComercial = await exigirAcessoComercial(contexto, request, reply, {
+        permissao: "conversas:ler",
+        modulo: "conversas",
+        mensagemPermissao: "Sem permissão para consultar filtros de atendimento.",
+        mensagemModulo: "Conversas desativadas para este negócio."
+      });
+      if (!contextoComercial) return;
+
+      return contexto.consultaAtendimentoOperacional.listarFiltrosConversas(
+        contextoComercial.negocio.id,
+        contextoComercial.usuario.id
+      );
+    });
+
     app.post("/atendimento/conversas/verificar-sla", async (request, reply) => {
       const contextoComercial = await exigirAcessoComercial(contexto, request, reply, {
         permissao: "tarefas:gerir",
