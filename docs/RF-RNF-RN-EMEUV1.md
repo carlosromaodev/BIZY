@@ -94,6 +94,8 @@ Atualização 1.37: resumo do catálogo passou a devolver alertas operacionais d
 
 Atualização 1.38: campanhas WhatsApp passaram a bloquear criação sem segmento claro, evitando disparo acidental para todos os clientes; segmentos aceites devem usar filtros operacionais como tag, estado de relacionamento, origem ou consentimento de marketing.
 
+Atualização 1.39: relatório comercial passou a exportar PDF simples com resumo de vendas, cobrança, atendimento, oportunidades perdidas e ranking de produtos, mantendo auditoria `REPORTS_EXPORTED` com usuário, negócio, formato, quantidade e filtros também para PDF.
+
 ---
 
 ## 2. Legenda
@@ -398,7 +400,7 @@ Esta etapa transforma o Bizy de painel de live em CRM operacional para lojas que
 | RF135 | [~] O CRM deve mostrar desempenho de atendimento: tempo médio de primeira resposta, conversas abertas, SLA vencido, mensagens falhadas e taxa de resolução. | Alta | Parcial - relatório comercial expõe conversas abertas, mensagens falhadas e tarefas/SLA atrasadas; falta cálculo de primeira resposta e taxa de resolução |
 | RF136 | [~] O CRM deve mostrar desempenho de campanhas: receita gerada, respostas, opt-out, falhas e segmentos que converteram. | Média | Parcial - backend expõe métricas de campanha e bloqueios/opt-out; faltam receita por campanha e conversão por segmento |
 | RF137 | [ ] A página `Explorar` não deve existir como relatório vazio; relatórios avançados só entram quando houver perguntas reais de negócio a responder. | Alta | Planeado |
-| RF138 | [~] O vendedor deve exportar relatórios em CSV e PDF simples para operação diária. | Média | Parcial - CSV comercial implementado; falta PDF simples |
+| RF138 | [x] O vendedor deve exportar relatórios em CSV e PDF simples para operação diária. | Média | Implementado no backend em `/relatorios/comercial.csv` e `/relatorios/comercial.pdf`, ambos auditados |
 | RF139 | [x] O sistema deve gerar resumo diário automático com vendas, pendências e tarefas para o dia seguinte. | Média | Implementado no backend em `/relatorios/resumo-diario` |
 | RF140 | [~] O CRM deve permitir filtrar relatórios por período, canal, produto, coleção, responsável e estado do pedido. | Média | Parcial - filtros por período, canal, produto, responsável e estado implementados; falta coleção |
 | RF141 | [~] O painel deve mostrar oportunidades perdidas, como clientes que perguntaram e não compraram, reserva expirada e comprovativo não enviado. | Alta | Parcial - backend calcula pedidos aguardando pagamento e oportunidades de recuperação; faltam todos os sinais de conversa/social e UI final |
@@ -700,7 +702,7 @@ Esta etapa vem antes da implementação visual dos novos módulos. O objetivo é
 | RNF57 | [~] Listas de clientes, pedidos, produtos e conversas devem suportar paginação, filtros e busca sem travar com pelo menos 10.000 registros. | Alta | Parcial - APIs principais aceitam limite/filtros e exportações usam teto operacional; falta paginação padronizada em todos os módulos e teste de carga |
 | RNF58 | [x] A busca global deve responder em até 1 segundo para bases pequenas e manter feedback de carregamento em bases maiores. | Média | Implementado com debounce e estado de carregamento |
 | RNF59 | [~] Dados pessoais de clientes devem ser protegidos com controlo de acesso por papel e auditoria de exportação. | Alta | Parcial - exportação de clientes exige permissão e registra auditoria; faltam políticas por papel mais finas e auditoria nas demais exportações |
-| RNF60 | [x] Exportações de clientes, pedidos e relatórios devem registrar usuário, filtro usado, data e quantidade exportada. | Alta | Implementado para clientes, pedidos e relatório comercial CSV por eventos auditáveis `CLIENTS_EXPORTED`, `ORDERS_EXPORTED` e `REPORTS_EXPORTED` |
+| RNF60 | [x] Exportações de clientes, pedidos e relatórios devem registrar usuário, filtro usado, data e quantidade exportada. | Alta | Implementado para clientes, pedidos e relatório comercial CSV/PDF por eventos auditáveis `CLIENTS_EXPORTED`, `ORDERS_EXPORTED` e `REPORTS_EXPORTED` |
 | RNF61 | [ ] O CRM deve manter backups e estratégia de recuperação para clientes, pedidos, mensagens, comprovativos e produtos. | Alta | Planeado |
 | RNF62 | [x] A interface deve distinguir claramente operação comercial de configuração técnica. | Alta | Implementado por CRM/Loja versus Admin/Sistema |
 | RNF63 | [x] Páginas sem funcionalidade real não devem ser publicadas na navegação principal. | Alta | Implementado na navegação atual |

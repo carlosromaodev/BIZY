@@ -74,7 +74,8 @@ describe("backend CRM+ requisitos operacionais", () => {
       WHATSAPP_PROVIDER: "console",
       INICIAR_AGENDADOR_EXPIRACAO: "false",
       N8N_BACKEND_TOKEN: "",
-      EVOLUTION_WEBHOOK_TOKEN: ""
+      EVOLUTION_WEBHOOK_TOKEN: "",
+      PDF_RENDERER_ENGINE: "fallback"
     };
   });
 
@@ -518,13 +519,18 @@ describe("backend CRM+ requisitos operacionais", () => {
       expect(csv.body).toContain("pedidosPagos,pagamentosPendentes,receitaBrutaEmKwanza");
       expect(csv.body).toContain("1,1,45000");
 
+      const pdf = await app.inject({ method: "GET", url: "/relatorios/comercial.pdf", headers: loja });
+      expect(pdf.statusCode).toBe(200);
+      expect(pdf.headers["content-type"]).toContain("application/pdf");
+      expect(pdf.rawPayload.toString("utf8", 0, 4)).toBe("%PDF");
+
       const auditoriaRelatorio = await app.inject({
         method: "GET",
         url: "/auditoria/eventos?tipo=REPORTS_EXPORTED",
         headers: loja
       });
       expect(auditoriaRelatorio.statusCode).toBe(200);
-      expect(auditoriaRelatorio.json().eventos).toEqual([
+      expect(auditoriaRelatorio.json().eventos).toEqual(expect.arrayContaining([
         expect.objectContaining({
           tipo: "REPORTS_EXPORTED",
           dados: expect.objectContaining({
@@ -533,8 +539,17 @@ describe("backend CRM+ requisitos operacionais", () => {
             quantidade: 1,
             filtros: {}
           })
+        }),
+        expect.objectContaining({
+          tipo: "REPORTS_EXPORTED",
+          dados: expect.objectContaining({
+            recurso: "relatorio_comercial",
+            formato: "pdf",
+            quantidade: 1,
+            filtros: {}
+          })
         })
-      ]);
+      ]));
 
       const configuracaoPagamento = await app.inject({
         method: "PATCH",

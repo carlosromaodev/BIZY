@@ -84,6 +84,31 @@ export const moduloPainel: ModuloHttp = {
       reply.header("Content-Disposition", "attachment; filename=\"relatorio-comercial-bizy.csv\"");
       return reply.send(exportacao.csv);
     });
+
+    app.get("/relatorios/comercial.pdf", async (request, reply) => {
+      const contextoComercial = await exigirAcessoComercial(contexto, request, reply, {
+        permissao: "relatorios:ver",
+        modulo: "crm",
+        mensagemPermissao: "Sem permissão para exportar relatórios.",
+        mensagemModulo: "CRM desativado para este negócio."
+      });
+      if (!contextoComercial) return;
+
+      const filtros = FiltrosRelatorioComercialQuerySchema.parse(request.query ?? {});
+      const exportacao = await contexto.relatoriosComerciais.exportarPdf(contextoComercial.negocio.id, filtros);
+      contexto.eventos.emitir("REPORTS_EXPORTED", {
+        negocioId: contextoComercial.negocio.id,
+        usuarioId: contextoComercial.usuario.id,
+        recurso: "relatorio_comercial",
+        formato: "pdf",
+        quantidade: exportacao.quantidade,
+        filtros: exportacao.filtros
+      });
+      reply.header("Content-Type", "application/pdf");
+      reply.header("Content-Length", String(exportacao.pdf.byteLength));
+      reply.header("Content-Disposition", `attachment; filename="${exportacao.nomeArquivo}"`);
+      return reply.send(exportacao.pdf);
+    });
   }
 };
 

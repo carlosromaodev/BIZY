@@ -9,6 +9,7 @@ import type {
   RepositorioTrackingComercial
 } from "../dominio/repositorios/contratos.js";
 import type { EventoTrackingComercial, FiltrosPedidos, Pedido, Peca } from "../dominio/tipos.js";
+import { escapeHtml, formatDateLabel, renderPdfFromHtml, type OpcoesRenderPdf } from "../infra/pdf/PdfRenderer.js";
 
 export interface FiltrosRelatorioComercial {
   dataInicio?: Date;
@@ -19,6 +20,8 @@ export interface FiltrosRelatorioComercial {
   responsavelId?: string;
 }
 
+export type RenderizadorRelatorioPdf = (html: string, options?: OpcoesRenderPdf) => Promise<Buffer>;
+
 export class RelatoriosComerciaisUseCase {
   constructor(
     private readonly pedidos: RepositorioPedidos,
@@ -28,7 +31,8 @@ export class RelatoriosComerciaisUseCase {
     private readonly atendimento: RepositorioAtendimento,
     private readonly tarefas: RepositorioTarefasOperacionais,
     private readonly tracking?: RepositorioTrackingComercial,
-    private readonly socialInbox?: RepositorioSocialInbox
+    private readonly socialInbox?: RepositorioSocialInbox,
+    private readonly renderizadorPdf: RenderizadorRelatorioPdf = renderPdfFromHtml
   ) {}
 
   async gerarRelatorio(negocioId: string, filtros: FiltrosRelatorioComercial = {}) {
@@ -126,6 +130,31 @@ export class RelatoriosComerciaisUseCase {
         }
       ].filter((item) => item.quantidade > 0),
       rankings: relatorio.rankings
+    };
+  }
+
+  async exportarPdf(
+    negocioId: string,
+    filtros: FiltrosRelatorioComercial = {}
+  ): Promise<{ pdf: Buffer; nomeArquivo: string; quantidade: number; filtros: FiltrosRelatorioComercial }> {
+    const relatorio = await this.gerarRelatorio(negocioId, filtros);
+    const html = this.renderizarHtmlRelatorioComercial(relatorio);
+    const pdf = await this.renderizadorPdf(html, {
+      footerLabel: "Bizy - Relatório comercial",
+      displayHeaderFooter: true,
+      margin: {
+        top: "12mm",
+        right: "10mm",
+        bottom: "16mm",
+        left: "10mm"
+      }
+    });
+
+    return {
+      pdf,
+      nomeArquivo: "relatorio-comercial-bizy.pdf",
+      quantidade: 1,
+      filtros
     };
   }
 
@@ -311,6 +340,112 @@ export class RelatoriosComerciaisUseCase {
     if (filtros.dataInicio && data < filtros.dataInicio) return false;
     if (filtros.dataFim && data > filtros.dataFim) return false;
     return true;
+  }
+
+  private renderizarHtmlRelatorioComercial(relatorio: Awaited<ReturnType<RelatoriosComerciaisUseCase["gerarRelatorio"]>>) {
+    const filtrosAtivos = Object.entries(relatorio.filtros)
+      .filter(([, valor]) => valor !== undefined && valor !== null && valor !== "")
+      .map(([chave, valor]) => `${chave}: ${valor instanceof Date ? formatDateLabel(valor) : String(valor)}`)
+      .join(" · ");
+
+    return `<!doctype html>
+<html lang="pt-AO">
+  <head>
+    <meta charset="utf-8" />
+    <title>Relatório comercial Bizy</title>
+    <style>
+      * { box-sizing: border-box; }
+      body { margin: 0; color: #162019; background: #f4f6f1; font-family: Arial, sans-serif; }
+      .page { min-height: 100vh; padding: 30px; background: #ffffff; }
+      .topbar { display: flex; justify-content: space-between; gap: 20px; border-bottom: 2px solid #172016; padding-bottom: 18px; margin-bottom: 20px; }
+      .brand { font-size: 28px; font-weight: 800; color: #214119; }
+      .subtitle { margin-top: 6px; color: #5c6758; font-size: 12px; text-transform: uppercase; }
+      h1 { margin: 0 0 8px; font-size: 22px; }
+      h2 { margin: 24px 0 10px; font-size: 15px; text-transform: uppercase; color: #214119; }
+      .muted { color: #5c6758; font-size: 12px; line-height: 1.5; }
+      .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+      .metric { border: 1px solid #d7dfd0; padding: 12px; min-height: 72px; background: #fbfcfa; }
+      .label { display: block; color: #5c6758; font-size: 10px; text-transform: uppercase; margin-bottom: 6px; }
+      .value { font-size: 17px; font-weight: 800; color: #172016; }
+      table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 11px; }
+      th, td { border-bottom: 1px solid #d7dfd0; padding: 8px 6px; text-align: left; vertical-align: top; }
+      th { color: #5c6758; text-transform: uppercase; font-size: 10px; }
+      .footer { margin-top: 24px; border-top: 1px solid #d7dfd0; padding-top: 12px; }
+    </style>
+  </head>
+  <body>
+    <main class="page">
+      <section class="topbar">
+        <div>
+          <div class="brand">Bizy</div>
+          <div class="subtitle">Relatório comercial operacional</div>
+        </div>
+        <div class="muted">
+          Gerado em ${escapeHtml(formatDateLabel(new Date(relatorio.geradoEm)))}<br />
+          ${escapeHtml(filtrosAtivos || "Sem filtros aplicados")}
+        </div>
+      </section>
+
+      <h1>Resumo de vendas, cobrança e operação</h1>
+      <p class="muted">Indicadores práticos para acompanhar dinheiro em caixa, pedidos parados, retenção e produtos que merecem ação.</p>
+
+      <section class="grid">
+        ${this.cardPdf("Pedidos pagos", String(relatorio.metricas.pedidosPagos))}
+        ${this.cardPdf("Pagamentos pendentes", String(relatorio.metricas.pagamentosPendentes))}
+        ${this.cardPdf("Receita líquida estimada", this.formatarKwanza(relatorio.metricas.receitaLiquidaEstimadaEmKwanza))}
+        ${this.cardPdf("Ticket médio", this.formatarKwanza(relatorio.metricas.ticketMedioEmKwanza))}
+        ${this.cardPdf("Clientes novos", String(relatorio.metricas.clientesNovos))}
+        ${this.cardPdf("Clientes recorrentes", String(relatorio.metricas.clientesRecorrentes))}
+        ${this.cardPdf("Conversas abertas", String(relatorio.atendimento.conversasAbertas))}
+        ${this.cardPdf("Tarefas atrasadas", String(relatorio.atendimento.tarefasAtrasadas))}
+      </section>
+
+      <h2>Produtos mais vendidos</h2>
+      ${this.tabelaProdutosVendidosPdf(relatorio.rankings.produtosMaisVendidos)}
+
+      <h2>Oportunidades perdidas</h2>
+      <section class="grid">
+        ${this.cardPdf("Pedidos aguardando pagamento", String(relatorio.oportunidadesPerdidas.pedidosAguardandoPagamento))}
+        ${this.cardPdf("Reservas expiradas", String(relatorio.oportunidadesPerdidas.reservasExpiradas))}
+        ${this.cardPdf("Conversas sem resposta", String(relatorio.oportunidadesPerdidas.conversasSemResposta))}
+        ${this.cardPdf("Clientes em risco", String(relatorio.retencao.clientesEmRisco))}
+      </section>
+
+      <p class="footer muted">Use este PDF para alinhamento diário da equipa: cobrar pendências, preparar entregas, repor produtos e recuperar oportunidades.</p>
+    </main>
+  </body>
+</html>`;
+  }
+
+  private cardPdf(label: string, valor: string) {
+    return `<div class="metric"><span class="label">${escapeHtml(label)}</span><span class="value">${escapeHtml(valor)}</span></div>`;
+  }
+
+  private tabelaProdutosVendidosPdf(
+    produtos: Array<{ codigoPeca: string; nomeProduto: string; quantidadeVendida: number; receitaEmKwanza: number }>
+  ) {
+    if (!produtos.length) return `<p class="muted">Ainda não há produtos vendidos no período.</p>`;
+
+    const linhas = produtos
+      .slice(0, 8)
+      .map(
+        (produto) => `<tr>
+          <td>${escapeHtml(produto.codigoPeca)}</td>
+          <td>${escapeHtml(produto.nomeProduto)}</td>
+          <td>${produto.quantidadeVendida}</td>
+          <td>${escapeHtml(this.formatarKwanza(produto.receitaEmKwanza))}</td>
+        </tr>`
+      )
+      .join("");
+
+    return `<table>
+      <thead><tr><th>Código</th><th>Produto</th><th>Qtd.</th><th>Receita</th></tr></thead>
+      <tbody>${linhas}</tbody>
+    </table>`;
+  }
+
+  private formatarKwanza(valor: number) {
+    return `${new Intl.NumberFormat("pt-AO").format(valor)} Kz`;
   }
 
   private csv(valor: string): string {
