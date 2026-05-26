@@ -8,6 +8,7 @@ import type {
   ResumoCatalogoComercial,
   TipoMovimentoStock
 } from "../dominio/tipos.js";
+import { lerInteiro, lerLista, parseCsv } from "./utils/csv.js";
 
 interface DadosRegistroMovimentoStock {
   tipo: TipoMovimentoStock;
@@ -27,6 +28,47 @@ export class GestaoPecasUseCase {
     const peca = await this.repositorioPecas.criar(this.normalizarCriacao(dados));
     this.eventos.emitir("STOCK_UPDATED", { peca });
     return peca;
+  }
+
+  async importarCsv(negocioId: string, conteudo: string) {
+    const linhasCsv = parseCsv(conteudo);
+    const linhas: Array<{
+      linha: number;
+      status: "CRIADO" | "ATUALIZADO" | "ERRO";
+      codigo?: string;
+      pecaId?: string;
+      erro?: string;
+    }> = [];
+
+    for (const linhaCsv of linhasCsv) {
+      try {
+        const dados = this.mapearLinhaImportacao(negocioId, linhaCsv.dados);
+        const existente = await this.repositorioPecas.buscarPorCodigo(dados.codigo, negocioId);
+        const peca = existente
+          ? await this.atualizarPeca(dados.codigo, dados, negocioId)
+          : await this.cadastrarPeca(dados);
+        linhas.push({
+          linha: linhaCsv.numero,
+          status: existente ? "ATUALIZADO" : "CRIADO",
+          codigo: peca.codigo,
+          pecaId: peca.id
+        });
+      } catch (erro) {
+        linhas.push({
+          linha: linhaCsv.numero,
+          status: "ERRO",
+          erro: erro instanceof Error ? erro.message : "Linha inválida."
+        });
+      }
+    }
+
+    return {
+      total: linhasCsv.length,
+      criados: linhas.filter((linha) => linha.status === "CRIADO").length,
+      atualizados: linhas.filter((linha) => linha.status === "ATUALIZADO").length,
+      erros: linhas.filter((linha) => linha.status === "ERRO").length,
+      linhas
+    };
   }
 
   async listarPecas(negocioId?: string | null) {
@@ -92,6 +134,15 @@ export class GestaoPecasUseCase {
     return this.atualizarPeca(codigo, { estado: "ESGOTADA" }, negocioId);
   }
 
+  async arquivarPeca(codigo: string, motivo?: string | null, negocioId?: string | null) {
+    const peca = await this.atualizarPeca(codigo, { arquivadaEm: new Date() }, negocioId);
+    this.eventos.emitir("STOCK_UPDATED", {
+      peca,
+      motivo: motivo ?? "Produto arquivado para preservar histórico comercial."
+    });
+    return peca;
+  }
+
   async registrarMovimentoStock(codigo: string, dados: DadosRegistroMovimentoStock, negocioId?: string | null) {
     const codigoNormalizado = this.normalizarCodigo(codigo);
     const pecaAtual = await this.exigirPeca(codigoNormalizado, negocioId);
@@ -132,6 +183,45 @@ export class GestaoPecasUseCase {
     }
 
     return normalizada;
+  }
+
+  private mapearLinhaImportacao(negocioId: string, linha: Record<string, string>): NovaPeca {
+    const codigo = this.normalizarCodigo(linha.codigo ?? "");
+    if (!codigo) throw new Error("Código do produto é obrigatório.");
+
+    const precoEmKwanza = lerInteiro(linha.preco_em_kwanza || linha.precoemkwanza || linha.preco);
+    const quantidade = lerInteiro(linha.quantidade || linha.stock || linha.estoque);
+    if (precoEmKwanza === undefined || precoEmKwanza < 0) throw new Error(`Preço inválido para produto #${codigo}.`);
+    if (quantidade === undefined || quantidade < 0) throw new Error(`Quantidade inválida para produto #${codigo}.`);
+
+    const custoEmKwanza = lerInteiro(linha.custo_em_kwanza || linha.custoemkwanza || linha.custo);
+    const stockMinimo = lerInteiro(linha.stock_minimo || linha.stockminimo || linha.minimo) ?? 0;
+    const fotos = lerLista(linha.fotos || linha.foto || linha.imagens);
+
+    return {
+      negocioId,
+      codigo,
+      sku: linha.sku || null,
+      nome: linha.nome || codigo,
+      descricao: linha.descricao || "",
+      precoEmKwanza,
+      custoEmKwanza: custoEmKwanza ?? null,
+      quantidade,
+      stockMinimo,
+      categoria: linha.categoria || null,
+      colecao: linha.colecao || null,
+      fotos,
+      variantes: this.mapearVariantesImportacao(linha)
+    };
+  }
+
+  private mapearVariantesImportacao(linha: Record<string, string>): Record<string, string[]> {
+    return Object.entries(linha).reduce<Record<string, string[]>>((acumulador, [campo, valor]) => {
+      if (!campo.startsWith("variante_") || !valor) return acumulador;
+      const nome = campo.replace(/^variante_/, "");
+      acumulador[nome] = lerLista(valor);
+      return acumulador;
+    }, {});
   }
 
   private normalizarAtualizacao(pecaAtual: Peca, dados: AtualizarPeca): AtualizarPeca {

@@ -7,11 +7,15 @@ import type {
   RepositorioAfiliados,
   RepositorioAtendimento,
   RepositorioAuditoria,
+  RepositorioCampanhas,
   RepositorioClientes,
   RepositorioCompartilhamentoClientes,
   RepositorioComentarios,
+  RepositorioEventosOperacionais,
   RepositorioFunilComercial,
   RepositorioInstanciasWhatsApp,
+  RepositorioJobsOperacionais,
+  RepositorioMembrosNegocio,
   RepositorioOportunidadesRecuperacao,
   RepositorioPecas,
   RepositorioPedidos,
@@ -20,6 +24,7 @@ import type {
   RepositorioSessoesLive,
   RepositorioSocialInbox,
   RepositorioTarefasOperacionais,
+  RepositorioTemplatesWhatsApp,
   RepositorioTrackingComercial
 } from "../../dominio/repositorios/contratos.js";
 import { AutomacaoWhatsApp } from "../../dominio/servicos/AutomacaoWhatsApp.js";
@@ -34,9 +39,11 @@ import { ConsultaIntegracoesUseCase } from "../../use-case/ConsultaIntegracoesUs
 import { ConsultaOperacionalUseCase } from "../../use-case/ConsultaOperacionalUseCase.js";
 import { ConsultaPainelUseCase } from "../../use-case/ConsultaPainelUseCase.js";
 import { GestaoAfiliadosUseCase } from "../../use-case/GestaoAfiliadosUseCase.js";
+import { GestaoCampanhasCrmUseCase } from "../../use-case/GestaoCampanhasCrmUseCase.js";
 import { GestaoClientesCrmUseCase } from "../../use-case/GestaoClientesCrmUseCase.js";
 import { GestaoCompartilhamentoClientesUseCase } from "../../use-case/GestaoCompartilhamentoClientesUseCase.js";
 import { GestaoFunilComercialUseCase } from "../../use-case/GestaoFunilComercialUseCase.js";
+import { GestaoGovernancaCrmUseCase } from "../../use-case/GestaoGovernancaCrmUseCase.js";
 import { GestaoModulosNegocioUseCase } from "../../use-case/GestaoModulosNegocioUseCase.js";
 import { GestaoOportunidadesRecuperacaoUseCase } from "../../use-case/GestaoOportunidadesRecuperacaoUseCase.js";
 import { GestaoPecasUseCase } from "../../use-case/GestaoPecasUseCase.js";
@@ -55,17 +62,22 @@ import { MotorReservas } from "../../use-case/MotorReservas.js";
 import { ProcessadorComentarios } from "../../use-case/ProcessadorComentarios.js";
 import { ReceberMensagemWhatsAppUseCase } from "../../use-case/ReceberMensagemWhatsAppUseCase.js";
 import { RecuperacaoMensagensWhatsAppUseCase } from "../../use-case/RecuperacaoMensagensWhatsAppUseCase.js";
+import { RelatoriosComerciaisUseCase } from "../../use-case/RelatoriosComerciaisUseCase.js";
 import { RevisaoComentariosUseCase } from "../../use-case/RevisaoComentariosUseCase.js";
 import {
   RepositorioAutenticacaoMemoria,
   RepositorioAfiliadosMemoria,
   RepositorioAtendimentoMemoria,
   RepositorioAuditoriaMemoria,
+  RepositorioCampanhasMemoria,
   RepositorioClientesMemoria,
   RepositorioCompartilhamentoClientesMemoria,
   RepositorioComentariosMemoria,
+  RepositorioEventosOperacionaisMemoria,
   RepositorioFunilComercialMemoria,
   RepositorioInstanciasWhatsAppMemoria,
+  RepositorioJobsOperacionaisMemoria,
+  RepositorioMembrosNegocioMemoria,
   RepositorioOportunidadesRecuperacaoMemoria,
   RepositorioPecasMemoria,
   RepositorioPedidosMemoria,
@@ -74,6 +86,7 @@ import {
   RepositorioSessoesLiveMemoria,
   RepositorioSocialInboxMemoria,
   RepositorioTarefasOperacionaisMemoria,
+  RepositorioTemplatesWhatsAppMemoria,
   RepositorioTrackingComercialMemoria
 } from "../../use-case/repositorios/RepositorioMemoria.js";
 import {
@@ -81,11 +94,15 @@ import {
   RepositorioAfiliadosPrisma,
   RepositorioAtendimentoPrisma,
   RepositorioAuditoriaPrisma,
+  RepositorioCampanhasPrisma,
   RepositorioClientesPrisma,
   RepositorioCompartilhamentoClientesPrisma,
   RepositorioComentariosPrisma,
+  RepositorioEventosOperacionaisPrisma,
   RepositorioFunilComercialPrisma,
   RepositorioInstanciasWhatsAppPrisma,
+  RepositorioJobsOperacionaisPrisma,
+  RepositorioMembrosNegocioPrisma,
   RepositorioOportunidadesRecuperacaoPrisma,
   RepositorioPecasPrisma,
   RepositorioPedidosPrisma,
@@ -94,6 +111,7 @@ import {
   RepositorioSessoesLivePrisma,
   RepositorioSocialInboxPrisma,
   RepositorioTarefasOperacionaisPrisma,
+  RepositorioTemplatesWhatsAppPrisma,
   RepositorioTrackingComercialPrisma
 } from "../../use-case/repositorios/RepositorioPrisma.js";
 import { criarPrismaCliente } from "../banco/prismaCliente.js";
@@ -117,6 +135,11 @@ export interface RepositoriosAplicacao {
   atendimento: RepositorioAtendimento;
   clientes: RepositorioClientes;
   compartilhamentoClientes: RepositorioCompartilhamentoClientes;
+  templatesWhatsApp: RepositorioTemplatesWhatsApp;
+  campanhas: RepositorioCampanhas;
+  eventosOperacionais: RepositorioEventosOperacionais;
+  jobsOperacionais: RepositorioJobsOperacionais;
+  membrosNegocio: RepositorioMembrosNegocio;
   instanciasWhatsApp: RepositorioInstanciasWhatsApp;
   sessoesLive: RepositorioSessoesLive;
   auditoria: RepositorioAuditoria;
@@ -163,6 +186,8 @@ export interface ContextoAplicacao {
   gestaoPecas: GestaoPecasUseCase;
   gestaoPedidos: GestaoPedidosUseCase;
   gestaoAfiliados: GestaoAfiliadosUseCase;
+  gestaoCampanhasCrm: GestaoCampanhasCrmUseCase;
+  gestaoGovernancaCrm: GestaoGovernancaCrmUseCase;
   gestaoClientesCrm: GestaoClientesCrmUseCase;
   gestaoCompartilhamentoClientes: GestaoCompartilhamentoClientesUseCase;
   gestaoAtendimentoCrm: GestaoAtendimentoCrmUseCase;
@@ -174,6 +199,7 @@ export interface ContextoAplicacao {
   gestaoOportunidadesRecuperacao: GestaoOportunidadesRecuperacaoUseCase;
   consultaIntegracoes: ConsultaIntegracoesUseCase;
   consultaPainel: ConsultaPainelUseCase;
+  relatoriosComerciais: RelatoriosComerciaisUseCase;
   consultaAtendimentoN8n: ConsultaAtendimentoN8n;
   consultaOperacional: ConsultaOperacionalUseCase;
   consultaAtendimentoOperacional: ConsultaAtendimentoOperacionalUseCase;
@@ -254,9 +280,21 @@ export function criarContextoAplicacao(logger: FastifyBaseLogger): ContextoAplic
     repositorios.pedidos,
     repositorios.clientes,
     repositorios.pecas,
+    repositorios.tarefas,
     eventos
   );
-  const gestaoAfiliados = new GestaoAfiliadosUseCase(repositorios.afiliados, eventos);
+  const gestaoAfiliados = new GestaoAfiliadosUseCase(repositorios.afiliados, eventos, repositorios.pecas);
+  const gestaoCampanhasCrm = new GestaoCampanhasCrmUseCase(
+    repositorios.campanhas,
+    repositorios.templatesWhatsApp,
+    repositorios.clientes,
+    repositorios.auditoria
+  );
+  const gestaoGovernancaCrm = new GestaoGovernancaCrmUseCase(
+    repositorios.membrosNegocio,
+    repositorios.eventosOperacionais,
+    repositorios.jobsOperacionais
+  );
   const onboardingBizy = new OnboardingBizyUseCase(repositorios.autenticacao, gestaoPecas);
   const gestaoClientesCrm = new GestaoClientesCrmUseCase(
     repositorios.clientes,
@@ -283,6 +321,16 @@ export function criarContextoAplicacao(logger: FastifyBaseLogger): ContextoAplic
   );
   const consultaIntegracoes = new ConsultaIntegracoesUseCase();
   const consultaPainel = new ConsultaPainelUseCase(repositorios.pecas, repositorios.reservas, repositorios.comentarios);
+  const relatoriosComerciais = new RelatoriosComerciaisUseCase(
+    repositorios.pedidos,
+    repositorios.clientes,
+    repositorios.pecas,
+    repositorios.reservas,
+    repositorios.atendimento,
+    repositorios.tarefas,
+    repositorios.trackingComercial,
+    repositorios.socialInbox
+  );
   const consultaAtendimentoN8n = new ConsultaAtendimentoN8n(
     repositorios.pecas,
     repositorios.reservas,
@@ -336,7 +384,9 @@ export function criarContextoAplicacao(logger: FastifyBaseLogger): ContextoAplic
     repositorios.trackingComercial,
     gestaoClientesCrm,
     gestaoPedidos,
-    gestaoAfiliados
+    gestaoAfiliados,
+    repositorios.oportunidadesRecuperacao,
+    repositorios.eventosOperacionais
   );
 
   const publicadorEventosN8n = new PublicadorEventosN8n(eventos, {
@@ -365,6 +415,8 @@ export function criarContextoAplicacao(logger: FastifyBaseLogger): ContextoAplic
     gestaoPecas,
     gestaoPedidos,
     gestaoAfiliados,
+    gestaoCampanhasCrm,
+    gestaoGovernancaCrm,
     gestaoClientesCrm,
     gestaoCompartilhamentoClientes,
     gestaoAtendimentoCrm,
@@ -376,6 +428,7 @@ export function criarContextoAplicacao(logger: FastifyBaseLogger): ContextoAplic
     gestaoOportunidadesRecuperacao,
     consultaIntegracoes,
     consultaPainel,
+    relatoriosComerciais,
     consultaAtendimentoN8n,
     consultaOperacional,
     consultaAtendimentoOperacional,
@@ -415,6 +468,11 @@ function criarRepositorios(): RepositoriosAplicacao {
       atendimento: new RepositorioAtendimentoMemoria(),
       clientes: new RepositorioClientesMemoria(),
       compartilhamentoClientes: new RepositorioCompartilhamentoClientesMemoria(),
+      templatesWhatsApp: new RepositorioTemplatesWhatsAppMemoria(),
+      campanhas: new RepositorioCampanhasMemoria(),
+      eventosOperacionais: new RepositorioEventosOperacionaisMemoria(),
+      jobsOperacionais: new RepositorioJobsOperacionaisMemoria(),
+      membrosNegocio: new RepositorioMembrosNegocioMemoria(),
       instanciasWhatsApp: new RepositorioInstanciasWhatsAppMemoria(),
       sessoesLive: new RepositorioSessoesLiveMemoria(),
       auditoria: new RepositorioAuditoriaMemoria(),
@@ -440,6 +498,11 @@ function criarRepositorios(): RepositoriosAplicacao {
     atendimento: new RepositorioAtendimentoPrisma(prisma),
     clientes: new RepositorioClientesPrisma(prisma),
     compartilhamentoClientes: new RepositorioCompartilhamentoClientesPrisma(prisma),
+    templatesWhatsApp: new RepositorioTemplatesWhatsAppPrisma(prisma),
+    campanhas: new RepositorioCampanhasPrisma(prisma),
+    eventosOperacionais: new RepositorioEventosOperacionaisPrisma(prisma),
+    jobsOperacionais: new RepositorioJobsOperacionaisPrisma(prisma),
+    membrosNegocio: new RepositorioMembrosNegocioPrisma(prisma),
     instanciasWhatsApp: new RepositorioInstanciasWhatsAppPrisma(prisma),
     sessoesLive: new RepositorioSessoesLivePrisma(prisma),
     auditoria: new RepositorioAuditoriaPrisma(prisma),

@@ -1,8 +1,11 @@
 import type {
   RepositorioAutenticacao,
+  RepositorioEventosOperacionais,
+  RepositorioOportunidadesRecuperacao,
   RepositorioPecas,
   RepositorioTrackingComercial
 } from "../dominio/repositorios/contratos.js";
+import { normalizarTelefone } from "../dominio/servicos/normalizarContato.js";
 import type {
   DadosPublicacaoLoja,
   NegocioBizy,
@@ -61,6 +64,21 @@ interface DadosCheckoutSitePublico extends DadosCalculoEntregaPublica {
   observacao?: string | null;
 }
 
+interface DadosCheckoutAbandonadoPublico extends DadosCalculoEntregaPublica {
+  cliente: {
+    nome?: string | null;
+    telefone?: string | null;
+    email?: string | null;
+    consentimentoMarketing: boolean;
+    consentimentoDados: boolean;
+  };
+  trackingId?: string | null;
+  referencia?: string | null;
+  origem: string;
+  canal: string;
+  observacao?: string | null;
+}
+
 interface ResumoCheckoutPublico {
   itens: Array<ItemCheckoutPublico & { peca: Peca; subtotalEmKwanza: number }>;
   subtotalEmKwanza: number;
@@ -85,7 +103,9 @@ export class LojaPublicaUseCase {
     private readonly tracking: RepositorioTrackingComercial,
     private readonly clientesCrm: GestaoClientesCrmUseCase,
     private readonly pedidos: GestaoPedidosUseCase,
-    private readonly afiliados?: GestaoAfiliadosUseCase
+    private readonly afiliados?: GestaoAfiliadosUseCase,
+    private readonly oportunidades?: RepositorioOportunidadesRecuperacao,
+    private readonly eventosOperacionais?: RepositorioEventosOperacionais
   ) {}
 
   async publicarLoja(negocioId: string, dados: DadosPublicacaoLoja) {
@@ -189,7 +209,33 @@ export class LojaPublicaUseCase {
   async criarCheckoutSite(slug: string, dados: DadosCheckoutSitePublico) {
     const negocio = await this.exigirLojaPublicada(slug);
     const resumo = await this.resolverResumoCheckout(negocio, dados.itens, dados.entrega);
-    const atribuicao = await this.afiliados?.resolverAtribuicao(negocio.id, dados.referencia) ?? null;
+    const atribuicaoOriginal = await this.afiliados?.resolverAtribuicao(negocio.id, dados.referencia) ?? null;
+    const autoIndicacao = this.afiliados?.ehAutoIndicacao(atribuicaoOriginal, dados.cliente.telefone) ?? false;
+    if (autoIndicacao && atribuicaoOriginal) {
+      await this.registrarEventoOperacionalSilencioso({
+        negocioId: negocio.id,
+        topico: "afiliados",
+        tipo: "AFILIACAO_SUSPEITA",
+        entidadeTipo: "link_afiliado",
+        entidadeId: atribuicaoOriginal.link.id,
+        idempotencyKey: `afiliacao-suspeita:${negocio.id}:${atribuicaoOriginal.link.id}:${dados.trackingId ?? dados.cliente.telefone ?? Date.now()}`,
+        payload: {
+          motivo: "AUTOINDICACAO",
+          parceiroId: atribuicaoOriginal.parceiro.id,
+          telefoneCliente: dados.cliente.telefone ?? null,
+          trackingId: dados.trackingId ?? null
+        },
+        estado: "PROCESSADO"
+      });
+    }
+    const atribuicao = autoIndicacao ? null : atribuicaoOriginal;
+    const atribuicaoBloqueada = autoIndicacao && atribuicaoOriginal
+      ? {
+          motivo: "AUTOINDICACAO",
+          parceiroId: atribuicaoOriginal.parceiro.id,
+          linkAfiliadoId: atribuicaoOriginal.link.id
+        }
+      : null;
     const origemEfetiva = atribuicao ? `afiliado:${atribuicao.parceiro.codigo}` : dados.origem;
     const canalEfetivo = atribuicao?.link.canal ?? dados.canal;
 
@@ -291,8 +337,97 @@ export class LojaPublicaUseCase {
       taxaEntregaEmKwanza: pedido.taxaEntregaEmKwanza,
       totalEmKwanza: pedido.totalEmKwanza,
       entrega: resumo.entrega,
-      moeda: negocio.moeda
+      moeda: negocio.moeda,
+      atribuicaoBloqueada
     };
+  }
+
+  async registrarCheckoutAbandonado(slug: string, dados: DadosCheckoutAbandonadoPublico) {
+    if (!this.oportunidades) {
+      throw new Error("Oportunidades de recuperação não configuradas.");
+    }
+    const negocio = await this.exigirLojaPublicada(slug);
+    const resumo = await this.resolverResumoCheckout(negocio, dados.itens, dados.entrega);
+    const telefone = normalizarTelefone(dados.cliente.telefone)?.local ?? dados.cliente.telefone ?? null;
+    const email = dados.cliente.email ?? null;
+    const cliente = await this.clientesCrm.criarCliente({
+      negocioId: negocio.id,
+      nome: dados.cliente.nome ?? null,
+      telefone,
+      email,
+      origem: dados.origem,
+      tags: ["checkout_abandonado"],
+      preferencias: {
+        ultimoCarrinhoAbandonado: {
+          trackingId: dados.trackingId ?? null,
+          slugLoja: negocio.slugPublico,
+          itens: dados.itens,
+          entrega: resumo.entrega,
+          totalEmKwanza: resumo.totalEmKwanza,
+          referencia: dados.referencia ?? null
+        }
+      },
+      consentimentoMarketing: dados.cliente.consentimentoMarketing,
+      consentimentoDados: dados.cliente.consentimentoDados
+    });
+
+    const existentes = await this.oportunidades.listar(negocio.id, {
+      gatilho: "CARRINHO_ABANDONADO",
+      estado: "ABERTA",
+      limite: 10_000
+    });
+    const existente = existentes.find((oportunidade) => {
+      const contexto = oportunidade.contexto;
+      return (
+        Boolean(dados.trackingId && contexto.trackingId === dados.trackingId) ||
+        Boolean(telefone && oportunidade.clienteTelefone === telefone && contexto.slugLoja === negocio.slugPublico)
+      );
+    });
+    if (existente) {
+      return { oportunidade: existente, cliente, duplicado: true };
+    }
+
+    await this.registrarTrackingSilencioso({
+      negocioId: negocio.id,
+      tipo: "CHECKOUT_INICIADO",
+      slugLoja: negocio.slugPublico,
+      entidadeTipo: "CHECKOUT",
+      entidadeId: dados.trackingId ?? null,
+      trackingId: dados.trackingId ?? null,
+      origem: dados.origem,
+      canal: dados.canal,
+      metadata: {
+        abandonado: true,
+        clienteNegocioId: cliente.id,
+        totalEmKwanza: resumo.totalEmKwanza,
+        itens: dados.itens,
+        referencia: dados.referencia ?? null
+      }
+    });
+
+    const oportunidade = await this.oportunidades.criar({
+      negocioId: negocio.id,
+      gatilho: "CARRINHO_ABANDONADO",
+      estado: "ABERTA",
+      entidadeTipo: "checkout",
+      entidadeId: dados.trackingId ?? cliente.id,
+      clienteTelefone: cliente.telefone,
+      valorEstimadoEmKwanza: resumo.totalEmKwanza,
+      motivo: "Cliente iniciou checkout público, deixou contacto com consentimento e não concluiu compra.",
+      observacao: dados.observacao ?? null,
+      contexto: {
+        trackingId: dados.trackingId ?? null,
+        slugLoja: negocio.slugPublico,
+        origem: dados.origem,
+        canal: dados.canal,
+        referencia: dados.referencia ?? null,
+        clienteNegocioId: cliente.id,
+        itens: dados.itens,
+        entrega: resumo.entrega
+      }
+    });
+
+    return { oportunidade, cliente, duplicado: false };
   }
 
   async registrarEventoPublico(slug: string, dados: Omit<NovoEventoTrackingComercial, "negocioId">) {
@@ -578,6 +713,14 @@ export class LojaPublicaUseCase {
       await this.tracking.registrarEvento(dados);
     } catch {
       // Tracking não deve derrubar a experiência pública de compra.
+    }
+  }
+
+  private async registrarEventoOperacionalSilencioso(dados: Parameters<RepositorioEventosOperacionais["registrar"]>[0]) {
+    try {
+      await this.eventosOperacionais?.registrar(dados);
+    } catch {
+      // O tracking público não deve falhar checkout por indisponibilidade de auditoria operacional.
     }
   }
 }

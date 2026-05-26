@@ -1,5 +1,6 @@
 import {
   CalcularEntregaPublicaSchema,
+  CriarCheckoutAbandonadoPublicoSchema,
   CriarCheckoutSitePublicoSchema,
   GerarCheckoutWhatsAppPublicoSchema,
   PublicarLojaSchema,
@@ -88,10 +89,23 @@ export const moduloLojaPublica: ModuloHttp = {
       return reply.code(201).send(checkout);
     });
 
+    app.post("/publico/lojas/:slug/checkout/abandonado", async (request, reply) => {
+      const { slug } = request.params as { slug: string };
+      const dados = CriarCheckoutAbandonadoPublicoSchema.parse(request.body ?? {});
+      const resultado = await contexto.lojaPublica.registrarCheckoutAbandonado(slug, dados);
+      return reply.code(resultado.duplicado ? 200 : 201).send(resultado);
+    });
+
     app.post("/publico/tracking/eventos", async (request, reply) => {
       const dados = RegistrarEventoTrackingSchema.parse(request.body ?? {});
       if (!dados.slugLoja) {
         return reply.code(400).send({ erro: "VALIDACAO", mensagem: "Informe slugLoja para tracking público." });
+      }
+      if (contemDadoSensivelTracking(dados)) {
+        return reply.code(400).send({
+          erro: "TRACKING_DADO_SENSIVEL",
+          mensagem: "Tracking público deve usar apenas identificadores técnicos, origem, campanha e timestamps."
+        });
       }
 
       const evento = await contexto.lojaPublica.registrarEventoPublico(dados.slugLoja, dados);
@@ -106,4 +120,37 @@ function extrairUtm(query: Record<string, string | undefined>): Record<string, s
       .filter(([chave, valor]) => chave.startsWith("utm_") && typeof valor === "string" && valor.trim())
       .map(([chave, valor]) => [chave, valor as string])
   );
+}
+
+function contemDadoSensivelTracking(dados: {
+  trackingId?: string | null;
+  utm?: Record<string, string>;
+  metadata?: Record<string, unknown>;
+}) {
+  const candidatos: unknown[] = [dados.trackingId, dados.utm, dados.metadata];
+  return candidatos.some((valor) => contemDadoPessoal(valor));
+}
+
+function contemDadoPessoal(valor: unknown): boolean {
+  if (typeof valor === "string") {
+    const texto = valor.trim();
+    if (!texto) return false;
+    if (/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i.test(texto)) return true;
+    const digitos = texto.replace(/\D/g, "");
+    return /^(244)?9\d{8}$/.test(digitos);
+  }
+
+  if (Array.isArray(valor)) return valor.some((item) => contemDadoPessoal(item));
+
+  if (valor && typeof valor === "object") {
+    return Object.entries(valor as Record<string, unknown>).some(([chave, item]) => {
+      const chaveNormalizada = chave.toLowerCase();
+      if (["telefone", "phone", "email", "nome", "name", "endereco", "address", "whatsapp"].includes(chaveNormalizada)) {
+        return true;
+      }
+      return contemDadoPessoal(item);
+    });
+  }
+
+  return false;
 }

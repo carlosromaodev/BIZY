@@ -1,6 +1,8 @@
 import {
+  ArquivarPecaSchema,
   AtualizarPecaSchema,
   CriarPecaSchema,
+  ImportarCsvSchema,
   RegistrarMovimentoStockSchema
 } from "../../../dominio/esquemas.js";
 import { exigirAcessoComercial } from "../contextoComercial.js";
@@ -63,6 +65,25 @@ export const moduloCatalogo: ModuloHttp = {
       return contexto.gestaoPecas.resumirCatalogo(contextoComercial.negocio.id);
     });
 
+    app.post("/pecas/importar.csv", async (request, reply) => {
+      const contextoComercial = await exigirAcessoComercial(
+        contexto,
+        request,
+        reply,
+        {
+          permissao: "catalogo:gerir",
+          modulo: "catalogo",
+          mensagemPermissao: "Sem permissão para importar produtos.",
+          mensagemModulo: "Catálogo desativado para este negócio."
+        }
+      );
+      if (!contextoComercial) return;
+
+      const dados = ImportarCsvSchema.parse(request.body ?? {});
+      const resultado = await contexto.gestaoPecas.importarCsv(contextoComercial.negocio.id, dados.csv);
+      return reply.code(201).send(resultado);
+    });
+
     app.get("/pecas/:codigo/movimentos", async (request, reply) => {
       const contextoComercial = await exigirAcessoComercial(
         contexto,
@@ -104,6 +125,25 @@ export const moduloCatalogo: ModuloHttp = {
         contextoComercial.negocio.id
       );
       return reply.code(201).send(resultado);
+    });
+
+    app.post("/pecas/:codigo/arquivar", async (request, reply) => {
+      const contextoComercial = await exigirAcessoComercial(
+        contexto,
+        request,
+        reply,
+        {
+          permissao: "catalogo:gerir",
+          modulo: "catalogo",
+          mensagemPermissao: "Sem permissão para arquivar produto.",
+          mensagemModulo: "Catálogo desativado para este negócio."
+        }
+      );
+      if (!contextoComercial) return;
+
+      const { codigo } = request.params as { codigo: string };
+      const dados = ArquivarPecaSchema.parse(request.body ?? {});
+      return contexto.gestaoPecas.arquivarPeca(codigo, dados.motivo, contextoComercial.negocio.id);
     });
 
     app.patch("/pecas/:codigo", async (request, reply) => {

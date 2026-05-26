@@ -1,5 +1,6 @@
 import { moduloAfiliados } from "./afiliados.js";
 import { moduloAutenticacao } from "./autenticacao.js";
+import { moduloCampanhas } from "./campanhas.js";
 import { moduloCatalogo } from "./catalogo.js";
 import { moduloClientes } from "./clientes.js";
 import { moduloDiagnosticos } from "./diagnosticos.js";
@@ -21,6 +22,7 @@ export const modulosHttp = [
   moduloLives,
   moduloCatalogo,
   moduloClientes,
+  moduloCampanhas,
   moduloLojaPublica,
   moduloAfiliados,
   moduloDiagnosticos,

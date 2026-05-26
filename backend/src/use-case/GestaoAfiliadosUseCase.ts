@@ -1,5 +1,6 @@
 import type { DespachadorEventos } from "../dominio/eventos/DespachadorEventos.js";
-import type { RepositorioAfiliados } from "../dominio/repositorios/contratos.js";
+import type { RepositorioAfiliados, RepositorioPecas } from "../dominio/repositorios/contratos.js";
+import { normalizarTelefone } from "../dominio/servicos/normalizarContato.js";
 import type {
   LinkAfiliado,
   NovoLotePagamentoComissao,
@@ -20,7 +21,8 @@ export interface AtribuicaoAfiliadoResolvida {
 export class GestaoAfiliadosUseCase {
   constructor(
     private readonly afiliados: RepositorioAfiliados,
-    eventos?: DespachadorEventos
+    eventos?: DespachadorEventos,
+    private readonly pecas?: RepositorioPecas
   ) {
     eventos?.aoReceber("ORDER_PAYMENT_CONFIRMED", (evento) => {
       const pedidoId = typeof evento.dados.pedidoId === "string" ? evento.dados.pedidoId : null;
@@ -73,6 +75,71 @@ export class GestaoAfiliadosUseCase {
   async listarLinks(negocioId: string) {
     const links = await this.afiliados.listarLinks(negocioId);
     return { links: links.map((link) => this.comUrlPublica(link)) };
+  }
+
+  async resolverLinkPublico(codigo: string) {
+    const link = await this.afiliados.buscarLinkPorCodigo(this.normalizarCodigo(codigo));
+    if (!link || !link.ativo) return null;
+    if (link.expiraEm && link.expiraEm.getTime() <= Date.now()) return null;
+
+    return {
+      codigo: link.codigo,
+      ativo: link.ativo,
+      destino: {
+        tipo: link.destinoTipo,
+        slugLoja: link.slugLoja,
+        codigoProduto: link.codigoProduto,
+        canal: link.canal,
+        origemConteudo: link.origemConteudo
+      },
+      link: this.comUrlPublica(link)
+    };
+  }
+
+  async gerarPacoteDivulgacao(negocioId: string, afiliadoId: string, filtros: { codigoProduto?: string | null } = {}) {
+    const parceiro = await this.afiliados.buscarParceiroPorId(afiliadoId, negocioId);
+    if (!parceiro) return null;
+
+    const codigoProduto = filtros.codigoProduto ? this.normalizarCodigo(filtros.codigoProduto) : null;
+    const links = (await this.afiliados.listarLinks(negocioId))
+      .filter((link) => link.afiliadoId === afiliadoId)
+      .filter((link) => !codigoProduto || link.codigoProduto === codigoProduto)
+      .map((link) => this.comUrlPublica(link));
+    const produto = codigoProduto && this.pecas ? await this.pecas.buscarPorCodigo(codigoProduto, negocioId) : null;
+
+    return {
+      parceiro,
+      regras: parceiro.regraComissao,
+      links,
+      produtos: produto
+        ? [{
+            codigo: produto.codigo,
+            nome: produto.nome,
+            precoEmKwanza: produto.precoEmKwanza,
+            fotos: produto.fotos
+          }]
+        : [],
+      materiais: [
+        {
+          tipo: "TEXTO_WHATSAPP",
+          conteudo:
+            produto
+              ? `Tenho uma sugestão para ti: ${produto.nome} (#${produto.codigo}) está disponível na Bizy. Compra pelo meu link e fala direto com a loja.`
+              : "Descobre os produtos da loja pelo meu link Bizy e compra com atendimento direto no WhatsApp."
+        },
+        {
+          tipo: "LEGENDA_SOCIAL",
+          conteudo:
+            produto
+              ? `${produto.nome} disponível agora. Usa o link da bio para comprar com segurança. #Bizy #${produto.codigo}`
+              : "Produtos selecionados para comprar pelo site ou WhatsApp. Link disponível na bio."
+        }
+      ],
+      politica: {
+        autoIndicacaoPermitida: false,
+        mensagem: "Comissão não é gerada quando o criador compra pelo próprio link ou quando houver duplicidade suspeita."
+      }
+    };
   }
 
   async listarComissoes(negocioId: string) {
@@ -228,6 +295,13 @@ export class GestaoAfiliadosUseCase {
     if (!parceiro || parceiro.estado !== "ATIVO") return null;
 
     return { parceiro, link };
+  }
+
+  ehAutoIndicacao(atribuicao: AtribuicaoAfiliadoResolvida | null, telefoneCliente?: string | null): boolean {
+    if (!atribuicao || !telefoneCliente || !atribuicao.parceiro.contacto) return false;
+    const cliente = normalizarTelefone(telefoneCliente)?.canonico;
+    const parceiro = normalizarTelefone(atribuicao.parceiro.contacto)?.canonico;
+    return Boolean(cliente && parceiro && cliente === parceiro);
   }
 
   async registrarComissaoEstimativa(dados: {

@@ -1,3 +1,5 @@
+import type { CategoriaMensagemWhatsApp } from "./provedores/ProvedorWhatsApp.js";
+
 export const estadosPeca = ["DISPONIVEL", "RESERVADA", "VENDIDA", "ESGOTADA"] as const;
 export type EstadoPeca = (typeof estadosPeca)[number];
 
@@ -436,6 +438,251 @@ export interface ResumoOutboxMensagemWhatsApp {
   atualizadoEm: Date | null;
 }
 
+export const estadosAprovacaoTemplateWhatsApp = [
+  "rascunho",
+  "enviado_aprovacao",
+  "aprovado",
+  "rejeitado",
+  "pausado",
+  "substituido",
+  "descontinuado"
+] as const;
+export type EstadoAprovacaoTemplateWhatsApp = (typeof estadosAprovacaoTemplateWhatsApp)[number];
+
+export const providersTemplateWhatsApp = ["whatsapp_cloud_api", "evolution", "console"] as const;
+export type ProviderTemplateWhatsApp = (typeof providersTemplateWhatsApp)[number];
+
+export interface TemplateWhatsAppNegocio {
+  id: string;
+  negocioId: string;
+  nome: string;
+  categoria: CategoriaMensagemWhatsApp;
+  idioma: string;
+  provider: ProviderTemplateWhatsApp;
+  estadoAprovacao: EstadoAprovacaoTemplateWhatsApp;
+  eventosCompativeis: string[];
+  variaveis: string[];
+  corpo: string;
+  ativo: boolean;
+  versao: number;
+  motivoUltimaAlteracao: string | null;
+  criadoEm: Date;
+  atualizadoEm: Date;
+}
+
+export interface NovoTemplateWhatsAppNegocio {
+  negocioId: string;
+  nome: string;
+  categoria: CategoriaMensagemWhatsApp;
+  idioma?: string;
+  provider?: ProviderTemplateWhatsApp;
+  estadoAprovacao?: EstadoAprovacaoTemplateWhatsApp;
+  eventosCompativeis?: string[];
+  variaveis?: string[];
+  corpo: string;
+  ativo?: boolean;
+  motivoUltimaAlteracao?: string | null;
+}
+
+export interface AtualizacaoTemplateWhatsAppNegocio {
+  nome?: string;
+  categoria?: CategoriaMensagemWhatsApp;
+  idioma?: string;
+  provider?: ProviderTemplateWhatsApp;
+  estadoAprovacao?: EstadoAprovacaoTemplateWhatsApp;
+  eventosCompativeis?: string[];
+  variaveis?: string[];
+  corpo?: string;
+  ativo?: boolean;
+  motivoUltimaAlteracao?: string | null;
+}
+
+export const estadosCampanhaCrm = ["RASCUNHO", "AGENDADA", "EM_ENVIO", "PAUSADA", "CONCLUIDA", "CANCELADA"] as const;
+export type EstadoCampanhaCrm = (typeof estadosCampanhaCrm)[number];
+
+export const statusItemCampanhaCrm = [
+  "PENDENTE",
+  "BLOQUEADO",
+  "ENFILEIRADO",
+  "ENVIADO",
+  "ENTREGUE",
+  "LIDO",
+  "RESPONDIDO",
+  "FALHOU",
+  "CONVERTIDO"
+] as const;
+export type StatusItemCampanhaCrm = (typeof statusItemCampanhaCrm)[number];
+
+export interface MetricasCampanhaCrm {
+  selecionados: number;
+  bloqueados: number;
+  enfileirados: number;
+  enviados: number;
+  entregues: number;
+  lidos: number;
+  respondidos: number;
+  falhados: number;
+  pedidosGerados: number;
+  receitaAtribuidaEmKwanza: number;
+}
+
+export interface CampanhaCrm {
+  id: string;
+  negocioId: string;
+  nome: string;
+  objetivo: string;
+  canal: string;
+  templateId: string;
+  categoria: CategoriaMensagemWhatsApp;
+  estado: EstadoCampanhaCrm;
+  segmento: Record<string, unknown>;
+  limiteDiario: number;
+  janelaInicio: Date | null;
+  janelaFim: Date | null;
+  metricas: MetricasCampanhaCrm;
+  criadaPorUsuarioId: string | null;
+  pausadaEm: Date | null;
+  motivoPausa: string | null;
+  confirmadaEm: Date | null;
+  criadaEm: Date;
+  atualizadaEm: Date;
+}
+
+export interface ItemCampanhaCrm {
+  id: string;
+  negocioId: string;
+  campanhaId: string;
+  clienteId: string | null;
+  telefone: string | null;
+  nomeCliente: string | null;
+  status: StatusItemCampanhaCrm;
+  motivoBloqueio: string | null;
+  outboxMensagemId: string | null;
+  contexto: Record<string, unknown>;
+  criadoEm: Date;
+  atualizadoEm: Date;
+}
+
+export interface NovaCampanhaCrm {
+  negocioId: string;
+  nome: string;
+  objetivo: string;
+  canal: string;
+  templateId: string;
+  categoria: CategoriaMensagemWhatsApp;
+  segmento?: Record<string, unknown>;
+  limiteDiario?: number;
+  janelaInicio?: Date | null;
+  janelaFim?: Date | null;
+  criadaPorUsuarioId?: string | null;
+}
+
+export interface AtualizacaoCampanhaCrm {
+  estado?: EstadoCampanhaCrm;
+  metricas?: MetricasCampanhaCrm;
+  pausadaEm?: Date | null;
+  motivoPausa?: string | null;
+  confirmadaEm?: Date | null;
+}
+
+export interface NovoItemCampanhaCrm {
+  negocioId: string;
+  campanhaId: string;
+  clienteId?: string | null;
+  telefone?: string | null;
+  nomeCliente?: string | null;
+  status: StatusItemCampanhaCrm;
+  motivoBloqueio?: string | null;
+  outboxMensagemId?: string | null;
+  contexto?: Record<string, unknown>;
+}
+
+export interface FiltrosCampanhasCrm {
+  estado?: EstadoCampanhaCrm;
+  canal?: string;
+  limite?: number;
+}
+
+export const estadosJobOperacional = ["PENDENTE", "PROCESSANDO", "CONCLUIDO", "FALHOU"] as const;
+export type EstadoJobOperacional = (typeof estadosJobOperacional)[number];
+
+export interface JobOperacional {
+  id: string;
+  negocioId: string;
+  tipo: string;
+  estado: EstadoJobOperacional;
+  idempotencyKey: string | null;
+  total: number;
+  processados: number;
+  erros: number;
+  resultado: Record<string, unknown>;
+  erro: string | null;
+  criadoEm: Date;
+  atualizadoEm: Date;
+  concluidoEm: Date | null;
+}
+
+export interface NovoJobOperacional {
+  negocioId: string;
+  tipo: string;
+  estado?: EstadoJobOperacional;
+  idempotencyKey?: string | null;
+  total?: number;
+  processados?: number;
+  erros?: number;
+  resultado?: Record<string, unknown>;
+  erro?: string | null;
+  concluidoEm?: Date | null;
+}
+
+export interface AtualizacaoJobOperacional {
+  estado?: EstadoJobOperacional;
+  total?: number;
+  processados?: number;
+  erros?: number;
+  resultado?: Record<string, unknown>;
+  erro?: string | null;
+  concluidoEm?: Date | null;
+}
+
+export const estadosEventoOperacional = ["PENDENTE", "PROCESSADO", "IGNORADO", "FALHOU"] as const;
+export type EstadoEventoOperacional = (typeof estadosEventoOperacional)[number];
+
+export interface EventoOperacional {
+  id: string;
+  negocioId: string;
+  topico: string;
+  tipo: string;
+  entidadeTipo: string | null;
+  entidadeId: string | null;
+  idempotencyKey: string | null;
+  payload: Record<string, unknown>;
+  estado: EstadoEventoOperacional;
+  tentativas: number;
+  proximaTentativaEm: Date | null;
+  criadoEm: Date;
+  atualizadoEm: Date;
+}
+
+export interface NovoEventoOperacional {
+  negocioId: string;
+  topico: string;
+  tipo: string;
+  entidadeTipo?: string | null;
+  entidadeId?: string | null;
+  idempotencyKey?: string | null;
+  payload?: Record<string, unknown>;
+  estado?: EstadoEventoOperacional;
+  proximaTentativaEm?: Date | null;
+}
+
+export interface FiltrosEventosOperacionais {
+  topico?: string;
+  tipo?: string;
+  estado?: EstadoEventoOperacional;
+  limite?: number;
+}
+
 export interface ResultadoLimpezaDadosComunicacao {
   comentarios: number;
   mensagensAtendimento: number;
@@ -687,10 +934,17 @@ export interface NovoSocialInboxItem {
 
 export interface FiltrosSocialInbox {
   canal?: string;
+  provider?: string;
+  postId?: string;
   estado?: EstadoSocialInbox;
   intencao?: IntencaoSocialInbox;
   autorUsername?: string;
   clienteTelefone?: string;
+  campanhaId?: string;
+  produtoCodigo?: string;
+  responsavelId?: string;
+  urgencia?: PrioridadeTarefaOperacional;
+  respondido?: boolean;
   limite?: number;
 }
 
@@ -1197,6 +1451,10 @@ export interface FiltrosPedidos {
   estadoEntrega?: EstadoEntregaPedido;
   clienteId?: string;
   busca?: string;
+  produto?: string;
+  canal?: string;
+  dataInicio?: Date;
+  dataFim?: Date;
   limite?: number;
 }
 
@@ -1205,6 +1463,13 @@ export interface AtualizacaoEstadoPedido {
   estadoPagamento?: EstadoPagamentoPedido;
   observacao?: string | null;
   responsavelId?: string | null;
+}
+
+export interface AtualizacaoFinanceiraPedido {
+  descontoEmKwanza?: number;
+  motivoDesconto?: string | null;
+  totalEmKwanza?: number;
+  observacao?: string | null;
 }
 
 export interface ConfirmacaoPagamentoPedido {
@@ -1229,6 +1494,43 @@ export interface UsuarioSistema {
   perfilCompletoEm: Date | null;
   criadoEm: Date;
   atualizadoEm: Date;
+}
+
+export const papeisNegocio = ["DONO", "ADMIN", "VENDEDOR", "ATENDENTE", "FINANCEIRO", "ENTREGADOR", "AFILIADO", "CRIADOR"] as const;
+export type PapelNegocio = (typeof papeisNegocio)[number];
+
+export const statusMembroNegocio = ["ATIVO", "SUSPENSO", "REMOVIDO"] as const;
+export type StatusMembroNegocio = (typeof statusMembroNegocio)[number];
+
+export interface MembroNegocioOperacional {
+  id: string;
+  negocioId: string;
+  usuarioId: string;
+  nome: string;
+  telefone: string | null;
+  email: string | null;
+  avatarUrl: string | null;
+  papel: PapelNegocio;
+  status: StatusMembroNegocio;
+  permissoes: string[];
+  criadoEm: Date;
+  atualizadoEm: Date;
+}
+
+export interface NovoMembroNegocioOperacional {
+  negocioId: string;
+  telefone: string;
+  nome: string;
+  email?: string | null;
+  papel: PapelNegocio;
+  permissoes?: string[];
+}
+
+export interface AtualizacaoMembroNegocioOperacional {
+  papel?: PapelNegocio;
+  status?: StatusMembroNegocio;
+  permissoes?: string[];
+  motivo?: string | null;
 }
 
 export type TipoIdentidadeAutenticacao = "TELEFONE" | "GMAIL" | "ESTUDANTIL";
@@ -1315,7 +1617,9 @@ export const modulosNegocioPadrao: ModuloNegocioCodigo[] = [
   "tracking",
   "social-inbox",
   "automacoes",
-  "funil"
+  "funil",
+  "campanhas",
+  "relatorios"
 ];
 
 export const modulosNegocioObrigatorios: ModuloNegocioCodigo[] = ["crm"];
@@ -1477,6 +1781,8 @@ export interface DadosNegocioBizy {
   nomeComercial: string;
   segmento: string;
   tipo: TipoNegocioBizy;
+  modeloVenda?: string | null;
+  tipoProdutoVendido?: string | null;
   nif?: string | null;
   telefone?: string | null;
   whatsapp?: string | null;
@@ -1490,6 +1796,10 @@ export interface DadosNegocioBizy {
   fusoHorario?: string;
   canaisVenda?: string[];
   metodosPagamento?: string[];
+  areasEntrega?: string[];
+  regrasComissao?: Record<string, unknown>;
+  politicaTrocaDevolucao?: Record<string, unknown>;
+  contasSociais?: Record<string, unknown>;
   entrega?: Record<string, unknown>;
   minutosReservaPadrao?: number;
   slugPublico?: string | null;

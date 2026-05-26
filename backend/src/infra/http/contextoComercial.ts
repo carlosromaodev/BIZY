@@ -57,6 +57,10 @@ const PERMISSOES_POR_PAPEL: Record<string, string[]> = {
   CRIADOR: ["afiliados:ver", "relatorios:ver"]
 };
 
+export const PERMISSOES_POR_PAPEL_PUBLICAS: Record<string, string[]> = Object.freeze(
+  Object.fromEntries(Object.entries(PERMISSOES_POR_PAPEL).map(([papel, permissoes]) => [papel, [...permissoes]]))
+);
+
 export async function resolverContextoComercial(
   contexto: ContextoAplicacao,
   request: FastifyRequest,

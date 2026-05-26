@@ -1,9 +1,13 @@
 import {
   AtualizarClienteCrmSchema,
   AtualizarRelacaoNegocioSchema,
+  AcaoRapidaClienteSchema,
+  AnonimizarClienteSchema,
   CriarClienteCrmSchema,
   CriarCompartilhamentoClienteSchema,
   CriarRelacaoNegocioSchema,
+  ImportarCsvSchema,
+  MesclarClientesSchema,
   RevogarCompartilhamentoClienteSchema
 } from "../../../dominio/esquemas.js";
 import { estadosRelacionamentoCliente } from "../../../dominio/tipos.js";
@@ -58,6 +62,20 @@ export const moduloClientes: ModuloHttp = {
         negocioId: contextoComercial.negocio.id
       });
       return reply.code(201).send(cliente);
+    });
+
+    app.post("/clientes/importar.csv", async (request, reply) => {
+      const contextoComercial = await exigirAcessoComercial(contexto, request, reply, {
+        permissao: "clientes:gerir",
+        modulo: "crm",
+        mensagemPermissao: "Sem permissão para importar clientes.",
+        mensagemModulo: "CRM desativado para este negócio."
+      });
+      if (!contextoComercial) return;
+
+      const dados = ImportarCsvSchema.parse(request.body ?? {});
+      const resultado = await contexto.gestaoClientesCrm.importarCsv(contextoComercial.negocio.id, dados.csv);
+      return reply.code(201).send(resultado);
     });
 
     app.post("/negocio/relacoes", async (request, reply) => {
@@ -136,6 +154,67 @@ export const moduloClientes: ModuloHttp = {
       return reply.send(exportacao.csv);
     });
 
+    app.get("/clientes/segmentos", async (request, reply) => {
+      const contextoComercial = await exigirAcessoComercial(contexto, request, reply, {
+        permissao: "clientes:ler",
+        modulo: "crm",
+        mensagemPermissao: "Sem permissão para consultar segmentos de clientes.",
+        mensagemModulo: "CRM desativado para este negócio."
+      });
+      if (!contextoComercial) return;
+
+      return contexto.gestaoClientesCrm.segmentarClientes(contextoComercial.negocio.id);
+    });
+
+    app.post("/clientes/mesclar/preview", async (request, reply) => {
+      const contextoComercial = await exigirAcessoComercial(contexto, request, reply, {
+        permissao: "clientes:gerir",
+        modulo: "crm",
+        mensagemPermissao: "Sem permissão para pré-visualizar fusão de clientes.",
+        mensagemModulo: "CRM desativado para este negócio."
+      });
+      if (!contextoComercial) return;
+
+      const dados = MesclarClientesSchema.parse(request.body ?? {});
+      try {
+        return await contexto.gestaoClientesCrm.previsualizarMesclagem(
+          dados.clienteDestinoId,
+          dados.clienteOrigemId,
+          contextoComercial.negocio.id
+        );
+      } catch (erro) {
+        return reply.code(400).send({
+          erro: "MESCLAGEM_CLIENTE_INVALIDA",
+          mensagem: erro instanceof Error ? erro.message : "Não foi possível pré-visualizar fusão de clientes."
+        });
+      }
+    });
+
+    app.post("/clientes/mesclar", async (request, reply) => {
+      const contextoComercial = await exigirAcessoComercial(contexto, request, reply, {
+        permissao: "clientes:gerir",
+        modulo: "crm",
+        mensagemPermissao: "Sem permissão para fundir clientes.",
+        mensagemModulo: "CRM desativado para este negócio."
+      });
+      if (!contextoComercial) return;
+
+      const dados = MesclarClientesSchema.parse(request.body ?? {});
+      try {
+        return await contexto.gestaoClientesCrm.mesclarClientes(
+          dados.clienteDestinoId,
+          dados.clienteOrigemId,
+          contextoComercial.negocio.id,
+          dados.motivo ?? "Fusão manual de clientes duplicados."
+        );
+      } catch (erro) {
+        return reply.code(400).send({
+          erro: "MESCLAGEM_CLIENTE_INVALIDA",
+          mensagem: erro instanceof Error ? erro.message : "Não foi possível fundir clientes."
+        });
+      }
+    });
+
     app.get("/clientes/compartilhamentos/recebidos", async (request, reply) => {
       const contextoComercial = await exigirAcessoComercial(contexto, request, reply, {
         permissao: "clientes:ler",
@@ -207,6 +286,85 @@ export const moduloClientes: ModuloHttp = {
           erro: "COMPARTILHAMENTO_CLIENTE_INVALIDO",
           mensagem: erro instanceof Error ? erro.message : "Não foi possível compartilhar cliente."
         });
+      }
+    });
+
+    app.post("/clientes/:id/acoes", async (request, reply) => {
+      const contextoComercial = await exigirAcessoComercial(contexto, request, reply, {
+        permissao: "clientes:gerir",
+        modulo: "crm",
+        mensagemPermissao: "Sem permissão para executar ação rápida do cliente.",
+        mensagemModulo: "CRM desativado para este negócio."
+      });
+      if (!contextoComercial) return;
+
+      const { id } = request.params as { id: string };
+      const dados = AcaoRapidaClienteSchema.parse(request.body ?? {});
+      const perfil = await contexto.gestaoClientesCrm.obterPerfil(id, contextoComercial.negocio.id);
+      if (!perfil) {
+        return reply.code(404).send({ erro: "CLIENTE_NAO_ENCONTRADO", mensagem: "Cliente não encontrado." });
+      }
+
+      const tarefa = await contexto.gestaoTarefas.criarTarefa({
+        negocioId: contextoComercial.negocio.id,
+        tipo: dados.tipo,
+        titulo: dados.titulo ?? `Ação ${dados.tipo.toLowerCase()} para ${perfil.cliente.nome ?? perfil.cliente.telefone ?? "cliente"}`,
+        descricao: dados.observacao ?? "",
+        prioridade: dados.prioridade,
+        origem: "acao_rapida_cliente",
+        clienteId: perfil.cliente.id,
+        clienteTelefone: perfil.cliente.telefone,
+        responsavelId: dados.responsavelId ?? contextoComercial.usuario.id,
+        prazoEm: dados.prazoEm,
+        entidadeTipo: "cliente",
+        entidadeId: perfil.cliente.id,
+        observacao: dados.observacao,
+        contexto: {
+          ...dados.contexto,
+          clienteNome: perfil.cliente.nome,
+          clienteEmail: perfil.cliente.email
+        }
+      });
+
+      return reply.code(201).send({ acao: dados.tipo, tarefa });
+    });
+
+    app.post("/clientes/:id/privacidade/anonimizar", async (request, reply) => {
+      const contextoComercial = await exigirAcessoComercial(contexto, request, reply, {
+        permissao: "clientes:gerir",
+        modulo: "crm",
+        mensagemPermissao: "Sem permissão para anonimizar clientes.",
+        mensagemModulo: "CRM desativado para este negócio."
+      });
+      if (!contextoComercial) return;
+
+      const { id } = request.params as { id: string };
+      const dados = AnonimizarClienteSchema.parse(request.body ?? {});
+      try {
+        const cliente = await contexto.gestaoClientesCrm.anonimizarCliente(
+          id,
+          contextoComercial.negocio.id,
+          dados.motivo
+        );
+        await contexto.gestaoGovernancaCrm.registrarEvento({
+          negocioId: contextoComercial.negocio.id,
+          topico: "privacidade",
+          tipo: "CLIENTE_ANONIMIZADO",
+          entidadeTipo: "cliente",
+          entidadeId: id,
+          idempotencyKey: `cliente-anonimizado:${contextoComercial.negocio.id}:${id}`,
+          payload: {
+            motivo: dados.motivo,
+            usuarioId: contextoComercial.usuario.id
+          },
+          estado: "PROCESSADO"
+        });
+        return { cliente };
+      } catch (erro) {
+        if (erro instanceof Error && erro.message.includes("não encontrado")) {
+          return reply.code(404).send({ erro: "CLIENTE_NAO_ENCONTRADO", mensagem: "Cliente não encontrado." });
+        }
+        throw erro;
       }
     });
 

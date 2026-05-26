@@ -1,14 +1,20 @@
 import type {
   AtualizarPeca,
+  AtualizacaoCampanhaCrm,
   AtualizacaoCliente360,
   AtualizacaoConversaAtendimento,
   AtualizacaoEntregaPedido,
   AtualizacaoEstadoPedido,
+  AtualizacaoFinanceiraPedido,
+  AtualizacaoJobOperacional,
+  AtualizacaoMembroNegocioOperacional,
   AtualizacaoModuloNegocio,
   AtualizacaoOportunidadeRecuperacao,
   AtualizacaoRelacaoNegocio,
+  AtualizacaoTemplateWhatsAppNegocio,
   AtualizacaoTarefaOperacional,
   AuditoriaCompartilhamentoCliente,
+  CampanhaCrm,
   Cliente360,
   CompartilhamentoClienteRecebido,
   CompartilhamentoClienteSeguro,
@@ -22,18 +28,26 @@ import type {
   FiltrosMovimentosFunilComercial,
   FiltrosOportunidadesRecuperacao,
   HistoricoComissaoParceiro,
+  ItemCampanhaCrm,
   LotePagamentoComissao,
+  MembroNegocioOperacional,
+  NovaCampanhaCrm,
   NovaPeca,
   NovaComissaoParceiro,
   NovaExecucaoPlaybookRecuperacao,
   NovaOportunidadeRecuperacao,
   NovaRelacaoNegocio,
+  NovoMembroNegocioOperacional,
   NovoCompartilhamentoCliente,
+  NovoEventoOperacional,
+  NovoItemCampanhaCrm,
+  NovoJobOperacional,
   NovoMovimentoFunilComercial,
   NovoLotePagamentoComissao,
   NovoLinkAfiliado,
   NovoPlaybookRecuperacao,
   NovoParceiroComercial,
+  NovoTemplateWhatsAppNegocio,
   NovaReserva,
   NovaMensagemAtendimento,
   NovaTarefaOperacional,
@@ -49,13 +63,17 @@ import type {
   EstadoPagamento,
   EstadoPeca,
   EstadoReserva,
+  EventoOperacional,
   EventoSistema,
   EventoTrackingComercial,
+  FiltrosCampanhasCrm,
+  FiltrosEventosOperacionais,
   FiltrosPlaybookRecuperacao,
   FiltrosTarefasOperacionais,
   FiltrosSocialInbox,
   DadosCriacaoReservaComControleStock,
   DadosPublicacaoLoja,
+  JobOperacional,
   CodigoLoginSms,
   InstanciaWhatsApp,
   NovoOutboxMensagemWhatsApp,
@@ -89,6 +107,7 @@ import type {
   ResumoAfiliadosComerciais,
   ResumoTrackingComercial,
   SocialInboxItem,
+  TemplateWhatsAppNegocio,
   TarefaOperacional
 } from "../tipos.js";
 
@@ -104,7 +123,56 @@ export interface RepositorioPecas {
 
 export interface RepositorioTrackingComercial {
   registrarEvento(dados: NovoEventoTrackingComercial): Promise<EventoTrackingComercial>;
+  listarEventos(negocioId: string, filtros?: {
+    tipo?: EventoTrackingComercial["tipo"];
+    origem?: string;
+    canal?: string;
+    codigoProduto?: string;
+    limite?: number;
+  }): Promise<EventoTrackingComercial[]>;
   resumirEventos(negocioId: string): Promise<ResumoTrackingComercial>;
+}
+
+export interface RepositorioTemplatesWhatsApp {
+  criar(dados: NovoTemplateWhatsAppNegocio): Promise<TemplateWhatsAppNegocio>;
+  listar(negocioId: string): Promise<TemplateWhatsAppNegocio[]>;
+  buscarPorId(id: string, negocioId: string): Promise<TemplateWhatsAppNegocio | null>;
+  atualizar(
+    id: string,
+    negocioId: string,
+    dados: AtualizacaoTemplateWhatsAppNegocio
+  ): Promise<TemplateWhatsAppNegocio | null>;
+}
+
+export interface RepositorioCampanhas {
+  criar(dados: NovaCampanhaCrm): Promise<CampanhaCrm>;
+  listar(negocioId: string, filtros?: FiltrosCampanhasCrm): Promise<CampanhaCrm[]>;
+  buscarPorId(id: string, negocioId: string): Promise<CampanhaCrm | null>;
+  atualizar(id: string, negocioId: string, dados: AtualizacaoCampanhaCrm): Promise<CampanhaCrm | null>;
+  registrarItens(campanhaId: string, itens: NovoItemCampanhaCrm[]): Promise<ItemCampanhaCrm[]>;
+  listarItens(campanhaId: string, negocioId: string): Promise<ItemCampanhaCrm[]>;
+}
+
+export interface RepositorioEventosOperacionais {
+  registrar(dados: NovoEventoOperacional): Promise<{ evento: EventoOperacional; duplicado: boolean }>;
+  listar(negocioId: string, filtros?: FiltrosEventosOperacionais): Promise<EventoOperacional[]>;
+}
+
+export interface RepositorioJobsOperacionais {
+  criar(dados: NovoJobOperacional): Promise<{ job: JobOperacional; duplicado: boolean }>;
+  atualizar(id: string, negocioId: string, dados: AtualizacaoJobOperacional): Promise<JobOperacional | null>;
+  buscarPorId(id: string, negocioId: string): Promise<JobOperacional | null>;
+  buscarPorIdempotencyKey(negocioId: string, idempotencyKey: string): Promise<JobOperacional | null>;
+}
+
+export interface RepositorioMembrosNegocio {
+  listar(negocioId: string): Promise<MembroNegocioOperacional[]>;
+  criar(dados: NovoMembroNegocioOperacional): Promise<MembroNegocioOperacional>;
+  atualizar(
+    id: string,
+    negocioId: string,
+    dados: AtualizacaoMembroNegocioOperacional
+  ): Promise<MembroNegocioOperacional | null>;
 }
 
 export interface RepositorioAfiliados {
@@ -281,6 +349,7 @@ export interface RepositorioClientes {
   listar(negocioId: string, filtros?: FiltrosClientes360): Promise<Cliente360[]>;
   buscarPorId(id: string, negocioId: string): Promise<Cliente360 | null>;
   atualizar(id: string, negocioId: string, dados: AtualizacaoCliente360): Promise<Cliente360 | null>;
+  anonimizar(id: string, negocioId: string, dados: { motivo: string; anonimizadoEm?: Date }): Promise<Cliente360 | null>;
 }
 
 export interface RepositorioCompartilhamentoClientes {
@@ -307,6 +376,7 @@ export interface RepositorioPedidos {
   listar(negocioId: string, filtros?: FiltrosPedidos): Promise<Pedido[]>;
   buscarPorId(id: string, negocioId: string): Promise<Pedido | null>;
   atualizarEstado(id: string, negocioId: string, dados: AtualizacaoEstadoPedido): Promise<Pedido | null>;
+  atualizarFinanceiro(id: string, negocioId: string, dados: AtualizacaoFinanceiraPedido): Promise<Pedido | null>;
   confirmarPagamento(id: string, negocioId: string, dados: ConfirmacaoPagamentoPedido): Promise<Pedido | null>;
   atualizarEntrega(id: string, negocioId: string, dados: AtualizacaoEntregaPedido): Promise<Pedido | null>;
 }

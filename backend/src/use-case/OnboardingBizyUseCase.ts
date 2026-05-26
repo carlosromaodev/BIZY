@@ -58,6 +58,11 @@ export class OnboardingBizyUseCase {
   }
 
   private normalizarNegocio(dados: DadosNegocioBizy): DadosNegocioBizy {
+    const entrega = this.objeto(dados.entrega);
+    const areasEntrega = this.listaUnica(dados.areasEntrega ?? []);
+    const canaisVenda = this.listaUnica(dados.canaisVenda ?? []);
+    const metodosPagamento = this.listaUnica(dados.metodosPagamento ?? []);
+
     return {
       ...dados,
       nomeComercial: dados.nomeComercial.trim(),
@@ -65,11 +70,30 @@ export class OnboardingBizyUseCase {
       tipo: dados.tipo || "LOJA",
       moeda: (dados.moeda ?? "AOA").trim().toUpperCase(),
       fusoHorario: dados.fusoHorario?.trim() || "Africa/Luanda",
-      canaisVenda: [...new Set((dados.canaisVenda ?? []).map((canal) => canal.trim().toLowerCase()).filter(Boolean))],
-      metodosPagamento: [
-        ...new Set((dados.metodosPagamento ?? []).map((metodo) => metodo.trim().toLowerCase()).filter(Boolean))
-      ],
+      canaisVenda,
+      metodosPagamento,
+      entrega: {
+        ...entrega,
+        areasEntrega,
+        politicaTrocaDevolucao: this.objeto(dados.politicaTrocaDevolucao),
+        onboardingOperacional: {
+          modeloVenda: dados.modeloVenda?.trim() || null,
+          tipoProdutoVendido: dados.tipoProdutoVendido?.trim() || null,
+          regrasComissao: this.objeto(dados.regrasComissao),
+          contasSociais: this.objeto(dados.contasSociais),
+          canaisVenda,
+          metodosPagamento
+        }
+      },
       minutosReservaPadrao: dados.minutosReservaPadrao ?? 10
     };
+  }
+
+  private listaUnica(valores: string[]): string[] {
+    return [...new Set(valores.map((valor) => valor.trim().toLowerCase()).filter(Boolean))];
+  }
+
+  private objeto(valor?: Record<string, unknown> | null): Record<string, unknown> {
+    return valor && typeof valor === "object" && !Array.isArray(valor) ? valor : {};
   }
 }

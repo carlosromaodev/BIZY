@@ -478,6 +478,11 @@ model Negocio {
   execucoesPlaybookRecuperacao ExecucaoPlaybookRecuperacao[]
   movimentosFunilComercial MovimentoFunilComercial[]
   oportunidadesRecuperacao OportunidadeRecuperacao[]
+  templatesWhatsApp      TemplateWhatsAppNegocio[]
+  campanhasCrm          CampanhaCrm[]
+  itensCampanhaCrm      ItemCampanhaCrm[]
+  eventosOperacionais   EventoOperacional[]
+  jobsOperacionais      JobOperacional[]
 
   @@index([nomeComercial])
   @@index([slugPublico])
@@ -606,6 +611,122 @@ model OportunidadeRecuperacao {
   @@index([clienteTelefone, criadaEm])
   @@index([tarefaId])
   @@index([movimentoFunilId])
+}
+
+model TemplateWhatsAppNegocio {
+  id                    String   @id @default(uuid())
+  negocioId             String
+  negocio               Negocio  @relation(fields: [negocioId], references: [id])
+  nome                  String
+  categoria             String
+  idioma                String   @default("pt_AO")
+  provider              String   @default("whatsapp_cloud_api")
+  estadoAprovacao       String   @default("rascunho")
+  eventosCompativeisJson String  @default("[]")
+  variaveisJson         String   @default("[]")
+  corpo                 String
+  ativo                 Boolean  @default(true)
+  versao                Int      @default(1)
+  motivoUltimaAlteracao String?
+  criadoEm              DateTime @default(now())
+  atualizadoEm          DateTime @updatedAt
+  campanhas             CampanhaCrm[]
+
+  @@index([negocioId, categoria, estadoAprovacao])
+  @@index([negocioId, ativo])
+}
+
+model CampanhaCrm {
+  id                  String             @id @default(uuid())
+  negocioId           String
+  negocio             Negocio            @relation(fields: [negocioId], references: [id])
+  nome                String
+  objetivo            String
+  canal               String             @default("whatsapp")
+  templateId          String
+  template            TemplateWhatsAppNegocio @relation(fields: [templateId], references: [id])
+  categoria           String
+  estado              String             @default("RASCUNHO")
+  segmentoJson        String             @default("{}")
+  limiteDiario        Int                @default(500)
+  janelaInicio        DateTime?
+  janelaFim           DateTime?
+  metricasJson        String             @default("{}")
+  criadaPorUsuarioId  String?
+  pausadaEm           DateTime?
+  motivoPausa         String?
+  confirmadaEm        DateTime?
+  criadaEm            DateTime           @default(now())
+  atualizadaEm        DateTime           @updatedAt
+  itens               ItemCampanhaCrm[]
+
+  @@index([negocioId, estado, criadaEm])
+  @@index([negocioId, canal, criadaEm])
+  @@index([templateId])
+}
+
+model ItemCampanhaCrm {
+  id                String       @id @default(uuid())
+  negocioId         String
+  negocio           Negocio      @relation(fields: [negocioId], references: [id])
+  campanhaId        String
+  campanha          CampanhaCrm  @relation(fields: [campanhaId], references: [id], onDelete: Cascade)
+  clienteId         String?
+  telefone          String?
+  nomeCliente       String?
+  status            String
+  motivoBloqueio    String?
+  outboxMensagemId  String?
+  contextoJson      String       @default("{}")
+  criadoEm          DateTime     @default(now())
+  atualizadoEm      DateTime     @updatedAt
+
+  @@index([negocioId, campanhaId, status])
+  @@index([clienteId])
+  @@index([telefone])
+}
+
+model EventoOperacional {
+  id                String    @id @default(uuid())
+  negocioId         String
+  negocio           Negocio   @relation(fields: [negocioId], references: [id])
+  topico            String
+  tipo              String
+  entidadeTipo      String?
+  entidadeId        String?
+  idempotencyKey    String?
+  payloadJson       String    @default("{}")
+  estado            String    @default("PENDENTE")
+  tentativas        Int       @default(0)
+  proximaTentativaEm DateTime?
+  criadoEm          DateTime  @default(now())
+  atualizadoEm      DateTime  @updatedAt
+
+  @@unique([negocioId, idempotencyKey])
+  @@index([negocioId, topico, criadoEm])
+  @@index([negocioId, estado, criadoEm])
+  @@index([entidadeTipo, entidadeId])
+}
+
+model JobOperacional {
+  id              String    @id @default(uuid())
+  negocioId       String
+  negocio         Negocio   @relation(fields: [negocioId], references: [id])
+  tipo            String
+  estado          String    @default("PENDENTE")
+  idempotencyKey  String?
+  total           Int       @default(0)
+  processados     Int       @default(0)
+  erros           Int       @default(0)
+  resultadoJson   String    @default("{}")
+  erro            String?
+  criadoEm        DateTime  @default(now())
+  atualizadoEm    DateTime  @updatedAt
+  concluidoEm     DateTime?
+
+  @@unique([negocioId, idempotencyKey])
+  @@index([negocioId, tipo, criadoEm])
+  @@index([negocioId, estado, criadoEm])
 }
 
 model TarefaOperacional {

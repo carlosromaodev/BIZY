@@ -279,7 +279,8 @@ Assim que receber o código da peça, confirmo a disponibilidade e sigo com a tu
         categoriaSolicitada: dados.categoria,
         categoriaTemplate: template?.categoria,
         consentimentoMarketing: dados.consentimentoMarketing,
-        janelaAtendimentoAtiva: dados.janelaAtendimentoAtiva
+        janelaAtendimentoAtiva: dados.janelaAtendimentoAtiva,
+        conteudo
       });
 
       const resultado = await this.enviarSemBloqueioAutomatico(

@@ -1,5 +1,6 @@
 import { createHmac, randomUUID } from "node:crypto";
 import {
+  AtualizarPagamentosNegocioSchema,
   ConfirmarCodigoLoginSchema,
   AtualizarModuloNegocioSchema,
   CriarProdutoInicialOnboardingSchema,
@@ -166,6 +167,67 @@ export const moduloAutenticacao: ModuloHttp = {
       return reply.code(201).send({ produto });
     });
 
+    app.get("/negocio/pagamentos", async (request, reply) => {
+      const contextoComercial = await exigirPermissaoComercial(
+        contexto,
+        request,
+        reply,
+        "configuracoes:gerir",
+        "Sem permissão para consultar pagamentos do negócio."
+      );
+      if (!contextoComercial) return;
+
+      const pagamentos = extrairPagamentosNegocio(contextoComercial.negocio);
+      return { pagamentos };
+    });
+
+    app.patch("/negocio/pagamentos", async (request, reply) => {
+      const contextoComercial = await exigirPermissaoComercial(
+        contexto,
+        request,
+        reply,
+        "configuracoes:gerir",
+        "Sem permissão para alterar pagamentos do negócio."
+      );
+      if (!contextoComercial) return;
+
+      const dados = AtualizarPagamentosNegocioSchema.parse(request.body ?? {});
+      const entrega = {
+        ...contextoComercial.negocio.entrega,
+        pagamentos: {
+          instrucoesCobranca: dados.instrucoesCobranca,
+          mensagemComprovativoPendente: dados.mensagemComprovativoPendente,
+          mensagemPagamentoConfirmado: dados.mensagemPagamentoConfirmado,
+          contasBancarias: dados.contasBancarias
+        }
+      };
+      const negocio = await contexto.onboardingBizy.salvarNegocio(contextoComercial.usuario.id, {
+        nomeComercial: contextoComercial.negocio.nomeComercial,
+        segmento: contextoComercial.negocio.segmento,
+        tipo: contextoComercial.negocio.tipo,
+        nif: contextoComercial.negocio.nif,
+        telefone: contextoComercial.negocio.telefone,
+        whatsapp: contextoComercial.negocio.whatsapp,
+        email: contextoComercial.negocio.email,
+        instagram: contextoComercial.negocio.instagram,
+        tiktok: contextoComercial.negocio.tiktok,
+        provincia: contextoComercial.negocio.provincia,
+        municipio: contextoComercial.negocio.municipio,
+        endereco: contextoComercial.negocio.endereco,
+        moeda: contextoComercial.negocio.moeda,
+        fusoHorario: contextoComercial.negocio.fusoHorario,
+        canaisVenda: contextoComercial.negocio.canaisVenda,
+        metodosPagamento: dados.metodosPagamento,
+        entrega,
+        minutosReservaPadrao: contextoComercial.negocio.minutosReservaPadrao,
+        slugPublico: contextoComercial.negocio.slugPublico,
+        descricaoPublica: contextoComercial.negocio.descricaoPublica,
+        lojaPublicadaEm: contextoComercial.negocio.lojaPublicadaEm
+      });
+
+      return { negocio, pagamentos: extrairPagamentosNegocio(negocio) };
+    });
+
     app.get("/negocio/modulos", async (request, reply) => {
       const contextoComercial = await exigirPermissaoComercial(
         contexto,
@@ -203,6 +265,23 @@ export const moduloAutenticacao: ModuloHttp = {
     });
   }
 };
+
+function extrairPagamentosNegocio(negocio: {
+  metodosPagamento: string[];
+  entrega: Record<string, unknown>;
+}) {
+  const pagamentos = negocio.entrega.pagamentos && typeof negocio.entrega.pagamentos === "object"
+    ? negocio.entrega.pagamentos as Record<string, unknown>
+    : {};
+
+  return {
+    metodosPagamento: negocio.metodosPagamento,
+    instrucoesCobranca: pagamentos.instrucoesCobranca ?? null,
+    mensagemComprovativoPendente: pagamentos.mensagemComprovativoPendente ?? null,
+    mensagemPagamentoConfirmado: pagamentos.mensagemPagamentoConfirmado ?? null,
+    contasBancarias: Array.isArray(pagamentos.contasBancarias) ? pagamentos.contasBancarias : []
+  };
+}
 
 function obterFrontendUrl() {
   return (

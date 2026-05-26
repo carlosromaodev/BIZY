@@ -1,6 +1,10 @@
 import { z } from "zod";
 import {
   estadosConversaAtendimento,
+  estadosAprovacaoTemplateWhatsApp,
+  estadosCampanhaCrm,
+  estadosEventoOperacional,
+  estadosJobOperacional,
   estadosEntregaPedido,
   estadosOportunidadeRecuperacao,
   estadosPagamentoPedido,
@@ -12,6 +16,9 @@ import {
   estadosExecucaoPlaybookRecuperacao,
   estadosRelacionamentoCliente,
   estadosRelacaoNegocio,
+  papeisNegocio,
+  providersTemplateWhatsApp,
+  statusMembroNegocio,
   etapasFunilComercial,
   fontesLive,
   gatilhosPlaybookRecuperacao,
@@ -61,6 +68,84 @@ export const AtualizarModuloNegocioSchema = z.object({
   configuracao: z.record(z.string(), z.unknown()).default({})
 });
 
+export const CriarMembroNegocioSchema = z.object({
+  telefone: z.string().trim().min(9).max(20),
+  nome: z.string().trim().min(2).max(160),
+  email: z.string().trim().email().nullable().optional().transform((valor) => valor ?? null),
+  papel: z.enum(papeisNegocio),
+  permissoes: z.array(z.string().trim().min(3).max(80)).default([])
+});
+
+export const AtualizarMembroNegocioSchema = z.object({
+  papel: z.enum(papeisNegocio).optional(),
+  status: z.enum(statusMembroNegocio).optional(),
+  permissoes: z.array(z.string().trim().min(3).max(80)).optional(),
+  motivo: z.string().trim().min(3).max(500).nullable().optional().transform((valor) => valor ?? null)
+});
+
+export const CriarTemplateWhatsAppSchema = z.object({
+  nome: z.string().trim().min(2).max(160),
+  categoria: z.enum(categoriasMensagemWhatsApp),
+  idioma: z.string().trim().min(2).max(16).default("pt_AO"),
+  provider: z.enum(providersTemplateWhatsApp).default("whatsapp_cloud_api"),
+  estadoAprovacao: z.enum(estadosAprovacaoTemplateWhatsApp).default("rascunho"),
+  eventosCompativeis: z.array(z.string().trim().min(2).max(80)).default([]),
+  variaveis: z.array(z.string().trim().min(1).max(80)).default([]),
+  corpo: z.string().trim().min(3).max(4096),
+  ativo: z.boolean().default(true)
+});
+
+export const AtualizarTemplateWhatsAppSchema = CriarTemplateWhatsAppSchema.partial().extend({
+  motivo: z.string().trim().min(3).max(500).nullable().optional().transform((valor) => valor ?? null)
+});
+
+export const CriarCampanhaSchema = z.object({
+  nome: z.string().trim().min(2).max(160),
+  objetivo: z.string().trim().min(3).max(500),
+  canal: z.string().trim().min(2).max(40).default("whatsapp"),
+  templateId: z.string().trim().min(1).max(120),
+  categoria: z.enum(categoriasMensagemWhatsApp),
+  segmento: z.record(z.string(), z.unknown()).default({}),
+  limiteDiario: z.coerce.number().int().min(1).max(50_000).default(500),
+  janelaEnvio: z
+    .object({
+      inicio: z.coerce.date().nullable().optional(),
+      fim: z.coerce.date().nullable().optional()
+    })
+    .optional()
+});
+
+export const FiltrosCampanhasQuerySchema = z.object({
+  estado: z.enum(estadosCampanhaCrm).optional(),
+  canal: z.string().trim().min(1).max(40).optional(),
+  limite: z.coerce.number().int().min(1).max(500).default(100)
+});
+
+export const ConfirmarCampanhaSchema = z.object({
+  confirmar: z.boolean()
+});
+
+export const PausarCampanhaSchema = z.object({
+  motivo: z.string().trim().min(3).max(500)
+});
+
+export const RegistrarEventoOperacionalSchema = z.object({
+  topico: z.string().trim().min(2).max(80),
+  tipo: z.string().trim().min(2).max(120),
+  entidadeTipo: z.string().trim().min(1).max(80).nullable().optional().transform((valor) => valor ?? null),
+  entidadeId: z.string().trim().min(1).max(120).nullable().optional().transform((valor) => valor ?? null),
+  idempotencyKey: z.string().trim().min(3).max(240).nullable().optional().transform((valor) => valor ?? null),
+  payload: z.record(z.string(), z.unknown()).default({}),
+  estado: z.enum(estadosEventoOperacional).default("PENDENTE")
+});
+
+export const FiltrosEventosOperacionaisQuerySchema = z.object({
+  topico: z.string().trim().min(1).max(80).optional(),
+  tipo: z.string().trim().min(1).max(120).optional(),
+  estado: z.enum(estadosEventoOperacional).optional(),
+  limite: z.coerce.number().int().min(1).max(500).default(100)
+});
+
 export const ComentarioLiveSchema = z.object({
   source: z.enum(fontesLive),
   provider: z.string().min(1),
@@ -101,6 +186,18 @@ export const CriarPecaSchema = z.object({
 });
 
 export const AtualizarPecaSchema = CriarPecaSchema.partial().omit({ codigo: true });
+
+export const ImportarCsvSchema = z.object({
+  csv: z.string().trim().min(1).max(5_000_000)
+});
+
+export const CriarJobImportacaoClientesSchema = ImportarCsvSchema.extend({
+  idempotencyKey: z.string().trim().min(3).max(240).nullable().optional().transform((valor) => valor ?? null)
+});
+
+export const ArquivarPecaSchema = z.object({
+  motivo: z.string().trim().min(3).max(500).optional()
+});
 
 export const RegistrarMovimentoStockSchema = z.object({
   tipo: z.enum(tiposMovimentoStock),
@@ -179,6 +276,31 @@ export const CriarCheckoutSitePublicoSchema = CalcularEntregaPublicaSchema.exten
     })
     .refine((dados) => Boolean(dados.telefone || dados.email), {
       message: "Informe telefone ou email para confirmar o pedido."
+    }),
+  trackingId: z.string().trim().min(1).max(160).nullable().optional().transform((valor) => valor ?? null),
+  referencia: z.string().trim().min(1).max(120).nullable().optional().transform((valor) => valor ?? null),
+  origem: z.string().trim().min(1).max(80).default("loja-publica"),
+  canal: z.string().trim().min(1).max(80).default("site"),
+  observacao: z.string().trim().max(1000).nullable().optional().transform((valor) => valor ?? null)
+});
+
+export const CriarCheckoutAbandonadoPublicoSchema = CalcularEntregaPublicaSchema.extend({
+  cliente: z
+    .object({
+      nome: TextoCatalogoOpcionalSchema,
+      telefone: TextoCatalogoOpcionalSchema,
+      email: z.preprocess(
+        (valor) => (typeof valor === "string" && valor.trim() === "" ? null : valor),
+        z.string().trim().email().max(160).nullable().optional()
+      ).transform((valor) => valor ?? null),
+      consentimentoMarketing: z.boolean().default(false),
+      consentimentoDados: z.boolean().default(false)
+    })
+    .refine((dados) => Boolean(dados.telefone || dados.email), {
+      message: "Informe telefone ou email para recuperar o checkout."
+    })
+    .refine((dados) => dados.consentimentoDados, {
+      message: "Consentimento de dados é obrigatório para criar oportunidade de recuperação."
     }),
   trackingId: z.string().trim().min(1).max(160).nullable().optional().transform((valor) => valor ?? null),
   referencia: z.string().trim().min(1).max(120).nullable().optional().transform((valor) => valor ?? null),
@@ -397,15 +519,6 @@ export const CriarSocialInboxItemSchema = z.object({
   contexto: z.record(z.string(), z.unknown()).default({})
 });
 
-export const FiltrosSocialInboxQuerySchema = z.object({
-  canal: z.string().trim().min(2).max(40).optional(),
-  estado: z.enum(estadosSocialInbox).optional(),
-  intencao: z.enum(intencoesSocialInbox).optional(),
-  autorUsername: z.string().trim().min(1).max(120).optional(),
-  clienteTelefone: z.string().trim().min(1).max(30).optional(),
-  limite: z.coerce.number().int().min(1).max(500).optional()
-});
-
 const BooleanQuerySchema = z.preprocess((valor) => {
   if (typeof valor === "string") {
     if (valor.toLowerCase() === "true") return true;
@@ -413,6 +526,22 @@ const BooleanQuerySchema = z.preprocess((valor) => {
   }
   return valor;
 }, z.boolean().optional());
+
+export const FiltrosSocialInboxQuerySchema = z.object({
+  canal: z.string().trim().min(2).max(40).optional(),
+  provider: z.string().trim().min(2).max(80).optional(),
+  postId: z.string().trim().min(1).max(160).optional(),
+  estado: z.enum(estadosSocialInbox).optional(),
+  intencao: z.enum(intencoesSocialInbox).optional(),
+  autorUsername: z.string().trim().min(1).max(120).optional(),
+  clienteTelefone: z.string().trim().min(1).max(30).optional(),
+  campanhaId: z.string().trim().min(1).max(160).optional(),
+  produtoCodigo: z.string().trim().min(1).max(80).optional(),
+  responsavelId: z.string().trim().min(1).max(120).optional(),
+  urgencia: z.enum(prioridadesTarefaOperacional).optional(),
+  respondido: BooleanQuerySchema,
+  limite: z.coerce.number().int().min(1).max(500).optional()
+});
 
 export const CriarPlaybookRecuperacaoSchema = z.object({
   nome: z.string().trim().min(3).max(160),
@@ -525,6 +654,22 @@ export const AtualizarClienteCrmSchema = ClienteCrmBaseSchema.partial()
     message: "Informe pelo menos um campo para atualizar o cliente."
   });
 
+export const MesclarClientesSchema = z.object({
+  clienteDestinoId: z.string().trim().uuid(),
+  clienteOrigemId: z.string().trim().uuid(),
+  motivo: z.string().trim().min(3).max(500).optional()
+});
+
+export const AcaoRapidaClienteSchema = z.object({
+  tipo: z.string().trim().min(2).max(80).transform((valor) => valor.toUpperCase()),
+  titulo: z.string().trim().min(3).max(160).optional(),
+  observacao: z.string().trim().max(2000).nullable().optional().transform((valor) => valor ?? null),
+  prioridade: z.enum(prioridadesTarefaOperacional).default("NORMAL"),
+  responsavelId: CampoTarefaOpcionalSchema,
+  prazoEm: z.coerce.date().nullable().optional().transform((valor) => valor ?? null),
+  contexto: z.record(z.string(), z.unknown()).default({})
+});
+
 export const CriarRelacaoNegocioSchema = z.object({
   negocioDestinoId: z.string().trim().uuid(),
   tipo: z.enum(tiposRelacaoNegocio).default("PARCERIA_DADOS"),
@@ -547,6 +692,10 @@ export const CriarCompartilhamentoClienteSchema = z.object({
 });
 
 export const RevogarCompartilhamentoClienteSchema = z.object({
+  motivo: z.string().trim().min(3).max(500)
+});
+
+export const AnonimizarClienteSchema = z.object({
   motivo: z.string().trim().min(3).max(500)
 });
 
@@ -574,6 +723,13 @@ export const CriarPedidoSchema = z.object({
   responsavelId: TextoPerfilOpcionalSchema
 });
 
+export const CriarOrcamentoPedidoSchema = CriarPedidoSchema.omit({
+  reservaId: true,
+  comprovativoPagamentoUrl: true
+}).extend({
+  validadeMinutos: z.coerce.number().int().min(5).max(10_080).default(60)
+});
+
 export const AtualizarEstadoPedidoSchema = z
   .object({
     estado: z.enum(estadosPedido).optional(),
@@ -584,6 +740,20 @@ export const AtualizarEstadoPedidoSchema = z
   .refine((dados) => Object.keys(dados).length > 0, {
     message: "Informe pelo menos um campo para atualizar o pedido."
   });
+
+export const SolicitarDescontoPedidoSchema = z.object({
+  descontoEmKwanza: z.coerce.number().int().min(1),
+  motivo: z.string().trim().min(3).max(1000),
+  responsavelId: TextoPerfilOpcionalSchema,
+  observacao: z.string().trim().max(1000).nullable().optional().transform((valor) => valor ?? null)
+});
+
+export const AprovarDescontoPedidoSchema = z.object({
+  descontoEmKwanza: z.coerce.number().int().min(1),
+  motivo: z.string().trim().min(3).max(1000),
+  aprovadoPor: z.string().trim().min(2).max(160),
+  observacao: z.string().trim().max(1000).nullable().optional().transform((valor) => valor ?? null)
+});
 
 export const ConfirmarPagamentoPedidoSchema = z.object({
   comprovativoPagamentoUrl: z.string().trim().url().max(2048).nullable().optional().transform((valor) => valor ?? null),
@@ -626,7 +796,57 @@ export const FiltrosPedidosQuerySchema = z.object({
   estadoEntrega: z.enum(estadosEntregaPedido).optional(),
   clienteId: z.string().trim().uuid().optional(),
   busca: z.string().trim().max(120).optional(),
+  produto: z.string().trim().min(1).max(120).optional(),
+  canal: z.string().trim().min(1).max(80).optional(),
+  dataInicio: z.coerce.date().optional(),
+  dataFim: z.coerce.date().optional(),
   limite: z.coerce.number().int().min(1).max(1000).optional()
+});
+
+export const FiltrosEntregaPedidoQuerySchema = z.object({
+  bairro: z.string().trim().min(1).max(120).optional(),
+  estadoEntrega: z.enum(estadosEntregaPedido).optional(),
+  responsavelId: z.string().trim().min(1).max(120).optional(),
+  dataInicio: z.coerce.date().optional(),
+  dataFim: z.coerce.date().optional(),
+  limite: z.coerce.number().int().min(1).max(1000).optional()
+});
+
+export const RecuperarPedidosParadosSchema = z.object({
+  estado: z.enum(estadosPedido).optional(),
+  estadoPagamento: z.enum(estadosPagamentoPedido).optional(),
+  estadoEntrega: z.enum(estadosEntregaPedido).optional(),
+  idadeMinutos: z.coerce.number().int().min(0).max(43_200).default(60),
+  prioridade: z.enum(prioridadesTarefaOperacional).default("ALTA"),
+  responsavelId: CampoTarefaOpcionalSchema,
+  limite: z.coerce.number().int().min(1).max(500).default(100)
+});
+
+export const FiltrosRelatorioComercialQuerySchema = z.object({
+  dataInicio: z.coerce.date().optional(),
+  dataFim: z.coerce.date().optional(),
+  canal: z.string().trim().min(1).max(80).optional(),
+  produto: z.string().trim().min(1).max(120).optional(),
+  estado: z.enum(estadosPedido).optional(),
+  responsavelId: z.string().trim().min(1).max(120).optional()
+});
+
+export const AtualizarPagamentosNegocioSchema = z.object({
+  metodosPagamento: z.array(z.string().trim().min(1).max(60)).max(20).default([]),
+  instrucoesCobranca: z.string().trim().max(2000).nullable().optional().transform((valor) => valor ?? null),
+  mensagemComprovativoPendente: z.string().trim().max(1000).nullable().optional().transform((valor) => valor ?? null),
+  mensagemPagamentoConfirmado: z.string().trim().max(1000).nullable().optional().transform((valor) => valor ?? null),
+  contasBancarias: z
+    .array(
+      z.object({
+        banco: z.string().trim().min(1).max(80),
+        iban: z.string().trim().min(8).max(80),
+        titular: z.string().trim().min(2).max(160),
+        observacao: z.string().trim().max(500).nullable().optional().transform((valor) => valor ?? null)
+      })
+    )
+    .max(20)
+    .default([])
 });
 
 export const RegistrarNotaInternaAtendimentoSchema = z.object({
@@ -642,6 +862,47 @@ export const RegistrarSugestaoIaAtendimentoSchema = z.object({
   regra: z.string().trim().min(1).max(120).default("sugestao_manual"),
   confianca: z.coerce.number().min(0).max(1).default(0),
   dadosConsultados: z.record(z.string(), z.unknown()).default({})
+});
+
+export const EnviarMensagemConversaAtendimentoSchema = z
+  .object({
+    tipo: z.enum(["TEXTO", "TEMPLATE", "IMAGEM", "DOCUMENTO", "RECIBO", "CATALOGO"]).default("TEXTO"),
+    mensagem: z.string().trim().min(1).max(4000).optional(),
+    templateId: z.string().trim().min(1).max(120).optional(),
+    variaveis: z.record(z.string(), z.string()).default({}),
+    categoria: z.enum(categoriasMensagemWhatsApp).default("service"),
+    janelaAtendimentoAtiva: z.boolean().default(true),
+    consentimentoMarketing: z.boolean().optional(),
+    mediaUrl: z.string().trim().url().max(2048).optional(),
+    entidadeTipo: CampoTarefaOpcionalSchema,
+    entidadeId: CampoTarefaOpcionalSchema,
+    contexto: z.record(z.string(), z.unknown()).default({})
+  })
+  .refine((dados) => Boolean(dados.mensagem || dados.templateId || dados.mediaUrl), {
+    message: "Informe mensagem, templateId ou mediaUrl."
+  });
+
+export const CriarPedidoConversaAtendimentoSchema = CriarPedidoSchema.omit({ clienteId: true });
+
+export const VerificarSlaConversasSchema = z.object({
+  idadeMinutos: z.coerce.number().int().min(0).max(43_200).default(30),
+  prioridade: z.enum(prioridadesTarefaOperacional).default("ALTA"),
+  responsavelId: CampoTarefaOpcionalSchema,
+  limite: z.coerce.number().int().min(1).max(500).default(100)
+});
+
+export const TransferirResponsavelOperacionalSchema = z.object({
+  responsavelId: z.string().trim().min(1).max(120),
+  motivo: z.string().trim().max(1000).nullable().optional().transform((valor) => valor ?? null),
+  itens: z
+    .array(
+      z.object({
+        tipo: z.enum(["conversa", "pedido", "tarefa"]),
+        id: z.string().trim().min(1).max(120)
+      })
+    )
+    .min(1)
+    .max(50)
 });
 
 export const ClassificarMensagemN8nSchema = z.object({
@@ -707,6 +968,8 @@ export const SalvarNegocioOnboardingSchema = z.object({
   nomeComercial: z.string().trim().min(2).max(120),
   segmento: z.string().trim().min(2).max(120),
   tipo: z.enum(["LOJA", "CRIADOR", "REVENDEDOR", "SERVICO"]).default("LOJA"),
+  modeloVenda: TextoOnboardingOpcionalSchema,
+  tipoProdutoVendido: TextoOnboardingOpcionalSchema,
   nif: TextoOnboardingOpcionalSchema,
   telefone: TextoOnboardingOpcionalSchema,
   whatsapp: TextoOnboardingOpcionalSchema,
@@ -723,6 +986,10 @@ export const SalvarNegocioOnboardingSchema = z.object({
   fusoHorario: z.string().trim().min(3).max(80).default("Africa/Luanda"),
   canaisVenda: z.array(z.string().trim().min(1).max(40)).max(12).default([]),
   metodosPagamento: z.array(z.string().trim().min(1).max(40)).max(12).default([]),
+  areasEntrega: z.array(z.string().trim().min(1).max(120)).max(60).default([]),
+  regrasComissao: z.record(z.string(), z.unknown()).default({}),
+  politicaTrocaDevolucao: z.record(z.string(), z.unknown()).default({}),
+  contasSociais: z.record(z.string(), z.unknown()).default({}),
   entrega: z.record(z.string(), z.unknown()).default({}),
   minutosReservaPadrao: z.coerce.number().int().min(1).max(180).default(10)
 });

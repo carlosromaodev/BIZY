@@ -1,5 +1,6 @@
 import { CriarInstanciaWhatsAppSchema, EnviarMensagemWhatsAppManualSchema } from "../../../dominio/esquemas.js";
 import type { FiltrosTemplatesWhatsApp } from "../../../dominio/servicos/AutomacaoWhatsApp.js";
+import type { TemplateWhatsAppNegocio } from "../../../dominio/tipos.js";
 import { exigirAcessoComercial } from "../contextoComercial.js";
 import { exigirUsuarioAutenticado } from "../seguranca.js";
 import type { ModuloHttp } from "./ModuloHttp.js";
@@ -32,7 +33,20 @@ export const moduloIntegracoes: ModuloHttp = {
       });
       if (!contextoComercial) return;
 
-      return { templates: contexto.automacaoWhatsApp.listarTemplates(normalizarFiltrosTemplates(request.query)) };
+      const filtros = normalizarFiltrosTemplates(request.query);
+      const templatesPadrao = contexto.automacaoWhatsApp
+        .listarTemplates(filtros)
+        .map((template) => ({ ...template, origem: "sistema" as const }));
+      const templatesNegocio = (await contexto.gestaoCampanhasCrm.listarTemplates(contextoComercial.negocio.id))
+        .filter((template) => templateNegocioAtendeFiltros(template, filtros))
+        .map((template) => ({
+          ...template,
+          tipo: "NEGOCIO",
+          descricao: "Template configurado pelo negócio.",
+          origem: "negocio" as const
+        }));
+
+      return { templates: [...templatesPadrao, ...templatesNegocio] };
     });
 
     app.post("/whatsapp/mensagens", async (request, reply) => {
@@ -149,4 +163,13 @@ function normalizarFiltrosTemplates(query: unknown): FiltrosTemplatesWhatsApp {
     apenasAprovados: dados.apenasAprovados === "true",
     estadoAprovacao: dados.estadoAprovacao as FiltrosTemplatesWhatsApp["estadoAprovacao"]
   };
+}
+
+function templateNegocioAtendeFiltros(template: TemplateWhatsAppNegocio, filtros: FiltrosTemplatesWhatsApp): boolean {
+  if (filtros.categoria && template.categoria !== filtros.categoria) return false;
+  if (filtros.provider && template.provider !== filtros.provider) return false;
+  if (filtros.apenasAprovados && template.estadoAprovacao !== "aprovado") return false;
+  if (filtros.estadoAprovacao && template.estadoAprovacao !== filtros.estadoAprovacao) return false;
+  if (filtros.evento && !template.eventosCompativeis.includes(filtros.evento)) return false;
+  return true;
 }

@@ -36,7 +36,8 @@ export async function criarAplicacao(): Promise<FastifyInstance> {
     criarRateLimit({
       ativo: process.env.RATE_LIMIT_ATIVO !== "false",
       janelaMs: Number(process.env.RATE_LIMIT_JANELA_MS ?? 60_000),
-      maximoPorJanela: Number(process.env.RATE_LIMIT_MAXIMO ?? 120)
+      maximoPorJanela: Number(process.env.RATE_LIMIT_MAXIMO ?? 120),
+      maximoPublicoPorJanela: Number(process.env.RATE_LIMIT_PUBLICO_MAXIMO ?? process.env.RATE_LIMIT_MAXIMO ?? 120)
     })
   );
 

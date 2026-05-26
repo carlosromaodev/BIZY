@@ -2,7 +2,8 @@ import type { DespachadorEventos } from "../dominio/eventos/DespachadorEventos.j
 import type {
   RepositorioClientes,
   RepositorioPecas,
-  RepositorioPedidos
+  RepositorioPedidos,
+  RepositorioTarefasOperacionais
 } from "../dominio/repositorios/contratos.js";
 import type {
   AtualizacaoEntregaPedido,
@@ -12,6 +13,7 @@ import type {
   DadosPedidoResolvido,
   FiltrosPedidos,
   NovoPedido,
+  NovaTarefaOperacional,
   Pedido
 } from "../dominio/tipos.js";
 
@@ -30,6 +32,7 @@ export class GestaoPedidosUseCase {
     private readonly pedidos: RepositorioPedidos,
     private readonly clientes: RepositorioClientes,
     private readonly pecas: RepositorioPecas,
+    private readonly tarefas: RepositorioTarefasOperacionais,
     private readonly eventos: DespachadorEventos
   ) {}
 
@@ -85,12 +88,20 @@ export class GestaoPedidosUseCase {
     return { pedidos: await this.pedidos.listar(negocioId, filtros) };
   }
 
-  async obterPedido(id: string, negocioId: string): Promise<{ pedido: Pedido; cliente: Cliente360 | null } | null> {
+  async obterPedido(id: string, negocioId: string): Promise<{
+    pedido: Pedido;
+    cliente: Cliente360 | null;
+    resumoFinanceiro: {
+      custoEstimadoEmKwanza: number;
+      margemEstimadaEmKwanza: number | null;
+      margemPercentual: number | null;
+    };
+  } | null> {
     const pedido = await this.pedidos.buscarPorId(id, negocioId);
     if (!pedido) return null;
 
     const cliente = await this.clientes.buscarPorId(pedido.clienteNegocioId, negocioId);
-    return { pedido, cliente };
+    return { pedido, cliente, resumoFinanceiro: await this.calcularResumoFinanceiro(pedido, negocioId) };
   }
 
   async atualizarEstado(id: string, negocioId: string, dados: AtualizacaoEstadoPedido): Promise<Pedido> {
@@ -150,8 +161,8 @@ export class GestaoPedidosUseCase {
     return pedido;
   }
 
-  async exportarCsv(negocioId: string): Promise<string> {
-    const pedidos = await this.pedidos.listar(negocioId, { limite: 10_000 });
+  async exportarCsv(negocioId: string, filtros: FiltrosPedidos = {}): Promise<string> {
+    const pedidos = await this.pedidos.listar(negocioId, { limite: 10_000, ...filtros });
     const clientes = await this.clientes.listar(negocioId, { limite: 10_000 });
     const clientePorId = new Map(clientes.map((cliente) => [cliente.id, cliente]));
     const linhas = [
@@ -183,6 +194,257 @@ export class GestaoPedidosUseCase {
     ];
 
     return `${linhas.map((linha) => linha.map((valor) => this.csv(valor)).join(",")).join("\n")}\n`;
+  }
+
+  async criarOrcamento(dados: NovoPedido & { validadeMinutos: number }) {
+    const cliente = await this.exigirCliente(dados.clienteNegocioId, dados.negocioId);
+    const itens = await this.resolverItens(dados);
+    const subtotalEmKwanza = itens.reduce((total, item) => total + item.subtotalEmKwanza, 0);
+    const descontoEmKwanza = dados.descontoEmKwanza ?? 0;
+    const taxaEntregaEmKwanza = dados.taxaEntregaEmKwanza ?? 0;
+    const totalEmKwanza = subtotalEmKwanza - descontoEmKwanza + taxaEntregaEmKwanza;
+    if (totalEmKwanza < 0) throw new Error("Desconto não pode deixar o total do orçamento negativo.");
+
+    const validadeEm = new Date(Date.now() + dados.validadeMinutos * 60_000);
+    const resumoItens = itens.map((item) => `${item.quantidade}x ${item.nomeProduto} (#${item.codigoPeca})`).join(", ");
+    return {
+      orcamento: {
+        id: `orc_${Date.now().toString(36)}`,
+        negocioId: dados.negocioId,
+        clienteId: cliente.id,
+        clienteNome: cliente.nome,
+        clienteTelefone: cliente.telefone,
+        itens,
+        subtotalEmKwanza,
+        descontoEmKwanza,
+        taxaEntregaEmKwanza,
+        totalEmKwanza,
+        canal: dados.canal ?? "whatsapp",
+        origem: dados.origem ?? "orcamento",
+        validadeEm,
+        mensagemWhatsApp:
+          `Olá${cliente.nome ? `, ${cliente.nome}` : ""}. O teu orçamento Bizy: ${resumoItens}. ` +
+          `Total: ${this.formatarKwanza(totalEmKwanza)}. Válido até ${validadeEm.toLocaleString("pt-AO")}.`
+      }
+    };
+  }
+
+  async gerarListaPreparacao(negocioId: string) {
+    const pedidos = await this.pedidos.listar(negocioId, { limite: 10_000 });
+    const pecas = await this.pecas.listar(negocioId);
+    const pecaPorCodigo = new Map(pecas.map((peca) => [peca.codigo, peca]));
+    const elegiveis = pedidos.filter((pedido) =>
+      ["PAGO", "EM_PREPARACAO", "PRONTO_ENTREGA"].includes(pedido.estado)
+    );
+    const produtos = new Map<string, {
+      codigoPeca: string;
+      nomeProduto: string;
+      quantidade: number;
+      fotos: string[];
+      pedidos: number[];
+    }>();
+
+    for (const pedido of elegiveis) {
+      for (const item of pedido.itens) {
+        const atual = produtos.get(item.codigoPeca) ?? {
+          codigoPeca: item.codigoPeca,
+          nomeProduto: item.nomeProduto,
+          quantidade: 0,
+          fotos: pecaPorCodigo.get(item.codigoPeca)?.fotos ?? [],
+          pedidos: []
+        };
+        atual.quantidade += item.quantidade;
+        atual.pedidos.push(pedido.numero);
+        produtos.set(item.codigoPeca, atual);
+      }
+    }
+
+    return {
+      pedidos: elegiveis,
+      produtos: [...produtos.values()].sort((a, b) => a.codigoPeca.localeCompare(b.codigoPeca, "pt-AO", { numeric: true }))
+    };
+  }
+
+  async gerarListaEntregas(
+    negocioId: string,
+    filtros: {
+      bairro?: string;
+      estadoEntrega?: Pedido["estadoEntrega"];
+      responsavelId?: string;
+      dataInicio?: Date;
+      dataFim?: Date;
+      limite?: number;
+    } = {}
+  ) {
+    const pedidos = await this.pedidos.listar(negocioId, {
+      estadoEntrega: filtros.estadoEntrega,
+      dataInicio: filtros.dataInicio,
+      dataFim: filtros.dataFim,
+      limite: filtros.limite ?? 1000
+    });
+    const bairro = filtros.bairro?.trim().toLowerCase();
+    return {
+      pedidos: pedidos
+        .filter((pedido) => pedido.estado !== "CANCELADO" && pedido.estadoEntrega !== "ENTREGUE")
+        .filter((pedido) => !filtros.responsavelId || pedido.responsavelId === filtros.responsavelId)
+        .filter((pedido) => !bairro || pedido.enderecoEntrega?.toLowerCase().includes(bairro))
+        .map((pedido) => ({
+          id: pedido.id,
+          numero: pedido.numero,
+          estado: pedido.estado,
+          estadoEntrega: pedido.estadoEntrega,
+          enderecoEntrega: pedido.enderecoEntrega,
+          responsavelId: pedido.responsavelId,
+          totalEmKwanza: pedido.totalEmKwanza,
+          itens: pedido.itens,
+          criadoEm: pedido.criadoEm
+        }))
+    };
+  }
+
+  async recuperarPedidosParados(
+    negocioId: string,
+    filtros: FiltrosPedidos & {
+      idadeMinutos: number;
+      prioridade: NovaTarefaOperacional["prioridade"];
+      responsavelId?: string | null;
+    }
+  ) {
+    const pedidos = await this.pedidos.listar(negocioId, { ...filtros, limite: filtros.limite ?? 100 });
+    const existentes = await this.tarefas.listar(negocioId, { limite: 10_000 });
+    const limiteData = new Date(Date.now() - filtros.idadeMinutos * 60_000);
+    const tarefas = [];
+
+    for (const pedido of pedidos) {
+      if (pedido.criadoEm > limiteData) continue;
+      const tipo = this.tipoTarefaRecuperacao(pedido);
+      const jaExiste = existentes.some(
+        (tarefa) =>
+          tarefa.pedidoId === pedido.id &&
+          tarefa.tipo === tipo &&
+          !["CONCLUIDA", "CANCELADA"].includes(tarefa.estado)
+      );
+      if (jaExiste) continue;
+
+      const cliente = await this.clientes.buscarPorId(pedido.clienteNegocioId, negocioId);
+      tarefas.push(
+        await this.tarefas.criar({
+          negocioId,
+          tipo,
+          titulo: this.tituloTarefaRecuperacao(tipo, pedido),
+          descricao: this.descricaoTarefaRecuperacao(tipo, pedido, cliente),
+          prioridade: filtros.prioridade ?? "ALTA",
+          estado: "ABERTA",
+          origem: "recuperacao_pedidos",
+          clienteId: pedido.clienteNegocioId,
+          pedidoId: pedido.id,
+          entidadeTipo: "pedido",
+          entidadeId: pedido.id,
+          clienteTelefone: cliente?.telefone ?? null,
+          responsavelId: filtros.responsavelId ?? pedido.responsavelId,
+          prazoEm: new Date(Date.now() + 60 * 60_000),
+          contexto: {
+            estado: pedido.estado,
+            estadoPagamento: pedido.estadoPagamento,
+            estadoEntrega: pedido.estadoEntrega,
+            totalEmKwanza: pedido.totalEmKwanza
+          }
+        })
+      );
+    }
+
+    return { tarefas };
+  }
+
+  async solicitarDesconto(
+    id: string,
+    negocioId: string,
+    dados: {
+      descontoEmKwanza: number;
+      motivo: string;
+      responsavelId?: string | null;
+      observacao?: string | null;
+      solicitadoPor?: string | null;
+    }
+  ) {
+    const pedido = await this.pedidos.buscarPorId(id, negocioId);
+    if (!pedido) throw new Error(`Pedido ${id} não encontrado.`);
+    this.validarDesconto(pedido, dados.descontoEmKwanza);
+
+    const tarefa = await this.tarefas.criar({
+      negocioId,
+      tipo: "APROVAR_DESCONTO",
+      titulo: `Aprovar desconto do pedido #${pedido.numero}`,
+      descricao:
+        `Pedido #${pedido.numero} recebeu pedido de desconto de ${this.formatarKwanza(dados.descontoEmKwanza)}. ` +
+        `Motivo: ${dados.motivo}.`,
+      prioridade: dados.descontoEmKwanza >= Math.max(1, pedido.subtotalEmKwanza * 0.15) ? "ALTA" : "NORMAL",
+      estado: "ABERTA",
+      origem: "aprovacao_desconto",
+      clienteId: pedido.clienteNegocioId,
+      pedidoId: pedido.id,
+      entidadeTipo: "pedido",
+      entidadeId: pedido.id,
+      responsavelId: dados.responsavelId ?? pedido.responsavelId ?? null,
+      observacao: dados.observacao ?? null,
+      contexto: {
+        descontoEmKwanza: dados.descontoEmKwanza,
+        motivo: dados.motivo,
+        solicitadoPor: dados.solicitadoPor ?? null,
+        subtotalEmKwanza: pedido.subtotalEmKwanza,
+        totalAtualEmKwanza: pedido.totalEmKwanza
+      }
+    });
+
+    return {
+      solicitacao: {
+        pedidoId: pedido.id,
+        descontoEmKwanza: dados.descontoEmKwanza,
+        motivo: dados.motivo,
+        estado: "PENDENTE_APROVACAO"
+      },
+      pedido,
+      tarefa
+    };
+  }
+
+  async aprovarDesconto(
+    id: string,
+    negocioId: string,
+    dados: {
+      descontoEmKwanza: number;
+      motivo: string;
+      aprovadoPor: string;
+      observacao?: string | null;
+    }
+  ) {
+    const pedido = await this.pedidos.buscarPorId(id, negocioId);
+    if (!pedido) throw new Error(`Pedido ${id} não encontrado.`);
+    this.validarDesconto(pedido, dados.descontoEmKwanza);
+
+    const totalEmKwanza = pedido.subtotalEmKwanza - dados.descontoEmKwanza + pedido.taxaEntregaEmKwanza;
+    const observacao = [
+      pedido.observacao,
+      `Desconto aprovado por ${dados.aprovadoPor}: ${dados.motivo}.`,
+      dados.observacao
+    ].filter(Boolean).join("\n");
+    const atualizado = await this.pedidos.atualizarFinanceiro(id, negocioId, {
+      descontoEmKwanza: dados.descontoEmKwanza,
+      motivoDesconto: dados.motivo,
+      totalEmKwanza,
+      observacao
+    });
+    if (!atualizado) throw new Error(`Pedido ${id} não encontrado.`);
+
+    return {
+      pedido: atualizado,
+      aprovacao: {
+        aprovadoPor: dados.aprovadoPor,
+        descontoEmKwanza: dados.descontoEmKwanza,
+        totalEmKwanza,
+        motivo: dados.motivo
+      }
+    };
   }
 
   private async resolverItens(dados: NovoPedido): Promise<DadosPedidoResolvido["itens"]> {
@@ -237,5 +499,59 @@ export class GestaoPedidosUseCase {
   private csv(valor: string): string {
     if (!/[",\n]/.test(valor)) return valor;
     return `"${valor.replace(/"/g, "\"\"")}"`;
+  }
+
+  private async calcularResumoFinanceiro(pedido: Pedido, negocioId: string) {
+    const pecas = await this.pecas.listar(negocioId);
+    const pecaPorCodigo = new Map(pecas.map((peca) => [peca.codigo, peca]));
+    const custoEstimadoEmKwanza = pedido.itens.reduce((total, item) => {
+      const custo = pecaPorCodigo.get(item.codigoPeca)?.custoEmKwanza;
+      return total + (custo ?? 0) * item.quantidade;
+    }, 0);
+    const margemEstimadaEmKwanza = custoEstimadoEmKwanza > 0 ? pedido.subtotalEmKwanza - custoEstimadoEmKwanza - pedido.descontoEmKwanza : null;
+    const margemPercentual =
+      margemEstimadaEmKwanza !== null && pedido.subtotalEmKwanza > 0
+        ? Number(((margemEstimadaEmKwanza / pedido.subtotalEmKwanza) * 100).toFixed(2))
+        : null;
+    return { custoEstimadoEmKwanza, margemEstimadaEmKwanza, margemPercentual };
+  }
+
+  private tipoTarefaRecuperacao(pedido: Pedido): string {
+    if (pedido.estado === "AGUARDANDO_PAGAMENTO" || pedido.estadoPagamento === "PENDENTE") return "COBRANCA";
+    if (pedido.estado === "PAGO" && pedido.estadoEntrega !== "ENTREGUE") return "ENTREGA";
+    return "FOLLOW_UP_PEDIDO";
+  }
+
+  private tituloTarefaRecuperacao(tipo: string, pedido: Pedido): string {
+    if (tipo === "COBRANCA") return `Cobrar pagamento do pedido #${pedido.numero}`;
+    if (tipo === "ENTREGA") return `Resolver entrega do pedido #${pedido.numero}`;
+    return `Recuperar pedido #${pedido.numero}`;
+  }
+
+  private descricaoTarefaRecuperacao(tipo: string, pedido: Pedido, cliente: Cliente360 | null): string {
+    const nomeCliente = cliente?.nome ?? cliente?.telefone ?? "cliente";
+    if (tipo === "COBRANCA") {
+      return `Pedido de ${nomeCliente} está parado em pagamento pendente. Confirmar comprovativo ou reenviar cobrança permitida.`;
+    }
+    if (tipo === "ENTREGA") {
+      return `Pedido pago de ${nomeCliente} ainda não foi entregue. Confirmar preparação, endereço e responsável.`;
+    }
+    return `Pedido de ${nomeCliente} precisa de acompanhamento humano para não perder a venda.`;
+  }
+
+  private formatarKwanza(valor: number): string {
+    return `${valor.toLocaleString("pt-AO")} Kz`;
+  }
+
+  private validarDesconto(pedido: Pedido, descontoEmKwanza: number): void {
+    if (pedido.estadoPagamento === "CONFIRMADO" || pedido.estado === "PAGO" || pedido.estado === "ENTREGUE") {
+      throw new Error("Desconto não pode ser alterado depois de pagamento confirmado.");
+    }
+    if (descontoEmKwanza <= 0) {
+      throw new Error("Desconto deve ser maior que zero.");
+    }
+    if (descontoEmKwanza > pedido.subtotalEmKwanza) {
+      throw new Error("Desconto não pode ser maior que o subtotal do pedido.");
+    }
   }
 }

@@ -11,6 +11,15 @@ export const moduloAfiliados: ModuloHttp = {
   nome: "afiliados",
   descricao: "Afiliados, criadores, links de venda e comissões comerciais.",
   registrar(app, contexto) {
+    app.get("/publico/links/:codigo", async (request, reply) => {
+      const { codigo } = request.params as { codigo: string };
+      const link = await contexto.gestaoAfiliados.resolverLinkPublico(codigo);
+      if (!link) {
+        return reply.code(404).send({ erro: "LINK_NAO_ENCONTRADO", mensagem: "Link de venda não encontrado ou inativo." });
+      }
+      return link;
+    });
+
     app.get("/afiliados", async (request, reply) => {
       const contextoComercial = await exigirAcessoComercial(contexto, request, reply, {
         permissao: "afiliados:ler",
@@ -62,6 +71,26 @@ export const moduloAfiliados: ModuloHttp = {
       const dados = CriarLinkAfiliadoSchema.parse(request.body ?? {});
       const link = await contexto.gestaoAfiliados.criarLink(contextoComercial.negocio.id, id, dados);
       return reply.code(201).send(link);
+    });
+
+    app.get("/afiliados/:id/pacote-divulgacao", async (request, reply) => {
+      const contextoComercial = await exigirAcessoComercial(contexto, request, reply, {
+        permissao: "afiliados:ler",
+        modulo: "afiliados",
+        mensagemPermissao: "Sem permissão para consultar pacote de divulgação.",
+        mensagemModulo: "Afiliados desativados para este negócio."
+      });
+      if (!contextoComercial) return;
+
+      const { id } = request.params as { id: string };
+      const query = request.query as { codigoProduto?: string };
+      const pacote = await contexto.gestaoAfiliados.gerarPacoteDivulgacao(contextoComercial.negocio.id, id, {
+        codigoProduto: query.codigoProduto
+      });
+      if (!pacote) {
+        return reply.code(404).send({ erro: "AFILIADO_NAO_ENCONTRADO", mensagem: "Afiliado não encontrado." });
+      }
+      return pacote;
     });
 
     app.get("/afiliados/comissoes", async (request, reply) => {

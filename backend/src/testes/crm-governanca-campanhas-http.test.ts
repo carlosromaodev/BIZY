@@ -1,0 +1,387 @@
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { criarAplicacao } from "../infra/http/criarAplicacao.js";
+
+const ambienteOriginal = { ...process.env };
+
+async function autenticar(app: Awaited<ReturnType<typeof criarAplicacao>>, telefone: string, nome: string) {
+  const respostaCodigo = await app.inject({
+    method: "POST",
+    url: "/auth/telefone/solicitar-codigo",
+    payload: { telefone, nome }
+  });
+  expect(respostaCodigo.statusCode).toBe(202);
+
+  const respostaSessao = await app.inject({
+    method: "POST",
+    url: "/auth/telefone/confirmar-codigo",
+    payload: { telefone, codigo: respostaCodigo.json().codigoDev }
+  });
+  expect(respostaSessao.statusCode).toBe(200);
+
+  return { authorization: `Bearer ${respostaSessao.json().token}` };
+}
+
+async function criarCliente(
+  app: Awaited<ReturnType<typeof criarAplicacao>>,
+  headers: Record<string, string>,
+  dados: Record<string, unknown>
+) {
+  const resposta = await app.inject({
+    method: "POST",
+    url: "/clientes",
+    headers,
+    payload: dados
+  });
+  expect(resposta.statusCode).toBe(201);
+  return resposta.json();
+}
+
+describe("CRM+ governança, campanhas, eventos e jobs", () => {
+  beforeEach(() => {
+    process.env = {
+      ...ambienteOriginal,
+      MODO_ARMAZENAMENTO: "memoria",
+      N8N_EVENTOS_ATIVOS: "false",
+      N8N_ASSUME_WHATSAPP: "true",
+      WHATSAPP_PROVIDER: "console",
+      INICIAR_AGENDADOR_EXPIRACAO: "false",
+      RESTAURAR_LIVES_ATIVAS: "false",
+      N8N_BACKEND_TOKEN: "",
+      EVOLUTION_WEBHOOK_TOKEN: ""
+    };
+  });
+
+  afterEach(() => {
+    process.env = { ...ambienteOriginal };
+  });
+
+  it("gere templates, cria campanha WhatsApp segura, bloqueia opt-out e permite pausa imediata", async () => {
+    const app = await criarAplicacao();
+
+    try {
+      const headers = await autenticar(app, "923771001", "Loja Campanhas");
+
+      await criarCliente(app, headers, {
+        telefone: "937771001",
+        nome: "Cliente VIP Consentida",
+        tags: ["vip"],
+        consentimentoDados: true,
+        consentimentoMarketing: true
+      });
+      await criarCliente(app, headers, {
+        telefone: "937771002",
+        nome: "Cliente VIP Optout",
+        tags: ["vip"],
+        consentimentoDados: true,
+        consentimentoMarketing: false
+      });
+
+      const templateRascunho = await app.inject({
+        method: "POST",
+        url: "/whatsapp/templates",
+        headers,
+        payload: {
+          nome: "Novidades VIP Maio",
+          categoria: "marketing",
+          idioma: "pt_AO",
+          provider: "whatsapp_cloud_api",
+          corpo: "Olá, {nomeCliente}. Chegaram novidades para clientes VIP.",
+          variaveis: ["nomeCliente"],
+          eventosCompativeis: ["CAMPAIGN_BROADCAST"],
+          estadoAprovacao: "rascunho"
+        }
+      });
+      expect(templateRascunho.statusCode).toBe(201);
+
+      const campanhaSemTemplateAprovado = await app.inject({
+        method: "POST",
+        url: "/campanhas",
+        headers,
+        payload: {
+          nome: "Campanha VIP bloqueada",
+          objetivo: "Reativar clientes VIP",
+          canal: "whatsapp",
+          templateId: templateRascunho.json().template.id,
+          categoria: "marketing",
+          segmento: { tags: ["vip"] },
+          limiteDiario: 100
+        }
+      });
+      expect(campanhaSemTemplateAprovado.statusCode).toBe(400);
+      expect(campanhaSemTemplateAprovado.json().mensagem).toContain("aprovado");
+
+      const templateAprovado = await app.inject({
+        method: "PATCH",
+        url: `/whatsapp/templates/${templateRascunho.json().template.id}`,
+        headers,
+        payload: {
+          estadoAprovacao: "aprovado",
+          motivo: "Aprovado para teste operacional"
+        }
+      });
+      expect(templateAprovado.statusCode).toBe(200);
+
+      const templatesListados = await app.inject({
+        method: "GET",
+        url: "/whatsapp/templates?categoria=marketing&evento=CAMPAIGN_BROADCAST",
+        headers
+      });
+      expect(templatesListados.statusCode).toBe(200);
+      expect(templatesListados.json().templates).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            id: templateRascunho.json().template.id,
+            origem: "negocio",
+            estadoAprovacao: "aprovado"
+          })
+        ])
+      );
+
+      const campanha = await app.inject({
+        method: "POST",
+        url: "/campanhas",
+        headers,
+        payload: {
+          nome: "Campanha VIP Maio",
+          objetivo: "Reativar clientes VIP com novidades",
+          canal: "whatsapp",
+          templateId: templateRascunho.json().template.id,
+          categoria: "marketing",
+          segmento: { tags: ["vip"] },
+          limiteDiario: 100,
+          janelaEnvio: {
+            inicio: "2026-05-25T09:00:00.000Z",
+            fim: "2026-05-25T19:00:00.000Z"
+          }
+        }
+      });
+      expect(campanha.statusCode).toBe(201);
+      expect(campanha.json().campanha).toEqual(
+        expect.objectContaining({
+          nome: "Campanha VIP Maio",
+          estado: "RASCUNHO",
+          categoria: "marketing"
+        })
+      );
+      expect(campanha.json().preview).toEqual(
+        expect.objectContaining({
+          selecionados: 1,
+          bloqueados: 1
+        })
+      );
+      expect(campanha.json().preview.bloqueios[0]).toEqual(
+        expect.objectContaining({
+          motivo: expect.stringContaining("consentimento")
+        })
+      );
+
+      const confirmacao = await app.inject({
+        method: "POST",
+        url: `/campanhas/${campanha.json().campanha.id}/confirmar`,
+        headers,
+        payload: { confirmar: true }
+      });
+      expect(confirmacao.statusCode).toBe(202);
+      expect(confirmacao.json().campanha).toEqual(
+        expect.objectContaining({
+          estado: "AGENDADA"
+        })
+      );
+      expect(confirmacao.json().resultado).toEqual(
+        expect.objectContaining({
+          enfileirados: 1,
+          bloqueados: 1
+        })
+      );
+
+      const outbox = await app.inject({
+        method: "GET",
+        url: "/automacoes/whatsapp/outbox",
+        headers
+      });
+      expect(outbox.statusCode).toBe(200);
+      expect(outbox.json()).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            telefone: "937771001",
+            tipo: "CAMPANHA_WHATSAPP",
+            contexto: expect.objectContaining({
+              campanhaId: campanha.json().campanha.id,
+              politicaWhatsApp: expect.objectContaining({ categoria: "marketing" })
+            })
+          })
+        ])
+      );
+
+      const resultados = await app.inject({
+        method: "GET",
+        url: `/campanhas/${campanha.json().campanha.id}/resultados`,
+        headers
+      });
+      expect(resultados.statusCode).toBe(200);
+      expect(resultados.json().metricas).toEqual(
+        expect.objectContaining({
+          selecionados: 1,
+          bloqueados: 1,
+          enfileirados: 1
+        })
+      );
+
+      const pausa = await app.inject({
+        method: "POST",
+        url: `/campanhas/${campanha.json().campanha.id}/pausar`,
+        headers,
+        payload: { motivo: "Correção no texto da campanha" }
+      });
+      expect(pausa.statusCode).toBe(200);
+      expect(pausa.json().campanha).toEqual(
+        expect.objectContaining({
+          estado: "PAUSADA"
+        })
+      );
+    } finally {
+      await app.close();
+    }
+  });
+
+  it("gere membros, papéis, eventos idempotentes e jobs de importação com relatório", async () => {
+    const app = await criarAplicacao();
+
+    try {
+      const headers = await autenticar(app, "923771010", "Loja Governança");
+
+      const papeis = await app.inject({
+        method: "GET",
+        url: "/negocio/papeis",
+        headers
+      });
+      expect(papeis.statusCode).toBe(200);
+      expect(papeis.json().papeis).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            papel: "DONO",
+            permissoes: expect.arrayContaining(["configuracoes:gerir"])
+          }),
+          expect.objectContaining({
+            papel: "FINANCEIRO",
+            permissoes: expect.arrayContaining(["pagamentos:gerir"])
+          })
+        ])
+      );
+
+      const membro = await app.inject({
+        method: "POST",
+        url: "/negocio/membros",
+        headers,
+        payload: {
+          telefone: "923771011",
+          nome: "Ana Financeiro",
+          papel: "FINANCEIRO"
+        }
+      });
+      expect(membro.statusCode).toBe(201);
+      expect(membro.json().membro).toEqual(
+        expect.objectContaining({
+          papel: "FINANCEIRO",
+          status: "ATIVO"
+        })
+      );
+
+      const membros = await app.inject({
+        method: "GET",
+        url: "/negocio/membros",
+        headers
+      });
+      expect(membros.statusCode).toBe(200);
+      expect(membros.json().membros).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ telefone: "923771011", papel: "FINANCEIRO" })
+        ])
+      );
+
+      const evento = await app.inject({
+        method: "POST",
+        url: "/eventos-operacionais",
+        headers,
+        payload: {
+          topico: "social-inbox",
+          tipo: "COMENTARIO_IMPORTADO",
+          entidadeTipo: "social_comment",
+          entidadeId: "comment_1",
+          idempotencyKey: "social:comment:1",
+          payload: { texto: "quero o vestido 01" }
+        }
+      });
+      expect(evento.statusCode).toBe(201);
+
+      const eventoRepetido = await app.inject({
+        method: "POST",
+        url: "/eventos-operacionais",
+        headers,
+        payload: {
+          topico: "social-inbox",
+          tipo: "COMENTARIO_IMPORTADO",
+          entidadeTipo: "social_comment",
+          entidadeId: "comment_1",
+          idempotencyKey: "social:comment:1",
+          payload: { texto: "duplicado" }
+        }
+      });
+      expect(eventoRepetido.statusCode).toBe(200);
+      expect(eventoRepetido.json()).toEqual(
+        expect.objectContaining({
+          duplicado: true,
+          evento: expect.objectContaining({ id: evento.json().evento.id })
+        })
+      );
+
+      const job = await app.inject({
+        method: "POST",
+        url: "/jobs/importacao/clientes",
+        headers,
+        payload: {
+          idempotencyKey: "import-clientes-maio",
+          csv: [
+            "telefone,nome,consentimentoMarketing",
+            "937771099,Cliente Job,true",
+            "telefone_errado,Cliente Erro,true"
+          ].join("\n")
+        }
+      });
+      expect(job.statusCode).toBe(202);
+      expect(job.json().job).toEqual(
+        expect.objectContaining({
+          tipo: "IMPORTACAO_CLIENTES",
+          estado: "CONCLUIDO",
+          total: 2,
+          erros: 1
+        })
+      );
+      expect(job.json().resultado).toEqual(
+        expect.objectContaining({
+          criados: 1,
+          erros: 1
+        })
+      );
+
+      const jobRepetido = await app.inject({
+        method: "POST",
+        url: "/jobs/importacao/clientes",
+        headers,
+        payload: {
+          idempotencyKey: "import-clientes-maio",
+          csv: "telefone,nome\n937771099,Cliente Duplicado"
+        }
+      });
+      expect(jobRepetido.statusCode).toBe(200);
+      expect(jobRepetido.json()).toEqual(
+        expect.objectContaining({
+          duplicado: true,
+          job: expect.objectContaining({ id: job.json().job.id })
+        })
+      );
+    } finally {
+      await app.close();
+    }
+  });
+});

@@ -6,17 +6,28 @@ import {
   CriarPlaybookRecuperacaoSchema,
   CriarSocialInboxItemSchema,
   DefinirPoliticaAutomacaoAtendimentoSchema,
+  EnviarMensagemConversaAtendimentoSchema,
   ExecutarPlaybookRecuperacaoSchema,
   FiltrosExecucoesPlaybookRecuperacaoQuerySchema,
   FiltrosMovimentosFunilComercialQuerySchema,
   FiltrosOportunidadesRecuperacaoQuerySchema,
   FiltrosPlaybookRecuperacaoQuerySchema,
   FiltrosSocialInboxQuerySchema,
+  CriarPedidoConversaAtendimentoSchema,
   RegistrarNotaInternaAtendimentoSchema,
   RegistrarMovimentoFunilComercialSchema,
-  RegistrarSugestaoIaAtendimentoSchema
+  RegistrarSugestaoIaAtendimentoSchema,
+  TransferirResponsavelOperacionalSchema,
+  VerificarSlaConversasSchema
 } from "../../../dominio/esquemas.js";
-import { tiposEventoSistema, type EstadoTarefaOperacional, type TipoEventoSistema } from "../../../dominio/tipos.js";
+import {
+  tiposEventoSistema,
+  type ConversaAtendimentoComMensagens,
+  type EstadoTarefaOperacional,
+  type EventoOperacional,
+  type Pedido,
+  type TipoEventoSistema
+} from "../../../dominio/tipos.js";
 import { exigirAcessoComercial } from "../contextoComercial.js";
 import { exigirUsuarioAutenticado } from "../seguranca.js";
 import type { ModuloHttp } from "./ModuloHttp.js";
@@ -30,6 +41,42 @@ export const moduloOperacional: ModuloHttp = {
       if (!usuario) return;
 
       return contexto.consultaOperacional.consultar(contexto.consultaIntegracoes.listarStatus());
+    });
+
+    app.get("/operacional/auditoria", async (request, reply) => {
+      const contextoComercial = await exigirAcessoComercial(contexto, request, reply, {
+        permissao: "automacoes:ler",
+        modulo: "crm",
+        mensagemPermissao: "Sem permissão para consultar auditoria operacional.",
+        mensagemModulo: "CRM desativado para este negócio."
+      });
+      if (!contextoComercial) return;
+
+      const query = request.query as {
+        topico?: string;
+        tipo?: string;
+        estado?: EventoOperacional["estado"];
+        limite?: string;
+      };
+      const eventos = await contexto.gestaoGovernancaCrm.listarEventos(contextoComercial.negocio.id, {
+        topico: query.topico,
+        tipo: query.tipo,
+        estado: query.estado,
+        limite: query.limite ? Number(query.limite) : 100
+      });
+      return {
+        logs: eventos.map((evento) => ({
+          id: evento.id,
+          topico: evento.topico,
+          tipo: evento.tipo,
+          entidadeTipo: evento.entidadeTipo,
+          entidadeId: evento.entidadeId,
+          estado: evento.estado,
+          mensagem: descreverEventoOperacional(evento),
+          payload: evento.payload,
+          criadoEm: evento.criadoEm
+        }))
+      };
     });
 
     app.get("/automacoes/n8n/outbox", async (request, reply) => {
@@ -186,6 +233,88 @@ export const moduloOperacional: ModuloHttp = {
       const dados = AtualizarTarefaOperacionalSchema.parse(request.body ?? {});
       const tarefa = await contexto.gestaoTarefas.atualizarTarefa(id, contextoComercial.negocio.id, dados);
       return { tarefa };
+    });
+
+    app.post("/operacional/transferencias", async (request, reply) => {
+      const contextoComercial = await exigirAcessoComercial(contexto, request, reply, {
+        permissao: "tarefas:gerir",
+        modulo: "conversas",
+        mensagemPermissao: "Sem permissão para transferir responsáveis.",
+        mensagemModulo: "Conversas desativadas para este negócio."
+      });
+      if (!contextoComercial) return;
+
+      const dados = TransferirResponsavelOperacionalSchema.parse(request.body ?? {});
+      const resultados = [];
+
+      for (const item of dados.itens) {
+        if (item.tipo === "conversa") {
+          const atualizada = await contexto.gestaoAtendimentoCrm.atualizarConversa(
+            item.id,
+            { responsavelId: dados.responsavelId },
+            contextoComercial.negocio.id
+          );
+          if (dados.motivo) {
+            await contexto.gestaoAtendimentoCrm.registrarNotaInterna(
+              item.id,
+              {
+                texto: `Conversa transferida para ${dados.responsavelId}. Motivo: ${dados.motivo}`,
+                autorId: contextoComercial.usuario.id,
+                autorNome: contextoComercial.usuario.nome
+              },
+              contextoComercial.negocio.id
+            );
+          }
+          resultados.push({
+            tipo: item.tipo,
+            id: item.id,
+            responsavelId: atualizada.conversa.responsavelId,
+            motivo: dados.motivo
+          });
+          continue;
+        }
+
+        if (item.tipo === "pedido") {
+          const perfil = await contexto.gestaoPedidos.obterPedido(item.id, contextoComercial.negocio.id);
+          const observacao = [
+            perfil?.pedido.observacao,
+            dados.motivo ? `Transferido para ${dados.responsavelId}: ${dados.motivo}` : null
+          ]
+            .filter(Boolean)
+            .join("\n");
+          const atualizado = await contexto.gestaoPedidos.atualizarEstado(item.id, contextoComercial.negocio.id, {
+            responsavelId: dados.responsavelId,
+            observacao: observacao || null
+          });
+          resultados.push({
+            tipo: item.tipo,
+            id: item.id,
+            responsavelId: atualizado.responsavelId,
+            motivo: dados.motivo
+          });
+          continue;
+        }
+
+        const tarefa = await contexto.gestaoTarefas.obterTarefa(item.id, contextoComercial.negocio.id);
+        const observacao = [
+          tarefa.observacao,
+          dados.motivo ? `Transferida para ${dados.responsavelId}: ${dados.motivo}` : null
+        ]
+          .filter(Boolean)
+          .join("\n");
+        const atualizada = await contexto.gestaoTarefas.atualizarTarefa(item.id, contextoComercial.negocio.id, {
+          responsavelId: dados.responsavelId,
+          observacao: observacao || null
+        });
+        resultados.push({
+          tipo: item.tipo,
+          id: item.id,
+          responsavelId: atualizada.responsavelId,
+          motivo: dados.motivo
+        });
+      }
+
+      return { resultados };
     });
 
     app.get("/social/inbox/itens", async (request, reply) => {
@@ -403,6 +532,148 @@ export const moduloOperacional: ModuloHttp = {
       return contexto.consultaAtendimentoOperacional.listarConversas(contextoComercial.negocio.id);
     });
 
+    app.post("/atendimento/conversas/verificar-sla", async (request, reply) => {
+      const contextoComercial = await exigirAcessoComercial(contexto, request, reply, {
+        permissao: "tarefas:gerir",
+        modulo: "conversas",
+        mensagemPermissao: "Sem permissão para gerar tarefas de SLA.",
+        mensagemModulo: "Conversas desativadas para este negócio."
+      });
+      if (!contextoComercial) return;
+
+      const dados = VerificarSlaConversasSchema.parse(request.body ?? {});
+      const conversas = await contexto.repositorios.atendimento.listarConversasComMensagens(
+        dados.limite,
+        contextoComercial.negocio.id
+      );
+      const existentes = await contexto.gestaoTarefas.listarTarefas(contextoComercial.negocio.id, {
+        tipo: "SLA_CONVERSA",
+        limite: 10_000
+      });
+      const limiteData = new Date(Date.now() - dados.idadeMinutos * 60_000);
+      const tarefas = [];
+
+      for (const conversa of conversas) {
+        if (["RESOLVIDA", "ENCERRADA"].includes(conversa.conversa.estado)) continue;
+        const ultimaMensagem = [...conversa.mensagens].sort((a, b) => b.enviadaEm.getTime() - a.enviadaEm.getTime())[0];
+        if (!ultimaMensagem || ultimaMensagem.remetente !== "cliente") continue;
+        if (ultimaMensagem.enviadaEm > limiteData) continue;
+        const jaExiste = existentes.some(
+          (tarefa) =>
+            tarefa.entidadeTipo === "conversa" &&
+            tarefa.entidadeId === conversa.conversa.id &&
+            !["CONCLUIDA", "CANCELADA"].includes(tarefa.estado)
+        );
+        if (jaExiste) continue;
+
+        tarefas.push(
+          await contexto.gestaoTarefas.criarTarefa({
+            negocioId: contextoComercial.negocio.id,
+            tipo: "SLA_CONVERSA",
+            titulo: `Responder conversa de ${conversa.cliente.nome ?? conversa.conversa.telefone}`,
+            descricao: "Conversa com última mensagem do cliente sem resposta dentro do SLA operacional.",
+            prioridade: dados.prioridade,
+            origem: "sla_conversas",
+            clienteId: conversa.conversa.clienteNegocioId,
+            entidadeTipo: "conversa",
+            entidadeId: conversa.conversa.id,
+            clienteTelefone: conversa.conversa.telefone,
+            responsavelId: dados.responsavelId,
+            prazoEm: new Date(Date.now() + 30 * 60_000),
+            contexto: {
+              canal: conversa.conversa.canal,
+              ultimaMensagemId: ultimaMensagem.id,
+              ultimaMensagemEm: ultimaMensagem.enviadaEm.toISOString()
+            }
+          })
+        );
+      }
+
+      return reply.code(201).send({ tarefas });
+    });
+
+    app.get("/atendimento/conversas/:id/proximas-acoes", async (request, reply) => {
+      const contextoComercial = await exigirAcessoComercial(contexto, request, reply, {
+        permissao: "conversas:ler",
+        modulo: "conversas",
+        mensagemPermissao: "Sem permissão para consultar atendimento.",
+        mensagemModulo: "Conversas desativadas para este negócio."
+      });
+      if (!contextoComercial) return;
+
+      const { id } = request.params as { id: string };
+      const conversa = await contexto.repositorios.atendimento.buscarConversaComMensagensPorId(
+        id,
+        contextoComercial.negocio.id
+      );
+      if (!conversa) return reply.code(404).send({ erro: "CONVERSA_NAO_ENCONTRADA", mensagem: "Conversa não encontrada." });
+
+      const pedidos = conversa.conversa.clienteNegocioId
+        ? await contexto.repositorios.pedidos.listar(contextoComercial.negocio.id, {
+            clienteId: conversa.conversa.clienteNegocioId,
+            limite: 20
+          })
+        : [];
+
+      return {
+        conversaId: id,
+        acoes: sugerirAcoesConversa(conversa, pedidos)
+      };
+    });
+
+    app.post("/atendimento/conversas/:id/pedidos", async (request, reply) => {
+      const contextoComercial = await exigirAcessoComercial(contexto, request, reply, {
+        permissao: "pedidos:gerir",
+        modulo: "conversas",
+        mensagemPermissao: "Sem permissão para criar pedido pela conversa.",
+        mensagemModulo: "Conversas desativadas para este negócio."
+      });
+      if (!contextoComercial) return;
+
+      const { id } = request.params as { id: string };
+      const dados = CriarPedidoConversaAtendimentoSchema.parse(request.body ?? {});
+      const conversa = await contexto.repositorios.atendimento.buscarConversaComMensagensPorId(
+        id,
+        contextoComercial.negocio.id
+      );
+      if (!conversa) return reply.code(404).send({ erro: "CONVERSA_NAO_ENCONTRADA", mensagem: "Conversa não encontrada." });
+      if (!conversa.conversa.clienteNegocioId) {
+        return reply.code(400).send({
+          erro: "CONVERSA_SEM_CLIENTE",
+          mensagem: "A conversa ainda não está vinculada a um cliente do negócio."
+        });
+      }
+
+      const pedido = await contexto.gestaoPedidos.criarPedido({
+        ...dados,
+        negocioId: contextoComercial.negocio.id,
+        clienteNegocioId: conversa.conversa.clienteNegocioId,
+        origem: dados.origem ?? "conversa",
+        canal: dados.canal ?? conversa.conversa.canal
+      });
+      const conversaAtualizada = await contexto.gestaoAtendimentoCrm.atualizarConversa(id, {
+        estado: "AGUARDANDO_PAGAMENTO",
+        responsavelId: dados.responsavelId ?? conversa.conversa.responsavelId,
+        tags: [...new Set([...conversa.conversa.tags, "pedido_aberto", `pedido:${pedido.numero}`])]
+      }, contextoComercial.negocio.id);
+      await contexto.repositorios.atendimento.registrarMensagem({
+        negocioId: contextoComercial.negocio.id,
+        conversaId: id,
+        clienteNegocioId: conversa.conversa.clienteNegocioId,
+        telefone: conversa.conversa.telefone,
+        direcao: "OUTBOUND",
+        remetente: "sistema",
+        canal: "sistema",
+        tipo: "ORDER_CREATED",
+        conteudo: `Pedido #${pedido.numero} criado pela conversa. Total: ${pedido.totalEmKwanza} Kz.`,
+        status: "SENT",
+        origem: "conversa_pedido",
+        contexto: { pedidoId: pedido.id, numero: pedido.numero, totalEmKwanza: pedido.totalEmKwanza }
+      });
+
+      return reply.code(201).send({ pedido, conversa: conversaAtualizada.conversa });
+    });
+
     app.patch("/atendimento/conversas/:id", async (request, reply) => {
       const contextoComercial = await exigirAcessoComercial(contexto, request, reply, {
         permissao: "conversas:gerir",
@@ -420,6 +691,70 @@ export const moduloOperacional: ModuloHttp = {
         contextoComercial.negocio.id
       );
       return { conversa: conversa.conversa };
+    });
+
+    app.post("/atendimento/conversas/:id/mensagens", async (request, reply) => {
+      const contextoComercial = await exigirAcessoComercial(contexto, request, reply, {
+        permissao: "conversas:gerir",
+        modulo: "conversas",
+        mensagemPermissao: "Sem permissão para responder conversa.",
+        mensagemModulo: "Conversas desativadas para este negócio."
+      });
+      if (!contextoComercial) return;
+
+      const { id } = request.params as { id: string };
+      const dados = EnviarMensagemConversaAtendimentoSchema.parse(request.body ?? {});
+      const conversa = await contexto.repositorios.atendimento.buscarConversaComMensagensPorId(
+        id,
+        contextoComercial.negocio.id
+      );
+      if (!conversa) return reply.code(404).send({ erro: "CONVERSA_NAO_ENCONTRADA", mensagem: "Conversa não encontrada." });
+
+      const mensagemLivre = montarMensagemLivreConversa(dados);
+      const envio = await contexto.automacaoWhatsApp.enviarMensagemManual({
+        negocioId: contextoComercial.negocio.id,
+        telefone: conversa.conversa.telefone,
+        mensagem: mensagemLivre,
+        templateId: dados.templateId,
+        variaveis: dados.variaveis,
+        categoria: dados.categoria,
+        consentimentoMarketing: dados.consentimentoMarketing,
+        janelaAtendimentoAtiva: dados.janelaAtendimentoAtiva
+      });
+      const mensagem = await contexto.repositorios.atendimento.registrarMensagem({
+        negocioId: contextoComercial.negocio.id,
+        conversaId: id,
+        clienteNegocioId: conversa.conversa.clienteNegocioId,
+        telefone: conversa.conversa.telefone,
+        direcao: "OUTBOUND",
+        remetente: "agente",
+        canal: "whatsapp",
+        tipo: envio.tipo,
+        conteudo: envio.conteudo,
+        provider: envio.resultado.provider,
+        providerMessageId: envio.resultado.idExterno,
+        status: "SENT",
+        origem: "atendimento_conversa",
+        contexto: {
+          ...dados.contexto,
+          tipoSolicitado: dados.tipo,
+          entidadeTipo: dados.entidadeTipo,
+          entidadeId: dados.entidadeId,
+          categoriaWhatsApp: envio.politica.categoria,
+          templateId: dados.templateId ?? null,
+          mediaUrl: dados.mediaUrl ?? null
+        }
+      });
+      const conversaAtualizada = await contexto.gestaoAtendimentoCrm.atualizarConversa(id, {
+        estado: dados.entidadeTipo === "pedido" ? "AGUARDANDO_PAGAMENTO" : "AGUARDANDO_CLIENTE"
+      }, contextoComercial.negocio.id);
+
+      return reply.code(202).send({
+        mensagem,
+        conversa: conversaAtualizada.conversa,
+        politica: envio.politica,
+        resultado: envio.resultado
+      });
     });
 
     app.post("/atendimento/conversas/:id/politica", async (request, reply) => {
@@ -527,3 +862,104 @@ export const moduloOperacional: ModuloHttp = {
     });
   }
 };
+
+function sugerirAcoesConversa(conversa: ConversaAtendimentoComMensagens, pedidos: Pedido[]) {
+  const pedidosAtivos = pedidos.filter((pedido) => !["CANCELADO", "DEVOLVIDO", "ENTREGUE"].includes(pedido.estado));
+  const pedidoPagamentoPendente = pedidosAtivos.find(
+    (pedido) => pedido.estadoPagamento === "PENDENTE" || pedido.estado === "AGUARDANDO_PAGAMENTO"
+  );
+  const pedidoPagoSemEntrega = pedidosAtivos.find(
+    (pedido) => pedido.estadoPagamento === "CONFIRMADO" && !["ENTREGUE", "DEVOLVIDO"].includes(pedido.estadoEntrega)
+  );
+  const textoRecente = conversa.mensagens
+    .slice(-5)
+    .map((mensagem) => mensagem.conteudo)
+    .join(" ")
+    .toLowerCase();
+  const acoes = [];
+
+  if (!pedidosAtivos.length && /\b(quero|comprar|preço|preco|tem|dispon[ií]vel|produto|pe[cç]a)\b/i.test(textoRecente)) {
+    acoes.push({
+      tipo: "CRIAR_PEDIDO",
+      titulo: "Criar pedido com os produtos mencionados",
+      prioridade: "ALTA",
+      motivo: "Cliente demonstrou intenção comercial e ainda não há pedido ativo.",
+      entidadeTipo: "conversa",
+      entidadeId: conversa.conversa.id
+    });
+  }
+
+  if (pedidoPagamentoPendente) {
+    acoes.push({
+      tipo: "PEDIR_COMPROVATIVO",
+      titulo: "Pedir comprovativo de pagamento",
+      prioridade: "ALTA",
+      motivo: "Existe pedido aguardando pagamento.",
+      entidadeTipo: "pedido",
+      entidadeId: pedidoPagamentoPendente.id
+    });
+    acoes.push({
+      tipo: "ENVIAR_DADOS_PAGAMENTO",
+      titulo: "Enviar dados de pagamento por WhatsApp",
+      prioridade: "NORMAL",
+      motivo: "Pedido já tem total calculado e pode receber cobrança segura.",
+      entidadeTipo: "pedido",
+      entidadeId: pedidoPagamentoPendente.id
+    });
+  }
+
+  if (pedidoPagoSemEntrega) {
+    acoes.push({
+      tipo: pedidoPagoSemEntrega.enderecoEntrega ? "CONFIRMAR_ENTREGA" : "PEDIR_ENDERECO",
+      titulo: pedidoPagoSemEntrega.enderecoEntrega ? "Confirmar preparação/entrega" : "Pedir endereço de entrega",
+      prioridade: "NORMAL",
+      motivo: "Pedido pago ainda não foi entregue.",
+      entidadeTipo: "pedido",
+      entidadeId: pedidoPagoSemEntrega.id
+    });
+  }
+
+  if (conversa.conversa.estado === "AGUARDANDO_HUMANO" || conversa.conversa.prioridade === "URGENTE") {
+    acoes.push({
+      tipo: "ASSUMIR_ATENDIMENTO",
+      titulo: "Assumir atendimento humano",
+      prioridade: "URGENTE",
+      motivo: "Conversa marcada para intervenção humana.",
+      entidadeTipo: "conversa",
+      entidadeId: conversa.conversa.id
+    });
+  }
+
+  return acoes;
+}
+
+function montarMensagemLivreConversa(dados: {
+  tipo: "TEXTO" | "TEMPLATE" | "IMAGEM" | "DOCUMENTO" | "RECIBO" | "CATALOGO";
+  mensagem?: string;
+  mediaUrl?: string;
+}) {
+  if (dados.mensagem?.trim()) return dados.mensagem.trim();
+  if (dados.mediaUrl && dados.tipo === "IMAGEM") return `Imagem enviada: ${dados.mediaUrl}`;
+  if (dados.mediaUrl && dados.tipo === "DOCUMENTO") return `Documento enviado: ${dados.mediaUrl}`;
+  if (dados.mediaUrl && dados.tipo === "RECIBO") return `Recibo enviado: ${dados.mediaUrl}`;
+  if (dados.mediaUrl && dados.tipo === "CATALOGO") return `Catálogo enviado: ${dados.mediaUrl}`;
+  return undefined;
+}
+
+function descreverEventoOperacional(evento: EventoOperacional): string {
+  const payload = evento.payload;
+  if (evento.tipo === "DESCONTO_APROVADO") {
+    return `Foi aprovado desconto de ${formatarKwanza(Number(payload.descontoEmKwanza ?? 0))} para ${evento.entidadeTipo ?? "entidade"} ${evento.entidadeId ?? ""}.`;
+  }
+  if (evento.tipo === "DESCONTO_SOLICITADO") {
+    return `Foi solicitado desconto de ${formatarKwanza(Number(payload.descontoEmKwanza ?? 0))} e aguarda aprovação.`;
+  }
+  if (evento.tipo === "AFILIACAO_SUSPEITA") {
+    return `Atribuição de afiliado bloqueada por ${String(payload.motivo ?? "suspeita operacional")}.`;
+  }
+  return `${evento.tipo} em ${evento.topico}${evento.entidadeTipo ? ` para ${evento.entidadeTipo}` : ""}.`;
+}
+
+function formatarKwanza(valor: number): string {
+  return `${valor.toLocaleString("pt-AO")} Kz`;
+}

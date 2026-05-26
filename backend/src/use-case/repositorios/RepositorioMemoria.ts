@@ -4,11 +4,15 @@ import type {
   RepositorioAfiliados,
   RepositorioAtendimento,
   RepositorioAuditoria,
+  RepositorioCampanhas,
   RepositorioClientes,
   RepositorioCompartilhamentoClientes,
   RepositorioComentarios,
+  RepositorioEventosOperacionais,
   RepositorioFunilComercial,
   RepositorioInstanciasWhatsApp,
+  RepositorioJobsOperacionais,
+  RepositorioMembrosNegocio,
   RepositorioOportunidadesRecuperacao,
   RepositorioPecas,
   RepositorioPedidos,
@@ -17,20 +21,27 @@ import type {
   RepositorioSessoesLive,
   RepositorioSocialInbox,
   RepositorioTarefasOperacionais,
+  RepositorioTemplatesWhatsApp,
   RepositorioTrackingComercial
 } from "../../dominio/repositorios/contratos.js";
 import type {
   AtualizacaoRegistroSessaoLive,
+  AtualizacaoCampanhaCrm,
   AtualizacaoCliente360,
   AtualizacaoConversaAtendimento,
   AtualizacaoEntregaPedido,
   AtualizacaoEstadoPedido,
+  AtualizacaoFinanceiraPedido,
+  AtualizacaoJobOperacional,
+  AtualizacaoMembroNegocioOperacional,
   AtualizacaoModuloNegocio,
   AtualizacaoOportunidadeRecuperacao,
   AtualizacaoRelacaoNegocio,
+  AtualizacaoTemplateWhatsAppNegocio,
   AtualizarPeca,
   AuditoriaCompartilhamentoCliente,
   CodigoLoginSms,
+  CampanhaCrm,
   ClienteAtendimento,
   Cliente360,
   CompartilhamentoClienteRecebido,
@@ -46,8 +57,11 @@ import type {
   EstadoPagamento,
   EstadoPeca,
   EstadoReserva,
+  EventoOperacional,
   EventoTrackingComercial,
   ExecucaoPlaybookRecuperacao,
+  FiltrosCampanhasCrm,
+  FiltrosEventosOperacionais,
   FiltrosPedidos,
   FiltrosClientes360,
   FiltrosExecucoesPlaybookRecuperacao,
@@ -58,19 +72,27 @@ import type {
   EventoSistema,
   HistoricoComissaoParceiro,
   InstanciaWhatsApp,
+  ItemCampanhaCrm,
+  JobOperacional,
   ItemLotePagamentoComissao,
   LotePagamentoComissao,
+  MembroNegocioOperacional,
   MensagemAtendimento,
   MovimentoFunilComercial,
   ModuloNegocioCodigo,
   ModuloNegocioConfigurado,
   MovimentoStock,
+  NovaCampanhaCrm,
   NovaComissaoParceiro,
   NovaExecucaoPlaybookRecuperacao,
   NovaMensagemAtendimento,
   NovaOportunidadeRecuperacao,
   NovaRelacaoNegocio,
+  NovoMembroNegocioOperacional,
   NovoCompartilhamentoCliente,
+  NovoEventoOperacional,
+  NovoItemCampanhaCrm,
+  NovoJobOperacional,
   NovoEventoTrackingComercial,
   NovoLotePagamentoComissao,
   NovoLinkAfiliado,
@@ -78,6 +100,7 @@ import type {
   NovoPlaybookRecuperacao,
   NovoMovimentoStock,
   NovoParceiroComercial,
+  NovoTemplateWhatsAppNegocio,
   NovaPeca,
   NovaReserva,
   NovoOutboxMensagemWhatsApp,
@@ -105,6 +128,7 @@ import type {
   NovoSocialInboxItem,
   TarefaOperacional,
   SocialInboxItem,
+  TemplateWhatsAppNegocio,
   TipoHistoricoComissaoParceiro
 } from "../../dominio/tipos.js";
 import { normalizarEmail, normalizarTelefone } from "../../dominio/servicos/normalizarContato.js";
@@ -118,6 +142,21 @@ import type {
   ResumoTrackingComercial,
   UsuarioSistema
 } from "../../dominio/tipos.js";
+
+function metricasCampanhaZeradas() {
+  return {
+    selecionados: 0,
+    bloqueados: 0,
+    enfileirados: 0,
+    enviados: 0,
+    entregues: 0,
+    lidos: 0,
+    respondidos: 0,
+    falhados: 0,
+    pedidosGerados: 0,
+    receitaAtribuidaEmKwanza: 0
+  };
+}
 import { modulosNegocioPadrao } from "../../dominio/tipos.js";
 
 const estadosQueBloqueiamStock: EstadoReserva[] = ["PENDING", "RESERVED", "WAITING_PAYMENT", "PAID"];
@@ -298,6 +337,26 @@ export class RepositorioTrackingComercialMemoria implements RepositorioTrackingC
     };
   }
 
+  async listarEventos(
+    negocioId: string,
+    filtros: {
+      tipo?: EventoTrackingComercial["tipo"];
+      origem?: string;
+      canal?: string;
+      codigoProduto?: string;
+      limite?: number;
+    } = {}
+  ): Promise<EventoTrackingComercial[]> {
+    return [...this.eventos.values()]
+      .filter((evento) => evento.negocioId === negocioId)
+      .filter((evento) => !filtros.tipo || evento.tipo === filtros.tipo)
+      .filter((evento) => !filtros.origem || evento.origem === filtros.origem)
+      .filter((evento) => !filtros.canal || evento.canal === filtros.canal)
+      .filter((evento) => !filtros.codigoProduto || evento.codigoProduto === filtros.codigoProduto)
+      .sort((a, b) => b.criadoEm.getTime() - a.criadoEm.getTime())
+      .slice(0, filtros.limite ?? 1000);
+  }
+
   private contarPor<T extends string>(eventos: EventoTrackingComercial[], seletor: (evento: EventoTrackingComercial) => T) {
     return eventos.reduce<Record<T, number>>((acumulador, evento) => {
       const chave = seletor(evento);
@@ -342,6 +401,293 @@ export class RepositorioTrackingComercialMemoria implements RepositorioTrackingC
   private percentual(parte: number, total: number): number {
     if (total <= 0) return 0;
     return Math.round((parte / total) * 10_000) / 100;
+  }
+}
+
+export class RepositorioTemplatesWhatsAppMemoria implements RepositorioTemplatesWhatsApp {
+  private readonly templates = new Map<string, TemplateWhatsAppNegocio>();
+
+  async criar(dados: NovoTemplateWhatsAppNegocio): Promise<TemplateWhatsAppNegocio> {
+    const agora = new Date();
+    const template: TemplateWhatsAppNegocio = {
+      id: randomUUID(),
+      negocioId: dados.negocioId,
+      nome: dados.nome,
+      categoria: dados.categoria,
+      idioma: dados.idioma ?? "pt_AO",
+      provider: dados.provider ?? "whatsapp_cloud_api",
+      estadoAprovacao: dados.estadoAprovacao ?? "rascunho",
+      eventosCompativeis: dados.eventosCompativeis ?? [],
+      variaveis: dados.variaveis ?? [],
+      corpo: dados.corpo,
+      ativo: dados.ativo ?? true,
+      versao: 1,
+      motivoUltimaAlteracao: dados.motivoUltimaAlteracao ?? null,
+      criadoEm: agora,
+      atualizadoEm: agora
+    };
+    this.templates.set(template.id, template);
+    return template;
+  }
+
+  async listar(negocioId: string): Promise<TemplateWhatsAppNegocio[]> {
+    return [...this.templates.values()]
+      .filter((template) => template.negocioId === negocioId)
+      .sort((a, b) => b.atualizadoEm.getTime() - a.atualizadoEm.getTime());
+  }
+
+  async buscarPorId(id: string, negocioId: string): Promise<TemplateWhatsAppNegocio | null> {
+    const template = this.templates.get(id);
+    return template?.negocioId === negocioId ? template : null;
+  }
+
+  async atualizar(
+    id: string,
+    negocioId: string,
+    dados: AtualizacaoTemplateWhatsAppNegocio
+  ): Promise<TemplateWhatsAppNegocio | null> {
+    const atual = await this.buscarPorId(id, negocioId);
+    if (!atual) return null;
+    const atualizado: TemplateWhatsAppNegocio = {
+      ...atual,
+      ...dados,
+      eventosCompativeis: dados.eventosCompativeis ?? atual.eventosCompativeis,
+      variaveis: dados.variaveis ?? atual.variaveis,
+      versao: dados.corpo && dados.corpo !== atual.corpo ? atual.versao + 1 : atual.versao,
+      atualizadoEm: new Date()
+    };
+    this.templates.set(id, atualizado);
+    return atualizado;
+  }
+}
+
+export class RepositorioCampanhasMemoria implements RepositorioCampanhas {
+  private readonly campanhas = new Map<string, CampanhaCrm>();
+  private readonly itens = new Map<string, ItemCampanhaCrm>();
+
+  async criar(dados: NovaCampanhaCrm): Promise<CampanhaCrm> {
+    const agora = new Date();
+    const campanha: CampanhaCrm = {
+      id: randomUUID(),
+      negocioId: dados.negocioId,
+      nome: dados.nome,
+      objetivo: dados.objetivo,
+      canal: dados.canal,
+      templateId: dados.templateId,
+      categoria: dados.categoria,
+      estado: "RASCUNHO",
+      segmento: dados.segmento ?? {},
+      limiteDiario: dados.limiteDiario ?? 500,
+      janelaInicio: dados.janelaInicio ?? null,
+      janelaFim: dados.janelaFim ?? null,
+      metricas: metricasCampanhaZeradas(),
+      criadaPorUsuarioId: dados.criadaPorUsuarioId ?? null,
+      pausadaEm: null,
+      motivoPausa: null,
+      confirmadaEm: null,
+      criadaEm: agora,
+      atualizadaEm: agora
+    };
+    this.campanhas.set(campanha.id, campanha);
+    return campanha;
+  }
+
+  async listar(negocioId: string, filtros: FiltrosCampanhasCrm = {}): Promise<CampanhaCrm[]> {
+    return [...this.campanhas.values()]
+      .filter((campanha) => campanha.negocioId === negocioId)
+      .filter((campanha) => !filtros.estado || campanha.estado === filtros.estado)
+      .filter((campanha) => !filtros.canal || campanha.canal === filtros.canal)
+      .sort((a, b) => b.criadaEm.getTime() - a.criadaEm.getTime())
+      .slice(0, filtros.limite ?? 100);
+  }
+
+  async buscarPorId(id: string, negocioId: string): Promise<CampanhaCrm | null> {
+    const campanha = this.campanhas.get(id);
+    return campanha?.negocioId === negocioId ? campanha : null;
+  }
+
+  async atualizar(id: string, negocioId: string, dados: AtualizacaoCampanhaCrm): Promise<CampanhaCrm | null> {
+    const atual = await this.buscarPorId(id, negocioId);
+    if (!atual) return null;
+    const atualizado: CampanhaCrm = {
+      ...atual,
+      ...dados,
+      metricas: dados.metricas ?? atual.metricas,
+      atualizadaEm: new Date()
+    };
+    this.campanhas.set(id, atualizado);
+    return atualizado;
+  }
+
+  async registrarItens(campanhaId: string, itens: NovoItemCampanhaCrm[]): Promise<ItemCampanhaCrm[]> {
+    const agora = new Date();
+    const removidos = [...this.itens.values()].filter((item) => item.campanhaId === campanhaId);
+    for (const item of removidos) this.itens.delete(item.id);
+
+    const registros = itens.map<ItemCampanhaCrm>((dados) => ({
+      id: randomUUID(),
+      negocioId: dados.negocioId,
+      campanhaId,
+      clienteId: dados.clienteId ?? null,
+      telefone: dados.telefone ?? null,
+      nomeCliente: dados.nomeCliente ?? null,
+      status: dados.status,
+      motivoBloqueio: dados.motivoBloqueio ?? null,
+      outboxMensagemId: dados.outboxMensagemId ?? null,
+      contexto: dados.contexto ?? {},
+      criadoEm: agora,
+      atualizadoEm: agora
+    }));
+    for (const item of registros) this.itens.set(item.id, item);
+    return registros;
+  }
+
+  async listarItens(campanhaId: string, negocioId: string): Promise<ItemCampanhaCrm[]> {
+    return [...this.itens.values()]
+      .filter((item) => item.campanhaId === campanhaId && item.negocioId === negocioId)
+      .sort((a, b) => a.criadoEm.getTime() - b.criadoEm.getTime());
+  }
+}
+
+export class RepositorioEventosOperacionaisMemoria implements RepositorioEventosOperacionais {
+  private readonly eventos = new Map<string, EventoOperacional>();
+
+  async registrar(dados: NovoEventoOperacional): Promise<{ evento: EventoOperacional; duplicado: boolean }> {
+    if (dados.idempotencyKey) {
+      const existente = [...this.eventos.values()].find(
+        (evento) => evento.negocioId === dados.negocioId && evento.idempotencyKey === dados.idempotencyKey
+      );
+      if (existente) return { evento: existente, duplicado: true };
+    }
+
+    const agora = new Date();
+    const evento: EventoOperacional = {
+      id: randomUUID(),
+      negocioId: dados.negocioId,
+      topico: dados.topico,
+      tipo: dados.tipo,
+      entidadeTipo: dados.entidadeTipo ?? null,
+      entidadeId: dados.entidadeId ?? null,
+      idempotencyKey: dados.idempotencyKey ?? null,
+      payload: dados.payload ?? {},
+      estado: dados.estado ?? "PENDENTE",
+      tentativas: 0,
+      proximaTentativaEm: dados.proximaTentativaEm ?? null,
+      criadoEm: agora,
+      atualizadoEm: agora
+    };
+    this.eventos.set(evento.id, evento);
+    return { evento, duplicado: false };
+  }
+
+  async listar(negocioId: string, filtros: FiltrosEventosOperacionais = {}): Promise<EventoOperacional[]> {
+    return [...this.eventos.values()]
+      .filter((evento) => evento.negocioId === negocioId)
+      .filter((evento) => !filtros.topico || evento.topico === filtros.topico)
+      .filter((evento) => !filtros.tipo || evento.tipo === filtros.tipo)
+      .filter((evento) => !filtros.estado || evento.estado === filtros.estado)
+      .sort((a, b) => b.criadoEm.getTime() - a.criadoEm.getTime())
+      .slice(0, filtros.limite ?? 100);
+  }
+}
+
+export class RepositorioJobsOperacionaisMemoria implements RepositorioJobsOperacionais {
+  private readonly jobs = new Map<string, JobOperacional>();
+
+  async criar(dados: NovoJobOperacional): Promise<{ job: JobOperacional; duplicado: boolean }> {
+    if (dados.idempotencyKey) {
+      const existente = await this.buscarPorIdempotencyKey(dados.negocioId, dados.idempotencyKey);
+      if (existente) return { job: existente, duplicado: true };
+    }
+
+    const agora = new Date();
+    const job: JobOperacional = {
+      id: randomUUID(),
+      negocioId: dados.negocioId,
+      tipo: dados.tipo,
+      estado: dados.estado ?? "PENDENTE",
+      idempotencyKey: dados.idempotencyKey ?? null,
+      total: dados.total ?? 0,
+      processados: dados.processados ?? 0,
+      erros: dados.erros ?? 0,
+      resultado: dados.resultado ?? {},
+      erro: dados.erro ?? null,
+      criadoEm: agora,
+      atualizadoEm: agora,
+      concluidoEm: dados.concluidoEm ?? null
+    };
+    this.jobs.set(job.id, job);
+    return { job, duplicado: false };
+  }
+
+  async atualizar(id: string, negocioId: string, dados: AtualizacaoJobOperacional): Promise<JobOperacional | null> {
+    const atual = await this.buscarPorId(id, negocioId);
+    if (!atual) return null;
+    const atualizado: JobOperacional = { ...atual, ...dados, atualizadoEm: new Date() };
+    this.jobs.set(id, atualizado);
+    return atualizado;
+  }
+
+  async buscarPorId(id: string, negocioId: string): Promise<JobOperacional | null> {
+    const job = this.jobs.get(id);
+    return job?.negocioId === negocioId ? job : null;
+  }
+
+  async buscarPorIdempotencyKey(negocioId: string, idempotencyKey: string): Promise<JobOperacional | null> {
+    return [...this.jobs.values()].find((job) => job.negocioId === negocioId && job.idempotencyKey === idempotencyKey) ?? null;
+  }
+}
+
+export class RepositorioMembrosNegocioMemoria implements RepositorioMembrosNegocio {
+  private readonly membros = new Map<string, MembroNegocioOperacional>();
+
+  async listar(negocioId: string): Promise<MembroNegocioOperacional[]> {
+    return [...this.membros.values()]
+      .filter((membro) => membro.negocioId === negocioId)
+      .sort((a, b) => a.nome.localeCompare(b.nome));
+  }
+
+  async criar(dados: NovoMembroNegocioOperacional): Promise<MembroNegocioOperacional> {
+    const existente = [...this.membros.values()].find(
+      (membro) => membro.negocioId === dados.negocioId && membro.telefone === dados.telefone
+    );
+    if (existente) return existente;
+
+    const agora = new Date();
+    const membro: MembroNegocioOperacional = {
+      id: randomUUID(),
+      negocioId: dados.negocioId,
+      usuarioId: randomUUID(),
+      nome: dados.nome,
+      telefone: dados.telefone,
+      email: dados.email ?? null,
+      avatarUrl: null,
+      papel: dados.papel,
+      status: "ATIVO",
+      permissoes: dados.permissoes ?? [],
+      criadoEm: agora,
+      atualizadoEm: agora
+    };
+    this.membros.set(membro.id, membro);
+    return membro;
+  }
+
+  async atualizar(
+    id: string,
+    negocioId: string,
+    dados: AtualizacaoMembroNegocioOperacional
+  ): Promise<MembroNegocioOperacional | null> {
+    const atual = this.membros.get(id);
+    if (!atual || atual.negocioId !== negocioId) return null;
+    const atualizado: MembroNegocioOperacional = {
+      ...atual,
+      papel: dados.papel ?? atual.papel,
+      status: dados.status ?? atual.status,
+      permissoes: dados.permissoes ?? atual.permissoes,
+      atualizadoEm: new Date()
+    };
+    this.membros.set(id, atualizado);
+    return atualizado;
   }
 }
 
@@ -1735,6 +2081,39 @@ export class RepositorioClientesMemoria implements RepositorioClientes {
     return atualizado;
   }
 
+  async anonimizar(
+    id: string,
+    negocioId: string,
+    dados: { motivo: string; anonimizadoEm?: Date }
+  ): Promise<Cliente360 | null> {
+    const existente = await this.buscarPorId(id, negocioId);
+    if (!existente) return null;
+
+    const anonimizadoEm = dados.anonimizadoEm ?? new Date();
+    const atualizado: Cliente360 = {
+      ...existente,
+      telefone: null,
+      email: null,
+      nome: null,
+      username: null,
+      userId: null,
+      avatarUrl: null,
+      tags: this.normalizarTags([...existente.tags, "anonimizado"]),
+      preferencias: {
+        ...existente.preferencias,
+        anonimizado: true,
+        anonimizadoEm: anonimizadoEm.toISOString(),
+        motivoAnonimizacao: dados.motivo
+      },
+      consentimentoMarketing: false,
+      consentimentoDados: false,
+      estadoRelacionamento: "BLOQUEADO",
+      atualizadoEm: anonimizadoEm
+    };
+    this.clientesNegocio.set(id, atualizado);
+    return atualizado;
+  }
+
   private obterOuCriarClienteGlobal(
     dados: DadosCliente360,
     contato: { telefoneCanonico: string | null; telefoneLocal: string | null; email: string | null },
@@ -2023,6 +2402,16 @@ export class RepositorioPedidosMemoria implements RepositorioPedidos {
       .filter((pedido) => !filtros.estadoPagamento || pedido.estadoPagamento === filtros.estadoPagamento)
       .filter((pedido) => !filtros.estadoEntrega || pedido.estadoEntrega === filtros.estadoEntrega)
       .filter((pedido) => !filtros.clienteId || pedido.clienteNegocioId === filtros.clienteId)
+      .filter((pedido) => !filtros.canal || pedido.canal.toLowerCase() === filtros.canal.toLowerCase())
+      .filter((pedido) => !filtros.dataInicio || pedido.criadoEm >= filtros.dataInicio)
+      .filter((pedido) => !filtros.dataFim || pedido.criadoEm <= filtros.dataFim)
+      .filter((pedido) => {
+        const produto = filtros.produto?.trim().toLowerCase();
+        if (!produto) return true;
+        return pedido.itens.some((item) =>
+          [item.codigoPeca, item.nomeProduto].some((valor) => valor.toLowerCase().includes(produto))
+        );
+      })
       .filter((pedido) => {
         if (!busca) return true;
         return [
@@ -2053,6 +2442,26 @@ export class RepositorioPedidosMemoria implements RepositorioPedidos {
       observacao: dados.observacao ?? pedido.observacao,
       responsavelId: dados.responsavelId ?? pedido.responsavelId,
       canceladoEm: dados.estado === "CANCELADO" ? new Date() : pedido.canceladoEm,
+      atualizadoEm: new Date()
+    };
+    this.pedidos.set(id, atualizado);
+    return atualizado;
+  }
+
+  async atualizarFinanceiro(
+    id: string,
+    negocioId: string,
+    dados: AtualizacaoFinanceiraPedido
+  ): Promise<Pedido | null> {
+    const pedido = await this.buscarPorId(id, negocioId);
+    if (!pedido) return null;
+
+    const atualizado: Pedido = {
+      ...pedido,
+      descontoEmKwanza: dados.descontoEmKwanza ?? pedido.descontoEmKwanza,
+      motivoDesconto: dados.motivoDesconto === undefined ? pedido.motivoDesconto : dados.motivoDesconto,
+      totalEmKwanza: dados.totalEmKwanza ?? pedido.totalEmKwanza,
+      observacao: dados.observacao === undefined ? pedido.observacao : dados.observacao,
       atualizadoEm: new Date()
     };
     this.pedidos.set(id, atualizado);

@@ -5,11 +5,15 @@ import type {
   RepositorioAfiliados,
   RepositorioAtendimento,
   RepositorioAuditoria,
+  RepositorioCampanhas,
   RepositorioClientes,
   RepositorioCompartilhamentoClientes,
   RepositorioInstanciasWhatsApp,
+  RepositorioEventosOperacionais,
   RepositorioPecas,
   RepositorioFunilComercial,
+  RepositorioJobsOperacionais,
+  RepositorioMembrosNegocio,
   RepositorioOportunidadesRecuperacao,
   RepositorioPedidos,
   RepositorioPlaybooksRecuperacao,
@@ -17,20 +21,27 @@ import type {
   RepositorioSessoesLive,
   RepositorioSocialInbox,
   RepositorioTarefasOperacionais,
+  RepositorioTemplatesWhatsApp,
   RepositorioTrackingComercial
 } from "../../dominio/repositorios/contratos.js";
 import type {
   AtualizacaoRegistroSessaoLive,
+  AtualizacaoCampanhaCrm,
   AtualizacaoCliente360,
   AtualizacaoConversaAtendimento,
   AtualizacaoEntregaPedido,
   AtualizacaoEstadoPedido,
+  AtualizacaoFinanceiraPedido,
+  AtualizacaoJobOperacional,
+  AtualizacaoMembroNegocioOperacional,
   AtualizacaoModuloNegocio,
   AtualizacaoOportunidadeRecuperacao,
   AtualizacaoRelacaoNegocio,
+  AtualizacaoTemplateWhatsAppNegocio,
   AtualizacaoTarefaOperacional,
   AtualizarPeca,
   AuditoriaCompartilhamentoCliente,
+  CampanhaCrm,
   CodigoLoginSms,
   ClienteAtendimento,
   Cliente360,
@@ -51,38 +62,50 @@ import type {
   EstadoPeca,
   EstadoPedido,
   EstadoReserva,
+  EventoOperacional,
   ExecucaoPlaybookRecuperacao,
   EventoSistema,
   EventoTrackingComercial,
   FiltrosPedidos,
+  FiltrosCampanhasCrm,
   FiltrosClientes360,
   FiltrosExecucoesPlaybookRecuperacao,
+  FiltrosEventosOperacionais,
   FiltrosMovimentosFunilComercial,
   FiltrosOportunidadesRecuperacao,
   FiltrosPlaybookRecuperacao,
   FiltrosSocialInbox,
   HistoricoComissaoParceiro,
   InstanciaWhatsApp,
+  ItemCampanhaCrm,
+  JobOperacional,
   ItemLotePagamentoComissao,
   LinkAfiliado,
   LotePagamentoComissao,
+  MembroNegocioOperacional,
   MensagemAtendimento,
   MovimentoFunilComercial,
   ModuloNegocioCodigo,
   ModuloNegocioConfigurado,
   MovimentoStock,
+  NovaCampanhaCrm,
   NovaComissaoParceiro,
   NovaExecucaoPlaybookRecuperacao,
   NovaMensagemAtendimento,
   NovaOportunidadeRecuperacao,
   NovaRelacaoNegocio,
+  NovoMembroNegocioOperacional,
   NovoCompartilhamentoCliente,
+  NovoEventoOperacional,
+  NovoItemCampanhaCrm,
+  NovoJobOperacional,
   NovoEventoTrackingComercial,
   NovoLinkAfiliado,
   NovoMovimentoFunilComercial,
   NovoPlaybookRecuperacao,
   NovoMovimentoStock,
   NovoParceiroComercial,
+  NovoTemplateWhatsAppNegocio,
   NovaPeca,
   NovaReserva,
   NovoLotePagamentoComissao,
@@ -114,6 +137,7 @@ import type {
   FiltrosTarefasOperacionais,
   TarefaOperacional,
   SocialInboxItem,
+  TemplateWhatsAppNegocio,
   ResumoTrackingComercial,
   RelacaoNegocioCompartilhamento,
   TipoHistoricoComissaoParceiro,
@@ -124,6 +148,21 @@ import { normalizarEmail, normalizarTelefone } from "../../dominio/servicos/norm
 
 const estadosQueBloqueiamStock: EstadoReserva[] = ["PENDING", "RESERVED", "WAITING_PAYMENT", "PAID"];
 const estadosAtivosParaDuplicidade: EstadoReserva[] = ["PENDING", "RESERVED", "WAITING_PAYMENT", "WAITLISTED"];
+
+function metricasCampanhaZeradas() {
+  return {
+    selecionados: 0,
+    bloqueados: 0,
+    enfileirados: 0,
+    enviados: 0,
+    entregues: 0,
+    lidos: 0,
+    respondidos: 0,
+    falhados: 0,
+    pedidosGerados: 0,
+    receitaAtribuidaEmKwanza: 0
+  };
+}
 
 export class RepositorioPecasPrisma implements RepositorioPecas {
   constructor(private readonly prisma: PrismaClient) {}
@@ -368,6 +407,30 @@ export class RepositorioTrackingComercialPrisma implements RepositorioTrackingCo
     };
   }
 
+  async listarEventos(
+    negocioId: string,
+    filtros: {
+      tipo?: EventoTrackingComercial["tipo"];
+      origem?: string;
+      canal?: string;
+      codigoProduto?: string;
+      limite?: number;
+    } = {}
+  ): Promise<EventoTrackingComercial[]> {
+    const eventos = await this.prisma.eventoTrackingComercial.findMany({
+      where: {
+        negocioId,
+        ...(filtros.tipo ? { tipo: filtros.tipo } : {}),
+        ...(filtros.origem ? { origem: filtros.origem } : {}),
+        ...(filtros.canal ? { canal: filtros.canal } : {}),
+        ...(filtros.codigoProduto ? { codigoProduto: filtros.codigoProduto } : {})
+      },
+      orderBy: { criadoEm: "desc" },
+      take: filtros.limite ?? 1000
+    });
+    return eventos.map((evento) => this.mapearEvento(evento));
+  }
+
   private mapearEvento(evento: {
     id: string;
     negocioId: string;
@@ -450,6 +513,535 @@ export class RepositorioTrackingComercialPrisma implements RepositorioTrackingCo
       return dados && typeof dados === "object" && !Array.isArray(dados) ? dados as Record<string, unknown> : {};
     } catch {
       return {};
+    }
+  }
+}
+
+export class RepositorioTemplatesWhatsAppPrisma implements RepositorioTemplatesWhatsApp {
+  constructor(private readonly prisma: PrismaClient) {}
+
+  async criar(dados: NovoTemplateWhatsAppNegocio): Promise<TemplateWhatsAppNegocio> {
+    const template = await this.prisma.templateWhatsAppNegocio.create({
+      data: {
+        negocioId: dados.negocioId,
+        nome: dados.nome,
+        categoria: dados.categoria,
+        idioma: dados.idioma ?? "pt_AO",
+        provider: dados.provider ?? "whatsapp_cloud_api",
+        estadoAprovacao: dados.estadoAprovacao ?? "rascunho",
+        eventosCompativeisJson: this.serializar(dados.eventosCompativeis ?? []),
+        variaveisJson: this.serializar(dados.variaveis ?? []),
+        corpo: dados.corpo,
+        ativo: dados.ativo ?? true,
+        motivoUltimaAlteracao: dados.motivoUltimaAlteracao ?? null
+      }
+    });
+
+    return this.mapear(template);
+  }
+
+  async listar(negocioId: string): Promise<TemplateWhatsAppNegocio[]> {
+    const templates = await this.prisma.templateWhatsAppNegocio.findMany({
+      where: { negocioId },
+      orderBy: { atualizadoEm: "desc" }
+    });
+    return templates.map((template) => this.mapear(template));
+  }
+
+  async buscarPorId(id: string, negocioId: string): Promise<TemplateWhatsAppNegocio | null> {
+    const template = await this.prisma.templateWhatsAppNegocio.findFirst({ where: { id, negocioId } });
+    return template ? this.mapear(template) : null;
+  }
+
+  async atualizar(
+    id: string,
+    negocioId: string,
+    dados: AtualizacaoTemplateWhatsAppNegocio
+  ): Promise<TemplateWhatsAppNegocio | null> {
+    const atual = await this.prisma.templateWhatsAppNegocio.findFirst({ where: { id, negocioId } });
+    if (!atual) return null;
+    const template = await this.prisma.templateWhatsAppNegocio.update({
+      where: { id },
+      data: {
+        nome: dados.nome,
+        categoria: dados.categoria,
+        idioma: dados.idioma,
+        provider: dados.provider,
+        estadoAprovacao: dados.estadoAprovacao,
+        eventosCompativeisJson: dados.eventosCompativeis ? this.serializar(dados.eventosCompativeis) : undefined,
+        variaveisJson: dados.variaveis ? this.serializar(dados.variaveis) : undefined,
+        corpo: dados.corpo,
+        ativo: dados.ativo,
+        versao: dados.corpo && dados.corpo !== atual.corpo ? { increment: 1 } : undefined,
+        motivoUltimaAlteracao: dados.motivoUltimaAlteracao
+      }
+    });
+    return this.mapear(template);
+  }
+
+  private mapear(template: {
+    id: string;
+    negocioId: string;
+    nome: string;
+    categoria: string;
+    idioma: string;
+    provider: string;
+    estadoAprovacao: string;
+    eventosCompativeisJson: string;
+    variaveisJson: string;
+    corpo: string;
+    ativo: boolean;
+    versao: number;
+    motivoUltimaAlteracao: string | null;
+    criadoEm: Date;
+    atualizadoEm: Date;
+  }): TemplateWhatsAppNegocio {
+    return {
+      id: template.id,
+      negocioId: template.negocioId,
+      nome: template.nome,
+      categoria: template.categoria as TemplateWhatsAppNegocio["categoria"],
+      idioma: template.idioma,
+      provider: template.provider as TemplateWhatsAppNegocio["provider"],
+      estadoAprovacao: template.estadoAprovacao as TemplateWhatsAppNegocio["estadoAprovacao"],
+      eventosCompativeis: this.lerLista(template.eventosCompativeisJson),
+      variaveis: this.lerLista(template.variaveisJson),
+      corpo: template.corpo,
+      ativo: template.ativo,
+      versao: template.versao,
+      motivoUltimaAlteracao: template.motivoUltimaAlteracao,
+      criadoEm: template.criadoEm,
+      atualizadoEm: template.atualizadoEm
+    };
+  }
+
+  private lerLista(valor: string): string[] {
+    try {
+      const dados = JSON.parse(valor);
+      return Array.isArray(dados) ? dados.filter((item): item is string => typeof item === "string") : [];
+    } catch {
+      return [];
+    }
+  }
+
+  private serializar(valor: unknown): string {
+    return JSON.stringify(valor);
+  }
+}
+
+export class RepositorioCampanhasPrisma implements RepositorioCampanhas {
+  constructor(private readonly prisma: PrismaClient) {}
+
+  async criar(dados: NovaCampanhaCrm): Promise<CampanhaCrm> {
+    const campanha = await this.prisma.campanhaCrm.create({
+      data: {
+        negocioId: dados.negocioId,
+        nome: dados.nome,
+        objetivo: dados.objetivo,
+        canal: dados.canal,
+        templateId: dados.templateId,
+        categoria: dados.categoria,
+        segmentoJson: this.serializar(dados.segmento ?? {}),
+        limiteDiario: dados.limiteDiario ?? 500,
+        janelaInicio: dados.janelaInicio ?? null,
+        janelaFim: dados.janelaFim ?? null,
+        metricasJson: this.serializar(metricasCampanhaZeradas()),
+        criadaPorUsuarioId: dados.criadaPorUsuarioId ?? null
+      }
+    });
+    return this.mapearCampanha(campanha);
+  }
+
+  async listar(negocioId: string, filtros: FiltrosCampanhasCrm = {}): Promise<CampanhaCrm[]> {
+    const where: Prisma.CampanhaCrmWhereInput = { negocioId };
+    if (filtros.estado) where.estado = filtros.estado;
+    if (filtros.canal) where.canal = filtros.canal;
+    const campanhas = await this.prisma.campanhaCrm.findMany({
+      where,
+      orderBy: { criadaEm: "desc" },
+      take: Math.max(1, Math.min(filtros.limite ?? 100, 500))
+    });
+    return campanhas.map((campanha) => this.mapearCampanha(campanha));
+  }
+
+  async buscarPorId(id: string, negocioId: string): Promise<CampanhaCrm | null> {
+    const campanha = await this.prisma.campanhaCrm.findFirst({ where: { id, negocioId } });
+    return campanha ? this.mapearCampanha(campanha) : null;
+  }
+
+  async atualizar(id: string, negocioId: string, dados: AtualizacaoCampanhaCrm): Promise<CampanhaCrm | null> {
+    const atual = await this.prisma.campanhaCrm.findFirst({ where: { id, negocioId } });
+    if (!atual) return null;
+    const campanha = await this.prisma.campanhaCrm.update({
+      where: { id },
+      data: {
+        estado: dados.estado,
+        metricasJson: dados.metricas ? this.serializar(dados.metricas) : undefined,
+        pausadaEm: dados.pausadaEm,
+        motivoPausa: dados.motivoPausa,
+        confirmadaEm: dados.confirmadaEm
+      }
+    });
+    return this.mapearCampanha(campanha);
+  }
+
+  async registrarItens(campanhaId: string, itens: NovoItemCampanhaCrm[]): Promise<ItemCampanhaCrm[]> {
+    await this.prisma.itemCampanhaCrm.deleteMany({ where: { campanhaId } });
+    if (itens.length === 0) return [];
+    await this.prisma.itemCampanhaCrm.createMany({
+      data: itens.map((item) => ({
+        negocioId: item.negocioId,
+        campanhaId,
+        clienteId: item.clienteId ?? null,
+        telefone: item.telefone ?? null,
+        nomeCliente: item.nomeCliente ?? null,
+        status: item.status,
+        motivoBloqueio: item.motivoBloqueio ?? null,
+        outboxMensagemId: item.outboxMensagemId ?? null,
+        contextoJson: this.serializar(item.contexto ?? {})
+      }))
+    });
+    return this.listarItens(campanhaId, itens[0]?.negocioId ?? "");
+  }
+
+  async listarItens(campanhaId: string, negocioId: string): Promise<ItemCampanhaCrm[]> {
+    const itens = await this.prisma.itemCampanhaCrm.findMany({
+      where: { campanhaId, negocioId },
+      orderBy: { criadoEm: "asc" }
+    });
+    return itens.map((item) => this.mapearItem(item));
+  }
+
+  private mapearCampanha(campanha: {
+    id: string;
+    negocioId: string;
+    nome: string;
+    objetivo: string;
+    canal: string;
+    templateId: string;
+    categoria: string;
+    estado: string;
+    segmentoJson: string;
+    limiteDiario: number;
+    janelaInicio: Date | null;
+    janelaFim: Date | null;
+    metricasJson: string;
+    criadaPorUsuarioId: string | null;
+    pausadaEm: Date | null;
+    motivoPausa: string | null;
+    confirmadaEm: Date | null;
+    criadaEm: Date;
+    atualizadaEm: Date;
+  }): CampanhaCrm {
+    return {
+      ...campanha,
+      categoria: campanha.categoria as CampanhaCrm["categoria"],
+      estado: campanha.estado as CampanhaCrm["estado"],
+      segmento: this.lerObjeto(campanha.segmentoJson),
+      metricas: {
+        ...metricasCampanhaZeradas(),
+        ...this.lerObjeto(campanha.metricasJson)
+      }
+    };
+  }
+
+  private mapearItem(item: {
+    id: string;
+    negocioId: string;
+    campanhaId: string;
+    clienteId: string | null;
+    telefone: string | null;
+    nomeCliente: string | null;
+    status: string;
+    motivoBloqueio: string | null;
+    outboxMensagemId: string | null;
+    contextoJson: string;
+    criadoEm: Date;
+    atualizadoEm: Date;
+  }): ItemCampanhaCrm {
+    return {
+      ...item,
+      status: item.status as ItemCampanhaCrm["status"],
+      contexto: this.lerObjeto(item.contextoJson)
+    };
+  }
+
+  private lerObjeto(valor: string): Record<string, unknown> {
+    try {
+      const dados = JSON.parse(valor);
+      return dados && typeof dados === "object" && !Array.isArray(dados) ? dados as Record<string, unknown> : {};
+    } catch {
+      return {};
+    }
+  }
+
+  private serializar(valor: unknown): string {
+    return JSON.stringify(valor);
+  }
+}
+
+export class RepositorioEventosOperacionaisPrisma implements RepositorioEventosOperacionais {
+  constructor(private readonly prisma: PrismaClient) {}
+
+  async registrar(dados: NovoEventoOperacional): Promise<{ evento: EventoOperacional; duplicado: boolean }> {
+    if (dados.idempotencyKey) {
+      const existente = await this.prisma.eventoOperacional.findUnique({
+        where: { negocioId_idempotencyKey: { negocioId: dados.negocioId, idempotencyKey: dados.idempotencyKey } }
+      });
+      if (existente) return { evento: this.mapear(existente), duplicado: true };
+    }
+
+    const evento = await this.prisma.eventoOperacional.create({
+      data: {
+        negocioId: dados.negocioId,
+        topico: dados.topico,
+        tipo: dados.tipo,
+        entidadeTipo: dados.entidadeTipo ?? null,
+        entidadeId: dados.entidadeId ?? null,
+        idempotencyKey: dados.idempotencyKey ?? null,
+        payloadJson: JSON.stringify(dados.payload ?? {}),
+        estado: dados.estado ?? "PENDENTE",
+        proximaTentativaEm: dados.proximaTentativaEm ?? null
+      }
+    });
+    return { evento: this.mapear(evento), duplicado: false };
+  }
+
+  async listar(negocioId: string, filtros: FiltrosEventosOperacionais = {}): Promise<EventoOperacional[]> {
+    const where: Prisma.EventoOperacionalWhereInput = { negocioId };
+    if (filtros.topico) where.topico = filtros.topico;
+    if (filtros.tipo) where.tipo = filtros.tipo;
+    if (filtros.estado) where.estado = filtros.estado;
+    const eventos = await this.prisma.eventoOperacional.findMany({
+      where,
+      orderBy: { criadoEm: "desc" },
+      take: Math.max(1, Math.min(filtros.limite ?? 100, 500))
+    });
+    return eventos.map((evento) => this.mapear(evento));
+  }
+
+  private mapear(evento: {
+    id: string;
+    negocioId: string;
+    topico: string;
+    tipo: string;
+    entidadeTipo: string | null;
+    entidadeId: string | null;
+    idempotencyKey: string | null;
+    payloadJson: string;
+    estado: string;
+    tentativas: number;
+    proximaTentativaEm: Date | null;
+    criadoEm: Date;
+    atualizadoEm: Date;
+  }): EventoOperacional {
+    return {
+      ...evento,
+      estado: evento.estado as EventoOperacional["estado"],
+      payload: this.lerObjeto(evento.payloadJson)
+    };
+  }
+
+  private lerObjeto(valor: string): Record<string, unknown> {
+    try {
+      const dados = JSON.parse(valor);
+      return dados && typeof dados === "object" && !Array.isArray(dados) ? dados as Record<string, unknown> : {};
+    } catch {
+      return {};
+    }
+  }
+}
+
+export class RepositorioJobsOperacionaisPrisma implements RepositorioJobsOperacionais {
+  constructor(private readonly prisma: PrismaClient) {}
+
+  async criar(dados: NovoJobOperacional): Promise<{ job: JobOperacional; duplicado: boolean }> {
+    if (dados.idempotencyKey) {
+      const existente = await this.buscarPorIdempotencyKey(dados.negocioId, dados.idempotencyKey);
+      if (existente) return { job: existente, duplicado: true };
+    }
+
+    const job = await this.prisma.jobOperacional.create({
+      data: {
+        negocioId: dados.negocioId,
+        tipo: dados.tipo,
+        estado: dados.estado ?? "PENDENTE",
+        idempotencyKey: dados.idempotencyKey ?? null,
+        total: dados.total ?? 0,
+        processados: dados.processados ?? 0,
+        erros: dados.erros ?? 0,
+        resultadoJson: JSON.stringify(dados.resultado ?? {}),
+        erro: dados.erro ?? null,
+        concluidoEm: dados.concluidoEm ?? null
+      }
+    });
+    return { job: this.mapear(job), duplicado: false };
+  }
+
+  async atualizar(id: string, negocioId: string, dados: AtualizacaoJobOperacional): Promise<JobOperacional | null> {
+    const atual = await this.prisma.jobOperacional.findFirst({ where: { id, negocioId } });
+    if (!atual) return null;
+    const job = await this.prisma.jobOperacional.update({
+      where: { id },
+      data: {
+        estado: dados.estado,
+        total: dados.total,
+        processados: dados.processados,
+        erros: dados.erros,
+        resultadoJson: dados.resultado ? JSON.stringify(dados.resultado) : undefined,
+        erro: dados.erro,
+        concluidoEm: dados.concluidoEm
+      }
+    });
+    return this.mapear(job);
+  }
+
+  async buscarPorId(id: string, negocioId: string): Promise<JobOperacional | null> {
+    const job = await this.prisma.jobOperacional.findFirst({ where: { id, negocioId } });
+    return job ? this.mapear(job) : null;
+  }
+
+  async buscarPorIdempotencyKey(negocioId: string, idempotencyKey: string): Promise<JobOperacional | null> {
+    const job = await this.prisma.jobOperacional.findUnique({
+      where: { negocioId_idempotencyKey: { negocioId, idempotencyKey } }
+    });
+    return job ? this.mapear(job) : null;
+  }
+
+  private mapear(job: {
+    id: string;
+    negocioId: string;
+    tipo: string;
+    estado: string;
+    idempotencyKey: string | null;
+    total: number;
+    processados: number;
+    erros: number;
+    resultadoJson: string;
+    erro: string | null;
+    criadoEm: Date;
+    atualizadoEm: Date;
+    concluidoEm: Date | null;
+  }): JobOperacional {
+    return {
+      ...job,
+      estado: job.estado as JobOperacional["estado"],
+      resultado: this.lerObjeto(job.resultadoJson)
+    };
+  }
+
+  private lerObjeto(valor: string): Record<string, unknown> {
+    try {
+      const dados = JSON.parse(valor);
+      return dados && typeof dados === "object" && !Array.isArray(dados) ? dados as Record<string, unknown> : {};
+    } catch {
+      return {};
+    }
+  }
+}
+
+export class RepositorioMembrosNegocioPrisma implements RepositorioMembrosNegocio {
+  constructor(private readonly prisma: PrismaClient) {}
+
+  async listar(negocioId: string): Promise<MembroNegocioOperacional[]> {
+    const membros = await this.prisma.membroNegocio.findMany({
+      where: { negocioId },
+      include: { usuario: true },
+      orderBy: { criadoEm: "asc" }
+    });
+    return membros.map((membro) => this.mapear(membro));
+  }
+
+  async criar(dados: NovoMembroNegocioOperacional): Promise<MembroNegocioOperacional> {
+    const usuario = await this.prisma.usuarioSistema.upsert({
+      where: { telefone: dados.telefone },
+      create: {
+        telefone: dados.telefone,
+        nome: dados.nome,
+        email: dados.email ?? null,
+        origemCadastro: "TELEFONE"
+      },
+      update: {
+        nome: dados.nome,
+        email: dados.email ?? undefined
+      }
+    });
+    const membro = await this.prisma.membroNegocio.upsert({
+      where: { negocioId_usuarioId: { negocioId: dados.negocioId, usuarioId: usuario.id } },
+      create: {
+        negocioId: dados.negocioId,
+        usuarioId: usuario.id,
+        papel: dados.papel,
+        status: "ATIVO",
+        permissoesJson: JSON.stringify(dados.permissoes ?? [])
+      },
+      update: {
+        papel: dados.papel,
+        status: "ATIVO",
+        permissoesJson: JSON.stringify(dados.permissoes ?? [])
+      },
+      include: { usuario: true }
+    });
+    return this.mapear(membro);
+  }
+
+  async atualizar(
+    id: string,
+    negocioId: string,
+    dados: AtualizacaoMembroNegocioOperacional
+  ): Promise<MembroNegocioOperacional | null> {
+    const atual = await this.prisma.membroNegocio.findFirst({ where: { id, negocioId } });
+    if (!atual) return null;
+    const membro = await this.prisma.membroNegocio.update({
+      where: { id },
+      data: {
+        papel: dados.papel,
+        status: dados.status,
+        permissoesJson: dados.permissoes ? JSON.stringify(dados.permissoes) : undefined
+      },
+      include: { usuario: true }
+    });
+    return this.mapear(membro);
+  }
+
+  private mapear(membro: {
+    id: string;
+    negocioId: string;
+    usuarioId: string;
+    papel: string;
+    status: string;
+    permissoesJson: string;
+    criadoEm: Date;
+    atualizadoEm: Date;
+    usuario: {
+      nome: string;
+      telefone: string | null;
+      email: string | null;
+      avatarUrl: string | null;
+    };
+  }): MembroNegocioOperacional {
+    return {
+      id: membro.id,
+      negocioId: membro.negocioId,
+      usuarioId: membro.usuarioId,
+      nome: membro.usuario.nome,
+      telefone: membro.usuario.telefone,
+      email: membro.usuario.email,
+      avatarUrl: membro.usuario.avatarUrl,
+      papel: membro.papel as MembroNegocioOperacional["papel"],
+      status: membro.status as MembroNegocioOperacional["status"],
+      permissoes: this.lerLista(membro.permissoesJson),
+      criadoEm: membro.criadoEm,
+      atualizadoEm: membro.atualizadoEm
+    };
+  }
+
+  private lerLista(valor: string): string[] {
+    try {
+      const dados = JSON.parse(valor);
+      return Array.isArray(dados) ? dados.filter((item): item is string => typeof item === "string") : [];
+    } catch {
+      return [];
     }
   }
 }
@@ -1463,6 +2055,27 @@ export class RepositorioPedidosPrisma implements RepositorioPedidos {
         ...(filtros.estadoPagamento ? { estadoPagamento: filtros.estadoPagamento } : {}),
         ...(filtros.estadoEntrega ? { estadoEntrega: filtros.estadoEntrega } : {}),
         ...(filtros.clienteId ? { clienteNegocioId: filtros.clienteId } : {}),
+        ...(filtros.canal ? { canal: { equals: filtros.canal, mode: "insensitive" } } : {}),
+        ...(filtros.dataInicio || filtros.dataFim
+          ? {
+              criadoEm: {
+                ...(filtros.dataInicio ? { gte: filtros.dataInicio } : {}),
+                ...(filtros.dataFim ? { lte: filtros.dataFim } : {})
+              }
+            }
+          : {}),
+        ...(filtros.produto
+          ? {
+              itens: {
+                some: {
+                  OR: [
+                    { codigoPeca: { contains: filtros.produto, mode: "insensitive" } },
+                    { nomeProduto: { contains: filtros.produto, mode: "insensitive" } }
+                  ]
+                }
+              }
+            }
+          : {}),
         ...(busca
           ? {
               OR: [
@@ -1512,6 +2125,28 @@ export class RepositorioPedidosPrisma implements RepositorioPedidos {
         observacao: dados.observacao ?? undefined,
         responsavelId: dados.responsavelId ?? undefined,
         canceladoEm: dados.estado === "CANCELADO" ? new Date() : undefined
+      },
+      include: { itens: true }
+    });
+
+    return this.mapearPedido(pedido);
+  }
+
+  async atualizarFinanceiro(
+    id: string,
+    negocioId: string,
+    dados: AtualizacaoFinanceiraPedido
+  ): Promise<Pedido | null> {
+    const existente = await this.buscarPorId(id, negocioId);
+    if (!existente) return null;
+
+    const pedido = await this.prisma.pedido.update({
+      where: { id },
+      data: {
+        descontoEmKwanza: dados.descontoEmKwanza,
+        motivoDesconto: dados.motivoDesconto ?? undefined,
+        totalEmKwanza: dados.totalEmKwanza,
+        observacao: dados.observacao ?? undefined
       },
       include: { itens: true }
     });
@@ -2603,6 +3238,42 @@ export class RepositorioClientesPrisma implements RepositorioClientes {
         consentimentoMarketing: dados.consentimentoMarketing ?? existente.consentimentoMarketing,
         consentimentoDados: dados.consentimentoDados ?? existente.consentimentoDados,
         estadoRelacionamento: dados.estadoRelacionamento ?? existente.estadoRelacionamento
+      }
+    });
+
+    return this.mapearCliente(atualizado);
+  }
+
+  async anonimizar(
+    id: string,
+    negocioId: string,
+    dados: { motivo: string; anonimizadoEm?: Date }
+  ): Promise<Cliente360 | null> {
+    const existente = await this.prisma.clienteNegocio.findFirst({ where: { id, negocioId } });
+    if (!existente) return null;
+
+    const preferencias = this.parseJson(existente.preferenciasJson);
+    const tags = this.normalizarTags([...this.lerLista(existente.tagsJson), "anonimizado"]);
+    const anonimizadoEm = dados.anonimizadoEm ?? new Date();
+    const atualizado = await this.prisma.clienteNegocio.update({
+      where: { id: existente.id },
+      data: {
+        telefone: null,
+        email: null,
+        nome: null,
+        username: null,
+        userId: null,
+        avatarUrl: null,
+        tagsJson: this.serializar(tags),
+        preferenciasJson: this.serializar({
+          ...preferencias,
+          anonimizado: true,
+          anonimizadoEm: anonimizadoEm.toISOString(),
+          motivoAnonimizacao: dados.motivo
+        }),
+        consentimentoMarketing: false,
+        consentimentoDados: false,
+        estadoRelacionamento: "BLOQUEADO"
       }
     });
 

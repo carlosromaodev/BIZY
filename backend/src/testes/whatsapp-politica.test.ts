@@ -138,4 +138,19 @@ describe("política WhatsApp por categoria oficial", () => {
     ).rejects.toThrow("Mensagem WhatsApp de marketing exige consentimento explícito do cliente.");
     expect(provedor.mensagens).toHaveLength(0);
   });
+
+  it("bloqueia texto promocional em categoria de utilidade", async () => {
+    const provedor = new ProvedorWhatsAppCaptura();
+    const automacao = new AutomacaoWhatsApp(provedor, new DespachadorEventos(), 10);
+
+    await expect(
+      automacao.enviarMensagemManual({
+        telefone: "923456789",
+        mensagem: "Aproveita a promoção de hoje com desconto exclusivo.",
+        categoria: "utility",
+        janelaAtendimentoAtiva: false
+      })
+    ).rejects.toThrow("Texto promocional não pode ser enviado como utilidade ou autenticação.");
+    expect(provedor.mensagens).toHaveLength(0);
+  });
 });

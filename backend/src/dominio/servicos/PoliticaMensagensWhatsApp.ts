@@ -7,6 +7,7 @@ interface DadosPoliticaMensagemWhatsApp {
   categoriaTemplate?: CategoriaMensagemWhatsApp | null;
   consentimentoMarketing?: boolean | null;
   janelaAtendimentoAtiva?: boolean | null;
+  conteudo?: string | null;
 }
 
 const categoriasPorTipoAutomatico: Record<string, CategoriaMensagemWhatsApp> = {
@@ -40,6 +41,10 @@ export class PoliticaMensagensWhatsApp {
       throw new Error("Mensagem WhatsApp de autenticação deve usar template oficial aprovado.");
     }
 
+    if ((categoria === "utility" || categoria === "authentication") && this.contemPromocao(dados.conteudo)) {
+      throw new Error("Texto promocional não pode ser enviado como utilidade ou autenticação.");
+    }
+
     return {
       categoria,
       origem: dados.origem,
@@ -48,6 +53,13 @@ export class PoliticaMensagensWhatsApp {
       requerConsentimentoMarketing,
       janelaAtendimentoAtiva
     };
+  }
+
+  private contemPromocao(conteudo?: string | null): boolean {
+    if (!conteudo) return false;
+    return /\b(promo[cç][aã]o|desconto|cupom|oferta|liquida[cç][aã]o|black friday|compre agora|novidade exclusiva|s[oó] hoje)\b/iu.test(
+      conteudo
+    );
   }
 
   private descreverMotivo(categoria: CategoriaMensagemWhatsApp): string {
