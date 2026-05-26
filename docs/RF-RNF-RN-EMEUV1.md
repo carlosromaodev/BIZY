@@ -110,6 +110,8 @@ Atualização 1.45: Inbox comercial passou a expor `/atendimento/conversas/filtr
 
 Atualização 1.46: Relatório comercial passou a medir desempenho real de atendimento com conversas abertas, conversas resolvidas, tempo médio de primeira resposta, taxa de resolução, mensagens falhadas e tarefas abertas/atrasadas, expondo esses indicadores em JSON, CSV e PDF.
 
+Atualização 1.47: Relatório comercial passou a incluir desempenho de campanhas com receita atribuída, respostas, opt-out, falhas, pedidos gerados e segmentos que converteram, cruzando campanhas, itens, tracking e pedidos pagos sem duplicar receita por pedido.
+
 ---
 
 ## 2. Legenda
@@ -412,7 +414,7 @@ Esta etapa transforma o Bizy de painel de live em CRM operacional para lojas que
 | RF133 | [x] Relatórios devem começar por indicadores práticos: vendas do dia, pedidos pagos, pagamentos pendentes, ticket médio, clientes novos, clientes recorrentes e conversão de reservas. | Alta | Implementado no backend em `/relatorios/comercial` |
 | RF134 | [x] O CRM deve mostrar ranking de produtos mais vendidos, produtos encalhados, produtos com maior margem e produtos com mais reserva perdida. | Média | Implementado no backend em `/relatorios/comercial`, com ranking de perdas por reservas expiradas/canceladas e impacto financeiro |
 | RF135 | [x] O CRM deve mostrar desempenho de atendimento: tempo médio de primeira resposta, conversas abertas, SLA vencido, mensagens falhadas e taxa de resolução. | Alta | Implementado no relatório comercial com métricas de primeira resposta, resolução, conversas abertas, mensagens falhadas e tarefas/SLA atrasadas |
-| RF136 | [~] O CRM deve mostrar desempenho de campanhas: receita gerada, respostas, opt-out, falhas e segmentos que converteram. | Média | Parcial - backend expõe métricas de campanha e bloqueios/opt-out; faltam receita por campanha e conversão por segmento |
+| RF136 | [x] O CRM deve mostrar desempenho de campanhas: receita gerada, respostas, opt-out, falhas e segmentos que converteram. | Média | Implementado no relatório comercial com receita atribuída, pedidos gerados, respostas, opt-out, falhas e segmentos convertidos por tag, origem e estado |
 | RF137 | [ ] A página `Explorar` não deve existir como relatório vazio; relatórios avançados só entram quando houver perguntas reais de negócio a responder. | Alta | Planeado |
 | RF138 | [x] O vendedor deve exportar relatórios em CSV e PDF simples para operação diária. | Média | Implementado no backend em `/relatorios/comercial.csv` e `/relatorios/comercial.pdf`, ambos auditados |
 | RF139 | [x] O sistema deve gerar resumo diário automático com vendas, pendências e tarefas para o dia seguinte. | Média | Implementado no backend em `/relatorios/resumo-diario` |

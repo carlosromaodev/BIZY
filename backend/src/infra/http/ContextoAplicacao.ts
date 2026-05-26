@@ -331,7 +331,8 @@ export function criarContextoAplicacao(logger: FastifyBaseLogger): ContextoAplic
     repositorios.atendimento,
     repositorios.tarefas,
     repositorios.trackingComercial,
-    repositorios.socialInbox
+    repositorios.socialInbox,
+    repositorios.campanhas
   );
   const consultaAtendimentoN8n = new ConsultaAtendimentoN8n(
     repositorios.pecas,

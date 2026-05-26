@@ -1,5 +1,6 @@
 import type {
   RepositorioAtendimento,
+  RepositorioCampanhas,
   RepositorioClientes,
   RepositorioPecas,
   RepositorioPedidos,
@@ -9,9 +10,12 @@ import type {
   RepositorioTrackingComercial
 } from "../dominio/repositorios/contratos.js";
 import type {
+  CampanhaCrm,
+  Cliente360,
   ConversaAtendimentoComMensagens,
   EventoTrackingComercial,
   FiltrosPedidos,
+  ItemCampanhaCrm,
   Pedido,
   Peca,
   Reserva
@@ -40,6 +44,7 @@ export class RelatoriosComerciaisUseCase {
     private readonly tarefas: RepositorioTarefasOperacionais,
     private readonly tracking?: RepositorioTrackingComercial,
     private readonly socialInbox?: RepositorioSocialInbox,
+    private readonly campanhas?: RepositorioCampanhas,
     private readonly renderizadorPdf: RenderizadorRelatorioPdf = renderPdfFromHtml
   ) {}
 
@@ -74,6 +79,7 @@ export class RelatoriosComerciaisUseCase {
     const clientesComPedidosPagos = this.contarPedidosPagosPorCliente(pedidosPagos);
     const reservasComIntencao = reservasDoRelatorio.filter((reserva) => !filtros.dataInicio || reserva.criadaEm >= filtros.dataInicio);
     const reservasPagas = reservasComIntencao.filter((reserva) => reserva.estado === "PAID");
+    const desempenhoCampanhas = await this.calcularDesempenhoCampanhas(negocioId, pedidosDoRelatorio, clientes);
 
     return {
       geradoEm: new Date().toISOString(),
@@ -102,6 +108,7 @@ export class RelatoriosComerciaisUseCase {
         produtosReservaPerdida: this.ranquearReservasPerdidas(reservasDoRelatorio, pecasPorCodigo)
       },
       atendimento: this.calcularMetricasAtendimento(conversas, tarefas),
+      campanhas: desempenhoCampanhas,
       oportunidadesPerdidas: {
         pedidosAguardandoPagamento: pagamentosPendentes.length,
         reservasExpiradas: reservasDoRelatorio.filter((reserva) => reserva.estado === "EXPIRED").length,
@@ -183,7 +190,12 @@ export class RelatoriosComerciaisUseCase {
         "conversasResolvidas",
         "tempoMedioPrimeiraRespostaMinutos",
         "taxaResolucaoPercentual",
-        "mensagensFalhadas"
+        "mensagensFalhadas",
+        "campanhasReceitaGeradaEmKwanza",
+        "campanhasRespostas",
+        "campanhasOptOut",
+        "campanhasFalhas",
+        "campanhasPedidosGerados"
       ],
       [
         String(relatorio.metricas.pedidosPagos),
@@ -197,7 +209,12 @@ export class RelatoriosComerciaisUseCase {
         String(relatorio.atendimento.conversasResolvidas),
         String(relatorio.atendimento.tempoMedioPrimeiraRespostaMinutos),
         String(relatorio.atendimento.taxaResolucaoPercentual),
-        String(relatorio.atendimento.mensagensFalhadas)
+        String(relatorio.atendimento.mensagensFalhadas),
+        String(relatorio.campanhas.receitaGeradaEmKwanza),
+        String(relatorio.campanhas.respostas),
+        String(relatorio.campanhas.optOut),
+        String(relatorio.campanhas.falhas),
+        String(relatorio.campanhas.pedidosGerados)
       ]
     ];
     return {
@@ -400,6 +417,179 @@ export class RelatoriosComerciaisUseCase {
     return Number(((primeiraResposta.enviadaEm.getTime() - primeiraMensagemCliente.enviadaEm.getTime()) / 60_000).toFixed(2));
   }
 
+  private async calcularDesempenhoCampanhas(negocioId: string, pedidos: Pedido[], clientes: Cliente360[]) {
+    if (!this.campanhas) {
+      return {
+        total: 0,
+        respostas: 0,
+        optOut: 0,
+        falhas: 0,
+        pedidosGerados: 0,
+        receitaGeradaEmKwanza: 0,
+        segmentosConvertidos: [],
+        itens: []
+      };
+    }
+
+    const campanhas = await this.campanhas.listar(negocioId, { limite: 10_000 });
+    const [itensPorCampanha, eventos] = await Promise.all([
+      Promise.all(campanhas.map(async (campanha) => [campanha.id, await this.campanhas!.listarItens(campanha.id, negocioId)] as const)),
+      this.tracking?.listarEventos(negocioId, { limite: 20_000 }) ?? Promise.resolve([])
+    ]);
+    const mapaItens = new Map(itensPorCampanha);
+    const clientesPorId = new Map(clientes.map((cliente) => [cliente.id, cliente]));
+    const pedidosPagosPorId = new Map(
+      pedidos
+        .filter((pedido) => pedido.estadoPagamento === "CONFIRMADO" || pedido.estado === "PAGO" || pedido.estado === "ENTREGUE")
+        .map((pedido) => [pedido.id, pedido])
+    );
+    const eventosPorCampanha = this.agruparEventosPorCampanha(eventos);
+    const segmentosConvertidos = new Map<string, { segmento: string; conversoes: number; receitaEmKwanza: number }>();
+
+    const itens = campanhas.map((campanha) => {
+      const itensCampanha = mapaItens.get(campanha.id) ?? [];
+      const conversoes = this.calcularConversoesCampanha(
+        campanha,
+        itensCampanha,
+        eventosPorCampanha.get(campanha.id) ?? [],
+        pedidosPagosPorId,
+        clientesPorId,
+        segmentosConvertidos
+      );
+
+      return {
+        campanhaId: campanha.id,
+        nome: campanha.nome,
+        estado: campanha.estado,
+        canal: campanha.canal,
+        segmento: campanha.segmento,
+        respostas: itensCampanha.filter((item) => item.status === "RESPONDIDO").length,
+        optOut: itensCampanha.filter((item) => this.itemCampanhaOptOut(item)).length,
+        falhas: itensCampanha.filter((item) => item.status === "FALHOU").length,
+        pedidosGerados: conversoes.pedidosGerados,
+        receitaGeradaEmKwanza: conversoes.receitaGeradaEmKwanza
+      };
+    }).sort((a, b) => {
+      if (b.receitaGeradaEmKwanza !== a.receitaGeradaEmKwanza) return b.receitaGeradaEmKwanza - a.receitaGeradaEmKwanza;
+      return b.pedidosGerados - a.pedidosGerados;
+    });
+
+    const totalizar = (campo: "respostas" | "optOut" | "falhas" | "pedidosGerados" | "receitaGeradaEmKwanza") =>
+      itens.reduce((total, item) => total + item[campo], 0);
+
+    return {
+      total: campanhas.length,
+      respostas: totalizar("respostas"),
+      optOut: totalizar("optOut"),
+      falhas: totalizar("falhas"),
+      pedidosGerados: totalizar("pedidosGerados"),
+      receitaGeradaEmKwanza: totalizar("receitaGeradaEmKwanza"),
+      segmentosConvertidos: [...segmentosConvertidos.values()].sort((a, b) => {
+        if (b.receitaEmKwanza !== a.receitaEmKwanza) return b.receitaEmKwanza - a.receitaEmKwanza;
+        return b.conversoes - a.conversoes;
+      }),
+      itens
+    };
+  }
+
+  private calcularConversoesCampanha(
+    campanha: CampanhaCrm,
+    itens: ItemCampanhaCrm[],
+    eventos: EventoTrackingComercial[],
+    pedidosPagosPorId: Map<string, Pedido>,
+    clientesPorId: Map<string, Cliente360>,
+    segmentosConvertidos: Map<string, { segmento: string; conversoes: number; receitaEmKwanza: number }>
+  ) {
+    const conversoes = new Map<string, { pedidoId: string | null; clienteId: string | null; receitaEmKwanza: number }>();
+    const adicionarConversao = (chave: string, dados: { pedidoId?: string | null; clienteId?: string | null; receitaEmKwanza?: number | null }) => {
+      const existente = conversoes.get(chave);
+      if (existente) {
+        existente.receitaEmKwanza = Math.max(existente.receitaEmKwanza, dados.receitaEmKwanza ?? 0);
+        existente.clienteId = existente.clienteId ?? dados.clienteId ?? null;
+        existente.pedidoId = existente.pedidoId ?? dados.pedidoId ?? null;
+        return;
+      }
+      conversoes.set(chave, {
+        pedidoId: dados.pedidoId ?? null,
+        clienteId: dados.clienteId ?? null,
+        receitaEmKwanza: dados.receitaEmKwanza ?? 0
+      });
+    };
+
+    for (const item of itens.filter((registro) => registro.status === "CONVERTIDO")) {
+      const pedidoId = this.valorTexto(item.contexto.pedidoId);
+      const pedidoPago = pedidoId ? pedidosPagosPorId.get(pedidoId) : null;
+      adicionarConversao(pedidoId ? `pedido:${pedidoId}` : `item:${item.id}`, {
+        pedidoId,
+        clienteId: item.clienteId,
+        receitaEmKwanza: pedidoPago?.totalEmKwanza ?? this.valorNumero(item.contexto.receitaEmKwanza) ?? this.valorNumero(item.contexto.totalEmKwanza)
+      });
+    }
+
+    for (const evento of eventos.filter((registro) => registro.tipo === "PEDIDO_CRIADO" || registro.tipo === "PAGAMENTO_CONFIRMADO")) {
+      const pedidoId = this.valorTexto(evento.metadata.pedidoId) ?? evento.entidadeId;
+      const pedidoPago = pedidoId ? pedidosPagosPorId.get(pedidoId) : null;
+      adicionarConversao(pedidoId ? `pedido:${pedidoId}` : `evento:${evento.id}`, {
+        pedidoId,
+        clienteId: pedidoPago?.clienteNegocioId ?? this.valorTexto(evento.metadata.clienteId),
+        receitaEmKwanza: pedidoPago?.totalEmKwanza ?? this.valorNumero(evento.metadata.totalEmKwanza)
+      });
+    }
+
+    let receitaGeradaEmKwanza = 0;
+    for (const conversao of conversoes.values()) {
+      receitaGeradaEmKwanza += conversao.receitaEmKwanza;
+      const cliente = conversao.clienteId ? clientesPorId.get(conversao.clienteId) : null;
+      for (const segmento of this.segmentosDaConversao(campanha, cliente)) {
+        const atual = segmentosConvertidos.get(segmento) ?? { segmento, conversoes: 0, receitaEmKwanza: 0 };
+        atual.conversoes += 1;
+        atual.receitaEmKwanza += conversao.receitaEmKwanza;
+        segmentosConvertidos.set(segmento, atual);
+      }
+    }
+
+    return {
+      pedidosGerados: conversoes.size,
+      receitaGeradaEmKwanza
+    };
+  }
+
+  private agruparEventosPorCampanha(eventos: EventoTrackingComercial[]) {
+    const mapa = new Map<string, EventoTrackingComercial[]>();
+    for (const evento of eventos) {
+      const campanhaId = this.valorTexto(evento.metadata.campanhaId) ?? this.valorTexto(evento.metadata.campaignId) ?? evento.utm.campaign;
+      if (!campanhaId) continue;
+      mapa.set(campanhaId, [...(mapa.get(campanhaId) ?? []), evento]);
+    }
+    return mapa;
+  }
+
+  private itemCampanhaOptOut(item: ItemCampanhaCrm) {
+    if (item.status !== "BLOQUEADO") return false;
+    const motivo = (item.motivoBloqueio ?? "").toLocaleLowerCase("pt-AO");
+    return ["consentimento", "opt-out", "opt out", "optout", "marketing"].some((termo) => motivo.includes(termo));
+  }
+
+  private segmentosDaConversao(campanha: CampanhaCrm, cliente: Cliente360 | null | undefined) {
+    const segmentos = new Set<string>();
+    for (const tag of cliente?.tags ?? []) segmentos.add(`tag:${tag}`);
+    if (cliente?.origem) segmentos.add(`origem:${cliente.origem}`);
+    if (cliente?.estadoRelacionamento) segmentos.add(`estado:${cliente.estadoRelacionamento}`);
+
+    const tagsCampanha = campanha.segmento.tags;
+    if (Array.isArray(tagsCampanha)) {
+      for (const tag of tagsCampanha) {
+        if (typeof tag === "string" && tag.trim()) segmentos.add(`tag:${tag.trim()}`);
+      }
+    }
+    const origemCampanha = this.valorTexto(campanha.segmento.origem);
+    if (origemCampanha) segmentos.add(`origem:${origemCampanha}`);
+    const estadoCampanha = this.valorTexto(campanha.segmento.estadoRelacionamento);
+    if (estadoCampanha) segmentos.add(`estado:${estadoCampanha}`);
+
+    return [...segmentos];
+  }
+
   private filtrarPecasPorColecao(pecas: Peca[], filtros: FiltrosRelatorioComercial) {
     const colecao = this.normalizarTextoFiltro(filtros.colecao);
     if (!colecao) return pecas;
@@ -491,6 +681,9 @@ export class RelatoriosComerciaisUseCase {
         ${this.cardPdf("Tempo médio de resposta", `${relatorio.atendimento.tempoMedioPrimeiraRespostaMinutos} min`)}
         ${this.cardPdf("Taxa de resolução", `${relatorio.atendimento.taxaResolucaoPercentual}%`)}
         ${this.cardPdf("Mensagens falhadas", String(relatorio.atendimento.mensagensFalhadas))}
+        ${this.cardPdf("Receita de campanhas", this.formatarKwanza(relatorio.campanhas.receitaGeradaEmKwanza))}
+        ${this.cardPdf("Respostas campanhas", String(relatorio.campanhas.respostas))}
+        ${this.cardPdf("Falhas campanhas", String(relatorio.campanhas.falhas))}
       </section>
 
       <h2>Produtos mais vendidos</h2>
