@@ -43,9 +43,12 @@ export class GestaoTarefasOperacionaisUseCase {
     private readonly dependencias: DependenciasTarefasAutomaticas = {}
   ) {}
 
-  criarTarefa(dados: NovaTarefaOperacional) {
+  async criarTarefa(dados: NovaTarefaOperacional) {
+    const dadosRelacionados = await this.validarEVincularTarefa(dados.negocioId, dados);
+
     return this.repositorioTarefas.criar({
       ...dados,
+      ...dadosRelacionados,
       estado: dados.estado ?? "ABERTA",
       prioridade: dados.prioridade ?? "NORMAL",
       origem: dados.origem ?? "manual",
@@ -64,7 +67,21 @@ export class GestaoTarefasOperacionaisUseCase {
   }
 
   async atualizarTarefa(id: string, negocioId: string, dados: AtualizacaoTarefaOperacional) {
-    const tarefa = await this.repositorioTarefas.atualizar(id, negocioId, dados);
+    const atual = await this.repositorioTarefas.buscarPorId(id, negocioId);
+    if (!atual) throw new Error(`Tarefa ${id} não encontrada.`);
+
+    const dadosRelacionados = await this.validarEVincularTarefa(negocioId, {
+      pedidoId: dados.pedidoId === undefined ? atual.pedidoId : dados.pedidoId,
+      clienteId: dados.clienteId === undefined ? atual.clienteId : dados.clienteId
+    });
+    const atualizacao: AtualizacaoTarefaOperacional = {
+      ...dados,
+      ...(dados.pedidoId !== undefined && dados.clienteId === undefined
+        ? { clienteId: dadosRelacionados.clienteId }
+        : {})
+    };
+
+    const tarefa = await this.repositorioTarefas.atualizar(id, negocioId, atualizacao);
     if (!tarefa) throw new Error(`Tarefa ${id} não encontrada.`);
     return tarefa;
   }
@@ -305,5 +322,32 @@ export class GestaoTarefasOperacionaisUseCase {
     if (tarefa.pedidoId) return `${tarefa.tipo}:pedido:${tarefa.pedidoId}`;
     if (tarefa.clienteId) return `${tarefa.tipo}:cliente:${tarefa.clienteId}`;
     return null;
+  }
+
+  private async validarEVincularTarefa<Dados extends { pedidoId?: string | null; clienteId?: string | null }>(
+    negocioId: string | null | undefined,
+    dados: Dados
+  ): Promise<Dados> {
+    if (!negocioId) return dados;
+
+    let clienteId = dados.clienteId ?? null;
+
+    if (dados.pedidoId && this.dependencias.pedidos) {
+      const pedido = await this.dependencias.pedidos.buscarPorId(dados.pedidoId, negocioId);
+      if (!pedido) throw new Error(`Pedido ${dados.pedidoId} não encontrado.`);
+
+      if (clienteId && pedido.clienteNegocioId !== clienteId) {
+        throw new Error(`Pedido ${dados.pedidoId} não pertence ao cliente informado.`);
+      }
+
+      clienteId = pedido.clienteNegocioId;
+    }
+
+    if (clienteId && this.dependencias.clientes) {
+      const cliente = await this.dependencias.clientes.buscarPorId(clienteId, negocioId);
+      if (!cliente) throw new Error(`Cliente ${clienteId} não encontrado.`);
+    }
+
+    return clienteId && clienteId !== dados.clienteId ? { ...dados, clienteId } : dados;
   }
 }
