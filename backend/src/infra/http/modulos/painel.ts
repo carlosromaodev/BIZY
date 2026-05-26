@@ -19,7 +19,8 @@ export const moduloPainel: ModuloHttp = {
       return contexto.consultaPainel.resumirPainel(
         mapearSessoesLive(contexto.sessoesLive),
         contexto.consultaIntegracoes.listarStatus(),
-        contextoComercial.negocio.id
+        contextoComercial.negocio.id,
+        contextoComercial.usuario.id
       );
     });
 

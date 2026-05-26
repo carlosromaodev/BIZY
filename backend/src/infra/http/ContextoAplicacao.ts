@@ -327,7 +327,12 @@ export function criarContextoAplicacao(logger: FastifyBaseLogger): ContextoAplic
     repositorios.oportunidadesRecuperacao
   );
   const consultaIntegracoes = new ConsultaIntegracoesUseCase();
-  const consultaPainel = new ConsultaPainelUseCase(repositorios.pecas, repositorios.reservas, repositorios.comentarios);
+  const consultaPainel = new ConsultaPainelUseCase(
+    repositorios.pecas,
+    repositorios.reservas,
+    repositorios.comentarios,
+    repositorios.tarefas
+  );
   const relatoriosComerciais = new RelatoriosComerciaisUseCase(
     repositorios.pedidos,
     repositorios.clientes,

@@ -118,6 +118,8 @@ Atualização 1.49: Relatório comercial passou a medir retenção com tempo mé
 
 Atualização 1.50: Tarefas automáticas passaram a ter rotina operacional em `/tarefas/automaticas/rotina`, criando cobranças por pagamento vencido, entregas para pedido pago sem entrega, resposta urgente para cliente VIP sem resposta, reposição de stock baixo/esgotado e pós-venda após entrega, com deduplicação de tarefas abertas.
 
+Atualização 1.51: Painel passou a expor `minhasTarefas` e `tarefasOperacionais`, ordenando tarefas do usuário por atraso, prioridade e impacto comercial para apoiar a rotina diária de vendedor/atendente.
+
 ---
 
 ## 2. Legenda
@@ -435,7 +437,7 @@ Esta etapa transforma o Bizy de painel de live em CRM operacional para lojas que
 |---|---|---|---|
 | RF144 | [x] O CRM deve criar tarefas manuais ou automáticas para follow-up, cobrança, entrega, reclamação, reposição e pós-venda. | Alta | Implementado no backend com tarefas manuais, bloqueios WhatsApp, follow-up/SLA, recuperação de cobrança/entrega, reclamações sociais, rotina de reposição de stock e pós-venda |
 | RF145 | [~] Cada tarefa deve ter responsável, cliente/pedido relacionado, prazo, prioridade, estado e observação. | Alta | Parcial - entidade de tarefa possui negócio, tipo, prioridade, estado, responsável, prazo, clienteId, pedidoId, telefone, entidade relacionada, observação, contexto e conclusão; faltam vínculos validados e histórico visual de mudanças |
-| RF146 | [~] O vendedor deve ver `Minhas tarefas` no Painel, ordenadas por atraso e impacto comercial. | Alta | Parcial - backend filtra tarefas por responsável/estado e mantém atrasadas abertas; falta composição visual final no Painel |
+| RF146 | [x] O vendedor deve ver `Minhas tarefas` no Painel, ordenadas por atraso e impacto comercial. | Alta | Implementado no backend do Painel com `minhasTarefas`, resumo operacional, ordenação por atraso/prioridade/tipo e classificação de impacto comercial |
 | RF147 | [x] O sistema deve criar tarefa automática quando pagamento vencer, mensagem falhar, cliente VIP ficar sem resposta ou pedido pago ficar sem entrega. | Alta | Implementado no backend com tarefas de bloqueio/falha WhatsApp, cobrança vencida, cliente VIP sem resposta e pedido pago sem entrega via rotina automática |
 | RF148 | [x] O CRM deve suportar papéis mínimos: dono da loja, vendedor, atendente, financeiro, entregador e admin técnico. | Média | Implementado no backend com catálogo de papéis e membros por negócio |
 | RF149 | [~] Permissões devem controlar quem pode dar desconto, confirmar pagamento, cancelar pedido, exportar clientes e alterar configurações. | Alta | Parcial - permissões por papel controlam módulos/ações principais; falta política fina para desconto acima de limite e cancelamentos específicos |
