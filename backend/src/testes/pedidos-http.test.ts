@@ -307,4 +307,74 @@ describe("pedidos HTTP", () => {
       await app.close();
     }
   });
+
+  it("reutiliza endereço salvo do cliente ao criar pedido", async () => {
+    const app = await criarAplicacao();
+
+    try {
+      const loja = await autenticar(app, "923222230", "Loja Endereços Cliente");
+      const cliente = await criarCliente(app, loja, {
+        telefone: "937624799",
+        nome: "Cliente com Endereço",
+        email: "cliente.endereco@example.com"
+      });
+      await criarPeca(app, loja, "END-1", 3, 15_000);
+
+      const endereco = await app.inject({
+        method: "POST",
+        url: `/clientes/${cliente.id}/enderecos`,
+        headers: loja,
+        payload: {
+          rotulo: "Casa",
+          endereco: "Rua 7, casa 12",
+          bairro: "Talatona",
+          municipio: "Belas",
+          referencia: "Próximo ao mercado",
+          principal: true
+        }
+      });
+      expect(endereco.statusCode).toBe(201);
+      expect(endereco.json().endereco).toEqual(
+        expect.objectContaining({
+          id: expect.any(String),
+          rotulo: "Casa",
+          endereco: "Rua 7, casa 12",
+          bairro: "Talatona",
+          municipio: "Belas",
+          principal: true
+        })
+      );
+
+      const enderecos = await app.inject({
+        method: "GET",
+        url: `/clientes/${cliente.id}/enderecos`,
+        headers: loja
+      });
+      expect(enderecos.statusCode).toBe(200);
+      expect(enderecos.json().enderecos).toEqual([expect.objectContaining({ id: endereco.json().endereco.id })]);
+
+      const pedido = await app.inject({
+        method: "POST",
+        url: "/pedidos",
+        headers: loja,
+        payload: {
+          clienteId: cliente.id,
+          enderecoEntregaId: endereco.json().endereco.id,
+          itens: [{ codigoPeca: "END-1", quantidade: 1 }],
+          taxaEntregaEmKwanza: 1_000,
+          origem: "crm",
+          canal: "whatsapp"
+        }
+      });
+      expect(pedido.statusCode).toBe(201);
+      expect(pedido.json()).toEqual(
+        expect.objectContaining({
+          enderecoEntrega: "Rua 7, casa 12, Talatona, Belas - Ref.: Próximo ao mercado",
+          totalEmKwanza: 16_000
+        })
+      );
+    } finally {
+      await app.close();
+    }
+  });
 });

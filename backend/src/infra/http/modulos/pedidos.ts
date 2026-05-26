@@ -51,6 +51,7 @@ export const moduloPedidos: ModuloHttp = {
         motivoDesconto: dados.motivoDesconto,
         taxaEntregaEmKwanza: dados.taxaEntregaEmKwanza,
         enderecoEntrega: dados.enderecoEntrega,
+        enderecoEntregaId: dados.enderecoEntregaId,
         comprovativoPagamentoUrl: dados.comprovativoPagamentoUrl,
         observacao: dados.observacao,
         responsavelId: dados.responsavelId
@@ -78,6 +79,7 @@ export const moduloPedidos: ModuloHttp = {
         motivoDesconto: dados.motivoDesconto,
         taxaEntregaEmKwanza: dados.taxaEntregaEmKwanza,
         enderecoEntrega: dados.enderecoEntrega,
+        enderecoEntregaId: dados.enderecoEntregaId,
         observacao: dados.observacao,
         responsavelId: dados.responsavelId,
         validadeMinutos: dados.validadeMinutos

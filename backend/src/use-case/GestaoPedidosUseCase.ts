@@ -11,6 +11,7 @@ import type {
   Cliente360,
   ConfirmacaoPagamentoPedido,
   DadosPedidoResolvido,
+  EnderecoCliente,
   FiltrosPedidos,
   NovoPedido,
   NovaTarefaOperacional,
@@ -26,6 +27,7 @@ const estadosQueConsomemStock = new Set<Pedido["estado"]>([
   "ENVIADO",
   "ENTREGUE"
 ]);
+const chaveEnderecosEntrega = "enderecosEntrega";
 
 export class GestaoPedidosUseCase {
   constructor(
@@ -52,6 +54,7 @@ export class GestaoPedidosUseCase {
     if (totalEmKwanza < 0) {
       throw new Error("Desconto não pode deixar o total do pedido negativo.");
     }
+    const enderecoEntrega = this.resolverEnderecoEntrega(cliente, dados);
 
     const pedido = await this.pedidos.criar({
       negocioId: dados.negocioId,
@@ -68,7 +71,7 @@ export class GestaoPedidosUseCase {
       taxaEntregaEmKwanza,
       totalEmKwanza,
       motivoDesconto: dados.motivoDesconto ?? null,
-      enderecoEntrega: dados.enderecoEntrega ?? null,
+      enderecoEntrega,
       comprovativoPagamentoUrl: dados.comprovativoPagamentoUrl ?? null,
       observacao: dados.observacao ?? null,
       responsavelId: dados.responsavelId ?? null
@@ -504,6 +507,58 @@ export class GestaoPedidosUseCase {
     const cliente = await this.clientes.buscarPorId(id, negocioId);
     if (!cliente) throw new Error(`Cliente ${id} não encontrado.`);
     return cliente;
+  }
+
+  private resolverEnderecoEntrega(cliente: Cliente360, dados: NovoPedido): string | null {
+    const enderecoManual = dados.enderecoEntrega?.trim();
+    if (enderecoManual) return enderecoManual;
+    if (!dados.enderecoEntregaId) return null;
+
+    const enderecoSalvo = this.obterEnderecosEntrega(cliente).find((endereco) => endereco.id === dados.enderecoEntregaId);
+    if (!enderecoSalvo) {
+      throw new Error("Endereço salvo do cliente não encontrado.");
+    }
+    return this.formatarEnderecoEntrega(enderecoSalvo);
+  }
+
+  private obterEnderecosEntrega(cliente: Cliente360): EnderecoCliente[] {
+    const valor = cliente.preferencias[chaveEnderecosEntrega];
+    if (!Array.isArray(valor)) return [];
+
+    return valor.flatMap((item): EnderecoCliente[] => {
+      if (!this.ehRegistro(item)) return [];
+      const id = this.textoOuNull(item.id);
+      const endereco = this.textoOuNull(item.endereco);
+      if (!id || !endereco) return [];
+      const criadoEm = this.textoOuNull(item.criadoEm) ?? new Date(0).toISOString();
+      return [
+        {
+          id,
+          rotulo: this.textoOuNull(item.rotulo),
+          endereco,
+          bairro: this.textoOuNull(item.bairro),
+          municipio: this.textoOuNull(item.municipio),
+          referencia: this.textoOuNull(item.referencia),
+          principal: item.principal === true,
+          criadoEm,
+          atualizadoEm: this.textoOuNull(item.atualizadoEm) ?? criadoEm
+        }
+      ];
+    });
+  }
+
+  private formatarEnderecoEntrega(endereco: EnderecoCliente): string {
+    const partes = [endereco.endereco, endereco.bairro, endereco.municipio].filter(Boolean);
+    const base = partes.join(", ");
+    return endereco.referencia ? `${base} - Ref.: ${endereco.referencia}` : base;
+  }
+
+  private textoOuNull(valor: unknown): string | null {
+    return typeof valor === "string" && valor.trim() ? valor.trim() : null;
+  }
+
+  private ehRegistro(valor: unknown): valor is Record<string, unknown> {
+    return Boolean(valor && typeof valor === "object" && !Array.isArray(valor));
   }
 
   private csv(valor: string): string {

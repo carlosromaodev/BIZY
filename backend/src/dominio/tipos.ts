@@ -1221,6 +1221,27 @@ export interface Cliente360 {
   atualizadoEm: Date;
 }
 
+export interface EnderecoCliente {
+  id: string;
+  rotulo: string | null;
+  endereco: string;
+  bairro: string | null;
+  municipio: string | null;
+  referencia: string | null;
+  principal: boolean;
+  criadoEm: string;
+  atualizadoEm: string;
+}
+
+export interface NovoEnderecoCliente {
+  rotulo?: string | null;
+  endereco: string;
+  bairro?: string | null;
+  municipio?: string | null;
+  referencia?: string | null;
+  principal?: boolean;
+}
+
 export const tiposRelacaoNegocio = ["PARCERIA_DADOS", "OPERACAO_CONJUNTA", "AFILIACAO", "ENTREGA"] as const;
 export type TipoRelacaoNegocio = (typeof tiposRelacaoNegocio)[number];
 
@@ -1459,6 +1480,7 @@ export interface NovoPedido {
   motivoDesconto?: string | null;
   taxaEntregaEmKwanza?: number;
   enderecoEntrega?: string | null;
+  enderecoEntregaId?: string | null;
   comprovativoPagamentoUrl?: string | null;
   observacao?: string | null;
   responsavelId?: string | null;

@@ -691,6 +691,15 @@ export const AcaoRapidaClienteSchema = z.object({
   contexto: z.record(z.string(), z.unknown()).default({})
 });
 
+export const CriarEnderecoClienteSchema = z.object({
+  rotulo: TextoPerfilOpcionalSchema,
+  endereco: z.string().trim().min(3).max(1000),
+  bairro: TextoPerfilOpcionalSchema,
+  municipio: TextoPerfilOpcionalSchema,
+  referencia: z.string().trim().max(1000).nullable().optional().transform((valor) => valor ?? null),
+  principal: z.boolean().default(false)
+});
+
 export const CriarRelacaoNegocioSchema = z.object({
   negocioDestinoId: z.string().trim().uuid(),
   tipo: z.enum(tiposRelacaoNegocio).default("PARCERIA_DADOS"),
@@ -739,6 +748,7 @@ export const CriarPedidoSchema = z.object({
   motivoDesconto: TextoPerfilOpcionalSchema,
   taxaEntregaEmKwanza: z.coerce.number().int().min(0).default(0),
   enderecoEntrega: z.string().trim().min(3).max(1000).nullable().optional().transform((valor) => valor ?? null),
+  enderecoEntregaId: z.string().trim().uuid().nullable().optional().transform((valor) => valor ?? null),
   comprovativoPagamentoUrl: z.string().trim().url().max(2048).nullable().optional().transform((valor) => valor ?? null),
   observacao: z.string().trim().max(1000).nullable().optional().transform((valor) => valor ?? null),
   responsavelId: TextoPerfilOpcionalSchema

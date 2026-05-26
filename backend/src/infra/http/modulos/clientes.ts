@@ -5,6 +5,7 @@ import {
   AnonimizarClienteSchema,
   CriarClienteCrmSchema,
   CriarCompartilhamentoClienteSchema,
+  CriarEnderecoClienteSchema,
   CriarRelacaoNegocioSchema,
   FiltrosClientes360QuerySchema,
   ImportarCsvSchema,
@@ -358,6 +359,47 @@ export const moduloClientes: ModuloHttp = {
         }
         throw erro;
       }
+    });
+
+    app.get("/clientes/:id/enderecos", async (request, reply) => {
+      const contextoComercial = await exigirAcessoComercial(contexto, request, reply, {
+        permissao: "clientes:ler",
+        modulo: "crm",
+        mensagemPermissao: "Sem permissão para consultar endereços do cliente.",
+        mensagemModulo: "CRM desativado para este negócio."
+      });
+      if (!contextoComercial) return;
+
+      const { id } = request.params as { id: string };
+      const resultado = await contexto.gestaoClientesCrm.listarEnderecosCliente(id, contextoComercial.negocio.id);
+      if (!resultado) {
+        return reply.code(404).send({ erro: "CLIENTE_NAO_ENCONTRADO", mensagem: "Cliente não encontrado." });
+      }
+
+      return resultado;
+    });
+
+    app.post("/clientes/:id/enderecos", async (request, reply) => {
+      const contextoComercial = await exigirAcessoComercial(contexto, request, reply, {
+        permissao: "clientes:gerir",
+        modulo: "crm",
+        mensagemPermissao: "Sem permissão para gerir endereços do cliente.",
+        mensagemModulo: "CRM desativado para este negócio."
+      });
+      if (!contextoComercial) return;
+
+      const { id } = request.params as { id: string };
+      const dados = CriarEnderecoClienteSchema.parse(request.body ?? {});
+      const resultado = await contexto.gestaoClientesCrm.salvarEnderecoCliente(
+        id,
+        contextoComercial.negocio.id,
+        dados
+      );
+      if (!resultado) {
+        return reply.code(404).send({ erro: "CLIENTE_NAO_ENCONTRADO", mensagem: "Cliente não encontrado." });
+      }
+
+      return reply.code(201).send(resultado);
     });
 
     app.get("/clientes/:id", async (request, reply) => {

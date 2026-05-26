@@ -100,6 +100,8 @@ Atualização 1.40: relatório comercial passou a aceitar filtro por coleção d
 
 Atualização 1.41: Cliente 360 passou a calcular indicadores comerciais completos a partir de pedidos e reservas: total gasto, compras pagas, pedidos pagos, pedidos cancelados, pedidos com pagamento pendente, reservas expiradas, tempo médio de pagamento e data da última compra. A segmentação comportamental agora considera pedidos reais e reservas antigas de live sem duplicar compra convertida em pedido.
 
+Atualização 1.42: Clientes 360 passaram a manter agenda de endereços de entrega reutilizáveis, com rota para cadastrar/listar endereços por cliente e criação de pedido usando `enderecoEntregaId` para preencher automaticamente o endereço textual do pedido.
+
 ---
 
 ## 2. Legenda
@@ -355,7 +357,7 @@ Esta etapa transforma o Bizy de painel de live em CRM operacional para lojas que
 | RF101 | [~] O sistema deve permitir cobrança por WhatsApp com templates de pagamento, lembrete, comprovativo pendente e pagamento confirmado. | Alta | Parcial - templates utilidade e envio pela conversa cobrem pagamento/lembrete/confirmação; falta biblioteca completa de comprovativo pendente por negócio |
 | RF102 | [~] O pedido deve anexar comprovativos, recibos, notas de pagamento e histórico de aprovação/rejeição. | Alta | Parcial - comprovativo/observação de pagamento no pedido; faltam recibos e trilha detalhada de aprovação/rejeição |
 | RF103 | [~] O vendedor deve poder aplicar desconto apenas com motivo obrigatório e auditoria. | Média | Parcial - motivo obrigatório no backend; falta limite configurável e aprovação por perfil |
-| RF104 | [~] O CRM deve registrar endereço de entrega por pedido e permitir reutilizar endereços salvos do cliente. | Alta | Parcial - endereço por pedido implementado; falta agenda de endereços do cliente |
+| RF104 | [x] O CRM deve registrar endereço de entrega por pedido e permitir reutilizar endereços salvos do cliente. | Alta | Implementado no backend com agenda de endereços do Cliente 360 e criação de pedido por `enderecoEntregaId` |
 | RF105 | [x] O sistema deve gerar lista de preparação/separação com produtos, quantidades, fotos e códigos. | Média | Implementado no backend em `/pedidos/preparacao` |
 | RF106 | [x] O sistema deve gerar lista de entrega por bairro, estado, entregador ou data. | Média | Implementado no backend em `/pedidos/entregas` com filtros operacionais |
 | RF107 | [x] O vendedor deve marcar pedido como entregue com data, responsável e observação opcional. | Alta | Implementado no backend |

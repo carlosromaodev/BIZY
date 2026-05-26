@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import type {
   RepositorioAtendimento,
   RepositorioClientes,
@@ -11,8 +12,10 @@ import type {
   Cliente360,
   Cliente360ComMetricas,
   DadosCliente360,
+  EnderecoCliente,
   FiltrosClientes360,
   MetricasCliente360,
+  NovoEnderecoCliente,
   Pedido,
   Reserva
 } from "../dominio/tipos.js";
@@ -38,6 +41,7 @@ const camposClienteImportacao = new Set([
   "estado_relacionamento",
   "estadorelacionamento"
 ]);
+const chaveEnderecosEntrega = "enderecosEntrega";
 
 type StatusLinhaImportacao = "CRIADO" | "ATUALIZADO" | "ERRO";
 
@@ -170,6 +174,56 @@ export class GestaoClientesCrmUseCase {
       reservas: reservasCliente,
       conversas: conversasCliente,
       pedidos: pedidosCliente
+    };
+  }
+
+  async listarEnderecosCliente(id: string, negocioId: string) {
+    const cliente = await this.clientes.buscarPorId(id, negocioId);
+    if (!cliente) return null;
+
+    return {
+      cliente,
+      enderecos: this.obterEnderecosEntrega(cliente)
+    };
+  }
+
+  async salvarEnderecoCliente(id: string, negocioId: string, dados: NovoEnderecoCliente) {
+    const cliente = await this.clientes.buscarPorId(id, negocioId);
+    if (!cliente) return null;
+
+    const enderecosAtuais = this.obterEnderecosEntrega(cliente);
+    const agora = new Date().toISOString();
+    const principal = dados.principal === true || enderecosAtuais.length === 0;
+    const endereco: EnderecoCliente = {
+      id: randomUUID(),
+      rotulo: this.textoOuNull(dados.rotulo),
+      endereco: dados.endereco.trim(),
+      bairro: this.textoOuNull(dados.bairro),
+      municipio: this.textoOuNull(dados.municipio),
+      referencia: this.textoOuNull(dados.referencia),
+      principal,
+      criadoEm: agora,
+      atualizadoEm: agora
+    };
+    const enderecos = [
+      ...enderecosAtuais.map((item) => ({
+        ...item,
+        principal: principal ? false : item.principal
+      })),
+      endereco
+    ];
+
+    const clienteAtualizado = await this.atualizarCliente(id, negocioId, {
+      preferencias: {
+        ...cliente.preferencias,
+        [chaveEnderecosEntrega]: enderecos
+      }
+    });
+
+    return {
+      cliente: clienteAtualizado,
+      endereco,
+      enderecos
     };
   }
 
@@ -431,6 +485,33 @@ export class GestaoClientesCrmUseCase {
     return pedido.estadoPagamento === "CONFIRMADO" || ["PAGO", "EM_PREPARACAO", "PRONTO_ENTREGA", "ENVIADO", "ENTREGUE"].includes(pedido.estado);
   }
 
+  private obterEnderecosEntrega(cliente: Pick<Cliente360, "preferencias">): EnderecoCliente[] {
+    const valor = cliente.preferencias[chaveEnderecosEntrega];
+    if (!Array.isArray(valor)) return [];
+
+    return valor.flatMap((item): EnderecoCliente[] => {
+      if (!this.ehRegistro(item)) return [];
+      const id = this.textoOuNull(item.id);
+      const endereco = this.textoOuNull(item.endereco);
+      if (!id || !endereco) return [];
+
+      const criadoEm = this.textoOuNull(item.criadoEm) ?? new Date(0).toISOString();
+      return [
+        {
+          id,
+          rotulo: this.textoOuNull(item.rotulo),
+          endereco,
+          bairro: this.textoOuNull(item.bairro),
+          municipio: this.textoOuNull(item.municipio),
+          referencia: this.textoOuNull(item.referencia),
+          principal: item.principal === true,
+          criadoEm,
+          atualizadoEm: this.textoOuNull(item.atualizadoEm) ?? criadoEm
+        }
+      ];
+    });
+  }
+
   private mesmoCliente(cliente: Cliente360, telefone: string): boolean {
     return Boolean(cliente.telefone && cliente.telefone === telefone);
   }
@@ -516,6 +597,14 @@ export class GestaoClientesCrmUseCase {
 
   private normalizarTags(tags: string[]): string[] {
     return [...new Set(tags.map((tag) => tag.trim()).filter(Boolean))];
+  }
+
+  private textoOuNull(valor: unknown): string | null {
+    return typeof valor === "string" && valor.trim() ? valor.trim() : null;
+  }
+
+  private ehRegistro(valor: unknown): valor is Record<string, unknown> {
+    return Boolean(valor && typeof valor === "object" && !Array.isArray(valor));
   }
 
   private csv(valor: string): string {
