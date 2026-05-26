@@ -4,7 +4,7 @@ Documento: `RF-RNF-RN-EMEUV1.md`
 Versão: 1.33
 Data: 2026-05-25
 Autor: Carlos
-Status: MVP base implementado; fundação backend Bizy CRM+ com Clientes 360, Pedidos, Catálogo/Stock, Loja Pública, Checkout, Entrega, Afiliados, Comissões, Lotes Financeiros, Campanhas, Governança, Jobs, Eventos Operacionais, Inbox Comercial, SLA, Social Inbox seguro, transferência operacional, política WhatsApp, descontos aprováveis, carrinho abandonado, antifraude de afiliados, anonimização, logs operacionais, navegação comercial, busca global e painel diário em evolução
+Status: MVP base implementado; fundação backend Bizy CRM+ com Clientes 360, Pedidos, Catálogo/Stock, Loja Pública, Checkout, Entrega, Afiliados, Comissões, Lotes Financeiros, Campanhas, Governança, Jobs, Eventos Operacionais, Inbox Comercial, SLA, Social Inbox seguro, transferência operacional, política WhatsApp, descontos aprováveis, carrinho abandonado, antifraude de afiliados, anonimização, logs operacionais, navegação comercial, busca global, auditoria de exportação de pedidos e painel diário em evolução
 
 ---
 
@@ -83,6 +83,8 @@ Atualização 1.31: backend de Conversas evoluiu para inbox comercial acionável
 Atualização 1.32: backend CRM+ recebeu transferência operacional de conversa/pedido/tarefa com motivo, onboarding operacional ampliado, deduplicação e filtros comerciais da Social Inbox, rate limit público separado e bloqueio de texto promocional em categorias WhatsApp de utilidade/autenticação.
 
 Atualização 1.33: backend CRM+ fechou novas lacunas operacionais com solicitação/aprovação auditada de descontos em pedidos, oportunidade de carrinho abandonado com consentimento e deduplicação, pacote de divulgação para afiliados/criadores, resolução pública de link curto rastreável, bloqueio de autoindicação de afiliado, relatório social-receita, auditoria operacional legível e anonimização de cliente preservando histórico financeiro.
+
+Atualização 1.34: exportação CSV de pedidos passou a incluir resumo de itens, filtros por cliente/produto cobertos por teste e evento auditável `ORDERS_EXPORTED` com usuário, negócio, quantidade e filtros. A política WhatsApp passou a classificar carrinho abandonado, lead frio, cliente inativo, novidades, reengajamento, campanhas e divulgação de afiliados/criadores como `marketing` por padrão, exigindo consentimento antes do provider.
 
 ---
 
@@ -346,7 +348,7 @@ Esta etapa transforma o Bizy de painel de live em CRM operacional para lojas que
 | RF108 | [~] O sistema deve permitir pedido rascunho apenas quando houver uso real: orçamento, carrinho em conversa ou checkout incompleto; não deve aparecer como submenu solto. | Média | Parcial - orçamento operacional com validade implementado no backend; falta carrinho persistente na conversa/checkout incompleto |
 | RF109 | [x] O CRM deve permitir recuperar pedidos parados com lembrete automático ou tarefa humana. | Alta | Implementado no backend com geração de tarefas de cobrança/entrega/follow-up para pedidos parados |
 | RF110 | [x] O pedido deve mostrar margem estimada quando custo do produto estiver cadastrado. | Baixa | Implementado no backend no detalhe do pedido |
-| RF111 | [~] O sistema deve exportar pedidos com filtros por data, estado, cliente, produto, pagamento e entrega. | Média | Parcial - CSV de pedidos com filtros de estado/pagamento/entrega/data implementado; faltam todos os filtros por produto/cliente no CSV |
+| RF111 | [x] O sistema deve exportar pedidos com filtros por data, estado, cliente, produto, pagamento e entrega. | Média | Implementado - CSV de pedidos aceita filtros de estado, pagamento, entrega, data, cliente, produto e inclui resumo de itens |
 
 #### 3.13.4 Produtos, Stock e Catálogo Comercial
 
@@ -690,7 +692,7 @@ Esta etapa vem antes da implementação visual dos novos módulos. O objetivo é
 | RNF57 | [~] Listas de clientes, pedidos, produtos e conversas devem suportar paginação, filtros e busca sem travar com pelo menos 10.000 registros. | Alta | Parcial - APIs principais aceitam limite/filtros e exportações usam teto operacional; falta paginação padronizada em todos os módulos e teste de carga |
 | RNF58 | [x] A busca global deve responder em até 1 segundo para bases pequenas e manter feedback de carregamento em bases maiores. | Média | Implementado com debounce e estado de carregamento |
 | RNF59 | [~] Dados pessoais de clientes devem ser protegidos com controlo de acesso por papel e auditoria de exportação. | Alta | Parcial - exportação de clientes exige permissão e registra auditoria; faltam políticas por papel mais finas e auditoria nas demais exportações |
-| RNF60 | [~] Exportações de clientes, pedidos e relatórios devem registrar usuário, filtro usado, data e quantidade exportada. | Alta | Parcial - clientes já registram usuário, filtros, data e quantidade; faltam pedidos e relatórios |
+| RNF60 | [~] Exportações de clientes, pedidos e relatórios devem registrar usuário, filtro usado, data e quantidade exportada. | Alta | Parcial - clientes e pedidos já registram usuário, filtros, data e quantidade; faltam relatórios comerciais |
 | RNF61 | [ ] O CRM deve manter backups e estratégia de recuperação para clientes, pedidos, mensagens, comprovativos e produtos. | Alta | Planeado |
 | RNF62 | [x] A interface deve distinguir claramente operação comercial de configuração técnica. | Alta | Implementado por CRM/Loja versus Admin/Sistema |
 | RNF63 | [x] Páginas sem funcionalidade real não devem ser publicadas na navegação principal. | Alta | Implementado na navegação atual |
@@ -716,7 +718,7 @@ Esta etapa vem antes da implementação visual dos novos módulos. O objetivo é
 | RNF78 | [~] O sistema deve suportar limitações de providers sociais por adaptadores, permissões, rate limits e fallback manual documentado. | Alta | Parcial - Social Inbox registra provider, permissões e contexto de captura; falta adapter/rate limit por rede social oficial |
 | RNF79 | [~] O motor de política WhatsApp deve ser testável, auditável e independente do provider concreto usado para envio. | Alta | Parcial - serviço de política testado em `whatsapp-politica.test.ts` e executado antes dos providers; faltam persistência/auditoria estruturada por tabela |
 | RNF80 | [~] A categoria WhatsApp escolhida para cada envio deve ficar rastreável para auditoria, custo, troubleshooting e melhoria operacional. | Alta | Parcial - categoria e política são anexadas ao contexto do envio e evento emitido; faltam colunas/relatórios dedicados |
-| RNF81 | [~] Mensagens de marketing, utilidade, autenticação e serviço devem ter validação automática de categoria antes de irem ao provider. | Alta | Parcial - validação automática inicial implementada para manual/templates e automações, incluindo bloqueio de templates não aprovados; faltam validações semânticas do texto e sincronização de aprovação por provider |
+| RNF81 | [~] Mensagens de marketing, utilidade, autenticação e serviço devem ter validação automática de categoria antes de irem ao provider. | Alta | Parcial - validação automática implementada para manual/templates/automações, com anti-promoção em utilidade/autenticação e recuperação/novidades como marketing; falta sincronização de aprovação por provider |
 | RNF82 | [~] O sistema deve aplicar opt-out e consentimento antes de campanhas, reativações, divulgações de afiliados e mensagens promocionais. | Alta | Parcial - envio manual e campanhas marketing exigem consentimento; faltam reativações/afiliados e opt-out granular |
 | RNF83 | [x] Cookies e identificadores de tracking não devem conter telefone, email, nome, endereço ou qualquer dado pessoal sensível. | Alta | Implementado no backend: tracking público rejeita telefone, email, nome, endereço e chaves sensíveis |
 | RNF84 | [ ] A loja pública deve exibir texto claro sobre tracking/privacidade quando cookies ou eventos de marketing forem usados. | Alta | Planeado |
@@ -905,7 +907,7 @@ Esta etapa vem antes da implementação visual dos novos módulos. O objetivo é
 | RN93 | [x] Texto promocional não pode ser misturado em template de utilidade ou autenticação para contornar categoria. | Implementado no motor de política WhatsApp |
 | RN94 | [~] Todo envio WhatsApp iniciado pelo sistema deve passar por política de categoria antes de tentar envio. | Parcial - automação/manual/campanhas passam pela política; faltam todos os futuros eventos e validação persistida por tabela |
 | RN95 | [~] Se o template necessário não estiver aprovado, configurado ou compatível com a categoria, o sistema deve criar tarefa humana em vez de enviar mensagem errada. | Parcial - envio manual cria tarefa em bloqueio e campanhas rejeitam template não aprovado; faltam tarefas para todos os eventos automáticos |
-| RN96 | [ ] Carrinho abandonado, lead frio, cliente inativo e campanha de novidade são marketing salvo quando a regra oficial vigente permitir outra classificação clara. | Planeado |
+| RN96 | [x] Carrinho abandonado, lead frio, cliente inativo e campanha de novidade são marketing salvo quando a regra oficial vigente permitir outra classificação clara. | Implementado no motor de política WhatsApp com consentimento obrigatório antes do provider |
 | RN97 | [x] Pagamento pendente, recibo, entrega e atualização de pedido são utilidade quando não contêm promoção. | Implementado com templates utility e bloqueio anti-promoção |
 | RN98 | [~] Comentário social como `preço?`, `tem tamanho M?`, `entrega onde?` ou `quero` deve criar lead/oportunidade, não pedido confirmado automaticamente. | Parcial - social inbox registra interação e cria tarefa de lead/intenção; faltam oportunidades completas por todos os tipos |
 | RN99 | [x] Comentário com intenção incerta, reclamação, pedido de desconto, troca ou conflito deve gerar tarefa humana. | Implementado no backend do Social Inbox para reclamação e palavras sensíveis como desconto, troca, devolução, cancelamento, problema ou reembolso |
@@ -1034,7 +1036,7 @@ O CRM+ Social Commerce pode ser considerado pronto para operação inicial quand
 - [~] Comentários sociais de posts, vídeos, fotos ou lives suportados forem capturados/importados, deduplicados, filtrados, classificados e convertidos em lead, conversa, tarefa ou oportunidade.
 - [~] O funil mostrar jornada do cliente desde visita/interação até pagamento, entrega, pós-venda e recompra.
 - [~] Playbooks e oportunidades de recuperação cobrirem carrinho abandonado, pagamento pendente, reserva expirada e cliente inativo; carrinho abandonado cria oportunidade deduplicada, faltam mensagens/templates automáticos finais.
-- [~] Todo envio WhatsApp passar pela política de categoria: marketing, utilidade, autenticação ou serviço, incluindo bloqueio de texto promocional em utilidade/autenticação.
+- [~] Todo envio WhatsApp passar pela política de categoria: marketing, utilidade, autenticação ou serviço, incluindo bloqueio de texto promocional em utilidade/autenticação e recuperação comercial como marketing; falta janela real do provider.
 - [~] O sistema impedir envio quando template/categoria estiver ausente, incompatível ou sem aprovação, criando tarefa humana.
 - [x] Opt-out e consentimento bloquearem campanhas e mensagens promocionais.
 - [~] Relatórios mostrarem receita por canal, produto, campanha, criador, afiliado, social post e funil; backend social-receita existe, faltam campanha completa e UI.

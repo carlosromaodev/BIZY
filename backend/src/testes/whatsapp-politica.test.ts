@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { DespachadorEventos } from "../dominio/eventos/DespachadorEventos.js";
 import type { MensagemWhatsApp, ProvedorWhatsApp, ResultadoEnvioWhatsApp } from "../dominio/provedores/ProvedorWhatsApp.js";
+import { PoliticaMensagensWhatsApp } from "../dominio/servicos/PoliticaMensagensWhatsApp.js";
 import { AutomacaoWhatsApp } from "../dominio/servicos/AutomacaoWhatsApp.js";
 
 class ProvedorWhatsAppCaptura implements ProvedorWhatsApp {
@@ -152,5 +153,34 @@ describe("política WhatsApp por categoria oficial", () => {
       })
     ).rejects.toThrow("Texto promocional não pode ser enviado como utilidade ou autenticação.");
     expect(provedor.mensagens).toHaveLength(0);
+  });
+
+  it("classifica recuperações e novidades como marketing por padrão", () => {
+    const politica = new PoliticaMensagensWhatsApp();
+
+    for (const tipo of ["CARRINHO_ABANDONADO", "LEAD_FRIO", "CLIENTE_INATIVO", "CAMPANHA_NOVIDADE"]) {
+      expect(() =>
+        politica.avaliar({
+          tipo,
+          origem: "automatica",
+          consentimentoMarketing: false
+        })
+      ).toThrow("Mensagem WhatsApp de marketing exige consentimento explícito do cliente.");
+
+      expect(
+        politica.avaliar({
+          tipo,
+          origem: "automatica",
+          consentimentoMarketing: true,
+          categoriaTemplate: "marketing"
+        })
+      ).toEqual(
+        expect.objectContaining({
+          categoria: "marketing",
+          requerConsentimentoMarketing: true,
+          requerTemplateOficial: true
+        })
+      );
+    }
   });
 });

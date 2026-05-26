@@ -18,7 +18,15 @@ const categoriasPorTipoAutomatico: Record<string, CategoriaMensagemWhatsApp> = {
   RESERVA_EXPIRADA: "utility",
   CHAMADA_FILA: "utility",
   PECA_VENDIDA: "service",
-  PEDIR_CODIGO_PECA: "service"
+  PEDIR_CODIGO_PECA: "service",
+  CARRINHO_ABANDONADO: "marketing",
+  LEAD_FRIO: "marketing",
+  CLIENTE_INATIVO: "marketing",
+  CAMPANHA_NOVIDADE: "marketing",
+  REPOSICAO_PRODUTO: "marketing",
+  AFFILIATE_PROMOTION: "marketing",
+  CUSTOMER_REENGAGEMENT: "marketing",
+  CAMPAIGN_BROADCAST: "marketing"
 };
 
 export class PoliticaMensagensWhatsApp {

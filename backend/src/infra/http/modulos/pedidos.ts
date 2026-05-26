@@ -95,10 +95,18 @@ export const moduloPedidos: ModuloHttp = {
       if (!contextoComercial) return;
 
       const filtros = FiltrosPedidosQuerySchema.parse(request.query ?? {});
-      const csv = await contexto.gestaoPedidos.exportarCsv(contextoComercial.negocio.id, filtros);
+      const exportacao = await contexto.gestaoPedidos.exportarCsv(contextoComercial.negocio.id, filtros);
+      contexto.eventos.emitir("ORDERS_EXPORTED", {
+        negocioId: contextoComercial.negocio.id,
+        usuarioId: contextoComercial.usuario.id,
+        recurso: "pedidos",
+        formato: "csv",
+        quantidade: exportacao.quantidade,
+        filtros: exportacao.filtros
+      });
       reply.header("Content-Type", "text/csv; charset=utf-8");
       reply.header("Content-Disposition", "attachment; filename=\"pedidos-bizy.csv\"");
-      return reply.send(csv);
+      return reply.send(exportacao.csv);
     });
 
     app.get("/pedidos/preparacao", async (request, reply) => {

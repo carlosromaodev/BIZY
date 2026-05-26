@@ -161,8 +161,12 @@ export class GestaoPedidosUseCase {
     return pedido;
   }
 
-  async exportarCsv(negocioId: string, filtros: FiltrosPedidos = {}): Promise<string> {
-    const pedidos = await this.pedidos.listar(negocioId, { limite: 10_000, ...filtros });
+  async exportarCsv(
+    negocioId: string,
+    filtros: FiltrosPedidos = {}
+  ): Promise<{ csv: string; quantidade: number; filtros: FiltrosPedidos }> {
+    const filtrosExportacao: FiltrosPedidos = { limite: 10_000, ...filtros };
+    const pedidos = await this.pedidos.listar(negocioId, filtrosExportacao);
     const clientes = await this.clientes.listar(negocioId, { limite: 10_000 });
     const clientePorId = new Map(clientes.map((cliente) => [cliente.id, cliente]));
     const linhas = [
@@ -175,6 +179,7 @@ export class GestaoPedidosUseCase {
         "estadoEntrega",
         "totalEmKwanza",
         "canal",
+        "itens",
         "criadoEm"
       ],
       ...pedidos.map((pedido) => {
@@ -188,12 +193,17 @@ export class GestaoPedidosUseCase {
           pedido.estadoEntrega,
           String(pedido.totalEmKwanza),
           pedido.canal,
+          this.resumirItens(pedido),
           pedido.criadoEm.toISOString()
         ];
       })
     ];
 
-    return `${linhas.map((linha) => linha.map((valor) => this.csv(valor)).join(",")).join("\n")}\n`;
+    return {
+      csv: `${linhas.map((linha) => linha.map((valor) => this.csv(valor)).join(",")).join("\n")}\n`,
+      quantidade: pedidos.length,
+      filtros: filtrosExportacao
+    };
   }
 
   async criarOrcamento(dados: NovoPedido & { validadeMinutos: number }) {
@@ -499,6 +509,12 @@ export class GestaoPedidosUseCase {
   private csv(valor: string): string {
     if (!/[",\n]/.test(valor)) return valor;
     return `"${valor.replace(/"/g, "\"\"")}"`;
+  }
+
+  private resumirItens(pedido: Pedido): string {
+    return pedido.itens
+      .map((item) => `${item.quantidade}x ${item.nomeProduto} (#${item.codigoPeca})`)
+      .join(" | ");
   }
 
   private async calcularResumoFinanceiro(pedido: Pedido, negocioId: string) {

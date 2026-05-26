@@ -45,15 +45,19 @@ async function criarPeca(
   return resposta.json();
 }
 
-async function criarCliente(app: Awaited<ReturnType<typeof criarAplicacao>>, headers: Record<string, string>) {
+async function criarCliente(
+  app: Awaited<ReturnType<typeof criarAplicacao>>,
+  headers: Record<string, string>,
+  dados: { telefone?: string; nome?: string; email?: string } = {}
+) {
   const resposta = await app.inject({
     method: "POST",
     url: "/clientes",
     headers,
     payload: {
-      telefone: "937624785",
-      nome: "Cliente Pedido",
-      email: "cliente.pedido@example.com",
+      telefone: dados.telefone ?? "937624785",
+      nome: dados.nome ?? "Cliente Pedido",
+      email: dados.email ?? "cliente.pedido@example.com",
       consentimentoDados: true,
       tags: ["comprador"]
     }
@@ -217,6 +221,52 @@ describe("pedidos HTTP", () => {
       expect(exportacao.body).toContain("numero,cliente,telefone,estado,estadoPagamento,estadoEntrega,totalEmKwanza");
       expect(exportacao.body).toContain("Cliente Pedido");
       expect(exportacao.body).toContain("29000");
+      expect(exportacao.body).toContain("2x Produto P1 (#P1) | 1x Produto P2 (#P2)");
+
+      const exportacaoPorProduto = await app.inject({
+        method: "GET",
+        url: "/pedidos/exportar.csv?produto=P2",
+        headers: lojaA
+      });
+      expect(exportacaoPorProduto.statusCode).toBe(200);
+      expect(exportacaoPorProduto.body).toContain("Cliente Pedido");
+      expect(exportacaoPorProduto.body).toContain("Produto P2");
+
+      const clienteSemPedido = await criarCliente(app, lojaA, {
+        telefone: "937624786",
+        nome: "Cliente Sem Pedido",
+        email: "cliente.sem.pedido@example.com"
+      });
+      const exportacaoPorCliente = await app.inject({
+        method: "GET",
+        url: `/pedidos/exportar.csv?clienteId=${clienteSemPedido.id}`,
+        headers: lojaA
+      });
+      expect(exportacaoPorCliente.statusCode).toBe(200);
+      expect(exportacaoPorCliente.body).not.toContain("Cliente Pedido");
+
+      const auditoriaExportacao = await app.inject({
+        method: "GET",
+        url: "/auditoria/eventos?tipo=ORDERS_EXPORTED",
+        headers: lojaA
+      });
+      expect(auditoriaExportacao.statusCode).toBe(200);
+      expect(auditoriaExportacao.json().eventos).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            tipo: "ORDERS_EXPORTED",
+            dados: expect.objectContaining({
+              recurso: "pedidos",
+              formato: "csv",
+              quantidade: 1,
+              filtros: expect.objectContaining({
+                produto: "P2",
+                limite: 10000
+              })
+            })
+          })
+        ])
+      );
     } finally {
       await app.close();
     }
