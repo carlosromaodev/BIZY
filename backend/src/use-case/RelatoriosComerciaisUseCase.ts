@@ -330,7 +330,13 @@ export class RelatoriosComerciaisUseCase {
       atual.valorPerdidoEmKwanza += peca?.precoEmKwanza ?? 0;
       mapa.set(reserva.codigoPeca, atual);
     }
-    return [...mapa.values()].sort((a, b) => b.reservasPerdidas - a.reservasPerdidas).slice(0, 20);
+    return [...mapa.values()]
+      .sort((a, b) => {
+        if (b.reservasPerdidas !== a.reservasPerdidas) return b.reservasPerdidas - a.reservasPerdidas;
+        if (b.valorPerdidoEmKwanza !== a.valorPerdidoEmKwanza) return b.valorPerdidoEmKwanza - a.valorPerdidoEmKwanza;
+        return a.codigoPeca.localeCompare(b.codigoPeca, "pt-AO", { numeric: true });
+      })
+      .slice(0, 20);
   }
 
   private contarPedidosPagosPorCliente(pedidos: Pedido[]) {

@@ -480,6 +480,51 @@ describe("backend CRM+ requisitos operacionais", () => {
       });
       expect(pedidoPendente.statusCode).toBe(201);
 
+      await criarPeca(app, loja, "10", 3, 10_000, 7_000, { colecao: "Perdas" });
+      await criarPeca(app, loja, "11", 3, 30_000, 18_000, { colecao: "Perdas" });
+
+      const reservaPerdidaMenorValor = await app.inject({
+        method: "POST",
+        url: "/comentarios/manual",
+        headers: loja,
+        payload: {
+          liveId: "live_relatorio_perdas",
+          username: "cliente_perda_1",
+          displayName: "Cliente Perda 1",
+          commentText: "937624731 10"
+        }
+      });
+      expect(reservaPerdidaMenorValor.statusCode).toBe(201);
+
+      const reservaPerdidaMaiorValor = await app.inject({
+        method: "POST",
+        url: "/comentarios/manual",
+        headers: loja,
+        payload: {
+          liveId: "live_relatorio_perdas",
+          username: "cliente_perda_2",
+          displayName: "Cliente Perda 2",
+          commentText: "937624732 11"
+        }
+      });
+      expect(reservaPerdidaMaiorValor.statusCode).toBe(201);
+
+      const cancelamentoReservaMenorValor = await app.inject({
+        method: "POST",
+        url: `/reservas/${reservaPerdidaMenorValor.json().reserva.id}/cancelar`,
+        headers: loja,
+        payload: { motivo: "Cliente desistiu antes de pagar" }
+      });
+      expect(cancelamentoReservaMenorValor.statusCode).toBe(200);
+
+      const cancelamentoReservaMaiorValor = await app.inject({
+        method: "POST",
+        url: `/reservas/${reservaPerdidaMaiorValor.json().reserva.id}/cancelar`,
+        headers: loja,
+        payload: { motivo: "Cliente desistiu antes de pagar" }
+      });
+      expect(cancelamentoReservaMaiorValor.statusCode).toBe(200);
+
       const relatorio = await app.inject({ method: "GET", url: "/relatorios/comercial", headers: loja });
       expect(relatorio.statusCode).toBe(200);
       expect(relatorio.json().metricas).toEqual(
@@ -499,6 +544,18 @@ describe("backend CRM+ requisitos operacionais", () => {
           margemEstimadaEmKwanza: 16_000
         })
       );
+      expect(relatorio.json().rankings.produtosReservaPerdida).toEqual([
+        expect.objectContaining({
+          codigoPeca: "11",
+          reservasPerdidas: 1,
+          valorPerdidoEmKwanza: 30_000
+        }),
+        expect.objectContaining({
+          codigoPeca: "10",
+          reservasPerdidas: 1,
+          valorPerdidoEmKwanza: 10_000
+        })
+      ]);
       expect(relatorio.json().oportunidadesPerdidas).toEqual(
         expect.objectContaining({
           pedidosAguardandoPagamento: 1

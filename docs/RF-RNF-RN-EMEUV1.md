@@ -104,6 +104,8 @@ Atualização 1.42: Clientes 360 passaram a manter agenda de endereços de entre
 
 Atualização 1.43: Cadastro manual de cliente passou a aceitar WhatsApp como contacto principal, notas internas e endereço inicial de entrega, salvando notas/preferências no Cliente 360 e endereço na agenda reutilizável do cliente.
 
+Atualização 1.44: Relatório comercial passou a cobrir o ranking completo de produtos exigido para CRM de loja: mais vendidos, encalhados, maior margem e reserva perdida, ordenando perdas por quantidade e impacto financeiro estimado.
+
 ---
 
 ## 2. Legenda
@@ -404,7 +406,7 @@ Esta etapa transforma o Bizy de painel de live em CRM operacional para lojas que
 | ID | Requisito Funcional | Prioridade | Estado |
 |---|---|---|---|
 | RF133 | [x] Relatórios devem começar por indicadores práticos: vendas do dia, pedidos pagos, pagamentos pendentes, ticket médio, clientes novos, clientes recorrentes e conversão de reservas. | Alta | Implementado no backend em `/relatorios/comercial` |
-| RF134 | [~] O CRM deve mostrar ranking de produtos mais vendidos, produtos encalhados, produtos com maior margem e produtos com mais reserva perdida. | Média | Parcial - backend calcula vendidos, stock parado/encalhado e margem estimada no catálogo/relatório; faltam ranking dedicado de maior margem e reserva perdida por produto |
+| RF134 | [x] O CRM deve mostrar ranking de produtos mais vendidos, produtos encalhados, produtos com maior margem e produtos com mais reserva perdida. | Média | Implementado no backend em `/relatorios/comercial`, com ranking de perdas por reservas expiradas/canceladas e impacto financeiro |
 | RF135 | [~] O CRM deve mostrar desempenho de atendimento: tempo médio de primeira resposta, conversas abertas, SLA vencido, mensagens falhadas e taxa de resolução. | Alta | Parcial - relatório comercial expõe conversas abertas, mensagens falhadas e tarefas/SLA atrasadas; falta cálculo de primeira resposta e taxa de resolução |
 | RF136 | [~] O CRM deve mostrar desempenho de campanhas: receita gerada, respostas, opt-out, falhas e segmentos que converteram. | Média | Parcial - backend expõe métricas de campanha e bloqueios/opt-out; faltam receita por campanha e conversão por segmento |
 | RF137 | [ ] A página `Explorar` não deve existir como relatório vazio; relatórios avançados só entram quando houver perguntas reais de negócio a responder. | Alta | Planeado |
