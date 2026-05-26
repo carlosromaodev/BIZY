@@ -120,10 +120,11 @@ export function PaginaLojaPublica() {
           title="Publicação"
           description="Transforma o catálogo do backend numa loja online com checkout pelo site, compra pelo WhatsApp, cálculo de entrega e tracking por link."
         >
-          <div className="grid gap-3">
+          <div className="market-form grid gap-3">
             <label className="grid gap-2 text-sm font-semibold">
               Slug da loja
               <Input
+                className="market-input"
                 value={slug}
                 onChange={(evento) => setSlug(evento.target.value)}
                 placeholder="exemplo: bizy-luanda"
@@ -132,13 +133,14 @@ export function PaginaLojaPublica() {
             <label className="grid gap-2 text-sm font-semibold">
               Descrição pública
               <Textarea
+                className="market-input"
                 value={descricao}
                 onChange={(evento) => setDescricao(evento.target.value)}
                 placeholder="Descreve a tua loja, entregas, formas de pagamento e diferenciais."
                 rows={5}
               />
             </label>
-            <label className="flex items-center gap-3 rounded-lg border bg-background/60 p-3 text-sm">
+            <label className="market-choice flex items-center gap-3 rounded-lg border bg-background/60 p-3 text-sm">
               <Checkbox checked={publicada} onCheckedChange={(valor) => setPublicada(valor === true)} />
               <span>
                 <strong className="block">Publicar loja agora</strong>
@@ -163,7 +165,7 @@ export function PaginaLojaPublica() {
                 </Button>
               )}
             </div>
-            {urlPublica && <p className="break-all rounded-lg bg-muted/60 px-3 py-2 text-sm text-muted-foreground">{urlPublica}</p>}
+            {urlPublica && <p className="market-url break-all rounded-lg bg-muted/60 px-3 py-2 text-sm text-muted-foreground">{urlPublica}</p>}
           </div>
         </CrmSection>
 
@@ -201,7 +203,7 @@ export function PaginaLojaPublica() {
         </CrmList>
       </CrmSection>
 
-      {mensagem && <footer className="rounded-lg border bg-card px-4 py-3 text-sm text-muted-foreground" aria-live="polite">{mensagem}</footer>}
+      {mensagem && <footer className="market-feedback rounded-lg border bg-card px-4 py-3 text-sm text-muted-foreground" aria-live="polite">{mensagem}</footer>}
     </CrmPageMotion>
   );
 }

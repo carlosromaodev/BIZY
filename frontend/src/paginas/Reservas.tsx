@@ -14,7 +14,7 @@ import {
 import { useEffect, useMemo, useState } from "react";
 import { requisitarApi, obterUrlEventos } from "../api";
 import { CabecalhoPagina, EstadoVazio, ResumoIndicadores } from "../componentes/Shell";
-import { CrmList, CrmListItem, CrmMetricMini, CrmPageMotion, CrmSection } from "../componentes/CrmInterno21st";
+import { CrmFilterDock, CrmList, CrmListItem, CrmMetricMini, CrmPageMotion, CrmSection } from "../componentes/CrmInterno21st";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -184,10 +184,10 @@ export function PaginaReservas() {
             </Button>
           )}
         >
-          <div className="grid gap-3 lg:grid-cols-[1fr_260px_auto] lg:items-center">
+          <CrmFilterDock className="lg:grid-cols-[minmax(0,1fr)_260px_auto] lg:items-center">
             <div className="relative">
               <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={16} />
-              <Input aria-label="Buscar pedidos" className="pl-9" style={{ paddingLeft: "2.25rem" }} placeholder="Buscar por cliente, telefone ou produto..." value={busca} onChange={(e) => setBusca(e.target.value)} />
+              <Input aria-label="Buscar pedidos" className="market-input pl-9" style={{ paddingLeft: "2.25rem" }} placeholder="Buscar por cliente, telefone ou produto..." value={busca} onChange={(e) => setBusca(e.target.value)} />
             </div>
             <Select value={filtro} onValueChange={(estado) => setFiltro(estado as typeof filtro)}>
               <SelectTrigger aria-label="Filtrar pedidos por estado">
@@ -202,7 +202,7 @@ export function PaginaReservas() {
             <Button variant="outline" size="icon-lg" onClick={() => void carregar()} title="Atualizar" aria-label="Atualizar pedidos">
               <RefreshCcw size={18} />
             </Button>
-          </div>
+          </CrmFilterDock>
 
           <CrmList className="reservas-commerce-list">
             {reservasVisiveis.length ? (
@@ -368,7 +368,7 @@ export function PaginaReservas() {
         </div>
       </section>
 
-      {mensagem && <footer className="rounded-lg border bg-card px-4 py-3 text-sm text-muted-foreground" aria-live="polite">{mensagem}</footer>}
+      {mensagem && <footer className="market-feedback rounded-lg border bg-card px-4 py-3 text-sm text-muted-foreground" aria-live="polite">{mensagem}</footer>}
     </CrmPageMotion>
   );
 }

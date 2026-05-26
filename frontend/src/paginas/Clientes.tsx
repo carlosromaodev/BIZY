@@ -15,7 +15,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { requisitarApi } from "../api";
 import { CabecalhoPagina, EstadoVazio, ResumoIndicadores } from "../componentes/Shell";
-import { CrmList, CrmListItem, CrmMetricMini, CrmPageMotion, CrmSection, CrmStatusBadge } from "../componentes/CrmInterno21st";
+import { CrmFilterDock, CrmList, CrmListItem, CrmMetricMini, CrmPageMotion, CrmSection, CrmStatusBadge } from "../componentes/CrmInterno21st";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -166,12 +166,12 @@ export function PaginaClientes() {
         title="Base 360"
         description="Dados reais do módulo /clientes: perfil, consentimento, tags, métricas, histórico de compras e ações rápidas."
       >
-        <div className="grid gap-3 lg:grid-cols-[1fr_auto] lg:items-center">
+        <CrmFilterDock className="lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
           <div className="relative">
             <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={16} />
             <Input
               aria-label="Buscar clientes"
-              className="pl-9"
+              className="market-input pl-9"
               style={{ paddingLeft: "2.25rem" }}
               placeholder="Buscar cliente, telefone, email, username ou tag..."
               value={busca}
@@ -187,7 +187,7 @@ export function PaginaClientes() {
               ))}
             </TabsList>
           </AnimatedTabs>
-        </div>
+        </CrmFilterDock>
 
         <CrmList className="crm21-clientes-list crm-commerce-list" aria-busy={carregando}>
           {clientesFiltrados.length ? (
@@ -262,7 +262,7 @@ export function PaginaClientes() {
             >
               <div className="grid gap-2">
                 {segmento.clientes.slice(0, 3).map((cliente) => (
-                  <div key={cliente.id} className="flex items-center justify-between gap-2 rounded-md bg-muted/50 px-3 py-2 text-sm">
+                  <div key={cliente.id} className="market-chip-row flex items-center justify-between gap-2 rounded-md bg-muted/50 px-3 py-2 text-sm">
                     <span className="truncate">{cliente.nome || cliente.telefone || cliente.email || "Cliente"}</span>
                     <strong>{formatarKwanza(cliente.totalCompradoEmKwanza)}</strong>
                   </div>
@@ -275,7 +275,7 @@ export function PaginaClientes() {
         </CrmList>
       </CrmSection>
 
-      {mensagem && <footer className="rounded-lg border bg-card px-4 py-3 text-sm text-muted-foreground" aria-live="polite">{mensagem}</footer>}
+      {mensagem && <footer className="market-feedback rounded-lg border bg-card px-4 py-3 text-sm text-muted-foreground" aria-live="polite">{mensagem}</footer>}
     </CrmPageMotion>
   );
 }

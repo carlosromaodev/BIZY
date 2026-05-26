@@ -203,11 +203,11 @@ export function PaginaAfiliados() {
           title="Novo afiliado"
           description="Cadastra criadores, revendedores ou parceiros e define a regra de comissão."
         >
-          <div className="grid gap-3">
-            <Input aria-label="Código do afiliado" value={codigo} onChange={(evento) => setCodigo(evento.target.value)} placeholder="Código: CRIADOR01" />
-            <Input aria-label="Nome público" value={nomePublico} onChange={(evento) => setNomePublico(evento.target.value)} placeholder="Nome público" />
-            <Input aria-label="Contacto" value={contacto} onChange={(evento) => setContacto(evento.target.value)} placeholder="WhatsApp, email ou @username" />
-            <Input aria-label="Percentual de comissão" type="number" min="0" max="100" value={percentual} onChange={(evento) => setPercentual(evento.target.value)} placeholder="Comissão %" />
+          <div className="market-form grid gap-3">
+            <Input className="market-input" aria-label="Código do afiliado" value={codigo} onChange={(evento) => setCodigo(evento.target.value)} placeholder="Código: CRIADOR01" />
+            <Input className="market-input" aria-label="Nome público" value={nomePublico} onChange={(evento) => setNomePublico(evento.target.value)} placeholder="Nome público" />
+            <Input className="market-input" aria-label="Contacto" value={contacto} onChange={(evento) => setContacto(evento.target.value)} placeholder="WhatsApp, email ou @username" />
+            <Input className="market-input" aria-label="Percentual de comissão" type="number" min="0" max="100" value={percentual} onChange={(evento) => setPercentual(evento.target.value)} placeholder="Comissão %" />
             <Button size="lg" onClick={() => void criarParceiro()}>
               <Plus size={16} />
               Criar afiliado
@@ -286,7 +286,7 @@ export function PaginaAfiliados() {
         </CrmList>
       </CrmSection>
 
-      {mensagem && <footer className="rounded-lg border bg-card px-4 py-3 text-sm text-muted-foreground" aria-live="polite">{mensagem}</footer>}
+      {mensagem && <footer className="market-feedback rounded-lg border bg-card px-4 py-3 text-sm text-muted-foreground" aria-live="polite">{mensagem}</footer>}
     </CrmPageMotion>
   );
 }

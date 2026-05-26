@@ -384,7 +384,7 @@ export function PaginaConversas() {
       </CabecalhoPagina>
 
       <section className="conversas-commerce-layout grid gap-4 lg:grid-cols-[360px_minmax(0,1fr)]">
-        <Card className={detalheMobileAtivo ? "hidden lg:block" : "block"}>
+        <Card className={`market-panel ${detalheMobileAtivo ? "hidden lg:block" : "block"}`}>
           <CardContent className="grid gap-3 p-4">
             <CampoBusca aria-label="Buscar conversas" placeholder="Buscar cliente, telefone ou peça..." value={busca} onChange={setBusca} />
             <div className="flex items-center gap-2">
@@ -463,7 +463,7 @@ export function PaginaConversas() {
           </CardContent>
         </Card>
 
-        <Card className={`chat-social-panel ${detalheMobileAtivo ? "block" : "hidden lg:block"}`}>
+        <Card className={`market-panel chat-social-panel ${detalheMobileAtivo ? "block" : "hidden lg:block"}`}>
           <CardContent className="chat-social-shell grid min-h-0 gap-3 p-3 lg:p-4">
             {conversaAtual ? (
               <>
@@ -498,7 +498,7 @@ export function PaginaConversas() {
                   </div>
                 </div>
 
-              <details className="chat-social-management rounded-lg border bg-muted/20 p-3 lg:p-4">
+              <details className="market-management chat-social-management rounded-lg border bg-muted/20 p-3 lg:p-4">
                 <summary className="cursor-pointer">
                   <span>Gestão do atendimento</span>
                   <small className="ml-2 text-muted-foreground">
@@ -654,7 +654,7 @@ export function PaginaConversas() {
                 </div>
               </details>
 
-              <div ref={mensagensRef} className="chat-commerce-messages grid auto-rows-max content-start min-h-0 gap-3 overflow-y-auto rounded-lg bg-muted/20 p-3">
+              <div ref={mensagensRef} className="market-chat-surface chat-commerce-messages grid auto-rows-max content-start min-h-0 gap-3 overflow-y-auto rounded-lg bg-muted/20 p-3">
                 {conversaAtual.mensagens.map((item) => (
                   <MensagemLinha
                     key={item.id}
@@ -737,7 +737,7 @@ export function PaginaConversas() {
         </Card>
       </section>
 
-      {mensagem && <footer className="rounded-lg border bg-card px-4 py-3 text-sm text-muted-foreground" aria-live="polite">{mensagem}</footer>}
+      {mensagem && <footer className="market-feedback rounded-lg border bg-card px-4 py-3 text-sm text-muted-foreground" aria-live="polite">{mensagem}</footer>}
     </CrmPageMotion>
   );
 }
@@ -758,7 +758,7 @@ function PainelContextoComercial({
   onEnviarTexto: (texto: string) => void;
 }) {
   return (
-    <div className="grid max-h-[38dvh] gap-3 overflow-y-auto rounded-lg border bg-muted/20 p-3 shadow-xs lg:max-h-[50dvh]">
+    <div className="market-context-panel grid max-h-[38dvh] gap-3 overflow-y-auto rounded-lg border bg-muted/20 p-3 shadow-xs lg:max-h-[50dvh]">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="min-w-0">
           <p className="text-xs font-bold uppercase tracking-wide text-primary">Consulta comercial</p>
@@ -937,13 +937,13 @@ function CampoBusca({
   onChange: (valor: string) => void;
 }) {
   return (
-    <div className="relative">
+    <div className="market-search-field relative">
       <span className="pointer-events-none absolute left-3 top-1/2 grid size-4 -translate-y-1/2 place-items-center text-muted-foreground">
         <Search className="size-4 shrink-0" aria-hidden="true" />
       </span>
       <Input
         aria-label={ariaLabel ?? placeholder}
-        className="h-11"
+        className="market-input h-11"
         style={{ paddingLeft: "2.25rem" }}
         placeholder={placeholder}
         value={value}

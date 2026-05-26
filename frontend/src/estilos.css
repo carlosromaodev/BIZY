@@ -7817,6 +7817,1046 @@ body .crm21-mini-metric-principal strong { color: var(--primary); }
   }
 }
 
+/* ============================================
+   Bizy CRM Airbnb-inspired Marketplace Layer
+   ============================================ */
+
+:root {
+  --crm-market-brand: #166534;
+  --crm-market-brand-hover: #14532d;
+  --crm-market-brand-soft: #ecfdf3;
+  --crm-market-ink: #222222;
+  --crm-market-body: #3f3f3f;
+  --crm-market-muted: #6a6a6a;
+  --crm-market-hairline: #dddddd;
+  --crm-market-hairline-soft: #ebebeb;
+  --crm-market-canvas: #ffffff;
+  --crm-market-surface: #f7f7f7;
+  --crm-market-surface-strong: #f2f2f2;
+  --crm-market-shadow: 0 4px 18px rgb(34 34 34 / 0.06);
+  --crm-market-shadow-hover: 0 12px 34px rgb(34 34 34 / 0.1);
+  --crm-market-radius-card: 20px;
+  --crm-market-radius-panel: 24px;
+  --crm-market-radius-pill: 9999px;
+  --crm-market-font: "Airbnb Cereal VF", Circular, var(--font);
+}
+
+body .app-route-surface {
+  background:
+    linear-gradient(180deg, rgb(255 255 255 / 0.88) 0%, rgb(247 247 247 / 0.34) 320px),
+    var(--crm-market-canvas);
+}
+
+body .app-route-surface::before {
+  background-image:
+    linear-gradient(180deg, rgb(255 255 255 / 0.9), transparent 46%),
+    linear-gradient(135deg, rgb(22 101 52 / 0.05), transparent 44%);
+  background-size: 100% 460px, 100% 100%;
+  mask-image: linear-gradient(180deg, #000 0%, rgb(0 0 0 / 0.68) 40%, transparent 100%);
+  opacity: 0.46;
+}
+
+body .crm-market-page,
+body .app-desktop-nav,
+body .app-mobile-nav-island,
+body .app-cabecalho {
+  font-family: var(--crm-market-font);
+}
+
+body .app-conteudo {
+  max-width: 1360px;
+  gap: 20px;
+}
+
+body .app-cabecalho {
+  align-items: flex-end;
+}
+
+body .app-rotulo {
+  color: var(--crm-market-brand);
+  font-size: 0.72rem;
+  letter-spacing: 0;
+}
+
+body .app-titulo {
+  color: var(--crm-market-ink);
+  font-family: var(--crm-market-font);
+  font-size: clamp(1.55rem, 1.9vw, 2rem);
+  font-weight: 650;
+}
+
+body .app-desktop-sidebar {
+  border-color: var(--crm-market-hairline-soft);
+  background: rgb(255 255 255 / 0.94);
+  box-shadow: 1px 0 0 var(--crm-market-hairline-soft), 10px 0 34px rgb(34 34 34 / 0.045);
+}
+
+body .app-desktop-sidebar-top {
+  min-height: 76px;
+  border-color: var(--crm-market-hairline-soft);
+}
+
+body .app-nav-section-label {
+  color: var(--crm-market-muted);
+  font-size: 0.66rem;
+  font-weight: 700;
+}
+
+body .app-nav-link {
+  min-height: 42px;
+  border-color: transparent;
+  border-radius: var(--crm-market-radius-pill);
+  color: var(--crm-market-body);
+  font-weight: 650;
+}
+
+body .app-nav-link:is(:hover, :focus-visible) {
+  border-color: var(--crm-market-hairline);
+  background: var(--crm-market-canvas);
+  box-shadow: var(--crm-market-shadow);
+  transform: translateX(1px);
+}
+
+body .app-nav-link[aria-current="page"] {
+  border-color: color-mix(in srgb, var(--crm-market-brand) 28%, var(--crm-market-hairline));
+  background: var(--crm-market-canvas);
+  color: var(--crm-market-ink);
+  box-shadow: var(--crm-market-shadow);
+}
+
+body .app-nav-link[aria-current="page"] :is(.app-nav-icon, .app-nav-label, svg, span) {
+  color: var(--crm-market-ink) !important;
+}
+
+body .app-nav-link[aria-current="page"]::after {
+  top: 50%;
+  bottom: auto;
+  left: 10px;
+  width: 6px;
+  height: 6px;
+  border-radius: var(--crm-market-radius-pill);
+  background: var(--crm-market-brand);
+  box-shadow: none;
+  transform: translateY(-50%);
+}
+
+body .app-nav-icon {
+  color: inherit;
+}
+
+body .app-mobile-nav-island {
+  border-color: var(--crm-market-hairline);
+  background: rgb(255 255 255 / 0.96);
+  box-shadow:
+    0 18px 46px rgb(34 34 34 / 0.18),
+    inset 0 1px 0 rgb(255 255 255 / 0.92);
+}
+
+body .app-mobile-nav-island .app-mobile-nav-item {
+  color: var(--crm-market-muted);
+  border-radius: var(--crm-market-radius-pill);
+}
+
+body .app-mobile-nav-island .app-mobile-nav-item:is(:hover, :focus-visible) {
+  background: var(--crm-market-surface);
+  color: var(--crm-market-ink);
+}
+
+body .app-mobile-nav-island .app-mobile-nav-item.bg-primary,
+body .app-mobile-nav-island [data-slot="button"][data-variant="default"] {
+  background: var(--crm-market-brand);
+  color: #ffffff;
+  box-shadow: 0 10px 22px rgb(22 101 52 / 0.26);
+}
+
+body .app-mobile-nav-island .app-mobile-nav-item.bg-primary :is(.app-nav-icon, .app-nav-label, svg, span),
+body .app-mobile-nav-island [data-slot="button"][data-variant="default"] :is(.app-nav-icon, .app-nav-label, svg, span) {
+  color: #ffffff !important;
+}
+
+body .crm21-summary,
+body .painel-commerce-grid > [data-slot="card"],
+body .conversas-commerce-layout > [data-slot="card"],
+body .market-panel {
+  border: 1px solid var(--crm-market-hairline-soft);
+  border-radius: var(--crm-market-radius-panel);
+  background: var(--crm-market-canvas);
+  box-shadow: var(--crm-market-shadow);
+}
+
+body .app-commerce-summary [data-slot="card"] {
+  border: 1px solid var(--crm-market-hairline-soft);
+  border-radius: var(--crm-market-radius-panel);
+  background: var(--crm-market-canvas);
+  box-shadow: var(--crm-market-shadow);
+}
+
+body .app-commerce-summary [data-slot="card-content"] > div {
+  min-height: 72px;
+  border-color: var(--crm-market-hairline-soft);
+}
+
+body .app-commerce-summary strong {
+  color: var(--crm-market-ink);
+  font-size: clamp(1rem, 2vw, 1.2rem);
+  font-weight: 700;
+}
+
+body .crm21-section {
+  border: 1px solid var(--crm-market-hairline-soft);
+  border-radius: var(--crm-market-radius-panel);
+  background: var(--crm-market-canvas);
+  box-shadow: var(--crm-market-shadow);
+}
+
+body .crm21-section::before {
+  content: none;
+  display: none;
+}
+
+body .crm21-section:is(:hover, :focus-within) {
+  border-color: var(--crm-market-hairline);
+  box-shadow: var(--crm-market-shadow-hover);
+}
+
+body .crm21-section-header {
+  padding: 20px 20px 10px;
+  border-bottom: 1px solid var(--crm-market-hairline-soft);
+}
+
+body .crm21-section-title {
+  color: var(--crm-market-ink);
+  font-family: var(--crm-market-font);
+  font-size: 1.02rem;
+  font-weight: 650;
+}
+
+body .crm21-section-header p {
+  color: var(--crm-market-muted);
+}
+
+body .crm21-section-icon {
+  width: 40px;
+  height: 40px;
+  flex-basis: 40px;
+  border-color: var(--crm-market-hairline-soft);
+  border-radius: var(--crm-market-radius-pill);
+  background: var(--crm-market-surface);
+  color: var(--crm-market-brand);
+  box-shadow: none;
+}
+
+body .crm-market-filter-dock {
+  align-items: center;
+  padding: 8px;
+  border: 1px solid var(--crm-market-hairline);
+  border-radius: var(--crm-market-radius-pill);
+  background: var(--crm-market-canvas);
+  box-shadow: 0 6px 20px rgb(34 34 34 / 0.06);
+}
+
+body .crm-market-filter-dock [data-slot="input"],
+body .market-search-field [data-slot="input"],
+body .market-input {
+  min-height: 44px;
+  border-color: transparent;
+  border-radius: var(--crm-market-radius-pill);
+  background: transparent;
+  box-shadow: none;
+}
+
+body .crm-market-filter-dock [data-slot="input"]:focus,
+body .market-search-field [data-slot="input"]:focus,
+body .market-input:focus {
+  border-color: var(--crm-market-brand);
+  box-shadow: 0 0 0 3px rgb(22 101 52 / 0.16);
+}
+
+body .crm-market-filter-dock [data-slot="select-trigger"] {
+  min-height: 44px;
+  border-color: var(--crm-market-hairline-soft);
+  border-radius: var(--crm-market-radius-pill);
+  background: var(--crm-market-surface);
+}
+
+body .crm-market-filter-dock [data-slot="tabs-list"] {
+  border-radius: var(--crm-market-radius-pill);
+  background: var(--crm-market-surface);
+}
+
+body .crm-market-filter-dock [data-slot="tabs-trigger"] {
+  border-radius: var(--crm-market-radius-pill);
+}
+
+body .crm21-list {
+  gap: 12px;
+}
+
+body .crm21-item {
+  align-items: center;
+  padding: 14px;
+  border: 1px solid var(--crm-market-hairline-soft);
+  border-radius: var(--crm-market-radius-card);
+  background: var(--crm-market-canvas);
+  box-shadow: none;
+}
+
+body .crm21-item:hover,
+body .crm21-item:focus-within {
+  border-color: var(--crm-market-hairline);
+  background: var(--crm-market-canvas);
+  box-shadow: var(--crm-market-shadow-hover);
+  transform: translateY(-1px);
+}
+
+body .crm21-item-title {
+  color: var(--crm-market-ink);
+  font-family: var(--crm-market-font);
+  font-weight: 700;
+}
+
+body .crm21-item-description {
+  color: var(--crm-market-muted);
+}
+
+body .crm21-item-media {
+  width: 46px;
+  height: 46px;
+  flex-basis: 46px;
+  border-color: var(--crm-market-hairline-soft);
+  border-radius: 16px;
+  background: var(--crm-market-surface);
+  color: var(--crm-market-brand);
+  box-shadow: none;
+}
+
+body .crm21-item:hover .crm21-item-media {
+  border-color: color-mix(in srgb, var(--crm-market-brand) 22%, var(--crm-market-hairline));
+  background: var(--crm-market-brand-soft);
+  color: var(--crm-market-brand);
+}
+
+body .crm21-item-actions [data-slot="button"],
+body .market-form [data-slot="button"],
+body .chat-commerce-row [data-slot="button"] {
+  border-radius: var(--crm-market-radius-pill);
+}
+
+body .conversas-commerce-layout [data-slot="button"] > .crm21-item,
+body .app-global-search [data-slot="button"] > .crm21-item {
+  width: 100%;
+}
+
+body .crm21-mini-metric {
+  min-height: 58px;
+  border-color: transparent;
+  border-radius: 16px;
+  background: var(--crm-market-surface);
+  box-shadow: none;
+}
+
+body .crm21-mini-metric strong {
+  color: var(--crm-market-ink);
+  font-family: var(--crm-market-font);
+  font-weight: 750;
+}
+
+body .crm21-mini-metric small {
+  color: var(--crm-market-muted);
+  font-size: 0.7rem;
+}
+
+body .market-form {
+  padding: 4px;
+}
+
+body .market-form label {
+  color: var(--crm-market-body);
+}
+
+body .market-form .market-input,
+body .market-form [data-slot="textarea"] {
+  border: 1px solid var(--crm-market-hairline);
+  border-radius: 16px;
+  background: var(--crm-market-surface);
+}
+
+body .market-choice,
+body .market-url,
+body .market-chip-row,
+body .market-management,
+body .market-context-panel {
+  border-color: var(--crm-market-hairline-soft);
+  border-radius: 18px;
+  background: var(--crm-market-surface);
+}
+
+body .market-chat-surface {
+  border: 1px solid var(--crm-market-hairline-soft);
+  border-radius: 22px;
+  background:
+    linear-gradient(180deg, rgb(247 247 247 / 0.92), rgb(255 255 255 / 0.92)),
+    var(--crm-market-surface);
+}
+
+body .chat-commerce-composer {
+  border-color: var(--crm-market-hairline);
+  border-radius: 28px;
+  background: rgb(255 255 255 / 0.96);
+  box-shadow: 0 10px 28px rgb(34 34 34 / 0.12);
+}
+
+body .chat-commerce-textarea {
+  border-radius: 22px;
+  background: var(--crm-market-surface);
+}
+
+body .chat-commerce-send-button {
+  background: var(--crm-market-brand);
+  color: #ffffff;
+  box-shadow: 0 10px 22px rgb(22 101 52 / 0.28);
+}
+
+body .market-feedback {
+  border-color: var(--crm-market-hairline-soft);
+  border-radius: 18px;
+  background: var(--crm-market-canvas);
+  color: var(--crm-market-body);
+  box-shadow: var(--crm-market-shadow);
+}
+
+body .app-commerce-shell [data-slot="button"][data-variant="default"],
+body .app-commerce-shell [data-slot="button"][data-variant="success"] {
+  background: var(--crm-market-brand);
+  color: #ffffff;
+}
+
+body .app-commerce-shell [data-slot="button"][data-variant="default"]:hover:not(:disabled),
+body .app-commerce-shell [data-slot="button"][data-variant="success"]:hover:not(:disabled) {
+  background: var(--crm-market-brand-hover);
+}
+
+/* ============================================
+   Bizy CRM Shopify Admin System
+   ============================================ */
+
+:root {
+  --crm-admin-ink: #0b0f0d;
+  --crm-admin-body: #303832;
+  --crm-admin-muted: #66736b;
+  --crm-admin-canvas: #fbfbf5;
+  --crm-admin-panel: #ffffff;
+  --crm-admin-panel-muted: #f6f7f2;
+  --crm-admin-line: #e1e4dc;
+  --crm-admin-line-strong: #c7d0c3;
+  --crm-admin-dark: #0b1110;
+  --crm-admin-dark-2: #121b17;
+  --crm-admin-dark-line: #24322b;
+  --crm-admin-aloe: #c1fbd4;
+  --crm-admin-pistachio: #d4f9e0;
+  --crm-admin-green: #166534;
+  --crm-admin-orange: #f97316;
+  --crm-admin-shadow: 0 1px 0 rgb(11 15 13 / 0.06), 0 10px 24px rgb(11 15 13 / 0.045);
+  --crm-admin-shadow-soft: 0 1px 0 rgb(11 15 13 / 0.05);
+  --crm-admin-radius: 12px;
+  --crm-admin-radius-sm: 8px;
+  --crm-admin-font: "Inter Variable", Inter, var(--font);
+  --crm-admin-display: "NeueHaasGrotesk Display", "Funnel Sans", var(--font-heading);
+}
+
+body .app-commerce-shell {
+  color: var(--crm-admin-ink);
+  background: var(--crm-admin-canvas);
+}
+
+body .app-route-surface {
+  background:
+    linear-gradient(180deg, rgb(251 251 245 / 0.98) 0%, rgb(246 247 242 / 0.96) 100%),
+    var(--crm-admin-canvas);
+}
+
+body .app-route-surface::before {
+  background:
+    linear-gradient(90deg, rgb(11 15 13 / 0.025) 1px, transparent 1px),
+    linear-gradient(180deg, rgb(11 15 13 / 0.02) 1px, transparent 1px),
+    linear-gradient(135deg, rgb(193 251 212 / 0.24), transparent 46%);
+  background-size: 32px 32px, 32px 32px, 100% 360px;
+  opacity: 0.72;
+  mask-image: linear-gradient(180deg, #000 0%, transparent 76%);
+}
+
+body .crm-market-page,
+body .app-commerce-shell {
+  font-family: var(--crm-admin-font);
+}
+
+body .app-conteudo {
+  max-width: 1480px;
+  gap: 18px;
+  padding: 26px 32px;
+}
+
+body .app-cabecalho {
+  align-items: flex-start;
+  padding: 2px 0 10px;
+  border-bottom: 1px solid var(--crm-admin-line);
+}
+
+body .app-rotulo {
+  margin-bottom: 6px;
+  color: var(--crm-admin-green);
+  font-size: 0.72rem;
+  font-weight: 750;
+}
+
+body .app-titulo {
+  color: var(--crm-admin-ink);
+  font-family: var(--crm-admin-display);
+  font-size: clamp(1.42rem, 1.65vw, 1.9rem);
+  font-weight: 650;
+}
+
+body .app-cabecalho-acoes [data-slot="button"],
+body .app-cabecalho > [data-slot="button"] {
+  border-radius: var(--crm-admin-radius-sm);
+}
+
+body .app-global-search {
+  padding: 10px;
+  border: 1px solid var(--crm-admin-line);
+  border-radius: var(--crm-admin-radius);
+  background: var(--crm-admin-panel);
+  box-shadow: var(--crm-admin-shadow-soft);
+}
+
+body .app-global-search [data-slot="input"] {
+  min-height: 42px;
+  border: 1px solid var(--crm-admin-line);
+  border-radius: var(--crm-admin-radius-sm);
+  background: var(--crm-admin-panel-muted);
+  box-shadow: none;
+}
+
+body .app-global-search [data-slot="input"]:focus {
+  border-color: var(--crm-admin-green);
+  box-shadow: 0 0 0 3px rgb(22 101 52 / 0.14);
+}
+
+body .app-global-search > p {
+  display: none;
+}
+
+body .app-desktop-sidebar {
+  border-color: var(--crm-admin-dark-line);
+  background:
+    linear-gradient(180deg, var(--crm-admin-dark) 0%, #080d0b 100%);
+  color: #edf5ee;
+  box-shadow: 8px 0 28px rgb(0 0 0 / 0.14);
+}
+
+body .app-desktop-sidebar-top {
+  min-height: 72px;
+  border-color: var(--crm-admin-dark-line);
+}
+
+body .app-desktop-sidebar-top a,
+body .app-desktop-sidebar-top span {
+  color: #ffffff;
+}
+
+body .app-nav-section {
+  gap: 4px;
+}
+
+body .app-nav-section-label {
+  margin: 8px 0 4px;
+  color: #8fa098;
+  font-size: 0.67rem;
+  font-weight: 700;
+}
+
+body .app-nav-link {
+  min-height: 38px;
+  border: 1px solid transparent;
+  border-radius: var(--crm-admin-radius-sm);
+  color: #d8e4de;
+  font-size: 0.87rem;
+  font-weight: 600;
+}
+
+body .app-nav-link:is(:hover, :focus-visible) {
+  border-color: rgb(255 255 255 / 0.06);
+  background: var(--crm-admin-dark-2);
+  color: #ffffff;
+  box-shadow: none;
+  transform: none;
+}
+
+body .app-nav-link[aria-current="page"] {
+  border-color: var(--crm-admin-aloe);
+  background: var(--crm-admin-aloe);
+  color: var(--crm-admin-ink);
+  box-shadow: none;
+}
+
+body .app-nav-link[aria-current="page"] :is(.app-nav-icon, .app-nav-label, svg, span) {
+  color: var(--crm-admin-ink) !important;
+}
+
+body .app-nav-link[aria-current="page"]::after {
+  content: none;
+  display: none;
+}
+
+body .app-desktop-usuario {
+  border-color: var(--crm-admin-dark-line);
+  border-radius: var(--crm-admin-radius);
+  background: var(--crm-admin-dark-2);
+  color: #ffffff;
+}
+
+body .app-desktop-usuario span {
+  color: #a9b8b0;
+}
+
+body .app-desktop-footer {
+  border-color: var(--crm-admin-dark-line);
+}
+
+body .app-desktop-footer [data-slot="button"][data-variant="outline"] {
+  border-color: var(--crm-admin-dark-line);
+  background: transparent;
+  color: #ffffff;
+}
+
+body .app-mobile-chrome {
+  background: rgb(251 251 245 / 0.92);
+  border-bottom-color: var(--crm-admin-line);
+}
+
+body .app-mobile-brand-pill,
+body .app-mobile-menu-button {
+  border-color: var(--crm-admin-line);
+  border-radius: var(--crm-admin-radius);
+  background: var(--crm-admin-panel);
+  box-shadow: var(--crm-admin-shadow-soft);
+}
+
+body .app-mobile-nav-island {
+  border-color: rgb(255 255 255 / 0.1);
+  border-radius: 20px;
+  background: var(--crm-admin-dark);
+  box-shadow: 0 18px 46px rgb(0 0 0 / 0.24);
+}
+
+body .app-mobile-nav-island .app-mobile-nav-item {
+  border-radius: 14px;
+  color: #99a8a0;
+}
+
+body .app-mobile-nav-island .app-mobile-nav-item.bg-primary,
+body .app-mobile-nav-island [data-slot="button"][data-variant="default"] {
+  background: var(--crm-admin-aloe);
+  color: var(--crm-admin-ink);
+  box-shadow: 0 10px 22px rgb(193 251 212 / 0.16);
+}
+
+body .app-mobile-nav-island .app-mobile-nav-item.bg-primary :is(.app-nav-icon, .app-nav-label, svg, span),
+body .app-mobile-nav-island [data-slot="button"][data-variant="default"] :is(.app-nav-icon, .app-nav-label, svg, span) {
+  color: var(--crm-admin-ink) !important;
+}
+
+body .crm21-summary,
+body .app-commerce-summary [data-slot="card"],
+body .painel-commerce-grid > [data-slot="card"],
+body .conversas-commerce-layout > [data-slot="card"],
+body .market-panel,
+body .crm21-section {
+  border: 1px solid var(--crm-admin-line);
+  border-radius: var(--crm-admin-radius);
+  background: var(--crm-admin-panel);
+  box-shadow: var(--crm-admin-shadow-soft);
+}
+
+body .app-commerce-summary [data-slot="card"] {
+  overflow: hidden;
+}
+
+body .app-commerce-summary [data-slot="card-content"] > div {
+  min-height: 68px;
+  border-color: var(--crm-admin-line);
+  padding: 10px 12px;
+}
+
+body .app-commerce-summary strong {
+  color: var(--crm-admin-ink);
+  font-size: 1.08rem;
+  font-weight: 750;
+}
+
+body .app-commerce-summary small,
+body .app-commerce-summary span {
+  color: var(--crm-admin-muted);
+}
+
+body .crm21-section:is(:hover, :focus-within) {
+  border-color: var(--crm-admin-line-strong);
+  box-shadow: var(--crm-admin-shadow);
+}
+
+body .crm21-section-header {
+  align-items: center;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--crm-admin-line);
+  background: linear-gradient(180deg, var(--crm-admin-panel), var(--crm-admin-panel-muted));
+}
+
+body .crm21-section-title {
+  color: var(--crm-admin-ink);
+  font-family: var(--crm-admin-display);
+  font-size: 1rem;
+  font-weight: 650;
+}
+
+body .crm21-section-header p {
+  max-width: 72ch;
+  color: var(--crm-admin-muted);
+  font-size: 0.84rem;
+}
+
+body .crm21-section-icon {
+  width: 34px;
+  height: 34px;
+  flex-basis: 34px;
+  border-color: var(--crm-admin-line);
+  border-radius: var(--crm-admin-radius-sm);
+  background: var(--crm-admin-pistachio);
+  color: var(--crm-admin-green);
+}
+
+body .crm-market-filter-dock {
+  padding: 8px;
+  border: 1px solid var(--crm-admin-line);
+  border-radius: var(--crm-admin-radius);
+  background: var(--crm-admin-panel-muted);
+  box-shadow: none;
+}
+
+body .crm-market-filter-dock [data-slot="input"],
+body .market-search-field [data-slot="input"],
+body .market-input,
+body .crm-market-filter-dock [data-slot="select-trigger"] {
+  min-height: 40px;
+  border: 1px solid var(--crm-admin-line);
+  border-radius: var(--crm-admin-radius-sm);
+  background: var(--crm-admin-panel);
+}
+
+body .crm-market-filter-dock [data-slot="tabs-list"] {
+  border: 1px solid var(--crm-admin-line);
+  border-radius: var(--crm-admin-radius-sm);
+  background: var(--crm-admin-panel);
+}
+
+body .crm-market-filter-dock [data-slot="tabs-trigger"] {
+  border-radius: 7px;
+}
+
+body .crm21-list {
+  gap: 8px;
+}
+
+body .crm21-item {
+  align-items: center;
+  padding: 12px;
+  border: 1px solid var(--crm-admin-line);
+  border-radius: 10px;
+  background: var(--crm-admin-panel);
+  box-shadow: none;
+}
+
+body .crm21-item:hover,
+body .crm21-item:focus-within {
+  border-color: var(--crm-admin-line-strong);
+  background: #fffef8;
+  box-shadow: var(--crm-admin-shadow-soft);
+  transform: none;
+}
+
+body .crm21-item-title {
+  color: var(--crm-admin-ink);
+  font-weight: 720;
+}
+
+body .crm21-item-description {
+  color: var(--crm-admin-muted);
+}
+
+body .crm21-item-media {
+  width: 38px;
+  height: 38px;
+  flex-basis: 38px;
+  border: 1px solid var(--crm-admin-line);
+  border-radius: var(--crm-admin-radius-sm);
+  background: var(--crm-admin-panel-muted);
+  color: var(--crm-admin-green);
+}
+
+body .crm21-item:hover .crm21-item-media {
+  border-color: var(--crm-admin-line-strong);
+  background: var(--crm-admin-pistachio);
+}
+
+body .crm21-mini-metric {
+  min-height: 50px;
+  padding: 9px 10px;
+  border: 1px solid var(--crm-admin-line);
+  border-radius: var(--crm-admin-radius-sm);
+  background: var(--crm-admin-panel-muted);
+}
+
+body .crm21-item .crm21-mini-metric {
+  min-height: 0;
+  padding: 2px 12px;
+  border: 0;
+  border-left: 1px solid var(--crm-admin-line);
+  border-radius: 0;
+  background: transparent;
+}
+
+body .crm21-item .crm21-mini-metric:first-child {
+  padding-left: 0;
+  border-left: 0;
+}
+
+body .crm21-mini-metric strong {
+  color: var(--crm-admin-ink);
+  font-size: 0.98rem;
+}
+
+body .crm21-mini-metric small {
+  color: var(--crm-admin-muted);
+  font-size: 0.68rem;
+  text-transform: uppercase;
+}
+
+body .market-form .market-input,
+body .market-form [data-slot="textarea"],
+body .market-choice,
+body .market-url,
+body .market-chip-row,
+body .market-management,
+body .market-context-panel,
+body .market-chat-surface {
+  border-color: var(--crm-admin-line);
+  border-radius: var(--crm-admin-radius);
+  background: var(--crm-admin-panel-muted);
+}
+
+body .chat-commerce-composer {
+  border-color: var(--crm-admin-line);
+  border-radius: 18px;
+  background: var(--crm-admin-panel);
+  box-shadow: 0 8px 24px rgb(11 15 13 / 0.12);
+}
+
+body .chat-commerce-textarea {
+  border-radius: 12px;
+  background: var(--crm-admin-panel-muted);
+}
+
+body .chat-commerce-send-button,
+body .app-commerce-shell [data-slot="button"][data-variant="default"],
+body .app-commerce-shell [data-slot="button"][data-variant="success"] {
+  background: var(--crm-admin-ink);
+  color: #ffffff;
+  box-shadow: none;
+}
+
+body .chat-commerce-send-button:hover:not(:disabled),
+body .app-commerce-shell [data-slot="button"][data-variant="default"]:hover:not(:disabled),
+body .app-commerce-shell [data-slot="button"][data-variant="success"]:hover:not(:disabled) {
+  background: #1f2933;
+}
+
+body .app-commerce-shell [data-slot="button"][data-variant="outline"] {
+  border-color: var(--crm-admin-line-strong);
+  background: var(--crm-admin-panel);
+  color: var(--crm-admin-ink);
+  box-shadow: none;
+}
+
+body .app-commerce-shell [data-slot="button"][data-variant="outline"]:hover:not(:disabled) {
+  border-color: var(--crm-admin-green);
+  background: var(--crm-admin-pistachio);
+}
+
+body .market-feedback {
+  border-color: var(--crm-admin-line);
+  border-radius: var(--crm-admin-radius);
+  background: var(--crm-admin-panel);
+  color: var(--crm-admin-body);
+  box-shadow: var(--crm-admin-shadow-soft);
+}
+
+body .conversas-commerce-layout [data-slot="button"] > .crm21-item,
+body .app-global-search [data-slot="button"] > .crm21-item {
+  width: 100%;
+}
+
+@media (max-width: 768px) {
+  body .app-conteudo {
+    gap: 12px;
+    padding: 10px;
+    padding-bottom: calc(86px + env(safe-area-inset-bottom));
+  }
+
+  body .app-cabecalho {
+    gap: 10px;
+  }
+
+  body .app-titulo {
+    font-size: 1.42rem;
+  }
+
+  body .app-global-search {
+    padding: 8px;
+    border-radius: 12px;
+  }
+
+  body .crm21-summary,
+  body .app-commerce-summary [data-slot="card"],
+  body .crm21-section,
+  body .market-panel,
+  body .painel-commerce-grid > [data-slot="card"],
+  body .conversas-commerce-layout > [data-slot="card"] {
+    border-radius: 12px;
+  }
+
+  body .crm21-section-header {
+    padding: 12px;
+  }
+
+  body .crm-market-filter-dock {
+    border-radius: 12px;
+  }
+
+  body .crm21-item {
+    padding: 10px;
+  }
+
+  body .crm21-item-actions {
+    padding-top: 2px;
+  }
+}
+
+@media (max-width: 768px) {
+  body .app-conteudo {
+    gap: 12px;
+    padding-inline: 10px;
+  }
+
+  body .app-cabecalho {
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  body .app-titulo {
+    font-size: 1.45rem;
+  }
+
+  body .crm21-summary,
+  body .app-commerce-summary [data-slot="card"],
+  body .crm21-section,
+  body .painel-commerce-grid > [data-slot="card"],
+  body .conversas-commerce-layout > [data-slot="card"],
+  body .market-panel {
+    border-radius: 20px;
+  }
+
+  body .crm21-section-header {
+    padding: 16px 16px 8px;
+  }
+
+  body .crm-market-filter-dock {
+    border-radius: 22px;
+    padding: 8px;
+  }
+
+  body .crm21-item {
+    align-items: flex-start;
+    padding: 12px;
+    border-radius: 18px;
+  }
+
+  body .crm21-item-media {
+    width: 42px;
+    height: 42px;
+    flex-basis: 42px;
+    border-radius: 14px;
+  }
+
+  body .crm21-mini-metric {
+    min-height: 52px;
+  }
+
+  body .crm21-item .crm21-mini-metric {
+    min-height: 46px;
+    padding: 8px 10px;
+    border: 1px solid var(--crm-admin-line);
+    border-radius: var(--crm-admin-radius-sm);
+    background: var(--crm-admin-panel-muted);
+  }
+
+  body .chat-commerce-composer {
+    border-radius: 24px;
+  }
+}
+
+@media (max-width: 768px) {
+  body .app-conteudo {
+    padding: 10px;
+    padding-bottom: calc(86px + env(safe-area-inset-bottom));
+  }
+
+  body .app-titulo {
+    font-size: 1.42rem;
+  }
+
+  body .crm21-summary,
+  body .app-commerce-summary [data-slot="card"],
+  body .crm21-section,
+  body .market-panel,
+  body .painel-commerce-grid > [data-slot="card"],
+  body .conversas-commerce-layout > [data-slot="card"] {
+    border-radius: var(--crm-admin-radius);
+  }
+
+  body .crm21-section-header {
+    padding: 12px;
+  }
+
+  body .crm-market-filter-dock {
+    border-radius: var(--crm-admin-radius);
+  }
+
+  body .crm21-item {
+    padding: 10px;
+    border-radius: 10px;
+  }
+
+  body .crm21-item-media {
+    width: 38px;
+    height: 38px;
+    flex-basis: 38px;
+    border-radius: var(--crm-admin-radius-sm);
+  }
+
+  body .chat-commerce-composer {
+    border-radius: 18px;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

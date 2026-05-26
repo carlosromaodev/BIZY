@@ -25,7 +25,7 @@ export function CrmPageMotion({
 }) {
   return (
     <motion.div
-      className={cn("grid gap-5", className)}
+      className={cn("crm-market-page grid gap-5", className)}
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
@@ -57,7 +57,7 @@ export function CrmSection({
           <div className="flex min-w-0 items-start gap-3">
             {icon && <div className="crm21-section-icon">{icon}</div>}
             <div className="min-w-0">
-              {title && <h2 className="text-base font-black leading-tight text-foreground">{title}</h2>}
+              {title && <h2 className="crm21-section-title text-base font-semibold leading-tight text-foreground">{title}</h2>}
               {description && <p className="mt-1 text-sm leading-5 text-muted-foreground">{description}</p>}
             </div>
           </div>
@@ -66,6 +66,18 @@ export function CrmSection({
       )}
       <CardContent className="grid gap-3">{children}</CardContent>
     </Card>
+  );
+}
+
+export function CrmFilterDock({
+  children,
+  className,
+  ...props
+}: React.ComponentProps<"div">) {
+  return (
+    <div className={cn("crm-market-filter-dock grid gap-2", className)} {...props}>
+      {children}
+    </div>
   );
 }
 
@@ -121,8 +133,8 @@ export function CrmListItem({
       <ItemContent>
         <div className="grid gap-1 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start">
           <div className="min-w-0">
-            <ItemTitle className="truncate">{title}</ItemTitle>
-            {description && <ItemDescription className="line-clamp-2">{description}</ItemDescription>}
+            <ItemTitle className="crm21-item-title truncate">{title}</ItemTitle>
+            {description && <ItemDescription className="crm21-item-description line-clamp-2">{description}</ItemDescription>}
           </div>
           {meta && <div className="text-sm font-semibold text-muted-foreground sm:text-right">{meta}</div>}
         </div>
