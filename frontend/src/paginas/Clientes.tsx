@@ -15,7 +15,17 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { requisitarApi } from "../api";
 import { CabecalhoPagina, EstadoVazio, ResumoIndicadores } from "../componentes/Shell";
-import { CrmFilterDock, CrmList, CrmListItem, CrmMetricMini, CrmPageMotion, CrmSection, CrmStatusBadge } from "../componentes/CrmInterno21st";
+import {
+  CrmCommandMetric,
+  CrmCommandPanel,
+  CrmFilterDock,
+  CrmList,
+  CrmListItem,
+  CrmMetricMini,
+  CrmPageMotion,
+  CrmSection,
+  CrmStatusBadge
+} from "../componentes/CrmInterno21st";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -108,6 +118,13 @@ export function PaginaClientes() {
   const pendentes = clientes.filter((cliente) => cliente.metricas.reservasAtivas > 0 || cliente.estadoRelacionamento === "INADIMPLENTE").length;
   const valorPago = clientes.reduce((total, cliente) => total + cliente.metricas.totalCompradoEmKwanza, 0);
   const comConsentimento = clientes.filter((cliente) => cliente.consentimentoDados || cliente.consentimentoMarketing).length;
+  const leads = clientes.filter((cliente) => cliente.estadoRelacionamento === "LEAD").length;
+  const clientesVip = clientes.filter((cliente) => cliente.estadoRelacionamento === "VIP").length;
+  const semWhatsapp = clientes.filter((cliente) => cliente.estadoRelacionamento === "SEM_WHATSAPP" || !cliente.telefone).length;
+  const semConsentimento = clientes.filter((cliente) => !cliente.consentimentoDados && !cliente.consentimentoMarketing).length;
+  const prioridadeAlta = clientes.filter((cliente) => cliente.estadoRelacionamento === "PRIORIDADE_ALTA" || cliente.estadoRelacionamento === "INADIMPLENTE").length;
+  const taxaConsentimento = clientes.length ? Math.round((comConsentimento / clientes.length) * 100) : 0;
+  const receitaMedia = compradores ? Math.round(valorPago / compradores) : 0;
 
   function exportarClientes() {
     baixarArquivo("clientes-360-bizy.csv", clientesParaCsv(clientesFiltrados));
@@ -160,6 +177,59 @@ export function PaginaClientes() {
           { icone: <UserRoundCheck />, titulo: "Receita", valor: formatarKwanza(valorPago), detalhe: "histórico consolidado" }
         ]}
       />
+
+      <CrmCommandPanel
+        eyebrow="Dados que vendem"
+        title="A base de clientes precisa mostrar quem comprar, quem recuperar e quem pode receber campanha"
+        description="Um CRM forte começa por dados completos: consentimento, canal válido, histórico de compra, tags e próxima ação comercial."
+        actions={(
+          <>
+            <Button asChild variant="outline" size="lg">
+              <Link to="/app/campanhas">
+                <Tags size={18} />
+                Criar campanha
+              </Link>
+            </Button>
+            <Button asChild variant="outline" size="lg">
+              <Link to="/app/conversas">
+                <MessageCircle size={18} />
+                Atender agora
+              </Link>
+            </Button>
+          </>
+        )}
+      >
+        <div className="command-metrics-grid">
+          <CrmCommandMetric
+            detail={`${comConsentimento} clientes com autorização de dados ou marketing`}
+            icon={<ShieldCheck size={18} />}
+            label="Consentimento útil"
+            tone={taxaConsentimento >= 70 ? "sucesso" : taxaConsentimento >= 40 ? "atencao" : "perigo"}
+            value={`${taxaConsentimento}%`}
+          />
+          <CrmCommandMetric
+            detail={`${leads} leads, ${clientesVip} VIP e ${prioridadeAlta} clientes pedem ação humana`}
+            icon={<Network size={18} />}
+            label="Próxima ação"
+            tone={prioridadeAlta ? "atencao" : leads ? "principal" : "sucesso"}
+            value={prioridadeAlta + leads}
+          />
+          <CrmCommandMetric
+            detail="Média por cliente com compra confirmada"
+            icon={<WalletCards size={18} />}
+            label="Valor por comprador"
+            tone={receitaMedia ? "sucesso" : "neutro"}
+            value={formatarKwanza(receitaMedia)}
+          />
+          <CrmCommandMetric
+            detail={`${semWhatsapp} sem WhatsApp e ${semConsentimento} sem opt-in`}
+            icon={<AlertCircle size={18} />}
+            label="Dados incompletos"
+            tone={semWhatsapp || semConsentimento ? "atencao" : "sucesso"}
+            value={semWhatsapp + semConsentimento}
+          />
+        </div>
+      </CrmCommandPanel>
 
       <CrmSection
         icon={<Users size={20} />}

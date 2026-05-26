@@ -81,6 +81,59 @@ export function CrmFilterDock({
   );
 }
 
+export function CrmCommandPanel({
+  actions,
+  children,
+  className,
+  description,
+  eyebrow,
+  title
+}: {
+  actions?: ReactNode;
+  children: ReactNode;
+  className?: string;
+  description?: ReactNode;
+  eyebrow?: ReactNode;
+  title: ReactNode;
+}) {
+  return (
+    <section className={cn("crm-command-panel", className)}>
+      <div className="crm-command-panel-copy">
+        {eyebrow && <p className="crm-command-panel-eyebrow">{eyebrow}</p>}
+        <div className="grid gap-2">
+          <h2 className="crm-command-panel-title">{title}</h2>
+          {description && <p className="crm-command-panel-description">{description}</p>}
+        </div>
+      </div>
+      <div className="crm-command-panel-body">{children}</div>
+      {actions && <div className="crm-command-panel-actions">{actions}</div>}
+    </section>
+  );
+}
+
+export function CrmCommandMetric({
+  detail,
+  icon,
+  label,
+  tone = "neutro",
+  value
+}: {
+  detail?: ReactNode;
+  icon?: ReactNode;
+  label: string;
+  tone?: TomCrm;
+  value: ReactNode;
+}) {
+  return (
+    <div className={cn("crm-command-metric", `crm-command-metric-${tone}`)}>
+      {icon && <span className="crm-command-metric-icon">{icon}</span>}
+      <span className="crm-command-metric-label">{label}</span>
+      <strong className="crm-command-metric-value">{value}</strong>
+      {detail && <small className="crm-command-metric-detail">{detail}</small>}
+    </div>
+  );
+}
+
 export function CrmList({
   children,
   className,

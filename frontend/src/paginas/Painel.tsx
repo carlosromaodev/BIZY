@@ -18,9 +18,19 @@ import {
   Zap
 } from "lucide-react";
 import { type FormEvent, type ReactNode, useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { requisitarApi, obterUrlEventos } from "../api";
 import { CabecalhoPagina, ResumoIndicadores } from "../componentes/Shell";
-import { CrmPageMotion } from "../componentes/CrmInterno21st";
+import {
+  CrmCommandMetric,
+  CrmCommandPanel,
+  CrmList,
+  CrmListItem,
+  CrmMetricMini,
+  CrmPageMotion,
+  CrmSection,
+  CrmStatusBadge
+} from "../componentes/CrmInterno21st";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -40,8 +50,6 @@ function obterUsernameTikTokPadrao() {
   return username.startsWith("@") ? username : `@${username}`;
 }
 
-type TomIndicadorHoje = "atencao" | "neutro" | "perigo" | "principal" | "sucesso";
-
 interface TarefaPainel {
   id: string;
   titulo: string;
@@ -53,6 +61,18 @@ interface TarefaPainel {
 
 interface RespostaTarefasPainel {
   tarefas: TarefaPainel[];
+}
+
+interface PrioridadePainel {
+  acao: string;
+  detalhe: string;
+  descricao: string;
+  icone: ReactNode;
+  id: string;
+  rota: string;
+  titulo: string;
+  tom: "neutro" | "principal" | "sucesso" | "atencao" | "perigo" | "info";
+  valor: ReactNode;
 }
 
 function dataEhHoje(valor: string | null | undefined): boolean {
@@ -168,6 +188,61 @@ export function PaginaPainel() {
         : "Ativa"
     : "Inativa";
 
+  const prioridadesOperacionais: PrioridadePainel[] = [
+    {
+      acao: "Cobrar",
+      detalhe: `${taxaPagamento}% liquidação`,
+      descricao: aguardandoPagamento
+        ? "Clientes com intenção real precisam receber cobrança, prova social ou alternativa de pagamento."
+        : "Não há cobrança pendente agora. Mantém o acompanhamento para não perder pedidos novos.",
+      icone: <WalletCards size={18} />,
+      id: "pagamentos",
+      rota: "/app/pedidos",
+      titulo: "Pagamentos por fechar",
+      tom: aguardandoPagamento ? "atencao" : "sucesso",
+      valor: aguardandoPagamento
+    },
+    {
+      acao: "Atender",
+      detalhe: "WhatsApp e comentários",
+      descricao: conversasSemResposta
+        ? "Há conversas abertas que podem virar venda, suporte ou pedido de entrega."
+        : "Caixa de entrada sem pressão. Bom momento para campanhas de recompra.",
+      icone: <MessageCircle size={18} />,
+      id: "conversas",
+      rota: "/app/conversas",
+      titulo: "Conversas sem resposta",
+      tom: conversasSemResposta ? "principal" : "sucesso",
+      valor: conversasSemResposta
+    },
+    {
+      acao: "Repor",
+      detalhe: "quantidade menor ou igual a 2",
+      descricao: produtosStockBaixo
+        ? "Produtos com baixa disponibilidade podem quebrar campanhas e lives em andamento."
+        : "Stock saudável para continuar a vender nos canais digitais.",
+      icone: <PackageSearch size={18} />,
+      id: "stock",
+      rota: "/app/produtos",
+      titulo: "Stock em risco",
+      tom: produtosStockBaixo ? "perigo" : "sucesso",
+      valor: produtosStockBaixo
+    },
+    {
+      acao: "Organizar",
+      detalhe: "entrega e tarefas",
+      descricao: tarefasAtrasadas || entregasPendentes
+        ? "Existem ações pós-venda que precisam de dono, prazo e resolução."
+        : "Operação pós-venda controlada. Mantém o SLA visível para a equipa.",
+      icone: <Truck size={18} />,
+      id: "pos-venda",
+      rota: "/app/operacao",
+      titulo: "Pós-venda em aberto",
+      tom: tarefasAtrasadas ? "perigo" : entregasPendentes ? "atencao" : "sucesso",
+      valor: tarefasAtrasadas + entregasPendentes
+    }
+  ];
+
   async function carregarResumo() {
     const [respostaResumo, respostaConversas, respostaTarefas] = await Promise.allSettled([
       requisitarApi<ResumoPainel>("/painel/resumo"),
@@ -247,121 +322,166 @@ export function PaginaPainel() {
         </div>
       </CabecalhoPagina>
 
-      <section className="grid painel-commerce-grid gap-4 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.35fr)]">
-        <Card>
-          <CardContent className="grid gap-4 p-4">
-            <div className="flex items-center justify-between gap-3">
-              <span className="inline-flex items-center gap-2 rounded-full bg-primary px-3 py-1 text-xs font-semibold text-primary-foreground">
-                <CircleDollarSign size={16} />
-                Receita em reservas
-              </span>
-              <span className="text-sm text-muted-foreground">{formatarDataCurta(new Date())}</span>
-            </div>
-            <strong className="text-3xl font-bold tracking-tight">{formatarKwanza(receitaReservada)}</strong>
-            <div className="flex items-center justify-between gap-3 text-sm text-muted-foreground">
-              <span>{formatarKwanza(receitaPaga)} pagos</span>
-              <span>{taxaPagamento}% liquidação</span>
-            </div>
-            <div className="h-2 overflow-hidden rounded-full bg-muted">
-              <span className="block h-full rounded-full bg-success" style={{ width: `${Math.min(taxaPagamento, 100)}%` }} />
-            </div>
-          </CardContent>
-        </Card>
-
-        <ResumoIndicadores
-          rotulo="Resumo da operação"
-          itens={[
-            {
-              icone: <MessageSquareText />,
-              titulo: "Conversão",
-              valor: `${taxaConversao}%`,
-              detalhe: `${resumo.comentariosValidos} válidos de ${resumo.comentariosRecebidos}`,
-              tom: "principal"
-            },
-            {
-              icone: <Clock3 />,
-              titulo: "A expirar",
-              valor: proximaExpirar ? formatarTempoRestante(proximaExpirar.expiraEm) : "Sem fila",
-              detalhe: proximaExpirar ? `Peça #${proximaExpirar.codigoPeca}` : "Nenhuma reserva crítica",
-              tom: proximaExpirar ? "atencao" : "neutro"
-            },
-            {
-              icone: <UserRoundCheck />,
-              titulo: "Pagamento",
-              valor: aguardandoPagamento,
-              detalhe: `${resumo.reservasPagas} reservas pagas`,
-              tom: aguardandoPagamento ? "atencao" : "sucesso"
-            },
-            {
-              icone: <Boxes />,
-              titulo: "Stock ativo",
-              valor: pecasDisponiveis,
-              detalhe: `${filaTotal} clientes em fila`
-            }
-          ]}
-        />
-      </section>
-
-      <section aria-label="Hoje na loja" className="grid gap-3">
-        <div className="flex flex-wrap items-end justify-between gap-3">
-          <div>
-            <p className="text-xs font-bold uppercase tracking-wide text-primary">Hoje na loja</p>
-            <h2 className="text-lg font-semibold">Prioridades comerciais</h2>
+      <CrmCommandPanel
+        eyebrow="Centro de comando"
+        title="O que precisa de atenção agora"
+        description="Um resumo operacional para decidir onde a equipa deve agir primeiro: cobrança, atendimento, stock, entrega e live."
+        actions={(
+          <>
+            <Button asChild variant="outline" size="lg">
+              <Link to="/app/pedidos">
+                <ClipboardList size={18} />
+                Abrir pedidos
+              </Link>
+            </Button>
+            <Button asChild variant="outline" size="lg">
+              <Link to="/app/conversas">
+                <MessageCircle size={18} />
+                Atender clientes
+              </Link>
+            </Button>
+          </>
+        )}
+      >
+        <div className="command-metrics-grid">
+          <CrmCommandMetric
+            detail={`${formatarKwanza(receitaPaga)} já pagos hoje e no histórico ativo`}
+            icon={<CircleDollarSign size={18} />}
+            label="Receita em movimento"
+            tone="sucesso"
+            value={formatarKwanza(receitaReservada)}
+          />
+          <CrmCommandMetric
+            detail={`${resumo.comentariosValidos} comentários válidos de ${resumo.comentariosRecebidos}`}
+            icon={<MessageSquareText size={18} />}
+            label="Conversão da captação"
+            tone={taxaConversao ? "principal" : "neutro"}
+            value={`${taxaConversao}%`}
+          />
+          <CrmCommandMetric
+            detail={proximaExpirar ? `Peça #${proximaExpirar.codigoPeca}` : "Sem reserva crítica"}
+            icon={<Clock3 size={18} />}
+            label="Próxima urgência"
+            tone={proximaExpirar ? "atencao" : "sucesso"}
+            value={proximaExpirar ? formatarTempoRestante(proximaExpirar.expiraEm) : "Controlado"}
+          />
+          <CrmCommandMetric
+            detail={`${filaTotal} clientes em fila de espera`}
+            icon={<Boxes size={18} />}
+            label="Stock vendável"
+            tone={pecasDisponiveis ? "sucesso" : "atencao"}
+            value={pecasDisponiveis}
+          />
+        </div>
+        <div className="command-progress" aria-label="Progresso de liquidação dos pedidos">
+          <div className="command-progress-label">
+            <span>Liquidação de pedidos</span>
+            <strong>{taxaPagamento}%</strong>
           </div>
-          <span className="text-sm text-muted-foreground">Acompanhe o que pede ação antes de vender mais.</span>
+          <div className="command-progress-track">
+            <span className="command-progress-bar" style={{ width: `${Math.min(taxaPagamento, 100)}%` }} />
+          </div>
         </div>
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          <IndicadorHoje
-            detalhe="criados hoje"
-            icone={<ClipboardList />}
-            titulo="Pedidos novos"
-            tom={pedidosNovosHoje ? "principal" : "neutro"}
-            valor={pedidosNovosHoje}
-          />
-          <IndicadorHoje
-            detalhe="aguardam cobrança"
-            icone={<WalletCards />}
-            titulo="Pagamentos pendentes"
-            tom={aguardandoPagamento ? "atencao" : "sucesso"}
-            valor={aguardandoPagamento}
-          />
-          <IndicadorHoje
-            detalhe="precisam de resposta"
-            icone={<MessageCircle />}
-            titulo="Conversas sem resposta"
-            tom={conversasSemResposta ? "atencao" : "sucesso"}
-            valor={conversasSemResposta}
-          />
-          <IndicadorHoje
-            detalhe="stock crítico ou esgotado"
-            icone={<PackageSearch />}
-            titulo="Stock baixo"
-            tom={produtosStockBaixo ? "perigo" : "sucesso"}
-            valor={produtosStockBaixo}
-          />
-          <IndicadorHoje
-            detalhe="pagas e por acompanhar"
-            icone={<Truck />}
-            titulo="Entregas pendentes"
-            tom={entregasPendentes ? "atencao" : "neutro"}
-            valor={entregasPendentes}
-          />
-          <IndicadorHoje
-            detalhe="pagamentos confirmados hoje"
-            icone={<CircleDollarSign />}
-            titulo="Faturação do dia"
-            tom={faturacaoDia ? "sucesso" : "neutro"}
-            valor={formatarKwanza(faturacaoDia)}
-          />
-          <IndicadorHoje
-            detalhe="tarefas com prazo vencido"
-            icone={<AlertTriangle />}
-            titulo="Tarefas atrasadas"
-            tom={tarefasAtrasadas ? "perigo" : "sucesso"}
-            valor={tarefasAtrasadas}
-          />
-        </div>
+      </CrmCommandPanel>
+
+      <section className="grid gap-4 xl:grid-cols-[minmax(0,1.15fr)_minmax(340px,0.85fr)]">
+        <CrmSection
+          icon={<AlertTriangle size={20} />}
+          title="Fila de decisão"
+          description="Prioridades ordenadas para o dono da loja não perder venda por atraso operacional."
+        >
+          <CrmList columns="two">
+            {prioridadesOperacionais.map((prioridade) => (
+              <CrmListItem
+                key={prioridade.id}
+                media={prioridade.icone}
+                title={prioridade.titulo}
+                description={prioridade.descricao}
+                tone={prioridade.tom}
+                meta={prioridade.valor}
+                badges={(
+                  <>
+                    <CrmStatusBadge tone={prioridade.tom}>{prioridade.detalhe}</CrmStatusBadge>
+                  </>
+                )}
+                actions={(
+                  <Button asChild variant="outline" size="sm">
+                    <Link to={prioridade.rota}>{prioridade.acao}</Link>
+                  </Button>
+                )}
+              />
+            ))}
+          </CrmList>
+        </CrmSection>
+
+        <CrmSection
+          icon={<Activity size={20} />}
+          title="Pulso comercial"
+          description={`${formatarDataCurta(new Date())}: leitura rápida do negócio antes de abrir as telas profundas.`}
+        >
+          <div className="grid gap-2 sm:grid-cols-2">
+            <CrmMetricMini label="pedidos hoje" value={pedidosNovosHoje} tone={pedidosNovosHoje ? "principal" : "neutro"} />
+            <CrmMetricMini label="pagamentos pendentes" value={aguardandoPagamento} tone={aguardandoPagamento ? "atencao" : "sucesso"} />
+            <CrmMetricMini label="faturação do dia" value={formatarKwanza(faturacaoDia)} tone={faturacaoDia ? "sucesso" : "neutro"} />
+            <CrmMetricMini label="tarefas atrasadas" value={tarefasAtrasadas} tone={tarefasAtrasadas ? "perigo" : "sucesso"} />
+          </div>
+        </CrmSection>
       </section>
+
+      <ResumoIndicadores
+        rotulo="Hoje na loja"
+        itens={[
+          {
+            icone: <ClipboardList />,
+            titulo: "Pedidos novos",
+            valor: pedidosNovosHoje,
+            detalhe: "criados hoje",
+            tom: pedidosNovosHoje ? "principal" : "neutro"
+          },
+          {
+            icone: <WalletCards />,
+            titulo: "Pagamentos pendentes",
+            valor: aguardandoPagamento,
+            detalhe: "aguardam cobrança",
+            tom: aguardandoPagamento ? "atencao" : "sucesso"
+          },
+          {
+            icone: <MessageCircle />,
+            titulo: "Conversas sem resposta",
+            valor: conversasSemResposta,
+            detalhe: "precisam de resposta",
+            tom: conversasSemResposta ? "atencao" : "sucesso"
+          },
+          {
+            icone: <PackageSearch />,
+            titulo: "Stock baixo",
+            valor: produtosStockBaixo,
+            detalhe: "quantidade crítica",
+            tom: produtosStockBaixo ? "perigo" : "sucesso"
+          },
+          {
+            icone: <Truck />,
+            titulo: "Entregas pendentes",
+            valor: entregasPendentes,
+            detalhe: "pagas e por acompanhar",
+            tom: entregasPendentes ? "atencao" : "neutro"
+          },
+          {
+            icone: <CircleDollarSign />,
+            titulo: "Faturação do dia",
+            valor: formatarKwanza(faturacaoDia),
+            detalhe: "confirmada hoje",
+            tom: faturacaoDia ? "sucesso" : "neutro"
+          },
+          {
+            icone: <AlertTriangle />,
+            titulo: "Tarefas atrasadas",
+            valor: tarefasAtrasadas,
+            detalhe: "com prazo vencido",
+            tom: tarefasAtrasadas ? "perigo" : "sucesso"
+          }
+        ]}
+      />
 
       <section className="grid painel-commerce-grid gap-4 lg:grid-cols-3">
         <Card>
@@ -499,38 +619,5 @@ export function PaginaPainel() {
 
       <footer className="market-feedback rounded-lg border bg-card px-4 py-3 text-sm text-muted-foreground" aria-live="polite">{mensagem}</footer>
     </CrmPageMotion>
-  );
-}
-
-function IndicadorHoje({
-  detalhe,
-  icone,
-  titulo,
-  tom,
-  valor
-}: {
-  detalhe: string;
-  icone: ReactNode;
-  titulo: string;
-  tom: TomIndicadorHoje;
-  valor: ReactNode;
-}) {
-  const tons = {
-    atencao: "bg-warning/10 text-warning",
-    neutro: "bg-muted text-muted-foreground",
-    perigo: "bg-destructive/10 text-destructive",
-    principal: "bg-primary/10 text-primary",
-    sucesso: "bg-success/10 text-success"
-  } satisfies Record<TomIndicadorHoje, string>;
-
-  return (
-    <Card size="sm">
-      <CardContent className="grid grid-cols-[2rem_minmax(0,1fr)] items-center gap-x-2 gap-y-1 p-3">
-        <span className={`row-span-2 grid h-8 w-8 place-items-center rounded-lg ${tons[tom]}`}>{icone}</span>
-        <span className="truncate text-xs font-semibold text-muted-foreground">{titulo}</span>
-        <strong className="truncate text-xl font-bold leading-none tabular-nums">{valor}</strong>
-        <small className="col-span-2 text-xs text-muted-foreground sm:col-start-2">{detalhe}</small>
-      </CardContent>
-    </Card>
   );
 }

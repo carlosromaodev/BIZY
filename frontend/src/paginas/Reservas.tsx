@@ -14,7 +14,17 @@ import {
 import { useEffect, useMemo, useState } from "react";
 import { requisitarApi, obterUrlEventos } from "../api";
 import { CabecalhoPagina, EstadoVazio, ResumoIndicadores } from "../componentes/Shell";
-import { CrmFilterDock, CrmList, CrmListItem, CrmMetricMini, CrmPageMotion, CrmSection } from "../componentes/CrmInterno21st";
+import {
+  CrmCommandMetric,
+  CrmCommandPanel,
+  CrmFilterDock,
+  CrmList,
+  CrmListItem,
+  CrmMetricMini,
+  CrmPageMotion,
+  CrmSection,
+  CrmStatusBadge
+} from "../componentes/CrmInterno21st";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -124,6 +134,32 @@ export function PaginaReservas() {
   const pagos = pedidos.filter((pedido) => pedido.estadoPagamento === "CONFIRMADO" || ["PAGO", "EM_PREPARACAO", "PRONTO_ENTREGA", "ENVIADO", "ENTREGUE"].includes(pedido.estado));
   const receitaConfirmada = pagos.reduce((total, pedido) => total + pedido.totalEmKwanza, 0);
   const tarefasPedidos = tarefas.filter((tarefa) => tarefa.pedidoId || tarefa.tipo.includes("PEDIDO") || tarefa.tipo === "COBRANCA");
+  const pedidosNovos = pedidos.filter((pedido) => pedido.estado === "NOVO");
+  const emPreparacao = pedidos.filter((pedido) => pedido.estado === "EM_PREPARACAO");
+  const prontosEntrega = pedidos.filter((pedido) => pedido.estado === "PRONTO_ENTREGA" || pedido.estadoEntrega === "PRONTO");
+  const entregues = pedidos.filter((pedido) => pedido.estado === "ENTREGUE" || pedido.estadoEntrega === "ENTREGUE");
+  const pedidosComProblema = pedidos.filter((pedido) =>
+    ["CANCELADO", "DEVOLVIDO", "TROCADO"].includes(pedido.estado) ||
+    ["FALHOU", "DEVOLVIDO"].includes(pedido.estadoEntrega) ||
+    pedido.estadoPagamento === "REJEITADO"
+  );
+  const valorEmAberto = aguardandoPagamento.reduce((total, pedido) => total + pedido.totalEmKwanza, 0);
+  const taxaConclusao = pedidos.length ? Math.round((entregues.length / pedidos.length) * 100) : 0;
+  const etapasPipeline: Array<{
+    detalhe: string;
+    estado: EstadoPedido | "todos";
+    id: string;
+    quantidade: number;
+    titulo: string;
+    tom: "neutro" | "principal" | "sucesso" | "atencao" | "perigo" | "info";
+  }> = [
+    { detalhe: "acabaram de entrar", estado: "NOVO", id: "novo", quantidade: pedidosNovos.length, titulo: "Novo", tom: pedidosNovos.length ? "principal" : "neutro" },
+    { detalhe: "precisam de cobrança", estado: "AGUARDANDO_PAGAMENTO", id: "cobranca", quantidade: aguardandoPagamento.length, titulo: "A cobrar", tom: aguardandoPagamento.length ? "atencao" : "sucesso" },
+    { detalhe: "pagamento confirmado", estado: "PAGO", id: "pago", quantidade: pagos.filter((pedido) => pedido.estado === "PAGO").length, titulo: "Pago", tom: "sucesso" },
+    { detalhe: "separação em curso", estado: "EM_PREPARACAO", id: "preparacao", quantidade: emPreparacao.length, titulo: "Preparação", tom: emPreparacao.length ? "principal" : "neutro" },
+    { detalhe: "aguarda logística", estado: "PRONTO_ENTREGA", id: "entrega", quantidade: prontosEntrega.length, titulo: "Entrega", tom: prontosEntrega.length ? "atencao" : "neutro" },
+    { detalhe: "cancelado, falha ou troca", estado: "todos", id: "risco", quantidade: pedidosComProblema.length, titulo: "Problema", tom: pedidosComProblema.length ? "perigo" : "sucesso" }
+  ];
 
   const pedidosFiltrados = pedidos.filter((pedido) => {
     if (filtro !== "todos" && pedido.estado !== filtro) return false;
@@ -151,14 +187,11 @@ export function PaginaReservas() {
         <Button
           variant="outline"
           size="lg"
-          onClick={() => void executar(() => requisitarApi("/pedidos/recuperar-parados", {
-            method: "POST",
-            body: { idadeMinutos: 30, prioridade: "ALTA", estadoPagamento: "PENDENTE", limite: 100 }
-          }), "Recuperação criada para pedidos parados.")}
+          onClick={() => void carregar()}
           disabled={carregando}
         >
-          <Wrench size={18} />
-          Recuperar parados
+          <RefreshCcw size={18} />
+          Atualizar
         </Button>
       </CabecalhoPagina>
 
@@ -171,6 +204,78 @@ export function PaginaReservas() {
           { icone: <Truck />, titulo: "Entregas", valor: entregas.pedidos.length, detalhe: "em aberto" }
         ]}
       />
+
+      <CrmCommandPanel
+        eyebrow="Pipeline operacional"
+        title="Cada pedido precisa ter dono, estado e próxima ação"
+        description="A visão principal agora é de funil: novo pedido, cobrança, pagamento, preparação, entrega e problemas que bloqueiam receita."
+        actions={(
+          <>
+            <CrmStatusBadge tone={aguardandoPagamento.length ? "atencao" : "sucesso"}>
+              {formatarKwanza(valorEmAberto)} por cobrar
+            </CrmStatusBadge>
+            <Button
+              variant="outline"
+              size="lg"
+              onClick={() => void executar(() => requisitarApi("/pedidos/recuperar-parados", {
+                method: "POST",
+                body: { idadeMinutos: 30, prioridade: "ALTA", estadoPagamento: "PENDENTE", limite: 100 }
+              }), "Recuperação criada para pedidos parados.")}
+              disabled={carregando}
+            >
+              <Wrench size={18} />
+              Recuperar parados
+            </Button>
+          </>
+        )}
+      >
+        <div className="command-metrics-grid">
+          <CrmCommandMetric
+            detail={`${pedidos.length} pedidos acompanhados no CRM`}
+            icon={<ReceiptText size={18} />}
+            label="Taxa de conclusão"
+            tone={taxaConclusao >= 60 ? "sucesso" : pedidos.length ? "atencao" : "neutro"}
+            value={`${taxaConclusao}%`}
+          />
+          <CrmCommandMetric
+            detail={`${aguardandoPagamento.length} pedidos com pagamento pendente`}
+            icon={<WalletCards size={18} />}
+            label="Receita aberta"
+            tone={aguardandoPagamento.length ? "atencao" : "sucesso"}
+            value={formatarKwanza(valorEmAberto)}
+          />
+          <CrmCommandMetric
+            detail={`${preparacao.produtos.length} produtos para separar`}
+            icon={<PackageCheck size={18} />}
+            label="Preparação"
+            tone={preparacao.produtos.length ? "principal" : "neutro"}
+            value={preparacao.pedidos.length}
+          />
+          <CrmCommandMetric
+            detail={`${tarefasPedidos.length} tarefas de cobrança, entrega ou recuperação`}
+            icon={<AlertCircle size={18} />}
+            label="Risco operacional"
+            tone={pedidosComProblema.length || tarefasPedidos.length ? "atencao" : "sucesso"}
+            value={pedidosComProblema.length + tarefasPedidos.length}
+          />
+        </div>
+        <div className="order-pipeline-board" aria-label="Etapas do pipeline de pedidos">
+          {etapasPipeline.map((etapa) => (
+            <Button
+              key={etapa.id}
+              type="button"
+              variant="outline"
+              className="order-stage-card flex-col items-start gap-2 px-3 py-3"
+              data-active={filtro === etapa.estado ? "true" : "false"}
+              onClick={() => setFiltro(etapa.estado)}
+            >
+              <span className="text-xs font-semibold uppercase">{etapa.titulo}</span>
+              <strong>{etapa.quantidade}</strong>
+              <small>{etapa.detalhe}</small>
+            </Button>
+          ))}
+        </div>
+      </CrmCommandPanel>
 
       <section className="grid gap-4 xl:grid-cols-[minmax(0,1.5fr)_minmax(320px,0.85fr)]">
         <CrmSection
