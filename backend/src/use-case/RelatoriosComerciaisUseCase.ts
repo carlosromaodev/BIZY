@@ -8,7 +8,14 @@ import type {
   RepositorioTarefasOperacionais,
   RepositorioTrackingComercial
 } from "../dominio/repositorios/contratos.js";
-import type { EventoTrackingComercial, FiltrosPedidos, Pedido, Peca, Reserva } from "../dominio/tipos.js";
+import type {
+  ConversaAtendimentoComMensagens,
+  EventoTrackingComercial,
+  FiltrosPedidos,
+  Pedido,
+  Peca,
+  Reserva
+} from "../dominio/tipos.js";
 import { escapeHtml, formatDateLabel, renderPdfFromHtml, type OpcoesRenderPdf } from "../infra/pdf/PdfRenderer.js";
 
 export interface FiltrosRelatorioComercial {
@@ -94,12 +101,7 @@ export class RelatoriosComerciaisUseCase {
         produtosMaiorMargem: this.ranquearProdutosPorMargem(pecasDoRelatorio),
         produtosReservaPerdida: this.ranquearReservasPerdidas(reservasDoRelatorio, pecasPorCodigo)
       },
-      atendimento: {
-        conversasAbertas: conversas.filter((item) => !["RESOLVIDA", "ENCERRADA"].includes(item.conversa.estado)).length,
-        mensagensFalhadas: conversas.flatMap((item) => item.mensagens).filter((mensagem) => mensagem.status === "FAILED").length,
-        tarefasAbertas: tarefas.filter((tarefa) => !["CONCLUIDA", "CANCELADA"].includes(tarefa.estado)).length,
-        tarefasAtrasadas: tarefas.filter((tarefa) => tarefa.prazoEm && tarefa.prazoEm < new Date() && !["CONCLUIDA", "CANCELADA"].includes(tarefa.estado)).length
-      },
+      atendimento: this.calcularMetricasAtendimento(conversas, tarefas),
       oportunidadesPerdidas: {
         pedidosAguardandoPagamento: pagamentosPendentes.length,
         reservasExpiradas: reservasDoRelatorio.filter((reserva) => reserva.estado === "EXPIRED").length,
@@ -176,7 +178,12 @@ export class RelatoriosComerciaisUseCase {
         "descontosEmKwanza",
         "entregaEmKwanza",
         "receitaLiquidaEstimadaEmKwanza",
-        "ticketMedioEmKwanza"
+        "ticketMedioEmKwanza",
+        "conversasAbertas",
+        "conversasResolvidas",
+        "tempoMedioPrimeiraRespostaMinutos",
+        "taxaResolucaoPercentual",
+        "mensagensFalhadas"
       ],
       [
         String(relatorio.metricas.pedidosPagos),
@@ -185,7 +192,12 @@ export class RelatoriosComerciaisUseCase {
         String(relatorio.metricas.descontosEmKwanza),
         String(relatorio.metricas.entregaEmKwanza),
         String(relatorio.metricas.receitaLiquidaEstimadaEmKwanza),
-        String(relatorio.metricas.ticketMedioEmKwanza)
+        String(relatorio.metricas.ticketMedioEmKwanza),
+        String(relatorio.atendimento.conversasAbertas),
+        String(relatorio.atendimento.conversasResolvidas),
+        String(relatorio.atendimento.tempoMedioPrimeiraRespostaMinutos),
+        String(relatorio.atendimento.taxaResolucaoPercentual),
+        String(relatorio.atendimento.mensagensFalhadas)
       ]
     ];
     return {
@@ -347,6 +359,47 @@ export class RelatoriosComerciaisUseCase {
     return mapa;
   }
 
+  private calcularMetricasAtendimento(
+    conversas: ConversaAtendimentoComMensagens[],
+    tarefas: Awaited<ReturnType<RepositorioTarefasOperacionais["listar"]>>
+  ) {
+    const estadosResolvidos = ["RESOLVIDA", "ENCERRADA"];
+    const conversasResolvidas = conversas.filter((item) => estadosResolvidos.includes(item.conversa.estado)).length;
+    const temposPrimeiraResposta = conversas
+      .map((conversa) => this.calcularTempoPrimeiraRespostaMinutos(conversa))
+      .filter((valor): valor is number => valor !== null);
+
+    return {
+      conversasAbertas: conversas.filter((item) => !estadosResolvidos.includes(item.conversa.estado)).length,
+      conversasResolvidas,
+      taxaResolucaoPercentual: conversas.length ? Number(((conversasResolvidas / conversas.length) * 100).toFixed(2)) : 0,
+      tempoMedioPrimeiraRespostaMinutos: temposPrimeiraResposta.length
+        ? Number((temposPrimeiraResposta.reduce((total, valor) => total + valor, 0) / temposPrimeiraResposta.length).toFixed(2))
+        : 0,
+      mensagensFalhadas: conversas.flatMap((item) => item.mensagens).filter((mensagem) => mensagem.status === "FAILED").length,
+      tarefasAbertas: tarefas.filter((tarefa) => !["CONCLUIDA", "CANCELADA"].includes(tarefa.estado)).length,
+      tarefasAtrasadas: tarefas.filter((tarefa) => tarefa.prazoEm && tarefa.prazoEm < new Date() && !["CONCLUIDA", "CANCELADA"].includes(tarefa.estado)).length
+    };
+  }
+
+  private calcularTempoPrimeiraRespostaMinutos(conversa: ConversaAtendimentoComMensagens): number | null {
+    const mensagens = [...conversa.mensagens].sort((a, b) => a.enviadaEm.getTime() - b.enviadaEm.getTime());
+    const primeiraMensagemCliente = mensagens.find((mensagem) => mensagem.direcao === "INBOUND" || mensagem.remetente === "cliente");
+    if (!primeiraMensagemCliente) return null;
+
+    const primeiraResposta = mensagens.find(
+      (mensagem) =>
+        mensagem.enviadaEm > primeiraMensagemCliente.enviadaEm &&
+        mensagem.direcao === "OUTBOUND" &&
+        mensagem.status !== "FAILED" &&
+        mensagem.canal !== "interno" &&
+        ["agente", "sistema"].includes(mensagem.remetente)
+    );
+    if (!primeiraResposta) return null;
+
+    return Number(((primeiraResposta.enviadaEm.getTime() - primeiraMensagemCliente.enviadaEm.getTime()) / 60_000).toFixed(2));
+  }
+
   private filtrarPecasPorColecao(pecas: Peca[], filtros: FiltrosRelatorioComercial) {
     const colecao = this.normalizarTextoFiltro(filtros.colecao);
     if (!colecao) return pecas;
@@ -435,7 +488,9 @@ export class RelatoriosComerciaisUseCase {
         ${this.cardPdf("Clientes novos", String(relatorio.metricas.clientesNovos))}
         ${this.cardPdf("Clientes recorrentes", String(relatorio.metricas.clientesRecorrentes))}
         ${this.cardPdf("Conversas abertas", String(relatorio.atendimento.conversasAbertas))}
-        ${this.cardPdf("Tarefas atrasadas", String(relatorio.atendimento.tarefasAtrasadas))}
+        ${this.cardPdf("Tempo médio de resposta", `${relatorio.atendimento.tempoMedioPrimeiraRespostaMinutos} min`)}
+        ${this.cardPdf("Taxa de resolução", `${relatorio.atendimento.taxaResolucaoPercentual}%`)}
+        ${this.cardPdf("Mensagens falhadas", String(relatorio.atendimento.mensagensFalhadas))}
       </section>
 
       <h2>Produtos mais vendidos</h2>

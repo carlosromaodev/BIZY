@@ -108,6 +108,8 @@ Atualização 1.44: Relatório comercial passou a cobrir o ranking completo de p
 
 Atualização 1.45: Inbox comercial passou a expor `/atendimento/conversas/filtros`, agregando contadores e conversas para sem resposta, pagamento pendente, entrega pendente, VIP, reclamação, campanha respondida e meu atendimento com base em estado CRM, prioridade, tags, responsável, reserva/pedido e contexto das mensagens.
 
+Atualização 1.46: Relatório comercial passou a medir desempenho real de atendimento com conversas abertas, conversas resolvidas, tempo médio de primeira resposta, taxa de resolução, mensagens falhadas e tarefas abertas/atrasadas, expondo esses indicadores em JSON, CSV e PDF.
+
 ---
 
 ## 2. Legenda
@@ -409,7 +411,7 @@ Esta etapa transforma o Bizy de painel de live em CRM operacional para lojas que
 |---|---|---|---|
 | RF133 | [x] Relatórios devem começar por indicadores práticos: vendas do dia, pedidos pagos, pagamentos pendentes, ticket médio, clientes novos, clientes recorrentes e conversão de reservas. | Alta | Implementado no backend em `/relatorios/comercial` |
 | RF134 | [x] O CRM deve mostrar ranking de produtos mais vendidos, produtos encalhados, produtos com maior margem e produtos com mais reserva perdida. | Média | Implementado no backend em `/relatorios/comercial`, com ranking de perdas por reservas expiradas/canceladas e impacto financeiro |
-| RF135 | [~] O CRM deve mostrar desempenho de atendimento: tempo médio de primeira resposta, conversas abertas, SLA vencido, mensagens falhadas e taxa de resolução. | Alta | Parcial - relatório comercial expõe conversas abertas, mensagens falhadas e tarefas/SLA atrasadas; falta cálculo de primeira resposta e taxa de resolução |
+| RF135 | [x] O CRM deve mostrar desempenho de atendimento: tempo médio de primeira resposta, conversas abertas, SLA vencido, mensagens falhadas e taxa de resolução. | Alta | Implementado no relatório comercial com métricas de primeira resposta, resolução, conversas abertas, mensagens falhadas e tarefas/SLA atrasadas |
 | RF136 | [~] O CRM deve mostrar desempenho de campanhas: receita gerada, respostas, opt-out, falhas e segmentos que converteram. | Média | Parcial - backend expõe métricas de campanha e bloqueios/opt-out; faltam receita por campanha e conversão por segmento |
 | RF137 | [ ] A página `Explorar` não deve existir como relatório vazio; relatórios avançados só entram quando houver perguntas reais de negócio a responder. | Alta | Planeado |
 | RF138 | [x] O vendedor deve exportar relatórios em CSV e PDF simples para operação diária. | Média | Implementado no backend em `/relatorios/comercial.csv` e `/relatorios/comercial.pdf`, ambos auditados |
