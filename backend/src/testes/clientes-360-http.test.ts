@@ -281,6 +281,170 @@ describe("clientes 360 HTTP", () => {
     }
   });
 
+  it("calcula indicadores comerciais completos por cliente", async () => {
+    process.env = {
+      ...process.env,
+      MINUTOS_RESERVA: "0"
+    };
+    const app = await criarAplicacao();
+
+    try {
+      const loja = await autenticar(app, "923111170", "Loja Métricas Cliente");
+
+      const cliente = await app.inject({
+        method: "POST",
+        url: "/clientes",
+        headers: loja,
+        payload: {
+          telefone: "937624790",
+          nome: "Cliente Métricas",
+          consentimentoMarketing: true,
+          consentimentoDados: true
+        }
+      });
+      expect(cliente.statusCode).toBe(201);
+
+      const pecaPedido = await app.inject({
+        method: "POST",
+        url: "/pecas",
+        headers: loja,
+        payload: {
+          codigo: "CLI-MET-1",
+          nome: "Produto métrica",
+          descricao: "Produto para métricas do cliente",
+          precoEmKwanza: 20_000,
+          custoEmKwanza: 12_000,
+          quantidade: 5,
+          fotos: []
+        }
+      });
+      expect(pecaPedido.statusCode).toBe(201);
+
+      const pecaReserva = await app.inject({
+        method: "POST",
+        url: "/pecas",
+        headers: loja,
+        payload: {
+          codigo: "77",
+          nome: "Produto reserva",
+          descricao: "Produto para reserva expirada",
+          precoEmKwanza: 10_000,
+          custoEmKwanza: 6_000,
+          quantidade: 3,
+          fotos: []
+        }
+      });
+      expect(pecaReserva.statusCode).toBe(201);
+
+      const pedidoPago = await app.inject({
+        method: "POST",
+        url: "/pedidos",
+        headers: loja,
+        payload: {
+          clienteId: cliente.json().id,
+          itens: [{ codigoPeca: "CLI-MET-1", quantidade: 2 }],
+          taxaEntregaEmKwanza: 1_500,
+          origem: "site",
+          canal: "site"
+        }
+      });
+      expect(pedidoPago.statusCode).toBe(201);
+
+      const pagamento = await app.inject({
+        method: "POST",
+        url: `/pedidos/${pedidoPago.json().id}/confirmar-pagamento`,
+        headers: loja,
+        payload: { observacao: "Pagamento validado" }
+      });
+      expect(pagamento.statusCode).toBe(200);
+
+      const pedidoCancelado = await app.inject({
+        method: "POST",
+        url: "/pedidos",
+        headers: loja,
+        payload: {
+          clienteId: cliente.json().id,
+          itens: [{ codigoPeca: "CLI-MET-1", quantidade: 1 }],
+          origem: "whatsapp",
+          canal: "whatsapp"
+        }
+      });
+      expect(pedidoCancelado.statusCode).toBe(201);
+
+      const cancelamento = await app.inject({
+        method: "PATCH",
+        url: `/pedidos/${pedidoCancelado.json().id}/estado`,
+        headers: loja,
+        payload: {
+          estado: "CANCELADO",
+          observacao: "Cliente desistiu antes do pagamento"
+        }
+      });
+      expect(cancelamento.statusCode).toBe(200);
+
+      const comentarioReserva = await app.inject({
+        method: "POST",
+        url: "/comentarios/manual",
+        headers: loja,
+        payload: {
+          liveId: "live_metricas_cliente",
+          username: "cliente_metricas",
+          displayName: "Cliente Métricas",
+          commentText: "quero 77 937624790"
+        }
+      });
+      expect(comentarioReserva.statusCode).toBe(201);
+
+      await new Promise((resolve) => setTimeout(resolve, 1));
+      const expiracao = await app.inject({
+        method: "POST",
+        url: "/reservas/expirar",
+        headers: loja
+      });
+      expect(expiracao.statusCode).toBe(200);
+      expect(expiracao.json().expiradas).toEqual([
+        expect.objectContaining({
+          telefoneCliente: "937624790",
+          estado: "EXPIRED"
+        })
+      ]);
+
+      const perfil = await app.inject({
+        method: "GET",
+        url: `/clientes/${cliente.json().id}`,
+        headers: loja
+      });
+      expect(perfil.statusCode).toBe(200);
+      expect(perfil.json().metricas).toEqual(
+        expect.objectContaining({
+          totalCompradoEmKwanza: 41_500,
+          pedidosPagos: 1,
+          pedidosCancelados: 1,
+          reservasExpiradas: 1,
+          ultimaCompraEm: expect.any(String)
+        })
+      );
+      expect(perfil.json().metricas.tempoMedioPagamentoEmMinutos).toEqual(expect.any(Number));
+
+      const lista = await app.inject({
+        method: "GET",
+        url: "/clientes?busca=937624790",
+        headers: loja
+      });
+      expect(lista.statusCode).toBe(200);
+      expect(lista.json().clientes[0].metricas).toEqual(
+        expect.objectContaining({
+          pedidosPagos: 1,
+          pedidosCancelados: 1,
+          reservasExpiradas: 1,
+          ultimaCompraEm: expect.any(String)
+        })
+      );
+    } finally {
+      await app.close();
+    }
+  });
+
   it("sincroniza dados do cliente a partir de comentário processado e reserva criada", async () => {
     const app = await criarAplicacao();
 

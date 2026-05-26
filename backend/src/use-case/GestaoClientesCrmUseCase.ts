@@ -2,6 +2,7 @@ import type {
   RepositorioAtendimento,
   RepositorioClientes,
   RepositorioPecas,
+  RepositorioPedidos,
   RepositorioReservas
 } from "../dominio/repositorios/contratos.js";
 import { normalizarEmail, normalizarTelefone } from "../dominio/servicos/normalizarContato.js";
@@ -12,6 +13,7 @@ import type {
   DadosCliente360,
   FiltrosClientes360,
   MetricasCliente360,
+  Pedido,
   Reserva
 } from "../dominio/tipos.js";
 import { lerBooleano, lerLista, parseCsv } from "./utils/csv.js";
@@ -53,7 +55,8 @@ export class GestaoClientesCrmUseCase {
     private readonly clientes: RepositorioClientes,
     private readonly atendimento: RepositorioAtendimento,
     private readonly reservas: RepositorioReservas,
-    private readonly pecas: RepositorioPecas
+    private readonly pecas: RepositorioPecas,
+    private readonly pedidos: RepositorioPedidos
   ) {}
 
   async criarCliente(dados: DadosCliente360): Promise<Cliente360> {
@@ -130,17 +133,18 @@ export class GestaoClientesCrmUseCase {
     filtros: FiltrosClientes360 = {}
   ): Promise<{ clientes: Cliente360ComMetricas[] }> {
     const clientes = await this.clientes.listar(negocioId, filtros);
-    const [reservas, conversas, pecas] = await Promise.all([
+    const [reservas, conversas, pecas, pedidos] = await Promise.all([
       this.reservas.listar(negocioId),
       this.atendimento.listarConversasComMensagens(1000, negocioId),
-      this.pecas.listar(negocioId)
+      this.pecas.listar(negocioId),
+      this.pedidos.listar(negocioId, { limite: 100_000 })
     ]);
     const precoPorCodigo = new Map(pecas.map((peca) => [peca.codigo, peca.precoEmKwanza]));
 
     return {
       clientes: clientes.map((cliente) => ({
         ...cliente,
-        metricas: this.calcularMetricas(cliente, reservas, conversas, precoPorCodigo)
+        metricas: this.calcularMetricas(cliente, reservas, conversas, precoPorCodigo, pedidos)
       }))
     };
   }
@@ -149,20 +153,23 @@ export class GestaoClientesCrmUseCase {
     const cliente = await this.clientes.buscarPorId(id, negocioId);
     if (!cliente) return null;
 
-    const [reservas, conversas, pecas] = await Promise.all([
+    const [reservas, conversas, pecas, pedidos] = await Promise.all([
       this.reservas.listar(negocioId),
       this.atendimento.listarConversasComMensagens(1000, negocioId),
-      this.pecas.listar(negocioId)
+      this.pecas.listar(negocioId),
+      this.pedidos.listar(negocioId, { limite: 100_000 })
     ]);
     const precoPorCodigo = new Map(pecas.map((peca) => [peca.codigo, peca.precoEmKwanza]));
     const reservasCliente = reservas.filter((reserva) => this.mesmoCliente(cliente, reserva.telefoneCliente));
     const conversasCliente = conversas.filter((conversa) => this.mesmoCliente(cliente, conversa.conversa.telefone));
+    const pedidosCliente = pedidos.filter((pedido) => pedido.clienteNegocioId === cliente.id);
 
     return {
       cliente,
-      metricas: this.calcularMetricas(cliente, reservas, conversas, precoPorCodigo),
+      metricas: this.calcularMetricas(cliente, reservas, conversas, precoPorCodigo, pedidos),
       reservas: reservasCliente,
-      conversas: conversasCliente
+      conversas: conversasCliente,
+      pedidos: pedidosCliente
     };
   }
 
@@ -185,6 +192,11 @@ export class GestaoClientesCrmUseCase {
         "tags",
         "totalReservas",
         "totalCompradoEmKwanza",
+        "pedidosPagos",
+        "pedidosCancelados",
+        "reservasExpiradas",
+        "tempoMedioPagamentoEmMinutos",
+        "ultimaCompraEm",
         "ultimaInteracaoEm"
       ],
       ...clientes.map((cliente) => [
@@ -199,6 +211,13 @@ export class GestaoClientesCrmUseCase {
         cliente.tags.join("|"),
         String(cliente.metricas.totalReservas),
         String(cliente.metricas.totalCompradoEmKwanza),
+        String(cliente.metricas.pedidosPagos),
+        String(cliente.metricas.pedidosCancelados),
+        String(cliente.metricas.reservasExpiradas),
+        cliente.metricas.tempoMedioPagamentoEmMinutos === null
+          ? ""
+          : String(cliente.metricas.tempoMedioPagamentoEmMinutos),
+        cliente.metricas.ultimaCompraEm?.toISOString() ?? "",
         cliente.metricas.ultimaInteracaoEm?.toISOString() ?? ""
       ])
     ];
@@ -256,13 +275,13 @@ export class GestaoClientesCrmUseCase {
         id: "primeiro-pedido",
         titulo: "Primeiro pedido",
         criterio: "Cliente com exatamente uma compra paga.",
-        clientes: clientes.filter((cliente) => cliente.metricas.reservasPagas === 1)
+        clientes: clientes.filter((cliente) => cliente.metricas.totalComprasPagas === 1)
       },
       {
         id: "recorrente",
         titulo: "Recorrentes",
         criterio: "Cliente com duas ou mais compras pagas.",
-        clientes: clientes.filter((cliente) => cliente.metricas.reservasPagas >= 2)
+        clientes: clientes.filter((cliente) => cliente.metricas.totalComprasPagas >= 2)
       },
       {
         id: "vip",
@@ -285,20 +304,25 @@ export class GestaoClientesCrmUseCase {
         id: "nunca-comprou",
         titulo: "Nunca comprou",
         criterio: "Sem compra paga registada.",
-        clientes: clientes.filter((cliente) => cliente.metricas.reservasPagas === 0 && cliente.metricas.totalCompradoEmKwanza === 0)
+        clientes: clientes.filter((cliente) => cliente.metricas.totalComprasPagas === 0 && cliente.metricas.totalCompradoEmKwanza === 0)
       },
       {
         id: "pagamento-pendente",
         titulo: "Pagamento pendente",
         criterio: "Reserva ou pedido em aberto aguardando pagamento.",
-        clientes: clientes.filter((cliente) => cliente.metricas.reservasAtivas > 0)
+        clientes: clientes.filter(
+          (cliente) => cliente.metricas.reservasAtivas > 0 || cliente.metricas.pedidosPagamentoPendente > 0
+        )
       },
       {
         id: "reserva-perdida",
         titulo: "Reserva perdida",
         criterio: "Teve reserva, mas nenhuma compra paga nem reserva ativa.",
         clientes: clientes.filter(
-          (cliente) => cliente.metricas.totalReservas > 0 && cliente.metricas.reservasAtivas === 0 && cliente.metricas.reservasPagas === 0
+          (cliente) =>
+            cliente.metricas.totalReservas > 0 &&
+            cliente.metricas.reservasAtivas === 0 &&
+            cliente.metricas.totalComprasPagas === 0
         )
       },
       {
@@ -337,30 +361,74 @@ export class GestaoClientesCrmUseCase {
     cliente: Cliente360,
     reservas: Reserva[],
     conversas: Awaited<ReturnType<RepositorioAtendimento["listarConversasComMensagens"]>>,
-    precoPorCodigo: Map<string, number>
+    precoPorCodigo: Map<string, number>,
+    pedidos: Pedido[] = []
   ): MetricasCliente360 {
     const reservasCliente = reservas.filter((reserva) => this.mesmoCliente(cliente, reserva.telefoneCliente));
     const conversasCliente = conversas.filter((conversa) => this.mesmoCliente(cliente, conversa.conversa.telefone));
+    const pedidosCliente = pedidos.filter((pedido) => pedido.clienteNegocioId === cliente.id);
+    const pedidosPagos = pedidosCliente.filter((pedido) => this.pedidoPago(pedido));
+    const pedidosCancelados = pedidosCliente.filter((pedido) => pedido.estado === "CANCELADO");
+    const pedidosPagamentoPendente = pedidosCliente.filter(
+      (pedido) =>
+        pedido.estadoPagamento === "PENDENTE" &&
+        !["CANCELADO", "DEVOLVIDO", "TROCADO"].includes(pedido.estado)
+    );
+    const reservasPagas = reservasCliente.filter((reserva) => reserva.estado === "PAID");
+    const reservasExpiradas = reservasCliente.filter((reserva) => reserva.estado === "EXPIRED");
+    const reservaIdsComPedidoPago = new Set(
+      pedidosPagos.map((pedido) => pedido.reservaId).filter((reservaId): reservaId is string => Boolean(reservaId))
+    );
+    const reservasPagasSemPedido = reservasPagas.filter((reserva) => !reservaIdsComPedidoPago.has(reserva.id));
     const mensagens = conversasCliente.flatMap((conversa) => conversa.mensagens);
     const ultimaMensagemEm =
       mensagens.map((mensagem) => mensagem.enviadaEm).sort((a, b) => b.getTime() - a.getTime())[0] ?? null;
     const ultimaReservaEm =
       reservasCliente.map((reserva) => reserva.atualizadaEm).sort((a, b) => b.getTime() - a.getTime())[0] ?? null;
-    const ultimaInteracaoEm = [cliente.ultimaInteracaoEm, ultimaMensagemEm, ultimaReservaEm]
+    const ultimaPedidoEm =
+      pedidosCliente.map((pedido) => pedido.atualizadoEm).sort((a, b) => b.getTime() - a.getTime())[0] ?? null;
+    const datasCompra = [
+      ...pedidosPagos.map((pedido) => pedido.pagoEm ?? pedido.atualizadoEm),
+      ...reservasPagasSemPedido.map((reserva) => reserva.atualizadaEm)
+    ];
+    const ultimaCompraEm = datasCompra.sort((a, b) => b.getTime() - a.getTime())[0] ?? null;
+    const temposPagamento = [
+      ...pedidosPagos
+        .filter((pedido) => pedido.pagoEm)
+        .map((pedido) => (pedido.pagoEm!.getTime() - pedido.criadoEm.getTime()) / 60_000),
+      ...reservasPagasSemPedido.map((reserva) => (reserva.atualizadaEm.getTime() - reserva.criadaEm.getTime()) / 60_000)
+    ].filter((tempo) => tempo >= 0);
+    const tempoMedioPagamentoEmMinutos =
+      temposPagamento.length === 0
+        ? null
+        : Number((temposPagamento.reduce((total, tempo) => total + tempo, 0) / temposPagamento.length).toFixed(2));
+    const totalCompradoEmKwanza =
+      pedidosPagos.reduce((total, pedido) => total + pedido.totalEmKwanza, 0) +
+      reservasPagasSemPedido.reduce((total, reserva) => total + (precoPorCodigo.get(reserva.codigoPeca) ?? 0), 0);
+    const ultimaInteracaoEm = [cliente.ultimaInteracaoEm, ultimaMensagemEm, ultimaReservaEm, ultimaPedidoEm]
       .filter((data): data is Date => Boolean(data))
       .sort((a, b) => b.getTime() - a.getTime())[0] ?? null;
 
     return {
       totalReservas: reservasCliente.length,
       reservasAtivas: reservasCliente.filter((reserva) => estadosReservaAtiva.includes(reserva.estado)).length,
-      reservasPagas: reservasCliente.filter((reserva) => reserva.estado === "PAID").length,
-      totalCompradoEmKwanza: reservasCliente
-        .filter((reserva) => reserva.estado === "PAID")
-        .reduce((total, reserva) => total + (precoPorCodigo.get(reserva.codigoPeca) ?? 0), 0),
+      reservasPagas: reservasPagas.length,
+      reservasExpiradas: reservasExpiradas.length,
+      pedidosPagos: pedidosPagos.length,
+      pedidosCancelados: pedidosCancelados.length,
+      pedidosPagamentoPendente: pedidosPagamentoPendente.length,
+      totalComprasPagas: pedidosPagos.length + reservasPagasSemPedido.length,
+      totalCompradoEmKwanza,
+      tempoMedioPagamentoEmMinutos,
+      ultimaCompraEm,
       totalMensagens: mensagens.length,
       conversasAbertas: conversasCliente.filter((conversa) => conversa.conversa.estado !== "ENCERRADA").length,
       ultimaInteracaoEm
     };
+  }
+
+  private pedidoPago(pedido: Pedido): boolean {
+    return pedido.estadoPagamento === "CONFIRMADO" || ["PAGO", "EM_PREPARACAO", "PRONTO_ENTREGA", "ENVIADO", "ENTREGUE"].includes(pedido.estado);
   }
 
   private mesmoCliente(cliente: Cliente360, telefone: string): boolean {

@@ -301,7 +301,8 @@ export function criarContextoAplicacao(logger: FastifyBaseLogger): ContextoAplic
     repositorios.clientes,
     repositorios.atendimento,
     repositorios.reservas,
-    repositorios.pecas
+    repositorios.pecas,
+    repositorios.pedidos
   );
   const gestaoCompartilhamentoClientes = new GestaoCompartilhamentoClientesUseCase(
     repositorios.clientes,

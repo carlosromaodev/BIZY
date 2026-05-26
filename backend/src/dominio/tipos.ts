@@ -1349,7 +1349,14 @@ export interface MetricasCliente360 {
   totalReservas: number;
   reservasAtivas: number;
   reservasPagas: number;
+  reservasExpiradas: number;
+  pedidosPagos: number;
+  pedidosCancelados: number;
+  pedidosPagamentoPendente: number;
+  totalComprasPagas: number;
   totalCompradoEmKwanza: number;
+  tempoMedioPagamentoEmMinutos: number | null;
+  ultimaCompraEm: Date | null;
   totalMensagens: number;
   conversasAbertas: number;
   ultimaInteracaoEm: Date | null;

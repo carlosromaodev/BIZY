@@ -98,6 +98,8 @@ Atualização 1.39: relatório comercial passou a exportar PDF simples com resum
 
 Atualização 1.40: relatório comercial passou a aceitar filtro por coleção de produto, restringindo pedidos, reservas e rankings aos produtos daquela coleção para fechar os filtros operacionais de período, canal, produto, coleção, responsável e estado do pedido.
 
+Atualização 1.41: Cliente 360 passou a calcular indicadores comerciais completos a partir de pedidos e reservas: total gasto, compras pagas, pedidos pagos, pedidos cancelados, pedidos com pagamento pendente, reservas expiradas, tempo médio de pagamento e data da última compra. A segmentação comportamental agora considera pedidos reais e reservas antigas de live sem duplicar compra convertida em pedido.
+
 ---
 
 ## 2. Legenda
@@ -335,10 +337,10 @@ Esta etapa transforma o Bizy de painel de live em CRM operacional para lojas que
 | RF88 | [~] O perfil do cliente deve mostrar visão 360: dados pessoais, conversas, pedidos, pagamentos, reservas, entregas, notas internas, tags, tarefas e histórico de campanhas. | Alta | Parcial - API entrega dados pessoais, métricas, reservas, conversas, ações e preferências; faltam completar UI e histórico de campanhas no perfil |
 | RF89 | [~] O sistema deve deduplicar clientes por telefone canónico, mantendo aliases de username, TikTok, Instagram ou nome exibido. | Alta | Parcial - backend normaliza telefone angolano, preserva username/userId/avatar/preferências por negócio e permite fusão; faltam aliases sociais por provider completos |
 | RF90 | [x] O vendedor deve poder fundir clientes duplicados com pré-visualização de dados que serão mantidos. | Média | Implementado no backend com preview, motivo obrigatório e marcação da origem mesclada |
-| RF91 | [~] O CRM deve segmentar clientes por comportamento: novo, primeiro pedido, recorrente, VIP, inativo, nunca comprou, pagamento pendente, carrinho/reserva perdida e alto potencial. | Alta | Parcial - endpoint de segmentos cobre VIP e clientes sem compra; faltam todos os segmentos comportamentais avançados e atualização contínua |
+| RF91 | [x] O CRM deve segmentar clientes por comportamento: novo, primeiro pedido, recorrente, VIP, inativo, nunca comprou, pagamento pendente, carrinho/reserva perdida e alto potencial. | Alta | Implementado no backend em `/clientes/segmentos`, considerando pedidos reais, reservas antigas de live, pendências, tags e interações |
 | RF92 | [~] O perfil do cliente deve permitir ações rápidas: enviar WhatsApp, criar pedido, reservar produto, adicionar nota, criar tarefa, atribuir responsável e marcar follow-up. | Alta | Parcial - backend cria tarefa/follow-up a partir do cliente; demais ações diretas ainda dependem de UI e fluxos específicos |
 | RF93 | [x] O sistema deve registrar preferências do cliente, como tamanho, cor, categoria favorita, faixa de preço, bairro de entrega e observações de atendimento. | Média | Implementado no backend via preferências estruturadas do Cliente 360 e importação CSV |
-| RF94 | [~] O CRM deve calcular indicadores por cliente: total gasto, pedidos pagos, pedidos cancelados, reservas expiradas, tempo médio de pagamento e data da última compra. | Alta | Parcial - API calcula reservas, reservas pagas, total comprado, mensagens, conversas abertas e última interação |
+| RF94 | [x] O CRM deve calcular indicadores por cliente: total gasto, pedidos pagos, pedidos cancelados, reservas expiradas, tempo médio de pagamento e data da última compra. | Alta | Implementado no backend em listagem, perfil 360 e exportação CSV de clientes |
 | RF95 | [x] O vendedor deve poder marcar cliente como bloqueado, sem WhatsApp, sem consentimento, inadimplente ou prioridade alta. | Alta | Implementado no backend por `estadoRelacionamento` |
 | RF96 | [x] O sistema deve permitir exportar clientes filtrados com campos úteis para operação e marketing autorizado. | Média | Implementado - exportação CSV autenticada e auditada com filtros por busca, tag, estado, limite e consentimento de marketing; inclui origem, username e consentimentos |
 
