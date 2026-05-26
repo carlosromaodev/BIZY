@@ -116,6 +116,8 @@ Atualização 1.48: Relatório comercial passou a sinalizar oportunidades perdid
 
 Atualização 1.49: Relatório comercial passou a medir retenção com tempo médio entre compras, dias médios desde última compra, distribuição de clientes por recência/risco e coortes mensais de recompra com taxa de retenção e receita de recompra.
 
+Atualização 1.50: Tarefas automáticas passaram a ter rotina operacional em `/tarefas/automaticas/rotina`, criando cobranças por pagamento vencido, entregas para pedido pago sem entrega, resposta urgente para cliente VIP sem resposta, reposição de stock baixo/esgotado e pós-venda após entrega, com deduplicação de tarefas abertas.
+
 ---
 
 ## 2. Legenda
@@ -431,10 +433,10 @@ Esta etapa transforma o Bizy de painel de live em CRM operacional para lojas que
 
 | ID | Requisito Funcional | Prioridade | Estado |
 |---|---|---|---|
-| RF144 | [~] O CRM deve criar tarefas manuais ou automáticas para follow-up, cobrança, entrega, reclamação, reposição e pós-venda. | Alta | Parcial - backend cria tarefas manuais, bloqueios WhatsApp, follow-up, recuperação de cobrança/entrega, SLA e reclamações sociais; faltam reposição e pós-venda completos |
+| RF144 | [x] O CRM deve criar tarefas manuais ou automáticas para follow-up, cobrança, entrega, reclamação, reposição e pós-venda. | Alta | Implementado no backend com tarefas manuais, bloqueios WhatsApp, follow-up/SLA, recuperação de cobrança/entrega, reclamações sociais, rotina de reposição de stock e pós-venda |
 | RF145 | [~] Cada tarefa deve ter responsável, cliente/pedido relacionado, prazo, prioridade, estado e observação. | Alta | Parcial - entidade de tarefa possui negócio, tipo, prioridade, estado, responsável, prazo, clienteId, pedidoId, telefone, entidade relacionada, observação, contexto e conclusão; faltam vínculos validados e histórico visual de mudanças |
 | RF146 | [~] O vendedor deve ver `Minhas tarefas` no Painel, ordenadas por atraso e impacto comercial. | Alta | Parcial - backend filtra tarefas por responsável/estado e mantém atrasadas abertas; falta composição visual final no Painel |
-| RF147 | [~] O sistema deve criar tarefa automática quando pagamento vencer, mensagem falhar, cliente VIP ficar sem resposta ou pedido pago ficar sem entrega. | Alta | Parcial - bloqueio WhatsApp, SLA de conversa sem resposta e recuperação de pedidos parados criam tarefas; faltam cliente VIP sem resposta e pedido pago sem entrega totalmente automatizados |
+| RF147 | [x] O sistema deve criar tarefa automática quando pagamento vencer, mensagem falhar, cliente VIP ficar sem resposta ou pedido pago ficar sem entrega. | Alta | Implementado no backend com tarefas de bloqueio/falha WhatsApp, cobrança vencida, cliente VIP sem resposta e pedido pago sem entrega via rotina automática |
 | RF148 | [x] O CRM deve suportar papéis mínimos: dono da loja, vendedor, atendente, financeiro, entregador e admin técnico. | Média | Implementado no backend com catálogo de papéis e membros por negócio |
 | RF149 | [~] Permissões devem controlar quem pode dar desconto, confirmar pagamento, cancelar pedido, exportar clientes e alterar configurações. | Alta | Parcial - permissões por papel controlam módulos/ações principais; falta política fina para desconto acima de limite e cancelamentos específicos |
 | RF150 | [x] A equipa deve poder transferir conversa/pedido/tarefa entre responsáveis com motivo opcional. | Média | Implementado no backend por `/operacional/transferencias` com nota/observação de motivo |
@@ -1046,7 +1048,7 @@ O CRM completo pode ser considerado pronto para primeira operação de loja quan
 - [~] Conversas permitirem responder, criar pedido, cobrar, confirmar pagamento, pedir entrega e criar tarefa sem sair da tela.
 - [x] Campanhas respeitarem opt-out, consentimento, segmentos e templates aprovados.
 - [~] Relatórios úteis responderem perguntas de venda, atendimento, produto, campanha e cliente.
-- [~] Tarefas automáticas cobrirem pagamento vencido, mensagem falhada, cliente sem resposta, pedido pago sem entrega e follow-up pós-venda.
+- [x] Tarefas automáticas cobrirem pagamento vencido, mensagem falhada, cliente sem resposta, pedido pago sem entrega e follow-up pós-venda.
 - [~] Permissões impedirem vendedor comum de acessar tokens, providers, n8n, webhooks e configurações técnicas.
 - [x] A experiência mobile não tiver scroll horizontal nas páginas de Clientes, Pedidos, Produtos, Conversas e Painel.
 - [x] A interface estiver migrada para `shadcn/ui` nos componentes recorrentes e novas telas deixarem de usar botões, inputs, cards, badges e modais feitos do zero.

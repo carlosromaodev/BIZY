@@ -18,6 +18,7 @@ import {
   RegistrarMovimentoFunilComercialSchema,
   RegistrarSugestaoIaAtendimentoSchema,
   TransferirResponsavelOperacionalSchema,
+  GerarTarefasAutomaticasRotinaSchema,
   VerificarSlaConversasSchema
 } from "../../../dominio/esquemas.js";
 import {
@@ -204,6 +205,23 @@ export const moduloOperacional: ModuloHttp = {
       });
 
       return reply.code(201).send({ tarefa });
+    });
+
+    app.post("/tarefas/automaticas/rotina", async (request, reply) => {
+      const contextoComercial = await exigirAcessoComercial(contexto, request, reply, {
+        permissao: "tarefas:gerir",
+        modulo: "crm",
+        mensagemPermissao: "Sem permissão para gerar tarefas automáticas.",
+        mensagemModulo: "CRM desativado para este negócio."
+      });
+      if (!contextoComercial) return;
+
+      const dados = GerarTarefasAutomaticasRotinaSchema.parse(request.body ?? {});
+      const resultado = await contexto.gestaoTarefas.gerarTarefasAutomaticasRotina(
+        contextoComercial.negocio.id,
+        dados
+      );
+      return reply.code(201).send(resultado);
     });
 
     app.get("/tarefas/:id", async (request, reply) => {

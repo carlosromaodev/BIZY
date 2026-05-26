@@ -170,6 +170,35 @@ describe("Tarefas operacionais", () => {
       await app.close();
     }
   });
+
+  it("expõe rotina automática de tarefas pelo módulo operacional", async () => {
+    const app = await criarAplicacao();
+
+    try {
+      const headers = await autenticar(app);
+
+      const resposta = await app.inject({
+        method: "POST",
+        url: "/tarefas/automaticas/rotina",
+        headers,
+        payload: {
+          idadeMinutos: 60,
+          responsavelId: "lider-operacao"
+        }
+      });
+
+      expect(resposta.statusCode).toBe(201);
+      expect(resposta.json()).toEqual(
+        expect.objectContaining({
+          criadas: expect.any(Number),
+          ignoradasPorDuplicidade: expect.any(Number),
+          tarefas: expect.any(Array)
+        })
+      );
+    } finally {
+      await app.close();
+    }
+  });
 });
 
 async function autenticar(app: Awaited<ReturnType<typeof criarAplicacao>>) {

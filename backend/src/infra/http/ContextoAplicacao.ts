@@ -227,7 +227,12 @@ export function criarContextoAplicacao(logger: FastifyBaseLogger): ContextoAplic
   const motorReservas = new MotorReservas(repositorios.pecas, repositorios.reservas, eventos, { minutosReserva });
   const provedorSms = criarProvedorSms();
   const provedorWhatsApp = criarProvedorWhatsApp(repositorios.instanciasWhatsApp);
-  const gestaoTarefas = new GestaoTarefasOperacionaisUseCase(repositorios.tarefas);
+  const gestaoTarefas = new GestaoTarefasOperacionaisUseCase(repositorios.tarefas, {
+    atendimento: repositorios.atendimento,
+    clientes: repositorios.clientes,
+    pecas: repositorios.pecas,
+    pedidos: repositorios.pedidos
+  });
   const automacaoWhatsApp = new AutomacaoWhatsApp(provedorWhatsApp, eventos, minutosReserva, {
     ativo: !n8nAssumeWhatsApp,
     registrarTarefaHumana: (dados) => gestaoTarefas.criarTarefa(dados).then(() => undefined)

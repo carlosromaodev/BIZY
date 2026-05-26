@@ -950,6 +950,13 @@ export const VerificarSlaConversasSchema = z.object({
   limite: z.coerce.number().int().min(1).max(500).default(100)
 });
 
+export const GerarTarefasAutomaticasRotinaSchema = z.object({
+  idadeMinutos: z.coerce.number().int().min(0).max(43_200).default(60),
+  prioridadePadrao: z.enum(prioridadesTarefaOperacional).default("ALTA"),
+  responsavelId: CampoTarefaOpcionalSchema,
+  limite: z.coerce.number().int().min(1).max(500).default(500)
+});
+
 export const TransferirResponsavelOperacionalSchema = z.object({
   responsavelId: z.string().trim().min(1).max(120),
   motivo: z.string().trim().max(1000).nullable().optional().transform((valor) => valor ?? null),
