@@ -14,11 +14,12 @@ import { Link } from "react-router-dom";
 import { requisitarApi } from "../api";
 import { clientesParaCsv, montarClientesCrm, type ClienteCrm, type EstadoClienteCrm } from "../crm";
 import { CabecalhoPagina, EstadoVazio, ResumoIndicadores } from "../componentes/Shell";
+import { CrmList, CrmListItem, CrmMetricMini, CrmPageMotion, CrmSection } from "../componentes/CrmInterno21st";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Component as AnimatedTabs, TabsList, TabsTrigger } from "@/components/ui/animated-tabs";
 import type { Peca, Reserva, RespostaConversas } from "../tipos";
 import { formatarDataHoraCurta, formatarKwanza } from "../utilidades";
 
@@ -89,7 +90,7 @@ export function PaginaClientes() {
   }
 
   return (
-    <>
+    <CrmPageMotion>
       <CabecalhoPagina rotulo="CRM de loja" titulo="Clientes">
         <Button variant="outline" size="lg" onClick={() => void carregar()} disabled={carregando}>
           <RefreshCcw size={18} />
@@ -111,8 +112,11 @@ export function PaginaClientes() {
         ]}
       />
 
-      <Card>
-        <CardContent className="grid gap-4 p-4">
+      <CrmSection
+        icon={<Users size={20} />}
+        title="Base de clientes"
+        description="Consulta operacional para vendas, cobrança e relacionamento."
+      >
           <div className="grid gap-3 lg:grid-cols-[1fr_auto] lg:items-center">
             <div className="relative">
               <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={16} />
@@ -125,59 +129,56 @@ export function PaginaClientes() {
                 onChange={(evento) => setBusca(evento.target.value)}
               />
             </div>
-            <div className="flex flex-wrap gap-2" aria-label="Filtrar clientes">
-              {filtrosCliente.map((item) => (
-                <Button
-                  key={item}
-                  type="button"
-                  variant={filtro === item ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setFiltro(item)}
-                >
-                  {item === "todos" ? "Todos" : item}
-                </Button>
-              ))}
-            </div>
+            <AnimatedTabs value={filtro} onValueChange={(valor) => setFiltro(valor as typeof filtro)}>
+              <TabsList className="grid-cols-5">
+                {filtrosCliente.map((item) => (
+                  <TabsTrigger key={item} value={item} className="px-2">
+                    {item === "todos" ? "Todos" : item}
+                  </TabsTrigger>
+                ))}
+              </TabsList>
+            </AnimatedTabs>
           </div>
 
-          <div className="grid crm-commerce-list gap-3" aria-busy={carregando}>
+          <CrmList className="crm21-clientes-list crm-commerce-list" aria-busy={carregando}>
             {clientesFiltrados.length ? (
               clientesFiltrados.map((cliente) => (
-                <Card key={cliente.telefone} className="bg-muted/20">
-                  <CardContent className="grid gap-4 p-4 lg:grid-cols-[1.1fr_0.8fr_1fr_1fr_auto] lg:items-center">
-                  <div className="flex min-w-0 items-center gap-3">
-                    <Avatar className="h-10 w-10">
+                <CrmListItem
+                  key={cliente.telefone}
+                  media={(
+                    <Avatar className="h-8 w-8 border-0">
                       <AvatarFallback>{cliente.nome.slice(0, 1).toUpperCase()}</AvatarFallback>
                     </Avatar>
-                    <div className="min-w-0">
-                      <strong className="block truncate">{cliente.nome}</strong>
-                      <span className="block truncate text-sm text-muted-foreground">{cliente.telefoneFormatado}</span>
-                    </div>
+                  )}
+                  title={cliente.nome}
+                  description={cliente.telefoneFormatado}
+                  tone={cliente.estado === "Pendente" ? "atencao" : cliente.estado === "VIP" || cliente.estado === "Recorrente" ? "sucesso" : "principal"}
+                  meta={cliente.ultimaInteracao ? formatarDataHoraCurta(cliente.ultimaInteracao) : "Sem atividade"}
+                  badges={(
+                    <>
+                      <Badge className="w-fit" variant={obterVarianteCliente(cliente.estado)}>{cliente.estado}</Badge>
+                      {cliente.tags.length ? (
+                        cliente.tags.map((tag) => <Badge key={tag} variant="secondary">{tag}</Badge>)
+                      ) : (
+                        <Badge variant="outline"><Tags size={13} /> Sem etiqueta</Badge>
+                      )}
+                    </>
+                  )}
+                  actions={(
+                    <Button asChild variant="outline" size="lg">
+                      <Link to="/app/conversas">
+                        <MessageCircle size={16} />
+                        Atender
+                      </Link>
+                    </Button>
+                  )}
+                >
+                  <div className="grid gap-2 sm:grid-cols-3">
+                    <CrmMetricMini label="pedidos" value={cliente.pedidos} />
+                    <CrmMetricMini label="pagos" value={cliente.pedidosPagos} tone={cliente.pedidosPagos ? "sucesso" : "neutro"} />
+                    <CrmMetricMini label="valor pago" value={formatarKwanza(cliente.valorPago)} tone={cliente.valorPago ? "sucesso" : "neutro"} />
                   </div>
-                  <div className="grid gap-1">
-                    <Badge className="w-fit" variant={obterVarianteCliente(cliente.estado)}>{cliente.estado}</Badge>
-                    <small className="text-muted-foreground">{cliente.ultimaInteracao ? formatarDataHoraCurta(cliente.ultimaInteracao) : "Sem atividade"}</small>
-                  </div>
-                  <div className="flex flex-wrap gap-3 text-sm">
-                    <span><strong>{cliente.pedidos}</strong> pedidos</span>
-                    <span><strong>{cliente.pedidosPagos}</strong> pagos</span>
-                    <span><strong>{formatarKwanza(cliente.valorPago)}</strong></span>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    {cliente.tags.length ? (
-                      cliente.tags.map((tag) => <Badge key={tag} variant="secondary">{tag}</Badge>)
-                    ) : (
-                      <Badge variant="outline"><Tags size={13} /> Sem etiqueta</Badge>
-                    )}
-                  </div>
-                  <Button asChild variant="outline" size="lg">
-                    <Link to="/app/conversas">
-                      <MessageCircle size={16} />
-                      Atender
-                    </Link>
-                  </Button>
-                  </CardContent>
-                </Card>
+                </CrmListItem>
               ))
             ) : (
               <EstadoVazio
@@ -186,12 +187,11 @@ export function PaginaClientes() {
                 detalhe={carregando ? "A consolidar conversas e pedidos." : "Ajuste a busca ou aguarde novas interações."}
               />
             )}
-          </div>
-        </CardContent>
-      </Card>
+          </CrmList>
+      </CrmSection>
 
       {mensagem && <footer className="rounded-lg border bg-card px-4 py-3 text-sm text-muted-foreground" aria-live="polite">{mensagem}</footer>}
-    </>
+    </CrmPageMotion>
   );
 }
 

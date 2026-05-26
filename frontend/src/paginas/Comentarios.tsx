@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { type FormEvent, useEffect, useState } from "react";
 import { requisitarApi, obterUrlEventos } from "../api";
+import { CrmList, CrmListItem, CrmPageMotion, CrmSection } from "../componentes/CrmInterno21st";
 import { EstadoVazio, ResumoIndicadores } from "../componentes/Shell";
 import {
   AlertDialog,
@@ -25,7 +26,6 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -205,7 +205,7 @@ export function PaginaComentarios() {
   const comentariosOcultos = filtro === "operacionais" ? estatisticas.ignorados : 0;
 
   return (
-    <>
+    <CrmPageMotion>
       <section className="grid gap-4">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div>
@@ -229,15 +229,66 @@ export function PaginaComentarios() {
         />
       </section>
 
-      <Card>
-        <CardContent className="grid gap-4 p-4">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
-          <div className="relative flex-1">
+      <CrmSection
+        icon={<MessageSquareText size={20} />}
+        title="Fluxo de comentários"
+        description="Comentários capturados da live, prontos para virar reserva, revisão manual ou histórico operacional."
+        actions={
+          <>
+            <Button
+              type="button"
+              variant="outline"
+              size="icon-lg"
+              onClick={() => void carregar({ silencioso: false })}
+              title="Atualizar"
+              aria-label="Atualizar comentários"
+              disabled={carregandoComentarios}
+            >
+              <RefreshCcw size={18} className={carregandoComentarios ? "animate-spin" : undefined} />
+            </Button>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="lg"
+                  className="border-destructive/30 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                  disabled={limpandoDados}
+                >
+                  <Trash2 size={16} />
+                  Limpar dados
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Limpar comentários e mensagens?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Esta ação remove comentários capturados, mensagens de atendimento associadas e estados de envio usados nos testes. Usa apenas quando precisares reiniciar a operação de teste.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                  <AlertDialogAction
+                    variant="destructive"
+                    onClick={() => void limparDadosOperacionais()}
+                    disabled={limpandoDados}
+                  >
+                    <Trash2 size={16} />
+                    Limpar dados
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </>
+        }
+      >
+        <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_16rem] lg:items-center">
+          <div className="relative">
             <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={16} />
             <Input aria-label="Buscar comentários" className="pl-9" style={{ paddingLeft: "2.25rem" }} placeholder="Buscar comentário..." value={busca} onChange={(e) => setBusca(e.target.value)} />
           </div>
           <Select value={filtro} onValueChange={setFiltro}>
-            <SelectTrigger aria-label="Filtrar comentários por estado" className="w-full lg:w-64">
+            <SelectTrigger aria-label="Filtrar comentários por estado" className="w-full">
               <SelectValue placeholder="Operacionais" />
             </SelectTrigger>
             <SelectContent>
@@ -249,75 +300,43 @@ export function PaginaComentarios() {
               <SelectItem value="IGNORADO">Ignorado</SelectItem>
             </SelectContent>
           </Select>
-          <Button
-            type="button"
-            variant="outline"
-            size="icon-lg"
-            onClick={() => void carregar({ silencioso: false })}
-            title="Atualizar"
-            aria-label="Atualizar comentários"
-            disabled={carregandoComentarios}
-          >
-            <RefreshCcw size={18} className={carregandoComentarios ? "animate-spin" : undefined} />
-          </Button>
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button
-                type="button"
-                variant="outline"
-                size="lg"
-                className="border-destructive/30 text-destructive hover:bg-destructive/10 hover:text-destructive"
-                disabled={limpandoDados}
-              >
-                <Trash2 size={16} />
-                Limpar dados
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Limpar comentários e mensagens?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  Esta ação remove comentários capturados, mensagens de atendimento associadas e estados de envio usados nos testes. Usa apenas quando precisares reiniciar a operação de teste.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                <AlertDialogAction
-                  variant="destructive"
-                  onClick={() => void limparDadosOperacionais()}
-                  disabled={limpandoDados}
-                >
-                  <Trash2 size={16} />
-                  Limpar dados
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
         </div>
 
-        <div className="comentarios-commerce-list grid gap-3">
+        <CrmList className="comentarios-commerce-list">
           {comentariosFiltrados.length ? (
             comentariosFiltrados.map((c) => (
-              <Card key={c.id} className="bg-muted/20">
-                <CardContent className="grid gap-4 p-4 lg:grid-cols-[auto_1fr_auto]">
-                <Avatar className="h-10 w-10">
-                  {c.comentario.avatarUrl && <AvatarImage src={c.comentario.avatarUrl} alt="" />}
-                  <AvatarFallback>{obterIniciais(c.comentario.displayName || c.comentario.username)}</AvatarFallback>
-                </Avatar>
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <strong>{c.comentario.displayName || c.comentario.username}</strong>
-                    <span className="text-sm text-muted-foreground">@{c.comentario.username}</span>
-                  </div>
+              <CrmListItem
+                key={c.id}
+                tone={obterTomComentario(c.estado)}
+                media={
+                  <Avatar className="h-10 w-10">
+                    {c.comentario.avatarUrl && <AvatarImage src={c.comentario.avatarUrl} alt="" />}
+                    <AvatarFallback>{obterIniciais(c.comentario.displayName || c.comentario.username)}</AvatarFallback>
+                  </Avatar>
+                }
+                title={c.comentario.displayName || c.comentario.username}
+                description={`@${c.comentario.username}`}
+                meta={<Badge variant={obterVarianteComentario(c.estado)}>{traduzirEstadoComentario(c.estado)}</Badge>}
+                badges={
+                  <>
+                    <Badge variant="outline">{formatarConfianca(c.interpretacao?.confidence)}</Badge>
+                    <Badge variant="outline">Tel. {c.interpretacao?.phone ?? "—"}</Badge>
+                    <Badge variant="outline">Peça #{c.interpretacao?.productCode ?? "?"}</Badge>
+                    {c.interpretacao?.reasons?.map((motivo) => (
+                      <Badge key={motivo} variant="outline">{motivo}</Badge>
+                    ))}
+                  </>
+                }
+                actions={
+                  c.estado === "REVISAO_MANUAL" ? (
+                    <Button variant="outline" size="icon-lg" onClick={() => abrirRevisao(c)} title="Corrigir comentário" aria-label="Corrigir comentário">
+                      <Edit3 size={16} />
+                    </Button>
+                  ) : null
+                }
+              >
                   <p className="mt-2 leading-6">{c.comentario.commentText}</p>
                   {c.motivo && <p className="mt-2 rounded-lg border bg-background p-3 text-sm text-muted-foreground">{c.motivo}</p>}
-                  {c.interpretacao?.reasons?.length ? (
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      {c.interpretacao.reasons.map((motivo) => (
-                        <Badge key={motivo} variant="outline">{motivo}</Badge>
-                      ))}
-                    </div>
-                  ) : null}
                   {c.estado === "REVISAO_MANUAL" && comentarioEmRevisao === c.id && (
                     <form className="mt-4 grid gap-3 rounded-lg border bg-background p-3 md:grid-cols-2" onSubmit={(e) => void aprovarComentario(e, c)}>
                       <div className="grid gap-2">
@@ -376,24 +395,7 @@ export function PaginaComentarios() {
                       </div>
                     </form>
                   )}
-                </div>
-                <div className="grid content-start gap-2 lg:justify-items-end">
-                  <Badge variant={obterVarianteComentario(c.estado)}>
-                    {traduzirEstadoComentario(c.estado)}
-                  </Badge>
-                  <div className="flex flex-wrap gap-2 lg:justify-end">
-                    <Badge variant="outline">{formatarConfianca(c.interpretacao?.confidence)}</Badge>
-                    <Badge variant="outline">Tel. {c.interpretacao?.phone ?? "—"}</Badge>
-                    <Badge variant="outline">Peça #{c.interpretacao?.productCode ?? "?"}</Badge>
-                  </div>
-                  {c.estado === "REVISAO_MANUAL" && (
-                    <Button variant="outline" size="icon-lg" onClick={() => abrirRevisao(c)} title="Corrigir comentário" aria-label="Corrigir comentário">
-                      <Edit3 size={16} />
-                    </Button>
-                  )}
-                </div>
-                </CardContent>
-              </Card>
+              </CrmListItem>
             ))
           ) : (
             <EstadoVazio
@@ -406,12 +408,11 @@ export function PaginaComentarios() {
               }
             />
           )}
-        </div>
-        </CardContent>
-      </Card>
+        </CrmList>
+      </CrmSection>
 
       {mensagem && <footer className="rounded-lg border bg-card px-4 py-3 text-sm text-muted-foreground" aria-live="polite">{mensagem}</footer>}
-    </>
+    </CrmPageMotion>
   );
 }
 
@@ -419,5 +420,12 @@ function obterVarianteComentario(estado: ComentarioRecebido["estado"]): "success
   if (estado === "PROCESSADO") return "success";
   if (estado === "REVISAO_MANUAL" || estado === "RECEBIDO") return "warning";
   if (estado === "IGNORADO") return "secondary";
+  return "info";
+}
+
+function obterTomComentario(estado: ComentarioRecebido["estado"]): "neutro" | "principal" | "sucesso" | "atencao" | "perigo" | "info" {
+  if (estado === "PROCESSADO") return "sucesso";
+  if (estado === "REVISAO_MANUAL" || estado === "RECEBIDO") return "atencao";
+  if (estado === "IGNORADO") return "neutro";
   return "info";
 }

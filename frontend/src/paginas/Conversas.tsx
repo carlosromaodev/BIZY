@@ -18,6 +18,7 @@ import {
 import { type FormEvent, type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { obterUrlEventos, requisitarApi } from "../api";
 import { CabecalhoPagina, EstadoVazio } from "../componentes/Shell";
+import { CrmList, CrmListItem, CrmMetricMini, CrmPageMotion } from "../componentes/CrmInterno21st";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -50,6 +51,18 @@ const estadosCrm = [
 ] as const;
 const prioridadesCrm = ["BAIXA", "NORMAL", "ALTA", "URGENTE"] as const;
 const politicasAutomacao = ["AUTOMATICO", "SUGERIR_RESPOSTA", "EXIGIR_HUMANO", "BLOQUEAR_IA"] as const;
+
+type MensagemParcial = Partial<Mensagem> & {
+  criadoEm?: string;
+  direcao?: string;
+  estadoEnvio?: Mensagem["status"];
+  texto?: string;
+};
+
+type ConversaParcial = Partial<Conversa> & {
+  mensagens?: MensagemParcial[];
+  telefoneCliente?: string;
+};
 
 type ContextoComercialDados = {
   pecaRelacionada: Peca | null;
@@ -87,10 +100,11 @@ export function PaginaConversas() {
         requisitarApi<Peca[]>("/pecas"),
         requisitarApi<Reserva[]>("/reservas")
       ]);
-      setConversas(resposta.conversas);
+      const conversasNormalizadas = (resposta.conversas ?? []).map(normalizarConversaAtendimento);
+      setConversas(conversasNormalizadas);
       setPecas(listaPecas);
       setReservas(listaReservas);
-      setConversaSelecionada((atual) => atual ?? resposta.conversas[0]?.id ?? null);
+      setConversaSelecionada((atual) => atual ?? conversasNormalizadas[0]?.id ?? null);
     } catch (erro) {
       setMensagem(erro instanceof Error ? erro.message : "Não foi possível carregar conversas.");
     }
@@ -361,7 +375,7 @@ export function PaginaConversas() {
   }, [buscaContexto, conversaAtual, pecas, reservas]);
 
   return (
-    <div className="grid gap-5">
+    <CrmPageMotion>
       <CabecalhoPagina rotulo="Atendimento" titulo="Conversas e contexto">
         <Button variant="outline" size="lg" onClick={() => void carregar()}>
           <RefreshCcw data-icon="inline-start" className="size-4" aria-hidden="true" />
@@ -390,7 +404,7 @@ export function PaginaConversas() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="grid max-h-[calc(100dvh-260px)] gap-2 overflow-y-auto pr-1">
+            <CrmList className="max-h-[calc(100dvh-260px)] overflow-y-auto pr-1">
               {conversasFiltradas.length ? (
                 conversasFiltradas.map((conversa) => {
                   const ativa = conversaSelecionada === conversa.id;
@@ -398,9 +412,9 @@ export function PaginaConversas() {
                   return (
                     <Button
                       type="button"
-                      variant={ativa ? "secondary" : "ghost"}
                       key={conversa.id}
-                      className="h-auto w-full justify-start rounded-lg p-3 text-left"
+                      variant="ghost"
+                      className="h-auto w-full justify-start whitespace-normal p-0 text-left hover:bg-transparent"
                       aria-label={`Abrir conversa com ${conversa.nomeCliente}`}
                       aria-pressed={ativa}
                       onClick={() => {
@@ -408,8 +422,10 @@ export function PaginaConversas() {
                         setMobileDetalheAberto(true);
                       }}
                     >
-                      <div className="grid w-full grid-cols-[auto_1fr] gap-3">
-                        <div className="relative">
+                      <CrmListItem
+                        className={ativa ? "border-primary/35 bg-primary/5" : undefined}
+                        media={(
+                          <div className="relative">
                           <Avatar className="h-10 w-10">
                             {conversa.avatarUrlCliente && <AvatarImage src={conversa.avatarUrlCliente} alt="" />}
                             <AvatarFallback>{conversa.nomeCliente[0]?.toUpperCase() ?? "C"}</AvatarFallback>
@@ -420,13 +436,13 @@ export function PaginaConversas() {
                             </span>
                           )}
                         </div>
-                        <div className="min-w-0">
-                          <div className="flex items-center justify-between gap-2">
-                            <strong className="truncate">{conversa.nomeCliente}</strong>
-                            <span className="text-xs text-muted-foreground">{formatarHora(conversa.ultimaAtualizacao)}</span>
-                          </div>
-                          <p className="truncate text-sm font-normal text-muted-foreground">{conversa.ultimaMensagem}</p>
-                          <div className="mt-2 flex flex-wrap gap-1">
+                        )}
+                        title={conversa.nomeCliente}
+                        description={conversa.ultimaMensagem}
+                        meta={formatarHora(conversa.ultimaAtualizacao)}
+                        tone={conversa.mensagensNaoLidas > 0 ? "principal" : conversa.estadoCrm === "AGUARDANDO_HUMANO" ? "atencao" : "neutro"}
+                        badges={(
+                          <>
                             <Badge variant={obterVarianteEstadoConversa(conversa.estado)}>{traduzirEstadoConversa(conversa.estado)}</Badge>
                             <Badge variant={obterVarianteEstadoCrm(conversa.estadoCrm)}>{traduzirEstadoCrm(conversa.estadoCrm)}</Badge>
                             {conversa.responsavelId && <Badge variant="secondary">{conversa.responsavelId}</Badge>}
@@ -434,16 +450,16 @@ export function PaginaConversas() {
                               <Badge variant={obterVariantePrioridade(conversa.prioridade)}>{traduzirPrioridade(conversa.prioridade)}</Badge>
                             )}
                             {conversa.pecaRelacionada && <Badge variant="outline">{conversa.pecaRelacionada}</Badge>}
-                          </div>
-                        </div>
-                      </div>
+                          </>
+                        )}
+                      />
                     </Button>
                   );
                 })
               ) : (
                 <EstadoVazio icone={<MessageCircle />} titulo="Sem conversas" detalhe="Comentários com telefone e reservas aparecem aqui." />
               )}
-            </div>
+            </CrmList>
           </CardContent>
         </Card>
 
@@ -666,7 +682,7 @@ export function PaginaConversas() {
                   <Textarea
                     aria-label="Responder pelo WhatsApp"
                     className="chat-commerce-textarea min-h-11 max-h-32 resize-none"
-                    placeholder="Responder pelo WhatsApp..."
+                    placeholder="Responder..."
                     value={textoResposta}
                     onChange={(e) => setTextoResposta(e.target.value)}
                     disabled={carregando}
@@ -722,7 +738,7 @@ export function PaginaConversas() {
       </section>
 
       {mensagem && <footer className="rounded-lg border bg-card px-4 py-3 text-sm text-muted-foreground" aria-live="polite">{mensagem}</footer>}
-    </div>
+    </CrmPageMotion>
   );
 }
 
@@ -951,16 +967,23 @@ function ContextoPeca({
   const texto = montarMensagemPeca(peca);
 
   return (
-    <div className="grid gap-2 rounded-lg border bg-background p-3">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <strong className="block truncate">#{peca.codigo} · {peca.nome}</strong>
-          <span className="block truncate text-sm text-muted-foreground">{formatarKwanza(peca.precoEmKwanza)} · stock {peca.quantidade}</span>
-        </div>
-        <Badge variant={peca.estado === "DISPONIVEL" ? "success" : "secondary"}>{peca.estado.toLowerCase()}</Badge>
+    <CrmListItem
+      media={<Package className="size-4" aria-hidden="true" />}
+      title={`#${peca.codigo} · ${peca.nome}`}
+      description={peca.descricao || "Produto do catálogo"}
+      tone={peca.estado === "DISPONIVEL" ? "sucesso" : "neutro"}
+      badges={(
+        <>
+          <Badge variant={peca.estado === "DISPONIVEL" ? "success" : "secondary"}>{peca.estado.toLowerCase()}</Badge>
+          {destaque && <Badge className="w-fit" variant="outline">{destaque}</Badge>}
+        </>
+      )}
+    >
+      <div className="grid gap-2 sm:grid-cols-2">
+        <CrmMetricMini label="preço" value={formatarKwanza(peca.precoEmKwanza)} tone="sucesso" />
+        <CrmMetricMini label="stock" value={peca.quantidade} tone={peca.quantidade > 2 ? "principal" : "atencao"} />
       </div>
-      {destaque && <Badge className="w-fit" variant="outline">{destaque}</Badge>}
-      <div className="flex flex-wrap gap-2">
+      <div className="mt-2 flex flex-wrap gap-2">
         <Button type="button" variant="outline" size="sm" onClick={() => onUsar(texto)}>
           <StickyNote data-icon="inline-start" className="size-3.5" aria-hidden="true" />
           Usar
@@ -970,7 +993,7 @@ function ContextoPeca({
           Enviar
         </Button>
       </div>
-    </div>
+    </CrmListItem>
   );
 }
 
@@ -988,17 +1011,18 @@ function ContextoReserva({
   const texto = montarMensagemReserva(reserva, peca);
 
   return (
-    <div className="grid gap-2 rounded-lg border bg-background p-3">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <strong className="block truncate">Pedido #{reserva.codigoPeca}</strong>
-          <span className="block truncate text-sm text-muted-foreground">
-            {peca ? peca.nome : "Produto não encontrado"} · {formatarTempoRestante(reserva.expiraEm)}
-          </span>
-        </div>
-        <Badge variant={obterVarianteReserva(reserva.estado)}>{traduzirEstadoReserva(reserva.estado)}</Badge>
-      </div>
-      <span className="text-sm text-muted-foreground">Pagamento: {traduzirEstadoPagamentoCurto(reserva.estadoPagamento)}</span>
+    <CrmListItem
+      media={<ClipboardList className="size-4" aria-hidden="true" />}
+      title={`Pedido #${reserva.codigoPeca}`}
+      description={`${peca ? peca.nome : "Produto não encontrado"} · ${formatarTempoRestante(reserva.expiraEm)}`}
+      tone={reserva.estado === "PAID" ? "sucesso" : reserva.estado === "WAITING_PAYMENT" ? "atencao" : "principal"}
+      badges={(
+        <>
+          <Badge variant={obterVarianteReserva(reserva.estado)}>{traduzirEstadoReserva(reserva.estado)}</Badge>
+          <Badge variant="outline">Pagamento: {traduzirEstadoPagamentoCurto(reserva.estadoPagamento)}</Badge>
+        </>
+      )}
+    >
       <div className="flex flex-wrap gap-2">
         <Button type="button" variant="outline" size="sm" onClick={() => onUsar(texto)}>
           <StickyNote data-icon="inline-start" className="size-3.5" aria-hidden="true" />
@@ -1009,7 +1033,7 @@ function ContextoReserva({
           Enviar
         </Button>
       </div>
-    </div>
+    </CrmListItem>
   );
 }
 
@@ -1039,8 +1063,59 @@ function montarMensagemReserva(reserva: Reserva, peca: Peca | null) {
   return partes.join(" ");
 }
 
-function normalizarTelefoneLocal(telefone: string) {
-  const digitos = telefone.replace(/\D/g, "");
+function normalizarConversaAtendimento(conversa: ConversaParcial): Conversa {
+  const telefone = conversa.telefone ?? conversa.telefoneCliente ?? "";
+  const nomeCliente = conversa.nomeCliente?.trim() || conversa.telefone || "Cliente";
+  const agora = new Date().toISOString();
+
+  return {
+    id: conversa.id || telefone || `conversa-${agora}`,
+    conversaCrmId: conversa.conversaCrmId ?? null,
+    telefone,
+    nomeCliente,
+    userIdCliente: conversa.userIdCliente ?? null,
+    avatarUrlCliente: conversa.avatarUrlCliente ?? null,
+    ultimaMensagem: conversa.ultimaMensagem ?? conversa.mensagens?.[0]?.conteudo ?? conversa.mensagens?.[0]?.texto ?? "",
+    ultimaAtualizacao: conversa.ultimaAtualizacao ?? conversa.mensagens?.[0]?.enviadaEm ?? conversa.mensagens?.[0]?.criadoEm ?? agora,
+    mensagensNaoLidas: conversa.mensagensNaoLidas ?? 0,
+    estado: conversa.estado ?? "ativo",
+    estadoCrm: conversa.estadoCrm ?? "NOVA",
+    prioridade: conversa.prioridade ?? "NORMAL",
+    responsavelId: conversa.responsavelId ?? null,
+    tags: Array.isArray(conversa.tags) ? conversa.tags.filter((tag): tag is string => typeof tag === "string") : [],
+    politicaAutomacao: conversa.politicaAutomacao ?? "AUTOMATICO",
+    pecaRelacionada: conversa.pecaRelacionada ?? null,
+    reservaAtual: conversa.reservaAtual ?? null,
+    mensagens: Array.isArray(conversa.mensagens)
+      ? conversa.mensagens.map((mensagem, indice) => normalizarMensagemAtendimento(mensagem, indice, agora))
+      : []
+  };
+}
+
+function normalizarMensagemAtendimento(mensagem: MensagemParcial, indice: number, agora: string): Mensagem {
+  const remetentePorDirecao: Record<string, Mensagem["remetente"]> = {
+    ENVIADA: "agente",
+    RECEBIDA: "cliente",
+    SISTEMA: "sistema"
+  };
+
+  return {
+    id: mensagem.id ?? `mensagem-${indice}`,
+    remetente: mensagem.remetente ?? remetentePorDirecao[mensagem.direcao ?? ""] ?? "sistema",
+    conteudo: mensagem.conteudo ?? mensagem.texto ?? "",
+    enviadaEm: mensagem.enviadaEm ?? mensagem.criadoEm ?? agora,
+    origem: mensagem.origem,
+    reservaId: mensagem.reservaId ?? null,
+    tipo: mensagem.tipo,
+    status: mensagem.status ?? mensagem.estadoEnvio,
+    provider: mensagem.provider ?? null,
+    providerMessageId: mensagem.providerMessageId ?? null,
+    erro: mensagem.erro ?? null
+  };
+}
+
+function normalizarTelefoneLocal(telefone?: string | null) {
+  const digitos = (telefone ?? "").replace(/\D/g, "");
   if (digitos.length === 9 && digitos.startsWith("9")) return `244${digitos}`;
   return digitos;
 }

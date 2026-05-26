@@ -11,9 +11,9 @@ import {
 import { useEffect, useMemo, useState } from "react";
 import { requisitarApi, obterUrlEventos } from "../api";
 import { CabecalhoPagina, EstadoVazio, ResumoIndicadores } from "../componentes/Shell";
+import { CrmList, CrmListItem, CrmMetricMini, CrmPageMotion, CrmSection } from "../componentes/CrmInterno21st";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -135,13 +135,17 @@ export function PaginaReservas() {
   }
 
   return (
-    <>
+    <CrmPageMotion>
       <CabecalhoPagina rotulo="Gestão de pedidos" titulo="Pedidos" />
 
       <ResumoIndicadores rotulo="Resumo dos pedidos" itens={resumoPedidos} />
 
-      <Card>
-        <CardContent className="grid gap-4 p-4">
+      <CrmSection
+        className="lg:grid-cols-[1fr_1fr_1fr_1fr_auto]"
+        icon={<ReceiptText size={20} />}
+        title="Fila de pedidos"
+        description="Pedidos criados pela loja, live, WhatsApp e checkout público."
+      >
           <div className="grid gap-3 lg:grid-cols-[1fr_260px_auto] lg:items-center">
             <div className="relative">
               <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={16} />
@@ -167,35 +171,29 @@ export function PaginaReservas() {
             </Button>
           </div>
 
-          <div className="reservas-commerce-list grid gap-3">
+          <CrmList className="reservas-commerce-list">
             {reservasVisiveis.length ? (
               reservasVisiveis.map((r) => {
                 const preco = obterPrecoDaPeca(pecas, r.codigoPeca);
                 const critica = reservaQuaseExpirada(r);
 
                 return (
-                  <Card key={r.id} className={critica ? "border-warning/25 bg-warning/5" : "bg-muted/20"}>
-                    <CardContent className="grid grid-cols-[minmax(0,1fr)_auto] gap-2 p-3 lg:grid-cols-[1fr_1fr_1fr_1fr_auto] lg:items-center">
-                    <div className="order-1 grid min-w-0 gap-1">
-                      <strong>#{r.codigoPeca}</strong>
-                      <span className="text-sm text-muted-foreground">{preco ? formatarKwanza(preco) : "Preço não encontrado"}</span>
-                      <Badge className="w-fit" variant={obterVarianteReserva(r.estado)}>{traduzirEstadoReserva(r.estado)}</Badge>
-                    </div>
-                    <div className="order-3 col-span-2 grid min-w-0 gap-1 lg:order-2 lg:col-span-1">
-                      <strong>{r.nomeCliente || r.usernameCliente}</strong>
-                      <span className="text-sm text-muted-foreground">{r.telefoneCliente}</span>
-                    </div>
-                    <div className="order-4 col-span-2 grid grid-cols-2 gap-2 lg:contents">
-                      <div className="grid gap-1 rounded-lg border bg-background/70 p-2 lg:rounded-none lg:border-0 lg:bg-transparent lg:p-0">
-                        <strong>{traduzirEstadoPagamentoCurto(r.estadoPagamento)}</strong>
-                        <span className="text-xs text-muted-foreground lg:text-sm">{formatarDataHoraCurta(r.criadaEm)}</span>
-                      </div>
-                      <div className="grid gap-1 rounded-lg border bg-background/70 p-2 lg:rounded-none lg:border-0 lg:bg-transparent lg:p-0">
-                        <strong>{formatarTempoRestante(r.expiraEm)}</strong>
-                        <span className="text-xs text-muted-foreground lg:text-sm">{r.expiraEm ? formatarDataHoraCurta(r.expiraEm) : "Sem expiração"}</span>
-                      </div>
-                    </div>
-                    <div className="order-2 flex gap-2 lg:order-5 lg:justify-end">
+                  <CrmListItem
+                    key={r.id}
+                    className={critica ? "border-warning/35 bg-warning/5" : undefined}
+                    media={<ReceiptText className="size-5" />}
+                    title={`#${r.codigoPeca}`}
+                    description={`${r.nomeCliente || r.usernameCliente} · ${r.telefoneCliente}`}
+                    tone={critica ? "atencao" : r.estado === "PAID" ? "sucesso" : "principal"}
+                    meta={preco ? formatarKwanza(preco) : "Preço não encontrado"}
+                    badges={(
+                      <>
+                        <Badge variant={obterVarianteReserva(r.estado)}>{traduzirEstadoReserva(r.estado)}</Badge>
+                        <Badge variant="outline">{traduzirEstadoPagamentoCurto(r.estadoPagamento)}</Badge>
+                      </>
+                    )}
+                    actions={(
+                      <>
                       <Button
                         variant="success"
                         size="icon-lg"
@@ -220,15 +218,21 @@ export function PaginaReservas() {
                       >
                         <Ban size={18} />
                       </Button>
+                      </>
+                    )}
+                  >
+                    <div className="grid gap-2 sm:grid-cols-3">
+                      <CrmMetricMini label="pagamento" value={traduzirEstadoPagamentoCurto(r.estadoPagamento)} tone={r.estado === "PAID" ? "sucesso" : "atencao"} />
+                      <CrmMetricMini label="criado em" value={formatarDataHoraCurta(r.criadaEm)} />
+                      <CrmMetricMini label="expira em" value={formatarTempoRestante(r.expiraEm)} tone={critica ? "atencao" : "neutro"} />
                     </div>
-                    </CardContent>
-                  </Card>
+                  </CrmListItem>
                 );
               })
             ) : (
               <EstadoVazio icone={<ReceiptText />} titulo="Sem pedidos" detalhe="Os pedidos aparecem aqui em tempo real." />
             )}
-          </div>
+          </CrmList>
           {existemMaisReservas && (
             <Button
               type="button"
@@ -240,11 +244,10 @@ export function PaginaReservas() {
               Ver mais pedidos
             </Button>
           )}
-        </CardContent>
-      </Card>
+      </CrmSection>
 
       {mensagem && <footer className="rounded-lg border bg-card px-4 py-3 text-sm text-muted-foreground" aria-live="polite">{mensagem}</footer>}
-    </>
+    </CrmPageMotion>
   );
 }
 

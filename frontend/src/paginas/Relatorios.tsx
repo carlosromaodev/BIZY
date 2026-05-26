@@ -11,9 +11,9 @@ import {
 import { useEffect, useState } from "react";
 import { requisitarApi } from "../api";
 import { CabecalhoPagina, EstadoVazio, ResumoIndicadores } from "../componentes/Shell";
+import { CrmList, CrmListItem, CrmMetricMini, CrmPageMotion, CrmSection } from "../componentes/CrmInterno21st";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { formatarDataHoraCurta } from "../utilidades";
 
 interface ClienteRelatorioCrm {
@@ -103,7 +103,7 @@ export function PaginaRelatorios() {
     .slice(0, 6);
 
   return (
-    <>
+    <CrmPageMotion>
       <CabecalhoPagina rotulo="Resultados comerciais" titulo="Relatórios">
         <Button variant="outline" size="lg" onClick={() => void carregar()} disabled={carregando}>
           <RefreshCcw size={18} />
@@ -122,87 +122,73 @@ export function PaginaRelatorios() {
       />
 
       <section className="grid gap-4 lg:grid-cols-2">
-        <Card>
-          <CardHeader className="flex flex-row items-start justify-between gap-3">
-            <div>
-              <p className="text-xs font-bold uppercase tracking-wide text-primary">Clientes</p>
-              <h2 className="text-lg font-semibold">Melhores relações</h2>
-            </div>
-            <TrendingUp size={20} />
-          </CardHeader>
-          <CardContent className="grid gap-3">
+        <CrmSection
+          icon={<TrendingUp size={20} />}
+          title="Melhores relações"
+          description="Clientes com maior sinal de recompra e histórico de pagamento."
+        >
+          <CrmList>
             {topClientes.length ? (
               topClientes.map((cliente) => (
-                <Card key={cliente.telefone} className="bg-muted/20">
-                  <CardContent className="grid gap-3 p-3 sm:grid-cols-[1fr_auto_auto] sm:items-center">
-                  <div className="min-w-0">
-                    <strong className="block truncate">{cliente.nomeCliente || "Cliente"}</strong>
-                    <span className="block text-sm text-muted-foreground">{cliente.telefone}</span>
-                  </div>
-                  <div className="text-sm">
-                    <strong>{cliente.reservasPagas}/{cliente.reservas}</strong>
-                    <span className="ml-1 text-muted-foreground">pagas</span>
-                  </div>
-                  <Badge variant={cliente.mensagensFalhadas ? "destructive" : "success"}>
-                    {cliente.mensagensFalhadas ? `${cliente.mensagensFalhadas} falha(s)` : "Em dia"}
-                  </Badge>
-                  </CardContent>
-                </Card>
+                <CrmListItem
+                  key={cliente.telefone}
+                  media={<Users size={18} />}
+                  title={cliente.nomeCliente || "Cliente"}
+                  description={cliente.telefone}
+                  tone={cliente.mensagensFalhadas ? "perigo" : "sucesso"}
+                  badges={(
+                    <Badge variant={cliente.mensagensFalhadas ? "destructive" : "success"}>
+                      {cliente.mensagensFalhadas ? `${cliente.mensagensFalhadas} falha(s)` : "Em dia"}
+                    </Badge>
+                  )}
+                  meta={`${cliente.reservasPagas}/${cliente.reservas} pagas`}
+                />
               ))
             ) : (
               <EstadoVazio icone={<Users />} titulo="Sem clientes no relatório" detalhe="Os dados aparecem depois de atendimento e reservas." />
             )}
-          </CardContent>
-        </Card>
+          </CrmList>
+        </CrmSection>
 
-        <Card>
-          <CardHeader className="flex flex-row items-start justify-between gap-3">
-            <div>
-              <p className="text-xs font-bold uppercase tracking-wide text-primary">Operação</p>
-              <h2 className="text-lg font-semibold">Entregas recentes</h2>
-            </div>
-            <PackageCheck size={20} />
-          </CardHeader>
-          <CardContent className="grid gap-3">
+        <CrmSection
+          icon={<PackageCheck size={20} />}
+          title="Entregas recentes"
+          description="Pagamentos confirmados que precisam de acompanhamento operacional."
+        >
+          <CrmList>
             {entregas.slice(0, 6).length ? (
               entregas.slice(0, 6).map((entrega) => (
-                <Card key={entrega.reservaId} className="bg-muted/20">
-                  <CardContent className="grid gap-3 p-3 sm:grid-cols-[1fr_auto] sm:items-center">
-                  <div className="min-w-0">
-                    <strong className="block truncate">#{entrega.codigoPeca} {entrega.nomePeca}</strong>
-                    <span className="block text-sm text-muted-foreground">{entrega.nomeCliente || entrega.telefoneCliente}</span>
-                  </div>
-                  <div className="text-sm sm:text-right">
-                    <strong className="block">{entrega.estadoEntrega ?? "Pendente"}</strong>
-                    <span className="text-muted-foreground">{entrega.criadaEm ? formatarDataHoraCurta(entrega.criadaEm) : "Sem data"}</span>
-                  </div>
-                  </CardContent>
-                </Card>
+                <CrmListItem
+                  key={entrega.reservaId}
+                  media={<PackageCheck size={18} />}
+                  title={`#${entrega.codigoPeca} ${entrega.nomePeca}`}
+                  description={entrega.nomeCliente || entrega.telefoneCliente}
+                  tone={entrega.estadoEntrega ? "principal" : "atencao"}
+                  meta={entrega.criadaEm ? formatarDataHoraCurta(entrega.criadaEm) : "Sem data"}
+                  badges={<Badge variant="outline">{entrega.estadoEntrega ?? "Pendente"}</Badge>}
+                />
               ))
             ) : (
               <EstadoVazio icone={<PackageCheck />} titulo="Sem entregas recentes" detalhe="As entregas aparecem após pagamentos confirmados." />
             )}
-          </CardContent>
-        </Card>
+          </CrmList>
+        </CrmSection>
       </section>
 
-      <Card>
-        <CardHeader className="flex flex-row items-start justify-between gap-3">
-          <div>
-            <p className="text-xs font-bold uppercase tracking-wide text-primary">Oportunidades</p>
-            <h2 className="text-lg font-semibold">Onde a loja perdeu venda</h2>
-          </div>
-          <LineChart size={20} />
-        </CardHeader>
-        <CardContent className="grid gap-3 md:grid-cols-4">
-          <span className="rounded-lg border bg-muted/20 p-3"><strong className="block text-2xl">{oportunidades?.comentariosComIntencaoSemReserva ?? 0}</strong> intenção sem pedido</span>
-          <span className="rounded-lg border bg-muted/20 p-3"><strong className="block text-2xl">{oportunidades?.reservasExpiradas ?? 0}</strong> reservas expiradas</span>
-          <span className="rounded-lg border bg-muted/20 p-3"><strong className="block text-2xl">{oportunidades?.reservasCanceladas ?? 0}</strong> reservas canceladas</span>
-          <span className="rounded-lg border bg-muted/20 p-3"><strong className="block text-2xl">{oportunidades?.mensagensFalhadas ?? 0}</strong> mensagens falhadas</span>
-        </CardContent>
-      </Card>
+      <CrmSection
+        icon={<LineChart size={20} />}
+        title="Onde a loja perdeu venda"
+        description="Pontos do funil que devem virar recuperação automática ou tarefa humana."
+      >
+        <div className="grid gap-3 md:grid-cols-4">
+          <CrmMetricMini label="intenção sem pedido" value={oportunidades?.comentariosComIntencaoSemReserva ?? 0} tone="atencao" />
+          <CrmMetricMini label="reservas expiradas" value={oportunidades?.reservasExpiradas ?? 0} tone="perigo" />
+          <CrmMetricMini label="reservas canceladas" value={oportunidades?.reservasCanceladas ?? 0} tone="perigo" />
+          <CrmMetricMini label="mensagens falhadas" value={oportunidades?.mensagensFalhadas ?? 0} tone="atencao" />
+        </div>
+      </CrmSection>
 
       {mensagem && <footer className="rounded-lg border bg-card px-4 py-3 text-sm text-muted-foreground" aria-live="polite">{mensagem}</footer>}
-    </>
+    </CrmPageMotion>
   );
 }

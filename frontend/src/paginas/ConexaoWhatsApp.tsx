@@ -9,6 +9,7 @@ import {
 import { type FormEvent, useEffect, useState } from "react";
 import { requisitarApi } from "../api";
 import { CabecalhoPagina, EstadoVazio, ResumoIndicadores } from "../componentes/Shell";
+import { CrmPageMotion } from "../componentes/CrmInterno21st";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -61,7 +62,7 @@ export function PaginaConexaoWhatsApp() {
   const conectadas = resumo?.instancias.filter((i) => ["open", "connected", "online"].includes(i.status.toLowerCase())).length ?? 0;
 
   return (
-    <>
+    <CrmPageMotion>
       <CabecalhoPagina rotulo="Conexão WhatsApp" titulo="QR Code e instâncias">
         <Button asChild variant="outline" size="lg">
           <a
@@ -165,7 +166,7 @@ export function PaginaConexaoWhatsApp() {
       </div>
 
       <footer className="rounded-lg border bg-card px-4 py-3 text-sm text-muted-foreground" aria-live="polite">{mensagem}</footer>
-    </>
+    </CrmPageMotion>
   );
 }
 

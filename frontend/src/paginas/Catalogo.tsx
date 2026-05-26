@@ -2,9 +2,9 @@ import { BadgeCheck, Boxes, Edit3, Package, Plus, RefreshCcw, Search, Trash2 } f
 import { type FormEvent, useEffect, useState } from "react";
 import { requisitarApi } from "../api";
 import { CabecalhoPagina, EstadoVazio } from "../componentes/Shell";
+import { CrmList, CrmListItem, CrmMetricMini, CrmPageMotion, CrmSection } from "../componentes/CrmInterno21st";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -133,7 +133,7 @@ export function PaginaCatalogo() {
     : pecas;
 
   return (
-    <>
+    <CrmPageMotion>
       <CabecalhoPagina rotulo="Gestão de produtos" titulo="Produtos">
         <Button size="lg" onClick={abrirCadastro}>
           <Plus size={18} />
@@ -142,12 +142,11 @@ export function PaginaCatalogo() {
       </CabecalhoPagina>
 
       {mostrarForm && (
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between gap-3">
-            <h2 className="text-lg font-semibold">{codigoEditando ? `Editar produto #${codigoEditando}` : "Cadastrar novo produto"}</h2>
-            {codigoEditando ? <Edit3 size={20} /> : <Package size={20} />}
-          </CardHeader>
-          <CardContent>
+        <CrmSection
+          icon={codigoEditando ? <Edit3 size={20} /> : <Package size={20} />}
+          title={codigoEditando ? `Editar produto #${codigoEditando}` : "Cadastrar novo produto"}
+          description="Mantenha preço, estoque e fotos prontos para loja, WhatsApp e campanhas."
+        >
           <form onSubmit={salvarPeca} className="grid gap-4 md:grid-cols-3">
             <div className="grid gap-2">
               <label className="text-sm font-medium" htmlFor="codPeca">Código</label>
@@ -210,12 +209,19 @@ export function PaginaCatalogo() {
               </Button>
             </div>
           </form>
-          </CardContent>
-        </Card>
+        </CrmSection>
       )}
 
-      <Card>
-        <CardContent className="grid gap-4 p-4">
+      <CrmSection
+        icon={<Boxes size={20} />}
+        title="Catálogo operacional"
+        description="Produtos disponíveis para venda, reserva, vitrine pública e respostas rápidas."
+        actions={(
+          <Button variant="outline" size="icon-lg" onClick={() => void carregar()} title="Atualizar" aria-label="Atualizar produtos">
+            <RefreshCcw size={18} />
+          </Button>
+        )}
+      >
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
           <div className="relative flex-1">
             <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={16} />
@@ -228,57 +234,60 @@ export function PaginaCatalogo() {
               onChange={(e) => setBusca(e.target.value)}
             />
           </div>
-          <Button variant="outline" size="icon-lg" onClick={() => void carregar()} title="Atualizar" aria-label="Atualizar produtos">
-            <RefreshCcw size={18} />
-          </Button>
         </div>
 
-        <div className="catalogo-commerce-list grid gap-3">
+        <CrmList className="catalogo-commerce-list">
           {pecasFiltradas.length ? (
             pecasFiltradas.map((peca) => (
-              <Card key={peca.id} className="bg-muted/20">
-                <CardContent className="grid grid-cols-[56px_minmax(0,1fr)] gap-3 p-3 sm:grid-cols-[64px_1fr_auto] sm:items-center">
-                <div className="h-14 w-14 overflow-hidden rounded-lg border bg-background sm:h-16 sm:w-16">
-                  {peca.fotos[0] ? (
-                    <img className="h-full w-full object-cover" src={peca.fotos[0]} alt={peca.nome} />
-                  ) : (
-                    <div className="grid h-full w-full place-items-center text-muted-foreground" aria-label="Sem foto">
-                      <Package size={18} />
-                    </div>
-                  )}
-                </div>
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-2">
+              <CrmListItem
+                key={peca.id}
+                className="sm:grid-cols-[64px_1fr_auto]"
+                media={(
+                  <div className="h-9 w-9 overflow-hidden rounded-lg bg-background">
+                    {peca.fotos[0] ? (
+                      <img className="h-full w-full object-cover" src={peca.fotos[0]} alt={peca.nome} />
+                    ) : (
+                      <div className="grid h-full w-full place-items-center text-muted-foreground" aria-label="Sem foto">
+                        <Package size={18} />
+                      </div>
+                    )}
+                  </div>
+                )}
+                title={peca.nome}
+                description={peca.descricao || "Sem descrição"}
+                tone={peca.estado === "DISPONIVEL" ? "sucesso" : peca.estado === "RESERVADA" ? "atencao" : "neutro"}
+                meta={formatarKwanza(peca.precoEmKwanza)}
+                badges={(
+                  <>
                     <Badge variant="outline">#{peca.codigo}</Badge>
                     <Badge variant={obterVariantePeca(peca.estado)}>{traduzirEstadoPeca(peca.estado)}</Badge>
-                  </div>
-                  <strong className="mt-2 block truncate">{peca.nome}</strong>
-                  <span className="block truncate text-sm text-muted-foreground">{peca.descricao || "Sem descrição"}</span>
-                  <div className="mt-2 flex flex-wrap gap-3 text-sm">
-                    <strong>{formatarKwanza(peca.precoEmKwanza)}</strong>
-                    <span className="text-muted-foreground">{peca.quantidade} un.</span>
-                  </div>
+                  </>
+                )}
+                actions={(
+                  <>
+                    <Button variant="outline" size="icon-lg" onClick={() => iniciarEdicao(peca)} title="Editar produto" disabled={carregando}>
+                      <Edit3 size={16} />
+                    </Button>
+                    <Button variant="outline" size="icon-lg" onClick={() => void desativarPeca(peca)} title="Desativar produto" disabled={carregando || peca.estado === "ESGOTADA"}>
+                      <Trash2 size={16} />
+                    </Button>
+                  </>
+                )}
+              >
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <CrmMetricMini label="preço" value={formatarKwanza(peca.precoEmKwanza)} tone="sucesso" />
+                  <CrmMetricMini label="stock" value={`${peca.quantidade} un.`} tone={peca.quantidade > 2 ? "principal" : "atencao"} />
                 </div>
-                <div className="col-span-2 flex gap-2 sm:col-span-1 sm:justify-end">
-                  <Button variant="outline" size="icon-lg" onClick={() => iniciarEdicao(peca)} title="Editar produto" disabled={carregando}>
-                    <Edit3 size={16} />
-                  </Button>
-                  <Button variant="outline" size="icon-lg" onClick={() => void desativarPeca(peca)} title="Desativar produto" disabled={carregando || peca.estado === "ESGOTADA"}>
-                    <Trash2 size={16} />
-                  </Button>
-                </div>
-                </CardContent>
-              </Card>
+              </CrmListItem>
             ))
           ) : (
             <EstadoVazio icone={<Boxes />} titulo="Sem produtos cadastrados" detalhe="Cadastre o primeiro produto para iniciar a venda." />
           )}
-        </div>
-        </CardContent>
-      </Card>
+        </CrmList>
+      </CrmSection>
 
       {mensagem && <footer className="rounded-lg border bg-card px-4 py-3 text-sm text-muted-foreground" aria-live="polite">{mensagem}</footer>}
-    </>
+    </CrmPageMotion>
   );
 }
 

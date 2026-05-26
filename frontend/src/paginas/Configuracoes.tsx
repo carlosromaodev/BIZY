@@ -11,9 +11,9 @@ import {
 import { type ReactNode, useEffect, useMemo, useState } from "react";
 import { requisitarApi } from "../api";
 import { CabecalhoPagina, EstadoVazio, ResumoIndicadores } from "../componentes/Shell";
+import { CrmList, CrmListItem, CrmPageMotion, CrmSection } from "../componentes/CrmInterno21st";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import type { ConfiguracaoOperacional, ResumoAutomacoes } from "../tipos";
 import { traduzirEstadoIntegracao } from "../utilidades";
 
@@ -48,7 +48,7 @@ export function PaginaConfiguracoes() {
   }, []);
 
   return (
-    <>
+    <CrmPageMotion>
       <CabecalhoPagina rotulo="Administração" titulo="Configurações em execução">
         <Button variant="outline" size="lg" onClick={() => void carregar()}>
           <RefreshCcw size={18} />
@@ -68,65 +68,64 @@ export function PaginaConfiguracoes() {
 
       <section className="grid gap-4 lg:grid-cols-2">
         {Object.entries(porGrupo).map(([grupo, itens]) => (
-          <Card key={grupo}>
-            <CardHeader className="flex flex-row items-center gap-3">
-              <div className="grid h-10 w-10 place-items-center rounded-lg bg-muted text-muted-foreground">
-                {iconesConfiguracao[grupo] ?? <Settings size={20} />}
-              </div>
-              <h2 className="text-lg font-semibold">{grupo}</h2>
-            </CardHeader>
-            <CardContent className="grid gap-3">
+          <CrmSection
+            key={grupo}
+            icon={iconesConfiguracao[grupo] ?? <Settings size={20} />}
+            title={grupo}
+            description="Parâmetros lidos do backend para operação da loja."
+          >
+            <CrmList>
               {itens.map((item) => (
-                <Card className="bg-muted/20" key={`${item.grupo}-${item.nome}`}>
-                  <CardContent className="grid gap-3 p-3 sm:grid-cols-[1fr_auto] sm:items-center">
-                  <div className="min-w-0">
-                    <strong className="block truncate">{item.nome}</strong>
-                    <span className="block text-sm text-muted-foreground">{item.detalhe}</span>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+                <CrmListItem
+                  key={`${item.grupo}-${item.nome}`}
+                  media={iconesConfiguracao[grupo] ?? <Settings size={18} />}
+                  title={item.nome}
+                  description={item.detalhe}
+                  tone={item.estado === "ATIVA" ? "sucesso" : item.estado === "PENDENTE" ? "atencao" : "neutro"}
+                  actions={(
+                    <>
                     <code className="rounded bg-background px-2 py-1 text-xs">{item.valor}</code>
                     <Badge variant={item.estado === "ATIVA" ? "success" : item.estado === "PENDENTE" ? "warning" : "secondary"}>
                       {item.estado === "ATIVA" ? "Ativa" : item.estado === "PENDENTE" ? "Pendente" : "Desativada"}
                     </Badge>
-                  </div>
-                  </CardContent>
-                </Card>
+                    </>
+                  )}
+                />
               ))}
-            </CardContent>
-          </Card>
+            </CrmList>
+          </CrmSection>
         ))}
 
-        <Card>
-          <CardHeader className="flex flex-row items-center gap-3">
-            <div className="grid h-10 w-10 place-items-center rounded-lg bg-muted text-muted-foreground">
-              <Workflow size={20} />
-            </div>
-            <h2 className="text-lg font-semibold">Integrações</h2>
-          </CardHeader>
-          <CardContent className="grid gap-3">
+        <CrmSection
+          icon={<Workflow size={20} />}
+          title="Integrações"
+          description="Serviços conectados que sustentam WhatsApp, automações e dados."
+        >
+          <CrmList>
             {resumo?.integracoes.length ? (
               resumo.integracoes.map((integracao) => (
-                <Card className="bg-muted/20" key={integracao.nome}>
-                  <CardContent className="grid gap-3 p-3 sm:grid-cols-[1fr_auto] sm:items-center">
-                  <div className="min-w-0">
-                    <strong className="block truncate">{integracao.nome}</strong>
-                    <span className="block text-sm text-muted-foreground">{integracao.detalhe}</span>
-                  </div>
-                  <Badge className="w-fit" variant={integracao.estado === "CONFIGURADA" ? "success" : integracao.estado === "PENDENTE" ? "warning" : "secondary"}>
-                    {traduzirEstadoIntegracao(integracao.estado)}
-                  </Badge>
-                  </CardContent>
-                </Card>
+                <CrmListItem
+                  key={integracao.nome}
+                  media={<Workflow size={18} />}
+                  title={integracao.nome}
+                  description={integracao.detalhe}
+                  tone={integracao.estado === "CONFIGURADA" ? "sucesso" : integracao.estado === "PENDENTE" ? "atencao" : "neutro"}
+                  actions={(
+                    <Badge className="w-fit" variant={integracao.estado === "CONFIGURADA" ? "success" : integracao.estado === "PENDENTE" ? "warning" : "secondary"}>
+                      {traduzirEstadoIntegracao(integracao.estado)}
+                    </Badge>
+                  )}
+                />
               ))
             ) : (
               <EstadoVazio icone={<Workflow />} titulo="Sem integrações" detalhe="O backend ainda não retornou status." />
             )}
-          </CardContent>
-        </Card>
+          </CrmList>
+        </CrmSection>
       </section>
 
       {mensagem && <footer className="rounded-lg border bg-card px-4 py-3 text-sm text-muted-foreground" aria-live="polite">{mensagem}</footer>}
-    </>
+    </CrmPageMotion>
   );
 }
 

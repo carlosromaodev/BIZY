@@ -20,6 +20,7 @@ import {
 import { type FormEvent, type ReactNode, useEffect, useMemo, useState } from "react";
 import { requisitarApi, obterUrlEventos } from "../api";
 import { CabecalhoPagina, ResumoIndicadores } from "../componentes/Shell";
+import { CrmPageMotion } from "../componentes/CrmInterno21st";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -227,7 +228,7 @@ export function PaginaPainel() {
   }
 
   return (
-    <>
+    <CrmPageMotion>
       <CabecalhoPagina rotulo="Operação comercial" titulo="Painel">
         <div className="flex flex-wrap items-center gap-2">
           <div className="flex items-center gap-3 rounded-lg border bg-card px-3 py-2 text-sm">
@@ -497,7 +498,7 @@ export function PaginaPainel() {
       </section>
 
       <footer className="rounded-lg border bg-card px-4 py-3 text-sm text-muted-foreground" aria-live="polite">{mensagem}</footer>
-    </>
+    </CrmPageMotion>
   );
 }
 

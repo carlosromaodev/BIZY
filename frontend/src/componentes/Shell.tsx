@@ -24,6 +24,7 @@ import {
 } from "../rotasApp";
 import type { Peca, Reserva, RespostaConversas } from "../tipos";
 import { formatarKwanza } from "../utilidades";
+import { CrmListItem } from "./CrmInterno21st";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -461,7 +462,7 @@ function BuscaGlobalComercial() {
 
       {mostrarPainel && (
         <Card size="sm" className="border-border/80 shadow-sm">
-          <CardContent className="grid gap-1 p-2">
+          <CardContent className="grid gap-2 p-2">
             {erro ? (
               <p className="px-2 py-3 text-sm text-destructive" role="status">{erro}</p>
             ) : resultados.length ? (
@@ -470,16 +471,16 @@ function BuscaGlobalComercial() {
                   key={resultado.id}
                   type="button"
                   variant="ghost"
-                  className="h-auto w-full justify-start gap-3 rounded-lg px-3 py-2 text-left"
+                  className="h-auto w-full justify-start whitespace-normal p-0 text-left hover:bg-transparent"
                   onClick={() => abrirResultado(resultado)}
                 >
-                  <span className="grid h-8 w-8 place-items-center rounded-lg bg-primary/10 text-primary">
-                    <IconeResultadoBusca tipo={resultado.tipo} />
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate font-semibold">{resultado.titulo}</span>
-                    <span className="block truncate text-xs text-muted-foreground">{resultado.detalhe}</span>
-                  </span>
+                  <CrmListItem
+                    media={<IconeResultadoBusca tipo={resultado.tipo} />}
+                    title={resultado.titulo}
+                    description={resultado.detalhe}
+                    tone={resultado.tipo === "pedido" ? "atencao" : resultado.tipo === "produto" ? "sucesso" : "principal"}
+                    className="p-2"
+                  />
                 </Button>
               ))
             ) : (
@@ -587,7 +588,7 @@ export function ResumoIndicadores({
 
   return (
     <section aria-label={rotulo} className={cn("app-commerce-summary", className)}>
-      <Card size="sm" className="py-0">
+      <Card size="sm" className="crm21-summary py-0">
         <CardContent className={cn("grid gap-0 p-0", grade[colunas])}>
           {itens.map((item) => (
             <div
@@ -622,9 +623,9 @@ export function EstadoVazio({
   detalhe: string;
 }) {
   return (
-    <Card className="border-dashed">
+    <Card className="crm21-empty border-dashed">
       <CardContent className="grid min-h-40 place-items-center gap-2 p-6 text-center">
-        <div className="grid h-12 w-12 place-items-center rounded-xl bg-muted text-muted-foreground">{icone}</div>
+        <div className="grid h-12 w-12 place-items-center rounded-xl bg-primary/10 text-primary">{icone}</div>
         <strong>{titulo}</strong>
         <span className="max-w-sm text-sm text-muted-foreground">{detalhe}</span>
       </CardContent>
