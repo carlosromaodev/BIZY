@@ -114,6 +114,8 @@ Atualização 1.47: Relatório comercial passou a incluir desempenho de campanha
 
 Atualização 1.48: Relatório comercial passou a sinalizar oportunidades perdidas e recuperáveis com clientes que perguntaram e não compraram, comprovativos não enviados, leads sociais sem atendimento e cliques WhatsApp sem compra, além de pedidos pendentes, reservas expiradas e conversas sem resposta.
 
+Atualização 1.49: Relatório comercial passou a medir retenção com tempo médio entre compras, dias médios desde última compra, distribuição de clientes por recência/risco e coortes mensais de recompra com taxa de retenção e receita de recompra.
+
 ---
 
 ## 2. Legenda
@@ -422,7 +424,7 @@ Esta etapa transforma o Bizy de painel de live em CRM operacional para lojas que
 | RF139 | [x] O sistema deve gerar resumo diário automático com vendas, pendências e tarefas para o dia seguinte. | Média | Implementado no backend em `/relatorios/resumo-diario` |
 | RF140 | [x] O CRM deve permitir filtrar relatórios por período, canal, produto, coleção, responsável e estado do pedido. | Média | Implementado no backend em `/relatorios/comercial`, `/relatorios/resumo-diario`, CSV e PDF com filtro `colecao` |
 | RF141 | [x] O painel deve mostrar oportunidades perdidas, como clientes que perguntaram e não compraram, reserva expirada e comprovativo não enviado. | Alta | Implementado no relatório comercial com pedidos aguardando pagamento, reservas expiradas, conversas sem resposta, clientes que perguntaram e não compraram, comprovativos não enviados, leads sociais sem atendimento e cliques WhatsApp sem compra |
-| RF142 | [~] O CRM deve medir retenção simples: clientes que voltaram a comprar, tempo desde última compra e clientes em risco de sumir. | Média | Parcial - relatório comercial calcula clientes recorrentes e em risco; falta coorte/tempo médio detalhado |
+| RF142 | [x] O CRM deve medir retenção simples: clientes que voltaram a comprar, tempo desde última compra e clientes em risco de sumir. | Média | Implementado no relatório comercial com clientes recorrentes, tempo médio entre compras, dias médios desde última compra, distribuição por risco e coortes mensais de recompra |
 | RF143 | [x] Relatórios técnicos de automação devem ficar no Admin/Sistema, não no menu comercial da loja. | Alta | Implementado na navegação/rotas técnicas atuais |
 
 #### 3.13.7 Tarefas, Equipa e Rotina da Loja

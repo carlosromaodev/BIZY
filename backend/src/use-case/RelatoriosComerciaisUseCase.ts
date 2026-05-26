@@ -76,9 +76,9 @@ export class RelatoriosComerciaisUseCase {
     const descontosEmKwanza = pedidosDoRelatorio.reduce((total, pedido) => total + pedido.descontoEmKwanza, 0);
     const entregaEmKwanza = pedidosDoRelatorio.reduce((total, pedido) => total + pedido.taxaEntregaEmKwanza, 0);
     const receitaLiquidaEstimadaEmKwanza = receitaBrutaEmKwanza - descontosEmKwanza + entregaEmKwanza;
-    const clientesComPedidosPagos = this.contarPedidosPagosPorCliente(pedidosPagos);
     const reservasComIntencao = reservasDoRelatorio.filter((reserva) => !filtros.dataInicio || reserva.criadaEm >= filtros.dataInicio);
     const reservasPagas = reservasComIntencao.filter((reserva) => reserva.estado === "PAID");
+    const retencao = this.calcularMetricasRetencao(pedidosPagos, clientes);
     const desempenhoCampanhas = await this.calcularDesempenhoCampanhas(negocioId, pedidosDoRelatorio, clientes);
     const oportunidadesPerdidas = await this.calcularOportunidadesPerdidas(
       negocioId,
@@ -98,7 +98,7 @@ export class RelatoriosComerciaisUseCase {
           ? Math.round(pedidosPagos.reduce((total, pedido) => total + pedido.totalEmKwanza, 0) / pedidosPagos.length)
           : 0,
         clientesNovos: clientes.filter((cliente) => this.dentroDoPeriodo(cliente.primeiraInteracaoEm, filtros)).length,
-        clientesRecorrentes: [...clientesComPedidosPagos.values()].filter((total) => total >= 2).length,
+        clientesRecorrentes: retencao.clientesRecorrentes,
         conversaoReservasPercentual: reservasComIntencao.length
           ? Number(((reservasPagas.length / reservasComIntencao.length) * 100).toFixed(2))
           : 0,
@@ -116,10 +116,7 @@ export class RelatoriosComerciaisUseCase {
       atendimento: this.calcularMetricasAtendimento(conversas, tarefas),
       campanhas: desempenhoCampanhas,
       oportunidadesPerdidas,
-      retencao: {
-        clientesRecorrentes: [...clientesComPedidosPagos.values()].filter((total) => total >= 2).length,
-        clientesEmRisco: clientes.filter((cliente) => Date.now() - cliente.ultimaInteracaoEm.getTime() > 30 * 86_400_000).length
-      }
+      retencao
     };
   }
 
@@ -201,7 +198,15 @@ export class RelatoriosComerciaisUseCase {
         "clientesQuePerguntaramENaoCompraram",
         "comprovativosNaoEnviados",
         "socialLeadsSemAtendimento",
-        "whatsappClicksSemCompra"
+        "whatsappClicksSemCompra",
+        "retencaoClientesRecorrentes",
+        "retencaoClientesEmRisco",
+        "tempoMedioEntreComprasDias",
+        "diasMediosDesdeUltimaCompra",
+        "retencaoAtivos",
+        "retencaoAtencao",
+        "retencaoRisco",
+        "retencaoPerdidos"
       ],
       [
         String(relatorio.metricas.pedidosPagos),
@@ -224,7 +229,15 @@ export class RelatoriosComerciaisUseCase {
         String(relatorio.oportunidadesPerdidas.clientesQuePerguntaramENaoCompraram),
         String(relatorio.oportunidadesPerdidas.comprovativosNaoEnviados),
         String(relatorio.oportunidadesPerdidas.socialLeadsSemAtendimento),
-        String(relatorio.oportunidadesPerdidas.whatsappClicksSemCompra)
+        String(relatorio.oportunidadesPerdidas.whatsappClicksSemCompra),
+        String(relatorio.retencao.clientesRecorrentes),
+        String(relatorio.retencao.clientesEmRisco),
+        String(relatorio.retencao.tempoMedioEntreComprasDias),
+        String(relatorio.retencao.diasMediosDesdeUltimaCompra),
+        String(relatorio.retencao.clientesPorRisco.ativo),
+        String(relatorio.retencao.clientesPorRisco.atencao),
+        String(relatorio.retencao.clientesPorRisco.risco),
+        String(relatorio.retencao.clientesPorRisco.perdido)
       ]
     ];
     return {
@@ -378,14 +391,6 @@ export class RelatoriosComerciaisUseCase {
       .slice(0, 20);
   }
 
-  private contarPedidosPagosPorCliente(pedidos: Pedido[]) {
-    const mapa = new Map<string, number>();
-    for (const pedido of pedidos) {
-      mapa.set(pedido.clienteNegocioId, (mapa.get(pedido.clienteNegocioId) ?? 0) + 1);
-    }
-    return mapa;
-  }
-
   private calcularMetricasAtendimento(
     conversas: ConversaAtendimentoComMensagens[],
     tarefas: Awaited<ReturnType<RepositorioTarefasOperacionais["listar"]>>
@@ -407,6 +412,103 @@ export class RelatoriosComerciaisUseCase {
       tarefasAbertas: tarefas.filter((tarefa) => !["CONCLUIDA", "CANCELADA"].includes(tarefa.estado)).length,
       tarefasAtrasadas: tarefas.filter((tarefa) => tarefa.prazoEm && tarefa.prazoEm < new Date() && !["CONCLUIDA", "CANCELADA"].includes(tarefa.estado)).length
     };
+  }
+
+  private calcularMetricasRetencao(pedidosPagos: Pedido[], clientes: Cliente360[]) {
+    const agora = Date.now();
+    const pedidosPorCliente = new Map<string, Pedido[]>();
+    for (const pedido of pedidosPagos) {
+      const lista = pedidosPorCliente.get(pedido.clienteNegocioId) ?? [];
+      lista.push(pedido);
+      pedidosPorCliente.set(pedido.clienteNegocioId, lista);
+    }
+
+    const intervalosEntreCompras: number[] = [];
+    const diasDesdeUltimaCompra: number[] = [];
+    const clientesPorRisco = {
+      ativo: 0,
+      atencao: 0,
+      risco: 0,
+      perdido: 0
+    };
+    const cohortes = new Map<
+      string,
+      {
+        mesPrimeiraCompra: string;
+        clientes: number;
+        recorrentes: number;
+        receitaPrimeiraCompraEmKwanza: number;
+        receitaRecompraEmKwanza: number;
+      }
+    >();
+
+    for (const lista of pedidosPorCliente.values()) {
+      const compras = [...lista].sort((a, b) => this.dataCompra(a).getTime() - this.dataCompra(b).getTime());
+      const primeira = compras[0];
+      const ultima = compras.at(-1)!;
+      const diasRecencia = Math.max(0, Math.round((agora - this.dataCompra(ultima).getTime()) / 86_400_000));
+      diasDesdeUltimaCompra.push(diasRecencia);
+
+      if (diasRecencia <= 30) clientesPorRisco.ativo += 1;
+      else if (diasRecencia <= 60) clientesPorRisco.atencao += 1;
+      else if (diasRecencia <= 90) clientesPorRisco.risco += 1;
+      else clientesPorRisco.perdido += 1;
+
+      for (let indice = 1; indice < compras.length; indice += 1) {
+        const anterior = this.dataCompra(compras[indice - 1]);
+        const atual = this.dataCompra(compras[indice]);
+        intervalosEntreCompras.push(Math.max(0, Math.round((atual.getTime() - anterior.getTime()) / 86_400_000)));
+      }
+
+      const mesPrimeiraCompra = this.mesAno(this.dataCompra(primeira));
+      const cohorte = cohortes.get(mesPrimeiraCompra) ?? {
+        mesPrimeiraCompra,
+        clientes: 0,
+        recorrentes: 0,
+        receitaPrimeiraCompraEmKwanza: 0,
+        receitaRecompraEmKwanza: 0
+      };
+      cohorte.clientes += 1;
+      cohorte.receitaPrimeiraCompraEmKwanza += primeira.totalEmKwanza;
+      if (compras.length >= 2) {
+        cohorte.recorrentes += 1;
+        cohorte.receitaRecompraEmKwanza += compras.slice(1).reduce((total, pedido) => total + pedido.totalEmKwanza, 0);
+      }
+      cohortes.set(mesPrimeiraCompra, cohorte);
+    }
+
+    const clientesSemCompraEmRisco = clientes.filter(
+      (cliente) => !pedidosPorCliente.has(cliente.id) && agora - cliente.ultimaInteracaoEm.getTime() > 30 * 86_400_000
+    ).length;
+
+    return {
+      clientesRecorrentes: [...pedidosPorCliente.values()].filter((compras) => compras.length >= 2).length,
+      clientesEmRisco: clientesPorRisco.atencao + clientesPorRisco.risco + clientesPorRisco.perdido + clientesSemCompraEmRisco,
+      clientesSemCompraEmRisco,
+      tempoMedioEntreComprasDias: this.mediaArredondada(intervalosEntreCompras),
+      diasMediosDesdeUltimaCompra: this.mediaArredondada(diasDesdeUltimaCompra),
+      clientesPorRisco,
+      cohortesRecompra: [...cohortes.values()]
+        .map((cohorte) => ({
+          ...cohorte,
+          taxaRetencaoPercentual: cohorte.clientes
+            ? Number(((cohorte.recorrentes / cohorte.clientes) * 100).toFixed(2))
+            : 0
+        }))
+        .sort((a, b) => b.mesPrimeiraCompra.localeCompare(a.mesPrimeiraCompra))
+    };
+  }
+
+  private dataCompra(pedido: Pedido) {
+    return pedido.pagoEm ?? pedido.criadoEm;
+  }
+
+  private mesAno(data: Date) {
+    return `${data.getUTCFullYear()}-${String(data.getUTCMonth() + 1).padStart(2, "0")}`;
+  }
+
+  private mediaArredondada(valores: number[]) {
+    return valores.length ? Math.round(valores.reduce((total, valor) => total + valor, 0) / valores.length) : 0;
   }
 
   private calcularTempoPrimeiraRespostaMinutos(conversa: ConversaAtendimentoComMensagens): number | null {
@@ -752,6 +854,9 @@ export class RelatoriosComerciaisUseCase {
         ${this.cardPdf("Comprovativos não enviados", String(relatorio.oportunidadesPerdidas.comprovativosNaoEnviados))}
         ${this.cardPdf("Cliques WhatsApp sem compra", String(relatorio.oportunidadesPerdidas.whatsappClicksSemCompra))}
         ${this.cardPdf("Clientes em risco", String(relatorio.retencao.clientesEmRisco))}
+        ${this.cardPdf("Tempo médio entre compras", `${relatorio.retencao.tempoMedioEntreComprasDias} dias`)}
+        ${this.cardPdf("Dias desde última compra", `${relatorio.retencao.diasMediosDesdeUltimaCompra} dias`)}
+        ${this.cardPdf("Clientes perdidos", String(relatorio.retencao.clientesPorRisco.perdido))}
       </section>
 
       <p class="footer muted">Use este PDF para alinhamento diário da equipa: cobrar pendências, preparar entregas, repor produtos e recuperar oportunidades.</p>
