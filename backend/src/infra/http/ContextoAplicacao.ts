@@ -156,6 +156,7 @@ export interface RepositoriosAplicacao {
 
 export interface SessaoLive {
   id: string;
+  negocioId: string | null;
   username: string;
   providerNome: string;
   provider: LiveCommentProvider;

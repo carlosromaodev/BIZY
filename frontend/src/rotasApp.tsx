@@ -1,4 +1,5 @@
 import {
+  BadgeDollarSign,
   BarChart3,
   GitBranch,
   LineChart,
@@ -10,10 +11,13 @@ import {
   Settings,
   SlidersHorizontal,
   Smartphone,
+  Store,
+  Workflow,
   Users
 } from "lucide-react";
 import type { ReactNode } from "react";
 import { PaginaAgentes } from "./paginas/Agentes";
+import { PaginaAfiliados } from "./paginas/Afiliados";
 import { PaginaCampanhas } from "./paginas/Campanhas";
 import { PaginaCatalogo } from "./paginas/Catalogo";
 import { PaginaClientes } from "./paginas/Clientes";
@@ -24,7 +28,9 @@ import { PaginaConversas } from "./paginas/Conversas";
 import { PaginaHome } from "./paginas/Home";
 import { PaginaIntegracaoN8n } from "./paginas/IntegracaoN8n";
 import { PaginaLogin } from "./paginas/Login";
+import { PaginaLojaPublica } from "./paginas/LojaPublica";
 import { PaginaOnboarding } from "./paginas/Onboarding";
+import { PaginaOperacaoCrmPlus } from "./paginas/OperacaoCrmPlus";
 import { PaginaPainel } from "./paginas/Painel";
 import { PaginaRelatorios } from "./paginas/Relatorios";
 import { PaginaReservas } from "./paginas/Reservas";
@@ -57,7 +63,10 @@ export const rotasComerciais: RotaPrivada[] = [
   { caminho: "/app/catalogo", icone: <Package size={20} />, rotulo: "Produtos", secao: "Loja", elemento: <PaginaCatalogo /> },
   { caminho: "/app/clientes", icone: <Users size={20} />, rotulo: "Clientes", secao: "CRM", elemento: <PaginaClientes /> },
   { caminho: "/app/conversas", icone: <MessageCircle size={20} />, rotulo: "Conversas", secao: "CRM", elemento: <PaginaConversas /> },
+  { caminho: "/app/operacao", icone: <Workflow size={20} />, rotulo: "Operação CRM+", secao: "CRM", elemento: <PaginaOperacaoCrmPlus /> },
   { caminho: "/app/campanhas", icone: <Megaphone size={20} />, rotulo: "Campanhas", secao: "Loja", elemento: <PaginaCampanhas /> },
+  { caminho: "/app/loja-publica", icone: <Store size={20} />, rotulo: "Loja pública", secao: "Loja", elemento: <PaginaLojaPublica /> },
+  { caminho: "/app/afiliados", icone: <BadgeDollarSign size={20} />, rotulo: "Afiliados", secao: "Loja", elemento: <PaginaAfiliados /> },
   { caminho: "/app/relatorios", icone: <LineChart size={20} />, rotulo: "Relatórios", secao: "Loja", elemento: <PaginaRelatorios /> },
   { caminho: "/app/configuracoes", icone: <Settings size={20} />, rotulo: "Config. Loja", secao: "Loja", elemento: <PaginaConfiguracoes /> }
 ];

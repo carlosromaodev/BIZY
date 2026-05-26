@@ -1,12 +1,15 @@
 import {
-  Ban,
+  AlertCircle,
   CheckCircle2,
-  Clock,
+  ClipboardList,
+  PackageCheck,
   ReceiptText,
   RefreshCcw,
   Search,
+  Truck,
   UserRoundCheck,
-  WalletCards
+  WalletCards,
+  Wrench
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { requisitarApi, obterUrlEventos } from "../api";
@@ -22,36 +25,67 @@ import {
   SelectTrigger,
   SelectValue
 } from "@/components/ui/select";
-import type { Reserva, Peca } from "../tipos";
-import { estadosReservaAtiva } from "../tipos";
-import {
-  formatarDataHoraCurta,
-  formatarKwanza,
-  formatarTempoRestante,
-  obterPrecoDaPeca,
-  traduzirEstadoPagamentoCurto,
-  traduzirEstadoReserva
-} from "../utilidades";
+import type {
+  Cliente360,
+  EstadoEntregaPedido,
+  EstadoPagamentoPedido,
+  EstadoPedido,
+  Pedido,
+  RespostaClientes360,
+  RespostaEntregasPedidos,
+  RespostaPedidos,
+  RespostaPreparacaoPedidos,
+  RespostaTarefasOperacionais,
+  TarefaOperacional
+} from "../tipos";
+import { formatarDataHoraCurta, formatarKwanza } from "../utilidades";
+
+const estadosPedido: Array<EstadoPedido | "todos"> = [
+  "todos",
+  "NOVO",
+  "AGUARDANDO_PAGAMENTO",
+  "PAGO",
+  "EM_PREPARACAO",
+  "PRONTO_ENTREGA",
+  "ENVIADO",
+  "ENTREGUE",
+  "CANCELADO",
+  "TROCADO",
+  "DEVOLVIDO"
+];
 
 export function PaginaReservas() {
-  const [reservas, setReservas] = useState<Reserva[]>([]);
-  const [pecas, setPecas] = useState<Peca[]>([]);
+  const [pedidos, setPedidos] = useState<Pedido[]>([]);
+  const [clientes, setClientes] = useState<Cliente360[]>([]);
+  const [preparacao, setPreparacao] = useState<RespostaPreparacaoPedidos>({ pedidos: [], produtos: [] });
+  const [entregas, setEntregas] = useState<RespostaEntregasPedidos>({ pedidos: [] });
+  const [tarefas, setTarefas] = useState<TarefaOperacional[]>([]);
   const [carregando, setCarregando] = useState(false);
   const [mensagem, setMensagem] = useState("");
   const [busca, setBusca] = useState("");
-  const [filtro, setFiltro] = useState("todos");
+  const [filtro, setFiltro] = useState<EstadoPedido | "todos">("todos");
   const [limitePedidos, setLimitePedidos] = useState(12);
 
   async function carregar() {
     try {
-      const [listaReservas, listaPecas] = await Promise.all([
-        requisitarApi<Reserva[]>("/reservas"),
-        requisitarApi<Peca[]>("/pecas")
+      const [respostaPedidos, respostaClientes, respostaPreparacao, respostaEntregas, respostaTarefas] = await Promise.allSettled([
+        requisitarApi<RespostaPedidos>("/pedidos?limite=200"),
+        requisitarApi<RespostaClientes360>("/clientes?limite=500"),
+        requisitarApi<RespostaPreparacaoPedidos>("/pedidos/preparacao"),
+        requisitarApi<RespostaEntregasPedidos>("/pedidos/entregas?limite=100"),
+        requisitarApi<RespostaTarefasOperacionais>("/tarefas?limite=30")
       ]);
-      setReservas(listaReservas);
-      setPecas(listaPecas);
-    } catch {
-      setMensagem("Erro ao carregar reservas.");
+
+      if (respostaPedidos.status === "fulfilled") setPedidos(respostaPedidos.value.pedidos ?? []);
+      if (respostaClientes.status === "fulfilled") setClientes(respostaClientes.value.clientes ?? []);
+      if (respostaPreparacao.status === "fulfilled") setPreparacao(respostaPreparacao.value);
+      if (respostaEntregas.status === "fulfilled") setEntregas(respostaEntregas.value);
+      if (respostaTarefas.status === "fulfilled") setTarefas(respostaTarefas.value.tarefas ?? []);
+
+      const falhas = [respostaPedidos, respostaClientes, respostaPreparacao, respostaEntregas, respostaTarefas].filter((resultado) => resultado.status === "rejected");
+      setMensagem(falhas.length ? "Alguns módulos do backend ainda não responderam; a tela mostra os dados disponíveis." : "");
+    } catch (erro) {
+      setMensagem(erro instanceof Error ? erro.message : "Erro ao carregar pedidos.");
     }
   }
 
@@ -59,9 +93,15 @@ export function PaginaReservas() {
     void carregar();
     const eventos = new EventSource(obterUrlEventos());
     const atualizar = () => void carregar();
-    ["RESERVATION_CREATED", "RESERVATION_EXPIRING", "RESERVATION_WAITLISTED", "PAYMENT_CONFIRMED", "RESERVATION_EXPIRED"].forEach(
-      (e) => eventos.addEventListener(e, atualizar)
-    );
+    [
+      "ORDER_CREATED",
+      "ORDER_PAYMENT_CONFIRMED",
+      "ORDER_READY_TO_SHIP",
+      "ORDER_DELIVERED",
+      "ORDER_CANCELLED",
+      "PAYMENT_CONFIRMED",
+      "RESERVATION_CREATED"
+    ].forEach((e) => eventos.addEventListener(e, atualizar));
     return () => eventos.close();
   }, []);
 
@@ -79,91 +119,84 @@ export function PaginaReservas() {
     }
   }
 
-  const reservasAtivas = useMemo(() => reservas.filter((r) => estadosReservaAtiva.includes(r.estado)), [reservas]);
-  const pagas = reservas.filter((r) => r.estado === "PAID").length;
-  const aguardando = reservas.filter((r) => r.estado === "WAITING_PAYMENT").length;
-  const resumoPedidos = [
-    {
-      titulo: "Total",
-      valor: reservas.length,
-      detalhe: "pedidos criados",
-      icone: <ReceiptText />,
-      tom: "principal" as const
-    },
-    {
-      titulo: "Ativos",
-      valor: reservasAtivas.length,
-      detalhe: "pendentes ou reservados",
-      icone: <Clock />,
-      tom: "atencao" as const
-    },
-    {
-      titulo: "Aguardando",
-      valor: aguardando,
-      detalhe: "pagamento pendente",
-      icone: <WalletCards />,
-      tom: "info" as const
-    },
-    {
-      titulo: "Pagas",
-      valor: pagas,
-      detalhe: "confirmadas",
-      icone: <UserRoundCheck />,
-      tom: "sucesso" as const
-    }
-  ];
+  const clientesPorId = useMemo(() => new Map(clientes.map((cliente) => [cliente.id, cliente])), [clientes]);
+  const aguardandoPagamento = pedidos.filter((pedido) => pedido.estadoPagamento === "PENDENTE" || pedido.estado === "AGUARDANDO_PAGAMENTO");
+  const pagos = pedidos.filter((pedido) => pedido.estadoPagamento === "CONFIRMADO" || ["PAGO", "EM_PREPARACAO", "PRONTO_ENTREGA", "ENVIADO", "ENTREGUE"].includes(pedido.estado));
+  const receitaConfirmada = pagos.reduce((total, pedido) => total + pedido.totalEmKwanza, 0);
+  const tarefasPedidos = tarefas.filter((tarefa) => tarefa.pedidoId || tarefa.tipo.includes("PEDIDO") || tarefa.tipo === "COBRANCA");
 
-  const reservasFiltradas = reservas.filter((r) => {
-    if (filtro !== "todos" && r.estado !== filtro) return false;
-    if (busca) {
-      const t = busca.toLowerCase();
-      return r.nomeCliente.toLowerCase().includes(t) || r.telefoneCliente.includes(t) || r.codigoPeca.includes(t);
-    }
-    return true;
+  const pedidosFiltrados = pedidos.filter((pedido) => {
+    if (filtro !== "todos" && pedido.estado !== filtro) return false;
+    const cliente = clientesPorId.get(pedido.clienteNegocioId);
+    const termo = busca.trim().toLowerCase();
+    if (!termo) return true;
+    return (
+      String(pedido.numero).includes(termo) ||
+      pedido.itens.some((item) => item.codigoPeca.toLowerCase().includes(termo) || item.nomeProduto.toLowerCase().includes(termo)) ||
+      cliente?.nome?.toLowerCase().includes(termo) ||
+      cliente?.telefone?.includes(termo) ||
+      pedido.estado.toLowerCase().includes(termo)
+    );
   });
-  const reservasVisiveis = reservasFiltradas.slice(0, limitePedidos);
-  const existemMaisReservas = reservasVisiveis.length < reservasFiltradas.length;
+  const reservasVisiveis = pedidosFiltrados.slice(0, limitePedidos);
+  const existemMaisReservas = reservasVisiveis.length < pedidosFiltrados.length;
 
   useEffect(() => {
     setLimitePedidos(12);
   }, [busca, filtro]);
 
-  function reservaQuaseExpirada(reserva: Reserva): boolean {
-    if (!reserva.expiraEm || !estadosReservaAtiva.includes(reserva.estado)) return false;
-    const minutos = Math.ceil((new Date(reserva.expiraEm).getTime() - Date.now()) / 60_000);
-    return minutos > 0 && minutos <= 5;
-  }
-
   return (
     <CrmPageMotion>
-      <CabecalhoPagina rotulo="Gestão de pedidos" titulo="Pedidos" />
+      <CabecalhoPagina rotulo="Gestão de pedidos" titulo="Pedidos">
+        <Button
+          variant="outline"
+          size="lg"
+          onClick={() => void executar(() => requisitarApi("/pedidos/recuperar-parados", {
+            method: "POST",
+            body: { idadeMinutos: 30, prioridade: "ALTA", estadoPagamento: "PENDENTE", limite: 100 }
+          }), "Recuperação criada para pedidos parados.")}
+          disabled={carregando}
+        >
+          <Wrench size={18} />
+          Recuperar parados
+        </Button>
+      </CabecalhoPagina>
 
-      <ResumoIndicadores rotulo="Resumo dos pedidos" itens={resumoPedidos} />
+      <ResumoIndicadores
+        rotulo="Resumo dos pedidos"
+        itens={[
+          { icone: <ReceiptText />, titulo: "Pedidos", valor: pedidos.length, detalhe: "pedidos completos", tom: "principal" },
+          { icone: <WalletCards />, titulo: "A cobrar", valor: aguardandoPagamento.length, detalhe: "pagamento pendente", tom: aguardandoPagamento.length ? "atencao" : "neutro" },
+          { icone: <UserRoundCheck />, titulo: "Receita", valor: formatarKwanza(receitaConfirmada), detalhe: "pagamentos confirmados", tom: "sucesso" },
+          { icone: <Truck />, titulo: "Entregas", valor: entregas.pedidos.length, detalhe: "em aberto" }
+        ]}
+      />
 
-      <CrmSection
-        className="lg:grid-cols-[1fr_1fr_1fr_1fr_auto]"
-        icon={<ReceiptText size={20} />}
-        title="Fila de pedidos"
-        description="Pedidos criados pela loja, live, WhatsApp e checkout público."
-      >
+      <section className="grid gap-4 xl:grid-cols-[minmax(0,1.5fr)_minmax(320px,0.85fr)]">
+        <CrmSection
+          className="lg:grid-cols-[1fr_1fr_1fr_1fr_auto]"
+          icon={<ReceiptText size={20} />}
+          title="Funil de pedidos"
+          description="Pedidos completos do backend: carrinho, pagamento, preparação, entrega e recuperação."
+          actions={(
+            <Button variant="outline" size="icon-lg" onClick={() => void carregar()} title="Atualizar" aria-label="Atualizar pedidos">
+              <RefreshCcw size={18} />
+            </Button>
+          )}
+        >
           <div className="grid gap-3 lg:grid-cols-[1fr_260px_auto] lg:items-center">
             <div className="relative">
               <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={16} />
               <Input aria-label="Buscar pedidos" className="pl-9" style={{ paddingLeft: "2.25rem" }} placeholder="Buscar por cliente, telefone ou produto..." value={busca} onChange={(e) => setBusca(e.target.value)} />
             </div>
-            <Select value={filtro} onValueChange={setFiltro}>
+            <Select value={filtro} onValueChange={(estado) => setFiltro(estado as typeof filtro)}>
               <SelectTrigger aria-label="Filtrar pedidos por estado">
                 <SelectValue placeholder="Todos os estados" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="todos">Todos os estados</SelectItem>
-                <SelectItem value="PENDING">Pendente</SelectItem>
-                <SelectItem value="RESERVED">Reservada</SelectItem>
-                <SelectItem value="WAITING_PAYMENT">Aguardando</SelectItem>
-                <SelectItem value="PAID">Paga</SelectItem>
-                <SelectItem value="EXPIRED">Expirada</SelectItem>
-                <SelectItem value="CANCELLED">Cancelada</SelectItem>
-                <SelectItem value="WAITLISTED">Fila</SelectItem>
+                {estadosPedido.map((estado) => (
+                  <SelectItem key={estado} value={estado}>{estado === "todos" ? "Todos os estados" : traduzirEstadoPedido(estado)}</SelectItem>
+                ))}
               </SelectContent>
             </Select>
             <Button variant="outline" size="icon-lg" onClick={() => void carregar()} title="Atualizar" aria-label="Atualizar pedidos">
@@ -173,64 +206,66 @@ export function PaginaReservas() {
 
           <CrmList className="reservas-commerce-list">
             {reservasVisiveis.length ? (
-              reservasVisiveis.map((r) => {
-                const preco = obterPrecoDaPeca(pecas, r.codigoPeca);
-                const critica = reservaQuaseExpirada(r);
+              reservasVisiveis.map((pedido) => {
+                const cliente = clientesPorId.get(pedido.clienteNegocioId);
+                const primeiroItem = pedido.itens[0];
 
                 return (
                   <CrmListItem
-                    key={r.id}
-                    className={critica ? "border-warning/35 bg-warning/5" : undefined}
+                    key={pedido.id}
+                    className={pedido.estado === "AGUARDANDO_PAGAMENTO" ? "border-warning/35 bg-warning/5" : undefined}
                     media={<ReceiptText className="size-5" />}
-                    title={`#${r.codigoPeca}`}
-                    description={`${r.nomeCliente || r.usernameCliente} · ${r.telefoneCliente}`}
-                    tone={critica ? "atencao" : r.estado === "PAID" ? "sucesso" : "principal"}
-                    meta={preco ? formatarKwanza(preco) : "Preço não encontrado"}
+                    title={`Pedido #${pedido.numero}`}
+                    description={`${cliente?.nome ?? cliente?.telefone ?? "Cliente"} · ${primeiroItem?.nomeProduto ?? "sem itens"}`}
+                    tone={pedido.estadoPagamento === "CONFIRMADO" ? "sucesso" : pedido.estado === "AGUARDANDO_PAGAMENTO" ? "atencao" : "principal"}
+                    meta={formatarKwanza(pedido.totalEmKwanza)}
                     badges={(
                       <>
-                        <Badge variant={obterVarianteReserva(r.estado)}>{traduzirEstadoReserva(r.estado)}</Badge>
-                        <Badge variant="outline">{traduzirEstadoPagamentoCurto(r.estadoPagamento)}</Badge>
+                        <Badge variant={obterVariantePedido(pedido.estado)}>{traduzirEstadoPedido(pedido.estado)}</Badge>
+                        <Badge variant={obterVariantePagamentoPedido(pedido.estadoPagamento)}>{traduzirPagamentoPedido(pedido.estadoPagamento)}</Badge>
+                        <Badge variant="outline">{traduzirEntregaPedido(pedido.estadoEntrega)}</Badge>
+                        {pedido.canal && <Badge variant="secondary">{pedido.canal}</Badge>}
                       </>
                     )}
                     actions={(
                       <>
-                      <Button
-                        variant="success"
-                        size="icon-lg"
-                        title="Confirmar pagamento"
-                        onClick={() => {
-                          if (!window.confirm(`Confirmar pagamento da peça #${r.codigoPeca}?`)) return;
-                          void executar(() => requisitarApi(`/reservas/${r.id}/confirmar-pagamento`, { method: "POST", body: {} }), "Pagamento confirmado.");
-                        }}
-                        disabled={carregando || r.estado === "PAID"}
-                      >
-                        <CheckCircle2 size={18} />
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="icon-lg"
-                        title="Cancelar reserva"
-                        onClick={() => {
-                          if (!window.confirm(`Cancelar a reserva da peça #${r.codigoPeca}?`)) return;
-                          void executar(() => requisitarApi(`/reservas/${r.id}/cancelar`, { method: "POST", body: { motivo: "Cancelada pelo vendedor." } }), "Reserva cancelada.");
-                        }}
-                        disabled={carregando || ["CANCELLED", "EXPIRED", "PAID"].includes(r.estado)}
-                      >
-                        <Ban size={18} />
-                      </Button>
+                        <Button
+                          variant="success"
+                          size="icon-lg"
+                          title="Confirmar pagamento"
+                          onClick={() => void executar(
+                            () => requisitarApi(`/pedidos/${pedido.id}/confirmar-pagamento`, { method: "POST", body: { observacao: "Confirmado no CRM Bizy." } }),
+                            "Pagamento confirmado."
+                          )}
+                          disabled={carregando || pedido.estadoPagamento === "CONFIRMADO"}
+                        >
+                          <CheckCircle2 size={18} />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="icon-lg"
+                          title="Mover para preparação"
+                          onClick={() => void executar(
+                            () => requisitarApi(`/pedidos/${pedido.id}/estado`, { method: "PATCH", body: { estado: "EM_PREPARACAO", observacao: "Separação iniciada no CRM." } }),
+                            "Pedido movido para preparação."
+                          )}
+                          disabled={carregando || ["CANCELADO", "ENTREGUE", "DEVOLVIDO"].includes(pedido.estado)}
+                        >
+                          <PackageCheck size={18} />
+                        </Button>
                       </>
                     )}
                   >
                     <div className="grid gap-2 sm:grid-cols-3">
-                      <CrmMetricMini label="pagamento" value={traduzirEstadoPagamentoCurto(r.estadoPagamento)} tone={r.estado === "PAID" ? "sucesso" : "atencao"} />
-                      <CrmMetricMini label="criado em" value={formatarDataHoraCurta(r.criadaEm)} />
-                      <CrmMetricMini label="expira em" value={formatarTempoRestante(r.expiraEm)} tone={critica ? "atencao" : "neutro"} />
+                      <CrmMetricMini label="itens" value={pedido.itens.reduce((total, item) => total + item.quantidade, 0)} />
+                      <CrmMetricMini label="desconto" value={formatarKwanza(pedido.descontoEmKwanza)} tone={pedido.descontoEmKwanza ? "atencao" : "neutro"} />
+                      <CrmMetricMini label="criado em" value={formatarDataHoraCurta(pedido.criadoEm)} />
                     </div>
                   </CrmListItem>
                 );
               })
             ) : (
-              <EstadoVazio icone={<ReceiptText />} titulo="Sem pedidos" detalhe="Os pedidos aparecem aqui em tempo real." />
+              <EstadoVazio icone={<ReceiptText />} titulo="Sem pedidos completos" detalhe="Crie pedidos pela conversa, loja pública ou checkout para acompanhar o funil real." />
             )}
           </CrmList>
           {existemMaisReservas && (
@@ -244,17 +279,153 @@ export function PaginaReservas() {
               Ver mais pedidos
             </Button>
           )}
-      </CrmSection>
+        </CrmSection>
+
+        <div className="grid gap-4">
+          <CrmSection
+            icon={<ClipboardList size={20} />}
+            title="Preparação"
+            description="Lista de separação gerada por `/pedidos/preparacao`."
+          >
+            <CrmList>
+              {preparacao.produtos.length ? (
+                preparacao.produtos.slice(0, 5).map((produto) => (
+                  <CrmListItem
+                    key={produto.codigoPeca}
+                    media={<PackageCheck size={18} />}
+                    title={`#${produto.codigoPeca} ${produto.nomeProduto}`}
+                    description={`Pedidos ${produto.pedidos.join(", ")}`}
+                    tone="sucesso"
+                    meta={`${produto.quantidade} un.`}
+                  />
+                ))
+              ) : (
+                <EstadoVazio icone={<ClipboardList />} titulo="Nada para separar" detalhe="Pedidos pagos aparecem aqui para preparar a entrega." />
+              )}
+            </CrmList>
+          </CrmSection>
+
+          <CrmSection
+            icon={<Truck size={20} />}
+            title="Entregas"
+            description="Pedidos com entrega pendente, responsável e endereço."
+          >
+            <CrmList>
+              {entregas.pedidos.length ? (
+                entregas.pedidos.slice(0, 5).map((pedido) => (
+                  <CrmListItem
+                    key={pedido.id}
+                    media={<Truck size={18} />}
+                    title={`Entrega #${pedido.numero}`}
+                    description={pedido.enderecoEntrega ?? "Endereço ainda não informado"}
+                    tone={pedido.estadoEntrega === "FALHOU" ? "perigo" : "atencao"}
+                    meta={formatarKwanza(pedido.totalEmKwanza)}
+                    actions={(
+                      <Button
+                        variant="outline"
+                        size="icon-lg"
+                        title="Marcar como enviado"
+                        onClick={() => void executar(
+                          () => requisitarApi(`/pedidos/${pedido.id}/entrega`, { method: "PATCH", body: { estadoEntrega: "ENVIADO", observacao: "Saiu para entrega." } }),
+                          "Entrega atualizada."
+                        )}
+                        disabled={carregando}
+                      >
+                        <Truck size={18} />
+                      </Button>
+                    )}
+                  />
+                ))
+              ) : (
+                <EstadoVazio icone={<Truck />} titulo="Sem entregas abertas" detalhe="Quando o pedido for pago, a operação de entrega aparece aqui." />
+              )}
+            </CrmList>
+          </CrmSection>
+
+          <CrmSection
+            icon={<AlertCircle size={20} />}
+            title="Recuperação"
+            description="Tarefas criadas para cobrança, entrega e pedidos parados."
+          >
+            <CrmList>
+              {tarefasPedidos.length ? (
+                tarefasPedidos.slice(0, 5).map((tarefa) => (
+                  <CrmListItem
+                    key={tarefa.id}
+                    media={<AlertCircle size={18} />}
+                    title={tarefa.titulo}
+                    description={tarefa.descricao}
+                    tone={tarefa.prioridade === "URGENTE" || tarefa.prioridade === "ALTA" ? "atencao" : "principal"}
+                    badges={<Badge variant={tarefa.estado === "ABERTA" ? "warning" : "secondary"}>{tarefa.estado}</Badge>}
+                    meta={tarefa.prazoEm ? formatarDataHoraCurta(tarefa.prazoEm) : "Sem prazo"}
+                  />
+                ))
+              ) : (
+                <EstadoVazio icone={<AlertCircle />} titulo="Sem tarefas de recuperação" detalhe="Use Recuperar parados para criar ações humanas de cobrança e entrega." />
+              )}
+            </CrmList>
+          </CrmSection>
+        </div>
+      </section>
 
       {mensagem && <footer className="rounded-lg border bg-card px-4 py-3 text-sm text-muted-foreground" aria-live="polite">{mensagem}</footer>}
     </CrmPageMotion>
   );
 }
 
-function obterVarianteReserva(estado: Reserva["estado"]): "success" | "warning" | "info" | "destructive" | "secondary" {
-  if (estado === "PAID") return "success";
-  if (estado === "RESERVED" || estado === "WAITING_PAYMENT" || estado === "PENDING") return "warning";
-  if (estado === "WAITLISTED") return "info";
-  if (estado === "CANCELLED" || estado === "EXPIRED") return "destructive";
+function traduzirEstadoPedido(estado: EstadoPedido): string {
+  const traducoes: Record<EstadoPedido, string> = {
+    NOVO: "Novo",
+    AGUARDANDO_PAGAMENTO: "Aguardando pagamento",
+    PAGO: "Pago",
+    EM_PREPARACAO: "Em preparação",
+    PRONTO_ENTREGA: "Pronto para entrega",
+    ENVIADO: "Enviado",
+    ENTREGUE: "Entregue",
+    CANCELADO: "Cancelado",
+    TROCADO: "Trocado",
+    DEVOLVIDO: "Devolvido"
+  };
+  return traducoes[estado];
+}
+
+function traduzirPagamentoPedido(estado: EstadoPagamentoPedido): string {
+  const traducoes: Record<EstadoPagamentoPedido, string> = {
+    PENDENTE: "Pendente",
+    COMPROVATIVO_RECEBIDO: "Comprovativo",
+    CONFIRMADO: "Confirmado",
+    REJEITADO: "Rejeitado",
+    REEMBOLSADO: "Reembolsado"
+  };
+  return traducoes[estado];
+}
+
+function traduzirEntregaPedido(estado: EstadoEntregaPedido): string {
+  const traducoes: Record<EstadoEntregaPedido, string> = {
+    PENDENTE: "Entrega pendente",
+    RETIRADA_LOJA: "Retirada",
+    EM_PREPARACAO: "A preparar",
+    PRONTO: "Pronto",
+    ENVIADO: "Enviado",
+    ENTREGUE: "Entregue",
+    FALHOU: "Falhou",
+    DEVOLVIDO: "Devolvido"
+  };
+  return traducoes[estado];
+}
+
+function obterVariantePedido(estado: EstadoPedido): "success" | "warning" | "info" | "destructive" | "secondary" {
+  if (["PAGO", "EM_PREPARACAO", "PRONTO_ENTREGA", "ENVIADO", "ENTREGUE"].includes(estado)) return "success";
+  if (estado === "AGUARDANDO_PAGAMENTO" || estado === "NOVO") return "warning";
+  if (estado === "TROCADO") return "info";
+  if (estado === "CANCELADO" || estado === "DEVOLVIDO") return "destructive";
+  return "secondary";
+}
+
+function obterVariantePagamentoPedido(estado: EstadoPagamentoPedido): "success" | "warning" | "info" | "destructive" | "secondary" {
+  if (estado === "CONFIRMADO") return "success";
+  if (estado === "PENDENTE" || estado === "COMPROVATIVO_RECEBIDO") return "warning";
+  if (estado === "REEMBOLSADO") return "info";
+  if (estado === "REJEITADO") return "destructive";
   return "secondary";
 }

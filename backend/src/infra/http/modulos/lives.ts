@@ -21,11 +21,20 @@ export const moduloLives: ModuloHttp = {
     });
 
     app.post("/lives/iniciar", async (request, reply) => {
+      const contextoComercial = await exigirAcessoComercial(contexto, request, reply, {
+        permissao: "conversas:gerir",
+        modulo: "conversas",
+        mensagemPermissao: "Sem permissão para iniciar live.",
+        mensagemModulo: "Conversas desativadas para este negócio."
+      });
+      if (!contextoComercial) return;
+
       const dados = IniciarLiveSchema.parse(request.body);
       const provider = criarProviderLive(dados.provider);
       const id = `${dados.provider}_${dados.liveUsername}_${Date.now()}`;
       const sessao: SessaoLive = {
         id,
+        negocioId: contextoComercial.negocio.id,
         username: dados.liveUsername,
         providerNome: dados.provider,
         provider,
@@ -69,13 +78,33 @@ export const moduloLives: ModuloHttp = {
       return reply.code(201).send(mapearSessaoLive(sessao));
     });
 
-    app.get("/lives", async () => [...contexto.sessoesLive.values()].map(mapearSessaoLive));
+    app.get("/lives", async (request, reply) => {
+      const contextoComercial = await exigirAcessoComercial(contexto, request, reply, {
+        permissao: "conversas:ler",
+        modulo: "conversas",
+        mensagemPermissao: "Sem permissão para consultar lives.",
+        mensagemModulo: "Conversas desativadas para este negócio."
+      });
+      if (!contextoComercial) return;
+
+      return [...contexto.sessoesLive.values()]
+        .filter((sessao) => !sessao.negocioId || sessao.negocioId === contextoComercial.negocio.id)
+        .map(mapearSessaoLive);
+    });
 
     app.post("/lives/:id/parar", async (request, reply) => {
+      const contextoComercial = await exigirAcessoComercial(contexto, request, reply, {
+        permissao: "conversas:gerir",
+        modulo: "conversas",
+        mensagemPermissao: "Sem permissão para parar live.",
+        mensagemModulo: "Conversas desativadas para este negócio."
+      });
+      if (!contextoComercial) return;
+
       const { id } = request.params as { id: string };
       const sessao = contexto.sessoesLive.get(id);
 
-      if (!sessao) {
+      if (!sessao || (sessao.negocioId && sessao.negocioId !== contextoComercial.negocio.id)) {
         return reply.code(404).send({ erro: "LIVE_NAO_ENCONTRADA", mensagem: "Sessão de live não encontrada." });
       }
 
@@ -89,10 +118,18 @@ export const moduloLives: ModuloHttp = {
     });
 
     app.post("/lives/:id/comentarios/manual", async (request, reply) => {
+      const contextoComercial = await exigirAcessoComercial(contexto, request, reply, {
+        permissao: "conversas:gerir",
+        modulo: "conversas",
+        mensagemPermissao: "Sem permissão para registrar comentário da live.",
+        mensagemModulo: "Conversas desativadas para este negócio."
+      });
+      if (!contextoComercial) return;
+
       const { id } = request.params as { id: string };
       const sessao = contexto.sessoesLive.get(id);
 
-      if (!sessao) {
+      if (!sessao || (sessao.negocioId && sessao.negocioId !== contextoComercial.negocio.id)) {
         return reply.code(404).send({ erro: "LIVE_NAO_ENCONTRADA", mensagem: "Sessão de live não encontrada." });
       }
 
@@ -201,7 +238,9 @@ async function processarComentarioDaSessao(contexto: ContextoAplicacao, sessao: 
   sessao.ultimoComentarioEm = new Date();
 
   try {
-    const resultado = await contexto.processadorComentarios.processar(comentario);
+    const resultado = await contexto.processadorComentarios.processar(comentario, {
+      negocioId: sessao.negocioId
+    });
     sessao.comentariosProcessados += 1;
     sessao.ultimoErro = null;
     await salvarSessaoLive(contexto, sessao, true);
@@ -214,7 +253,7 @@ async function processarComentarioDaSessao(contexto: ContextoAplicacao, sessao: 
   }
 }
 
-function mapearSessaoLive({ provider: _provider, ...sessao }: SessaoLive) {
+function mapearSessaoLive({ provider: _provider, negocioId: _negocioId, ...sessao }: SessaoLive) {
   return sessao;
 }
 

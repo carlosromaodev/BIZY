@@ -130,6 +130,7 @@ async function restaurarSessoesLiveAtivas(contexto: ContextoAplicacao): Promise<
     const provider = criarProviderLive(registro.providerNome);
     const sessao: SessaoLive = {
       id: registro.id,
+      negocioId: null,
       username: registro.username,
       providerNome: registro.providerNome,
       provider,
@@ -179,7 +180,9 @@ async function processarComentarioRestaurado(
   sessao.ultimoComentarioEm = new Date();
 
   try {
-    const resultado = await contexto.processadorComentarios.processar(comentario);
+    const resultado = await contexto.processadorComentarios.processar(comentario, {
+      negocioId: sessao.negocioId
+    });
     sessao.comentariosProcessados += 1;
     sessao.ultimoErro = null;
     await persistirSessaoRestaurada(contexto, sessao, true);
