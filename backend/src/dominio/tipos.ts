@@ -1313,6 +1313,7 @@ export interface FiltrosClientes360 {
   busca?: string;
   estadoRelacionamento?: EstadoRelacionamentoCliente;
   tag?: string;
+  consentimentoMarketing?: boolean;
   limite?: number;
 }
 

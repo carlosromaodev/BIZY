@@ -3182,6 +3182,9 @@ export class RepositorioClientesPrisma implements RepositorioClientes {
     const where: Prisma.ClienteNegocioWhereInput = {
       negocioId,
       ...(filtros.estadoRelacionamento ? { estadoRelacionamento: filtros.estadoRelacionamento } : {}),
+      ...(filtros.consentimentoMarketing === undefined
+        ? {}
+        : { consentimentoMarketing: filtros.consentimentoMarketing }),
       ...(busca
         ? {
             OR: [

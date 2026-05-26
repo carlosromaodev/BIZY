@@ -2029,6 +2029,11 @@ export class RepositorioClientesMemoria implements RepositorioClientes {
     return [...this.clientesNegocio.values()]
       .filter((cliente) => cliente.negocioId === negocioId)
       .filter((cliente) => !filtros.estadoRelacionamento || cliente.estadoRelacionamento === filtros.estadoRelacionamento)
+      .filter(
+        (cliente) =>
+          filtros.consentimentoMarketing === undefined ||
+          cliente.consentimentoMarketing === filtros.consentimentoMarketing
+      )
       .filter((cliente) => !tag || cliente.tags.some((item) => item.toLowerCase() === tag))
       .filter((cliente) => {
         if (!busca) return true;

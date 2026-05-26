@@ -6,11 +6,11 @@ import {
   CriarClienteCrmSchema,
   CriarCompartilhamentoClienteSchema,
   CriarRelacaoNegocioSchema,
+  FiltrosClientes360QuerySchema,
   ImportarCsvSchema,
   MesclarClientesSchema,
   RevogarCompartilhamentoClienteSchema
 } from "../../../dominio/esquemas.js";
-import { estadosRelacionamentoCliente } from "../../../dominio/tipos.js";
 import { exigirAcessoComercial } from "../contextoComercial.js";
 import type { ModuloHttp } from "./ModuloHttp.js";
 
@@ -27,23 +27,14 @@ export const moduloClientes: ModuloHttp = {
       });
       if (!contextoComercial) return;
 
-      const query = request.query as {
-        busca?: string;
-        estadoRelacionamento?: string;
-        tag?: string;
-        limite?: string;
-      };
-      const estadoRelacionamento = (estadosRelacionamentoCliente as readonly string[]).includes(
-        query.estadoRelacionamento ?? ""
-      )
-        ? (query.estadoRelacionamento as (typeof estadosRelacionamentoCliente)[number])
-        : undefined;
+      const query = FiltrosClientes360QuerySchema.parse(request.query ?? {});
 
       return contexto.gestaoClientesCrm.listarClientes(contextoComercial.negocio.id, {
         busca: query.busca,
         tag: query.tag,
-        estadoRelacionamento,
-        limite: query.limite ? Number(query.limite) : undefined
+        estadoRelacionamento: query.estadoRelacionamento,
+        consentimentoMarketing: query.consentimentoMarketing,
+        limite: query.limite
       });
     });
 
@@ -140,7 +131,8 @@ export const moduloClientes: ModuloHttp = {
       });
       if (!contextoComercial) return;
 
-      const exportacao = await contexto.gestaoClientesCrm.exportarCsv(contextoComercial.negocio.id);
+      const filtros = FiltrosClientes360QuerySchema.parse(request.query ?? {});
+      const exportacao = await contexto.gestaoClientesCrm.exportarCsv(contextoComercial.negocio.id, filtros);
       contexto.eventos.emitir("CLIENTS_EXPORTED", {
         negocioId: contextoComercial.negocio.id,
         usuarioId: contextoComercial.usuario.id,

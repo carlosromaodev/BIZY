@@ -155,8 +155,10 @@ describe("clientes 360 HTTP", () => {
       });
       expect(exportacao.statusCode).toBe(200);
       expect(exportacao.headers["content-type"]).toContain("text/csv");
-      expect(exportacao.body).toContain("telefone,nome,email,estadoRelacionamento");
-      expect(exportacao.body).toContain("937624785,Cliente A,cliente.a@example.com,BLOQUEADO");
+      expect(exportacao.body).toContain(
+        "telefone,nome,email,username,origem,estadoRelacionamento,consentimentoMarketing,consentimentoDados,tags"
+      );
+      expect(exportacao.body).toContain("937624785,Cliente A,cliente.a@example.com,,manual,BLOQUEADO,false,true");
       expect(exportacao.body).not.toContain("Cliente B");
 
       const auditoriaExportacao = await app.inject({
@@ -180,6 +182,100 @@ describe("clientes 360 HTTP", () => {
       ]);
       expect(auditoriaExportacao.json().eventos[0].dados.negocioId).toBe(clienteA.json().negocioId);
       expect(auditoriaExportacao.json().eventos[0].dados.usuarioId).toBeTruthy();
+    } finally {
+      await app.close();
+    }
+  });
+
+  it("exporta clientes filtrados para operação e marketing autorizado", async () => {
+    const app = await criarAplicacao();
+
+    try {
+      const loja = await autenticar(app, "923111150", "Loja Segmentos Export");
+
+      const clienteAutorizado = await app.inject({
+        method: "POST",
+        url: "/clientes",
+        headers: loja,
+        payload: {
+          telefone: "937624781",
+          nome: "Cliente Marketing Autorizado",
+          email: "marketing.autorizado@example.com",
+          username: "autorizado_live",
+          origem: "instagram",
+          tags: ["newsletter", "vip"],
+          consentimentoMarketing: true,
+          consentimentoDados: true
+        }
+      });
+      expect(clienteAutorizado.statusCode).toBe(201);
+
+      const clienteSemConsentimento = await app.inject({
+        method: "POST",
+        url: "/clientes",
+        headers: loja,
+        payload: {
+          telefone: "937624782",
+          nome: "Cliente Marketing Bloqueado",
+          tags: ["newsletter"],
+          consentimentoMarketing: false,
+          consentimentoDados: true
+        }
+      });
+      expect(clienteSemConsentimento.statusCode).toBe(201);
+
+      const clienteInativo = await app.inject({
+        method: "POST",
+        url: "/clientes",
+        headers: loja,
+        payload: {
+          telefone: "937624783",
+          nome: "Cliente Marketing Inativo",
+          tags: ["newsletter"],
+          consentimentoMarketing: true,
+          consentimentoDados: true,
+          estadoRelacionamento: "INATIVO"
+        }
+      });
+      expect(clienteInativo.statusCode).toBe(201);
+
+      const exportacao = await app.inject({
+        method: "GET",
+        url:
+          "/clientes/exportar.csv?consentimentoMarketing=true&tag=newsletter&estadoRelacionamento=ATIVO&busca=Marketing%20Autorizado",
+        headers: loja
+      });
+      expect(exportacao.statusCode).toBe(200);
+      expect(exportacao.body).toContain(
+        "telefone,nome,email,username,origem,estadoRelacionamento,consentimentoMarketing,consentimentoDados,tags"
+      );
+      expect(exportacao.body).toContain(
+        "937624781,Cliente Marketing Autorizado,marketing.autorizado@example.com,autorizado_live,instagram,ATIVO,true,true,newsletter|vip"
+      );
+      expect(exportacao.body).not.toContain("Cliente Marketing Bloqueado");
+      expect(exportacao.body).not.toContain("Cliente Marketing Inativo");
+
+      const auditoriaExportacao = await app.inject({
+        method: "GET",
+        url: "/auditoria/eventos?tipo=CLIENTS_EXPORTED",
+        headers: loja
+      });
+      expect(auditoriaExportacao.statusCode).toBe(200);
+      expect(auditoriaExportacao.json().eventos).toEqual([
+        expect.objectContaining({
+          tipo: "CLIENTS_EXPORTED",
+          dados: expect.objectContaining({
+            quantidade: 1,
+            filtros: {
+              limite: 10000,
+              busca: "Marketing Autorizado",
+              tag: "newsletter",
+              estadoRelacionamento: "ATIVO",
+              consentimentoMarketing: true
+            }
+          })
+        })
+      ]);
     } finally {
       await app.close();
     }

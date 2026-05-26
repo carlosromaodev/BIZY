@@ -52,6 +52,19 @@ const TextoCatalogoOpcionalSchema = z.preprocess(
   z.string().trim().min(1).max(120).nullable().optional()
 ).transform((valor) => valor ?? null);
 
+const BooleanQueryOpcionalSchema = z.preprocess((valor) => {
+  if (valor === undefined || valor === null || valor === "") return undefined;
+  if (typeof valor === "boolean") return valor;
+  if (typeof valor === "string") {
+    const normalizado = valor.trim().toLowerCase();
+    if (normalizado === "true" || normalizado === "1" || normalizado === "sim") return true;
+    if (normalizado === "false" || normalizado === "0" || normalizado === "nao" || normalizado === "não") {
+      return false;
+    }
+  }
+  return valor;
+}, z.boolean().optional());
+
 const VariantesPecaSchema = z
   .record(
     z.string().trim().min(1).max(60),
@@ -644,6 +657,14 @@ export const CriarClienteCrmSchema = ClienteCrmBaseSchema
   .refine((dados) => Boolean(dados.telefone || dados.email), {
     message: "Informe telefone ou email para identificar o cliente."
   });
+
+export const FiltrosClientes360QuerySchema = z.object({
+  busca: z.string().trim().min(1).max(160).optional(),
+  estadoRelacionamento: z.enum(estadosRelacionamentoCliente).optional(),
+  tag: z.string().trim().min(1).max(40).optional(),
+  consentimentoMarketing: BooleanQueryOpcionalSchema,
+  limite: z.coerce.number().int().min(1).max(10_000).optional()
+});
 
 export const AtualizarClienteCrmSchema = ClienteCrmBaseSchema.partial()
   .omit({ origem: true })

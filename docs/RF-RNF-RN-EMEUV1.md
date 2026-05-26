@@ -88,6 +88,8 @@ Atualização 1.34: exportação CSV de pedidos passou a incluir resumo de itens
 
 Atualização 1.35: exportação CSV do relatório comercial passou a registrar evento auditável `REPORTS_EXPORTED` com usuário, negócio, quantidade, formato e filtros, fechando a trilha mínima de auditoria para clientes, pedidos e relatórios.
 
+Atualização 1.36: exportação CSV de clientes passou a aceitar filtros de busca, tag, estado de relacionamento e consentimento de marketing, incluindo campos de origem, username e consentimentos no ficheiro para apoiar segmentação operacional sem misturar clientes sem autorização.
+
 ---
 
 ## 2. Legenda
@@ -330,7 +332,7 @@ Esta etapa transforma o Bizy de painel de live em CRM operacional para lojas que
 | RF93 | [x] O sistema deve registrar preferências do cliente, como tamanho, cor, categoria favorita, faixa de preço, bairro de entrega e observações de atendimento. | Média | Implementado no backend via preferências estruturadas do Cliente 360 e importação CSV |
 | RF94 | [~] O CRM deve calcular indicadores por cliente: total gasto, pedidos pagos, pedidos cancelados, reservas expiradas, tempo médio de pagamento e data da última compra. | Alta | Parcial - API calcula reservas, reservas pagas, total comprado, mensagens, conversas abertas e última interação |
 | RF95 | [x] O vendedor deve poder marcar cliente como bloqueado, sem WhatsApp, sem consentimento, inadimplente ou prioridade alta. | Alta | Implementado no backend por `estadoRelacionamento` |
-| RF96 | [~] O sistema deve permitir exportar clientes filtrados com campos úteis para operação e marketing autorizado. | Média | Parcial - exportação CSV autenticada e auditada implementada; faltam job e filtros avançados de marketing |
+| RF96 | [x] O sistema deve permitir exportar clientes filtrados com campos úteis para operação e marketing autorizado. | Média | Implementado - exportação CSV autenticada e auditada com filtros por busca, tag, estado, limite e consentimento de marketing; inclui origem, username e consentimentos |
 
 #### 3.13.3 Pedidos, Cobrança e Entrega
 
