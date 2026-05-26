@@ -102,6 +102,8 @@ Atualização 1.41: Cliente 360 passou a calcular indicadores comerciais complet
 
 Atualização 1.42: Clientes 360 passaram a manter agenda de endereços de entrega reutilizáveis, com rota para cadastrar/listar endereços por cliente e criação de pedido usando `enderecoEntregaId` para preencher automaticamente o endereço textual do pedido.
 
+Atualização 1.43: Cadastro manual de cliente passou a aceitar WhatsApp como contacto principal, notas internas e endereço inicial de entrega, salvando notas/preferências no Cliente 360 e endereço na agenda reutilizável do cliente.
+
 ---
 
 ## 2. Legenda
@@ -334,7 +336,7 @@ Esta etapa transforma o Bizy de painel de live em CRM operacional para lojas que
 | ID | Requisito Funcional | Prioridade | Estado |
 |---|---|---|---|
 | RF85 | [~] O CRM deve ter lista de clientes com nome, telefone, WhatsApp, última interação, último pedido, total comprado, estado, tags e responsável. | Alta | Parcial - API lista clientes com métricas de reserva/mensagem/compra; faltam WhatsApp explícito, último pedido e responsável na UI |
-| RF86 | [~] O vendedor deve poder cadastrar cliente manualmente com nome, telefone, WhatsApp, endereço, notas, tags, origem e consentimento de comunicação. | Alta | Parcial - API cria cliente com nome, telefone, email, tags, origem e consentimentos; faltam endereço/notas estruturadas |
+| RF86 | [x] O vendedor deve poder cadastrar cliente manualmente com nome, telefone, WhatsApp, endereço, notas, tags, origem e consentimento de comunicação. | Alta | Implementado no backend com telefone/WhatsApp/email, endereço inicial reutilizável, notas internas, tags, origem e consentimentos |
 | RF87 | [x] O sistema deve importar clientes por CSV/Excel com validação de telefone angolano, deduplicação e relatório de erros. | Alta | Implementado no backend para CSV com relatório de criados, atualizados e erros |
 | RF88 | [~] O perfil do cliente deve mostrar visão 360: dados pessoais, conversas, pedidos, pagamentos, reservas, entregas, notas internas, tags, tarefas e histórico de campanhas. | Alta | Parcial - API entrega dados pessoais, métricas, reservas, conversas, ações e preferências; faltam completar UI e histórico de campanhas no perfil |
 | RF89 | [~] O sistema deve deduplicar clientes por telefone canónico, mantendo aliases de username, TikTok, Instagram ou nome exibido. | Alta | Parcial - backend normaliza telefone angolano, preserva username/userId/avatar/preferências por negócio e permite fusão; faltam aliases sociais por provider completos |

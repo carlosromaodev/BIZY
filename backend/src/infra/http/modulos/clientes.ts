@@ -49,10 +49,50 @@ export const moduloClientes: ModuloHttp = {
       if (!contextoComercial) return;
 
       const dados = CriarClienteCrmSchema.parse(request.body ?? {});
+      const {
+        whatsapp,
+        notas,
+        endereco,
+        enderecoEntrega,
+        bairro,
+        bairroEntrega,
+        municipio,
+        municipioEntrega,
+        referencia,
+        referenciaEntrega,
+        ...dadosCliente
+      } = dados;
+      const preferencias = {
+        ...dadosCliente.preferencias,
+        ...(whatsapp ? { whatsapp } : {}),
+        ...(notas ? { notasInternas: notas } : {})
+      };
       const cliente = await contexto.gestaoClientesCrm.criarCliente({
-        ...dados,
+        ...dadosCliente,
+        telefone: dadosCliente.telefone ?? whatsapp,
+        preferencias,
         negocioId: contextoComercial.negocio.id
       });
+      const enderecoInicial = enderecoEntrega ?? endereco;
+      if (enderecoInicial) {
+        const resultado = await contexto.gestaoClientesCrm.salvarEnderecoCliente(
+          cliente.id,
+          contextoComercial.negocio.id,
+          {
+            endereco: enderecoInicial,
+            bairro: bairroEntrega ?? bairro,
+            municipio: municipioEntrega ?? municipio,
+            referencia: referenciaEntrega ?? referencia,
+            principal: true
+          }
+        );
+        if (resultado) {
+          return reply.code(201).send({
+            ...resultado.cliente,
+            enderecos: resultado.enderecos
+          });
+        }
+      }
       return reply.code(201).send(cliente);
     });
 

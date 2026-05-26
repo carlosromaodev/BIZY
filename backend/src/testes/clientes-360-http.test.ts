@@ -187,6 +187,73 @@ describe("clientes 360 HTTP", () => {
     }
   });
 
+  it("cadastra cliente manual com WhatsApp, notas e endereço inicial", async () => {
+    const app = await criarAplicacao();
+
+    try {
+      const loja = await autenticar(app, "923111109", "Loja Cliente Manual Completo");
+
+      const resposta = await app.inject({
+        method: "POST",
+        url: "/clientes",
+        headers: loja,
+        payload: {
+          whatsapp: "937624733",
+          nome: "Cliente completo",
+          origem: "balcao",
+          notas: "Prefere entrega no fim da tarde e atendimento por WhatsApp.",
+          enderecoEntrega: "Rua da Samba, casa 42",
+          bairroEntrega: "Samba",
+          municipioEntrega: "Luanda",
+          referenciaEntrega: "Portão verde",
+          consentimentoDados: true,
+          consentimentoMarketing: true
+        }
+      });
+
+      expect(resposta.statusCode).toBe(201);
+      expect(resposta.json()).toEqual(
+        expect.objectContaining({
+          telefone: "937624733",
+          nome: "Cliente completo",
+          origem: "balcao",
+          consentimentoDados: true,
+          consentimentoMarketing: true
+        })
+      );
+      expect(resposta.json().preferencias).toEqual(
+        expect.objectContaining({
+          whatsapp: "937624733",
+          notasInternas: "Prefere entrega no fim da tarde e atendimento por WhatsApp."
+        })
+      );
+      expect(resposta.json().enderecos).toEqual([
+        expect.objectContaining({
+          endereco: "Rua da Samba, casa 42",
+          bairro: "Samba",
+          municipio: "Luanda",
+          referencia: "Portão verde",
+          principal: true
+        })
+      ]);
+
+      const enderecos = await app.inject({
+        method: "GET",
+        url: `/clientes/${resposta.json().id}/enderecos`,
+        headers: loja
+      });
+      expect(enderecos.statusCode).toBe(200);
+      expect(enderecos.json().enderecos[0]).toEqual(
+        expect.objectContaining({
+          endereco: "Rua da Samba, casa 42",
+          principal: true
+        })
+      );
+    } finally {
+      await app.close();
+    }
+  });
+
   it("exporta clientes filtrados para operação e marketing autorizado", async () => {
     const app = await criarAplicacao();
 

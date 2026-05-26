@@ -635,8 +635,23 @@ const TagsClienteSchema = z.array(z.string().trim().min(1).max(40)).max(20);
 
 const PreferenciasClienteSchema = z.record(z.string(), z.unknown()).default({});
 
+const TextoClienteLongoOpcionalSchema = z.preprocess(
+  (valor) => (typeof valor === "string" && valor.trim() === "" ? null : valor),
+  z.string().trim().min(1).max(2000).nullable().optional()
+).transform((valor) => valor ?? null);
+
+const TelefoneClienteOpcionalSchema = z.preprocess(
+  (valor) => (typeof valor === "string" && valor.trim() === "" ? null : valor),
+  z.string().trim().min(8).max(30).nullable().optional()
+).transform((valor) => valor ?? null);
+
+const EnderecoClienteOpcionalSchema = z.preprocess(
+  (valor) => (typeof valor === "string" && valor.trim() === "" ? null : valor),
+  z.string().trim().min(3).max(1000).nullable().optional()
+).transform((valor) => valor ?? null);
+
 const ClienteCrmBaseSchema = z.object({
-  telefone: z.string().trim().min(8).max(30).nullable().optional(),
+  telefone: TelefoneClienteOpcionalSchema,
   email: z.preprocess(
     (valor) => (typeof valor === "string" && valor.trim() === "" ? null : valor),
     z.string().trim().email().max(160).nullable().optional()
@@ -654,8 +669,20 @@ const ClienteCrmBaseSchema = z.object({
 });
 
 export const CriarClienteCrmSchema = ClienteCrmBaseSchema
-  .refine((dados) => Boolean(dados.telefone || dados.email), {
-    message: "Informe telefone ou email para identificar o cliente."
+  .extend({
+    whatsapp: TelefoneClienteOpcionalSchema,
+    notas: TextoClienteLongoOpcionalSchema,
+    endereco: EnderecoClienteOpcionalSchema,
+    enderecoEntrega: EnderecoClienteOpcionalSchema,
+    bairro: TextoPerfilOpcionalSchema,
+    bairroEntrega: TextoPerfilOpcionalSchema,
+    municipio: TextoPerfilOpcionalSchema,
+    municipioEntrega: TextoPerfilOpcionalSchema,
+    referencia: TextoClienteLongoOpcionalSchema,
+    referenciaEntrega: TextoClienteLongoOpcionalSchema
+  })
+  .refine((dados) => Boolean(dados.telefone || dados.whatsapp || dados.email), {
+    message: "Informe telefone, WhatsApp ou email para identificar o cliente."
   });
 
 export const FiltrosClientes360QuerySchema = z.object({
