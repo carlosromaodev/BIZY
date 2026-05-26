@@ -1,10 +1,11 @@
 import type { DespachadorEventos } from "../dominio/eventos/DespachadorEventos.js";
-import type { RepositorioPecas } from "../dominio/repositorios/contratos.js";
+import type { RepositorioPecas, RepositorioReservas } from "../dominio/repositorios/contratos.js";
 import type {
   AtualizarPeca,
   MovimentoStock,
   NovaPeca,
   Peca,
+  Reserva,
   ResumoCatalogoComercial,
   TipoMovimentoStock
 } from "../dominio/tipos.js";
@@ -21,7 +22,8 @@ interface DadosRegistroMovimentoStock {
 export class GestaoPecasUseCase {
   constructor(
     private readonly repositorioPecas: RepositorioPecas,
-    private readonly eventos: DespachadorEventos
+    private readonly eventos: DespachadorEventos,
+    private readonly repositorioReservas?: RepositorioReservas
   ) {}
 
   async cadastrarPeca(dados: NovaPeca) {
@@ -76,7 +78,10 @@ export class GestaoPecasUseCase {
   }
 
   async resumirCatalogo(negocioId?: string | null): Promise<ResumoCatalogoComercial> {
-    const pecas = await this.repositorioPecas.listar(negocioId);
+    const [pecas, reservas] = await Promise.all([
+      this.repositorioPecas.listar(negocioId),
+      this.repositorioReservas?.listar(negocioId) ?? Promise.resolve([])
+    ]);
     const categorias = new Map<string, number>();
     const colecoes = new Map<string, number>();
 
@@ -107,14 +112,21 @@ export class GestaoPecasUseCase {
         valorPotencialEmKwanza: 0,
         margemPotencialEmKwanza: 0,
         categorias: [],
-        colecoes: []
+        colecoes: [],
+        alertas: {
+          baixoStockProdutos: [],
+          stockParado: [],
+          maisVendidos: [],
+          reservadosSemPagamento: []
+        }
       }
     );
 
     return {
       ...resumo,
       categorias: this.mapearAgrupamento(categorias),
-      colecoes: this.mapearAgrupamento(colecoes)
+      colecoes: this.mapearAgrupamento(colecoes),
+      alertas: this.montarAlertasCatalogo(pecas, reservas)
     };
   }
 
@@ -262,6 +274,93 @@ export class GestaoPecasUseCase {
     }
 
     return quantidadeNova;
+  }
+
+  private montarAlertasCatalogo(pecas: Peca[], reservas: Reserva[]): ResumoCatalogoComercial["alertas"] {
+    const pecaPorCodigo = new Map(pecas.map((peca) => [peca.codigo, peca]));
+    const reservasPagas = reservas.filter((reserva) => reserva.estado === "PAID");
+    const reservasSemPagamento = reservas.filter((reserva) =>
+      ["PENDING", "RESERVED", "WAITING_PAYMENT"].includes(reserva.estado)
+    );
+    const codigosComMovimentoComercial = new Set(reservas.map((reserva) => reserva.codigoPeca));
+
+    return {
+      baixoStockProdutos: pecas
+        .filter((peca) => peca.estadoStock === "BAIXO_STOCK")
+        .map((peca) => ({
+          codigo: peca.codigo,
+          nome: peca.nome,
+          quantidade: peca.quantidade,
+          stockMinimo: peca.stockMinimo,
+          valorEmKwanza: peca.precoEmKwanza * peca.quantidade
+        }))
+        .sort((a, b) => a.quantidade - b.quantidade || a.codigo.localeCompare(b.codigo, "pt-AO", { numeric: true }))
+        .slice(0, 10),
+      stockParado: pecas
+        .filter(
+          (peca) =>
+            peca.quantidade > peca.stockMinimo &&
+            peca.estadoStock === "DISPONIVEL" &&
+            !peca.arquivadaEm &&
+            !codigosComMovimentoComercial.has(peca.codigo)
+        )
+        .map((peca) => ({
+          codigo: peca.codigo,
+          nome: peca.nome,
+          quantidade: peca.quantidade,
+          valorEmKwanza: peca.precoEmKwanza * peca.quantidade,
+          ultimaAtualizacaoEm: peca.atualizadoEm
+        }))
+        .sort((a, b) => b.valorEmKwanza - a.valorEmKwanza || a.codigo.localeCompare(b.codigo, "pt-AO", { numeric: true }))
+        .slice(0, 10),
+      maisVendidos: this.agruparReservasVendidasPorProduto(reservasPagas, pecaPorCodigo).slice(0, 10),
+      reservadosSemPagamento: this.agruparReservasPendentesPorProduto(reservasSemPagamento, pecaPorCodigo).slice(0, 10)
+    };
+  }
+
+  private agruparReservasVendidasPorProduto(
+    reservas: Reserva[],
+    pecaPorCodigo: Map<string, Peca>
+  ): ResumoCatalogoComercial["alertas"]["maisVendidos"] {
+    return this.agruparTotaisReservas(reservas, pecaPorCodigo).map((item) => ({
+      codigo: item.codigo,
+      nome: item.nome,
+      totalVendido: item.total,
+      receitaEmKwanza: item.valorEmKwanza
+    }));
+  }
+
+  private agruparReservasPendentesPorProduto(
+    reservas: Reserva[],
+    pecaPorCodigo: Map<string, Peca>
+  ): ResumoCatalogoComercial["alertas"]["reservadosSemPagamento"] {
+    return this.agruparTotaisReservas(reservas, pecaPorCodigo).map((item) => ({
+      codigo: item.codigo,
+      nome: item.nome,
+      totalReservado: item.total,
+      valorEmKwanza: item.valorEmKwanza
+    }));
+  }
+
+  private agruparTotaisReservas(reservas: Reserva[], pecaPorCodigo: Map<string, Peca>) {
+    const agrupamento = new Map<string, { codigo: string; nome: string; total: number; valorEmKwanza: number }>();
+
+    for (const reserva of reservas) {
+      const peca = pecaPorCodigo.get(reserva.codigoPeca);
+      if (!peca) continue;
+      const atual = agrupamento.get(peca.codigo) ?? {
+        codigo: peca.codigo,
+        nome: peca.nome,
+        total: 0,
+        valorEmKwanza: 0
+      };
+      atual.total += 1;
+      atual.valorEmKwanza += peca.precoEmKwanza;
+      agrupamento.set(peca.codigo, atual);
+    }
+
+    return [...agrupamento.values()]
+      .sort((a, b) => b.total - a.total || b.valorEmKwanza - a.valorEmKwanza);
   }
 
   private mapearAgrupamento(agrupamento: Map<string, number>): Array<{ nome: string; total: number }> {

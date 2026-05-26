@@ -291,6 +291,34 @@ export interface ResumoCatalogoComercial {
   margemPotencialEmKwanza: number;
   categorias: Array<{ nome: string; total: number }>;
   colecoes: Array<{ nome: string; total: number }>;
+  alertas: {
+    baixoStockProdutos: Array<{
+      codigo: string;
+      nome: string;
+      quantidade: number;
+      stockMinimo: number;
+      valorEmKwanza: number;
+    }>;
+    stockParado: Array<{
+      codigo: string;
+      nome: string;
+      quantidade: number;
+      valorEmKwanza: number;
+      ultimaAtualizacaoEm: Date;
+    }>;
+    maisVendidos: Array<{
+      codigo: string;
+      nome: string;
+      totalVendido: number;
+      receitaEmKwanza: number;
+    }>;
+    reservadosSemPagamento: Array<{
+      codigo: string;
+      nome: string;
+      totalReservado: number;
+      valorEmKwanza: number;
+    }>;
+  };
 }
 
 export interface Reserva {

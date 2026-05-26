@@ -276,7 +276,7 @@ export function criarContextoAplicacao(logger: FastifyBaseLogger): ContextoAplic
     eventos,
     Number(process.env.N8N_MINUTOS_ANTES_EXPIRAR ?? 2)
   );
-  const gestaoPecas = new GestaoPecasUseCase(repositorios.pecas, eventos);
+  const gestaoPecas = new GestaoPecasUseCase(repositorios.pecas, eventos, repositorios.reservas);
   const gestaoPedidos = new GestaoPedidosUseCase(
     repositorios.pedidos,
     repositorios.clientes,

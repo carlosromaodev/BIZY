@@ -90,6 +90,8 @@ Atualização 1.35: exportação CSV do relatório comercial passou a registrar 
 
 Atualização 1.36: exportação CSV de clientes passou a aceitar filtros de busca, tag, estado de relacionamento e consentimento de marketing, incluindo campos de origem, username e consentimentos no ficheiro para apoiar segmentação operacional sem misturar clientes sem autorização.
 
+Atualização 1.37: resumo do catálogo passou a devolver alertas operacionais de produtos com stock baixo, stock sem giro, ranking de vendidos e produtos reservados sem pagamento, alimentando decisões rápidas de reposição, cobrança e promoção.
+
 ---
 
 ## 2. Legenda
@@ -362,7 +364,7 @@ Esta etapa transforma o Bizy de painel de live em CRM operacional para lojas que
 | RF113 | [~] O sistema deve permitir criar coleções comerciais, como live atual, novidades, promoção, reposição, mais vendidos e catálogo WhatsApp. | Alta | Parcial - campo coleção e resumo por coleção implementados; faltam regras/telas de gestão |
 | RF114 | [~] Categorias só devem aparecer quando forem usadas para filtros, relatórios ou catálogo; não devem ser menu principal separado sem conteúdo operacional. | Alta | Parcial - backend agrupa apenas categorias usadas; falta refletir no frontend |
 | RF115 | [x] Descontos devem ser tratados como regra aplicada em pedido, campanha ou produto específico, não como página solta sem fluxo de aprovação. | Alta | Implementado no backend para pedidos com solicitação, tarefa de aprovação, aprovação financeira, recálculo de total e evento operacional |
-| RF116 | [~] O CRM deve alertar produtos com stock baixo, stock parado, mais vendidos e produtos reservados sem pagamento. | Alta | Parcial - resumo de stock baixo implementado; faltam stock parado, ranking e reservados sem pagamento |
+| RF116 | [x] O CRM deve alertar produtos com stock baixo, stock parado, mais vendidos e produtos reservados sem pagamento. | Alta | Implementado no resumo do catálogo com alertas de baixo stock, stock sem giro, vendidos e reservas sem pagamento |
 | RF117 | [x] O sistema deve manter histórico de movimentos de stock: entrada, venda, reserva, cancelamento, devolução, ajuste manual e correção. | Alta | Implementado no backend |
 | RF118 | [x] O vendedor deve importar produtos por CSV/Excel com validação de código único e relatório de erros. | Média | Implementado no backend para CSV com upsert por código no negócio |
 | RF119 | [x] O produto deve permitir variantes simples, como tamanho, cor ou modelo, quando a loja precisar. | Média | Implementado no backend |
@@ -390,7 +392,7 @@ Esta etapa transforma o Bizy de painel de live em CRM operacional para lojas que
 | ID | Requisito Funcional | Prioridade | Estado |
 |---|---|---|---|
 | RF133 | [x] Relatórios devem começar por indicadores práticos: vendas do dia, pedidos pagos, pagamentos pendentes, ticket médio, clientes novos, clientes recorrentes e conversão de reservas. | Alta | Implementado no backend em `/relatorios/comercial` |
-| RF134 | [~] O CRM deve mostrar ranking de produtos mais vendidos, produtos encalhados, produtos com maior margem e produtos com mais reserva perdida. | Média | Parcial - backend calcula ranking de vendidos e margem estimada; faltam encalhados e reserva perdida |
+| RF134 | [~] O CRM deve mostrar ranking de produtos mais vendidos, produtos encalhados, produtos com maior margem e produtos com mais reserva perdida. | Média | Parcial - backend calcula vendidos, stock parado/encalhado e margem estimada no catálogo/relatório; faltam ranking dedicado de maior margem e reserva perdida por produto |
 | RF135 | [~] O CRM deve mostrar desempenho de atendimento: tempo médio de primeira resposta, conversas abertas, SLA vencido, mensagens falhadas e taxa de resolução. | Alta | Parcial - relatório comercial expõe conversas abertas, mensagens falhadas e tarefas/SLA atrasadas; falta cálculo de primeira resposta e taxa de resolução |
 | RF136 | [~] O CRM deve mostrar desempenho de campanhas: receita gerada, respostas, opt-out, falhas e segmentos que converteram. | Média | Parcial - backend expõe métricas de campanha e bloqueios/opt-out; faltam receita por campanha e conversão por segmento |
 | RF137 | [ ] A página `Explorar` não deve existir como relatório vazio; relatórios avançados só entram quando houver perguntas reais de negócio a responder. | Alta | Planeado |

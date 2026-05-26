@@ -268,4 +268,90 @@ describe("catálogo e movimentos de stock HTTP", () => {
       await app.close();
     }
   });
+
+  it("expõe alertas comerciais de stock, venda e reserva sem pagamento", async () => {
+    const app = await criarAplicacao();
+
+    try {
+      const loja = await autenticar(app, "923333150", "Loja Alertas Stock");
+      const produtos = [
+        { codigo: "501", nome: "Produto baixo stock", precoEmKwanza: 9_000, quantidade: 1, stockMinimo: 3 },
+        { codigo: "502", nome: "Produto reservado", precoEmKwanza: 12_000, quantidade: 3, stockMinimo: 1 },
+        { codigo: "503", nome: "Produto campeão", precoEmKwanza: 15_000, quantidade: 3, stockMinimo: 1 },
+        { codigo: "504", nome: "Produto parado", precoEmKwanza: 8_000, quantidade: 8, stockMinimo: 1 }
+      ];
+
+      for (const produto of produtos) {
+        const resposta = await app.inject({
+          method: "POST",
+          url: "/pecas",
+          headers: loja,
+          payload: {
+            ...produto,
+            descricao: `${produto.nome} para alertas operacionais`,
+            fotos: []
+          }
+        });
+        expect(resposta.statusCode).toBe(201);
+      }
+
+      const reservaPendente = await app.inject({
+        method: "POST",
+        url: "/comentarios/manual",
+        headers: loja,
+        payload: {
+          liveId: "live_alertas_stock",
+          username: "cliente_reservado",
+          displayName: "Cliente Reservado",
+          commentText: "quero peça 502 923333151"
+        }
+      });
+      expect(reservaPendente.statusCode).toBe(201);
+
+      const reservaPaga = await app.inject({
+        method: "POST",
+        url: "/comentarios/manual",
+        headers: loja,
+        payload: {
+          liveId: "live_alertas_stock",
+          username: "cliente_pago",
+          displayName: "Cliente Pago",
+          commentText: "quero peça 503 923333152"
+        }
+      });
+      expect(reservaPaga.statusCode).toBe(201);
+      const pagamento = await app.inject({
+        method: "POST",
+        url: `/reservas/${reservaPaga.json().reserva.id}/confirmar-pagamento`,
+        headers: loja,
+        payload: {}
+      });
+      expect(pagamento.statusCode).toBe(200);
+
+      const resumo = await app.inject({
+        method: "GET",
+        url: "/pecas/resumo",
+        headers: loja
+      });
+      expect(resumo.statusCode).toBe(200);
+      expect(resumo.json().alertas).toEqual(
+        expect.objectContaining({
+          baixoStockProdutos: [
+            expect.objectContaining({ codigo: "501", nome: "Produto baixo stock", quantidade: 1, stockMinimo: 3 })
+          ],
+          reservadosSemPagamento: [
+            expect.objectContaining({ codigo: "502", nome: "Produto reservado", totalReservado: 1, valorEmKwanza: 12_000 })
+          ],
+          maisVendidos: [
+            expect.objectContaining({ codigo: "503", nome: "Produto campeão", totalVendido: 1, receitaEmKwanza: 15_000 })
+          ],
+          stockParado: [
+            expect.objectContaining({ codigo: "504", nome: "Produto parado", quantidade: 8, valorEmKwanza: 64_000 })
+          ]
+        })
+      );
+    } finally {
+      await app.close();
+    }
+  });
 });
