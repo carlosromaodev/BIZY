@@ -211,6 +211,42 @@ describe("pedidos HTTP", () => {
         })
       );
 
+      const auditoriaPedido = await app.inject({
+        method: "GET",
+        url: "/operacional/auditoria?topico=pedidos",
+        headers: lojaA
+      });
+      expect(auditoriaPedido.statusCode).toBe(200);
+      expect(auditoriaPedido.json().logs).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            tipo: "PAGAMENTO_CONFIRMADO",
+            entidadeTipo: "pedido",
+            entidadeId: respostaCriacao.json().id,
+            payload: expect.objectContaining({
+              atorUsuarioId: expect.any(String),
+              motivo: "Pagamento validado pela equipa financeira",
+              alteracoes: expect.objectContaining({
+                estadoPagamento: { antes: "PENDENTE", depois: "CONFIRMADO" },
+                estado: { antes: "AGUARDANDO_PAGAMENTO", depois: "PAGO" }
+              })
+            })
+          }),
+          expect.objectContaining({
+            tipo: "ENTREGA_ATUALIZADA",
+            entidadeTipo: "pedido",
+            entidadeId: respostaCriacao.json().id,
+            payload: expect.objectContaining({
+              atorUsuarioId: expect.any(String),
+              motivo: "Recebido pelo cliente",
+              alteracoes: expect.objectContaining({
+                estadoEntrega: { antes: "PENDENTE", depois: "ENTREGUE" }
+              })
+            })
+          })
+        ])
+      );
+
       const exportacao = await app.inject({
         method: "GET",
         url: "/pedidos/exportar.csv",
@@ -356,6 +392,27 @@ describe("pedidos HTTP", () => {
           canceladoEm: expect.any(String)
         })
       );
+
+      const auditoriaCancelamento = await app.inject({
+        method: "GET",
+        url: "/operacional/auditoria?topico=pedidos&tipo=PEDIDO_CANCELADO",
+        headers: loja
+      });
+      expect(auditoriaCancelamento.statusCode).toBe(200);
+      expect(auditoriaCancelamento.json().logs).toEqual([
+        expect.objectContaining({
+          tipo: "PEDIDO_CANCELADO",
+          entidadeTipo: "pedido",
+          entidadeId: pedido.json().id,
+          payload: expect.objectContaining({
+            atorUsuarioId: expect.any(String),
+            motivo: "Cliente desistiu antes do pagamento.",
+            alteracoes: expect.objectContaining({
+              estado: { antes: "AGUARDANDO_PAGAMENTO", depois: "CANCELADO" }
+            })
+          })
+        })
+      ]);
     } finally {
       await app.close();
     }

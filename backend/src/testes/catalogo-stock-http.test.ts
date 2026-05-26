@@ -170,6 +170,41 @@ describe("catálogo e movimentos de stock HTTP", () => {
           quantidadeNova: 7
         })
       ]);
+
+      const auditoriaStock = await app.inject({
+        method: "GET",
+        url: "/operacional/auditoria?topico=stock",
+        headers: loja
+      });
+      expect(auditoriaStock.statusCode).toBe(200);
+      expect(auditoriaStock.json().logs).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            tipo: "STOCK_AJUSTADO",
+            entidadeTipo: "produto",
+            entidadeId: "SKU-01",
+            payload: expect.objectContaining({
+              atorUsuarioId: expect.any(String),
+              motivo: "Reposição semanal",
+              alteracoes: expect.objectContaining({
+                quantidade: { antes: 2, depois: 7 }
+              })
+            })
+          }),
+          expect.objectContaining({
+            tipo: "STOCK_AJUSTADO",
+            entidadeTipo: "produto",
+            entidadeId: "SKU-01",
+            payload: expect.objectContaining({
+              atorUsuarioId: expect.any(String),
+              motivo: "Venda balcão",
+              alteracoes: expect.objectContaining({
+                quantidade: { antes: 7, depois: 5 }
+              })
+            })
+          })
+        ])
+      );
     } finally {
       await app.close();
     }

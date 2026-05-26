@@ -5,6 +5,7 @@ import {
   ImportarCsvSchema,
   RegistrarMovimentoStockSchema
 } from "../../../dominio/esquemas.js";
+import { montarAlteracoes, registrarAuditoriaCritica } from "../auditoriaOperacional.js";
 import { exigirAcessoComercial } from "../contextoComercial.js";
 import type { ModuloHttp } from "./ModuloHttp.js";
 
@@ -124,6 +125,26 @@ export const moduloCatalogo: ModuloHttp = {
         { ...dados, responsavelId: dados.responsavelId ?? contextoComercial.usuario.id },
         contextoComercial.negocio.id
       );
+      await registrarAuditoriaCritica(contexto, contextoComercial, {
+        topico: "stock",
+        tipo: "STOCK_AJUSTADO",
+        entidadeTipo: "produto",
+        entidadeId: resultado.peca.codigo,
+        motivo: dados.motivo,
+        alteracoes: montarAlteracoes(
+          { quantidade: resultado.movimento.quantidadeAnterior },
+          { quantidade: resultado.movimento.quantidadeNova },
+          ["quantidade"]
+        ),
+        payload: {
+          movimentoId: resultado.movimento.id,
+          codigoPeca: resultado.peca.codigo,
+          tipoMovimento: resultado.movimento.tipo,
+          quantidadeMovimento: resultado.movimento.quantidade,
+          responsavelId: resultado.movimento.responsavelId,
+          origem: resultado.movimento.origem
+        }
+      });
       return reply.code(201).send(resultado);
     });
 

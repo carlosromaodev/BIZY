@@ -315,6 +315,40 @@ describe("CRM+ governança, campanhas, eventos e jobs", () => {
         ])
       );
 
+      const atualizacaoMembro = await app.inject({
+        method: "PATCH",
+        url: `/negocio/membros/${membro.json().membro.id}`,
+        headers,
+        payload: {
+          papel: "ATENDENTE",
+          permissoes: ["clientes:ler", "conversas:gerir"],
+          motivo: "Operadora saiu do financeiro e passou para atendimento."
+        }
+      });
+      expect(atualizacaoMembro.statusCode).toBe(200);
+
+      const auditoriaPermissoes = await app.inject({
+        method: "GET",
+        url: "/operacional/auditoria?topico=permissoes&tipo=MEMBRO_ATUALIZADO",
+        headers
+      });
+      expect(auditoriaPermissoes.statusCode).toBe(200);
+      expect(auditoriaPermissoes.json().logs).toEqual([
+        expect.objectContaining({
+          tipo: "MEMBRO_ATUALIZADO",
+          entidadeTipo: "membro_negocio",
+          entidadeId: membro.json().membro.id,
+          payload: expect.objectContaining({
+            atorUsuarioId: expect.any(String),
+            motivo: "Operadora saiu do financeiro e passou para atendimento.",
+            alteracoes: expect.objectContaining({
+              papel: { antes: "FINANCEIRO", depois: "ATENDENTE" },
+              permissoes: { antes: [], depois: ["clientes:ler", "conversas:gerir"] }
+            })
+          })
+        })
+      ]);
+
       const evento = await app.inject({
         method: "POST",
         url: "/eventos-operacionais",

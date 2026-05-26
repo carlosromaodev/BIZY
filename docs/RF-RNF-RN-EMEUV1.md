@@ -124,6 +124,8 @@ Atualização 1.52: Tarefas operacionais passaram a validar vínculos de cliente
 
 Atualização 1.53: Permissões comerciais ficaram mais finas para ações críticas: desconto acima do limite exige perfil autorizado, aprovação de desconto usa permissão própria, cancelamento de pedido exige permissão e motivo, e exportação de clientes tem permissão dedicada.
 
+Atualização 1.54: Auditoria crítica passou a registrar alterações humanas de pedido, pagamento, entrega, cancelamento, stock manual e permissões/membros com ator, papel, motivo e diff antes/depois.
+
 ---
 
 ## 2. Legenda
@@ -446,7 +448,7 @@ Esta etapa transforma o Bizy de painel de live em CRM operacional para lojas que
 | RF148 | [x] O CRM deve suportar papéis mínimos: dono da loja, vendedor, atendente, financeiro, entregador e admin técnico. | Média | Implementado no backend com catálogo de papéis e membros por negócio |
 | RF149 | [x] Permissões devem controlar quem pode dar desconto, confirmar pagamento, cancelar pedido, exportar clientes e alterar configurações. | Alta | Implementado no backend com permissões por papel para pagamentos, aprovação de desconto, cancelamento, exportação de clientes e configurações, incluindo limite de desconto sem aprovação e motivo obrigatório no cancelamento |
 | RF150 | [x] A equipa deve poder transferir conversa/pedido/tarefa entre responsáveis com motivo opcional. | Média | Implementado no backend por `/operacional/transferencias` com nota/observação de motivo |
-| RF151 | [~] O sistema deve registrar auditoria de ações humanas críticas, incluindo quem fez, quando fez e qual dado foi alterado. | Alta | Parcial - exportação, comissão, compartilhamento, jobs/eventos e fusão de cliente têm trilhas; faltam todas as alterações financeiras/stock/permissão com diff detalhado |
+| RF151 | [x] O sistema deve registrar auditoria de ações humanas críticas, incluindo quem fez, quando fez e qual dado foi alterado. | Alta | Implementado no backend com trilha operacional para pagamento, entrega, cancelamento, desconto aprovado, stock manual, permissões/membros, exportações, comissões, compartilhamento e fusão de cliente, registrando ator, motivo e diff antes/depois |
 
 ### 3.14 Bizy CRM+ Social Commerce - Criadores, Afiliados e Loja Virtual
 
@@ -908,7 +910,7 @@ Esta etapa vem antes da implementação visual dos novos módulos. O objetivo é
 | RN61 | [~] Mensagens transacionais de pedido, pagamento e entrega podem ser enviadas quando necessárias à execução da venda e permitidas pelo provider/canal. | Parcial - política classifica utility/service e templates utilidade existem; faltam amarração de todos os eventos de pedido |
 | RN62 | [x] Campanhas devem usar segmentos claros e nunca devem disparar para todos os clientes por padrão. | Implementado no backend com bloqueio de segmento vazio e filtros claros por tag, estado de relacionamento, origem ou consentimento de marketing |
 | RN63 | [x] Todo pedido deve ter cliente, pelo menos um item, valor total e estado operacional. | Implementado no backend de Pedidos |
-| RN64 | [~] Pedido pago não pode ser apagado; deve ser cancelado, devolvido, trocado ou ajustado com auditoria. | Parcial - não existe exclusão de pedido; falta trilha de auditoria detalhada para ajustes |
+| RN64 | [x] Pedido pago não pode ser apagado; deve ser cancelado, devolvido, trocado ou ajustado com auditoria. | Implementado no backend sem rota de exclusão de pedido e com auditoria operacional em mudanças de estado, cancelamento, devolução/troca, pagamento, entrega e desconto |
 | RN65 | [x] Desconto exige motivo e, acima do limite configurado, aprovação de perfil autorizado. | Implementado no backend com motivo obrigatório, limite percentual configurável por negócio e permissão `descontos:aprovar` para aplicar descontos acima do limite |
 | RN66 | [~] Produto sem stock disponível não deve ser vendido automaticamente, mas pode entrar em lista de interesse/reposição. | Parcial - venda automática bloqueia stock indisponível; lista de interesse/reposição ainda falta |
 | RN67 | [x] Movimento manual de stock exige motivo e responsável. | Implementado no backend |
@@ -987,8 +989,8 @@ Esta etapa vem antes da implementação visual dos novos módulos. O objetivo é
 | RN130 | [x] Tracking ajuda atribuição, mas não substitui prova de pedido, pagamento ou consentimento. | Implementado: eventos de tracking não contam como venda sem pedido/pagamento |
 | RN131 | [~] Toda mensagem WhatsApp iniciada pelo sistema precisa de categoria, motivo, entidade relacionada e fallback antes do envio. | Parcial - política/categoria/motivo/contexto existem para WhatsApp e campanhas; faltam fallback estruturado em todos os eventos |
 | RN132 | [~] Quando houver conflito entre automação e segurança operacional, o backend deve preferir tarefa humana. | Parcial - bloqueios de política e playbooks conservadores criam tarefa; falta regra central para todos os domínios |
-| RN133 | [~] Exportação de clientes, pedidos, comissões ou relatórios só pode ocorrer por usuário autorizado e deve ficar auditada. | Parcial - clientes são auditados; pedidos/relatórios exigem permissão mas faltam auditoria formal; comissões/lotes têm trilhas próprias |
-| RN134 | [~] Toda alteração manual em pagamento, desconto, comissão, stock, atribuição ou fusão de cliente exige responsável e motivo quando afetar dinheiro, entrega ou privacidade. | Parcial - comissão/lotes, stock manual e fusão exigem motivo/responsável; faltam todas as alterações de pedido/desconto com diff |
+| RN133 | [x] Exportação de clientes, pedidos, comissões ou relatórios só pode ocorrer por usuário autorizado e deve ficar auditada. | Implementado no backend com permissões comerciais e trilha de auditoria para exportações de clientes, pedidos, relatórios e lotes/comissões |
+| RN134 | [~] Toda alteração manual em pagamento, desconto, comissão, stock, atribuição ou fusão de cliente exige responsável e motivo quando afetar dinheiro, entrega ou privacidade. | Parcial - pagamento, desconto, stock, comissão/lotes e fusão têm responsável/motivo e diff; falta correção manual de atribuição com motivo obrigatório |
 | RN135 | [x] Dados recebidos de redes sociais devem manter provider, permissões, link original e data da captura para diagnóstico e conformidade. | Implementado no Social Inbox com provider, postUrl, permissões e `capturedAt` em contexto |
 | RN136 | [~] O backend deve permitir operação mínima sem loja pública, sem afiliados ou sem social inbox, mantendo clientes, pedidos, produtos, conversas e pagamentos consistentes. | Parcial - módulos opcionais podem ser desligados mantendo CRM/pedidos/produtos; falta matriz de testes completa por combinação |
 
@@ -1092,7 +1094,7 @@ O backend pode ser considerado pronto para receber os módulos CRM+ quando:
 - [~] O motor de WhatsApp Policy bloquear envio sem categoria, template, consentimento, janela válida ou texto promocional em categoria transacional.
 - [~] Outbox/event bus suportar retry e idempotência para WhatsApp, n8n, campanhas, tracking, social inbox e comissões.
 - [~] Permissões impedirem vendedor comum de acessar dados técnicos, tokens, configurações globais e exportações sensíveis.
-- [~] Auditoria registrar ações críticas de dinheiro, cliente, stock, comissão, permissão e compartilhamento; exportação de clientes, comissão e compartilhamento já têm trilhas, faltam os demais domínios críticos.
+- [x] Auditoria registrar ações críticas de dinheiro, cliente, stock, comissão, permissão e compartilhamento; exportação, pagamento, desconto, entrega, cancelamento, stock, permissões, comissão e compartilhamento têm trilhas com ator, motivo e diff quando aplicável.
 - [~] APIs novas tiverem testes de use-case, repositório e rota HTTP; inbox/SLA/social/tracking/transferência e política WhatsApp têm testes dedicados.
 - [~] Migrations e seeds permitirem subir dev/staging/prod sem correção manual invisível.
 

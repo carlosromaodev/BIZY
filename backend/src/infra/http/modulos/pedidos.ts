@@ -16,6 +16,8 @@ import {
   temPermissao,
   type ContextoComercialHttp
 } from "../contextoComercial.js";
+import { montarAlteracoes, registrarAuditoriaCritica } from "../auditoriaOperacional.js";
+import type { Pedido } from "../../../dominio/tipos.js";
 import type { ModuloHttp } from "./ModuloHttp.js";
 
 export const moduloPedidos: ModuloHttp = {
@@ -186,6 +188,7 @@ export const moduloPedidos: ModuloHttp = {
 
       const { id } = request.params as { id: string };
       const dados = AtualizarEstadoPedidoSchema.parse(request.body ?? {});
+      const pedidoAntes = (await contexto.gestaoPedidos.obterPedido(id, contextoComercial.negocio.id))?.pedido ?? null;
       if (dados.estado === "CANCELADO") {
         if (!temPermissao(contextoComercial.permissoes, "pedidos:cancelar")) {
           return reply.code(403).send({
@@ -200,7 +203,22 @@ export const moduloPedidos: ModuloHttp = {
           });
         }
       }
-      return contexto.gestaoPedidos.atualizarEstado(id, contextoComercial.negocio.id, dados);
+      const pedido = await contexto.gestaoPedidos.atualizarEstado(id, contextoComercial.negocio.id, dados);
+      await registrarAuditoriaCritica(contexto, contextoComercial, {
+        topico: "pedidos",
+        tipo: pedido.estado === "CANCELADO" ? "PEDIDO_CANCELADO" : "PEDIDO_ATUALIZADO",
+        entidadeTipo: "pedido",
+        entidadeId: id,
+        motivo: dados.observacao ?? null,
+        alteracoes: montarAlteracoes(dadosPedidoAuditoria(pedidoAntes), dadosPedidoAuditoria(pedido), [
+          "estado",
+          "estadoPagamento",
+          "responsavelId",
+          "observacao",
+          "canceladoEm"
+        ])
+      });
+      return pedido;
     });
 
     app.post("/pedidos/:id/descontos/solicitar", async (request, reply) => {
@@ -248,6 +266,7 @@ export const moduloPedidos: ModuloHttp = {
 
       const { id } = request.params as { id: string };
       const dados = AprovarDescontoPedidoSchema.parse(request.body ?? {});
+      const pedidoAntes = (await contexto.gestaoPedidos.obterPedido(id, contextoComercial.negocio.id))?.pedido ?? null;
       const resultado = await contexto.gestaoPedidos.aprovarDesconto(id, contextoComercial.negocio.id, dados);
       await contexto.gestaoGovernancaCrm.registrarEvento({
         negocioId: contextoComercial.negocio.id,
@@ -260,7 +279,14 @@ export const moduloPedidos: ModuloHttp = {
           descontoEmKwanza: dados.descontoEmKwanza,
           motivo: dados.motivo,
           aprovadoPor: dados.aprovadoPor,
-          totalEmKwanza: resultado.pedido.totalEmKwanza
+          atorUsuarioId: contextoComercial.usuario.id,
+          totalEmKwanza: resultado.pedido.totalEmKwanza,
+          alteracoes: montarAlteracoes(dadosPedidoAuditoria(pedidoAntes), dadosPedidoAuditoria(resultado.pedido), [
+            "descontoEmKwanza",
+            "motivoDesconto",
+            "totalEmKwanza",
+            "observacao"
+          ])
         },
         estado: "PROCESSADO"
       });
@@ -279,7 +305,23 @@ export const moduloPedidos: ModuloHttp = {
 
       const { id } = request.params as { id: string };
       const dados = ConfirmarPagamentoPedidoSchema.parse(request.body ?? {});
-      return contexto.gestaoPedidos.confirmarPagamento(id, contextoComercial.negocio.id, dados);
+      const pedidoAntes = (await contexto.gestaoPedidos.obterPedido(id, contextoComercial.negocio.id))?.pedido ?? null;
+      const pedido = await contexto.gestaoPedidos.confirmarPagamento(id, contextoComercial.negocio.id, dados);
+      await registrarAuditoriaCritica(contexto, contextoComercial, {
+        topico: "pedidos",
+        tipo: "PAGAMENTO_CONFIRMADO",
+        entidadeTipo: "pedido",
+        entidadeId: id,
+        motivo: dados.observacao ?? "Pagamento confirmado.",
+        alteracoes: montarAlteracoes(dadosPedidoAuditoria(pedidoAntes), dadosPedidoAuditoria(pedido), [
+          "estado",
+          "estadoPagamento",
+          "comprovativoPagamentoUrl",
+          "pagoEm",
+          "observacao"
+        ])
+      });
+      return pedido;
     });
 
     app.patch("/pedidos/:id/entrega", async (request, reply) => {
@@ -293,7 +335,23 @@ export const moduloPedidos: ModuloHttp = {
 
       const { id } = request.params as { id: string };
       const dados = AtualizarEntregaPedidoSchema.parse(request.body ?? {});
-      return contexto.gestaoPedidos.atualizarEntrega(id, contextoComercial.negocio.id, dados);
+      const pedidoAntes = (await contexto.gestaoPedidos.obterPedido(id, contextoComercial.negocio.id))?.pedido ?? null;
+      const pedido = await contexto.gestaoPedidos.atualizarEntrega(id, contextoComercial.negocio.id, dados);
+      await registrarAuditoriaCritica(contexto, contextoComercial, {
+        topico: "pedidos",
+        tipo: "ENTREGA_ATUALIZADA",
+        entidadeTipo: "pedido",
+        entidadeId: id,
+        motivo: dados.observacao ?? `Entrega atualizada para ${dados.estadoEntrega}.`,
+        alteracoes: montarAlteracoes(dadosPedidoAuditoria(pedidoAntes), dadosPedidoAuditoria(pedido), [
+          "estado",
+          "estadoEntrega",
+          "responsavelId",
+          "entregueEm",
+          "observacao"
+        ])
+      });
+      return pedido;
     });
   }
 };
@@ -302,5 +360,23 @@ function politicaDescontoDoContexto(contextoComercial: ContextoComercialHttp) {
   return {
     podeAprovarDesconto: temPermissao(contextoComercial.permissoes, "descontos:aprovar"),
     limiteDescontoSemAprovacaoPercentual: obterLimiteDescontoSemAprovacaoPercentual(contextoComercial.negocio)
+  };
+}
+
+function dadosPedidoAuditoria(pedido: Pedido | null): Record<string, unknown> | null {
+  if (!pedido) return null;
+  return {
+    estado: pedido.estado,
+    estadoPagamento: pedido.estadoPagamento,
+    estadoEntrega: pedido.estadoEntrega,
+    descontoEmKwanza: pedido.descontoEmKwanza,
+    motivoDesconto: pedido.motivoDesconto,
+    totalEmKwanza: pedido.totalEmKwanza,
+    comprovativoPagamentoUrl: pedido.comprovativoPagamentoUrl,
+    responsavelId: pedido.responsavelId,
+    observacao: pedido.observacao,
+    pagoEm: pedido.pagoEm?.toISOString() ?? null,
+    entregueEm: pedido.entregueEm?.toISOString() ?? null,
+    canceladoEm: pedido.canceladoEm?.toISOString() ?? null
   };
 }

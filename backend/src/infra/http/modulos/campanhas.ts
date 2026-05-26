@@ -11,6 +11,8 @@ import {
   CriarMembroNegocioSchema,
   AtualizarMembroNegocioSchema
 } from "../../../dominio/esquemas.js";
+import type { MembroNegocioOperacional } from "../../../dominio/tipos.js";
+import { montarAlteracoes, registrarAuditoriaCritica } from "../auditoriaOperacional.js";
 import { PERMISSOES_POR_PAPEL_PUBLICAS, exigirAcessoComercial } from "../contextoComercial.js";
 import type { ModuloHttp } from "./ModuloHttp.js";
 
@@ -196,6 +198,20 @@ export const moduloCampanhas: ModuloHttp = {
         ...dados,
         negocioId: contextoComercial.negocio.id
       });
+      await registrarAuditoriaCritica(contexto, contextoComercial, {
+        topico: "permissoes",
+        tipo: "MEMBRO_CRIADO",
+        entidadeTipo: "membro_negocio",
+        entidadeId: membro.id,
+        motivo: "Membro criado no negócio.",
+        alteracoes: montarAlteracoes(null, dadosMembroAuditoria(membro), [
+          "papel",
+          "status",
+          "permissoes",
+          "telefone",
+          "email"
+        ])
+      });
       return reply.code(201).send({ membro });
     });
 
@@ -210,7 +226,22 @@ export const moduloCampanhas: ModuloHttp = {
 
       const { id } = request.params as { id: string };
       const dados = AtualizarMembroNegocioSchema.parse(request.body ?? {});
+      const membroAntes =
+        (await contexto.gestaoGovernancaCrm.listarMembros(contextoComercial.negocio.id)).find((membro) => membro.id === id) ??
+        null;
       const membro = await contexto.gestaoGovernancaCrm.atualizarMembro(id, contextoComercial.negocio.id, dados);
+      await registrarAuditoriaCritica(contexto, contextoComercial, {
+        topico: "permissoes",
+        tipo: "MEMBRO_ATUALIZADO",
+        entidadeTipo: "membro_negocio",
+        entidadeId: id,
+        motivo: dados.motivo ?? "Membro atualizado no negócio.",
+        alteracoes: montarAlteracoes(dadosMembroAuditoria(membroAntes), dadosMembroAuditoria(membro), [
+          "papel",
+          "status",
+          "permissoes"
+        ])
+      });
       return { membro };
     });
 
@@ -286,3 +317,14 @@ export const moduloCampanhas: ModuloHttp = {
     });
   }
 };
+
+function dadosMembroAuditoria(membro: MembroNegocioOperacional | null): Record<string, unknown> | null {
+  if (!membro) return null;
+  return {
+    papel: membro.papel,
+    status: membro.status,
+    permissoes: membro.permissoes,
+    telefone: membro.telefone,
+    email: membro.email
+  };
+}
