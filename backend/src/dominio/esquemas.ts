@@ -614,6 +614,31 @@ export const ImportarSocialInboxCsvSchema = z.object({
   csv: z.string().trim().min(1, "Informe o conteúdo CSV para importar.")
 });
 
+const CampoContaSocialOpcionalSchema = z.preprocess(
+  (valor) => (typeof valor === "string" && valor.trim() === "" ? null : valor),
+  z.string().trim().min(1).max(240).nullable().optional()
+).transform((valor) => valor ?? null);
+
+export const ConectarContaSocialSchema = z
+  .object({
+    canal: z.string().trim().min(2).max(40).transform((valor) => valor.toLowerCase()),
+    provider: z.string().trim().min(2).max(80).transform((valor) => valor.toLowerCase()),
+    identificador: z.string().trim().min(2).max(160),
+    username: CampoContaSocialOpcionalSchema,
+    nomePublico: CampoContaSocialOpcionalSchema,
+    avatarUrl: z.preprocess(
+      (valor) => (typeof valor === "string" && valor.trim() === "" ? null : valor),
+      z.string().trim().url().max(2048).nullable().optional()
+    ).transform((valor) => valor ?? null),
+    permissoes: z
+      .array(z.string().trim().min(1).max(120).transform((valor) => valor.toLowerCase()))
+      .max(40)
+      .default([]),
+    credencialRef: CampoContaSocialOpcionalSchema,
+    webhookAtivo: z.boolean().default(false)
+  })
+  .passthrough();
+
 export const CriarPlaybookRecuperacaoSchema = z.object({
   nome: z.string().trim().min(3).max(160),
   gatilho: z.enum(gatilhosPlaybookRecuperacao),

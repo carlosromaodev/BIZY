@@ -2757,6 +2757,7 @@ export class RepositorioAutenticacaoPrisma implements RepositorioAutenticacao {
       fusoHorario: dados.fusoHorario ?? "Africa/Luanda",
       canaisVendaJson: JSON.stringify(dados.canaisVenda ?? []),
       metodosPagamentoJson: JSON.stringify(dados.metodosPagamento ?? []),
+      contasSociaisJson: JSON.stringify(dados.contasSociais ?? (atual ? this.lerObjeto(atual.negocio.contasSociaisJson) : {})),
       entregaJson: JSON.stringify(dados.entrega ?? {}),
       minutosReservaPadrao: dados.minutosReservaPadrao ?? 10,
       slugPublico: dados.slugPublico ?? undefined,
@@ -2785,6 +2786,17 @@ export class RepositorioAutenticacaoPrisma implements RepositorioAutenticacao {
     });
 
     return this.mapearNegocio(negocio, "DONO");
+  }
+
+  async atualizarContasSociaisNegocio(negocioId: string, contasSociais: Record<string, unknown>): Promise<NegocioBizy> {
+    const negocio = await this.prisma.negocio.update({
+      where: { id: negocioId },
+      data: {
+        contasSociaisJson: JSON.stringify(contasSociais)
+      }
+    });
+
+    return this.mapearNegocio(negocio);
   }
 
   async atualizarPublicacaoLoja(negocioId: string, dados: DadosPublicacaoLoja): Promise<NegocioBizy> {
@@ -3003,6 +3015,7 @@ export class RepositorioAutenticacaoPrisma implements RepositorioAutenticacao {
       fusoHorario: string;
       canaisVendaJson: string;
       metodosPagamentoJson: string;
+      contasSociaisJson: string;
       entregaJson: string;
       minutosReservaPadrao: number;
       slugPublico: string | null;
@@ -3031,6 +3044,7 @@ export class RepositorioAutenticacaoPrisma implements RepositorioAutenticacao {
       fusoHorario: negocio.fusoHorario,
       canaisVenda: this.lerArray(negocio.canaisVendaJson),
       metodosPagamento: this.lerArray(negocio.metodosPagamentoJson),
+      contasSociais: this.lerObjeto(negocio.contasSociaisJson),
       entrega: this.lerObjeto(negocio.entregaJson),
       minutosReservaPadrao: negocio.minutosReservaPadrao,
       slugPublico: negocio.slugPublico,

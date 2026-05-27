@@ -1595,6 +1595,7 @@ export class RepositorioAutenticacaoMemoria implements RepositorioAutenticacao {
       fusoHorario: dados.fusoHorario ?? "Africa/Luanda",
       canaisVenda: dados.canaisVenda ?? [],
       metodosPagamento: dados.metodosPagamento ?? [],
+      contasSociais: dados.contasSociais ?? existente?.contasSociais ?? {},
       entrega: dados.entrega ?? {},
       minutosReservaPadrao: dados.minutosReservaPadrao ?? 10,
       slugPublico: existente?.slugPublico ?? dados.slugPublico ?? null,
@@ -1608,6 +1609,19 @@ export class RepositorioAutenticacaoMemoria implements RepositorioAutenticacao {
     this.negocios.set(negocio.id, negocio);
     this.negocioPrincipalPorUsuario.set(usuarioId, negocio.id);
     return negocio;
+  }
+
+  async atualizarContasSociaisNegocio(negocioId: string, contasSociais: Record<string, unknown>): Promise<NegocioBizy> {
+    const atual = this.negocios.get(negocioId);
+    if (!atual) throw new Error("Negócio não encontrado.");
+
+    const atualizado: NegocioBizy = {
+      ...atual,
+      contasSociais,
+      atualizadoEm: new Date()
+    };
+    this.negocios.set(negocioId, atualizado);
+    return atualizado;
   }
 
   async atualizarPublicacaoLoja(negocioId: string, dados: DadosPublicacaoLoja): Promise<NegocioBizy> {

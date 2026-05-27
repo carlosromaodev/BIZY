@@ -63,6 +63,7 @@ describe("contexto comercial HTTP", () => {
     fusoHorario: "Africa/Luanda",
     canaisVenda: ["WHATSAPP"],
     metodosPagamento: [],
+    contasSociais: {},
     entrega: {},
     minutosReservaPadrao: 10,
     slugPublico: null,

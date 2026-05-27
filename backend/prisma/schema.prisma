@@ -439,6 +439,7 @@ model Negocio {
   fusoHorario           String          @default("Africa/Luanda")
   canaisVendaJson       String          @default("[]")
   metodosPagamentoJson  String          @default("[]")
+  contasSociaisJson     String          @default("{}")
   entregaJson           String          @default("{}")
   minutosReservaPadrao  Int             @default(10)
   slugPublico           String?         @unique

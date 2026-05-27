@@ -156,6 +156,8 @@ Atualização 1.68: Criadores e revendedores passaram a poder expor uma mini-loj
 
 Atualização 1.69: Modo revendedor passou a expor, na mini-loja pública, preço especial calculado por desconto, margem/preço sugerido, limite e validade de reserva de stock e regras públicas de entrega/retirada quando o negócio configurar esses dados no perfil do parceiro.
 
+Atualização 1.70: Social Inbox passou a gerir contas sociais conectadas por providers oficiais ou conectores autorizados, com catálogo de providers, persistência por negócio, referência segura de credencial, rejeição de tokens brutos e validação das permissões mínimas antes de liberar captura futura.
+
 ---
 
 ## 2. Legenda
@@ -558,7 +560,7 @@ Esta etapa posiciona o Bizy como uma plataforma de operação comercial para cri
 
 | ID | Requisito Funcional | Prioridade | Estado |
 |---|---|---|---|
-| RF197 | [ ] O sistema deve permitir conectar contas sociais suportadas por providers oficiais ou conectores autorizados. | Alta | Planeado |
+| RF197 | [x] O sistema deve permitir conectar contas sociais suportadas por providers oficiais ou conectores autorizados. | Alta | Implementado - endpoints `/social/contas/providers`, `/social/contas` e persistência segura por negócio |
 | RF198 | [~] O CRM+ deve capturar comentários de fotos, vídeos, posts e lives quando a API do provider permitir, respeitando permissões e limites do canal. | Alta | Parcial - rota de Social Inbox registra/importa interações com provider/permissões; falta conector oficial ativo por rede |
 | RF199 | [x] Comentários sociais devem ser normalizados numa entidade única de interação social com provider, post, autor, texto, data, link original e estado. | Alta | Implementado no backend em `SocialInboxItem` |
 | RF200 | [~] O sistema deve classificar comentários por intenção: preço, disponibilidade, tamanho/cor, entrega, reclamação, intenção de compra, lead frio/quente, spam ou dúvida geral. | Alta | Parcial - backend aceita intenção normalizada e confiança; falta classificador automático completo |

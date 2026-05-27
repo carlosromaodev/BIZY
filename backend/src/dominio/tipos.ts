@@ -1953,6 +1953,7 @@ export interface NegocioBizy extends Required<Pick<DadosNegocioBizy, "nomeComerc
   fusoHorario: string;
   canaisVenda: string[];
   metodosPagamento: string[];
+  contasSociais: Record<string, unknown>;
   entrega: Record<string, unknown>;
   minutosReservaPadrao: number;
   slugPublico: string | null;

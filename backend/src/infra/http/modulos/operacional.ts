@@ -5,6 +5,7 @@ import {
   CriarTarefaOperacionalSchema,
   CriarPlaybookRecuperacaoSchema,
   CriarSocialInboxItemSchema,
+  ConectarContaSocialSchema,
   DefinirPoliticaAutomacaoAtendimentoSchema,
   EnviarMensagemConversaAtendimentoSchema,
   ExecutarPlaybookRecuperacaoSchema,
@@ -348,6 +349,48 @@ export const moduloOperacional: ModuloHttp = {
       const filtros = FiltrosSocialInboxQuerySchema.parse(request.query ?? {});
       const itens = await contexto.gestaoSocialInbox.listarItens(contextoComercial.negocio.id, filtros);
       return { itens };
+    });
+
+    app.get("/social/contas/providers", async (request, reply) => {
+      const contextoComercial = await exigirAcessoComercial(contexto, request, reply, {
+        permissao: "social-inbox:ler",
+        modulo: "social-inbox",
+        mensagemPermissao: "Sem permissão para consultar providers sociais.",
+        mensagemModulo: "Social Inbox desativado para este negócio."
+      });
+      if (!contextoComercial) return;
+
+      return { providers: contexto.gestaoSocialInbox.listarProvidersAutorizados() };
+    });
+
+    app.get("/social/contas", async (request, reply) => {
+      const contextoComercial = await exigirAcessoComercial(contexto, request, reply, {
+        permissao: "social-inbox:ler",
+        modulo: "social-inbox",
+        mensagemPermissao: "Sem permissão para consultar contas sociais.",
+        mensagemModulo: "Social Inbox desativado para este negócio."
+      });
+      if (!contextoComercial) return;
+
+      return { contas: contexto.gestaoSocialInbox.listarContasSociais(contextoComercial.negocio) };
+    });
+
+    app.post("/social/contas", async (request, reply) => {
+      const contextoComercial = await exigirAcessoComercial(contexto, request, reply, {
+        permissao: "social-inbox:gerir",
+        modulo: "social-inbox",
+        mensagemPermissao: "Sem permissão para conectar contas sociais.",
+        mensagemModulo: "Social Inbox desativado para este negócio."
+      });
+      if (!contextoComercial) return;
+
+      const dados = ConectarContaSocialSchema.parse(request.body ?? {});
+      const conta = await contexto.gestaoSocialInbox.conectarContaSocial(
+        contextoComercial.negocio,
+        dados,
+        request.body ?? {}
+      );
+      return reply.code(201).send({ conta });
     });
 
     app.post("/social/inbox/importar.csv", async (request, reply) => {

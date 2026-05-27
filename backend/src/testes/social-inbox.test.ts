@@ -198,6 +198,117 @@ describe("Social Inbox CRM+", () => {
       await app.close();
     }
   });
+
+  it("conecta contas sociais apenas por providers autorizados sem persistir tokens sensíveis", async () => {
+    const app = await criarAplicacao();
+
+    try {
+      const headers = await autenticar(app);
+
+      const providers = await app.inject({
+        method: "GET",
+        url: "/social/contas/providers",
+        headers
+      });
+
+      expect(providers.statusCode).toBe(200);
+      expect(providers.json().providers).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            codigo: "instagram_graph",
+            canal: "instagram",
+            autorizado: true,
+            permissoesObrigatorias: expect.arrayContaining(["comments.read", "profile.read"])
+          }),
+          expect.objectContaining({
+            codigo: "tiktok_business",
+            canal: "tiktok",
+            autorizado: true
+          })
+        ])
+      );
+
+      const conectada = await app.inject({
+        method: "POST",
+        url: "/social/contas",
+        headers,
+        payload: {
+          canal: "Instagram",
+          provider: "instagram_graph",
+          identificador: "17841400000000000",
+          username: "loja_bizy",
+          nomePublico: "Loja Bizy",
+          avatarUrl: "https://example.com/loja.png",
+          permissoes: ["comments.read", "profile.read", "messages.read"],
+          credencialRef: "vault:social/ig/loja_bizy",
+          webhookAtivo: true
+        }
+      });
+
+      expect(conectada.statusCode).toBe(201);
+      expect(conectada.json().conta).toEqual(
+        expect.objectContaining({
+          id: "instagram:17841400000000000",
+          canal: "instagram",
+          provider: "instagram_graph",
+          identificador: "17841400000000000",
+          username: "loja_bizy",
+          nomePublico: "Loja Bizy",
+          avatarUrl: "https://example.com/loja.png",
+          status: "CONECTADA",
+          credencialRef: "vault:social/ig/loja_bizy",
+          webhookAtivo: true
+        })
+      );
+      expect(JSON.stringify(conectada.json())).not.toContain("accessToken");
+
+      const listagem = await app.inject({
+        method: "GET",
+        url: "/social/contas",
+        headers
+      });
+
+      expect(listagem.statusCode).toBe(200);
+      expect(listagem.json().contas).toEqual([
+        expect.objectContaining({
+          id: "instagram:17841400000000000",
+          provider: "instagram_graph",
+          permissoes: expect.arrayContaining(["comments.read", "profile.read", "messages.read"])
+        })
+      ]);
+
+      const providerInvalido = await app.inject({
+        method: "POST",
+        url: "/social/contas",
+        headers,
+        payload: {
+          canal: "instagram",
+          provider: "scraper_nao_autorizado",
+          identificador: "perfil_sem_consentimento"
+        }
+      });
+
+      expect(providerInvalido.statusCode).toBe(400);
+      expect(providerInvalido.json().mensagem).toContain("Provider social não autorizado");
+
+      const tokenBruto = await app.inject({
+        method: "POST",
+        url: "/social/contas",
+        headers,
+        payload: {
+          canal: "instagram",
+          provider: "instagram_graph",
+          identificador: "17841400000000001",
+          accessToken: "token-que-nao-pode-ser-armazenado"
+        }
+      });
+
+      expect(tokenBruto.statusCode).toBe(400);
+      expect(tokenBruto.json().mensagem).toContain("Não envie tokens");
+    } finally {
+      await app.close();
+    }
+  });
 });
 
 async function autenticar(app: Awaited<ReturnType<typeof criarAplicacao>>) {

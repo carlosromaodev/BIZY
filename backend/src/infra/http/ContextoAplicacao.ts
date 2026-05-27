@@ -321,7 +321,11 @@ export function criarContextoAplicacao(logger: FastifyBaseLogger): ContextoAplic
     repositorios.compartilhamentoClientes
   );
   const gestaoAtendimentoCrm = new GestaoAtendimentoCrmUseCase(repositorios.atendimento);
-  const gestaoSocialInbox = new GestaoSocialInboxUseCase(repositorios.socialInbox, repositorios.tarefas);
+  const gestaoSocialInbox = new GestaoSocialInboxUseCase(
+    repositorios.socialInbox,
+    repositorios.tarefas,
+    repositorios.autenticacao
+  );
   const gestaoPlaybooksRecuperacao = new GestaoPlaybooksRecuperacaoUseCase(
     repositorios.playbooksRecuperacao,
     repositorios.tarefas,

@@ -1,4 +1,5 @@
 import type {
+  RepositorioAutenticacao,
   RepositorioSocialInbox,
   RepositorioTarefasOperacionais
 } from "../dominio/repositorios/contratos.js";
@@ -9,6 +10,7 @@ import {
   type EstadoSocialInbox,
   type FiltrosSocialInbox,
   type IntencaoSocialInbox,
+  type NegocioBizy,
   type NovoSocialInboxItem,
   type SocialInboxItem,
   type TipoSocialInbox
@@ -16,6 +18,108 @@ import {
 import { lerBooleano, lerLista, parseCsv } from "./utils/csv.js";
 
 const LIMIAR_TAREFA_LEAD = 0.7;
+const CHAVES_SENSIVEIS_CONTA_SOCIAL = new Set([
+  "token",
+  "accesstoken",
+  "refreshtoken",
+  "clientsecret",
+  "secret",
+  "apikey",
+  "password",
+  "senha",
+  "appsecret"
+]);
+
+const PROVIDERS_SOCIAIS_AUTORIZADOS: ProviderSocialAutorizado[] = [
+  {
+    codigo: "instagram_graph",
+    canal: "instagram",
+    nome: "Instagram Graph API",
+    tipo: "OFICIAL",
+    autorizado: true,
+    permissoesObrigatorias: ["comments.read", "profile.read"],
+    capacidades: ["comentarios", "mensagens", "perfil", "avatar", "webhooks"],
+    observacao: "Usar apenas contas Business/Creator ligadas ao Meta Business com consentimento do gestor."
+  },
+  {
+    codigo: "facebook_graph",
+    canal: "facebook",
+    nome: "Facebook Graph API",
+    tipo: "OFICIAL",
+    autorizado: true,
+    permissoesObrigatorias: ["pages_read_engagement", "pages_manage_metadata"],
+    capacidades: ["comentarios", "mensagens", "perfil", "avatar", "webhooks"],
+    observacao: "Requer página administrada pelo negócio e revisão de permissões quando aplicável."
+  },
+  {
+    codigo: "tiktok_business",
+    canal: "tiktok",
+    nome: "TikTok Business API",
+    tipo: "OFICIAL",
+    autorizado: true,
+    permissoesObrigatorias: ["comments.read", "profile.read"],
+    capacidades: ["comentarios", "perfil", "avatar", "sincronizacao"],
+    observacao: "Usar quando a conta do negócio permitir acesso oficial a comentários e metadados."
+  },
+  {
+    codigo: "manual_csv",
+    canal: "multi",
+    nome: "Importação manual auditada",
+    tipo: "CONECTOR_AUTORIZADO",
+    autorizado: true,
+    permissoesObrigatorias: [],
+    capacidades: ["csv", "auditoria", "normalizacao"],
+    observacao: "Fallback operacional para fontes autorizadas sem integração em tempo real."
+  }
+];
+
+interface ProviderSocialAutorizado {
+  codigo: string;
+  canal: string;
+  nome: string;
+  tipo: "OFICIAL" | "CONECTOR_AUTORIZADO";
+  autorizado: true;
+  permissoesObrigatorias: string[];
+  capacidades: string[];
+  observacao: string;
+}
+
+export interface DadosConexaoContaSocial {
+  canal: string;
+  provider: string;
+  identificador: string;
+  username: string | null;
+  nomePublico: string | null;
+  avatarUrl: string | null;
+  permissoes: string[];
+  credencialRef: string | null;
+  webhookAtivo: boolean;
+  [chave: string]: unknown;
+}
+
+interface ContaSocialConectada {
+  id: string;
+  canal: string;
+  provider: string;
+  providerTipo: ProviderSocialAutorizado["tipo"];
+  identificador: string;
+  username: string | null;
+  nomePublico: string | null;
+  avatarUrl: string | null;
+  permissoes: string[];
+  credencialRef: string | null;
+  webhookAtivo: boolean;
+  status: "CONECTADA" | "PENDENTE" | "ERRO" | "DESCONECTADA";
+  conectadoEm: string;
+  atualizadoEm: string;
+}
+
+interface ConfiguracaoContasSociais {
+  versao: 1;
+  atualizadoEm: string;
+  contas: ContaSocialConectada[];
+  providersAutorizados: string[];
+}
 
 interface ResultadoLinhaImportacaoSocial {
   linha: number;
@@ -28,8 +132,65 @@ interface ResultadoLinhaImportacaoSocial {
 export class GestaoSocialInboxUseCase {
   constructor(
     private readonly socialInbox: RepositorioSocialInbox,
-    private readonly tarefas: RepositorioTarefasOperacionais
+    private readonly tarefas: RepositorioTarefasOperacionais,
+    private readonly autenticacao: RepositorioAutenticacao
   ) {}
+
+  listarProvidersAutorizados() {
+    return PROVIDERS_SOCIAIS_AUTORIZADOS.map((provider) => ({ ...provider }));
+  }
+
+  listarContasSociais(negocio: NegocioBizy): ContaSocialConectada[] {
+    return this.normalizarConfiguracaoContasSociais(negocio.contasSociais).contas;
+  }
+
+  async conectarContaSocial(
+    negocio: NegocioBizy,
+    dados: DadosConexaoContaSocial,
+    payloadBruto: unknown = dados
+  ): Promise<ContaSocialConectada> {
+    const chaveSensivel = this.encontrarChaveSensivel(payloadBruto);
+    if (chaveSensivel) {
+      throw new Error(
+        `Não envie tokens brutos no cadastro social: ${chaveSensivel} não pode ser persistido. Use credencialRef.`
+      );
+    }
+
+    const provider = this.validarProvider(dados);
+    const permissoes = [...new Set(dados.permissoes.map((permissao) => permissao.trim().toLowerCase()).filter(Boolean))];
+    const ausentes = provider.permissoesObrigatorias.filter((permissao) => !permissoes.includes(permissao));
+    if (ausentes.length) {
+      throw new Error(`Permissões inválidas para ${provider.nome}: faltam ${ausentes.join(", ")}.`);
+    }
+
+    const agora = new Date().toISOString();
+    const configuracaoAtual = this.normalizarConfiguracaoContasSociais(negocio.contasSociais);
+    const conta: ContaSocialConectada = {
+      id: `${dados.canal}:${dados.identificador}`,
+      canal: dados.canal,
+      provider: provider.codigo,
+      providerTipo: provider.tipo,
+      identificador: dados.identificador,
+      username: dados.username,
+      nomePublico: dados.nomePublico,
+      avatarUrl: dados.avatarUrl,
+      permissoes,
+      credencialRef: dados.credencialRef,
+      webhookAtivo: dados.webhookAtivo,
+      status: "CONECTADA",
+      conectadoEm: configuracaoAtual.contas.find((item) => item.id === `${dados.canal}:${dados.identificador}`)?.conectadoEm ?? agora,
+      atualizadoEm: agora
+    };
+    const atualizado: ConfiguracaoContasSociais = {
+      ...configuracaoAtual,
+      atualizadoEm: agora,
+      providersAutorizados: PROVIDERS_SOCIAIS_AUTORIZADOS.map((item) => item.codigo),
+      contas: [...configuracaoAtual.contas.filter((item) => item.id !== conta.id), conta]
+    };
+
+    await this.autenticacao.atualizarContasSociaisNegocio(negocio.id, atualizado as unknown as Record<string, unknown>);
+    return conta;
+  }
 
   async criarItem(dados: NovoSocialInboxItem): Promise<SocialInboxItem> {
     const duplicado = await this.buscarDuplicado(dados);
@@ -329,6 +490,96 @@ export class GestaoSocialInboxUseCase {
 
   private obterPermissoesProvider(contexto: Record<string, unknown>): unknown {
     return contexto.providerPermissoes ?? contexto.permissions ?? contexto.permissoes ?? [];
+  }
+
+  private validarProvider(dados: DadosConexaoContaSocial): ProviderSocialAutorizado {
+    const provider = PROVIDERS_SOCIAIS_AUTORIZADOS.find(
+      (item) => item.codigo === dados.provider && (item.canal === dados.canal || item.canal === "multi")
+    );
+    if (!provider) {
+      throw new Error(`Provider social não autorizado ou inválido para ${dados.canal}: ${dados.provider}.`);
+    }
+    return provider;
+  }
+
+  private normalizarConfiguracaoContasSociais(valor: Record<string, unknown> | undefined): ConfiguracaoContasSociais {
+    const bruto = this.ehRegistro(valor) ? valor : {};
+    const contasBrutas = Array.isArray(bruto.contas) ? bruto.contas : [];
+    const contas = contasBrutas
+      .map((conta) => this.normalizarContaSocial(conta))
+      .filter((conta): conta is ContaSocialConectada => Boolean(conta));
+
+    return {
+      versao: 1,
+      atualizadoEm: typeof bruto.atualizadoEm === "string" ? bruto.atualizadoEm : new Date(0).toISOString(),
+      providersAutorizados: Array.isArray(bruto.providersAutorizados)
+        ? bruto.providersAutorizados.filter((item): item is string => typeof item === "string")
+        : PROVIDERS_SOCIAIS_AUTORIZADOS.map((item) => item.codigo),
+      contas
+    };
+  }
+
+  private normalizarContaSocial(valor: unknown): ContaSocialConectada | null {
+    if (!this.ehRegistro(valor)) return null;
+    const canal = this.textoRegistro(valor, "canal");
+    const provider = this.textoRegistro(valor, "provider");
+    const identificador = this.textoRegistro(valor, "identificador");
+    const id = this.textoRegistro(valor, "id") ?? (canal && identificador ? `${canal}:${identificador}` : null);
+    if (!id || !canal || !provider || !identificador) return null;
+
+    return {
+      id,
+      canal,
+      provider,
+      providerTipo: valor.providerTipo === "CONECTOR_AUTORIZADO" ? "CONECTOR_AUTORIZADO" : "OFICIAL",
+      identificador,
+      username: this.textoRegistro(valor, "username"),
+      nomePublico: this.textoRegistro(valor, "nomePublico"),
+      avatarUrl: this.textoRegistro(valor, "avatarUrl"),
+      permissoes: Array.isArray(valor.permissoes)
+        ? valor.permissoes.filter((item): item is string => typeof item === "string")
+        : [],
+      credencialRef: this.textoRegistro(valor, "credencialRef"),
+      webhookAtivo: valor.webhookAtivo === true,
+      status: this.statusContaSocial(valor.status),
+      conectadoEm: this.textoRegistro(valor, "conectadoEm") ?? new Date(0).toISOString(),
+      atualizadoEm: this.textoRegistro(valor, "atualizadoEm") ?? new Date(0).toISOString()
+    };
+  }
+
+  private statusContaSocial(valor: unknown): ContaSocialConectada["status"] {
+    if (valor === "PENDENTE" || valor === "ERRO" || valor === "DESCONECTADA") return valor;
+    return "CONECTADA";
+  }
+
+  private encontrarChaveSensivel(valor: unknown): string | null {
+    if (Array.isArray(valor)) {
+      for (const item of valor) {
+        const chave = this.encontrarChaveSensivel(item);
+        if (chave) return chave;
+      }
+      return null;
+    }
+
+    if (!this.ehRegistro(valor)) return null;
+
+    for (const [chave, conteudo] of Object.entries(valor)) {
+      const normalizada = chave.toLowerCase().replace(/[^a-z0-9]/g, "");
+      if (CHAVES_SENSIVEIS_CONTA_SOCIAL.has(normalizada)) return chave;
+      const chaveInterna = this.encontrarChaveSensivel(conteudo);
+      if (chaveInterna) return `${chave}.${chaveInterna}`;
+    }
+
+    return null;
+  }
+
+  private ehRegistro(valor: unknown): valor is Record<string, unknown> {
+    return typeof valor === "object" && valor !== null && !Array.isArray(valor);
+  }
+
+  private textoRegistro(registro: Record<string, unknown>, chave: string): string | null {
+    const valor = registro[chave];
+    return typeof valor === "string" && valor.trim() ? valor.trim() : null;
   }
 
   private nomeIntencao(intencao: string): string {
