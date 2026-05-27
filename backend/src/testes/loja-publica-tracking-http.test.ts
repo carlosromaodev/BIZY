@@ -358,6 +358,78 @@ describe("loja pública, catálogo digital e tracking HTTP", () => {
     }
   });
 
+  it("não duplica evento público reenviado com a mesma chave técnica", async () => {
+    const app = await criarAplicacao();
+
+    try {
+      const headers = await autenticar(app, "923444131", "Loja Tracking Idempotente");
+      await criarProduto(app, headers, "IDEMP-1", 5);
+
+      const publicacao = await app.inject({
+        method: "PUT",
+        url: "/loja-publica/configuracao",
+        headers,
+        payload: {
+          slug: "loja-tracking-idempotente",
+          publicada: true
+        }
+      });
+      expect(publicacao.statusCode).toBe(200);
+
+      const payload = {
+        slugLoja: "loja-tracking-idempotente",
+        tipo: "PEDIDO_CRIADO",
+        entidadeTipo: "pedido",
+        entidadeId: "pedido-idempotente-1",
+        codigoProduto: "IDEMP-1",
+        trackingId: "trk-idempotente-1",
+        origem: "site",
+        canal: "checkout",
+        utm: { utm_campaign: "campanha-idempotente" },
+        metadata: {
+          totalEmKwanza: 15000,
+          idempotencyKey: "pedido-idempotente-1"
+        }
+      };
+
+      const primeiro = await app.inject({
+        method: "POST",
+        url: "/publico/tracking/eventos",
+        payload
+      });
+      expect(primeiro.statusCode).toBe(201);
+
+      const repetido = await app.inject({
+        method: "POST",
+        url: "/publico/tracking/eventos",
+        payload
+      });
+      expect(repetido.statusCode).toBe(201);
+      expect(repetido.json().id).toBe(primeiro.json().id);
+
+      const resumo = await app.inject({
+        method: "GET",
+        url: "/loja-publica/tracking/resumo",
+        headers
+      });
+      expect(resumo.statusCode).toBe(200);
+      expect(resumo.json()).toEqual(
+        expect.objectContaining({
+          totalEventos: 1,
+          porTipo: expect.objectContaining({
+            PEDIDO_CRIADO: 1
+          }),
+          funil: expect.objectContaining({
+            pedidosCriados: 1,
+            receitaAtribuidaEmKwanza: 15000
+          })
+        })
+      );
+    } finally {
+      await app.close();
+    }
+  });
+
   it("filtra produtos públicos por busca, categoria e coleção", async () => {
     const app = await criarAplicacao();
 

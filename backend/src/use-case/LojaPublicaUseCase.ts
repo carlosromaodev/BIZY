@@ -527,6 +527,9 @@ export class LojaPublicaUseCase {
 
   async registrarEventoPublico(slug: string, dados: Omit<NovoEventoTrackingComercial, "negocioId">) {
     const negocio = await this.exigirLojaPublicada(slug);
+    const eventoExistente = await this.buscarEventoTrackingIdempotente(negocio.id, dados);
+    if (eventoExistente) return eventoExistente;
+
     const evento = await this.tracking.registrarEvento({
       ...dados,
       negocioId: negocio.id,
@@ -539,6 +542,21 @@ export class LojaPublicaUseCase {
       origem: "tracking_publico"
     });
     return evento;
+  }
+
+  private async buscarEventoTrackingIdempotente(
+    negocioId: string,
+    dados: Omit<NovoEventoTrackingComercial, "negocioId">
+  ): Promise<EventoTrackingComercial | null> {
+    const chave = this.chaveIdempotenciaTracking(dados);
+    if (!chave) return null;
+
+    const eventos = await this.tracking.listarEventos(negocioId, {
+      tipo: dados.tipo,
+      limite: 100_000
+    });
+
+    return eventos.find((evento) => this.chaveIdempotenciaTracking(evento) === chave) ?? null;
   }
 
   async resumirTracking(negocioId: string) {
@@ -1027,6 +1045,33 @@ export class LojaPublicaUseCase {
 
   private normalizarTexto(valor: unknown): string {
     return this.texto(valor)?.toLowerCase().normalize("NFD").replace(/\p{Diacritic}/gu, "") ?? "";
+  }
+
+  private chaveIdempotenciaTracking(
+    dados: Pick<
+      NovoEventoTrackingComercial | EventoTrackingComercial,
+      "tipo" | "entidadeTipo" | "entidadeId" | "codigoProduto" | "trackingId" | "metadata"
+    >
+  ): string | null {
+    const metadata = this.objeto(dados.metadata);
+    const chaveExplicita =
+      this.texto(metadata.idempotencyKey) ??
+      this.texto(metadata.idempotenciaKey) ??
+      this.texto(metadata.chaveIdempotencia);
+    if (chaveExplicita) return this.normalizarTexto(`${dados.tipo}:key:${chaveExplicita}`);
+
+    const entidadeId = this.texto(dados.entidadeId);
+    if (!entidadeId) return null;
+
+    return [
+      dados.tipo,
+      this.texto(dados.entidadeTipo) ?? "sem-entidade",
+      entidadeId,
+      this.texto(dados.trackingId) ?? "sem-tracking",
+      this.texto(dados.codigoProduto) ?? "sem-produto"
+    ]
+      .map((valor) => this.normalizarTexto(valor))
+      .join("|");
   }
 
   private async registrarTrackingSilencioso(dados: NovoEventoTrackingComercial): Promise<EventoTrackingComercial | null> {
