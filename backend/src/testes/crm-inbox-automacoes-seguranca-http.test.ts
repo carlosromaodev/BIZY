@@ -94,27 +94,48 @@ describe("CRM+ inbox, automações seguras e tracking privado", () => {
       const negocioId = negocio.json().negocio.id as string;
       await criarPeca(app, headers, "INBOX-1");
 
+      const payloadWebhook = {
+        event: "messages.upsert",
+        instance: "bizy-inbox",
+        negocioId,
+        data: {
+          key: {
+            remoteJid: "244937800111@s.whatsapp.net",
+            fromMe: false,
+            id: "msg-inbox-1"
+          },
+          pushName: "Cliente Inbox",
+          message: {
+            conversation: "Olá, quero comprar o produto INBOX-1"
+          }
+        }
+      };
       const webhook = await app.inject({
         method: "POST",
         url: "/webhooks/evolution",
-        payload: {
-          event: "messages.upsert",
-          instance: "bizy-inbox",
-          negocioId,
-          data: {
-            key: {
-              remoteJid: "244937800111@s.whatsapp.net",
-              fromMe: false,
-              id: "msg-inbox-1"
-            },
-            pushName: "Cliente Inbox",
-            message: {
-              conversation: "Olá, quero comprar o produto INBOX-1"
-            }
-          }
-        }
+        payload: payloadWebhook
       });
       expect(webhook.statusCode).toBe(202);
+      expect(webhook.json()).toEqual(
+        expect.objectContaining({
+          duplicado: false,
+          idempotencyKey: expect.stringContaining("evolution:bizy-inbox:INBOUND:msg-inbox-1")
+        })
+      );
+
+      const repetido = await app.inject({
+        method: "POST",
+        url: "/webhooks/evolution",
+        payload: payloadWebhook
+      });
+      expect(repetido.statusCode).toBe(202);
+      expect(repetido.json()).toEqual(
+        expect.objectContaining({
+          duplicado: true,
+          mensagem: null,
+          idempotencyKey: expect.stringContaining("evolution:bizy-inbox:INBOUND:msg-inbox-1")
+        })
+      );
 
       await new Promise((resolve) => setTimeout(resolve, 10));
 

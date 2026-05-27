@@ -1,6 +1,7 @@
 import { CriarInstanciaWhatsAppSchema, EnviarMensagemWhatsAppManualSchema } from "../../../dominio/esquemas.js";
 import type { FiltrosTemplatesWhatsApp } from "../../../dominio/servicos/AutomacaoWhatsApp.js";
 import type { TemplateWhatsAppNegocio } from "../../../dominio/tipos.js";
+import type { ContextoAplicacao } from "../ContextoAplicacao.js";
 import { exigirAcessoComercial } from "../contextoComercial.js";
 import { exigirUsuarioAutenticado } from "../seguranca.js";
 import type { ModuloHttp } from "./ModuloHttp.js";
@@ -147,8 +148,30 @@ export const moduloIntegracoes: ModuloHttp = {
         return reply.code(401).send({ erro: "NAO_AUTORIZADO", mensagem: "Token da Evolution inválido." });
       }
 
-      const mensagem = contexto.receberMensagemWhatsApp.processarWebhookEvolution(request.body as Record<string, unknown>);
-      return reply.code(202).send({ ok: true, mensagem });
+      const payload = request.body as Record<string, unknown>;
+      const idempotencyKey = contexto.receberMensagemWhatsApp.gerarChaveIdempotenciaEvolution(payload);
+      const negocioId = await resolverNegocioWebhookEvolution(contexto, payload);
+
+      if (idempotencyKey && negocioId) {
+        const registro = await contexto.repositorios.eventosOperacionais.registrar({
+          negocioId,
+          topico: "webhook:evolution",
+          tipo: "WEBHOOK_EVOLUTION_RECEIVED",
+          entidadeTipo: "whatsapp_message",
+          entidadeId: extrairIdMensagemEvolution(payload),
+          idempotencyKey,
+          payloadVersion: "v1",
+          payload,
+          estado: "PROCESSADO"
+        });
+
+        if (registro.duplicado) {
+          return reply.code(202).send({ ok: true, duplicado: true, idempotencyKey, mensagem: null });
+        }
+      }
+
+      const mensagem = contexto.receberMensagemWhatsApp.processarWebhookEvolution(payload);
+      return reply.code(202).send({ ok: true, duplicado: mensagem.duplicado, idempotencyKey, mensagem });
     });
   }
 };
@@ -172,4 +195,42 @@ function templateNegocioAtendeFiltros(template: TemplateWhatsAppNegocio, filtros
   if (filtros.estadoAprovacao && template.estadoAprovacao !== filtros.estadoAprovacao) return false;
   if (filtros.evento && !template.eventosCompativeis.includes(filtros.evento)) return false;
   return true;
+}
+
+async function resolverNegocioWebhookEvolution(
+  contexto: ContextoAplicacao,
+  payload: Record<string, unknown>
+): Promise<string | null> {
+  const negocioDireto = obterString(payload.negocioId) ?? obterString(obterObjeto(payload.data).negocioId);
+  if (negocioDireto) return negocioDireto;
+
+  const nomeInstancia = obterString(payload.instance) ?? obterString(payload.instanceName);
+  if (!nomeInstancia) return null;
+
+  const nomeNormalizado = nomeInstancia.trim().toLowerCase();
+  const instancias = await contexto.repositorios.instanciasWhatsApp.listarAtivas();
+  const instancia = instancias.find(
+    (item) => item.nome.toLowerCase() === nomeNormalizado || item.etiqueta?.toLowerCase() === nomeNormalizado
+  );
+
+  return instancia?.negocioId ?? null;
+}
+
+function extrairIdMensagemEvolution(payload: Record<string, unknown>): string | null {
+  const dados = obterObjeto(payload.data);
+  const chave = obterObjeto(dados.key);
+  return (
+    obterString(chave.id) ??
+    obterString(dados.keyId) ??
+    obterString(dados.messageId) ??
+    obterString(dados.id)
+  );
+}
+
+function obterObjeto(valor: unknown): Record<string, unknown> {
+  return valor && typeof valor === "object" && !Array.isArray(valor) ? (valor as Record<string, unknown>) : {};
+}
+
+function obterString(valor: unknown): string | null {
+  return typeof valor === "string" && valor.trim().length > 0 ? valor.trim() : null;
 }

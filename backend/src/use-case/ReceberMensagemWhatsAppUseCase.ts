@@ -24,7 +24,31 @@ export class ReceberMensagemWhatsAppUseCase {
 
   constructor(private readonly eventos: DespachadorEventos) {}
 
+  gerarChaveIdempotenciaEvolution(payload: Record<string, unknown>): string | null {
+    return this.montarChaveIdempotencia(this.normalizarWebhookEvolution(payload));
+  }
+
   processarWebhookEvolution(payload: Record<string, unknown>): MensagemWhatsAppRecebida {
+    const mensagemRecebida = this.normalizarWebhookEvolution(payload);
+    const chaveIdempotencia = this.montarChaveIdempotencia(mensagemRecebida);
+    mensagemRecebida.duplicado = chaveIdempotencia ? this.chavesProcessadas.has(chaveIdempotencia) : false;
+
+    if (!mensagemRecebida.duplicado && chaveIdempotencia) {
+      this.registrarChaveProcessada(chaveIdempotencia);
+    }
+
+    if (!mensagemRecebida.duplicado && mensagemRecebida.direcao === "INBOUND" && mensagemRecebida.telefone && mensagemRecebida.texto) {
+      this.eventos.emitir("WHATSAPP_MESSAGE_RECEIVED", { mensagem: mensagemRecebida });
+    }
+
+    if (!mensagemRecebida.duplicado && (mensagemRecebida.direcao === "OUTBOUND" || mensagemRecebida.direcao === "STATUS")) {
+      this.eventos.emitir("WHATSAPP_MESSAGE_STATUS", { status: mensagemRecebida });
+    }
+
+    return mensagemRecebida;
+  }
+
+  private normalizarWebhookEvolution(payload: Record<string, unknown>): MensagemWhatsAppRecebida {
     const dados = this.obterObjeto(payload.data);
     const chave = this.obterObjeto(dados.key);
     const eventoProvider = this.obterString(payload.event);
@@ -62,20 +86,6 @@ export class ReceberMensagemWhatsAppUseCase {
       payloadOriginal: payload,
       duplicado: false
     };
-    const chaveIdempotencia = this.montarChaveIdempotencia(mensagemRecebida);
-    mensagemRecebida.duplicado = chaveIdempotencia ? this.chavesProcessadas.has(chaveIdempotencia) : false;
-
-    if (!mensagemRecebida.duplicado && chaveIdempotencia) {
-      this.registrarChaveProcessada(chaveIdempotencia);
-    }
-
-    if (!mensagemRecebida.duplicado && direcao === "INBOUND" && telefone && texto) {
-      this.eventos.emitir("WHATSAPP_MESSAGE_RECEIVED", { mensagem: mensagemRecebida });
-    }
-
-    if (!mensagemRecebida.duplicado && (direcao === "OUTBOUND" || direcao === "STATUS")) {
-      this.eventos.emitir("WHATSAPP_MESSAGE_STATUS", { status: mensagemRecebida });
-    }
 
     return mensagemRecebida;
   }
