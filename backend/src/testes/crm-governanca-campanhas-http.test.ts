@@ -535,6 +535,53 @@ describe("CRM+ governança, campanhas, eventos e jobs", () => {
         })
       );
 
+      const exportacaoClientes = await app.inject({
+        method: "POST",
+        url: "/jobs/exportacao/clientes",
+        headers,
+        payload: {
+          idempotencyKey: "export-clientes-maio",
+          filtros: { busca: "Cliente Job" }
+        }
+      });
+      expect(exportacaoClientes.statusCode).toBe(202);
+      expect(exportacaoClientes.json().job).toEqual(
+        expect.objectContaining({
+          tipo: "EXPORTACAO_CLIENTES",
+          estado: "CONCLUIDO",
+          total: 1,
+          processados: 1,
+          erros: 0
+        })
+      );
+      expect(exportacaoClientes.json().resultado).toEqual(
+        expect.objectContaining({
+          quantidade: 1,
+          arquivo: expect.objectContaining({
+            nome: "clientes-bizy.csv",
+            mimeType: "text/csv; charset=utf-8",
+            conteudo: expect.stringContaining("Cliente Job")
+          })
+        })
+      );
+
+      const exportacaoClientesRepetida = await app.inject({
+        method: "POST",
+        url: "/jobs/exportacao/clientes",
+        headers,
+        payload: {
+          idempotencyKey: "export-clientes-maio",
+          filtros: { busca: "outro filtro" }
+        }
+      });
+      expect(exportacaoClientesRepetida.statusCode).toBe(200);
+      expect(exportacaoClientesRepetida.json()).toEqual(
+        expect.objectContaining({
+          duplicado: true,
+          job: expect.objectContaining({ id: exportacaoClientes.json().job.id })
+        })
+      );
+
       const jobProdutos = await app.inject({
         method: "POST",
         url: "/jobs/importacao/produtos",

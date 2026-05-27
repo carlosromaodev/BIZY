@@ -7,6 +7,7 @@ import {
   FiltrosEventosOperacionaisQuerySchema,
   PausarCampanhaSchema,
   RegistrarEventoOperacionalSchema,
+  CriarJobExportacaoClientesSchema,
   CriarJobImportacaoClientesSchema,
   CriarJobImportacaoProdutosSchema,
   CriarMembroNegocioSchema,
@@ -311,6 +312,64 @@ export const moduloCampanhas: ModuloHttp = {
         processados: resultado.criados + resultado.atualizados,
         erros: resultado.erros,
         resultado: resultado as unknown as Record<string, unknown>,
+        concluidoEm: new Date()
+      });
+
+      return reply.code(202).send({ job: job ?? criado.job, resultado, duplicado: false });
+    });
+
+    app.post("/jobs/exportacao/clientes", async (request, reply) => {
+      const contextoComercial = await exigirAcessoComercial(contexto, request, reply, {
+        permissao: "clientes:gerir",
+        modulo: "crm",
+        mensagemPermissao: "Sem permissão para exportar clientes.",
+        mensagemModulo: "CRM desativado para este negócio."
+      });
+      if (!contextoComercial) return;
+
+      const dados = CriarJobExportacaoClientesSchema.parse(request.body ?? {});
+      if (dados.idempotencyKey) {
+        const existente = await contexto.gestaoGovernancaCrm.buscarJobPorIdempotencia(
+          contextoComercial.negocio.id,
+          dados.idempotencyKey
+        );
+        if (existente) return reply.code(200).send({ job: existente, resultado: existente.resultado, duplicado: true });
+      }
+
+      const criado = await contexto.gestaoGovernancaCrm.criarJob({
+        negocioId: contextoComercial.negocio.id,
+        tipo: "EXPORTACAO_CLIENTES",
+        estado: "PROCESSANDO",
+        idempotencyKey: dados.idempotencyKey,
+        resultado: {}
+      });
+      if (criado.duplicado) return reply.code(200).send({ job: criado.job, resultado: criado.job.resultado, duplicado: true });
+
+      const exportacao = await contexto.gestaoClientesCrm.exportarCsv(contextoComercial.negocio.id, dados.filtros);
+      const resultado = {
+        quantidade: exportacao.quantidade,
+        filtros: exportacao.filtros,
+        arquivo: {
+          nome: "clientes-bizy.csv",
+          mimeType: "text/csv; charset=utf-8",
+          conteudo: exportacao.csv
+        }
+      };
+      contexto.eventos.emitir("CLIENTS_EXPORTED", {
+        negocioId: contextoComercial.negocio.id,
+        usuarioId: contextoComercial.usuario.id,
+        recurso: "clientes",
+        formato: "csv",
+        quantidade: exportacao.quantidade,
+        filtros: exportacao.filtros,
+        origem: "job"
+      });
+      const job = await contexto.gestaoGovernancaCrm.atualizarJob(criado.job.id, contextoComercial.negocio.id, {
+        estado: "CONCLUIDO",
+        total: exportacao.quantidade,
+        processados: exportacao.quantidade,
+        erros: 0,
+        resultado,
         concluidoEm: new Date()
       });
 

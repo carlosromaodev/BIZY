@@ -864,6 +864,11 @@ export const FiltrosClientes360QuerySchema = z.object({
   limite: z.coerce.number().int().min(1).max(10_000).optional()
 });
 
+export const CriarJobExportacaoClientesSchema = z.object({
+  idempotencyKey: z.string().trim().min(3).max(240).nullable().optional().transform((valor) => valor ?? null),
+  filtros: FiltrosClientes360QuerySchema.optional().default({})
+});
+
 export const AtualizarClienteCrmSchema = ClienteCrmBaseSchema.partial()
   .omit({ origem: true })
   .extend({
