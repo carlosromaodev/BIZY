@@ -211,6 +211,45 @@ describe("pedidos HTTP", () => {
         })
       );
 
+      const funilPedido = await app.inject({
+        method: "GET",
+        url: `/funil/movimentos?entidadeTipo=pedido&entidadeId=${respostaCriacao.json().id}`,
+        headers: lojaA
+      });
+      expect(funilPedido.statusCode).toBe(200);
+      expect(funilPedido.json().movimentos).toEqual([
+        expect.objectContaining({
+          etapaAnterior: "ENTREGA",
+          etapaNova: "ENTREGUE",
+          origem: "pedido",
+          motivo: "Pedido entregue ao cliente."
+        }),
+        expect.objectContaining({
+          etapaAnterior: "PAGO",
+          etapaNova: "ENTREGA",
+          origem: "pedido",
+          motivo: "Pedido entrou no fluxo de entrega."
+        }),
+        expect.objectContaining({
+          etapaAnterior: "PAGAMENTO_PENDENTE",
+          etapaNova: "PAGO",
+          origem: "pedido",
+          motivo: "Pagamento confirmado."
+        }),
+        expect.objectContaining({
+          etapaAnterior: "PEDIDO",
+          etapaNova: "PAGAMENTO_PENDENTE",
+          origem: "pedido",
+          motivo: "Pedido aguardando pagamento."
+        }),
+        expect.objectContaining({
+          etapaAnterior: null,
+          etapaNova: "PEDIDO",
+          origem: "pedido",
+          motivo: "Pedido criado."
+        })
+      ]);
+
       const auditoriaPedido = await app.inject({
         method: "GET",
         url: "/operacional/auditoria?topico=pedidos",

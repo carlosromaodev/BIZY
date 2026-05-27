@@ -289,7 +289,8 @@ export function criarContextoAplicacao(logger: FastifyBaseLogger): ContextoAplic
     repositorios.clientes,
     repositorios.pecas,
     repositorios.tarefas,
-    eventos
+    eventos,
+    repositorios.funilComercial
   );
   const gestaoAfiliados = new GestaoAfiliadosUseCase(
     repositorios.afiliados,

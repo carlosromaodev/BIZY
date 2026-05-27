@@ -1,6 +1,7 @@
 import type { DespachadorEventos } from "../dominio/eventos/DespachadorEventos.js";
 import type {
   RepositorioClientes,
+  RepositorioFunilComercial,
   RepositorioPecas,
   RepositorioPedidos,
   RepositorioTarefasOperacionais
@@ -13,6 +14,7 @@ import type {
   ConfirmacaoPagamentoPedido,
   DadosPedidoResolvido,
   EnderecoCliente,
+  EtapaFunilComercial,
   FiltrosPedidos,
   NovoPedido,
   NovaTarefaOperacional,
@@ -40,7 +42,8 @@ export class GestaoPedidosUseCase {
     private readonly clientes: RepositorioClientes,
     private readonly pecas: RepositorioPecas,
     private readonly tarefas: RepositorioTarefasOperacionais,
-    private readonly eventos: DespachadorEventos
+    private readonly eventos: DespachadorEventos,
+    private readonly funil?: RepositorioFunilComercial
   ) {}
 
   async criarPedido(dados: NovoPedido): Promise<Pedido> {
@@ -94,6 +97,7 @@ export class GestaoPedidosUseCase {
       clienteNegocioId: pedido.clienteNegocioId,
       totalEmKwanza: pedido.totalEmKwanza
     });
+    await this.registrarMovimentosFunilPedido(pedido, this.movimentosFunilPedidoCriado(pedido));
 
     return pedido;
   }
@@ -176,6 +180,7 @@ export class GestaoPedidosUseCase {
         motivo: dados.observacao ?? "Pedido reembolsado."
       });
     }
+    await this.registrarMovimentosFunilPedido(pedido, this.movimentosFunilPorEstadoPedido(pedido));
 
     return pedido;
   }
@@ -230,6 +235,9 @@ export class GestaoPedidosUseCase {
       clienteNegocioId: pedido.clienteNegocioId,
       totalEmKwanza: pedido.totalEmKwanza
     });
+    await this.registrarMovimentosFunilPedido(pedido, [
+      { etapa: "PAGO", motivo: "Pagamento confirmado." }
+    ]);
 
     return pedido;
   }
@@ -321,6 +329,7 @@ export class GestaoPedidosUseCase {
     if (pedido.estadoEntrega === "ENTREGUE") {
       this.eventos.emitir("ORDER_DELIVERED", { negocioId, pedidoId: pedido.id });
     }
+    await this.registrarMovimentosFunilPedido(pedido, this.movimentosFunilPorEntregaPedido(pedido));
 
     return pedido;
   }
@@ -776,6 +785,156 @@ export class GestaoPedidosUseCase {
       return `Pedido pago de ${nomeCliente} ainda não foi entregue. Confirmar preparação, endereço e responsável.`;
     }
     return `Pedido de ${nomeCliente} precisa de acompanhamento humano para não perder a venda.`;
+  }
+
+  private movimentosFunilPedidoCriado(pedido: Pedido): Array<{ etapa: EtapaFunilComercial; motivo: string }> {
+    const checkoutPublico = this.ehPedidoCheckoutPublico(pedido);
+    const movimentos: Array<{ etapa: EtapaFunilComercial; motivo: string }> = [
+      { etapa: "PEDIDO", motivo: checkoutPublico ? "Pedido criado pelo checkout público." : "Pedido criado." }
+    ];
+
+    if (pedido.estadoPagamento === "PENDENTE" || pedido.estado === "AGUARDANDO_PAGAMENTO") {
+      movimentos.push({
+        etapa: "PAGAMENTO_PENDENTE",
+        motivo: checkoutPublico
+          ? "Pedido criado pelo checkout público e aguarda pagamento."
+          : "Pedido aguardando pagamento."
+      });
+    }
+    return movimentos;
+  }
+
+  private movimentosFunilPorEstadoPedido(pedido: Pedido): Array<{ etapa: EtapaFunilComercial; motivo: string }> {
+    if (["CANCELADO", "TROCADO", "DEVOLVIDO"].includes(pedido.estado) || pedido.estadoPagamento === "REEMBOLSADO") {
+      return [{ etapa: "PERDIDO", motivo: this.motivoPerdaPedido(pedido) }];
+    }
+
+    const movimentos: Array<{ etapa: EtapaFunilComercial; motivo: string }> = [];
+    if (pedido.estadoPagamento === "CONFIRMADO" || pedido.estado === "PAGO") {
+      movimentos.push({ etapa: "PAGO", motivo: "Pagamento confirmado." });
+    }
+    if (pedido.estado === "EM_PREPARACAO") {
+      movimentos.push({ etapa: "PREPARACAO", motivo: "Pedido entrou em preparação." });
+    }
+    if (pedido.estado === "PRONTO_ENTREGA" || pedido.estado === "ENVIADO") {
+      movimentos.push({ etapa: "ENTREGA", motivo: "Pedido entrou no fluxo de entrega." });
+    }
+    if (pedido.estado === "ENTREGUE") {
+      movimentos.push(
+        { etapa: "ENTREGA", motivo: "Pedido entrou no fluxo de entrega." },
+        { etapa: "ENTREGUE", motivo: "Pedido entregue ao cliente." }
+      );
+    }
+    return movimentos;
+  }
+
+  private movimentosFunilPorEntregaPedido(pedido: Pedido): Array<{ etapa: EtapaFunilComercial; motivo: string }> {
+    if (pedido.estadoEntrega === "FALHOU") {
+      return [{ etapa: "PERDIDO", motivo: "Entrega falhou e precisa recuperação." }];
+    }
+    if (pedido.estadoEntrega === "DEVOLVIDO") {
+      return [{ etapa: "PERDIDO", motivo: "Pedido devolvido pelo cliente." }];
+    }
+    if (pedido.estadoEntrega === "EM_PREPARACAO") {
+      return [{ etapa: "PREPARACAO", motivo: "Pedido entrou em preparação." }];
+    }
+    if (["RETIRADA_LOJA", "PRONTO", "ENVIADO"].includes(pedido.estadoEntrega)) {
+      return [{ etapa: "ENTREGA", motivo: "Pedido entrou no fluxo de entrega." }];
+    }
+    if (pedido.estadoEntrega === "ENTREGUE") {
+      return [
+        { etapa: "ENTREGA", motivo: "Pedido entrou no fluxo de entrega." },
+        { etapa: "ENTREGUE", motivo: "Pedido entregue ao cliente." }
+      ];
+    }
+    return [];
+  }
+
+  private async registrarMovimentosFunilPedido(
+    pedido: Pedido,
+    movimentos: Array<{ etapa: EtapaFunilComercial; motivo: string }>
+  ): Promise<void> {
+    if (!this.funil || movimentos.length === 0) return;
+
+    for (const movimento of movimentos) {
+      await this.registrarMovimentoFunilPedido(pedido, movimento.etapa, movimento.motivo);
+    }
+  }
+
+  private async registrarMovimentoFunilPedido(
+    pedido: Pedido,
+    etapaNova: EtapaFunilComercial,
+    motivo: string
+  ): Promise<void> {
+    if (!this.funil) return;
+
+    const [ultimoMovimento] = await this.funil.listarMovimentos(pedido.negocioId, {
+      entidadeTipo: "pedido",
+      entidadeId: pedido.id,
+      limite: 1
+    });
+    if (!this.deveAvancarFunil(ultimoMovimento?.etapaNova ?? null, etapaNova)) return;
+
+    await this.funil.registrarMovimento({
+      negocioId: pedido.negocioId,
+      entidadeTipo: "pedido",
+      entidadeId: pedido.id,
+      etapaAnterior: ultimoMovimento?.etapaNova ?? null,
+      etapaNova,
+      motivo,
+      origem: this.origemFunilPedido(pedido),
+      autorId: pedido.responsavelId,
+      contexto: {
+        pedidoId: pedido.id,
+        numero: pedido.numero,
+        clienteNegocioId: pedido.clienteNegocioId,
+        reservaId: pedido.reservaId,
+        estado: pedido.estado,
+        estadoPagamento: pedido.estadoPagamento,
+        estadoEntrega: pedido.estadoEntrega,
+        origem: pedido.origem,
+        canal: pedido.canal,
+        totalEmKwanza: pedido.totalEmKwanza
+      }
+    });
+  }
+
+  private deveAvancarFunil(etapaAnterior: EtapaFunilComercial | null, etapaNova: EtapaFunilComercial): boolean {
+    if (!etapaAnterior) return true;
+    const ordem: Partial<Record<EtapaFunilComercial, number>> = {
+      VISITA: 1,
+      PRODUTO_VISTO: 2,
+      WHATSAPP_CLICK: 3,
+      LEAD: 4,
+      CONVERSA: 5,
+      CHECKOUT: 6,
+      PEDIDO: 7,
+      PAGAMENTO_PENDENTE: 8,
+      PAGO: 9,
+      PREPARACAO: 10,
+      ENTREGA: 11,
+      ENTREGUE: 12,
+      POS_VENDA: 13,
+      RECOMPRA: 14,
+      PERDIDO: 15
+    };
+
+    return (ordem[etapaNova] ?? 0) > (ordem[etapaAnterior] ?? -1);
+  }
+
+  private motivoPerdaPedido(pedido: Pedido): string {
+    if (pedido.estadoPagamento === "REEMBOLSADO") return "Pedido reembolsado.";
+    if (pedido.estado === "DEVOLVIDO") return "Pedido devolvido pelo cliente.";
+    if (pedido.estado === "TROCADO") return "Pedido marcado como trocado.";
+    return "Pedido cancelado.";
+  }
+
+  private origemFunilPedido(pedido: Pedido): string {
+    return this.ehPedidoCheckoutPublico(pedido) ? "checkout_site" : "pedido";
+  }
+
+  private ehPedidoCheckoutPublico(pedido: Pedido): boolean {
+    return pedido.canal === "site" || ["checkout_site", "loja_publica"].includes(pedido.origem) || pedido.origem.startsWith("link-");
   }
 
   private formatarKwanza(valor: number): string {
