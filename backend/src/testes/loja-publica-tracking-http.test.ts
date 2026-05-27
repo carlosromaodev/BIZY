@@ -269,6 +269,67 @@ describe("loja pública, catálogo digital e tracking HTTP", () => {
     }
   });
 
+  it("aplica cache público curto no catálogo e no-store em ações que alteram estado", async () => {
+    const app = await criarAplicacao();
+
+    try {
+      const headers = await autenticar(app, "923444099", "Loja Cache");
+      await criarProduto(app, headers, "CACHE1", 8);
+
+      const publicacao = await app.inject({
+        method: "PUT",
+        url: "/loja-publica/configuracao",
+        headers,
+        payload: {
+          slug: "loja-cache",
+          descricaoPublica: "Loja rápida e segura.",
+          publicada: true
+        }
+      });
+      expect(publicacao.statusCode).toBe(200);
+
+      const catalogo = await app.inject({
+        method: "GET",
+        url: "/publico/lojas/loja-cache"
+      });
+      expect(catalogo.statusCode).toBe(200);
+      expect(catalogo.headers["cache-control"]).toBe("public, max-age=30, s-maxage=60, stale-while-revalidate=30");
+
+      const produto = await app.inject({
+        method: "GET",
+        url: "/publico/lojas/loja-cache/produtos/CACHE1"
+      });
+      expect(produto.statusCode).toBe(200);
+      expect(produto.headers["cache-control"]).toBe("public, max-age=30, s-maxage=60, stale-while-revalidate=30");
+
+      const entrega = await app.inject({
+        method: "POST",
+        url: "/publico/lojas/loja-cache/entrega/calcular",
+        payload: {
+          itens: [{ codigoPeca: "CACHE1", quantidade: 1 }],
+          entrega: {
+            tipo: "RETIRADA"
+          }
+        }
+      });
+      expect(entrega.headers["cache-control"]).toBe("no-store");
+
+      const tracking = await app.inject({
+        method: "POST",
+        url: "/publico/tracking/eventos",
+        payload: {
+          slugLoja: "loja-cache",
+          tipo: "LOJA_VISITADA",
+          trackingId: "anon-cache-1",
+          origem: "site"
+        }
+      });
+      expect(tracking.headers["cache-control"]).toBe("no-store");
+    } finally {
+      await app.close();
+    }
+  });
+
   it("organiza vitrine pública com destaques, promoções, novidades, reposições, kits e mais vendidos", async () => {
     const app = await criarAplicacao();
 

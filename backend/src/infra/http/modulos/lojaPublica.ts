@@ -48,9 +48,10 @@ export const moduloLojaPublica: ModuloHttp = {
       return contexto.lojaPublica.resumirTracking(contextoComercial.negocio.id);
     });
 
-    app.get("/publico/lojas/:slug", async (request) => {
+    app.get("/publico/lojas/:slug", async (request, reply) => {
       const { slug } = request.params as { slug: string };
       const query = request.query as Record<string, string | undefined>;
+      aplicarCacheCatalogoPublico(reply);
       return contexto.lojaPublica.obterLoja(slug, {
         trackingId: query.trackingId,
         origem: query.origem,
@@ -59,9 +60,10 @@ export const moduloLojaPublica: ModuloHttp = {
       }, extrairFiltrosProdutosPublicos(query));
     });
 
-    app.get("/publico/lojas/:slug/produtos/:codigo", async (request) => {
+    app.get("/publico/lojas/:slug/produtos/:codigo", async (request, reply) => {
       const { slug, codigo } = request.params as { slug: string; codigo: string };
       const query = request.query as Record<string, string | undefined>;
+      aplicarCacheCatalogoPublico(reply);
       return contexto.lojaPublica.obterProduto(slug, codigo, {
         trackingId: query.trackingId,
         origem: query.origem,
@@ -70,20 +72,23 @@ export const moduloLojaPublica: ModuloHttp = {
       });
     });
 
-    app.post("/publico/lojas/:slug/entrega/calcular", async (request) => {
+    app.post("/publico/lojas/:slug/entrega/calcular", async (request, reply) => {
       const { slug } = request.params as { slug: string };
+      aplicarNoStore(reply);
       const dados = CalcularEntregaPublicaSchema.parse(request.body ?? {});
       return contexto.lojaPublica.calcularEntrega(slug, dados);
     });
 
-    app.post("/publico/lojas/:slug/produtos/:codigo/whatsapp", async (request) => {
+    app.post("/publico/lojas/:slug/produtos/:codigo/whatsapp", async (request, reply) => {
       const { slug, codigo } = request.params as { slug: string; codigo: string };
+      aplicarNoStore(reply);
       const dados = GerarCheckoutWhatsAppPublicoSchema.parse(request.body ?? {});
       return contexto.lojaPublica.gerarCheckoutWhatsApp(slug, codigo, dados);
     });
 
     app.post("/publico/lojas/:slug/checkout", async (request, reply) => {
       const { slug } = request.params as { slug: string };
+      aplicarNoStore(reply);
       const dados = CriarCheckoutSitePublicoSchema.parse(request.body ?? {});
       const checkout = await contexto.lojaPublica.criarCheckoutSite(slug, dados);
       return reply.code(201).send(checkout);
@@ -91,12 +96,14 @@ export const moduloLojaPublica: ModuloHttp = {
 
     app.post("/publico/lojas/:slug/checkout/abandonado", async (request, reply) => {
       const { slug } = request.params as { slug: string };
+      aplicarNoStore(reply);
       const dados = CriarCheckoutAbandonadoPublicoSchema.parse(request.body ?? {});
       const resultado = await contexto.lojaPublica.registrarCheckoutAbandonado(slug, dados);
       return reply.code(resultado.duplicado ? 200 : 201).send(resultado);
     });
 
     app.post("/publico/tracking/eventos", async (request, reply) => {
+      aplicarNoStore(reply);
       const dados = RegistrarEventoTrackingSchema.parse(request.body ?? {});
       if (!dados.slugLoja) {
         return reply.code(400).send({ erro: "VALIDACAO", mensagem: "Informe slugLoja para tracking público." });
@@ -113,6 +120,14 @@ export const moduloLojaPublica: ModuloHttp = {
     });
   }
 };
+
+function aplicarCacheCatalogoPublico(reply: { header(nome: string, valor: string): unknown }) {
+  reply.header("Cache-Control", "public, max-age=30, s-maxage=60, stale-while-revalidate=30");
+}
+
+function aplicarNoStore(reply: { header(nome: string, valor: string): unknown }) {
+  reply.header("Cache-Control", "no-store");
+}
 
 function extrairUtm(query: Record<string, string | undefined>): Record<string, string> {
   return Object.fromEntries(

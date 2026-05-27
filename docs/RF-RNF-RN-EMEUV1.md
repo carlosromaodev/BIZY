@@ -1,10 +1,10 @@
 # Bizy / ÉMeu V1 - Requisitos Funcionais, Não Funcionais e Regras de Negócio
 
 Documento: `RF-RNF-RN-EMEUV1.md`
-Versão: 1.102
+Versão: 1.103
 Data: 2026-05-26
 Autor: Carlos
-Status: MVP base implementado; fundação backend Bizy CRM+ com Clientes 360, Pedidos, Catálogo/Stock, Loja Pública, Vitrine Pública, Checkout, Entrega, Afiliados, Criadores, Revendedores, Mini-lojas Públicas, Comissões, Atribuição Comercial, Lotes Financeiros, Campanhas com receita atribuída por tracking, Governança, Jobs de Clientes/Produtos/Exportações, Contratos Versionados, Eventos Operacionais, eventos públicos idempotentes, webhook Evolution idempotente com ledger operacional, bootstrap de ambiente, backup/restore PostgreSQL, rate limit distribuível por Redis REST, sessão HttpOnly compatível com Bearer, eventos server-side preparados, Inbox Comercial, SLA, Social Inbox seguro, transferência operacional, política WhatsApp, descontos aprováveis, carrinho abandonado, antifraude de afiliados, anonimização, SEO público, logs operacionais, navegação comercial, busca global, auditoria de exportações comerciais e painel diário em evolução
+Status: MVP base implementado; fundação backend Bizy CRM+ com Clientes 360, Pedidos, Catálogo/Stock, Loja Pública, Vitrine Pública, Checkout, Entrega, Afiliados, Criadores, Revendedores, Mini-lojas Públicas, Comissões, Atribuição Comercial, Lotes Financeiros, Campanhas com receita atribuída por tracking, Governança, Jobs de Clientes/Produtos/Exportações, Contratos Versionados, Eventos Operacionais, eventos públicos idempotentes, webhook Evolution idempotente com ledger operacional, bootstrap de ambiente, backup/restore PostgreSQL, rate limit distribuível por Redis REST, sessão HttpOnly compatível com Bearer, cache seguro em catálogo público, eventos server-side preparados, Inbox Comercial, SLA, Social Inbox seguro, transferência operacional, política WhatsApp, descontos aprováveis, carrinho abandonado, antifraude de afiliados, anonimização, SEO público, logs operacionais, navegação comercial, busca global, auditoria de exportações comerciais e painel diário em evolução
 
 ---
 
@@ -221,6 +221,8 @@ Atualização 1.100: Adicionados scripts operacionais `npm run backup:postgres` 
 Atualização 1.101: Rate limit HTTP passou a suportar armazenamento distribuído via Redis REST/Upstash (`RATE_LIMIT_REDIS_REST_URL`/`RATE_LIMIT_REDIS_REST_TOKEN`), mantendo fallback local em memória quando o provider externo falhar ou não estiver configurado.
 
 Atualização 1.102: Login por telefone, login estudantil e callback Gmail passaram a emitir cookie de sessão HttpOnly (`AUTH_COOKIE_NAME`), com CORS preparado para credenciais e leitura de sessão por Bearer ou cookie durante a migração.
+
+Atualização 1.103: Rotas públicas de catálogo e produto passaram a emitir `Cache-Control` público de curta duração, enquanto cálculo de entrega, checkout, WhatsApp e tracking público usam `no-store` para não cachear ações com estado ou dados operacionais.
 
 ---
 
@@ -861,7 +863,7 @@ Esta etapa vem antes da implementação visual dos novos módulos. O objetivo é
 | RNF85 | [~] Relatórios de afiliados e criadores devem expor apenas dados necessários, evitando mostrar dados privados de clientes sem necessidade operacional. | Alta | Parcial - APIs administrativas de comissões/pacote não expõem histórico privado do cliente final; falta política granular por perfil externo |
 | RNF86 | [~] O cálculo de comissão deve ser reprocessável e auditável por período, pedido, afiliado, produto, reversão e pagamento. | Alta | Parcial - comissão por pedido/afiliado/produto é calculada, persistida, auditada, resumida em saldo financeiro e exportável por lote; faltam reprocessamento dedicado por período/produto e conciliação financeira avançada |
 | RNF87 | [~] Eventos analíticos devem ser armazenados de forma eficiente para pelo menos 100.000 eventos sem travar a UI operacional. | Média | Parcial - eventos já são agregados no backend em resumo de tracking e funil, evitando cálculo bruto na UI; faltam paginação/consulta temporal e otimização para alto volume real |
-| RNF88 | [ ] Páginas públicas de loja e catálogo devem ser cacheáveis sempre que possível, sem expor dados privados ou stock incorreto. | Média | Planeado |
+| RNF88 | [x] Páginas públicas de loja e catálogo devem ser cacheáveis sempre que possível, sem expor dados privados ou stock incorreto. | Média | Implementado com cache público curto em catálogo/produto e `no-store` em entrega, checkout, WhatsApp e tracking |
 | RNF89 | [ ] A UI deve ocultar módulos não ativados, mas preservar rotas e dados para reativação futura quando permitido. | Média | Planeado |
 | RNF90 | [~] Toda automação deve falhar de forma segura: mensagem não enviada, categoria inválida, template ausente ou provider indisponível devem criar tarefa humana com contexto. | Alta | Parcial - envios automáticos capturam falhas/outbox, política bloqueia categorias inválidas, bloqueios manuais criam tarefa e campanhas rejeitam template inseguro; faltam provider indisponível e automações não WhatsApp |
 | RNF91 | [x] O CRM+ deve manter logs operacionais compreensíveis para o dono do negócio, não apenas logs técnicos para desenvolvedores. | Alta | Implementado no backend em `/operacional/auditoria`, traduzindo eventos operacionais em mensagens legíveis |
