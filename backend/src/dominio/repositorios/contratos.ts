@@ -58,7 +58,9 @@ import type {
   Peca,
   MensagemAtendimento,
   Pedido,
+  RegistroComprovativoPagamentoPedido,
   RegistroComentario,
+  RejeicaoPagamentoPedido,
   Reserva,
   EstadoComentario,
   EstadoPagamento,
@@ -380,6 +382,8 @@ export interface RepositorioPedidos {
   atualizarEstado(id: string, negocioId: string, dados: AtualizacaoEstadoPedido): Promise<Pedido | null>;
   atualizarFinanceiro(id: string, negocioId: string, dados: AtualizacaoFinanceiraPedido): Promise<Pedido | null>;
   atualizarItens(id: string, negocioId: string, dados: AtualizacaoItensPedidoResolvida): Promise<Pedido | null>;
+  registrarComprovativo(id: string, negocioId: string, dados: RegistroComprovativoPagamentoPedido): Promise<Pedido | null>;
+  rejeitarPagamento(id: string, negocioId: string, dados: RejeicaoPagamentoPedido): Promise<Pedido | null>;
   confirmarPagamento(id: string, negocioId: string, dados: ConfirmacaoPagamentoPedido): Promise<Pedido | null>;
   atualizarEntrega(id: string, negocioId: string, dados: AtualizacaoEntregaPedido): Promise<Pedido | null>;
 }

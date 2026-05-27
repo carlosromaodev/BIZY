@@ -134,6 +134,8 @@ Atualização 1.57: Requisitos de desconto, APIs completas de pedido e auditoria
 
 Atualização 1.58: Catálogo WhatsApp de cobrança passou a incluir template aprovado de utilidade para pedir comprovativo pendente, fechando o fluxo mínimo de pagamento, lembrete, comprovativo pendente e pagamento confirmado.
 
+Atualização 1.59: Pedidos passaram a ter fluxo completo de comprovativo de pagamento no backend, com anexo por URL/data URL privada, rejeição com motivo, confirmação, recibo operacional e histórico auditável de aprovação/rejeição.
+
 ---
 
 ## 2. Legenda
@@ -387,7 +389,7 @@ Esta etapa transforma o Bizy de painel de live em CRM operacional para lojas que
 | RF99 | [x] O pedido deve suportar múltiplos itens, ajuste de quantidade, remoção de item e validação de stock antes de confirmar. | Alta | Implementado - criação e atualização de itens por `PATCH /pedidos/:id/itens`, com recálculo financeiro, remoção por omissão e stock validado antes do pagamento |
 | RF100 | [~] O CRM deve ter funil de pedidos com estados: novo, aguardando pagamento, pago, em preparação, pronto para entrega, enviado, entregue, cancelado, trocado e devolvido. | Alta | Parcial - estados de funil suportados no backend; falta UI kanban/lista operacional |
 | RF101 | [x] O sistema deve permitir cobrança por WhatsApp com templates de pagamento, lembrete, comprovativo pendente e pagamento confirmado. | Alta | Implementado - catálogo interno aprovado cobre dados de pagamento, lembrete, pedido de comprovativo pendente e confirmação de pagamento com política WhatsApp de utilidade |
-| RF102 | [~] O pedido deve anexar comprovativos, recibos, notas de pagamento e histórico de aprovação/rejeição. | Alta | Parcial - comprovativo/observação de pagamento no pedido; faltam recibos e trilha detalhada de aprovação/rejeição |
+| RF102 | [x] O pedido deve anexar comprovativos, recibos, notas de pagamento e histórico de aprovação/rejeição. | Alta | Implementado - `/pedidos/:id/comprovativo`, `/rejeitar-pagamento`, `/confirmar-pagamento`, `/recibo` e `/historico-pagamento` cobrem comprovativo, notas, recibo e trilha auditável |
 | RF103 | [x] O vendedor deve poder aplicar desconto apenas com motivo obrigatório e auditoria. | Média | Implementado - motivo obrigatório, limite configurável por negócio, aprovação por perfil autorizado e auditoria crítica de desconto |
 | RF104 | [x] O CRM deve registrar endereço de entrega por pedido e permitir reutilizar endereços salvos do cliente. | Alta | Implementado no backend com agenda de endereços do Cliente 360 e criação de pedido por `enderecoEntregaId` |
 | RF105 | [x] O sistema deve gerar lista de preparação/separação com produtos, quantidades, fotos e códigos. | Média | Implementado no backend em `/pedidos/preparacao` |

@@ -120,9 +120,11 @@ import type {
   ParceiroComercial,
   PlaybookRecuperacao,
   Pedido,
+  RegistroComprovativoPagamentoPedido,
   RegistroOutboxEventoN8n,
   RegistroOutboxMensagemWhatsApp,
   RegistroComentario,
+  RejeicaoPagamentoPedido,
   RegistroSessaoLive,
   Reserva,
   ResumoOutboxEventoN8n,
@@ -812,6 +814,8 @@ export class RepositorioEventosOperacionaisPrisma implements RepositorioEventosO
     const where: Prisma.EventoOperacionalWhereInput = { negocioId };
     if (filtros.topico) where.topico = filtros.topico;
     if (filtros.tipo) where.tipo = filtros.tipo;
+    if (filtros.entidadeTipo) where.entidadeTipo = filtros.entidadeTipo;
+    if (filtros.entidadeId) where.entidadeId = filtros.entidadeId;
     if (filtros.estado) where.estado = filtros.estado;
     const eventos = await this.prisma.eventoOperacional.findMany({
       where,
@@ -2210,6 +2214,49 @@ export class RepositorioPedidosPrisma implements RepositorioPedidos {
         comprovativoPagamentoUrl: dados.comprovativoPagamentoUrl ?? undefined,
         observacao: dados.observacao ?? undefined,
         pagoEm: new Date()
+      },
+      include: { itens: true }
+    });
+
+    return this.mapearPedido(pedido);
+  }
+
+  async registrarComprovativo(
+    id: string,
+    negocioId: string,
+    dados: RegistroComprovativoPagamentoPedido
+  ): Promise<Pedido | null> {
+    const existente = await this.buscarPorId(id, negocioId);
+    if (!existente) return null;
+
+    const pedido = await this.prisma.pedido.update({
+      where: { id },
+      data: {
+        estadoPagamento: "COMPROVATIVO_RECEBIDO",
+        comprovativoPagamentoUrl: dados.comprovativoPagamentoUrl ?? undefined,
+        observacao: dados.observacao ?? undefined
+      },
+      include: { itens: true }
+    });
+
+    return this.mapearPedido(pedido);
+  }
+
+  async rejeitarPagamento(
+    id: string,
+    negocioId: string,
+    dados: RejeicaoPagamentoPedido
+  ): Promise<Pedido | null> {
+    const existente = await this.buscarPorId(id, negocioId);
+    if (!existente) return null;
+
+    const pedido = await this.prisma.pedido.update({
+      where: { id },
+      data: {
+        estado: "AGUARDANDO_PAGAMENTO",
+        estadoPagamento: "REJEITADO",
+        observacao: dados.motivo,
+        pagoEm: null
       },
       include: { itens: true }
     });

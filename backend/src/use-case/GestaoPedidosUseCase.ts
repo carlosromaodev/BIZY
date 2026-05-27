@@ -17,6 +17,9 @@ import type {
   NovoPedido,
   NovaTarefaOperacional,
   Pedido,
+  ReciboPedido,
+  RegistroComprovativoPagamentoPedido,
+  RejeicaoPagamentoPedido,
   Reserva
 } from "../dominio/tipos.js";
 
@@ -229,6 +232,86 @@ export class GestaoPedidosUseCase {
     });
 
     return pedido;
+  }
+
+  async registrarComprovativo(
+    id: string,
+    negocioId: string,
+    dados: RegistroComprovativoPagamentoPedido
+  ): Promise<Pedido> {
+    const pedidoAtual = await this.pedidos.buscarPorId(id, negocioId);
+    if (!pedidoAtual) throw new Error(`Pedido ${id} não encontrado.`);
+    if (pedidoAtual.estadoPagamento === "CONFIRMADO" || pedidoAtual.estado === "PAGO") {
+      throw new Error("Comprovativo só pode ser anexado antes da confirmação do pagamento.");
+    }
+    if (!dados.comprovativoPagamentoUrl && !pedidoAtual.comprovativoPagamentoUrl) {
+      throw new Error("Informe o comprovativo de pagamento para anexar ao pedido.");
+    }
+
+    const pedido = await this.pedidos.registrarComprovativo(id, negocioId, dados);
+    if (!pedido) throw new Error(`Pedido ${id} não encontrado.`);
+
+    this.eventos.emitir("PAYMENT_PROOF_RECEIVED", {
+      negocioId,
+      pedidoId: pedido.id,
+      clienteNegocioId: pedido.clienteNegocioId,
+      comprovativoPagamentoUrl: pedido.comprovativoPagamentoUrl
+    });
+
+    return pedido;
+  }
+
+  async rejeitarPagamento(id: string, negocioId: string, dados: RejeicaoPagamentoPedido): Promise<Pedido> {
+    const pedidoAtual = await this.pedidos.buscarPorId(id, negocioId);
+    if (!pedidoAtual) throw new Error(`Pedido ${id} não encontrado.`);
+    if (pedidoAtual.estadoPagamento === "CONFIRMADO" || pedidoAtual.estado === "PAGO") {
+      throw new Error("Pagamento confirmado não pode ser rejeitado; use estorno, devolução ou reembolso.");
+    }
+
+    const pedido = await this.pedidos.rejeitarPagamento(id, negocioId, dados);
+    if (!pedido) throw new Error(`Pedido ${id} não encontrado.`);
+
+    this.eventos.emitir("PAYMENT_REJECTED", {
+      negocioId,
+      pedidoId: pedido.id,
+      clienteNegocioId: pedido.clienteNegocioId,
+      motivo: dados.motivo
+    });
+
+    return pedido;
+  }
+
+  async gerarRecibo(id: string, negocioId: string): Promise<ReciboPedido> {
+    const perfil = await this.obterPedido(id, negocioId);
+    if (!perfil) throw new Error(`Pedido ${id} não encontrado.`);
+
+    const { pedido, cliente } = perfil;
+    return {
+      id: `recibo-${pedido.id}`,
+      pedidoId: pedido.id,
+      numero: pedido.numero,
+      negocioId: pedido.negocioId,
+      cliente: cliente
+        ? {
+            id: cliente.id,
+            nome: cliente.nome ?? "Cliente",
+            telefone: cliente.telefone,
+            email: cliente.email
+          }
+        : null,
+      itens: pedido.itens,
+      subtotalEmKwanza: pedido.subtotalEmKwanza,
+      descontoEmKwanza: pedido.descontoEmKwanza,
+      taxaEntregaEmKwanza: pedido.taxaEntregaEmKwanza,
+      totalEmKwanza: pedido.totalEmKwanza,
+      estado: pedido.estado,
+      estadoPagamento: pedido.estadoPagamento,
+      estadoEntrega: pedido.estadoEntrega,
+      comprovativoPagamentoUrl: pedido.comprovativoPagamentoUrl,
+      observacao: pedido.observacao,
+      pagoEm: pedido.pagoEm,
+      emitidoEm: new Date()
+    };
   }
 
   async atualizarEntrega(id: string, negocioId: string, dados: AtualizacaoEntregaPedido): Promise<Pedido> {

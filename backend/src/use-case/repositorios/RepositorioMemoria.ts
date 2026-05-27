@@ -110,9 +110,11 @@ import type {
   NovoRegistroComentario,
   Peca,
   Pedido,
+  RegistroComprovativoPagamentoPedido,
   OportunidadeRecuperacao,
   ParceiroComercial,
   PlaybookRecuperacao,
+  RejeicaoPagamentoPedido,
   RelacaoNegocioCompartilhamento,
   LinkAfiliado,
   RegistroOutboxEventoN8n,
@@ -586,6 +588,8 @@ export class RepositorioEventosOperacionaisMemoria implements RepositorioEventos
       .filter((evento) => evento.negocioId === negocioId)
       .filter((evento) => !filtros.topico || evento.topico === filtros.topico)
       .filter((evento) => !filtros.tipo || evento.tipo === filtros.tipo)
+      .filter((evento) => !filtros.entidadeTipo || evento.entidadeTipo === filtros.entidadeTipo)
+      .filter((evento) => !filtros.entidadeId || evento.entidadeId === filtros.entidadeId)
       .filter((evento) => !filtros.estado || evento.estado === filtros.estado)
       .sort((a, b) => b.criadoEm.getTime() - a.criadoEm.getTime())
       .slice(0, filtros.limite ?? 100);
@@ -2519,6 +2523,45 @@ export class RepositorioPedidosMemoria implements RepositorioPedidos {
       comprovativoPagamentoUrl: dados.comprovativoPagamentoUrl ?? pedido.comprovativoPagamentoUrl,
       observacao: dados.observacao ?? pedido.observacao,
       pagoEm: new Date(),
+      atualizadoEm: new Date()
+    };
+    this.pedidos.set(id, atualizado);
+    return atualizado;
+  }
+
+  async registrarComprovativo(
+    id: string,
+    negocioId: string,
+    dados: RegistroComprovativoPagamentoPedido
+  ): Promise<Pedido | null> {
+    const pedido = await this.buscarPorId(id, negocioId);
+    if (!pedido) return null;
+
+    const atualizado: Pedido = {
+      ...pedido,
+      estadoPagamento: "COMPROVATIVO_RECEBIDO",
+      comprovativoPagamentoUrl: dados.comprovativoPagamentoUrl ?? pedido.comprovativoPagamentoUrl,
+      observacao: dados.observacao ?? pedido.observacao,
+      atualizadoEm: new Date()
+    };
+    this.pedidos.set(id, atualizado);
+    return atualizado;
+  }
+
+  async rejeitarPagamento(
+    id: string,
+    negocioId: string,
+    dados: RejeicaoPagamentoPedido
+  ): Promise<Pedido | null> {
+    const pedido = await this.buscarPorId(id, negocioId);
+    if (!pedido) return null;
+
+    const atualizado: Pedido = {
+      ...pedido,
+      estado: "AGUARDANDO_PAGAMENTO",
+      estadoPagamento: "REJEITADO",
+      observacao: dados.motivo,
+      pagoEm: null,
       atualizadoEm: new Date()
     };
     this.pedidos.set(id, atualizado);

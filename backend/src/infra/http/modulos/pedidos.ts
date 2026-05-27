@@ -8,9 +8,12 @@ import {
   CriarPedidoSchema,
   FiltrosEntregaPedidoQuerySchema,
   FiltrosPedidosQuerySchema,
+  RegistrarComprovativoPagamentoSchema,
   RecuperarPedidosParadosSchema,
+  RejeitarPagamentoSchema,
   SolicitarDescontoPedidoSchema
 } from "../../../dominio/esquemas.js";
+import { persistirValorMedia } from "../../media/MediaStorage.js";
 import {
   exigirAcessoComercial,
   obterLimiteDescontoSemAprovacaoPercentual,
@@ -178,6 +181,60 @@ export const moduloPedidos: ModuloHttp = {
       return perfil;
     });
 
+    app.get("/pedidos/:id/recibo", async (request, reply) => {
+      const contextoComercial = await exigirAcessoComercial(contexto, request, reply, {
+        permissao: "pedidos:ler",
+        modulo: "pedidos",
+        mensagemPermissao: "Sem permissão para consultar recibos.",
+        mensagemModulo: "Pedidos desativados para este negócio."
+      });
+      if (!contextoComercial) return;
+
+      const { id } = request.params as { id: string };
+      const perfil = await contexto.gestaoPedidos.obterPedido(id, contextoComercial.negocio.id);
+      if (!perfil) {
+        return reply.code(404).send({ erro: "PEDIDO_NAO_ENCONTRADO", mensagem: "Pedido não encontrado." });
+      }
+
+      return { recibo: await contexto.gestaoPedidos.gerarRecibo(id, contextoComercial.negocio.id) };
+    });
+
+    app.get("/pedidos/:id/historico-pagamento", async (request, reply) => {
+      const contextoComercial = await exigirAcessoComercial(contexto, request, reply, {
+        permissao: "pedidos:ler",
+        modulo: "pedidos",
+        mensagemPermissao: "Sem permissão para consultar histórico de pagamento.",
+        mensagemModulo: "Pedidos desativados para este negócio."
+      });
+      if (!contextoComercial) return;
+
+      const { id } = request.params as { id: string };
+      const perfil = await contexto.gestaoPedidos.obterPedido(id, contextoComercial.negocio.id);
+      if (!perfil) {
+        return reply.code(404).send({ erro: "PEDIDO_NAO_ENCONTRADO", mensagem: "Pedido não encontrado." });
+      }
+
+      const tiposPagamento = new Set(["COMPROVATIVO_RECEBIDO", "PAGAMENTO_REJEITADO", "PAGAMENTO_CONFIRMADO"]);
+      const eventos = await contexto.gestaoGovernancaCrm.listarEventos(contextoComercial.negocio.id, {
+        topico: "pedidos",
+        entidadeTipo: "pedido",
+        entidadeId: id,
+        limite: 100
+      });
+
+      return {
+        eventos: eventos
+          .filter((evento) => tiposPagamento.has(evento.tipo))
+          .map((evento) => ({
+            id: evento.id,
+            tipo: evento.tipo,
+            estado: evento.estado,
+            payload: evento.payload,
+            criadoEm: evento.criadoEm
+          }))
+      };
+    });
+
     app.patch("/pedidos/:id/itens", async (request, reply) => {
       const contextoComercial = await exigirAcessoComercial(contexto, request, reply, {
         permissao: "pedidos:gerir",
@@ -322,6 +379,78 @@ export const moduloPedidos: ModuloHttp = {
       });
 
       return resultado;
+    });
+
+    app.post(
+      "/pedidos/:id/comprovativo",
+      {
+        bodyLimit: Number(process.env.MEDIA_UPLOAD_MAX_BYTES ?? 12_000_000) + 1024
+      },
+      async (request, reply) => {
+        const contextoComercial = await exigirAcessoComercial(contexto, request, reply, {
+          permissao: "pagamentos:gerir",
+          modulo: "pedidos",
+          mensagemPermissao: "Sem permissão para gerir comprovativos de pagamento.",
+          mensagemModulo: "Pedidos desativados para este negócio."
+        });
+        if (!contextoComercial) return;
+
+        const { id } = request.params as { id: string };
+        const dados = RegistrarComprovativoPagamentoSchema.parse(request.body ?? {});
+        const pedidoAntes = (await contexto.gestaoPedidos.obterPedido(id, contextoComercial.negocio.id))?.pedido ?? null;
+        const comprovativoPagamentoUrl = await persistirValorMedia(dados.comprovativoPagamentoUrl ?? null, {
+          purpose: "comprovativos-pagamento",
+          allowDocuments: true
+        });
+        const pedido = await contexto.gestaoPedidos.registrarComprovativo(id, contextoComercial.negocio.id, {
+          comprovativoPagamentoUrl,
+          observacao: dados.observacao ?? null
+        });
+        await registrarAuditoriaCritica(contexto, contextoComercial, {
+          topico: "pedidos",
+          tipo: "COMPROVATIVO_RECEBIDO",
+          entidadeTipo: "pedido",
+          entidadeId: id,
+          motivo: dados.observacao ?? "Comprovativo de pagamento anexado.",
+          alteracoes: montarAlteracoes(dadosPedidoAuditoria(pedidoAntes), dadosPedidoAuditoria(pedido), [
+            "estadoPagamento",
+            "comprovativoPagamentoUrl",
+            "observacao"
+          ])
+        });
+        return pedido;
+      }
+    );
+
+    app.post("/pedidos/:id/rejeitar-pagamento", async (request, reply) => {
+      const contextoComercial = await exigirAcessoComercial(contexto, request, reply, {
+        permissao: "pagamentos:gerir",
+        modulo: "pedidos",
+        mensagemPermissao: "Sem permissão para rejeitar pagamentos.",
+        mensagemModulo: "Pedidos desativados para este negócio."
+      });
+      if (!contextoComercial) return;
+
+      const { id } = request.params as { id: string };
+      const dados = RejeitarPagamentoSchema.parse(request.body ?? {});
+      const pedidoAntes = (await contexto.gestaoPedidos.obterPedido(id, contextoComercial.negocio.id))?.pedido ?? null;
+      const pedido = await contexto.gestaoPedidos.rejeitarPagamento(id, contextoComercial.negocio.id, {
+        motivo: dados.motivo
+      });
+      await registrarAuditoriaCritica(contexto, contextoComercial, {
+        topico: "pedidos",
+        tipo: "PAGAMENTO_REJEITADO",
+        entidadeTipo: "pedido",
+        entidadeId: id,
+        motivo: dados.motivo,
+        alteracoes: montarAlteracoes(dadosPedidoAuditoria(pedidoAntes), dadosPedidoAuditoria(pedido), [
+          "estado",
+          "estadoPagamento",
+          "observacao",
+          "pagoEm"
+        ])
+      });
+      return pedido;
     });
 
     app.post("/pedidos/:id/confirmar-pagamento", async (request, reply) => {

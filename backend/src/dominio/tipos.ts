@@ -710,6 +710,8 @@ export interface NovoEventoOperacional {
 export interface FiltrosEventosOperacionais {
   topico?: string;
   tipo?: string;
+  entidadeTipo?: string;
+  entidadeId?: string;
   estado?: EstadoEventoOperacional;
   limite?: number;
 }
@@ -1550,6 +1552,40 @@ export interface AtualizacaoItensPedidoResolvida {
 export interface ConfirmacaoPagamentoPedido {
   comprovativoPagamentoUrl?: string | null;
   observacao?: string | null;
+}
+
+export interface RegistroComprovativoPagamentoPedido {
+  comprovativoPagamentoUrl?: string | null;
+  observacao?: string | null;
+}
+
+export interface RejeicaoPagamentoPedido {
+  motivo: string;
+}
+
+export interface ReciboPedido {
+  id: string;
+  pedidoId: string;
+  numero: number;
+  negocioId: string;
+  cliente: {
+    id: string;
+    nome: string;
+    telefone: string | null;
+    email: string | null;
+  } | null;
+  itens: ItemPedido[];
+  subtotalEmKwanza: number;
+  descontoEmKwanza: number;
+  taxaEntregaEmKwanza: number;
+  totalEmKwanza: number;
+  estado: EstadoPedido;
+  estadoPagamento: EstadoPagamentoPedido;
+  estadoEntrega: EstadoEntregaPedido;
+  comprovativoPagamentoUrl: string | null;
+  observacao: string | null;
+  pagoEm: Date | null;
+  emitidoEm: Date;
 }
 
 export interface AtualizacaoEntregaPedido {

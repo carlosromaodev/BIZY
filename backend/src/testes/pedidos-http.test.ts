@@ -652,4 +652,125 @@ describe("pedidos HTTP", () => {
       await app.close();
     }
   });
+
+  it("registra comprovativo, rejeita, confirma pagamento e expõe recibo com histórico", async () => {
+    const app = await criarAplicacao();
+
+    try {
+      const loja = await autenticar(app, "923222240", "Loja Histórico Pagamento");
+      await criarPeca(app, loja, "PAY-1", 4, 18_000);
+      const cliente = await criarCliente(app, loja, {
+        telefone: "937624780",
+        nome: "Cliente Pagamento",
+        email: "cliente.pagamento@example.com"
+      });
+
+      const pedido = await app.inject({
+        method: "POST",
+        url: "/pedidos",
+        headers: loja,
+        payload: {
+          clienteId: cliente.id,
+          itens: [{ codigoPeca: "PAY-1", quantidade: 1 }],
+          taxaEntregaEmKwanza: 2_000,
+          origem: "crm",
+          canal: "whatsapp"
+        }
+      });
+      expect(pedido.statusCode).toBe(201);
+      const pedidoId = pedido.json().id;
+
+      const comprovativo = await app.inject({
+        method: "POST",
+        url: `/pedidos/${pedidoId}/comprovativo`,
+        headers: loja,
+        payload: {
+          comprovativoPagamentoUrl:
+            "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=",
+          observacao: "Cliente enviou comprovativo pelo WhatsApp"
+        }
+      });
+      expect(comprovativo.statusCode).toBe(200);
+      expect(comprovativo.json()).toEqual(
+        expect.objectContaining({
+          estadoPagamento: "COMPROVATIVO_RECEBIDO",
+          comprovativoPagamentoUrl: expect.stringMatching(/^\/media\/files\/comprovativos-pagamento\//),
+          observacao: "Cliente enviou comprovativo pelo WhatsApp"
+        })
+      );
+
+      const rejeicao = await app.inject({
+        method: "POST",
+        url: `/pedidos/${pedidoId}/rejeitar-pagamento`,
+        headers: loja,
+        payload: {
+          motivo: "Comprovativo ilegível, solicitar novo ficheiro."
+        }
+      });
+      expect(rejeicao.statusCode).toBe(200);
+      expect(rejeicao.json()).toEqual(
+        expect.objectContaining({
+          estado: "AGUARDANDO_PAGAMENTO",
+          estadoPagamento: "REJEITADO",
+          observacao: "Comprovativo ilegível, solicitar novo ficheiro."
+        })
+      );
+
+      const confirmacao = await app.inject({
+        method: "POST",
+        url: `/pedidos/${pedidoId}/confirmar-pagamento`,
+        headers: loja,
+        payload: {
+          comprovativoPagamentoUrl: "https://example.com/comprovativo-validado.png",
+          observacao: "Segundo comprovativo validado pelo financeiro"
+        }
+      });
+      expect(confirmacao.statusCode).toBe(200);
+      expect(confirmacao.json()).toEqual(
+        expect.objectContaining({
+          estado: "PAGO",
+          estadoPagamento: "CONFIRMADO",
+          comprovativoPagamentoUrl: "https://example.com/comprovativo-validado.png"
+        })
+      );
+
+      const recibo = await app.inject({
+        method: "GET",
+        url: `/pedidos/${pedidoId}/recibo`,
+        headers: loja
+      });
+      expect(recibo.statusCode).toBe(200);
+      expect(recibo.json().recibo).toEqual(
+        expect.objectContaining({
+          pedidoId,
+          numero: pedido.json().numero,
+          cliente: expect.objectContaining({ nome: "Cliente Pagamento", telefone: "937624780" }),
+          totalEmKwanza: 20_000,
+          estadoPagamento: "CONFIRMADO",
+          comprovativoPagamentoUrl: "https://example.com/comprovativo-validado.png",
+          itens: [expect.objectContaining({ codigoPeca: "PAY-1", quantidade: 1 })]
+        })
+      );
+
+      const historico = await app.inject({
+        method: "GET",
+        url: `/pedidos/${pedidoId}/historico-pagamento`,
+        headers: loja
+      });
+      expect(historico.statusCode).toBe(200);
+      expect(historico.json().eventos.map((evento: { tipo: string }) => evento.tipo)).toEqual(
+        expect.arrayContaining(["COMPROVATIVO_RECEBIDO", "PAGAMENTO_REJEITADO", "PAGAMENTO_CONFIRMADO"])
+      );
+      expect(historico.json().eventos).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            tipo: "PAGAMENTO_REJEITADO",
+            payload: expect.objectContaining({ motivo: "Comprovativo ilegível, solicitar novo ficheiro." })
+          })
+        ])
+      );
+    } finally {
+      await app.close();
+    }
+  });
 });

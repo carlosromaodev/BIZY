@@ -155,6 +155,8 @@ export const RegistrarEventoOperacionalSchema = z.object({
 export const FiltrosEventosOperacionaisQuerySchema = z.object({
   topico: z.string().trim().min(1).max(80).optional(),
   tipo: z.string().trim().min(1).max(120).optional(),
+  entidadeTipo: z.string().trim().min(1).max(80).optional(),
+  entidadeId: z.string().trim().min(1).max(120).optional(),
   estado: z.enum(estadosEventoOperacional).optional(),
   limite: z.coerce.number().int().min(1).max(500).default(100)
 });
