@@ -146,6 +146,14 @@ interface ConfiguracaoContasSociais {
   providersAutorizados: string[];
 }
 
+interface ClassificacaoInteracaoSocial {
+  intencao: IntencaoSocialInbox;
+  confianca: number;
+  automatica: boolean;
+  regra?: string;
+  sinais?: string[];
+}
+
 interface ResultadoLinhaImportacaoSocial {
   linha: number;
   status: "CRIADO" | "DUPLICADO" | "ERRO";
@@ -269,14 +277,28 @@ export class GestaoSocialInboxUseCase {
   async criarItem(dados: NovoSocialInboxItem): Promise<SocialInboxItem> {
     const duplicado = await this.buscarDuplicado(dados);
     if (duplicado) return duplicado;
+    const classificacao = this.classificarInteracao(dados.texto, dados.intencao, dados.confianca);
+    const contexto = {
+      ...(dados.contexto ?? {}),
+      ...(classificacao.automatica
+        ? {
+            classificacao: {
+              origem: "automatica",
+              regra: classificacao.regra,
+              sinais: classificacao.sinais,
+              versao: 1
+            }
+          }
+        : {})
+    };
 
     const item = await this.socialInbox.criar({
       ...dados,
       estado: dados.estado ?? "NOVO",
-      intencao: dados.intencao ?? "SEM_INTENCAO",
-      confianca: dados.confianca ?? 0,
+      intencao: classificacao.intencao,
+      confianca: classificacao.confianca,
       entidades: dados.entidades ?? {},
-      contexto: dados.contexto ?? {}
+      contexto
     });
 
     if (this.deveCriarTarefaLead(item)) {
@@ -470,6 +492,131 @@ export class GestaoSocialInboxUseCase {
       throw new Error(`Confiança inválida na importação social: ${texto}.`);
     }
     return numero;
+  }
+
+  private classificarInteracao(
+    textoOriginal: string,
+    intencaoInformada: IntencaoSocialInbox | undefined,
+    confiancaInformada: number | undefined
+  ): ClassificacaoInteracaoSocial {
+    if (intencaoInformada && intencaoInformada !== "SEM_INTENCAO") {
+      return {
+        intencao: intencaoInformada,
+        confianca: confiancaInformada ?? 0,
+        automatica: false
+      };
+    }
+    if ((confiancaInformada ?? 0) > 0) {
+      return {
+        intencao: intencaoInformada ?? "SEM_INTENCAO",
+        confianca: confiancaInformada ?? 0,
+        automatica: false
+      };
+    }
+
+    const texto = this.normalizarTextoAnalise(textoOriginal);
+    const regras: Array<{
+      regra: string;
+      intencao: IntencaoSocialInbox;
+      confianca: number;
+      sinais: string[];
+      padrao: RegExp;
+    }> = [
+      {
+        regra: "spam",
+        intencao: "SPAM",
+        confianca: 0.9,
+        sinais: ["link suspeito", "ganho facil"],
+        padrao: /\b(ganhe seguidores|seguidores gratis|clique aqui|http:\/\/|https:\/\/|bit\.ly|t\.me\/|cripto|forex)\b/u
+      },
+      {
+        regra: "reclamacao",
+        intencao: "RECLAMACAO",
+        confianca: 0.86,
+        sinais: ["problema", "troca", "devolucao"],
+        padrao: /\b(problema|reclamacao|troca|devolucao|devolver|cancelar|reembolso|nao recebi|veio errado)\b/u
+      },
+      {
+        regra: "compra",
+        intencao: "COMPRA",
+        confianca: 0.82,
+        sinais: ["quero comprar", "reservar", "vou levar"],
+        padrao: /\b(quero comprar|vou levar|reserva|reservar|manda na dm|chama no whatsapp|fechar pedido)\b/u
+      },
+      {
+        regra: "preco",
+        intencao: "PRECO",
+        confianca: 0.74,
+        sinais: ["preco", "valor", "quanto custa"],
+        padrao: /\b(preco|valor|quanto custa|quanto e|custa quanto|qual e o preco|preç)\b/u
+      },
+      {
+        regra: "tamanho_cor",
+        intencao: "TAMANHO_COR",
+        confianca: 0.76,
+        sinais: ["tamanho", "cor", "numero"],
+        padrao: /\b(tamanho|tam\.?|cor|cores|numero|nº|calca|veste|p\b|m\b|g\b|gg\b|verde|preto|branco|azul)\b/u
+      },
+      {
+        regra: "entrega",
+        intencao: "ENTREGA",
+        confianca: 0.78,
+        sinais: ["entrega", "delivery", "taxa"],
+        padrao: /\b(entrega|delivery|taxa de entrega|envio|motoqueiro|retirada|levam|entregam)\b/u
+      },
+      {
+        regra: "disponibilidade",
+        intencao: "DISPONIBILIDADE",
+        confianca: 0.72,
+        sinais: ["tem", "disponivel", "ainda ha"],
+        padrao: /\b(tem|disponivel|ainda tem|ainda ha|tem stock|esgotou|disponibilidade)\b/u
+      },
+      {
+        regra: "lead_quente",
+        intencao: "LEAD_QUENTE",
+        confianca: 0.8,
+        sinais: ["telefone", "whatsapp", "dm"],
+        padrao: /\b(whatsapp|zap|me chama|manda mensagem|9\d{8})\b/u
+      },
+      {
+        regra: "duvida_geral",
+        intencao: "DUVIDA",
+        confianca: 0.58,
+        sinais: ["como", "quando", "onde"],
+        padrao: /\b(como funciona|quando chega|onde fica|pode explicar|mais informacao|tenho duvida)\b/u
+      },
+      {
+        regra: "lead_frio",
+        intencao: "LEAD_FRIO",
+        confianca: 0.62,
+        sinais: ["gostei", "info", "detalhes"],
+        padrao: /\b(gostei|lindo|bonito|info|informacoes|detalhes|interessante)\b/u
+      }
+    ];
+
+    const encontrada = regras.find((regra) => regra.padrao.test(texto));
+    if (!encontrada) {
+      return {
+        intencao: "SEM_INTENCAO",
+        confianca: 0,
+        automatica: false
+      };
+    }
+
+    return {
+      intencao: encontrada.intencao,
+      confianca: encontrada.confianca,
+      automatica: true,
+      regra: encontrada.regra,
+      sinais: encontrada.sinais
+    };
+  }
+
+  private normalizarTextoAnalise(texto: string): string {
+    return texto
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/\p{Diacritic}/gu, "");
   }
 
   private deveCriarTarefaLead(item: SocialInboxItem): boolean {

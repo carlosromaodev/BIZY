@@ -160,6 +160,8 @@ Atualização 1.70: Social Inbox passou a gerir contas sociais conectadas por pr
 
 Atualização 1.71: Social Inbox passou a ter captura controlada de eventos de provider em `/social/inbox/capturar`, aceitando comentários de foto, vídeo, post, live, reel e story somente quando a conta social do negócio está conectada, o provider é autorizado e a permissão `comments.read` está presente.
 
+Atualização 1.72: Social Inbox ganhou classificador conservador de intenção para comentários sem intenção enviada pelo provider, cobrindo preço, disponibilidade, tamanho/cor, entrega, reclamação, compra, lead quente, lead frio, spam e dúvida geral, registrando a regra no contexto para auditoria.
+
 ---
 
 ## 2. Legenda
@@ -565,7 +567,7 @@ Esta etapa posiciona o Bizy como uma plataforma de operação comercial para cri
 | RF197 | [x] O sistema deve permitir conectar contas sociais suportadas por providers oficiais ou conectores autorizados. | Alta | Implementado - endpoints `/social/contas/providers`, `/social/contas` e persistência segura por negócio |
 | RF198 | [~] O CRM+ deve capturar comentários de fotos, vídeos, posts e lives quando a API do provider permitir, respeitando permissões e limites do canal. | Alta | Parcial - captura controlada por provider implementada com conta conectada, provider autorizado e permissão `comments.read`; falta worker/conector oficial ativo por rede |
 | RF199 | [x] Comentários sociais devem ser normalizados numa entidade única de interação social com provider, post, autor, texto, data, link original e estado. | Alta | Implementado no backend em `SocialInboxItem` |
-| RF200 | [~] O sistema deve classificar comentários por intenção: preço, disponibilidade, tamanho/cor, entrega, reclamação, intenção de compra, lead frio/quente, spam ou dúvida geral. | Alta | Parcial - backend aceita intenção normalizada e confiança; falta classificador automático completo |
+| RF200 | [x] O sistema deve classificar comentários por intenção: preço, disponibilidade, tamanho/cor, entrega, reclamação, intenção de compra, lead frio/quente, spam ou dúvida geral. | Alta | Implementado com classificador conservador no Social Inbox e registro da regra no contexto |
 | RF201 | [~] Um comentário social deve poder gerar cliente, lead, conversa, tarefa, pedido ou oportunidade de recuperação. | Alta | Parcial - Social Inbox gera tarefa humana/lead; falta criação direta de pedido/oportunidade por todos os cenários |
 | RF202 | [~] Toda interação social deve preservar o link/post original, identificador do provider e contexto da campanha para auditoria e análise. | Alta | Parcial - backend guarda postUrl, postId, provider, autor e contexto/permissões; falta trilha formal de auditoria por captura |
 | RF203 | [~] Quando permitido pelo provider, o atendente deve poder responder ao comentário ou levar a conversa para WhatsApp com contexto. | Média | Parcial - interação social preserva contexto e gera tarefa/conversa operacional; falta envio direto pelo provider social |

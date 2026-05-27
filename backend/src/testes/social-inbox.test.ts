@@ -412,6 +412,94 @@ describe("Social Inbox CRM+", () => {
       await app.close();
     }
   });
+
+  it("classifica automaticamente intenções comerciais básicas quando o provider não envia intenção", async () => {
+    const app = await criarAplicacao();
+
+    try {
+      const headers = await autenticar(app);
+
+      const preco = await app.inject({
+        method: "POST",
+        url: "/social/inbox/itens",
+        headers,
+        payload: {
+          canal: "instagram",
+          provider: "instagram_graph",
+          postId: "post_preco_01",
+          autor: { username: "cliente_preco" },
+          texto: "Qual é o preço do vestido 09?"
+        }
+      });
+
+      expect(preco.statusCode).toBe(201);
+      expect(preco.json().item).toEqual(
+        expect.objectContaining({
+          intencao: "PRECO",
+          confianca: 0.74
+        })
+      );
+      expect(preco.json().item.contexto.classificacao).toEqual(
+        expect.objectContaining({
+          origem: "automatica",
+          regra: "preco"
+        })
+      );
+
+      const tamanhoCor = await app.inject({
+        method: "POST",
+        url: "/social/inbox/itens",
+        headers,
+        payload: {
+          canal: "tiktok",
+          provider: "tiktok_business",
+          postId: "video_tamanho_01",
+          autor: { username: "cliente_tamanho" },
+          texto: "Tem tamanho M na cor verde?"
+        }
+      });
+
+      expect(tamanhoCor.statusCode).toBe(201);
+      expect(tamanhoCor.json().item).toEqual(
+        expect.objectContaining({
+          intencao: "TAMANHO_COR",
+          confianca: 0.76
+        })
+      );
+
+      const spam = await app.inject({
+        method: "POST",
+        url: "/social/inbox/itens",
+        headers,
+        payload: {
+          canal: "instagram",
+          provider: "instagram_graph",
+          postId: "post_spam_01",
+          autor: { username: "conta_spam" },
+          texto: "Ganhe seguidores grátis em https://spam.example agora"
+        }
+      });
+
+      expect(spam.statusCode).toBe(201);
+      expect(spam.json().item).toEqual(
+        expect.objectContaining({
+          intencao: "SPAM",
+          confianca: 0.9
+        })
+      );
+
+      const tarefas = await app.inject({
+        method: "GET",
+        url: "/tarefas?tipo=SOCIAL_LEAD_REVIEW&estado=ABERTA",
+        headers
+      });
+
+      expect(tarefas.statusCode).toBe(200);
+      expect(tarefas.json().tarefas).toHaveLength(0);
+    } finally {
+      await app.close();
+    }
+  });
 });
 
 async function autenticar(app: Awaited<ReturnType<typeof criarAplicacao>>) {

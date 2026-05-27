@@ -937,7 +937,20 @@ export type TipoSocialInbox = (typeof tiposSocialInbox)[number];
 export const estadosSocialInbox = ["NOVO", "EM_ATENDIMENTO", "CONVERTIDO", "IGNORADO", "ARQUIVADO"] as const;
 export type EstadoSocialInbox = (typeof estadosSocialInbox)[number];
 
-export const intencoesSocialInbox = ["COMPRA", "DUVIDA", "RECLAMACAO", "ELOGIO", "SEM_INTENCAO"] as const;
+export const intencoesSocialInbox = [
+  "COMPRA",
+  "PRECO",
+  "DISPONIBILIDADE",
+  "TAMANHO_COR",
+  "ENTREGA",
+  "LEAD_QUENTE",
+  "LEAD_FRIO",
+  "SPAM",
+  "DUVIDA",
+  "RECLAMACAO",
+  "ELOGIO",
+  "SEM_INTENCAO"
+] as const;
 export type IntencaoSocialInbox = (typeof intencoesSocialInbox)[number];
 
 export interface SocialInboxItem {
