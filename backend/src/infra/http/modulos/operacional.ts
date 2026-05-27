@@ -456,6 +456,97 @@ export const moduloOperacional: ModuloHttp = {
       return reply.code(201).send({ item });
     });
 
+    app.post("/social/inbox/itens/:id/whatsapp", async (request, reply) => {
+      const contextoComercial = await exigirAcessoComercial(contexto, request, reply, {
+        permissao: "conversas:gerir",
+        modulo: "conversas",
+        mensagemPermissao: "Sem permissão para levar interação social ao WhatsApp.",
+        mensagemModulo: "Conversas desativadas para este negócio."
+      });
+      if (!contextoComercial) return;
+
+      const { id } = request.params as { id: string };
+      const item = await contexto.gestaoSocialInbox.obterItem(id, contextoComercial.negocio.id);
+      if (!item) {
+        return reply.code(404).send({ erro: "SOCIAL_INBOX_ITEM_NAO_ENCONTRADO", mensagem: "Interação social não encontrada." });
+      }
+      if (!item.clienteTelefone) {
+        return reply.code(400).send({
+          erro: "SOCIAL_INBOX_SEM_TELEFONE",
+          mensagem: "Não é possível iniciar WhatsApp sem telefone do cliente."
+        });
+      }
+
+      const dados = EnviarMensagemConversaAtendimentoSchema.parse(request.body ?? {});
+      const mensagemLivre = montarMensagemLivreConversa(dados);
+      const envio = await contexto.automacaoWhatsApp.enviarMensagemManual({
+        negocioId: contextoComercial.negocio.id,
+        telefone: item.clienteTelefone,
+        mensagem: mensagemLivre,
+        templateId: dados.templateId,
+        variaveis: dados.variaveis,
+        categoria: dados.categoria,
+        consentimentoMarketing: dados.consentimentoMarketing,
+        janelaAtendimentoAtiva: dados.janelaAtendimentoAtiva
+      });
+
+      const mensagem = await contexto.repositorios.atendimento.registrarMensagem({
+        negocioId: contextoComercial.negocio.id,
+        telefone: item.clienteTelefone,
+        nomeCliente: item.autorNome,
+        usernameCliente: item.autorUsername,
+        userIdCliente: item.autorId,
+        avatarUrlCliente: item.autorAvatarUrl,
+        direcao: "OUTBOUND",
+        remetente: "agente",
+        canal: "whatsapp",
+        tipo: envio.tipo,
+        conteudo: envio.conteudo,
+        provider: envio.resultado.provider,
+        providerMessageId: envio.resultado.idExterno,
+        status: "SENT",
+        origem: "social_inbox_whatsapp",
+        contexto: {
+          ...dados.contexto,
+          socialInboxItemId: item.id,
+          canalSocial: item.canal,
+          providerSocial: item.provider,
+          postId: item.postId,
+          postUrl: item.postUrl,
+          intencao: item.intencao,
+          confianca: item.confianca,
+          autorId: item.autorId,
+          autorUsername: item.autorUsername,
+          categoriaWhatsApp: envio.politica.categoria,
+          templateId: dados.templateId ?? null,
+          mediaUrl: dados.mediaUrl ?? null
+        }
+      });
+
+      await contexto.gestaoGovernancaCrm.registrarEvento({
+        negocioId: contextoComercial.negocio.id,
+        topico: "social_inbox",
+        tipo: "SOCIAL_INBOX_WHATSAPP_SENT",
+        entidadeTipo: "social_inbox_item",
+        entidadeId: item.id,
+        idempotencyKey: `social-inbox:${item.id}:whatsapp:${envio.resultado.idExterno}`,
+        estado: "PROCESSADO",
+        payload: {
+          canal: item.canal,
+          provider: item.provider,
+          postId: item.postId,
+          postUrl: item.postUrl,
+          telefone: item.clienteTelefone,
+          categoriaWhatsApp: envio.politica.categoria,
+          mensagemId: mensagem.id,
+          providerMessageId: envio.resultado.idExterno,
+          autorUsuarioId: contextoComercial.usuario.id
+        }
+      });
+
+      return reply.code(202).send({ item, mensagem, envio });
+    });
+
     app.get("/funil/etapas", async (request, reply) => {
       const contextoComercial = await exigirAcessoComercial(contexto, request, reply, {
         permissao: "funil:ler",
@@ -1065,6 +1156,9 @@ function descreverEventoOperacional(evento: EventoOperacional): string {
   }
   if (evento.tipo === "SOCIAL_INBOX_CAPTURED") {
     return `Interação social capturada em ${nomeCanalSocial(String(payload.canal ?? "rede social"))} com intenção ${String(payload.intencao ?? "SEM_INTENCAO")}.`;
+  }
+  if (evento.tipo === "SOCIAL_INBOX_WHATSAPP_SENT") {
+    return `Interação social levada para WhatsApp com categoria ${String(payload.categoriaWhatsApp ?? "service")}.`;
   }
   return `${evento.tipo} em ${evento.topico}${evento.entidadeTipo ? ` para ${evento.entidadeTipo}` : ""}.`;
 }

@@ -166,6 +166,8 @@ Atualização 1.73: Social Inbox passou a sincronizar comentários sociais acion
 
 Atualização 1.74: Capturas do Social Inbox passaram a registrar auditoria operacional `SOCIAL_INBOX_CAPTURED` com provider, post, link original, autor, intenção, confiança, origem da captura, permissões e data, tornando a origem do lead rastreável fora do JSON interno do item.
 
+Atualização 1.75: Interações do Social Inbox com telefone passaram a poder ser levadas para WhatsApp por `/social/inbox/itens/:id/whatsapp`, enviando mensagem de serviço com política WhatsApp, registrando a resposta na conversa CRM e preservando post, autor, intenção e contexto original.
+
 ---
 
 ## 2. Legenda
@@ -574,7 +576,7 @@ Esta etapa posiciona o Bizy como uma plataforma de operação comercial para cri
 | RF200 | [x] O sistema deve classificar comentários por intenção: preço, disponibilidade, tamanho/cor, entrega, reclamação, intenção de compra, lead frio/quente, spam ou dúvida geral. | Alta | Implementado com classificador conservador no Social Inbox e registro da regra no contexto |
 | RF201 | [~] Um comentário social deve poder gerar cliente, lead, conversa, tarefa, pedido ou oportunidade de recuperação. | Alta | Parcial - Social Inbox gera tarefa humana/lead, sincroniza conversa de atendimento quando há telefone e abre oportunidade de recuperação para intenção comercial; falta criação direta de pedido por cenários aprovados |
 | RF202 | [x] Toda interação social deve preservar o link/post original, identificador do provider e contexto da campanha para auditoria e análise. | Alta | Implementado - backend guarda postUrl, postId, provider, autor, contexto/permissões e registra auditoria operacional `SOCIAL_INBOX_CAPTURED` por captura |
-| RF203 | [~] Quando permitido pelo provider, o atendente deve poder responder ao comentário ou levar a conversa para WhatsApp com contexto. | Média | Parcial - interação social preserva contexto e gera tarefa/conversa operacional; falta envio direto pelo provider social |
+| RF203 | [~] Quando permitido pelo provider, o atendente deve poder responder ao comentário ou levar a conversa para WhatsApp com contexto. | Média | Parcial - interação social preserva contexto, gera tarefa/conversa operacional e pode ser levada para WhatsApp com contexto; falta envio direto pelo provider social |
 | RF204 | [x] Quando a API não permitir extração automática, o sistema deve oferecer fallback de importação manual, CSV, colagem assistida ou captura operacional controlada. | Alta | Implementado no backend com criação manual/controlada e importação CSV com deduplicação, contexto do provider, campanha, produto e permissões |
 | RF205 | [x] Comentários devem ser deduplicados por identificador do provider e por sinais de cliente, evitando criar leads repetidos. | Alta | Implementado no backend por identificador do provider e fallback por post/autor/texto |
 | RF206 | [x] A social inbox deve filtrar por rede, post, campanha, intenção, urgência, respondido/não respondido, produto e responsável. | Alta | Implementado no backend com filtros diretos e contexto comercial |

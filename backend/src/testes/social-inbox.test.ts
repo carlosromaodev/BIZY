@@ -186,6 +186,39 @@ describe("Social Inbox CRM+", () => {
           })
         })
       ]);
+
+      const whatsapp = await app.inject({
+        method: "POST",
+        url: `/social/inbox/itens/${criado.json().item.id}/whatsapp`,
+        headers,
+        payload: {
+          mensagem: "Olá, Cliente VIP. Vi o teu comentário no Instagram e posso seguir com a compra do vestido 01 por aqui.",
+          categoria: "service",
+          contexto: {
+            acao: "resposta_social"
+          }
+        }
+      });
+
+      expect(whatsapp.statusCode).toBe(202);
+      expect(whatsapp.json().mensagem).toEqual(
+        expect.objectContaining({
+          direcao: "OUTBOUND",
+          remetente: "agente",
+          canal: "whatsapp",
+          origem: "social_inbox_whatsapp",
+          conteudo: "Olá, Cliente VIP. Vi o teu comentário no Instagram e posso seguir com a compra do vestido 01 por aqui.",
+          contexto: expect.objectContaining({
+            acao: "resposta_social",
+            socialInboxItemId: criado.json().item.id,
+            postId: "post_look_001",
+            postUrl: "https://instagram.com/p/post_look_001",
+            autorUsername: "clientevip",
+            categoriaWhatsApp: "service"
+          })
+        })
+      );
+      expect(whatsapp.json().envio.politica.categoria).toBe("service");
     } finally {
       await app.close();
     }
