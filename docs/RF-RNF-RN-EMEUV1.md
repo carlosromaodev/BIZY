@@ -1,10 +1,10 @@
 # Bizy / ÉMeu V1 - Requisitos Funcionais, Não Funcionais e Regras de Negócio
 
 Documento: `RF-RNF-RN-EMEUV1.md`
-Versão: 1.94
+Versão: 1.95
 Data: 2026-05-26
 Autor: Carlos
-Status: MVP base implementado; fundação backend Bizy CRM+ com Clientes 360, Pedidos, Catálogo/Stock, Loja Pública, Vitrine Pública, Checkout, Entrega, Afiliados, Criadores, Revendedores, Mini-lojas Públicas, Comissões, Atribuição Comercial, Lotes Financeiros, Campanhas com receita atribuída por tracking, Governança, Jobs de Clientes/Produtos/Exportações, Eventos Operacionais, eventos públicos idempotentes, eventos server-side preparados, Inbox Comercial, SLA, Social Inbox seguro, transferência operacional, política WhatsApp, descontos aprováveis, carrinho abandonado, antifraude de afiliados, anonimização, SEO público, logs operacionais, navegação comercial, busca global, auditoria de exportações comerciais e painel diário em evolução
+Status: MVP base implementado; fundação backend Bizy CRM+ com Clientes 360, Pedidos, Catálogo/Stock, Loja Pública, Vitrine Pública, Checkout, Entrega, Afiliados, Criadores, Revendedores, Mini-lojas Públicas, Comissões, Atribuição Comercial, Lotes Financeiros, Campanhas com receita atribuída por tracking, Governança, Jobs de Clientes/Produtos/Exportações, Contratos Versionados, Eventos Operacionais, eventos públicos idempotentes, eventos server-side preparados, Inbox Comercial, SLA, Social Inbox seguro, transferência operacional, política WhatsApp, descontos aprováveis, carrinho abandonado, antifraude de afiliados, anonimização, SEO público, logs operacionais, navegação comercial, busca global, auditoria de exportações comerciais e painel diário em evolução
 
 ---
 
@@ -205,6 +205,8 @@ Atualização 1.92: Importação de produtos passou a rodar também como job ope
 Atualização 1.93: Exportação de clientes passou a rodar como job operacional idempotente, guardando o CSV resultante no relatório do job e emitindo auditoria `CLIENTS_EXPORTED` com origem `job`.
 
 Atualização 1.94: Exportação de produtos passou a rodar como job operacional idempotente, com filtros por busca, categoria, coleção e estado, CSV no resultado do job e auditoria `PRODUCTS_EXPORTED`.
+
+Atualização 1.95: Backend passou a expor `/contratos`, com catálogo versionado v1 para API interna CRM+, API pública da loja/tracking, webhook Evolution e eventos de automação operacional, incluindo política de compatibilidade, idempotência e `payloadVersion`.
 
 ---
 
@@ -702,7 +704,7 @@ Esta etapa vem antes da implementação visual dos novos módulos. O objetivo é
 | RF266 | [~] Módulos desativados devem bloquear rotas, automações e menus relacionados, preservando dados para reativação futura. | Alta | Parcial - guarda HTTP aplicada em rotas comerciais, conversas e WhatsApp |
 | RF267 | [~] Webhooks, importações, campanhas e eventos públicos devem usar chaves de idempotência para evitar duplicidade. | Alta | Parcial - eventos operacionais, jobs de importação/exportação de clientes/produtos e eventos públicos de tracking suportam idempotência por chave técnica; faltam todos os webhooks externos e campanhas públicas |
 | RF268 | [~] Migrations, seeds e scripts de bootstrap devem preparar ambientes dev/staging/prod sem depender de dados manuais invisíveis. | Alta | Parcial - migration Prisma adicionada para campanhas/governança; faltam seeds/bootstrap formais dos novos módulos |
-| RF269 | [~] O backend deve manter contratos versionados para APIs internas, públicas, webhooks e eventos de automação. | Média | Parcial - eventos operacionais possuem tópico/tipo/contexto e testes de rota; falta versionamento explícito de contrato |
+| RF269 | [x] O backend deve manter contratos versionados para APIs internas, públicas, webhooks e eventos de automação. | Média | Implementado com `/contratos`, catálogo v1 para API interna, API pública, webhook Evolution e eventos de automação, incluindo política de compatibilidade, idempotência e `payloadVersion` |
 | RF270 | [~] Cada módulo backend novo deve nascer com testes de schema, use-case, repositório e rota HTTP antes de ser ligado ao frontend. | Alta | Parcial - novas rotas CRM+/campanhas/governança têm testes HTTP; faltam testes de repositório/use-case separados para todos |
 
 ---
@@ -866,7 +868,7 @@ Esta etapa vem antes da implementação visual dos novos módulos. O objetivo é
 | RNF101 | [x] APIs públicas de loja, checkout e tracking devem ter rate limit separado das APIs autenticadas do painel. | Alta | Implementado com limite público configurável por `RATE_LIMIT_PUBLICO_MAXIMO` |
 | RNF102 | [x] O motor de política WhatsApp deve ser testável sem depender de Evolution, Cloud API ou n8n. | Alta | Implementado em serviço de domínio com testes dedicados |
 | RNF103 | [~] O backend deve permitir feature flags/módulos por negócio sem deploy novo para cada ativação operacional. | Média | Parcial |
-| RNF104 | [~] Eventos de domínio devem usar payloads estáveis e versionados para não quebrar n8n, relatórios ou automações futuras. | Alta | Parcial - eventos operacionais usam tópico/tipo/payload e idempotência; falta campo formal de versão em todos os eventos |
+| RNF104 | [~] Eventos de domínio devem usar payloads estáveis e versionados para não quebrar n8n, relatórios ou automações futuras. | Alta | Parcial - `/contratos` define payloadVersion v1 e lista eventos/políticas; falta gravar `payloadVersion` como campo formal em todos os eventos persistidos |
 | RNF105 | [~] Auditoria e logs operacionais devem ser compreensíveis pelo dono/admin, não apenas por desenvolvedor. | Alta | Parcial - eventos operacionais/auditoria possuem tipos e contexto de negócio; falta camada textual final para todos os eventos |
 | RNF106 | [~] Dados sensíveis de cliente devem ser minimizados em logs, eventos, URLs, cookies e relatórios de afiliados. | Alta | Parcial - tracking público rejeita dados pessoais e eventos públicos usam identificadores técnicos; falta revisão completa de logs/relatórios |
 | RNF107 | [~] Testes de regressão devem impedir voltar a usar código de produto, telefone ou nome como identificador global entre negócios. | Alta | Parcial |

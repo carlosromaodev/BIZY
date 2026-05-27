@@ -678,4 +678,63 @@ describe("CRM+ governança, campanhas, eventos e jobs", () => {
       await app.close();
     }
   });
+
+  it("expõe contratos versionados de APIs, webhooks e eventos de automação", async () => {
+    const app = await criarAplicacao();
+
+    try {
+      const headers = await autenticar(app, "923771006", "Loja Contratos");
+
+      const resposta = await app.inject({
+        method: "GET",
+        url: "/contratos",
+        headers
+      });
+
+      expect(resposta.statusCode).toBe(200);
+      expect(resposta.json()).toEqual(
+        expect.objectContaining({
+          versao: expect.stringMatching(/^v\d+/),
+          politica: expect.objectContaining({
+            idempotenciaObrigatoriaEm: expect.arrayContaining(["webhooks", "jobs", "eventos-publicos"]),
+            compatibilidadeMinima: expect.stringContaining("dias")
+          }),
+          contratos: expect.arrayContaining([
+            expect.objectContaining({
+              id: "api-interna-crm-v1",
+              tipo: "api_interna",
+              versao: "v1",
+              estado: "ativo",
+              requisitos: expect.objectContaining({
+                autenticacao: "bearer-session",
+                tenant: "negocioId resolvido pela sessão"
+              })
+            }),
+            expect.objectContaining({
+              id: "api-publica-loja-v1",
+              tipo: "api_publica",
+              versao: "v1",
+              paths: expect.arrayContaining(["/publico/lojas/:slug", "/publico/tracking/eventos"])
+            }),
+            expect.objectContaining({
+              id: "webhook-evolution-v1",
+              tipo: "webhook",
+              versao: "v1",
+              requisitos: expect.objectContaining({
+                idempotencia: "providerMessageId ou chave técnica equivalente"
+              })
+            }),
+            expect.objectContaining({
+              id: "evento-automacao-operacional-v1",
+              tipo: "evento_automacao",
+              versao: "v1",
+              eventos: expect.arrayContaining(["ORDER_CREATED", "PAYMENT_CONFIRMED"])
+            })
+          ])
+        })
+      );
+    } finally {
+      await app.close();
+    }
+  });
 });

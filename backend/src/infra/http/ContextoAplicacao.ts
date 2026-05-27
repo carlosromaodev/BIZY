@@ -39,6 +39,7 @@ import { ConsultaAtendimentoOperacionalUseCase } from "../../use-case/ConsultaAt
 import { ConsultaIntegracoesUseCase } from "../../use-case/ConsultaIntegracoesUseCase.js";
 import { ConsultaOperacionalUseCase } from "../../use-case/ConsultaOperacionalUseCase.js";
 import { ConsultaPainelUseCase } from "../../use-case/ConsultaPainelUseCase.js";
+import { ContratosPlataformaUseCase } from "../../use-case/ContratosPlataformaUseCase.js";
 import { GestaoAfiliadosUseCase } from "../../use-case/GestaoAfiliadosUseCase.js";
 import { GestaoCampanhasCrmUseCase } from "../../use-case/GestaoCampanhasCrmUseCase.js";
 import { GestaoClientesCrmUseCase } from "../../use-case/GestaoClientesCrmUseCase.js";
@@ -202,6 +203,7 @@ export interface ContextoAplicacao {
   gestaoOportunidadesRecuperacao: GestaoOportunidadesRecuperacaoUseCase;
   consultaIntegracoes: ConsultaIntegracoesUseCase;
   consultaPainel: ConsultaPainelUseCase;
+  contratosPlataforma: ContratosPlataformaUseCase;
   relatoriosComerciais: RelatoriosComerciaisUseCase;
   consultaAtendimentoN8n: ConsultaAtendimentoN8n;
   consultaOperacional: ConsultaOperacionalUseCase;
@@ -345,6 +347,7 @@ export function criarContextoAplicacao(logger: FastifyBaseLogger): ContextoAplic
     repositorios.oportunidadesRecuperacao
   );
   const consultaIntegracoes = new ConsultaIntegracoesUseCase();
+  const contratosPlataforma = new ContratosPlataformaUseCase();
   const consultaPainel = new ConsultaPainelUseCase(
     repositorios.pecas,
     repositorios.reservas,
@@ -460,6 +463,7 @@ export function criarContextoAplicacao(logger: FastifyBaseLogger): ContextoAplic
     gestaoOportunidadesRecuperacao,
     consultaIntegracoes,
     consultaPainel,
+    contratosPlataforma,
     relatoriosComerciais,
     consultaAtendimentoN8n,
     consultaOperacional,
