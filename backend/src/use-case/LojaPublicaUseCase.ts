@@ -13,7 +13,12 @@ import type {
   Peca
 } from "../dominio/tipos.js";
 import type { GestaoClientesCrmUseCase } from "./GestaoClientesCrmUseCase.js";
-import type { AtribuicaoAfiliadoResolvida, GestaoAfiliadosUseCase } from "./GestaoAfiliadosUseCase.js";
+import type {
+  AtribuicaoAfiliadoResolvida,
+  GestaoAfiliadosUseCase,
+  ModeloAtribuicaoComercial,
+  ReferenciaAtribuicaoComercial
+} from "./GestaoAfiliadosUseCase.js";
 import type { GestaoPedidosUseCase } from "./GestaoPedidosUseCase.js";
 
 interface OpcoesTrackingPublico {
@@ -67,6 +72,11 @@ interface DadosCheckoutSitePublico extends DadosCalculoEntregaPublica {
   };
   trackingId?: string | null;
   referencia?: string | null;
+  referenciasAssistidas?: Array<string | ReferenciaAtribuicaoComercial>;
+  atribuicao?: {
+    modelo?: ModeloAtribuicaoComercial;
+    janelaDias?: number;
+  };
   origem: string;
   canal: string;
   observacao?: string | null;
@@ -227,7 +237,13 @@ export class LojaPublicaUseCase {
   async criarCheckoutSite(slug: string, dados: DadosCheckoutSitePublico) {
     const negocio = await this.exigirLojaPublicada(slug);
     const resumo = await this.resolverResumoCheckout(negocio, dados.itens, dados.entrega);
-    const atribuicaoOriginal = await this.afiliados?.resolverAtribuicao(negocio.id, dados.referencia) ?? null;
+    const politicaAtribuicao = this.resolverPoliticaAtribuicao(negocio, dados.atribuicao);
+    const atribuicaoOriginal = await this.afiliados?.resolverAtribuicao(negocio.id, {
+      referencia: dados.referencia,
+      referenciasAssistidas: dados.referenciasAssistidas,
+      modelo: politicaAtribuicao.modelo,
+      janelaDias: politicaAtribuicao.janelaDias
+    }) ?? null;
     const autoIndicacao = this.afiliados?.ehAutoIndicacao(atribuicaoOriginal, dados.cliente.telefone) ?? false;
     if (autoIndicacao && atribuicaoOriginal) {
       await this.registrarEventoOperacionalSilencioso({
@@ -241,7 +257,8 @@ export class LojaPublicaUseCase {
           motivo: "AUTOINDICACAO",
           parceiroId: atribuicaoOriginal.parceiro.id,
           telefoneCliente: dados.cliente.telefone ?? null,
-          trackingId: dados.trackingId ?? null
+          trackingId: dados.trackingId ?? null,
+          atribuicao: this.formatarAtribuicaoPublica(atribuicaoOriginal)
         },
         estado: "PROCESSADO"
       });
@@ -268,6 +285,8 @@ export class LojaPublicaUseCase {
       canal: canalEfetivo,
       metadata: {
         referencia: dados.referencia ?? null,
+        referenciasAssistidas: this.referenciasAssistidasParaTracking(dados.referenciasAssistidas),
+        atribuicao: this.formatarAtribuicaoPublica(atribuicao),
         afiliadoId: atribuicao?.parceiro.id ?? null,
         linkAfiliadoId: atribuicao?.link.id ?? null,
         subtotalEmKwanza: resumo.subtotalEmKwanza,
@@ -290,6 +309,8 @@ export class LojaPublicaUseCase {
           trackingId: dados.trackingId ?? null,
           canal: canalEfetivo,
           referencia: dados.referencia ?? null,
+          referenciasAssistidas: this.referenciasAssistidasParaTracking(dados.referenciasAssistidas),
+          atribuicao: this.formatarAtribuicaoPublica(atribuicao),
           afiliadoId: atribuicao?.parceiro.id ?? null,
           linkAfiliadoId: atribuicao?.link.id ?? null
         }
@@ -336,6 +357,8 @@ export class LojaPublicaUseCase {
         totalEmKwanza: pedido.totalEmKwanza,
         clienteNegocioId: cliente.id,
         referencia: dados.referencia ?? null,
+        referenciasAssistidas: this.referenciasAssistidasParaTracking(dados.referenciasAssistidas),
+        atribuicao: this.formatarAtribuicaoPublica(atribuicao),
         afiliadoId: atribuicao?.parceiro.id ?? null,
         linkAfiliadoId: atribuicao?.link.id ?? null
       }
@@ -356,6 +379,7 @@ export class LojaPublicaUseCase {
       totalEmKwanza: pedido.totalEmKwanza,
       entrega: resumo.entrega,
       moeda: negocio.moeda,
+      atribuicao: this.formatarAtribuicaoPublica(atribuicao),
       atribuicaoBloqueada
     };
   }
@@ -818,6 +842,62 @@ export class LojaPublicaUseCase {
     ].filter(Boolean);
 
     return contexto.length ? contexto.join("\n") : null;
+  }
+
+  private resolverPoliticaAtribuicao(
+    negocio: NegocioBizy,
+    solicitada?: { modelo?: ModeloAtribuicaoComercial; janelaDias?: number }
+  ): { modelo: ModeloAtribuicaoComercial; janelaDias: number | null } {
+    const configuracao = this.objeto(negocio.entrega.atribuicao);
+    const modeloConfigurado = this.modeloAtribuicao(this.texto(configuracao.modeloPadrao ?? configuracao.modelo));
+    const janelaConfigurada = this.numero(configuracao.janelaDias ?? configuracao.janelaAtribuicaoDias);
+
+    return {
+      modelo: solicitada?.modelo ?? modeloConfigurado ?? "ULTIMO_TOQUE",
+      janelaDias: solicitada?.janelaDias ?? janelaConfigurada
+    };
+  }
+
+  private modeloAtribuicao(valor: string | null): ModeloAtribuicaoComercial | null {
+    if (!valor) return null;
+    const modelo = valor.trim().toUpperCase().replace(/[\s-]+/g, "_");
+    if (
+      modelo === "PRIMEIRO_TOQUE" ||
+      modelo === "ULTIMO_TOQUE" ||
+      modelo === "CONVERSAO_ASSISTIDA" ||
+      modelo === "AJUSTE_MANUAL"
+    ) {
+      return modelo;
+    }
+    return null;
+  }
+
+  private formatarAtribuicaoPublica(atribuicao: AtribuicaoAfiliadoResolvida | null) {
+    if (!atribuicao) return null;
+
+    return {
+      modelo: atribuicao.modelo,
+      janelaDias: atribuicao.janelaDias,
+      principal: {
+        parceiroId: atribuicao.parceiro.id,
+        codigoParceiro: atribuicao.parceiro.codigo,
+        linkId: atribuicao.link.id,
+        codigoLink: atribuicao.link.codigo,
+        canal: atribuicao.link.canal,
+        capturadoEm: atribuicao.capturadoEm
+      },
+      assistencias: atribuicao.assistencias
+    };
+  }
+
+  private referenciasAssistidasParaTracking(referencias?: Array<string | ReferenciaAtribuicaoComercial>) {
+    return (referencias ?? []).map((referencia) => {
+      if (typeof referencia === "string") return { codigo: referencia };
+      return {
+        codigo: referencia.codigo,
+        capturadoEm: referencia.capturadoEm ?? null
+      };
+    });
   }
 
   private montarEnderecoEntrega(entrega: DadosEntregaCheckoutPublico): string | null {

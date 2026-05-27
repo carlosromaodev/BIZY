@@ -1,5 +1,5 @@
 import type { DespachadorEventos } from "../dominio/eventos/DespachadorEventos.js";
-import type { RepositorioAfiliados, RepositorioPecas } from "../dominio/repositorios/contratos.js";
+import type { RepositorioAfiliados, RepositorioPecas, RepositorioPedidos } from "../dominio/repositorios/contratos.js";
 import { normalizarTelefone } from "../dominio/servicos/normalizarContato.js";
 import type {
   LinkAfiliado,
@@ -13,16 +13,49 @@ import type {
   SaldoComissaoParceiro
 } from "../dominio/tipos.js";
 
+export type ModeloAtribuicaoComercial =
+  | "PRIMEIRO_TOQUE"
+  | "ULTIMO_TOQUE"
+  | "CONVERSAO_ASSISTIDA"
+  | "AJUSTE_MANUAL";
+
+export interface ReferenciaAtribuicaoComercial {
+  codigo: string;
+  capturadoEm?: Date | string | null;
+}
+
+export interface OpcoesResolverAtribuicao {
+  referencia?: string | null;
+  referenciasAssistidas?: Array<string | ReferenciaAtribuicaoComercial>;
+  modelo?: ModeloAtribuicaoComercial;
+  janelaDias?: number | null;
+  agora?: Date;
+}
+
+export interface AssistenciaAtribuicaoResolvida {
+  parceiroId: string;
+  codigoParceiro: string;
+  linkId: string;
+  codigoLink: string;
+  canal: string | null;
+  capturadoEm: Date | null;
+}
+
 export interface AtribuicaoAfiliadoResolvida {
   parceiro: ParceiroComercial;
   link: LinkAfiliado;
+  modelo: ModeloAtribuicaoComercial;
+  janelaDias: number | null;
+  assistencias: AssistenciaAtribuicaoResolvida[];
+  capturadoEm: Date | null;
 }
 
 export class GestaoAfiliadosUseCase {
   constructor(
     private readonly afiliados: RepositorioAfiliados,
     eventos?: DespachadorEventos,
-    private readonly pecas?: RepositorioPecas
+    private readonly pecas?: RepositorioPecas,
+    private readonly pedidos?: RepositorioPedidos
   ) {
     eventos?.aoReceber("ORDER_PAYMENT_CONFIRMED", (evento) => {
       const pedidoId = typeof evento.dados.pedidoId === "string" ? evento.dados.pedidoId : null;
@@ -283,18 +316,79 @@ export class GestaoAfiliadosUseCase {
 
   async resolverAtribuicao(
     negocioId: string,
-    referencia?: string | null
+    referenciaOuOpcoes?: string | OpcoesResolverAtribuicao | null
   ): Promise<AtribuicaoAfiliadoResolvida | null> {
-    if (!referencia?.trim()) return null;
+    const opcoes = this.normalizarOpcoesAtribuicao(referenciaOuOpcoes);
+    if (!opcoes.referencias.length) return null;
 
-    const link = await this.afiliados.buscarLinkPorCodigo(referencia, negocioId);
-    if (!link || !link.ativo) return null;
-    if (link.expiraEm && link.expiraEm.getTime() <= Date.now()) return null;
+    const resolvidas = [];
+    for (const referencia of opcoes.referencias) {
+      const resolvida = await this.resolverReferencia(negocioId, referencia, opcoes.janelaDias, opcoes.agora);
+      if (resolvida) resolvidas.push(resolvida);
+    }
 
-    const parceiro = await this.afiliados.buscarParceiroPorId(link.afiliadoId, negocioId);
-    if (!parceiro || parceiro.estado !== "ATIVO") return null;
+    if (!resolvidas.length) return null;
 
-    return { parceiro, link };
+    const escolhida = this.escolherAtribuicao(resolvidas, opcoes.modelo);
+    if (!escolhida) return null;
+
+    const assistencias = resolvidas
+      .filter((item) => item.link.id !== escolhida.link.id)
+      .map((item) => this.mapearAssistencia(item));
+
+    return {
+      parceiro: escolhida.parceiro,
+      link: escolhida.link,
+      modelo: opcoes.modelo,
+      janelaDias: opcoes.janelaDias,
+      assistencias,
+      capturadoEm: escolhida.capturadoEm
+    };
+  }
+
+  async ajustarAtribuicaoManual(
+    negocioId: string,
+    dados: {
+      pedidoId: string;
+      referencia: string;
+      motivo: string;
+      status?: "ESTIMADA" | "CONFIRMADA";
+      autorId?: string | null;
+      autorNome?: string | null;
+    }
+  ) {
+    if (!this.pedidos) throw new Error("Repositório de pedidos não configurado.");
+
+    const pedido = await this.pedidos.buscarPorId(dados.pedidoId, negocioId);
+    if (!pedido) return null;
+
+    const atribuicao = await this.resolverAtribuicao(negocioId, {
+      referencia: dados.referencia,
+      modelo: "AJUSTE_MANUAL"
+    });
+    if (!atribuicao) throw new Error("Referência de atribuição não encontrada ou inativa.");
+
+    const baseEmKwanza = pedido.subtotalEmKwanza;
+    const valorEmKwanza = this.calcularComissao(baseEmKwanza, atribuicao.parceiro.regraComissao);
+    const status = dados.status ?? (pedido.estadoPagamento === "CONFIRMADO" ? "CONFIRMADA" : "ESTIMADA");
+    const motivo = `Ajuste manual de atribuição: ${dados.motivo}`;
+
+    const comissao = await this.afiliados.criarOuAtualizarComissao({
+      negocioId,
+      afiliadoId: atribuicao.parceiro.id,
+      linkId: atribuicao.link.id,
+      pedidoId: pedido.id,
+      status,
+      baseEmKwanza,
+      valorEmKwanza,
+      moeda: "AOA",
+      motivo,
+      autorId: dados.autorId ?? null,
+      autorNome: dados.autorNome ?? null,
+      referencia: dados.referencia
+    });
+
+    return { comissao, atribuicao };
   }
 
   ehAutoIndicacao(atribuicao: AtribuicaoAfiliadoResolvida | null, telefoneCliente?: string | null): boolean {
@@ -322,6 +416,117 @@ export class GestaoAfiliadosUseCase {
       valorEmKwanza,
       moeda: "AOA"
     });
+  }
+
+  private normalizarOpcoesAtribuicao(
+    referenciaOuOpcoes?: string | OpcoesResolverAtribuicao | null
+  ): {
+    referencias: ReferenciaAtribuicaoComercial[];
+    modelo: ModeloAtribuicaoComercial;
+    janelaDias: number | null;
+    agora: Date;
+  } {
+    const opcoes =
+      typeof referenciaOuOpcoes === "string" || referenciaOuOpcoes == null
+        ? { referencia: referenciaOuOpcoes ?? null }
+        : referenciaOuOpcoes;
+    const agora = opcoes.agora ?? new Date();
+    const modelo = opcoes.modelo ?? "ULTIMO_TOQUE";
+    const referenciasAssistidas = opcoes.referenciasAssistidas ?? [];
+    const referencias = [
+      ...referenciasAssistidas.map((referencia) => this.normalizarReferenciaAssistida(referencia)),
+      opcoes.referencia ? { codigo: opcoes.referencia, capturadoEm: agora } : null
+    ].filter((referencia): referencia is ReferenciaAtribuicaoComercial => Boolean(referencia?.codigo?.trim()));
+
+    return {
+      referencias,
+      modelo,
+      janelaDias: typeof opcoes.janelaDias === "number" && opcoes.janelaDias > 0 ? Math.trunc(opcoes.janelaDias) : null,
+      agora
+    };
+  }
+
+  private normalizarReferenciaAssistida(
+    referencia: string | ReferenciaAtribuicaoComercial
+  ): ReferenciaAtribuicaoComercial | null {
+    if (typeof referencia === "string") return { codigo: referencia, capturadoEm: null };
+    if (!referencia?.codigo) return null;
+    return {
+      codigo: referencia.codigo,
+      capturadoEm: referencia.capturadoEm ?? null
+    };
+  }
+
+  private async resolverReferencia(
+    negocioId: string,
+    referencia: ReferenciaAtribuicaoComercial,
+    janelaDias: number | null,
+    agora: Date
+  ) {
+    const codigo = this.normalizarCodigo(referencia.codigo);
+    const capturadoEm = this.dataOuNull(referencia.capturadoEm);
+    const link = await this.afiliados.buscarLinkPorCodigo(codigo, negocioId);
+    if (!link || !link.ativo) return null;
+    if (link.expiraEm && link.expiraEm.getTime() <= agora.getTime()) return null;
+
+    const parceiro = await this.afiliados.buscarParceiroPorId(link.afiliadoId, negocioId);
+    if (!parceiro || parceiro.estado !== "ATIVO") return null;
+
+    const janelaEfetiva = this.janelaAtribuicaoParceiro(parceiro) ?? janelaDias;
+    if (janelaEfetiva && capturadoEm) {
+      const limiteMs = janelaEfetiva * 24 * 60 * 60 * 1000;
+      if (agora.getTime() - capturadoEm.getTime() > limiteMs) return null;
+    }
+
+    return { parceiro, link, capturadoEm };
+  }
+
+  private escolherAtribuicao(
+    atribuicoes: Array<{ parceiro: ParceiroComercial; link: LinkAfiliado; capturadoEm: Date | null }>,
+    modelo: ModeloAtribuicaoComercial
+  ) {
+    if (modelo === "PRIMEIRO_TOQUE") return atribuicoes[0] ?? null;
+    return atribuicoes.at(-1) ?? null;
+  }
+
+  private mapearAssistencia(item: {
+    parceiro: ParceiroComercial;
+    link: LinkAfiliado;
+    capturadoEm: Date | null;
+  }): AssistenciaAtribuicaoResolvida {
+    return {
+      parceiroId: item.parceiro.id,
+      codigoParceiro: item.parceiro.codigo,
+      linkId: item.link.id,
+      codigoLink: item.link.codigo,
+      canal: item.link.canal,
+      capturadoEm: item.capturadoEm
+    };
+  }
+
+  private janelaAtribuicaoParceiro(parceiro: ParceiroComercial): number | null {
+    const configuracao = parceiro.metodoPagamento;
+    const direto = this.numero(configuracao.janelaAtribuicaoDias);
+    if (direto) return direto;
+
+    const atribuicao = this.objeto(configuracao.atribuicao);
+    return this.numero(atribuicao.janelaDias);
+  }
+
+  private dataOuNull(valor: Date | string | null | undefined): Date | null {
+    if (!valor) return null;
+    if (valor instanceof Date) return Number.isNaN(valor.getTime()) ? null : valor;
+    const data = new Date(valor);
+    return Number.isNaN(data.getTime()) ? null : data;
+  }
+
+  private objeto(valor: unknown): Record<string, unknown> {
+    return valor && typeof valor === "object" && !Array.isArray(valor) ? (valor as Record<string, unknown>) : {};
+  }
+
+  private numero(valor: unknown): number | null {
+    const numero = typeof valor === "number" ? valor : typeof valor === "string" ? Number(valor) : NaN;
+    return Number.isFinite(numero) && numero > 0 ? Math.trunc(numero) : null;
   }
 
   private validarRegraComissao(regra: RegraComissaoParceiro): void {

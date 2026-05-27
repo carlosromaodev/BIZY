@@ -297,6 +297,21 @@ export const CalcularEntregaPublicaSchema = z.object({
   entrega: EntregaCheckoutPublicoSchema
 });
 
+const ModeloAtribuicaoComercialSchema = z.enum([
+  "PRIMEIRO_TOQUE",
+  "ULTIMO_TOQUE",
+  "CONVERSAO_ASSISTIDA",
+  "AJUSTE_MANUAL"
+]);
+
+const ReferenciaAssistidaAtribuicaoSchema = z.union([
+  z.string().trim().min(1).max(120),
+  z.object({
+    codigo: z.string().trim().min(1).max(120),
+    capturadoEm: z.coerce.date().nullable().optional().transform((valor) => valor ?? null)
+  })
+]);
+
 export const CriarCheckoutSitePublicoSchema = CalcularEntregaPublicaSchema.extend({
   cliente: z
     .object({
@@ -317,9 +332,23 @@ export const CriarCheckoutSitePublicoSchema = CalcularEntregaPublicaSchema.exten
     }),
   trackingId: z.string().trim().min(1).max(160).nullable().optional().transform((valor) => valor ?? null),
   referencia: z.string().trim().min(1).max(120).nullable().optional().transform((valor) => valor ?? null),
+  referenciasAssistidas: z.array(ReferenciaAssistidaAtribuicaoSchema).max(20).default([]),
+  atribuicao: z
+    .object({
+      modelo: ModeloAtribuicaoComercialSchema.optional(),
+      janelaDias: z.coerce.number().int().min(1).max(365).optional()
+    })
+    .default({}),
   origem: z.string().trim().min(1).max(80).default("loja-publica"),
   canal: z.string().trim().min(1).max(80).default("site"),
   observacao: z.string().trim().max(1000).nullable().optional().transform((valor) => valor ?? null)
+});
+
+export const AjustarAtribuicaoManualSchema = z.object({
+  pedidoId: z.string().trim().uuid(),
+  referencia: z.string().trim().min(1).max(120),
+  motivo: z.string().trim().min(10).max(500),
+  status: z.enum(["ESTIMADA", "CONFIRMADA"]).optional()
 });
 
 export const CriarCheckoutAbandonadoPublicoSchema = CalcularEntregaPublicaSchema.extend({

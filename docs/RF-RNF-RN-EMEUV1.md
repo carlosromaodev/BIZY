@@ -1,7 +1,7 @@
 # Bizy / ÉMeu V1 - Requisitos Funcionais, Não Funcionais e Regras de Negócio
 
 Documento: `RF-RNF-RN-EMEUV1.md`
-Versão: 1.65
+Versão: 1.66
 Data: 2026-05-25
 Autor: Carlos
 Status: MVP base implementado; fundação backend Bizy CRM+ com Clientes 360, Pedidos, Catálogo/Stock, Loja Pública, Vitrine Pública, Checkout, Entrega, Afiliados, Comissões, Lotes Financeiros, Campanhas, Governança, Jobs, Eventos Operacionais, Inbox Comercial, SLA, Social Inbox seguro, transferência operacional, política WhatsApp, descontos aprováveis, carrinho abandonado, antifraude de afiliados, anonimização, SEO público, logs operacionais, navegação comercial, busca global, auditoria de exportações comerciais e painel diário em evolução
@@ -147,6 +147,8 @@ Atualização 1.63: Loja pública e página pública de produto passaram a devol
 Atualização 1.64: Produtos passaram a aceitar configuração de vitrine pública com selos comerciais, prioridade, texto promocional, preço promocional e componentes de kit. A loja pública agora devolve agrupamentos prontos para destaques, promoções, novidades, reposições, mais vendidos e kits.
 
 Atualização 1.65: Parser de comentários passou a aceitar dicionário por negócio ou segmento, com termos de intenção de compra, rótulos alternativos de artigo/ref/SKU e aliases de produto guardados na configuração do negócio e aplicados ao processamento manual ou live.
+
+Atualização 1.66: Atribuição comercial do checkout passou a suportar primeiro toque, último toque, conversão assistida e ajuste manual auditado. A janela de atribuição pode vir da configuração do negócio ou de metadados do parceiro, preservando assistências no pedido/tracking e permitindo correção humana com motivo e histórico.
 
 ---
 
@@ -523,8 +525,8 @@ Esta etapa posiciona o Bizy como uma plataforma de operação comercial para cri
 | RF177 | [~] O tracking deve associar visita anônima a lead, WhatsApp click, checkout ou pedido quando o cliente se identificar e houver base de consentimento aplicável. | Alta | Parcial - checkout associa trackingId/referência ao cliente/pedido quando há contacto; falta associação retroativa de lead/conversa fora do checkout |
 | RF178 | [~] O sistema deve registrar eventos como página vista, produto visto, catálogo visto, clique WhatsApp, checkout iniciado, pedido criado, pagamento confirmado e compra entregue. | Alta | Parcial - loja visitada, produto visto, clique WhatsApp, checkout iniciado e pedido criado implementados |
 | RF179 | [~] O dono do negócio deve ver conversão por link, produto, campanha, afiliado, criador, rede social e canal de venda. | Alta | Parcial - resumo por tipo/origem/canal, afiliados/comissões e social-receita implementados; faltam receita por campanha, ticket médio e conversão completa |
-| RF180 | [ ] O CRM+ deve suportar modelos de atribuição: primeiro toque, último toque, conversão assistida e ajuste manual auditado. | Média | Planeado |
-| RF181 | [ ] O prazo de atribuição por cookie/referral deve ser configurável por negócio, campanha ou afiliado. | Média | Planeado |
+| RF180 | [x] O CRM+ deve suportar modelos de atribuição: primeiro toque, último toque, conversão assistida e ajuste manual auditado. | Média | Implementado no backend |
+| RF181 | [~] O prazo de atribuição por cookie/referral deve ser configurável por negócio, campanha ou afiliado. | Média | Parcial - backend usa janela por negócio e suporta metadata por parceiro; falta configuração dedicada por campanha/link |
 | RF182 | [~] A loja pública deve exibir consentimento/aviso de tracking quando necessário e permitir operação básica mesmo sem cookies. | Alta | Parcial - backend opera sem `trackingId` e bloqueia dados pessoais; falta aviso visual/consentimento no frontend |
 | RF183 | [ ] O sistema deve preparar integração futura com eventos server-side, como Meta Conversions API, quando o negócio configurar credenciais e consentimentos. | Média | Planeado |
 | RF184 | [x] Links, cookies e eventos não devem expor dados sensíveis do cliente em URL, query string ou identificadores públicos. | Alta | Implementado no backend de tracking público com rejeição de telefone, email, nome, endereço e chaves sensíveis |

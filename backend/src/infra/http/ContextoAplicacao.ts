@@ -291,7 +291,12 @@ export function criarContextoAplicacao(logger: FastifyBaseLogger): ContextoAplic
     repositorios.tarefas,
     eventos
   );
-  const gestaoAfiliados = new GestaoAfiliadosUseCase(repositorios.afiliados, eventos, repositorios.pecas);
+  const gestaoAfiliados = new GestaoAfiliadosUseCase(
+    repositorios.afiliados,
+    eventos,
+    repositorios.pecas,
+    repositorios.pedidos
+  );
   const gestaoCampanhasCrm = new GestaoCampanhasCrmUseCase(
     repositorios.campanhas,
     repositorios.templatesWhatsApp,

@@ -837,6 +837,9 @@ export class RepositorioAfiliadosMemoria implements RepositorioAfiliados {
     this.registrarHistoricoComissao(comissao, existente ? "ATUALIZADA" : "CRIADA", {
       statusAnterior: existente?.status ?? null,
       motivo: comissao.motivo,
+      referencia: dados.referencia ?? null,
+      autorId: dados.autorId ?? null,
+      autorNome: dados.autorNome ?? null,
       metadata: {
         baseEmKwanza: comissao.baseEmKwanza,
         linkId: comissao.linkId

@@ -348,6 +348,193 @@ describe("afiliados, criadores e comissões HTTP", () => {
     }
   });
 
+  it("aplica modelo de atribuição configurável e permite ajuste manual auditado", async () => {
+    const app = await criarAplicacao();
+
+    try {
+      const loja = await autenticar(app, "923700210", "Loja Atribuição");
+      await criarProduto(app, loja, "ATR-1");
+
+      const negocio = await app.inject({
+        method: "POST",
+        url: "/onboarding/negocio",
+        headers: loja,
+        payload: {
+          nomeComercial: "Loja Atribuição",
+          segmento: "moda",
+          tipo: "LOJA",
+          entrega: {
+            atribuicao: {
+              modeloPadrao: "PRIMEIRO_TOQUE",
+              janelaDias: 30
+            }
+          }
+        }
+      });
+      expect(negocio.statusCode).toBe(201);
+
+      const publicacao = await app.inject({
+        method: "PUT",
+        url: "/loja-publica/configuracao",
+        headers: loja,
+        payload: {
+          slug: "loja-atribuicao",
+          descricaoPublica: "Loja para atribuição avançada.",
+          publicada: true
+        }
+      });
+      expect(publicacao.statusCode).toBe(200);
+
+      const afiliadoPrimeiro = await app.inject({
+        method: "POST",
+        url: "/afiliados",
+        headers: loja,
+        payload: {
+          tipo: "CRIADOR",
+          codigo: "CRIADORA-A",
+          nomePublico: "Criadora A",
+          contacto: "923700211",
+          regraComissao: { tipo: "PERCENTUAL", percentual: 10 }
+        }
+      });
+      expect(afiliadoPrimeiro.statusCode).toBe(201);
+
+      const afiliadoUltimo = await app.inject({
+        method: "POST",
+        url: "/afiliados",
+        headers: loja,
+        payload: {
+          tipo: "AFILIADO",
+          codigo: "AFILIADO-B",
+          nomePublico: "Afiliado B",
+          contacto: "923700212",
+          regraComissao: { tipo: "PERCENTUAL", percentual: 12 }
+        }
+      });
+      expect(afiliadoUltimo.statusCode).toBe(201);
+
+      const linkPrimeiro = await app.inject({
+        method: "POST",
+        url: `/afiliados/${afiliadoPrimeiro.json().id}/links`,
+        headers: loja,
+        payload: {
+          codigo: "LINK-A",
+          destinoTipo: "PRODUTO",
+          slugLoja: "loja-atribuicao",
+          codigoProduto: "ATR-1",
+          canal: "instagram",
+          origemConteudo: "reels-1"
+        }
+      });
+      expect(linkPrimeiro.statusCode).toBe(201);
+
+      const linkUltimo = await app.inject({
+        method: "POST",
+        url: `/afiliados/${afiliadoUltimo.json().id}/links`,
+        headers: loja,
+        payload: {
+          codigo: "LINK-B",
+          destinoTipo: "PRODUTO",
+          slugLoja: "loja-atribuicao",
+          codigoProduto: "ATR-1",
+          canal: "tiktok",
+          origemConteudo: "live-2"
+        }
+      });
+      expect(linkUltimo.statusCode).toBe(201);
+
+      const checkout = await app.inject({
+        method: "POST",
+        url: "/publico/lojas/loja-atribuicao/checkout",
+        payload: {
+          cliente: {
+            nome: "Cliente Atribuição",
+            telefone: "923700219",
+            consentimentoDados: true,
+            consentimentoMarketing: true
+          },
+          itens: [{ codigoPeca: "ATR-1", quantidade: 1 }],
+          entrega: { tipo: "RETIRADA" },
+          referencia: "LINK-B",
+          referenciasAssistidas: [
+            { codigo: "LINK-A", capturadoEm: new Date().toISOString() },
+            { codigo: "LINK-B", capturadoEm: new Date().toISOString() }
+          ],
+          trackingId: "trk-atribuicao-1",
+          origem: "bio-social"
+        }
+      });
+      expect(checkout.statusCode).toBe(201);
+      expect(checkout.json()).toEqual(
+        expect.objectContaining({
+          origem: "afiliado:CRIADORA-A",
+          atribuicao: expect.objectContaining({
+            modelo: "PRIMEIRO_TOQUE",
+            janelaDias: 30,
+            principal: expect.objectContaining({
+              codigoParceiro: "CRIADORA-A",
+              codigoLink: "LINK-A"
+            }),
+            assistencias: expect.arrayContaining([
+              expect.objectContaining({ codigoParceiro: "AFILIADO-B", codigoLink: "LINK-B" })
+            ])
+          })
+        })
+      );
+
+      const comissoesPrimeiroToque = await app.inject({
+        method: "GET",
+        url: "/afiliados/comissoes",
+        headers: loja
+      });
+      expect(comissoesPrimeiroToque.statusCode).toBe(200);
+      expect(comissoesPrimeiroToque.json().comissoes).toEqual([
+        expect.objectContaining({
+          afiliadoId: afiliadoPrimeiro.json().id,
+          linkId: linkPrimeiro.json().id,
+          pedidoId: checkout.json().pedido.id
+        })
+      ]);
+
+      const ajuste = await app.inject({
+        method: "POST",
+        url: "/afiliados/atribuicoes/manual",
+        headers: loja,
+        payload: {
+          pedidoId: checkout.json().pedido.id,
+          referencia: "LINK-B",
+          motivo: "Cliente confirmou que comprou pela live do afiliado B."
+        }
+      });
+      expect(ajuste.statusCode).toBe(200);
+      expect(ajuste.json().comissao).toEqual(
+        expect.objectContaining({
+          afiliadoId: afiliadoUltimo.json().id,
+          linkId: linkUltimo.json().id,
+          pedidoId: checkout.json().pedido.id,
+          motivo: expect.stringContaining("Cliente confirmou")
+        })
+      );
+
+      const auditoria = await app.inject({
+        method: "GET",
+        url: `/afiliados/comissoes/${ajuste.json().comissao.id}/auditoria`,
+        headers: loja
+      });
+      expect(auditoria.statusCode).toBe(200);
+      expect(auditoria.json().eventos).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            tipo: "ATUALIZADA",
+            motivo: expect.stringContaining("Ajuste manual de atribuição")
+          })
+        ])
+      );
+    } finally {
+      await app.close();
+    }
+  });
+
   it("reverte comissão confirmada quando pedido atribuído é cancelado", async () => {
     const app = await criarAplicacao();
 

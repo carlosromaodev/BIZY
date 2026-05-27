@@ -1195,6 +1195,9 @@ export class RepositorioAfiliadosPrisma implements RepositorioAfiliados {
         data: this.dadosHistoricoComissao(registro, existente ? "ATUALIZADA" : "CRIADA", {
           statusAnterior: existente?.status ?? null,
           motivo: registro.motivo,
+          referencia: dados.referencia ?? null,
+          autorId: dados.autorId ?? null,
+          autorNome: dados.autorNome ?? null,
           metadata: {
             baseEmKwanza: registro.baseEmKwanza,
             linkId: registro.linkId

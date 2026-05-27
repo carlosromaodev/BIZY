@@ -1,4 +1,5 @@
 import {
+  AjustarAtribuicaoManualSchema,
   CriarAfiliadoSchema,
   CriarLinkAfiliadoSchema,
   CriarLotePagamentoComissaoSchema,
@@ -103,6 +104,31 @@ export const moduloAfiliados: ModuloHttp = {
       if (!contextoComercial) return;
 
       return contexto.gestaoAfiliados.listarComissoes(contextoComercial.negocio.id);
+    });
+
+    app.post("/afiliados/atribuicoes/manual", async (request, reply) => {
+      const contextoComercial = await exigirAcessoComercial(contexto, request, reply, {
+        permissao: "afiliados:gerir",
+        modulo: "afiliados",
+        mensagemPermissao: "Sem permissão para ajustar atribuição.",
+        mensagemModulo: "Afiliados desativados para este negócio."
+      });
+      if (!contextoComercial) return;
+
+      const dados = AjustarAtribuicaoManualSchema.parse(request.body ?? {});
+      const ajuste = await contexto.gestaoAfiliados.ajustarAtribuicaoManual(contextoComercial.negocio.id, {
+        pedidoId: dados.pedidoId,
+        referencia: dados.referencia,
+        motivo: dados.motivo,
+        status: dados.status,
+        autorId: contextoComercial.usuario.id,
+        autorNome: contextoComercial.usuario.nome
+      });
+      if (!ajuste) {
+        return reply.code(404).send({ erro: "PEDIDO_NAO_ENCONTRADO", mensagem: "Pedido não encontrado." });
+      }
+
+      return ajuste;
     });
 
     app.get("/afiliados/comissoes/saldos", async (request, reply) => {

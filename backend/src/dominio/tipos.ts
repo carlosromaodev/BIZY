@@ -2186,6 +2186,9 @@ export interface NovaComissaoParceiro {
   valorEmKwanza: number;
   moeda?: string;
   motivo?: string | null;
+  referencia?: string | null;
+  autorId?: string | null;
+  autorNome?: string | null;
 }
 
 export interface HistoricoComissaoParceiro {
