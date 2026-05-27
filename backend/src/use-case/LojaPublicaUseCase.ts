@@ -60,7 +60,7 @@ interface ItemCheckoutPublico {
 }
 
 interface DadosEntregaCheckoutPublico {
-  tipo: "ENTREGA" | "RETIRADA";
+  tipo: "ENTREGA" | "RETIRADA" | "ORCAMENTO";
   provincia?: string | null;
   municipio?: string | null;
   bairro?: string | null;
@@ -116,8 +116,8 @@ interface ResumoCheckoutPublico {
 }
 
 interface EntregaCalculadaPublica {
-  tipo: "ENTREGA" | "RETIRADA";
-  regra: "zona" | "padrao" | "gratis" | "retirada";
+  tipo: "ENTREGA" | "RETIRADA" | "ORCAMENTO";
+  regra: "zona" | "padrao" | "gratis" | "retirada" | "orcamento";
   taxaEmKwanza: number;
   prazo: string | null;
   descricao: string;
@@ -777,6 +777,23 @@ export class LojaPublicaUseCase {
     subtotalEmKwanza: number,
     entregaSolicitada: DadosEntregaCheckoutPublico
   ): EntregaCalculadaPublica {
+    if (entregaSolicitada.tipo === "ORCAMENTO") {
+      const orcamento = this.objeto(negocio.entrega.orcamentoHumano ?? negocio.entrega.entregaSobOrcamento);
+      const descricao =
+        this.texto(orcamento.instrucoes) ??
+        this.texto(negocio.entrega.instrucoesOrcamento) ??
+        "Entrega sob orçamento humano. A loja confirma o valor antes do pagamento.";
+      const endereco = this.montarEnderecoEntrega(entregaSolicitada);
+      return {
+        tipo: "ORCAMENTO",
+        regra: "orcamento",
+        taxaEmKwanza: 0,
+        prazo: this.texto(orcamento.prazo) ?? null,
+        descricao,
+        endereco: endereco ? `Entrega sob orçamento: ${endereco}` : "Entrega sob orçamento"
+      };
+    }
+
     if (entregaSolicitada.tipo === "RETIRADA") {
       const retirada = this.objeto(negocio.entrega.retiradaNaLoja);
       const instrucoes = this.texto(retirada.instrucoes) ?? negocio.endereco ?? "Retirada combinada com a loja.";
@@ -882,7 +899,9 @@ export class LojaPublicaUseCase {
       `Produto: ${peca.codigo} ${peca.nome}`,
       `Quantidade: ${dados.quantidade}`,
       `Preço unitário: ${this.formatarKwanza(peca.precoEmKwanza)}`,
-      `Entrega estimada: ${this.formatarKwanza(resumo.taxaEntregaEmKwanza)}`,
+      resumo.entrega.regra === "orcamento"
+        ? `Entrega: ${resumo.entrega.descricao}`
+        : `Entrega estimada: ${this.formatarKwanza(resumo.taxaEntregaEmKwanza)}`,
       `Total estimado: ${this.formatarKwanza(resumo.totalEmKwanza)}`,
       variantes ? `Variante: ${variantes}` : null,
       `Origem: ${origemEfetiva}`,

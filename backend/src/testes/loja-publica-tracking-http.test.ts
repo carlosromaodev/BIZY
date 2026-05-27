@@ -715,6 +715,108 @@ describe("loja pública, catálogo digital e tracking HTTP", () => {
     }
   });
 
+  it("aceita orçamento humano de entrega sem bloquear checkout público por WhatsApp", async () => {
+    const app = await criarAplicacao();
+
+    try {
+      const loja = await autenticar(app, "923444203", "Loja Entrega Orçamento");
+
+      const negocio = await app.inject({
+        method: "POST",
+        url: "/onboarding/negocio",
+        headers: loja,
+        payload: {
+          nomeComercial: "Loja Entrega Orçamento",
+          segmento: "Moda",
+          tipo: "LOJA",
+          telefone: "923444203",
+          whatsapp: "923444203",
+          provincia: "Luanda",
+          municipio: "Luanda",
+          endereco: "Rua da loja",
+          canaisVenda: ["site", "whatsapp"],
+          metodosPagamento: ["transferencia"],
+          entrega: {
+            taxaPadraoEmKwanza: 2500,
+            orcamentoHumano: {
+              instrucoes: "A equipa confirma o valor da entrega antes do pagamento.",
+              prazo: "Até 2h úteis"
+            }
+          }
+        }
+      });
+      expect(negocio.statusCode).toBe(201);
+
+      await criarProduto(app, loja, "O1", 5);
+
+      const publicacao = await app.inject({
+        method: "PUT",
+        url: "/loja-publica/configuracao",
+        headers: loja,
+        payload: {
+          slug: "loja-entrega-orcamento",
+          descricaoPublica: "Compra com entrega sob orçamento.",
+          publicada: true
+        }
+      });
+      expect(publicacao.statusCode).toBe(200);
+
+      const entrega = await app.inject({
+        method: "POST",
+        url: "/publico/lojas/loja-entrega-orcamento/entrega/calcular",
+        payload: {
+          itens: [{ codigoPeca: "O1", quantidade: 1 }],
+          entrega: {
+            tipo: "ORCAMENTO",
+            provincia: "Luanda",
+            municipio: "Cacuaco",
+            bairro: "Sequele",
+            endereco: "Rua sem taxa cadastrada"
+          }
+        }
+      });
+      expect(entrega.statusCode).toBe(200);
+      expect(entrega.json()).toEqual(
+        expect.objectContaining({
+          subtotalEmKwanza: 12_500,
+          taxaEntregaEmKwanza: 0,
+          totalEmKwanza: 12_500
+        })
+      );
+      expect(entrega.json().entrega).toEqual(
+        expect.objectContaining({
+          tipo: "ORCAMENTO",
+          regra: "orcamento",
+          prazo: "Até 2h úteis",
+          descricao: "A equipa confirma o valor da entrega antes do pagamento.",
+          endereco: expect.stringContaining("Sequele")
+        })
+      );
+
+      const whatsapp = await app.inject({
+        method: "POST",
+        url: "/publico/lojas/loja-entrega-orcamento/produtos/O1/whatsapp",
+        payload: {
+          quantidade: 1,
+          variante: { tamanho: "M" },
+          trackingId: "trk-orcamento-entrega",
+          origem: "loja-publica",
+          entrega: {
+            tipo: "ORCAMENTO",
+            municipio: "Cacuaco",
+            bairro: "Sequele",
+            endereco: "Rua sem taxa cadastrada"
+          }
+        }
+      });
+      expect(whatsapp.statusCode).toBe(200);
+      expect(whatsapp.json().mensagem).toContain("Entrega: A equipa confirma o valor da entrega antes do pagamento.");
+      expect(whatsapp.json().mensagem).toContain("Total estimado: 12 500 Kz");
+    } finally {
+      await app.close();
+    }
+  });
+
   it("prepara evento server-side apenas com credencial configurada e consentimento sem vazar dados pessoais", async () => {
     const app = await criarAplicacao();
 

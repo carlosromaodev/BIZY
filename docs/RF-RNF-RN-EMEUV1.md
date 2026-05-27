@@ -1,7 +1,7 @@
 # Bizy / ÉMeu V1 - Requisitos Funcionais, Não Funcionais e Regras de Negócio
 
 Documento: `RF-RNF-RN-EMEUV1.md`
-Versão: 1.70
+Versão: 1.71
 Data: 2026-05-26
 Autor: Carlos
 Status: MVP base implementado; fundação backend Bizy CRM+ com Clientes 360, Pedidos, Catálogo/Stock, Loja Pública, Vitrine Pública, Checkout, Entrega, Afiliados, Criadores, Revendedores, Mini-lojas Públicas, Comissões, Atribuição Comercial, Lotes Financeiros, Campanhas, Governança, Jobs, Eventos Operacionais, eventos server-side preparados, Inbox Comercial, SLA, Social Inbox seguro, transferência operacional, política WhatsApp, descontos aprováveis, carrinho abandonado, antifraude de afiliados, anonimização, SEO público, logs operacionais, navegação comercial, busca global, auditoria de exportações comerciais e painel diário em evolução
@@ -177,6 +177,8 @@ Atualização 1.78: Pedidos manuais e de checkout passaram a alimentar automatic
 Atualização 1.79: Respostas manuais de WhatsApp classificadas como serviço agora calculam automaticamente a janela de atendimento pela última mensagem inbound da conversa nos últimos 24h, bloqueando texto livre fora da janela e devolvendo erro de regra de negócio em vez de falha interna.
 
 Atualização 1.80: Checkout público por WhatsApp passou a resolver referência de afiliado/criador antes de existir pedido, preservando origem efetiva, link principal, assistências e tracking do clique para que vendas iniciadas por WhatsApp não percam atribuição comercial.
+
+Atualização 1.81: Entrega pública passou a aceitar `ORCAMENTO`, permitindo checkout WhatsApp/site sem bloquear compra quando a taxa precisa de validação humana; o total fica sem taxa automática e a mensagem ao cliente informa que a equipa confirma o valor antes do pagamento.
 
 ---
 
@@ -535,7 +537,7 @@ Esta etapa posiciona o Bizy como uma plataforma de operação comercial para cri
 |---|---|---|---|
 | RF165 | [x] O checkout por WhatsApp deve gerar mensagem pré-preenchida com produto, variante, quantidade, preço, entrega estimada e origem do link. | Alta | Implementado no backend, incluindo referência de afiliado/criador quando existir |
 | RF166 | [~] O checkout pelo site deve criar pedido/carrinho com dados do cliente, itens, entrega, pagamento e origem comercial. | Alta | Parcial - endpoint público cria cliente e pedido com itens, entrega e origem; faltam carrinho persistente e etapa de pagamento no site |
-| RF167 | [~] O sistema deve calcular entrega por zona, município, bairro, tabela manual, retirada na loja ou regra de entrega grátis acima de valor configurado. | Alta | Parcial - cálculo por zona/bairro/município, taxa padrão, retirada e entrega grátis implementado; falta orçamento humano |
+| RF167 | [x] O sistema deve calcular entrega por zona, município, bairro, tabela manual, retirada na loja ou regra de entrega grátis acima de valor configurado. | Alta | Implementado no backend público com zona, taxa padrão, retirada, entrega grátis e orçamento humano |
 | RF168 | [~] O total do pedido deve calcular itens, descontos, entrega, taxas e valor final antes da confirmação. | Alta | Parcial - checkout público calcula itens e entrega antes da confirmação; faltam descontos/taxas públicas configuráveis |
 | RF169 | [x] O cliente deve poder iniciar compra sem criar conta, mas a confirmação do pedido deve exigir contacto validável e aceite das condições necessárias. | Alta | Implementado no backend: checkout público não exige conta, mas exige telefone ou email e consentimento de dados antes de criar cliente/pedido |
 | RF170 | [x] Checkout abandonado deve criar lead/oportunidade recuperável, respeitando consentimento e regras do canal. | Alta | Implementado no backend público com consentimento, cliente CRM, tracking técnico, oportunidade `CARRINHO_ABANDONADO` e deduplicação |
@@ -634,7 +636,7 @@ Esta etapa posiciona o Bizy como uma plataforma de operação comercial para cri
 | RF233 | [x] A loja pública deve funcionar mesmo sem social inbox conectada. | Alta | Implementado no backend por módulos independentes |
 | RF234 | [x] A social inbox deve funcionar mesmo sem loja pública publicada. | Alta | Implementado no backend por módulos independentes |
 | RF235 | [x] O módulo de afiliados deve funcionar com checkout por WhatsApp antes do checkout completo do site estar maduro. | Alta | Implementado no backend: checkout WhatsApp resolve `referencia`, modelo de atribuição, assistências, origem efetiva e tracking do clique |
-| RF236 | [~] A entrega deve aceitar cálculo automático, tabela manual, retirada na loja e orçamento humano. | Alta | Parcial - cálculo automático por configuração manual, retirada e entrega grátis implementados; falta orçamento humano |
+| RF236 | [x] A entrega deve aceitar cálculo automático, tabela manual, retirada na loja e orçamento humano. | Alta | Implementado no backend público com `ENTREGA`, `RETIRADA` e `ORCAMENTO` |
 | RF237 | [~] O sistema deve usar Kwanza como moeda padrão e preparar arquitetura para múltiplas moedas no futuro. | Média | Parcial - valores operacionais usam Kwanza/AOA e onboarding guarda moeda; falta multi-moeda real |
 | RF238 | [~] A arquitetura deve preparar multi-loja, múltiplas linhas WhatsApp, múltiplos domínios e múltiplas equipas como evolução. | Média | Parcial |
 | RF239 | [~] Todos os canais públicos devem alimentar o mesmo núcleo de cliente, produto, pedido, conversa, pagamento e relatório. | Alta | Parcial - checkout público e afiliados já criam cliente, pedido, tracking e comissão; Social Inbox captura comentários, cria tarefas de lead, conversa de atendimento e oportunidade social; faltam campanhas, pagamento público completo e associação automática ao cliente 360 |
@@ -1003,7 +1005,7 @@ Esta etapa vem antes da implementação visual dos novos módulos. O objetivo é
 | RN97 | [x] Pagamento pendente, recibo, entrega e atualização de pedido são utilidade quando não contêm promoção. | Implementado com templates utility e bloqueio anti-promoção |
 | RN98 | [~] Comentário social como `preço?`, `tem tamanho M?`, `entrega onde?` ou `quero` deve criar lead/oportunidade, não pedido confirmado automaticamente. | Parcial - Social Inbox registra interação, cria tarefa/oportunidade quando seguro e move funil para lead/conversa sem confirmar pedido; faltam oportunidades completas por todos os tipos e regras aprovadas de criação de pedido |
 | RN99 | [x] Comentário com intenção incerta, reclamação, pedido de desconto, troca ou conflito deve gerar tarefa humana. | Implementado no backend do Social Inbox para reclamação e palavras sensíveis como desconto, troca, devolução, cancelamento, problema ou reembolso |
-| RN100 | [x] O valor de entrega e total do pedido devem ser calculados antes do cliente confirmar compra pelo site ou WhatsApp. | Implementado no backend inicial de loja pública |
+| RN100 | [x] O valor de entrega e total do pedido devem ser calculados antes do cliente confirmar compra pelo site ou WhatsApp. | Implementado no backend público; quando a entrega é `ORCAMENTO`, o total fica sem taxa automática e a equipa confirma o valor antes do pagamento |
 | RN101 | [~] Stock só deve ser bloqueado quando pedido/reserva atingir estado configurado para bloqueio; simples visualização ou clique não bloqueia stock. | Parcial - criação de pedido valida stock e considera pedidos ativos; falta configuração por negócio e movimentos de stock |
 | RN102 | [x] O checkout por WhatsApp deve preservar origem do link e produto selecionado para que o atendente não precise perguntar tudo outra vez. | Implementado no backend com produto, variante, entrega, origem efetiva e referência comercial quando houver |
 | RN103 | [x] Cookies devem armazenar apenas identificadores técnicos, referência, campanha e timestamps, nunca telefone, email, nome ou endereço. | Implementado no backend de tracking público: payload com telefone, email, nome ou endereço é rejeitado |
@@ -1119,7 +1121,7 @@ O CRM+ Social Commerce pode ser considerado pronto para operação inicial quand
 
 - [~] Um negócio conseguir publicar loja virtual com URL própria, produtos, coleções, stock e página pública de produto; backend público lista e filtra produtos, faltam domínio final e UI de coleção avançada.
 - [~] O cliente conseguir comprar pelo WhatsApp com mensagem pré-preenchida, entrega e atribuição comercial preservada, e pelo checkout do site com total calculado.
-- [~] O sistema calcular entrega por regra configurada e incluir o valor no total antes da confirmação.
+- [x] O sistema calcular entrega por zona, taxa padrão, retirada, entrega grátis ou orçamento humano antes da confirmação.
 - [ ] O dono conseguir criar catálogo digital partilhável com produtos selecionados e disponibilidade correta.
 - [~] Links rastreáveis de produto, criador e afiliado registrarem referência, origem, mini-loja pública, checkout WhatsApp/site, pedido, comissão atribuída, resolução pública e bloqueio de autoindicação; faltam catálogo e campanha.
 - [x] O tracking funcionar parcialmente sem cookies, mantendo operação de compra intacta e rejeitando dados pessoais no identificador público.

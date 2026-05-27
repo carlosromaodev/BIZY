@@ -276,7 +276,7 @@ const ItemCheckoutPublicoSchema = z.object({
 
 const EntregaCheckoutPublicoSchema = z
   .object({
-    tipo: z.enum(["ENTREGA", "RETIRADA"]).default("ENTREGA"),
+    tipo: z.enum(["ENTREGA", "RETIRADA", "ORCAMENTO"]).default("ENTREGA"),
     provincia: TextoCatalogoOpcionalSchema,
     municipio: TextoCatalogoOpcionalSchema,
     bairro: TextoCatalogoOpcionalSchema,
