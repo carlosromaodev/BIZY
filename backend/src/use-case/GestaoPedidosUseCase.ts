@@ -8,6 +8,7 @@ import type {
 import type {
   AtualizacaoEntregaPedido,
   AtualizacaoEstadoPedido,
+  AtualizacaoItensPedido,
   Cliente360,
   ConfirmacaoPagamentoPedido,
   DadosPedidoResolvido,
@@ -172,6 +173,46 @@ export class GestaoPedidosUseCase {
         motivo: dados.observacao ?? "Pedido reembolsado."
       });
     }
+
+    return pedido;
+  }
+
+  async atualizarItens(id: string, negocioId: string, dados: AtualizacaoItensPedido): Promise<Pedido> {
+    const pedidoAtual = await this.pedidos.buscarPorId(id, negocioId);
+    if (!pedidoAtual) throw new Error(`Pedido ${id} não encontrado.`);
+    if (pedidoAtual.estadoPagamento !== "PENDENTE" || ["PAGO", "ENTREGUE", "CANCELADO", "DEVOLVIDO"].includes(pedidoAtual.estado)) {
+      throw new Error("Itens do pedido só podem ser alterados antes da confirmação do pagamento.");
+    }
+
+    const itens = await this.resolverItens(
+      {
+        negocioId,
+        clienteNegocioId: pedidoAtual.clienteNegocioId,
+        itens: dados.itens
+      },
+      pedidoAtual.id
+    );
+    const subtotalEmKwanza = itens.reduce((total, item) => total + item.subtotalEmKwanza, 0);
+    const totalEmKwanza = subtotalEmKwanza - pedidoAtual.descontoEmKwanza + pedidoAtual.taxaEntregaEmKwanza;
+    if (totalEmKwanza < 0) {
+      throw new Error("A alteração de itens deixa o total do pedido negativo por causa do desconto aplicado.");
+    }
+
+    const pedido = await this.pedidos.atualizarItens(id, negocioId, {
+      itens,
+      subtotalEmKwanza,
+      totalEmKwanza,
+      observacao: dados.observacao
+    });
+    if (!pedido) throw new Error(`Pedido ${id} não encontrado.`);
+
+    this.eventos.emitir("ORDER_ITEMS_UPDATED", {
+      negocioId,
+      pedidoId: pedido.id,
+      clienteNegocioId: pedido.clienteNegocioId,
+      subtotalEmKwanza: pedido.subtotalEmKwanza,
+      totalEmKwanza: pedido.totalEmKwanza
+    });
 
     return pedido;
   }
@@ -503,10 +544,11 @@ export class GestaoPedidosUseCase {
     };
   }
 
-  private async resolverItens(dados: NovoPedido): Promise<DadosPedidoResolvido["itens"]> {
+  private async resolverItens(dados: NovoPedido, pedidoIgnoradoId?: string): Promise<DadosPedidoResolvido["itens"]> {
     const pedidosAtuais = await this.pedidos.listar(dados.negocioId, { limite: 10_000 });
     const quantidadeConsumida = new Map<string, number>();
     for (const pedido of pedidosAtuais) {
+      if (pedido.id === pedidoIgnoradoId) continue;
       if (!estadosQueConsomemStock.has(pedido.estado)) continue;
       for (const item of pedido.itens) {
         quantidadeConsumida.set(item.codigoPeca, (quantidadeConsumida.get(item.codigoPeca) ?? 0) + item.quantidade);

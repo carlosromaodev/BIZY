@@ -1,6 +1,7 @@
 import {
   AtualizarEntregaPedidoSchema,
   AtualizarEstadoPedidoSchema,
+  AtualizarItensPedidoSchema,
   AprovarDescontoPedidoSchema,
   ConfirmarPagamentoPedidoSchema,
   CriarOrcamentoPedidoSchema,
@@ -175,6 +176,35 @@ export const moduloPedidos: ModuloHttp = {
       }
 
       return perfil;
+    });
+
+    app.patch("/pedidos/:id/itens", async (request, reply) => {
+      const contextoComercial = await exigirAcessoComercial(contexto, request, reply, {
+        permissao: "pedidos:gerir",
+        modulo: "pedidos",
+        mensagemPermissao: "Sem permissão para gerir itens do pedido.",
+        mensagemModulo: "Pedidos desativados para este negócio."
+      });
+      if (!contextoComercial) return;
+
+      const { id } = request.params as { id: string };
+      const dados = AtualizarItensPedidoSchema.parse(request.body ?? {});
+      const pedidoAntes = (await contexto.gestaoPedidos.obterPedido(id, contextoComercial.negocio.id))?.pedido ?? null;
+      const pedido = await contexto.gestaoPedidos.atualizarItens(id, contextoComercial.negocio.id, dados);
+      await registrarAuditoriaCritica(contexto, contextoComercial, {
+        topico: "pedidos",
+        tipo: "ITENS_PEDIDO_ATUALIZADOS",
+        entidadeTipo: "pedido",
+        entidadeId: id,
+        motivo: dados.observacao ?? "Itens do pedido atualizados.",
+        alteracoes: montarAlteracoes(dadosPedidoAuditoria(pedidoAntes), dadosPedidoAuditoria(pedido), [
+          "itens",
+          "subtotalEmKwanza",
+          "totalEmKwanza",
+          "observacao"
+        ])
+      });
+      return pedido;
     });
 
     app.patch("/pedidos/:id/estado", async (request, reply) => {
@@ -369,6 +399,13 @@ function dadosPedidoAuditoria(pedido: Pedido | null): Record<string, unknown> | 
     estado: pedido.estado,
     estadoPagamento: pedido.estadoPagamento,
     estadoEntrega: pedido.estadoEntrega,
+    itens: pedido.itens.map((item) => ({
+      codigoPeca: item.codigoPeca,
+      quantidade: item.quantidade,
+      precoUnitarioEmKwanza: item.precoUnitarioEmKwanza,
+      subtotalEmKwanza: item.subtotalEmKwanza
+    })),
+    subtotalEmKwanza: pedido.subtotalEmKwanza,
     descontoEmKwanza: pedido.descontoEmKwanza,
     motivoDesconto: pedido.motivoDesconto,
     totalEmKwanza: pedido.totalEmKwanza,

@@ -799,6 +799,11 @@ export const AtualizarEstadoPedidoSchema = z
     message: "Informe pelo menos um campo para atualizar o pedido."
   });
 
+export const AtualizarItensPedidoSchema = z.object({
+  itens: CriarPedidoSchema.shape.itens,
+  observacao: z.string().trim().max(1000).nullable().optional().transform((valor) => valor ?? null)
+});
+
 export const SolicitarDescontoPedidoSchema = z.object({
   descontoEmKwanza: z.coerce.number().int().min(1),
   motivo: z.string().trim().min(3).max(1000),

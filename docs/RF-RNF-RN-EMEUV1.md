@@ -128,6 +128,8 @@ Atualização 1.54: Auditoria crítica passou a registrar alterações humanas d
 
 Atualização 1.55: Reservas de live passaram a poder virar pedidos completos por rota autenticada e auditada, de forma idempotente, preservando cliente, origem, item, desconto autorizado, entrega e compatibilidade com a operação antiga de reservas.
 
+Atualização 1.56: Pedidos passaram a permitir atualização dos itens antes da confirmação de pagamento, com substituição auditada da lista, ajuste de quantidade, remoção por omissão, recálculo financeiro e validação de stock livre sem contar o próprio pedido.
+
 ---
 
 ## 2. Legenda
@@ -378,7 +380,7 @@ Esta etapa transforma o Bizy de painel de live em CRM operacional para lojas que
 |---|---|---|---|
 | RF97 | [x] Reservas devem evoluir para pedidos completos com cliente, itens, quantidade, desconto autorizado, total, estado de pagamento, estado de entrega e origem. | Alta | Implementado - pedido completo criado por API e reservas de live convertidas por rota idempotente `/reservas/:id/converter-pedido` |
 | RF98 | [~] O vendedor deve criar pedido manual fora da live a partir do cliente ou da conversa. | Alta | Parcial - API manual implementada a partir do cliente; falta ação direta na conversa/UI |
-| RF99 | [~] O pedido deve suportar múltiplos itens, ajuste de quantidade, remoção de item e validação de stock antes de confirmar. | Alta | Parcial - criação com múltiplos itens e stock validado; faltam edição/remoção pós-criação |
+| RF99 | [x] O pedido deve suportar múltiplos itens, ajuste de quantidade, remoção de item e validação de stock antes de confirmar. | Alta | Implementado - criação e atualização de itens por `PATCH /pedidos/:id/itens`, com recálculo financeiro, remoção por omissão e stock validado antes do pagamento |
 | RF100 | [~] O CRM deve ter funil de pedidos com estados: novo, aguardando pagamento, pago, em preparação, pronto para entrega, enviado, entregue, cancelado, trocado e devolvido. | Alta | Parcial - estados de funil suportados no backend; falta UI kanban/lista operacional |
 | RF101 | [~] O sistema deve permitir cobrança por WhatsApp com templates de pagamento, lembrete, comprovativo pendente e pagamento confirmado. | Alta | Parcial - templates utilidade e envio pela conversa cobrem pagamento/lembrete/confirmação; falta biblioteca completa de comprovativo pendente por negócio |
 | RF102 | [~] O pedido deve anexar comprovativos, recibos, notas de pagamento e histórico de aprovação/rejeição. | Alta | Parcial - comprovativo/observação de pagamento no pedido; faltam recibos e trilha detalhada de aprovação/rejeição |

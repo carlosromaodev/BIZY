@@ -498,6 +498,91 @@ describe("pedidos HTTP", () => {
     }
   });
 
+  it("ajusta e remove itens do pedido antes do pagamento validando stock livre", async () => {
+    const app = await criarAplicacao();
+
+    try {
+      const loja = await autenticar(app, "923222181", "Loja Ajuste Itens");
+      await criarPeca(app, loja, "A1", 5, 10_000);
+      await criarPeca(app, loja, "B1", 2, 4_000);
+      await criarPeca(app, loja, "C1", 1, 7_000);
+      const cliente = await criarCliente(app, loja, {
+        telefone: "937624781",
+        nome: "Cliente Ajuste Itens",
+        email: "cliente.ajuste@example.com"
+      });
+
+      const pedido = await app.inject({
+        method: "POST",
+        url: "/pedidos",
+        headers: loja,
+        payload: {
+          clienteId: cliente.id,
+          itens: [
+            { codigoPeca: "A1", quantidade: 1 },
+            { codigoPeca: "B1", quantidade: 1 }
+          ],
+          taxaEntregaEmKwanza: 1_000,
+          observacao: "Pedido inicial"
+        }
+      });
+      expect(pedido.statusCode).toBe(201);
+
+      const bloqueadorStock = await app.inject({
+        method: "POST",
+        url: "/pedidos",
+        headers: loja,
+        payload: {
+          clienteId: cliente.id,
+          itens: [{ codigoPeca: "C1", quantidade: 1 }],
+          observacao: "Consome todo o stock de C1"
+        }
+      });
+      expect(bloqueadorStock.statusCode).toBe(201);
+
+      const ajuste = await app.inject({
+        method: "PATCH",
+        url: `/pedidos/${pedido.json().id}/itens`,
+        headers: loja,
+        payload: {
+          itens: [{ codigoPeca: "A1", quantidade: 3 }],
+          observacao: "Cliente removeu B1 e aumentou A1"
+        }
+      });
+      expect(ajuste.statusCode).toBe(200);
+      expect(ajuste.json()).toEqual(
+        expect.objectContaining({
+          id: pedido.json().id,
+          subtotalEmKwanza: 30_000,
+          taxaEntregaEmKwanza: 1_000,
+          totalEmKwanza: 31_000,
+          observacao: "Cliente removeu B1 e aumentou A1"
+        })
+      );
+      expect(ajuste.json().itens).toEqual([
+        expect.objectContaining({
+          codigoPeca: "A1",
+          quantidade: 3,
+          subtotalEmKwanza: 30_000
+        })
+      ]);
+
+      const semStock = await app.inject({
+        method: "PATCH",
+        url: `/pedidos/${pedido.json().id}/itens`,
+        headers: loja,
+        payload: {
+          itens: [{ codigoPeca: "C1", quantidade: 1 }],
+          observacao: "Tentativa sem stock"
+        }
+      });
+      expect(semStock.statusCode).toBe(400);
+      expect(semStock.json().mensagem).toContain("Stock insuficiente");
+    } finally {
+      await app.close();
+    }
+  });
+
   it("reutiliza endereço salvo do cliente ao criar pedido", async () => {
     const app = await criarAplicacao();
 

@@ -32,6 +32,7 @@ import type {
   AtualizacaoEntregaPedido,
   AtualizacaoEstadoPedido,
   AtualizacaoFinanceiraPedido,
+  AtualizacaoItensPedidoResolvida,
   AtualizacaoJobOperacional,
   AtualizacaoMembroNegocioOperacional,
   AtualizacaoModuloNegocio,
@@ -2475,6 +2476,29 @@ export class RepositorioPedidosMemoria implements RepositorioPedidos {
       totalEmKwanza: dados.totalEmKwanza ?? pedido.totalEmKwanza,
       observacao: dados.observacao === undefined ? pedido.observacao : dados.observacao,
       atualizadoEm: new Date()
+    };
+    this.pedidos.set(id, atualizado);
+    return atualizado;
+  }
+
+  async atualizarItens(id: string, negocioId: string, dados: AtualizacaoItensPedidoResolvida): Promise<Pedido | null> {
+    const pedido = await this.buscarPorId(id, negocioId);
+    if (!pedido) return null;
+
+    const agora = new Date();
+    const atualizado: Pedido = {
+      ...pedido,
+      itens: dados.itens.map((item) => ({
+        id: randomUUID(),
+        pedidoId: id,
+        ...item,
+        criadoEm: agora,
+        atualizadoEm: agora
+      })),
+      subtotalEmKwanza: dados.subtotalEmKwanza,
+      totalEmKwanza: dados.totalEmKwanza,
+      observacao: dados.observacao === undefined ? pedido.observacao : dados.observacao,
+      atualizadoEm: agora
     };
     this.pedidos.set(id, atualizado);
     return atualizado;

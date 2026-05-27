@@ -32,6 +32,7 @@ import type {
   AtualizacaoEntregaPedido,
   AtualizacaoEstadoPedido,
   AtualizacaoFinanceiraPedido,
+  AtualizacaoItensPedidoResolvida,
   AtualizacaoJobOperacional,
   AtualizacaoMembroNegocioOperacional,
   AtualizacaoModuloNegocio,
@@ -2158,6 +2159,36 @@ export class RepositorioPedidosPrisma implements RepositorioPedidos {
         observacao: dados.observacao ?? undefined
       },
       include: { itens: true }
+    });
+
+    return this.mapearPedido(pedido);
+  }
+
+  async atualizarItens(id: string, negocioId: string, dados: AtualizacaoItensPedidoResolvida): Promise<Pedido | null> {
+    const existente = await this.buscarPorId(id, negocioId);
+    if (!existente) return null;
+
+    const pedido = await this.prisma.$transaction(async (tx) => {
+      await tx.itemPedido.deleteMany({ where: { pedidoId: id } });
+      return tx.pedido.update({
+        where: { id },
+        data: {
+          subtotalEmKwanza: dados.subtotalEmKwanza,
+          totalEmKwanza: dados.totalEmKwanza,
+          observacao: dados.observacao ?? undefined,
+          itens: {
+            create: dados.itens.map((item) => ({
+              pecaId: item.pecaId,
+              codigoPeca: item.codigoPeca,
+              nomeProduto: item.nomeProduto,
+              quantidade: item.quantidade,
+              precoUnitarioEmKwanza: item.precoUnitarioEmKwanza,
+              subtotalEmKwanza: item.subtotalEmKwanza
+            }))
+          }
+        },
+        include: { itens: true }
+      });
     });
 
     return this.mapearPedido(pedido);

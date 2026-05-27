@@ -80,6 +80,7 @@ export const tiposEventoSistema = [
   "PAYMENT_CONFIRMED",
   "PAYMENT_REJECTED",
   "ORDER_CREATED",
+  "ORDER_ITEMS_UPDATED",
   "ORDER_PAYMENT_CONFIRMED",
   "ORDER_CANCELLED",
   "ORDER_RETURNED",
@@ -1531,6 +1532,18 @@ export interface AtualizacaoFinanceiraPedido {
   descontoEmKwanza?: number;
   motivoDesconto?: string | null;
   totalEmKwanza?: number;
+  observacao?: string | null;
+}
+
+export interface AtualizacaoItensPedido {
+  itens: ItemNovoPedido[];
+  observacao?: string | null;
+}
+
+export interface AtualizacaoItensPedidoResolvida {
+  itens: DadosPedidoResolvido["itens"];
+  subtotalEmKwanza: number;
+  totalEmKwanza: number;
   observacao?: string | null;
 }
 
