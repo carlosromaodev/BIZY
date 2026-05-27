@@ -144,6 +144,21 @@ describe("loja pública, catálogo digital e tracking HTTP", () => {
       expect(JSON.stringify(lojaPublica.json())).not.toContain("custoEmKwanza");
       expect(JSON.stringify(lojaPublica.json())).not.toContain("margemEstimadaEmKwanza");
       expect(JSON.stringify(lojaPublica.json())).not.toContain("negocioId");
+      expect(lojaPublica.json().seo).toEqual(
+        expect.objectContaining({
+          titulo: expect.stringContaining("Loja Pública A"),
+          descricao: "Moda pronta para comprar pelo WhatsApp.",
+          canonicalPath: "/lojas/loja-publica-a",
+          imagem: "https://example.com/P1.png",
+          previewSocial: expect.objectContaining({
+            whatsapp: expect.any(Object),
+            facebook: expect.any(Object),
+            instagram: expect.any(Object),
+            tiktok: expect.any(Object),
+            navegador: expect.any(Object)
+          })
+        })
+      );
 
       const produtoPublico = await app.inject({
         method: "GET",
@@ -155,6 +170,21 @@ describe("loja pública, catálogo digital e tracking HTTP", () => {
           codigo: "P1",
           variantes: { tamanho: ["M", "G"] },
           disponivel: true
+        })
+      );
+      expect(produtoPublico.json().seo).toEqual(
+        expect.objectContaining({
+          titulo: "Produto P1 | Loja Pública A",
+          descricao: "Produto P1 para loja pública",
+          canonicalPath: "/lojas/loja-publica-a/produtos/P1",
+          imagem: "https://example.com/P1.png",
+          previewSocial: expect.objectContaining({
+            whatsapp: expect.any(Object),
+            facebook: expect.any(Object),
+            instagram: expect.any(Object),
+            tiktok: expect.any(Object),
+            navegador: expect.any(Object)
+          })
         })
       );
 

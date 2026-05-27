@@ -1,10 +1,10 @@
 # Bizy / ÉMeu V1 - Requisitos Funcionais, Não Funcionais e Regras de Negócio
 
 Documento: `RF-RNF-RN-EMEUV1.md`
-Versão: 1.33
+Versão: 1.34
 Data: 2026-05-25
 Autor: Carlos
-Status: MVP base implementado; fundação backend Bizy CRM+ com Clientes 360, Pedidos, Catálogo/Stock, Loja Pública, Checkout, Entrega, Afiliados, Comissões, Lotes Financeiros, Campanhas, Governança, Jobs, Eventos Operacionais, Inbox Comercial, SLA, Social Inbox seguro, transferência operacional, política WhatsApp, descontos aprováveis, carrinho abandonado, antifraude de afiliados, anonimização, logs operacionais, navegação comercial, busca global, auditoria de exportações comerciais e painel diário em evolução
+Status: MVP base implementado; fundação backend Bizy CRM+ com Clientes 360, Pedidos, Catálogo/Stock, Loja Pública, Checkout, Entrega, Afiliados, Comissões, Lotes Financeiros, Campanhas, Governança, Jobs, Eventos Operacionais, Inbox Comercial, SLA, Social Inbox seguro, transferência operacional, política WhatsApp, descontos aprováveis, carrinho abandonado, antifraude de afiliados, anonimização, SEO público, logs operacionais, navegação comercial, busca global, auditoria de exportações comerciais e painel diário em evolução
 
 ---
 
@@ -141,6 +141,8 @@ Atualização 1.60: Loja pública passou a aceitar busca e filtros de produto no
 Atualização 1.61: Social Inbox passou a aceitar importação CSV para fallback operacional quando o provider social não liberar extração automática, com relatório de criados, duplicados e erros por linha.
 
 Atualização 1.62: Checkout público do site passou a exigir consentimento de dados antes de confirmar o pedido, mantendo compra sem conta, mas com contacto validável e aceite mínimo.
+
+Atualização 1.63: Loja pública e página pública de produto passaram a devolver metadados de SEO e preview social por canal para WhatsApp, Facebook, Instagram, TikTok e navegador, com título, descrição, imagem destacada e caminho canónico preparados para o frontend renderizar as tags finais.
 
 ---
 
@@ -491,7 +493,7 @@ Esta etapa posiciona o Bizy como uma plataforma de operação comercial para cri
 | RF161 | [~] O catálogo digital deve gerar link partilhável e, quando necessário, resumo visual ou PDF simples com produtos, preços e disponibilidade. | Média | Parcial - slug público e links de produto implementados; faltam resumo visual/PDF |
 | RF162 | [x] O catálogo deve respeitar stock e disponibilidade, ocultando produtos indisponíveis ou oferecendo lista de interesse/reposição. | Alta | Implementado para ocultar indisponíveis |
 | RF163 | [ ] A loja deve permitir destacar produtos, promoções, novidades, mais vendidos, reposições e kits. | Média | Planeado |
-| RF164 | [ ] Páginas públicas devem ter metadados de SEO e preview social para WhatsApp, Facebook, Instagram, TikTok e navegadores. | Média | Planeado |
+| RF164 | [~] Páginas públicas devem ter metadados de SEO e preview social para WhatsApp, Facebook, Instagram, TikTok e navegadores. | Média | Parcial - backend público devolve título, descrição, imagem, canonicalPath e previews por canal; falta frontend renderizar `<title>`, meta description e tags sociais nas páginas públicas |
 
 #### 3.14.3 Checkout WhatsApp/Site, Entrega e Pedido
 

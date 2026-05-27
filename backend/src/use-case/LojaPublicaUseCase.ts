@@ -146,7 +146,8 @@ export class LojaPublicaUseCase {
     return {
       loja: this.mapearLojaPublica(negocio),
       produtos: produtos.map((peca) => this.mapearProdutoPublico(peca)),
-      filtros: this.filtrosPublicosAplicados(filtros)
+      filtros: this.filtrosPublicosAplicados(filtros),
+      seo: this.mapearSeoLoja(negocio, produtos[0])
     };
   }
 
@@ -169,7 +170,8 @@ export class LojaPublicaUseCase {
 
     return {
       loja: this.mapearLojaPublica(negocio),
-      produto: this.mapearProdutoPublico(peca)
+      produto: this.mapearProdutoPublico(peca),
+      seo: this.mapearSeoProduto(negocio, peca)
     };
   }
 
@@ -546,6 +548,87 @@ export class LojaPublicaUseCase {
       estadoStock: peca.estadoStock,
       disponivel: this.pecaVendavel(peca)
     };
+  }
+
+  private mapearSeoLoja(negocio: NegocioBizy, produtoDestaque?: Peca) {
+    const nomeLoja = this.nomeLojaParaSeo(negocio);
+    const titulo = `${nomeLoja} | Loja Bizy`;
+    const descricao =
+      this.texto(negocio.descricaoPublica) ??
+      `Compra produtos de ${nomeLoja} com atendimento pelo WhatsApp.`;
+
+    return this.montarSeoPublico({
+      titulo,
+      descricao,
+      canonicalPath: `/lojas/${negocio.slugPublico}`,
+      imagem: produtoDestaque?.fotos[0] ?? null
+    });
+  }
+
+  private mapearSeoProduto(negocio: NegocioBizy, peca: Peca) {
+    const nomeLoja = this.nomeLojaParaSeo(negocio);
+    const titulo = `${peca.nome} | ${nomeLoja}`;
+    const descricao = this.texto(peca.descricao) ?? `Compra ${peca.nome} na loja ${nomeLoja}.`;
+
+    return this.montarSeoPublico({
+      titulo,
+      descricao,
+      canonicalPath: `/lojas/${negocio.slugPublico}/produtos/${peca.codigo}`,
+      imagem: peca.fotos[0] ?? null
+    });
+  }
+
+  private montarSeoPublico(dados: {
+    titulo: string;
+    descricao: string;
+    canonicalPath: string;
+    imagem: string | null;
+  }) {
+    return {
+      titulo: dados.titulo,
+      descricao: dados.descricao,
+      canonicalPath: dados.canonicalPath,
+      imagem: dados.imagem,
+      previewSocial: {
+        whatsapp: {
+          titulo: dados.titulo,
+          descricao: dados.descricao,
+          imagem: dados.imagem,
+          url: dados.canonicalPath
+        },
+        facebook: {
+          openGraph: {
+            title: dados.titulo,
+            description: dados.descricao,
+            image: dados.imagem,
+            url: dados.canonicalPath,
+            type: "website"
+          }
+        },
+        instagram: {
+          titulo: dados.titulo,
+          descricao: dados.descricao,
+          imagem: dados.imagem,
+          url: dados.canonicalPath
+        },
+        tiktok: {
+          titulo: dados.titulo,
+          descricao: dados.descricao,
+          imagem: dados.imagem,
+          url: dados.canonicalPath
+        },
+        navegador: {
+          title: dados.titulo,
+          metaDescription: dados.descricao,
+          canonicalPath: dados.canonicalPath,
+          image: dados.imagem
+        }
+      }
+    };
+  }
+
+  private nomeLojaParaSeo(negocio: NegocioBizy): string {
+    return negocio.nomeComercial.replace(/^Loja de Loja\b/i, "Loja");
   }
 
   private async resolverResumoCheckout(
