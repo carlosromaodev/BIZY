@@ -62,6 +62,27 @@ Não use `prisma db push` em produção; ele é útil apenas para prototipagem l
 
 O bootstrap valida variáveis obrigatórias de produção e cria configurações padrão dos módulos CRM+ para negócios já existentes. Ele é seguro para reexecução: módulos já existentes são preservados.
 
+## 3. Backup e recuperação PostgreSQL
+
+Configure uma rotina externa, como cron do servidor, para executar backups frequentes:
+
+```bash
+BACKUP_ENV=production npm run backup:postgres
+```
+
+Os backups são gravados por padrão em `backups/postgres` usando `pg_dump --format=custom`, com `--no-owner`, `--no-privileges`, permissões restritas e checksum quando disponível. Quando `MEDIA_STORAGE_DIR` existir, o script também cria um `.tar.gz` da pasta de media/comprovativos. Para enviar para armazenamento externo, sincronize essa pasta com o provider escolhido pela operação.
+
+Teste restore apenas em ambiente controlado:
+
+```bash
+CONFIRM_RESTORE=SIM \
+  BACKUP_FILE=/caminho/bizy-production-YYYYMMDDTHHMMSSZ.dump \
+  RESTORE_MEDIA_FILE=/caminho/bizy-media-production-YYYYMMDDTHHMMSSZ.tar.gz \
+  npm run restore:postgres
+```
+
+O restore usa `pg_restore --clean --if-exists --exit-on-error`, por isso exige `CONFIRM_RESTORE=SIM`.
+
 Se estiver a migrar uma base antiga que já foi criada com `prisma db push`, faça backup e marque a primeira migration como baseline apenas se a estrutura atual já corresponder ao schema Prisma:
 
 ```bash
@@ -77,7 +98,7 @@ docker compose --env-file .env.docker -f docker-compose.yml -f docker-compose.pr
 
 Com esse override, PostgreSQL e Redis ficam apenas na rede interna Docker. Backend, frontend, n8n e Evolution ficam publicados em `127.0.0.1` por padrão, para serem expostos por um proxy HTTPS como Nginx, Caddy ou Traefik.
 
-## 3. n8n
+## 4. n8n
 
 No n8n, defina variáveis equivalentes:
 
@@ -97,7 +118,7 @@ Importe os workflows:
 
 O webhook principal deve corresponder a `N8N_WEBHOOK_EVENTOS_URL`.
 
-## 4. Evolution API
+## 5. Evolution API
 
 No painel do ÉMeu:
 

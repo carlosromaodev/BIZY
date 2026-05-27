@@ -1,10 +1,10 @@
 # Bizy / ÉMeu V1 - Requisitos Funcionais, Não Funcionais e Regras de Negócio
 
 Documento: `RF-RNF-RN-EMEUV1.md`
-Versão: 1.99
+Versão: 1.100
 Data: 2026-05-26
 Autor: Carlos
-Status: MVP base implementado; fundação backend Bizy CRM+ com Clientes 360, Pedidos, Catálogo/Stock, Loja Pública, Vitrine Pública, Checkout, Entrega, Afiliados, Criadores, Revendedores, Mini-lojas Públicas, Comissões, Atribuição Comercial, Lotes Financeiros, Campanhas com receita atribuída por tracking, Governança, Jobs de Clientes/Produtos/Exportações, Contratos Versionados, Eventos Operacionais, eventos públicos idempotentes, webhook Evolution idempotente com ledger operacional, bootstrap de ambiente, eventos server-side preparados, Inbox Comercial, SLA, Social Inbox seguro, transferência operacional, política WhatsApp, descontos aprováveis, carrinho abandonado, antifraude de afiliados, anonimização, SEO público, logs operacionais, navegação comercial, busca global, auditoria de exportações comerciais e painel diário em evolução
+Status: MVP base implementado; fundação backend Bizy CRM+ com Clientes 360, Pedidos, Catálogo/Stock, Loja Pública, Vitrine Pública, Checkout, Entrega, Afiliados, Criadores, Revendedores, Mini-lojas Públicas, Comissões, Atribuição Comercial, Lotes Financeiros, Campanhas com receita atribuída por tracking, Governança, Jobs de Clientes/Produtos/Exportações, Contratos Versionados, Eventos Operacionais, eventos públicos idempotentes, webhook Evolution idempotente com ledger operacional, bootstrap de ambiente, backup/restore PostgreSQL, eventos server-side preparados, Inbox Comercial, SLA, Social Inbox seguro, transferência operacional, política WhatsApp, descontos aprováveis, carrinho abandonado, antifraude de afiliados, anonimização, SEO público, logs operacionais, navegação comercial, busca global, auditoria de exportações comerciais e painel diário em evolução
 
 ---
 
@@ -215,6 +215,8 @@ Atualização 1.97: Webhook Evolution passou a bloquear reprocessamento local do
 Atualização 1.98: Rota `/webhooks/evolution` passou a usar `EventoOperacional` como ledger persistente de idempotência quando consegue resolver o negócio por `negocioId` ou instância WhatsApp, retornando `duplicado=true` sem reemitir eventos internos em callbacks repetidos.
 
 Atualização 1.99: Adicionado bootstrap formal de ambiente em `npm run bootstrap:ambiente`, validando variáveis obrigatórias para dev/staging/prod e criando configurações padrão dos módulos CRM+ para negócios existentes de forma reexecutável.
+
+Atualização 1.100: Adicionados scripts operacionais `npm run backup:postgres` e `npm run restore:postgres`, com dump PostgreSQL em formato custom, permissões restritas, checksum quando disponível, cópia opcional de media/comprovativos e restore protegido por confirmação explícita.
 
 ---
 
@@ -823,7 +825,7 @@ Esta etapa vem antes da implementação visual dos novos módulos. O objetivo é
 | RNF58 | [x] A busca global deve responder em até 1 segundo para bases pequenas e manter feedback de carregamento em bases maiores. | Média | Implementado com debounce e estado de carregamento |
 | RNF59 | [~] Dados pessoais de clientes devem ser protegidos com controlo de acesso por papel e auditoria de exportação. | Alta | Parcial - exportação de clientes exige permissão e registra auditoria; faltam políticas por papel mais finas e auditoria nas demais exportações |
 | RNF60 | [x] Exportações de clientes, pedidos e relatórios devem registrar usuário, filtro usado, data e quantidade exportada. | Alta | Implementado para clientes, pedidos e relatório comercial CSV/PDF por eventos auditáveis `CLIENTS_EXPORTED`, `ORDERS_EXPORTED` e `REPORTS_EXPORTED` |
-| RNF61 | [ ] O CRM deve manter backups e estratégia de recuperação para clientes, pedidos, mensagens, comprovativos e produtos. | Alta | Planeado |
+| RNF61 | [x] O CRM deve manter backups e estratégia de recuperação para clientes, pedidos, mensagens, comprovativos e produtos. | Alta | Implementado para PostgreSQL com scripts `backup:postgres`/`restore:postgres`, dump custom, permissões restritas, checksum opcional, restore protegido e cópia `.tar.gz` da raiz `MEDIA_STORAGE_DIR` quando existir |
 | RNF62 | [x] A interface deve distinguir claramente operação comercial de configuração técnica. | Alta | Implementado por CRM/Loja versus Admin/Sistema |
 | RNF63 | [x] Páginas sem funcionalidade real não devem ser publicadas na navegação principal. | Alta | Implementado na navegação atual |
 | RNF64 | [x] O design system deve padronizar cards, listas, tabelas, filtros, badges, estados vazios e ações destrutivas antes de novas páginas CRM. | Alta | Implementado |

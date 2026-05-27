@@ -21,6 +21,8 @@
     "prisma:migrate:dev": "npm run prisma:migrate:dev --workspace backend",
     "prisma:migrate:deploy": "npm run prisma:migrate:deploy --workspace backend",
     "prisma:migrate:status": "npm run prisma:migrate:status --workspace backend",
+    "backup:postgres": "bash scripts/backup-postgres.sh",
+    "restore:postgres": "bash scripts/restore-postgres.sh",
     "docker:config": "docker compose --env-file .env.docker.example config",
     "docker:up": "COMPOSE_BAKE=false DOCKER_BUILDKIT=0 docker compose --env-file .env.docker.example up -d --build",
     "docker:down": "docker compose --env-file .env.docker.example down",
