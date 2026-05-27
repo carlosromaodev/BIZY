@@ -534,6 +534,52 @@ describe("CRM+ governança, campanhas, eventos e jobs", () => {
           job: expect.objectContaining({ id: job.json().job.id })
         })
       );
+
+      const jobProdutos = await app.inject({
+        method: "POST",
+        url: "/jobs/importacao/produtos",
+        headers,
+        payload: {
+          idempotencyKey: "import-produtos-maio",
+          csv: [
+            "codigo,nome,preco,quantidade,categoria,colecao",
+            "JOB-1,Produto Job,12000,3,Roupas,Campanha Maio",
+            "SEM-PRECO,Produto com erro,,2,Roupas,Campanha Maio"
+          ].join("\n")
+        }
+      });
+      expect(jobProdutos.statusCode).toBe(202);
+      expect(jobProdutos.json().job).toEqual(
+        expect.objectContaining({
+          tipo: "IMPORTACAO_PRODUTOS",
+          estado: "CONCLUIDO",
+          total: 2,
+          erros: 1
+        })
+      );
+      expect(jobProdutos.json().resultado).toEqual(
+        expect.objectContaining({
+          criados: 1,
+          erros: 1
+        })
+      );
+
+      const jobProdutosRepetido = await app.inject({
+        method: "POST",
+        url: "/jobs/importacao/produtos",
+        headers,
+        payload: {
+          idempotencyKey: "import-produtos-maio",
+          csv: "codigo,nome,preco,quantidade\nJOB-1,Produto Duplicado,13000,4"
+        }
+      });
+      expect(jobProdutosRepetido.statusCode).toBe(200);
+      expect(jobProdutosRepetido.json()).toEqual(
+        expect.objectContaining({
+          duplicado: true,
+          job: expect.objectContaining({ id: jobProdutos.json().job.id })
+        })
+      );
     } finally {
       await app.close();
     }

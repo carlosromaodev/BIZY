@@ -230,6 +230,8 @@ export const CriarJobImportacaoClientesSchema = ImportarCsvSchema.extend({
   idempotencyKey: z.string().trim().min(3).max(240).nullable().optional().transform((valor) => valor ?? null)
 });
 
+export const CriarJobImportacaoProdutosSchema = CriarJobImportacaoClientesSchema;
+
 export const ArquivarPecaSchema = z.object({
   motivo: z.string().trim().min(3).max(500).optional()
 });

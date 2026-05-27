@@ -8,6 +8,7 @@ import {
   PausarCampanhaSchema,
   RegistrarEventoOperacionalSchema,
   CriarJobImportacaoClientesSchema,
+  CriarJobImportacaoProdutosSchema,
   CriarMembroNegocioSchema,
   AtualizarMembroNegocioSchema
 } from "../../../dominio/esquemas.js";
@@ -304,6 +305,46 @@ export const moduloCampanhas: ModuloHttp = {
       if (criado.duplicado) return reply.code(200).send({ job: criado.job, resultado: criado.job.resultado, duplicado: true });
 
       const resultado = await contexto.gestaoClientesCrm.importarCsv(contextoComercial.negocio.id, dados.csv);
+      const job = await contexto.gestaoGovernancaCrm.atualizarJob(criado.job.id, contextoComercial.negocio.id, {
+        estado: "CONCLUIDO",
+        total: resultado.total,
+        processados: resultado.criados + resultado.atualizados,
+        erros: resultado.erros,
+        resultado: resultado as unknown as Record<string, unknown>,
+        concluidoEm: new Date()
+      });
+
+      return reply.code(202).send({ job: job ?? criado.job, resultado, duplicado: false });
+    });
+
+    app.post("/jobs/importacao/produtos", async (request, reply) => {
+      const contextoComercial = await exigirAcessoComercial(contexto, request, reply, {
+        permissao: "catalogo:gerir",
+        modulo: "catalogo",
+        mensagemPermissao: "Sem permissão para importar produtos.",
+        mensagemModulo: "Catálogo desativado para este negócio."
+      });
+      if (!contextoComercial) return;
+
+      const dados = CriarJobImportacaoProdutosSchema.parse(request.body ?? {});
+      if (dados.idempotencyKey) {
+        const existente = await contexto.gestaoGovernancaCrm.buscarJobPorIdempotencia(
+          contextoComercial.negocio.id,
+          dados.idempotencyKey
+        );
+        if (existente) return reply.code(200).send({ job: existente, resultado: existente.resultado, duplicado: true });
+      }
+
+      const criado = await contexto.gestaoGovernancaCrm.criarJob({
+        negocioId: contextoComercial.negocio.id,
+        tipo: "IMPORTACAO_PRODUTOS",
+        estado: "PROCESSANDO",
+        idempotencyKey: dados.idempotencyKey,
+        resultado: {}
+      });
+      if (criado.duplicado) return reply.code(200).send({ job: criado.job, resultado: criado.job.resultado, duplicado: true });
+
+      const resultado = await contexto.gestaoPecas.importarCsv(contextoComercial.negocio.id, dados.csv);
       const job = await contexto.gestaoGovernancaCrm.atualizarJob(criado.job.id, contextoComercial.negocio.id, {
         estado: "CONCLUIDO",
         total: resultado.total,

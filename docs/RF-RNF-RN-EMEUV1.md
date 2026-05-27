@@ -1,10 +1,10 @@
 # Bizy / ÉMeu V1 - Requisitos Funcionais, Não Funcionais e Regras de Negócio
 
 Documento: `RF-RNF-RN-EMEUV1.md`
-Versão: 1.91
+Versão: 1.92
 Data: 2026-05-26
 Autor: Carlos
-Status: MVP base implementado; fundação backend Bizy CRM+ com Clientes 360, Pedidos, Catálogo/Stock, Loja Pública, Vitrine Pública, Checkout, Entrega, Afiliados, Criadores, Revendedores, Mini-lojas Públicas, Comissões, Atribuição Comercial, Lotes Financeiros, Campanhas com receita atribuída por tracking, Governança, Jobs, Eventos Operacionais, eventos públicos idempotentes, eventos server-side preparados, Inbox Comercial, SLA, Social Inbox seguro, transferência operacional, política WhatsApp, descontos aprováveis, carrinho abandonado, antifraude de afiliados, anonimização, SEO público, logs operacionais, navegação comercial, busca global, auditoria de exportações comerciais e painel diário em evolução
+Status: MVP base implementado; fundação backend Bizy CRM+ com Clientes 360, Pedidos, Catálogo/Stock, Loja Pública, Vitrine Pública, Checkout, Entrega, Afiliados, Criadores, Revendedores, Mini-lojas Públicas, Comissões, Atribuição Comercial, Lotes Financeiros, Campanhas com receita atribuída por tracking, Governança, Jobs de Clientes/Produtos, Eventos Operacionais, eventos públicos idempotentes, eventos server-side preparados, Inbox Comercial, SLA, Social Inbox seguro, transferência operacional, política WhatsApp, descontos aprováveis, carrinho abandonado, antifraude de afiliados, anonimização, SEO público, logs operacionais, navegação comercial, busca global, auditoria de exportações comerciais e painel diário em evolução
 
 ---
 
@@ -199,6 +199,8 @@ Atualização 1.89: O resumo de afiliados/criadores passou a cruzar tracking com
 Atualização 1.90: Resultados de campanhas passaram a cruzar itens da campanha com tracking comercial, atribuindo pedidos criados e receita em Kz por `utm_campaign`, metadata ou contexto principal de campanha, sem duplicar pedidos.
 
 Atualização 1.91: Eventos públicos de tracking passaram a ser idempotentes quando recebem `metadata.idempotencyKey` ou a mesma combinação técnica de tipo, entidade, produto e trackingId, evitando duplicação de funil e receita por reenvio.
+
+Atualização 1.92: Importação de produtos passou a rodar também como job operacional idempotente, com relatório de criados, atualizados, erros e reenvio seguro por `idempotencyKey`.
 
 ---
 
@@ -692,9 +694,9 @@ Esta etapa vem antes da implementação visual dos novos módulos. O objetivo é
 | RF262 | [~] O backend deve unificar outbox/event bus para WhatsApp, n8n, tracking, campanhas, social inbox, comissões e notificações internas. | Alta | Parcial - eventos operacionais idempotentes e outboxes específicas existem; falta bus único para todos os domínios |
 | RF263 | [x] O backend deve implementar permissões e papéis por negócio: dono, admin, vendedor, atendente, financeiro, entregador, afiliado/criador e suporte técnico. | Alta | Implementado no backend com papéis, permissões e membros operacionais |
 | RF264 | [x] O backend deve registrar auditoria de ações críticas: exportação, desconto, pagamento, cancelamento, fusão de cliente, compartilhamento, comissão e alteração de permissão. | Alta | Implementado com trilhas para exportações, desconto aprovado, pagamento, entrega, cancelamento, stock, fusão/anonimização de cliente, compartilhamento, comissão/lotes e permissões/membros |
-| RF265 | [~] Importações e exportações grandes devem rodar como jobs com estado, relatório de erros, idempotência e arquivo resultante. | Média | Parcial - job idempotente de importação de clientes implementado; faltam jobs para produtos/exportações e arquivo resultante persistido |
+| RF265 | [~] Importações e exportações grandes devem rodar como jobs com estado, relatório de erros, idempotência e arquivo resultante. | Média | Parcial - jobs idempotentes de importação de clientes e produtos implementados; faltam jobs para exportações e arquivo resultante persistido |
 | RF266 | [~] Módulos desativados devem bloquear rotas, automações e menus relacionados, preservando dados para reativação futura. | Alta | Parcial - guarda HTTP aplicada em rotas comerciais, conversas e WhatsApp |
-| RF267 | [~] Webhooks, importações, campanhas e eventos públicos devem usar chaves de idempotência para evitar duplicidade. | Alta | Parcial - eventos operacionais, job de importação e eventos públicos de tracking suportam idempotência por chave técnica; faltam todos os webhooks externos e campanhas públicas |
+| RF267 | [~] Webhooks, importações, campanhas e eventos públicos devem usar chaves de idempotência para evitar duplicidade. | Alta | Parcial - eventos operacionais, jobs de importação de clientes/produtos e eventos públicos de tracking suportam idempotência por chave técnica; faltam todos os webhooks externos e campanhas públicas |
 | RF268 | [~] Migrations, seeds e scripts de bootstrap devem preparar ambientes dev/staging/prod sem depender de dados manuais invisíveis. | Alta | Parcial - migration Prisma adicionada para campanhas/governança; faltam seeds/bootstrap formais dos novos módulos |
 | RF269 | [~] O backend deve manter contratos versionados para APIs internas, públicas, webhooks e eventos de automação. | Média | Parcial - eventos operacionais possuem tópico/tipo/contexto e testes de rota; falta versionamento explícito de contrato |
 | RF270 | [~] Cada módulo backend novo deve nascer com testes de schema, use-case, repositório e rota HTTP antes de ser ligado ao frontend. | Alta | Parcial - novas rotas CRM+/campanhas/governança têm testes HTTP; faltam testes de repositório/use-case separados para todos |
