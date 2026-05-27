@@ -237,6 +237,33 @@ describe("loja pública, catálogo digital e tracking HTTP", () => {
           })
         })
       );
+
+      const funilTracking = await app.inject({
+        method: "GET",
+        url: "/funil/movimentos?entidadeTipo=tracking&entidadeId=anon-1",
+        headers: lojaA
+      });
+      expect(funilTracking.statusCode).toBe(200);
+      expect(funilTracking.json().movimentos).toEqual([
+        expect.objectContaining({
+          etapaAnterior: "PRODUTO_VISTO",
+          etapaNova: "WHATSAPP_CLICK",
+          origem: "loja_publica",
+          motivo: "Cliente clicou para comprar pelo WhatsApp."
+        }),
+        expect.objectContaining({
+          etapaAnterior: "VISITA",
+          etapaNova: "PRODUTO_VISTO",
+          origem: "loja_publica",
+          motivo: "Cliente visualizou produto público."
+        }),
+        expect.objectContaining({
+          etapaAnterior: null,
+          etapaNova: "VISITA",
+          origem: "loja_publica",
+          motivo: "Cliente visitou a loja pública."
+        })
+      ]);
     } finally {
       await app.close();
     }
@@ -635,6 +662,54 @@ describe("loja pública, catálogo digital e tracking HTTP", () => {
           taxaPedidoPorCheckout: 100
         })
       );
+
+      const funilTracking = await app.inject({
+        method: "GET",
+        url: "/funil/movimentos?entidadeTipo=tracking&entidadeId=trk-checkout-1",
+        headers: loja
+      });
+      expect(funilTracking.statusCode).toBe(200);
+      expect(funilTracking.json().movimentos).toEqual([
+        expect.objectContaining({
+          etapaAnterior: "CHECKOUT",
+          etapaNova: "PEDIDO",
+          origem: "loja_publica",
+          motivo: "Pedido criado a partir do checkout público."
+        }),
+        expect.objectContaining({
+          etapaAnterior: "WHATSAPP_CLICK",
+          etapaNova: "CHECKOUT",
+          origem: "loja_publica",
+          motivo: "Cliente iniciou checkout público."
+        }),
+        expect.objectContaining({
+          etapaAnterior: null,
+          etapaNova: "WHATSAPP_CLICK",
+          origem: "loja_publica",
+          motivo: "Cliente clicou para comprar pelo WhatsApp."
+        })
+      ]);
+
+      const funilPedido = await app.inject({
+        method: "GET",
+        url: `/funil/movimentos?entidadeTipo=pedido&entidadeId=${checkout.json().pedido.id}`,
+        headers: loja
+      });
+      expect(funilPedido.statusCode).toBe(200);
+      expect(funilPedido.json().movimentos).toEqual([
+        expect.objectContaining({
+          etapaAnterior: "PEDIDO",
+          etapaNova: "PAGAMENTO_PENDENTE",
+          origem: "checkout_site",
+          motivo: "Pedido criado pelo checkout público e aguarda pagamento."
+        }),
+        expect.objectContaining({
+          etapaAnterior: null,
+          etapaNova: "PEDIDO",
+          origem: "checkout_site",
+          motivo: "Pedido criado pelo checkout público."
+        })
+      ]);
     } finally {
       await app.close();
     }

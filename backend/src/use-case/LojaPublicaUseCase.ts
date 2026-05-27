@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import type {
   RepositorioAutenticacao,
   RepositorioEventosOperacionais,
+  RepositorioFunilComercial,
   RepositorioOportunidadesRecuperacao,
   RepositorioPecas,
   RepositorioTrackingComercial
@@ -9,6 +10,7 @@ import type {
 import { normalizarEmail, normalizarTelefone } from "../dominio/servicos/normalizarContato.js";
 import type {
   DadosPublicacaoLoja,
+  EtapaFunilComercial,
   EventoTrackingComercial,
   NegocioBizy,
   NovoEventoTrackingComercial,
@@ -141,7 +143,8 @@ export class LojaPublicaUseCase {
     private readonly pedidos: GestaoPedidosUseCase,
     private readonly afiliados?: GestaoAfiliadosUseCase,
     private readonly oportunidades?: RepositorioOportunidadesRecuperacao,
-    private readonly eventosOperacionais?: RepositorioEventosOperacionais
+    private readonly eventosOperacionais?: RepositorioEventosOperacionais,
+    private readonly funil?: RepositorioFunilComercial
   ) {}
 
   async publicarLoja(negocioId: string, dados: DadosPublicacaoLoja) {
@@ -372,6 +375,8 @@ export class LojaPublicaUseCase {
       metadata: {
         pedidoId: pedido.id,
         numero: pedido.numero,
+        estado: pedido.estado,
+        estadoPagamento: pedido.estadoPagamento,
         totalEmKwanza: pedido.totalEmKwanza,
         clienteNegocioId: cliente.id,
         referencia: dados.referencia ?? null,
@@ -504,6 +509,7 @@ export class LojaPublicaUseCase {
       negocioId: negocio.id,
       slugLoja: negocio.slugPublico
     });
+    await this.registrarMovimentosFunilTrackingSilencioso(evento);
     await this.prepararEventosServerSide(negocio, evento, {
       dados: dados.metadata?.consentimentoDados === true,
       marketing: dados.metadata?.consentimentoMarketing === true,
@@ -977,11 +983,184 @@ export class LojaPublicaUseCase {
 
   private async registrarTrackingSilencioso(dados: NovoEventoTrackingComercial): Promise<EventoTrackingComercial | null> {
     try {
-      return await this.tracking.registrarEvento(dados);
+      const evento = await this.tracking.registrarEvento(dados);
+      await this.registrarMovimentosFunilTrackingSilencioso(evento);
+      return evento;
     } catch {
       // Tracking não deve derrubar a experiência pública de compra.
       return null;
     }
+  }
+
+  private async registrarMovimentosFunilTrackingSilencioso(evento: EventoTrackingComercial): Promise<void> {
+    if (!this.funil) return;
+
+    try {
+      for (const movimento of this.movimentosFunilPorEventoTracking(evento)) {
+        await this.registrarMovimentoFunilPublico(evento.negocioId, movimento);
+      }
+    } catch {
+      // Funil operacional não deve derrubar a experiência pública de navegação ou compra.
+    }
+  }
+
+  private movimentosFunilPorEventoTracking(evento: EventoTrackingComercial): Array<{
+    entidadeTipo: string;
+    entidadeId: string;
+    etapaNova: EtapaFunilComercial;
+    motivo: string;
+    origem: string;
+    contexto: Record<string, unknown>;
+  }> {
+    const contexto = {
+      trackingEventoId: evento.id,
+      tipoEvento: evento.tipo,
+      slugLoja: evento.slugLoja,
+      codigoProduto: evento.codigoProduto,
+      trackingId: evento.trackingId,
+      origem: evento.origem,
+      canal: evento.canal,
+      utm: evento.utm,
+      metadata: evento.metadata
+    };
+    const trackingId = this.texto(evento.trackingId);
+    const movimentos: Array<{
+      entidadeTipo: string;
+      entidadeId: string;
+      etapaNova: EtapaFunilComercial;
+      motivo: string;
+      origem: string;
+      contexto: Record<string, unknown>;
+    }> = [];
+
+    if (trackingId) {
+      const etapaTracking = this.etapaTrackingPublico(evento.tipo);
+      if (etapaTracking) {
+        movimentos.push({
+          entidadeTipo: "tracking",
+          entidadeId: trackingId,
+          etapaNova: etapaTracking.etapa,
+          motivo: etapaTracking.motivo,
+          origem: "loja_publica",
+          contexto
+        });
+      }
+    }
+
+    if (evento.tipo === "PEDIDO_CRIADO" && evento.entidadeId) {
+      movimentos.push({
+        entidadeTipo: "pedido",
+        entidadeId: evento.entidadeId,
+        etapaNova: "PEDIDO",
+        motivo: "Pedido criado pelo checkout público.",
+        origem: "checkout_site",
+        contexto
+      });
+      if (evento.metadata.estadoPagamento === "PENDENTE" || evento.metadata.estado === "AGUARDANDO_PAGAMENTO") {
+        movimentos.push({
+          entidadeTipo: "pedido",
+          entidadeId: evento.entidadeId,
+          etapaNova: "PAGAMENTO_PENDENTE",
+          motivo: "Pedido criado pelo checkout público e aguarda pagamento.",
+          origem: "checkout_site",
+          contexto
+        });
+      }
+    }
+
+    if (evento.tipo === "PAGAMENTO_CONFIRMADO" && evento.entidadeId) {
+      movimentos.push({
+        entidadeTipo: "pedido",
+        entidadeId: evento.entidadeId,
+        etapaNova: "PAGO",
+        motivo: "Pagamento confirmado.",
+        origem: "checkout_site",
+        contexto
+      });
+    }
+
+    if (evento.tipo === "COMPRA_ENTREGUE" && evento.entidadeId) {
+      movimentos.push({
+        entidadeTipo: "pedido",
+        entidadeId: evento.entidadeId,
+        etapaNova: "ENTREGUE",
+        motivo: "Compra entregue ao cliente.",
+        origem: "checkout_site",
+        contexto
+      });
+    }
+
+    return movimentos;
+  }
+
+  private etapaTrackingPublico(tipo: EventoTrackingComercial["tipo"]): { etapa: EtapaFunilComercial; motivo: string } | null {
+    const mapa: Partial<Record<EventoTrackingComercial["tipo"], { etapa: EtapaFunilComercial; motivo: string }>> = {
+      LOJA_VISITADA: { etapa: "VISITA", motivo: "Cliente visitou a loja pública." },
+      CATALOGO_VISTO: { etapa: "VISITA", motivo: "Cliente visualizou catálogo público." },
+      PRODUTO_VISTO: { etapa: "PRODUTO_VISTO", motivo: "Cliente visualizou produto público." },
+      WHATSAPP_CLICK: { etapa: "WHATSAPP_CLICK", motivo: "Cliente clicou para comprar pelo WhatsApp." },
+      CHECKOUT_INICIADO: { etapa: "CHECKOUT", motivo: "Cliente iniciou checkout público." },
+      PEDIDO_CRIADO: { etapa: "PEDIDO", motivo: "Pedido criado a partir do checkout público." },
+      PAGAMENTO_CONFIRMADO: { etapa: "PAGO", motivo: "Pagamento confirmado no checkout público." },
+      COMPRA_ENTREGUE: { etapa: "ENTREGUE", motivo: "Compra entregue ao cliente." }
+    };
+
+    return mapa[tipo] ?? null;
+  }
+
+  private async registrarMovimentoFunilPublico(
+    negocioId: string,
+    movimento: {
+      entidadeTipo: string;
+      entidadeId: string;
+      etapaNova: EtapaFunilComercial;
+      motivo: string;
+      origem: string;
+      contexto: Record<string, unknown>;
+    }
+  ): Promise<void> {
+    if (!this.funil) return;
+
+    const [ultimoMovimento] = await this.funil.listarMovimentos(negocioId, {
+      entidadeTipo: movimento.entidadeTipo,
+      entidadeId: movimento.entidadeId,
+      limite: 1
+    });
+    if (!this.deveAvancarFunil(ultimoMovimento?.etapaNova ?? null, movimento.etapaNova)) return;
+
+    await this.funil.registrarMovimento({
+      negocioId,
+      entidadeTipo: movimento.entidadeTipo,
+      entidadeId: movimento.entidadeId,
+      etapaAnterior: ultimoMovimento?.etapaNova ?? null,
+      etapaNova: movimento.etapaNova,
+      motivo: movimento.motivo,
+      origem: movimento.origem,
+      contexto: movimento.contexto
+    });
+  }
+
+  private deveAvancarFunil(etapaAnterior: EtapaFunilComercial | null, etapaNova: EtapaFunilComercial): boolean {
+    if (!etapaAnterior) return true;
+    const ordem: Partial<Record<EtapaFunilComercial, number>> = {
+      VISITA: 1,
+      PRODUTO_VISTO: 2,
+      WHATSAPP_CLICK: 3,
+      LEAD: 4,
+      CONVERSA: 5,
+      CHECKOUT: 6,
+      PEDIDO: 7,
+      PAGAMENTO_PENDENTE: 8,
+      PAGO: 9,
+      PREPARACAO: 10,
+      ENTREGA: 11,
+      ENTREGUE: 12,
+      POS_VENDA: 13,
+      RECOMPRA: 14,
+      PERDIDO: 15
+    };
+
+    return (ordem[etapaNova] ?? 0) > (ordem[etapaAnterior] ?? -1);
   }
 
   private async registrarEventoOperacionalSilencioso(dados: Parameters<RepositorioEventosOperacionais["registrar"]>[0]) {

@@ -414,7 +414,8 @@ export function criarContextoAplicacao(logger: FastifyBaseLogger): ContextoAplic
     gestaoPedidos,
     gestaoAfiliados,
     repositorios.oportunidadesRecuperacao,
-    repositorios.eventosOperacionais
+    repositorios.eventosOperacionais,
+    repositorios.funilComercial
   );
 
   const publicadorEventosN8n = new PublicadorEventosN8n(eventos, {
