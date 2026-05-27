@@ -109,6 +109,25 @@ Para garantir a compra, faz o pagamento e envia o comprovativo.`
 Se ainda quiseres ficar com ela, envia o comprovativo assim que fizeres o pagamento.`
   },
   {
+    id: "comprovativo_pendente",
+    nome: "Comprovativo pendente",
+    tipo: "MANUAL_COMPROVATIVO_PENDENTE",
+    categoria: "utility",
+    idioma: "pt_AO",
+    provider: "whatsapp_cloud_api",
+    versao: 1,
+    estadoAprovacao: "aprovado",
+    eventosCompativeis: ["PAYMENT_PROOF_PENDING", "ORDER_PAYMENT_PROOF_PENDING"],
+    descricao: "Pede ao cliente para enviar o comprovativo de um pedido já criado.",
+    variaveis: ["nomeCliente", "numeroPedido", "total", "metodoPagamento"],
+    corpo: `Olá, {nomeCliente}. O pedido #{numeroPedido} ainda está sem comprovativo de pagamento.
+
+Total: {total}
+Método: {metodoPagamento}
+
+Quando terminares o pagamento, envia o comprovativo por aqui para confirmarmos.`
+  },
+  {
     id: "pagamento_confirmado",
     nome: "Pagamento confirmado",
     tipo: "MANUAL_PAGAMENTO_CONFIRMADO",

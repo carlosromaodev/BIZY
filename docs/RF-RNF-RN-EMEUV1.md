@@ -132,6 +132,8 @@ Atualização 1.56: Pedidos passaram a permitir atualização dos itens antes da
 
 Atualização 1.57: Requisitos de desconto, APIs completas de pedido e auditoria crítica foram reconciliados no MD: motivo obrigatório, limite configurável, aprovação por perfil, comprovativos, origem comercial e diff auditável já estão cobertos no backend.
 
+Atualização 1.58: Catálogo WhatsApp de cobrança passou a incluir template aprovado de utilidade para pedir comprovativo pendente, fechando o fluxo mínimo de pagamento, lembrete, comprovativo pendente e pagamento confirmado.
+
 ---
 
 ## 2. Legenda
@@ -384,7 +386,7 @@ Esta etapa transforma o Bizy de painel de live em CRM operacional para lojas que
 | RF98 | [~] O vendedor deve criar pedido manual fora da live a partir do cliente ou da conversa. | Alta | Parcial - API manual implementada a partir do cliente; falta ação direta na conversa/UI |
 | RF99 | [x] O pedido deve suportar múltiplos itens, ajuste de quantidade, remoção de item e validação de stock antes de confirmar. | Alta | Implementado - criação e atualização de itens por `PATCH /pedidos/:id/itens`, com recálculo financeiro, remoção por omissão e stock validado antes do pagamento |
 | RF100 | [~] O CRM deve ter funil de pedidos com estados: novo, aguardando pagamento, pago, em preparação, pronto para entrega, enviado, entregue, cancelado, trocado e devolvido. | Alta | Parcial - estados de funil suportados no backend; falta UI kanban/lista operacional |
-| RF101 | [~] O sistema deve permitir cobrança por WhatsApp com templates de pagamento, lembrete, comprovativo pendente e pagamento confirmado. | Alta | Parcial - templates utilidade e envio pela conversa cobrem pagamento/lembrete/confirmação; falta biblioteca completa de comprovativo pendente por negócio |
+| RF101 | [x] O sistema deve permitir cobrança por WhatsApp com templates de pagamento, lembrete, comprovativo pendente e pagamento confirmado. | Alta | Implementado - catálogo interno aprovado cobre dados de pagamento, lembrete, pedido de comprovativo pendente e confirmação de pagamento com política WhatsApp de utilidade |
 | RF102 | [~] O pedido deve anexar comprovativos, recibos, notas de pagamento e histórico de aprovação/rejeição. | Alta | Parcial - comprovativo/observação de pagamento no pedido; faltam recibos e trilha detalhada de aprovação/rejeição |
 | RF103 | [x] O vendedor deve poder aplicar desconto apenas com motivo obrigatório e auditoria. | Média | Implementado - motivo obrigatório, limite configurável por negócio, aprovação por perfil autorizado e auditoria crítica de desconto |
 | RF104 | [x] O CRM deve registrar endereço de entrega por pedido e permitir reutilizar endereços salvos do cliente. | Alta | Implementado no backend com agenda de endereços do Cliente 360 e criação de pedido por `enderecoEntregaId` |

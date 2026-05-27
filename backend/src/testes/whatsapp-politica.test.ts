@@ -87,6 +87,29 @@ describe("política WhatsApp por categoria oficial", () => {
     );
   });
 
+  it("expõe template aprovado para pedir comprovativo pendente", () => {
+    const automacao = new AutomacaoWhatsApp(new ProvedorWhatsAppCaptura(), new DespachadorEventos(), 10);
+
+    const templates = automacao.listarTemplates({
+      categoria: "utility",
+      evento: "PAYMENT_PROOF_PENDING",
+      provider: "whatsapp_cloud_api",
+      apenasAprovados: true
+    });
+
+    expect(templates).toEqual([
+      expect.objectContaining({
+        id: "comprovativo_pendente",
+        categoria: "utility",
+        idioma: "pt_AO",
+        provider: "whatsapp_cloud_api",
+        versao: 1,
+        estadoAprovacao: "aprovado",
+        eventosCompativeis: expect.arrayContaining(["PAYMENT_PROOF_PENDING"])
+      })
+    ]);
+  });
+
   it("classifica texto livre manual como serviço quando a janela de atendimento está ativa", async () => {
     const provedor = new ProvedorWhatsAppCaptura();
     const automacao = new AutomacaoWhatsApp(provedor, new DespachadorEventos(), 10);
