@@ -1,7 +1,7 @@
 # Bizy / ÉMeu V1 - Requisitos Funcionais, Não Funcionais e Regras de Negócio
 
 Documento: `RF-RNF-RN-EMEUV1.md`
-Versão: 1.84
+Versão: 1.85
 Data: 2026-05-26
 Autor: Carlos
 Status: MVP base implementado; fundação backend Bizy CRM+ com Clientes 360, Pedidos, Catálogo/Stock, Loja Pública, Vitrine Pública, Checkout, Entrega, Afiliados, Criadores, Revendedores, Mini-lojas Públicas, Comissões, Atribuição Comercial, Lotes Financeiros, Campanhas, Governança, Jobs, Eventos Operacionais, eventos server-side preparados, Inbox Comercial, SLA, Social Inbox seguro, transferência operacional, política WhatsApp, descontos aprováveis, carrinho abandonado, antifraude de afiliados, anonimização, SEO público, logs operacionais, navegação comercial, busca global, auditoria de exportações comerciais e painel diário em evolução
@@ -185,6 +185,8 @@ Atualização 1.82: Afiliados/criadores passaram a suportar regras de comissão 
 Atualização 1.83: Templates WhatsApp do negócio passaram a ter ciclo de vida operacional com motivo obrigatório para rejeição, pausa, substituição ou descontinuação; estados finais desativam o template e impedem uso em campanhas.
 
 Atualização 1.84: Resumo de afiliados/criadores passou a expor receita atribuída, pedidos pagos, ticket médio e comissão pendente no ranking, deixando o backend mais pronto para painel operacional de parcerias.
+
+Atualização 1.85: Links de afiliados/criadores passaram a suportar destino comercial genérico e metadata operacional, permitindo rastrear campanhas, vendedor, post social, live e UTMs sem criar um link diferente para cada canal.
 
 ---
 
@@ -556,8 +558,8 @@ Esta etapa posiciona o Bizy como uma plataforma de operação comercial para cri
 
 | ID | Requisito Funcional | Prioridade | Estado |
 |---|---|---|---|
-| RF175 | [~] O sistema deve gerar links rastreáveis para produto, catálogo, campanha, afiliado, criador, vendedor, post social e live. | Alta | Parcial - loja/produto, clique WhatsApp e links de produto por afiliado/criador implementados; faltam catálogo selecionável, campanha, vendedor, post e live |
-| RF176 | [~] Links rastreáveis devem suportar UTM, código de referência, canal, campanha, criador, afiliado, vendedor e origem do conteúdo. | Alta | Parcial - UTM, canal, origem, trackingId, `ref` e entidade de afiliado/criador implementados; faltam campanha e vendedor |
+| RF175 | [~] O sistema deve gerar links rastreáveis para produto, catálogo, campanha, afiliado, criador, vendedor, post social e live. | Alta | Parcial - loja/produto, clique WhatsApp e links de produto/campanha por afiliado/criador com contexto de vendedor, post social, live e UTMs implementados; faltam catálogo selecionável e UI de criação por canal |
+| RF176 | [~] Links rastreáveis devem suportar UTM, código de referência, canal, campanha, criador, afiliado, vendedor e origem do conteúdo. | Alta | Parcial - UTM, canal, origem, trackingId, `ref`, campanha, vendedor e entidade de afiliado/criador implementados; falta consolidar relatórios por vendedor/campanha na UI |
 | RF177 | [~] O tracking deve associar visita anônima a lead, WhatsApp click, checkout ou pedido quando o cliente se identificar e houver base de consentimento aplicável. | Alta | Parcial - checkout associa trackingId/referência ao cliente/pedido quando há contacto e o funil preserva a jornada anônima até o pedido; falta associação retroativa de lead/conversa fora do checkout |
 | RF178 | [~] O sistema deve registrar eventos como página vista, produto visto, catálogo visto, clique WhatsApp, checkout iniciado, pedido criado, pagamento confirmado e compra entregue. | Alta | Parcial - loja visitada, catálogo visto, produto visto, clique WhatsApp, checkout iniciado, pedido criado, pagamento confirmado e compra entregue são aceites no tracking e os módulos de pedido/entrega agora movem o funil automaticamente; faltam webhooks financeiros/logísticos externos |
 | RF179 | [~] O dono do negócio deve ver conversão por link, produto, campanha, afiliado, criador, rede social e canal de venda. | Alta | Parcial - resumo por tipo/origem/canal, afiliados/comissões e social-receita implementados; faltam receita por campanha, ticket médio e conversão completa |
@@ -573,7 +575,7 @@ Esta etapa posiciona o Bizy como uma plataforma de operação comercial para cri
 |---|---|---|---|
 | RF185 | [x] O dono do negócio deve poder criar perfis de afiliado/criador com código, nome público, contacto, comissão, método de pagamento e estado. | Alta | Implementado no backend |
 | RF186 | [~] Produtos, coleções e catálogos devem poder ser associados a afiliados, criadores ou revendedores específicos. | Alta | Parcial - links rastreáveis já associam afiliado/criador/revendedor a produto específico e alimentam mini-loja pública autorizada; faltam coleções/catálogos autorizados |
-| RF187 | [~] Cada afiliado deve ter links rastreáveis próprios para produtos, catálogos e campanhas. | Alta | Parcial - links próprios para produto e loja/mini-loja implementados; faltam catálogos e campanhas |
+| RF187 | [~] Cada afiliado deve ter links rastreáveis próprios para produtos, catálogos e campanhas. | Alta | Parcial - links próprios para produto, loja/mini-loja e campanha implementados com metadata comercial; faltam catálogos selecionáveis |
 | RF188 | [~] O afiliado deve ter painel ou relatório com cliques, leads, pedidos, vendas pagas, conversão e comissão estimada. | Média | Parcial - API de comissões e resumo por afiliado implementada com valores estimados, confirmados, pagos e revertidos; faltam cliques/leads por link e UI própria do afiliado |
 | RF189 | [~] O dono do negócio deve ver ranking de afiliados/criadores por receita, pedidos pagos, conversão, ticket médio e comissões pendentes. | Alta | Parcial - ranking por pedidos atribuídos, pedidos pagos, receita atribuída, ticket médio, comissão confirmada, pendente e paga implementado; faltam conversão por clique/lead, receita líquida e recortes por período |
 | RF190 | [~] Regras de comissão devem suportar percentual, valor fixo, comissão por produto, por coleção, por campanha e por meta alcançada. | Alta | Parcial - percentual, valor fixo por parceiro e regra por produto implementados; faltam regras por coleção, campanha e meta |

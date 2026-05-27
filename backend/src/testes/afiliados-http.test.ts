@@ -354,6 +354,93 @@ describe("afiliados, criadores e comissões HTTP", () => {
     }
   });
 
+  it("cria link de campanha com contexto comercial para vendedor, post social e live", async () => {
+    const app = await criarAplicacao();
+
+    try {
+      const loja = await autenticar(app, "923600061", "Loja Campanhas Afiliadas");
+
+      const afiliado = await app.inject({
+        method: "POST",
+        url: "/afiliados",
+        headers: loja,
+        payload: {
+          tipo: "CRIADOR",
+          codigo: "maya-camp",
+          nomePublico: "Maya Campanhas",
+          contacto: "923700061",
+          metodoPagamento: { iban: "AO06000000000000000000061" },
+          regraComissao: {
+            tipo: "PERCENTUAL",
+            percentual: 8
+          }
+        }
+      });
+      expect(afiliado.statusCode).toBe(201);
+
+      const link = await app.inject({
+        method: "POST",
+        url: `/afiliados/${afiliado.json().id}/links`,
+        headers: loja,
+        payload: {
+          codigo: "MAYA-CAMP-01",
+          destinoTipo: "CAMPANHA",
+          destinoId: "campanha-inverno-2026",
+          slugLoja: "loja-maya",
+          canal: "instagram",
+          origemConteudo: "reel-look-inverno",
+          metadata: {
+            vendedorId: "vend-ana",
+            postSocialId: "ig-post-991",
+            liveId: "live-maio-01",
+            utmSource: "instagram",
+            utmCampaign: "inverno-2026"
+          }
+        }
+      });
+
+      expect(link.statusCode).toBe(201);
+      expect(link.json()).toEqual(
+        expect.objectContaining({
+          codigo: "MAYA-CAMP-01",
+          destinoTipo: "CAMPANHA",
+          destinoId: "campanha-inverno-2026",
+          metadata: expect.objectContaining({
+            vendedorId: "vend-ana",
+            postSocialId: "ig-post-991",
+            liveId: "live-maio-01",
+            utmCampaign: "inverno-2026"
+          }),
+          urlPublica: expect.stringContaining("campanha=campanha-inverno-2026")
+        })
+      );
+      expect(link.json().urlPublica).toContain("vendedor=vend-ana");
+      expect(link.json().urlPublica).toContain("post=ig-post-991");
+      expect(link.json().urlPublica).toContain("live=live-maio-01");
+
+      const publico = await app.inject({
+        method: "GET",
+        url: "/publico/links/MAYA-CAMP-01"
+      });
+      expect(publico.statusCode).toBe(200);
+      expect(publico.json().destino).toEqual(
+        expect.objectContaining({
+          tipo: "CAMPANHA",
+          destinoId: "campanha-inverno-2026",
+          canal: "instagram",
+          origemConteudo: "reel-look-inverno",
+          metadata: expect.objectContaining({
+            vendedorId: "vend-ana",
+            postSocialId: "ig-post-991",
+            liveId: "live-maio-01"
+          })
+        })
+      );
+    } finally {
+      await app.close();
+    }
+  });
+
   it("preserva atribuição de afiliado no checkout por WhatsApp antes de existir pedido", async () => {
     const app = await criarAplicacao();
 

@@ -814,10 +814,12 @@ model LinkAfiliado {
   afiliado        ParceiroComercial   @relation(fields: [afiliadoId], references: [id])
   codigo          String              @unique
   destinoTipo     String
+  destinoId       String?
   slugLoja        String?
   codigoProduto   String?
   canal           String?
   origemConteudo  String?
+  metadataJson    String              @default("{}")
   ativo           Boolean             @default(true)
   expiraEm        DateTime?
   criadoEm        DateTime            @default(now())
@@ -826,6 +828,7 @@ model LinkAfiliado {
 
   @@index([negocioId, afiliadoId])
   @@index([negocioId, ativo])
+  @@index([negocioId, destinoTipo, destinoId])
   @@index([slugLoja, codigoProduto])
 }
 

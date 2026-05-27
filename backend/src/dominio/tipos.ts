@@ -2079,10 +2079,12 @@ export interface LinkAfiliado {
   afiliadoId: string;
   codigo: string;
   destinoTipo: "LOJA" | "PRODUTO" | "CAMPANHA" | string;
+  destinoId: string | null;
   slugLoja: string | null;
   codigoProduto: string | null;
   canal: string | null;
   origemConteudo: string | null;
+  metadata: Record<string, unknown>;
   ativo: boolean;
   expiraEm: Date | null;
   criadoEm: Date;
@@ -2094,10 +2096,12 @@ export interface NovoLinkAfiliado {
   afiliadoId: string;
   codigo: string;
   destinoTipo: "LOJA" | "PRODUTO" | "CAMPANHA" | string;
+  destinoId?: string | null;
   slugLoja?: string | null;
   codigoProduto?: string | null;
   canal?: string | null;
   origemConteudo?: string | null;
+  metadata?: Record<string, unknown>;
   ativo?: boolean;
   expiraEm?: Date | null;
 }

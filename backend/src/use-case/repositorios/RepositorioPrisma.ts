@@ -1127,10 +1127,12 @@ export class RepositorioAfiliadosPrisma implements RepositorioAfiliados {
         afiliadoId: dados.afiliadoId,
         codigo: this.normalizarCodigo(dados.codigo),
         destinoTipo: dados.destinoTipo,
+        destinoId: dados.destinoId ?? null,
         slugLoja: dados.slugLoja ?? null,
         codigoProduto: dados.codigoProduto ? this.normalizarCodigo(dados.codigoProduto) : null,
         canal: dados.canal ?? null,
         origemConteudo: dados.origemConteudo ?? null,
+        metadataJson: JSON.stringify(dados.metadata ?? {}),
         ativo: dados.ativo ?? true,
         expiraEm: dados.expiraEm ?? null
       }
@@ -1545,16 +1547,19 @@ export class RepositorioAfiliadosPrisma implements RepositorioAfiliados {
     afiliadoId: string;
     codigo: string;
     destinoTipo: string;
+    destinoId: string | null;
     slugLoja: string | null;
     codigoProduto: string | null;
     canal: string | null;
     origemConteudo: string | null;
+    metadataJson: string;
     ativo: boolean;
     expiraEm: Date | null;
     criadoEm: Date;
     atualizadoEm: Date;
   }): LinkAfiliado {
-    return { ...link };
+    const { metadataJson, ...restante } = link;
+    return { ...restante, metadata: this.lerObjeto(metadataJson) };
   }
 
   private mapearComissao(comissao: {

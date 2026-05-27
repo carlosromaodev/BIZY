@@ -446,10 +446,12 @@ export const CriarLinkAfiliadoSchema = z.object({
       message: "Use um código com letras, números, hífen ou underscore."
     }),
   destinoTipo: z.string().trim().min(2).max(40).transform((valor) => valor.toUpperCase()),
+  destinoId: TextoCatalogoOpcionalSchema,
   slugLoja: TextoCatalogoOpcionalSchema,
   codigoProduto: TextoCatalogoOpcionalSchema.transform((valor) => valor?.toUpperCase() ?? null),
   canal: TextoCatalogoOpcionalSchema,
   origemConteudo: TextoCatalogoOpcionalSchema,
+  metadata: z.record(z.string(), z.unknown()).default({}),
   ativo: z.boolean().default(true),
   expiraEm: z.coerce.date().nullable().optional().transform((valor) => valor ?? null)
 });
