@@ -260,6 +260,76 @@ describe("CRM+ governança, campanhas, eventos e jobs", () => {
     }
   });
 
+  it("desativa template substituído ou descontinuado e exige motivo operacional", async () => {
+    const app = await criarAplicacao();
+
+    try {
+      const headers = await autenticar(app, "923771006", "Loja Ciclo Template");
+
+      const template = await app.inject({
+        method: "POST",
+        url: "/whatsapp/templates",
+        headers,
+        payload: {
+          nome: "Campanha Antiga",
+          categoria: "marketing",
+          idioma: "pt_AO",
+          provider: "whatsapp_cloud_api",
+          corpo: "Olá, {nomeCliente}. Temos novidades.",
+          variaveis: ["nomeCliente"],
+          eventosCompativeis: ["CAMPAIGN_BROADCAST"],
+          estadoAprovacao: "aprovado"
+        }
+      });
+      expect(template.statusCode).toBe(201);
+
+      const semMotivo = await app.inject({
+        method: "PATCH",
+        url: `/whatsapp/templates/${template.json().template.id}`,
+        headers,
+        payload: {
+          estadoAprovacao: "substituido"
+        }
+      });
+      expect(semMotivo.statusCode).toBe(400);
+      expect(semMotivo.json().mensagem).toContain("motivo");
+
+      const substituido = await app.inject({
+        method: "PATCH",
+        url: `/whatsapp/templates/${template.json().template.id}`,
+        headers,
+        payload: {
+          estadoAprovacao: "substituido",
+          motivo: "Texto substituído por versão aprovada com nova oferta."
+        }
+      });
+      expect(substituido.statusCode).toBe(200);
+      expect(substituido.json().template).toEqual(
+        expect.objectContaining({
+          estadoAprovacao: "substituido",
+          ativo: false,
+          motivoUltimaAlteracao: "Texto substituído por versão aprovada com nova oferta."
+        })
+      );
+
+      const aprovados = await app.inject({
+        method: "GET",
+        url: "/whatsapp/templates?apenasAprovados=true",
+        headers
+      });
+      expect(aprovados.statusCode).toBe(200);
+      expect(aprovados.json().templates).not.toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            id: template.json().template.id
+          })
+        ])
+      );
+    } finally {
+      await app.close();
+    }
+  });
+
   it("gere membros, papéis, eventos idempotentes e jobs de importação com relatório", async () => {
     const app = await criarAplicacao();
 

@@ -1,7 +1,7 @@
 # Bizy / ÉMeu V1 - Requisitos Funcionais, Não Funcionais e Regras de Negócio
 
 Documento: `RF-RNF-RN-EMEUV1.md`
-Versão: 1.82
+Versão: 1.83
 Data: 2026-05-26
 Autor: Carlos
 Status: MVP base implementado; fundação backend Bizy CRM+ com Clientes 360, Pedidos, Catálogo/Stock, Loja Pública, Vitrine Pública, Checkout, Entrega, Afiliados, Criadores, Revendedores, Mini-lojas Públicas, Comissões, Atribuição Comercial, Lotes Financeiros, Campanhas, Governança, Jobs, Eventos Operacionais, eventos server-side preparados, Inbox Comercial, SLA, Social Inbox seguro, transferência operacional, política WhatsApp, descontos aprováveis, carrinho abandonado, antifraude de afiliados, anonimização, SEO público, logs operacionais, navegação comercial, busca global, auditoria de exportações comerciais e painel diário em evolução
@@ -181,6 +181,8 @@ Atualização 1.80: Checkout público por WhatsApp passou a resolver referência
 Atualização 1.81: Entrega pública passou a aceitar `ORCAMENTO`, permitindo checkout WhatsApp/site sem bloquear compra quando a taxa precisa de validação humana; o total fica sem taxa automática e a mensagem ao cliente informa que a equipa confirma o valor antes do pagamento.
 
 Atualização 1.82: Afiliados/criadores passaram a suportar regras de comissão específicas por produto, preservando a regra no cadastro do parceiro e calculando a comissão por item do pedido antes de aplicar a regra geral do parceiro.
+
+Atualização 1.83: Templates WhatsApp do negócio passaram a ter ciclo de vida operacional com motivo obrigatório para rejeição, pausa, substituição ou descontinuação; estados finais desativam o template e impedem uso em campanhas.
 
 ---
 
@@ -626,7 +628,7 @@ Esta etapa posiciona o Bizy como uma plataforma de operação comercial para cri
 | RF226 | [~] Se a categoria ou template necessário não estiver configurado/aprovado, o sistema deve criar tarefa humana e não tentar envio inseguro. | Alta | Parcial - envio manual bloqueia templates não aprovados e cria tarefa humana; campanhas rejeitam template não aprovado; faltam tarefas automáticas para todos os eventos |
 | RF227 | [~] Logs de mensagem devem guardar categoria, template, preço/categoria vigente quando disponível, resposta do provider, erro e estado final. | Alta | Parcial - mensagens/outbox guardam categoria, template, política, resposta/erro e estado; falta preço vigente oficial por categoria |
 | RF228 | [~] A escolha de categoria deve ser configurável por tipo de evento, mas limitada por um motor de política para evitar uso indevido. | Alta | Parcial - templates/campanhas/manual passam pelo motor de política; falta tela de configuração por evento para todos os fluxos |
-| RF229 | [~] Templates WhatsApp devem ter ciclo de vida: rascunho, enviado para aprovação, aprovado, rejeitado, pausado, substituído e descontinuado. | Média | Parcial - backend persiste templates por negócio com estado, versão, ativo e motivo; faltam estados formais de substituído/descontinuado e sync oficial |
+| RF229 | [x] Templates WhatsApp devem ter ciclo de vida: rascunho, enviado para aprovação, aprovado, rejeitado, pausado, substituído e descontinuado. | Média | Implementado no backend com estados formais, versão, ativo, motivo obrigatório para estados sensíveis e bloqueio de uso quando desativado |
 | RF230 | [ ] As regras de categoria WhatsApp devem seguir a documentação oficial vigente do provider escolhido e ser revistas periodicamente. | Alta | Processo |
 
 #### 3.14.9 Flexibilidade Operacional e Modularidade

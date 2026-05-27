@@ -8,6 +8,7 @@ import { PoliticaMensagensWhatsApp } from "../dominio/servicos/PoliticaMensagens
 import type {
   CampanhaCrm,
   Cliente360,
+  EstadoAprovacaoTemplateWhatsApp,
   EstadoCampanhaCrm,
   FiltrosCampanhasCrm,
   MetricasCampanhaCrm,
@@ -78,10 +79,18 @@ export class GestaoCampanhasCrmUseCase {
     negocioId: string,
     dados: Parameters<RepositorioTemplatesWhatsApp["atualizar"]>[2]
   ) {
-    const template = await this.templates.atualizar(id, negocioId, {
-      ...dados,
-      motivoUltimaAlteracao: dados.motivoUltimaAlteracao ?? dados.motivoUltimaAlteracao
-    });
+    this.validarTransicaoTemplate(dados);
+    const atualizacoes = { ...dados };
+    if (this.estadoDesativaTemplate(dados.estadoAprovacao)) {
+      atualizacoes.ativo = false;
+    } else if (dados.ativo === undefined) {
+      delete atualizacoes.ativo;
+    }
+    if (dados.motivoUltimaAlteracao === undefined) {
+      delete atualizacoes.motivoUltimaAlteracao;
+    }
+
+    const template = await this.templates.atualizar(id, negocioId, atualizacoes);
     if (!template) throw new Error(`Template WhatsApp ${id} não encontrado.`);
     return template;
   }
@@ -259,6 +268,21 @@ export class GestaoCampanhasCrmUseCase {
       throw new Error(`Template WhatsApp ${template.nome} não está aprovado para disparo.`);
     }
     return template;
+  }
+
+  private validarTransicaoTemplate(dados: Parameters<RepositorioTemplatesWhatsApp["atualizar"]>[2]): void {
+    if (!dados.estadoAprovacao || !this.estadoExigeMotivo(dados.estadoAprovacao)) return;
+    if (!dados.motivoUltimaAlteracao?.trim()) {
+      throw new Error("Template WhatsApp não pode ser rejeitado, pausado, substituído ou descontinuado sem motivo.");
+    }
+  }
+
+  private estadoExigeMotivo(estado: EstadoAprovacaoTemplateWhatsApp): boolean {
+    return ["rejeitado", "pausado", "substituido", "descontinuado"].includes(estado);
+  }
+
+  private estadoDesativaTemplate(estado?: EstadoAprovacaoTemplateWhatsApp): boolean {
+    return estado ? ["rejeitado", "pausado", "substituido", "descontinuado"].includes(estado) : false;
   }
 
   private async prepararDestinatarios(campanha: CampanhaCrm, template: TemplateWhatsAppNegocio) {
