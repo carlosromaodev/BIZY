@@ -140,6 +140,8 @@ Atualização 1.60: Loja pública passou a aceitar busca e filtros de produto no
 
 Atualização 1.61: Social Inbox passou a aceitar importação CSV para fallback operacional quando o provider social não liberar extração automática, com relatório de criados, duplicados e erros por linha.
 
+Atualização 1.62: Checkout público do site passou a exigir consentimento de dados antes de confirmar o pedido, mantendo compra sem conta, mas com contacto validável e aceite mínimo.
+
 ---
 
 ## 2. Legenda
@@ -499,7 +501,7 @@ Esta etapa posiciona o Bizy como uma plataforma de operação comercial para cri
 | RF166 | [~] O checkout pelo site deve criar pedido/carrinho com dados do cliente, itens, entrega, pagamento e origem comercial. | Alta | Parcial - endpoint público cria cliente e pedido com itens, entrega e origem; faltam carrinho persistente e etapa de pagamento no site |
 | RF167 | [~] O sistema deve calcular entrega por zona, município, bairro, tabela manual, retirada na loja ou regra de entrega grátis acima de valor configurado. | Alta | Parcial - cálculo por zona/bairro/município, taxa padrão, retirada e entrega grátis implementado; falta orçamento humano |
 | RF168 | [~] O total do pedido deve calcular itens, descontos, entrega, taxas e valor final antes da confirmação. | Alta | Parcial - checkout público calcula itens e entrega antes da confirmação; faltam descontos/taxas públicas configuráveis |
-| RF169 | [~] O cliente deve poder iniciar compra sem criar conta, mas a confirmação do pedido deve exigir contacto validável e aceite das condições necessárias. | Alta | Parcial - checkout público cria pedido sem conta e exige telefone ou email; faltam aceite formal de termos/políticas |
+| RF169 | [x] O cliente deve poder iniciar compra sem criar conta, mas a confirmação do pedido deve exigir contacto validável e aceite das condições necessárias. | Alta | Implementado no backend: checkout público não exige conta, mas exige telefone ou email e consentimento de dados antes de criar cliente/pedido |
 | RF170 | [x] Checkout abandonado deve criar lead/oportunidade recuperável, respeitando consentimento e regras do canal. | Alta | Implementado no backend público com consentimento, cliente CRM, tracking técnico, oportunidade `CARRINHO_ABANDONADO` e deduplicação |
 | RF171 | [~] A conversa deve permitir gerar orçamento/manual quote com produtos, entrega e validade. | Média | Parcial - backend gera orçamento/manual quote com validade; falta ação embutida diretamente na conversa/UI |
 | RF172 | [~] Pedidos vindos de live, WhatsApp, site, catálogo, afiliado ou comentário social devem alimentar a mesma entidade comercial de pedido/funil. | Alta | Parcial - pedidos manuais, checkout site e checkout atribuído por afiliado alimentam a entidade Pedido; faltam social e conversão automática de reserva/live |

@@ -291,6 +291,9 @@ export const CriarCheckoutSitePublicoSchema = CalcularEntregaPublicaSchema.exten
     })
     .refine((dados) => Boolean(dados.telefone || dados.email), {
       message: "Informe telefone ou email para confirmar o pedido."
+    })
+    .refine((dados) => dados.consentimentoDados, {
+      message: "Consentimento de dados é obrigatório para confirmar o pedido."
     }),
   trackingId: z.string().trim().min(1).max(160).nullable().optional().transform((valor) => valor ?? null),
   referencia: z.string().trim().min(1).max(120).nullable().optional().transform((valor) => valor ?? null),

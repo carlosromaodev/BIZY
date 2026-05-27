@@ -408,6 +408,26 @@ describe("loja pública, catálogo digital e tracking HTTP", () => {
       expect(whatsapp.json().mensagem).toContain("Entrega estimada: 1 500 Kz");
       expect(whatsapp.json().mensagem).toContain("Total estimado: 26 500 Kz");
 
+      const checkoutSemConsentimento = await app.inject({
+        method: "POST",
+        url: "/publico/lojas/loja-checkout/checkout",
+        payload: {
+          cliente: {
+            nome: "Cliente Sem Aceite",
+            telefone: "923555667",
+            consentimentoDados: false,
+            consentimentoMarketing: false
+          },
+          itens: [{ codigoPeca: "C1", quantidade: 1 }],
+          entrega: {
+            tipo: "RETIRADA"
+          },
+          origem: "loja-publica"
+        }
+      });
+      expect(checkoutSemConsentimento.statusCode).toBe(400);
+      expect(JSON.stringify(checkoutSemConsentimento.json())).toContain("Consentimento de dados");
+
       const checkout = await app.inject({
         method: "POST",
         url: "/publico/lojas/loja-checkout/checkout",
