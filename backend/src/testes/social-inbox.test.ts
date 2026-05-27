@@ -114,6 +114,48 @@ describe("Social Inbox CRM+", () => {
           intencao: "COMPRA"
         })
       );
+
+      const conversas = await app.inject({
+        method: "GET",
+        url: "/atendimento/conversas",
+        headers
+      });
+
+      expect(conversas.statusCode).toBe(200);
+      expect(conversas.json().conversas).toEqual([
+        expect.objectContaining({
+          telefone: "923456701",
+          nomeCliente: "Cliente VIP",
+          mensagens: expect.arrayContaining([
+            expect.objectContaining({
+              origem: "social_inbox",
+              conteudo: "Quero comprar o vestido 01, meu WhatsApp é 923456701",
+              contexto: expect.objectContaining({
+                socialInboxItemId: criado.json().item.id,
+                postId: "post_look_001"
+              })
+            })
+          ])
+        })
+      ]);
+
+      const oportunidades = await app.inject({
+        method: "GET",
+        url: "/recuperacao/oportunidades?gatilho=SOCIAL_LEAD&estado=ABERTA",
+        headers
+      });
+
+      expect(oportunidades.statusCode).toBe(200);
+      expect(oportunidades.json().oportunidades).toEqual([
+        expect.objectContaining({
+          gatilho: "SOCIAL_LEAD",
+          entidadeTipo: "social_inbox_item",
+          entidadeId: criado.json().item.id,
+          clienteTelefone: "923456701",
+          tarefaId: tarefas.json().tarefas[0].id,
+          motivo: "Lead social com intenção comercial exige acompanhamento."
+        })
+      ]);
     } finally {
       await app.close();
     }

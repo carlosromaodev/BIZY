@@ -324,7 +324,9 @@ export function criarContextoAplicacao(logger: FastifyBaseLogger): ContextoAplic
   const gestaoSocialInbox = new GestaoSocialInboxUseCase(
     repositorios.socialInbox,
     repositorios.tarefas,
-    repositorios.autenticacao
+    repositorios.autenticacao,
+    repositorios.atendimento,
+    repositorios.oportunidadesRecuperacao
   );
   const gestaoPlaybooksRecuperacao = new GestaoPlaybooksRecuperacaoUseCase(
     repositorios.playbooksRecuperacao,

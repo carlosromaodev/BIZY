@@ -1,5 +1,7 @@
 import type {
   RepositorioAutenticacao,
+  RepositorioAtendimento,
+  RepositorioOportunidadesRecuperacao,
   RepositorioSocialInbox,
   RepositorioTarefasOperacionais
 } from "../dominio/repositorios/contratos.js";
@@ -10,6 +12,7 @@ import {
   type EstadoSocialInbox,
   type FiltrosSocialInbox,
   type IntencaoSocialInbox,
+  type TarefaOperacional,
   type NegocioBizy,
   type NovoSocialInboxItem,
   type SocialInboxItem,
@@ -166,7 +169,9 @@ export class GestaoSocialInboxUseCase {
   constructor(
     private readonly socialInbox: RepositorioSocialInbox,
     private readonly tarefas: RepositorioTarefasOperacionais,
-    private readonly autenticacao: RepositorioAutenticacao
+    private readonly autenticacao: RepositorioAutenticacao,
+    private readonly atendimento: RepositorioAtendimento,
+    private readonly oportunidades: RepositorioOportunidadesRecuperacao
   ) {}
 
   listarProvidersAutorizados() {
@@ -301,8 +306,10 @@ export class GestaoSocialInboxUseCase {
       contexto
     });
 
+    let tarefaLead: TarefaOperacional | null = null;
+
     if (this.deveCriarTarefaLead(item)) {
-      await this.tarefas.criar({
+      tarefaLead = await this.tarefas.criar({
         negocioId: item.negocioId,
         tipo: "SOCIAL_LEAD_REVIEW",
         titulo: `Responder lead do ${this.nomeCanal(item.canal)}`,
@@ -325,6 +332,9 @@ export class GestaoSocialInboxUseCase {
         }
       });
     }
+
+    await this.sincronizarAtendimentoSocial(item);
+    await this.criarOportunidadeSocial(item, tarefaLead);
 
     if (this.deveCriarTarefaHumana(item)) {
       await this.tarefas.criar({
@@ -398,6 +408,66 @@ export class GestaoSocialInboxUseCase {
       erros: linhas.filter((linha) => linha.status === "ERRO").length,
       linhas
     };
+  }
+
+  private async sincronizarAtendimentoSocial(item: SocialInboxItem): Promise<void> {
+    if (!item.clienteTelefone) return;
+
+    await this.atendimento.registrarMensagem({
+      negocioId: item.negocioId,
+      telefone: item.clienteTelefone,
+      nomeCliente: item.autorNome,
+      usernameCliente: item.autorUsername,
+      userIdCliente: item.autorId,
+      avatarUrlCliente: item.autorAvatarUrl,
+      direcao: "INBOUND",
+      remetente: "cliente",
+      canal: item.canal,
+      tipo: "SOCIAL_INBOX",
+      conteudo: item.texto,
+      provider: item.provider,
+      providerMessageId: this.extrairIdentificadorProvider(item.contexto) ?? item.id,
+      status: "RECEIVED",
+      origem: "social_inbox",
+      contexto: {
+        socialInboxItemId: item.id,
+        nomeCliente: item.autorNome,
+        postId: item.postId,
+        postUrl: item.postUrl,
+        intencao: item.intencao,
+        confianca: item.confianca,
+        autorId: item.autorId,
+        autorUsername: item.autorUsername,
+        entidades: item.entidades,
+        contextoSocial: item.contexto
+      },
+      enviadaEm: item.criadoEm
+    });
+  }
+
+  private async criarOportunidadeSocial(item: SocialInboxItem, tarefaLead: TarefaOperacional | null): Promise<void> {
+    if (!this.deveCriarOportunidadeSocial(item)) return;
+
+    await this.oportunidades.criar({
+      negocioId: item.negocioId,
+      gatilho: "SOCIAL_LEAD",
+      estado: "ABERTA",
+      entidadeTipo: "social_inbox_item",
+      entidadeId: item.id,
+      clienteTelefone: item.clienteTelefone,
+      tarefaId: tarefaLead?.id ?? null,
+      motivo: "Lead social com intenção comercial exige acompanhamento.",
+      contexto: {
+        canal: item.canal,
+        provider: item.provider,
+        postId: item.postId,
+        postUrl: item.postUrl,
+        intencao: item.intencao,
+        confianca: item.confianca,
+        autorUsername: item.autorUsername,
+        entidades: item.entidades
+      }
+    });
   }
 
   private mapearLinhaImportacao(negocioId: string, linha: Record<string, string>): NovoSocialInboxItem {
@@ -621,6 +691,19 @@ export class GestaoSocialInboxUseCase {
 
   private deveCriarTarefaLead(item: SocialInboxItem): boolean {
     return item.intencao === "COMPRA" && item.confianca >= LIMIAR_TAREFA_LEAD;
+  }
+
+  private deveCriarOportunidadeSocial(item: SocialInboxItem): boolean {
+    if (item.intencao === "SPAM" || item.intencao === "SEM_INTENCAO") return false;
+    const intencoesComerciais: IntencaoSocialInbox[] = [
+      "COMPRA",
+      "PRECO",
+      "DISPONIBILIDADE",
+      "TAMANHO_COR",
+      "ENTREGA",
+      "LEAD_QUENTE"
+    ];
+    return intencoesComerciais.includes(item.intencao) && Boolean(item.clienteTelefone || item.confianca >= 0.8);
   }
 
   private deveCriarTarefaHumana(item: SocialInboxItem): boolean {
