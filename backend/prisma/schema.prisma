@@ -697,6 +697,7 @@ model EventoOperacional {
   entidadeTipo      String?
   entidadeId        String?
   idempotencyKey    String?
+  payloadVersion    String    @default("v1")
   payloadJson       String    @default("{}")
   estado            String    @default("PENDENTE")
   tentativas        Int       @default(0)

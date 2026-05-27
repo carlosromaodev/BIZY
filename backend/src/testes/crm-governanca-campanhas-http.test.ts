@@ -467,6 +467,11 @@ describe("CRM+ governança, campanhas, eventos e jobs", () => {
         }
       });
       expect(evento.statusCode).toBe(201);
+      expect(evento.json().evento).toEqual(
+        expect.objectContaining({
+          payloadVersion: "v1"
+        })
+      );
 
       const eventoRepetido = await app.inject({
         method: "POST",

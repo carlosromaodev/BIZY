@@ -912,6 +912,7 @@ export class RepositorioEventosOperacionaisPrisma implements RepositorioEventosO
         entidadeTipo: dados.entidadeTipo ?? null,
         entidadeId: dados.entidadeId ?? null,
         idempotencyKey: dados.idempotencyKey ?? null,
+        payloadVersion: dados.payloadVersion ?? "v1",
         payloadJson: JSON.stringify(dados.payload ?? {}),
         estado: dados.estado ?? "PENDENTE",
         proximaTentativaEm: dados.proximaTentativaEm ?? null
@@ -943,6 +944,7 @@ export class RepositorioEventosOperacionaisPrisma implements RepositorioEventosO
     entidadeTipo: string | null;
     entidadeId: string | null;
     idempotencyKey: string | null;
+    payloadVersion: string;
     payloadJson: string;
     estado: string;
     tentativas: number;

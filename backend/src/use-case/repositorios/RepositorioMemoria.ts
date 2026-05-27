@@ -659,6 +659,7 @@ export class RepositorioEventosOperacionaisMemoria implements RepositorioEventos
       entidadeTipo: dados.entidadeTipo ?? null,
       entidadeId: dados.entidadeId ?? null,
       idempotencyKey: dados.idempotencyKey ?? null,
+      payloadVersion: dados.payloadVersion ?? "v1",
       payload: dados.payload ?? {},
       estado: dados.estado ?? "PENDENTE",
       tentativas: 0,

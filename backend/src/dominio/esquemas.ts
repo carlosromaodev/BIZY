@@ -167,6 +167,7 @@ export const RegistrarEventoOperacionalSchema = z.object({
   entidadeTipo: z.string().trim().min(1).max(80).nullable().optional().transform((valor) => valor ?? null),
   entidadeId: z.string().trim().min(1).max(120).nullable().optional().transform((valor) => valor ?? null),
   idempotencyKey: z.string().trim().min(3).max(240).nullable().optional().transform((valor) => valor ?? null),
+  payloadVersion: z.string().trim().regex(/^v\d+$/).default("v1"),
   payload: z.record(z.string(), z.unknown()).default({}),
   estado: z.enum(estadosEventoOperacional).default("PENDENTE")
 });

@@ -708,6 +708,7 @@ export interface EventoOperacional {
   entidadeTipo: string | null;
   entidadeId: string | null;
   idempotencyKey: string | null;
+  payloadVersion: string;
   payload: Record<string, unknown>;
   estado: EstadoEventoOperacional;
   tentativas: number;
@@ -723,6 +724,7 @@ export interface NovoEventoOperacional {
   entidadeTipo?: string | null;
   entidadeId?: string | null;
   idempotencyKey?: string | null;
+  payloadVersion?: string;
   payload?: Record<string, unknown>;
   estado?: EstadoEventoOperacional;
   proximaTentativaEm?: Date | null;

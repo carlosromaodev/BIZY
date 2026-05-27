@@ -1,7 +1,7 @@
 # Bizy / ÉMeu V1 - Requisitos Funcionais, Não Funcionais e Regras de Negócio
 
 Documento: `RF-RNF-RN-EMEUV1.md`
-Versão: 1.95
+Versão: 1.96
 Data: 2026-05-26
 Autor: Carlos
 Status: MVP base implementado; fundação backend Bizy CRM+ com Clientes 360, Pedidos, Catálogo/Stock, Loja Pública, Vitrine Pública, Checkout, Entrega, Afiliados, Criadores, Revendedores, Mini-lojas Públicas, Comissões, Atribuição Comercial, Lotes Financeiros, Campanhas com receita atribuída por tracking, Governança, Jobs de Clientes/Produtos/Exportações, Contratos Versionados, Eventos Operacionais, eventos públicos idempotentes, eventos server-side preparados, Inbox Comercial, SLA, Social Inbox seguro, transferência operacional, política WhatsApp, descontos aprováveis, carrinho abandonado, antifraude de afiliados, anonimização, SEO público, logs operacionais, navegação comercial, busca global, auditoria de exportações comerciais e painel diário em evolução
@@ -207,6 +207,8 @@ Atualização 1.93: Exportação de clientes passou a rodar como job operacional
 Atualização 1.94: Exportação de produtos passou a rodar como job operacional idempotente, com filtros por busca, categoria, coleção e estado, CSV no resultado do job e auditoria `PRODUCTS_EXPORTED`.
 
 Atualização 1.95: Backend passou a expor `/contratos`, com catálogo versionado v1 para API interna CRM+, API pública da loja/tracking, webhook Evolution e eventos de automação operacional, incluindo política de compatibilidade, idempotência e `payloadVersion`.
+
+Atualização 1.96: Eventos operacionais persistidos passaram a ter campo formal `payloadVersion` com default `v1`, schema HTTP validado e migration própria para manter compatibilidade com automações, relatórios e n8n.
 
 ---
 
@@ -868,7 +870,7 @@ Esta etapa vem antes da implementação visual dos novos módulos. O objetivo é
 | RNF101 | [x] APIs públicas de loja, checkout e tracking devem ter rate limit separado das APIs autenticadas do painel. | Alta | Implementado com limite público configurável por `RATE_LIMIT_PUBLICO_MAXIMO` |
 | RNF102 | [x] O motor de política WhatsApp deve ser testável sem depender de Evolution, Cloud API ou n8n. | Alta | Implementado em serviço de domínio com testes dedicados |
 | RNF103 | [~] O backend deve permitir feature flags/módulos por negócio sem deploy novo para cada ativação operacional. | Média | Parcial |
-| RNF104 | [~] Eventos de domínio devem usar payloads estáveis e versionados para não quebrar n8n, relatórios ou automações futuras. | Alta | Parcial - `/contratos` define payloadVersion v1 e lista eventos/políticas; falta gravar `payloadVersion` como campo formal em todos os eventos persistidos |
+| RNF104 | [~] Eventos de domínio devem usar payloads estáveis e versionados para não quebrar n8n, relatórios ou automações futuras. | Alta | Parcial - `/contratos` define `payloadVersion` v1 e `EventoOperacional` agora persiste campo formal `payloadVersion`; faltam versionar todos os eventos voláteis do despachador interno e contratos específicos por integração externa |
 | RNF105 | [~] Auditoria e logs operacionais devem ser compreensíveis pelo dono/admin, não apenas por desenvolvedor. | Alta | Parcial - eventos operacionais/auditoria possuem tipos e contexto de negócio; falta camada textual final para todos os eventos |
 | RNF106 | [~] Dados sensíveis de cliente devem ser minimizados em logs, eventos, URLs, cookies e relatórios de afiliados. | Alta | Parcial - tracking público rejeita dados pessoais e eventos públicos usam identificadores técnicos; falta revisão completa de logs/relatórios |
 | RNF107 | [~] Testes de regressão devem impedir voltar a usar código de produto, telefone ou nome como identificador global entre negócios. | Alta | Parcial |
