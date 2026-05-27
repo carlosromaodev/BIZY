@@ -1044,4 +1044,129 @@ describe("afiliados, criadores e comissões HTTP", () => {
       await app.close();
     }
   });
+
+  it("aplica regras de revenda na mini-loja pública sem expor configuração financeira privada", async () => {
+    const app = await criarAplicacao();
+
+    try {
+      const loja = await autenticar(app, "923600107", "Loja Revendedores");
+
+      await criarProduto(app, loja, "RV1");
+
+      const publicacao = await app.inject({
+        method: "PUT",
+        url: "/loja-publica/configuracao",
+        headers: loja,
+        payload: {
+          slug: "loja-revenda",
+          descricaoPublica: "Produtos para revendedores autorizados.",
+          publicada: true
+        }
+      });
+      expect(publicacao.statusCode).toBe(200);
+
+      const revendedor = await app.inject({
+        method: "POST",
+        url: "/afiliados",
+        headers: loja,
+        payload: {
+          tipo: "REVENDEDOR",
+          codigo: "maya",
+          nomePublico: "Maya Store",
+          contacto: "923700202",
+          metodoPagamento: {
+            iban: "AO06000000000000000000002",
+            revenda: {
+              descontoPercentual: 20,
+              margemPercentualSugerida: 35,
+              reservaStock: {
+                quantidadeMaximaPorProduto: 4,
+                validadeMinutos: 180
+              },
+              entrega: {
+                modos: ["ENTREGA_LOCAL"],
+                bairros: ["Talatona"],
+                taxaPadraoEmKwanza: 1500
+              },
+              retirada: {
+                pontos: ["Showroom Talatona"],
+                exigeAgendamento: true
+              }
+            }
+          },
+          regraComissao: {
+            tipo: "PERCENTUAL",
+            percentual: 8
+          }
+        }
+      });
+      expect(revendedor.statusCode).toBe(201);
+
+      const linkMiniLoja = await app.inject({
+        method: "POST",
+        url: `/afiliados/${revendedor.json().id}/links`,
+        headers: loja,
+        payload: {
+          codigo: "MAYA-LOJA",
+          destinoTipo: "LOJA",
+          slugLoja: "loja-revenda",
+          canal: "whatsapp",
+          origemConteudo: "catalogo-revenda"
+        }
+      });
+      expect(linkMiniLoja.statusCode).toBe(201);
+
+      const linkProduto = await app.inject({
+        method: "POST",
+        url: `/afiliados/${revendedor.json().id}/links`,
+        headers: loja,
+        payload: {
+          codigo: "MAYA-RV1",
+          destinoTipo: "PRODUTO",
+          slugLoja: "loja-revenda",
+          codigoProduto: "RV1",
+          canal: "whatsapp",
+          origemConteudo: "mini-loja-revenda"
+        }
+      });
+      expect(linkProduto.statusCode).toBe(201);
+
+      const miniLoja = await app.inject({
+        method: "GET",
+        url: "/publico/mini-lojas/MAYA-LOJA?trackingId=trk-revenda-maya"
+      });
+      expect(miniLoja.statusCode).toBe(200);
+      expect(miniLoja.json().parceiro).toEqual(
+        expect.objectContaining({
+          codigo: "MAYA",
+          tipo: "REVENDEDOR"
+        })
+      );
+      expect(miniLoja.json().produtos[0]).toEqual(
+        expect.objectContaining({
+          codigo: "RV1",
+          precoEmKwanza: 12_500,
+          revenda: expect.objectContaining({
+            precoEspecialEmKwanza: 10_000,
+            margemSugeridaEmKwanza: 3_500,
+            precoSugeridoEmKwanza: 13_500,
+            reservaStock: expect.objectContaining({
+              quantidadeMaximaPorProduto: 4,
+              validadeMinutos: 180
+            }),
+            entrega: expect.objectContaining({
+              taxaPadraoEmKwanza: 1500
+            }),
+            retirada: expect.objectContaining({
+              exigeAgendamento: true
+            })
+          })
+        })
+      );
+      expect(JSON.stringify(miniLoja.json())).not.toContain("AO06000000000000000000002");
+      expect(JSON.stringify(miniLoja.json())).not.toContain("923700202");
+    } finally {
+      await app.close();
+    }
+  });
 });

@@ -1,10 +1,10 @@
 # Bizy / ÉMeu V1 - Requisitos Funcionais, Não Funcionais e Regras de Negócio
 
 Documento: `RF-RNF-RN-EMEUV1.md`
-Versão: 1.68
+Versão: 1.69
 Data: 2026-05-26
 Autor: Carlos
-Status: MVP base implementado; fundação backend Bizy CRM+ com Clientes 360, Pedidos, Catálogo/Stock, Loja Pública, Vitrine Pública, Checkout, Entrega, Afiliados, Criadores, Mini-lojas Públicas, Comissões, Atribuição Comercial, Lotes Financeiros, Campanhas, Governança, Jobs, Eventos Operacionais, eventos server-side preparados, Inbox Comercial, SLA, Social Inbox seguro, transferência operacional, política WhatsApp, descontos aprováveis, carrinho abandonado, antifraude de afiliados, anonimização, SEO público, logs operacionais, navegação comercial, busca global, auditoria de exportações comerciais e painel diário em evolução
+Status: MVP base implementado; fundação backend Bizy CRM+ com Clientes 360, Pedidos, Catálogo/Stock, Loja Pública, Vitrine Pública, Checkout, Entrega, Afiliados, Criadores, Revendedores, Mini-lojas Públicas, Comissões, Atribuição Comercial, Lotes Financeiros, Campanhas, Governança, Jobs, Eventos Operacionais, eventos server-side preparados, Inbox Comercial, SLA, Social Inbox seguro, transferência operacional, política WhatsApp, descontos aprováveis, carrinho abandonado, antifraude de afiliados, anonimização, SEO público, logs operacionais, navegação comercial, busca global, auditoria de exportações comerciais e painel diário em evolução
 
 ---
 
@@ -153,6 +153,8 @@ Atualização 1.66: Atribuição comercial do checkout passou a suportar primeir
 Atualização 1.67: Loja pública e checkout passaram a preparar eventos server-side para providers futuros como Meta CAPI quando o negócio configura provider, pixel/dataset e referência segura de credencial. O backend só enfileira evento operacional com consentimento aplicável e armazena telefone/email como hash SHA-256, sem vazar dados pessoais no payload.
 
 Atualização 1.68: Criadores e revendedores passaram a poder expor uma mini-loja pública a partir de um link próprio ativo, com apenas produtos autorizados por links de produto, rastreamento próprio, URL pública por produto e resposta sanitizada sem contacto, método de pagamento ou dados privados do parceiro.
+
+Atualização 1.69: Modo revendedor passou a expor, na mini-loja pública, preço especial calculado por desconto, margem/preço sugerido, limite e validade de reserva de stock e regras públicas de entrega/retirada quando o negócio configurar esses dados no perfil do parceiro.
 
 ---
 
@@ -550,7 +552,7 @@ Esta etapa posiciona o Bizy como uma plataforma de operação comercial para cri
 | RF193 | [x] O afiliado/criador deve poder receber pacote de divulgação com links, fotos, textos sugeridos e regras da campanha. | Média | Implementado no backend em `/afiliados/:id/pacote-divulgacao` com links, produto, fotos, textos sugeridos e política de comissão |
 | RF194 | [x] Criadores e revendedores devem poder ter mini-loja pública com produtos autorizados e rastreamento próprio. | Média | Implementado no backend em `/publico/mini-lojas/:codigo`, com produtos autorizados por links ativos, rastreamento e resposta pública sem dados privados do parceiro |
 | RF195 | [~] O sistema deve gerar relatório de pagamento de comissões com período, vendas, reversões, saldo e histórico. | Alta | Parcial - comissão pode ser marcada como paga individualmente ou em lote financeiro com período, referência, total, itens e auditoria; saldo por afiliado e exportação CSV de lotes implementados; faltam UI e conciliação avançada |
-| RF196 | [ ] O modo revendedor deve permitir preço especial, reserva de stock, margem estimada e regras separadas de entrega/retirada quando configurado. | Média | Planeado |
+| RF196 | [x] O modo revendedor deve permitir preço especial, reserva de stock, margem estimada e regras separadas de entrega/retirada quando configurado. | Média | Implementado no backend da mini-loja pública com preço especial, margem/preço sugerido, limite/validade de reserva e regras públicas de entrega/retirada por revendedor |
 
 #### 3.14.6 Social Inbox e Comentários de Redes Sociais
 
@@ -638,7 +640,7 @@ Esta etapa vem antes da implementação visual dos novos módulos. O objetivo é
 | RF254 | [~] O backend deve evoluir Produtos para suportar variantes, coleções, movimentos de stock, custo, margem, importação e catálogo digital. | Alta | Parcial - variantes, coleções, movimentos, custo, margem, importação CSV e loja pública implementados; faltam catálogos selecionáveis |
 | RF255 | [~] O backend deve expor APIs públicas e privadas para loja virtual, página de produto, catálogo digital, checkout WhatsApp e checkout site. | Alta | Parcial - loja pública, página de produto, cálculo de entrega, checkout WhatsApp e checkout site básico implementados; faltam catálogos selecionáveis e checkout/pagamento completo |
 | RF256 | [~] O backend deve registrar tracking de links, UTM, referência, cookies técnicos, visitas, cliques WhatsApp, checkout iniciado, pedido e venda atribuída. | Alta | Parcial - trackingId, UTM, visitas, produto visto, clique WhatsApp, checkout iniciado, pedido criado, lead identificado e receita atribuída ao pedido implementados; faltam cookies técnicos e venda paga atribuída |
-| RF257 | [~] O backend deve suportar afiliados, criadores e revendedores com links próprios, regras de comissão, reversões, pagamentos e relatórios. | Alta | Parcial - parceiros, links próprios, mini-loja pública, comissão estimada/confirmada/paga/revertida, pagamento individual/lote, saldos, exportação CSV, auditoria e resumo implementados; faltam regras avançadas, portal do afiliado e relatórios avançados |
+| RF257 | [~] O backend deve suportar afiliados, criadores e revendedores com links próprios, regras de comissão, reversões, pagamentos e relatórios. | Alta | Parcial - parceiros, links próprios, mini-loja pública, regras públicas de revenda, comissão estimada/confirmada/paga/revertida, pagamento individual/lote, saldos, exportação CSV, auditoria e resumo implementados; faltam regras avançadas, portal do afiliado e relatórios avançados |
 | RF258 | [~] O backend deve normalizar social inbox com comentários de redes sociais, posts, autores, intenção, tarefas e oportunidades. | Alta | Parcial - endpoint `/social/inbox/itens` registra canal, provider, post, autor, texto, intenção, confiança, telefone, entidades/contexto, deduplica, filtra e cria tarefas; faltam conectores oficiais, anexos/media e oportunidades estruturadas |
 | RF259 | [~] O backend deve ter funil e playbooks de recuperação com eventos, condições, ações, tarefas humanas e histórico de mudança. | Alta | Parcial - playbooks criam tarefa humana, execução, movimento de funil e oportunidade recuperável; faltam agregados por período, campanhas e ações além de tarefa |
 | RF260 | [~] O backend deve implementar motor de política WhatsApp para classificar envios em marketing, utilidade, autenticação ou serviço antes de chamar o provider. | Alta | Parcial - motor interno implementado em AutomacaoWhatsApp com metadados, bloqueio anti-promoção e validação de janela/template; faltam janela real e opt-out centralizado |

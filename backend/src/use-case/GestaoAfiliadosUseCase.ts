@@ -144,7 +144,7 @@ export class GestaoAfiliadosUseCase {
       .filter((link) => !linkPrincipal.slugLoja || !link.slugLoja || link.slugLoja === linkPrincipal.slugLoja)
       .sort((a, b) => (a.codigoProduto ?? a.codigo).localeCompare(b.codigoProduto ?? b.codigo));
 
-    const produtos = await this.produtosAutorizadosMiniLoja(linksProdutos);
+    const produtos = await this.produtosAutorizadosMiniLoja(linksProdutos, parceiro);
 
     return {
       parceiro: {
@@ -610,7 +610,7 @@ export class GestaoAfiliadosUseCase {
     };
   }
 
-  private async produtosAutorizadosMiniLoja(linksProdutos: LinkAfiliado[]) {
+  private async produtosAutorizadosMiniLoja(linksProdutos: LinkAfiliado[], parceiro: ParceiroComercial) {
     if (!this.pecas) return [];
 
     const vistos = new Set<string>();
@@ -622,6 +622,7 @@ export class GestaoAfiliadosUseCase {
 
       const produto = await this.pecas.buscarPorCodigo(codigoProduto, link.negocioId);
       if (!produto || !this.produtoDisponivel(produto)) continue;
+      const revenda = this.revendaPublica(parceiro, produto);
 
       produtos.push({
         codigo: produto.codigo,
@@ -636,6 +637,7 @@ export class GestaoAfiliadosUseCase {
         variantes: produto.variantes,
         vitrine: produto.vitrine,
         estadoStock: produto.estadoStock,
+        ...(revenda ? { revenda } : {}),
         link: this.comUrlPublica(link)
       });
     }
@@ -649,6 +651,40 @@ export class GestaoAfiliadosUseCase {
 
   private linkDisponivel(link: LinkAfiliado, agora = new Date()): boolean {
     return link.ativo && (!link.expiraEm || link.expiraEm.getTime() > agora.getTime());
+  }
+
+  private revendaPublica(parceiro: ParceiroComercial, produto: Peca) {
+    if (parceiro.tipo !== "REVENDEDOR") return null;
+
+    const revenda = this.objeto(parceiro.metodoPagamento.revenda);
+    if (!Object.keys(revenda).length) return null;
+
+    const descontoPercentual = this.percentual(revenda.descontoPercentual);
+    const margemPercentualSugerida = this.percentual(revenda.margemPercentualSugerida);
+    const precoEspecialEmKwanza = Math.round(
+      produto.precoEmKwanza * (1 - (descontoPercentual ?? 0) / 100)
+    );
+    const precoSugeridoEmKwanza = Math.round(
+      precoEspecialEmKwanza * (1 + (margemPercentualSugerida ?? 0) / 100)
+    );
+    const reservaStock = this.objeto(revenda.reservaStock);
+    const entrega = this.objeto(revenda.entrega);
+    const retirada = this.objeto(revenda.retirada);
+
+    return {
+      descontoPercentual,
+      margemPercentualSugerida,
+      precoEspecialEmKwanza,
+      precoSugeridoEmKwanza,
+      margemSugeridaEmKwanza: Math.max(0, precoSugeridoEmKwanza - precoEspecialEmKwanza),
+      reservaStock: {
+        quantidadeMaximaPorProduto:
+          this.numero(reservaStock.quantidadeMaximaPorProduto) ?? produto.quantidade,
+        validadeMinutos: this.numero(reservaStock.validadeMinutos)
+      },
+      entrega,
+      retirada
+    };
   }
 
   private montarUrlPublica(link: LinkAfiliado): string {
@@ -667,6 +703,12 @@ export class GestaoAfiliadosUseCase {
 
   private normalizarCodigo(codigo: string): string {
     return codigo.trim().toUpperCase();
+  }
+
+  private percentual(valor: unknown): number | null {
+    const numero = this.numero(valor);
+    if (numero == null) return null;
+    return Math.min(100, Math.max(0, numero));
   }
 
   private rotuloEventoReversao(tipo: "ORDER_CANCELLED" | "ORDER_RETURNED" | "ORDER_REFUNDED"): string {
