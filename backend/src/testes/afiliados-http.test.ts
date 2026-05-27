@@ -932,4 +932,116 @@ describe("afiliados, criadores e comissões HTTP", () => {
       await app.close();
     }
   });
+
+  it("expõe mini-loja pública de criador com apenas produtos autorizados e links rastreáveis", async () => {
+    const app = await criarAplicacao();
+
+    try {
+      const loja = await autenticar(app, "923600106", "Loja Mini Criador");
+
+      await criarProduto(app, loja, "ML1");
+      await criarProduto(app, loja, "ML2");
+      await criarProduto(app, loja, "ML3");
+
+      const publicacao = await app.inject({
+        method: "PUT",
+        url: "/loja-publica/configuracao",
+        headers: loja,
+        payload: {
+          slug: "loja-mini-criador",
+          descricaoPublica: "Produtos escolhidos por criadores.",
+          publicada: true
+        }
+      });
+      expect(publicacao.statusCode).toBe(200);
+
+      const criador = await app.inject({
+        method: "POST",
+        url: "/afiliados",
+        headers: loja,
+        payload: {
+          tipo: "CRIADOR",
+          codigo: "nia",
+          nomePublico: "Nia Looks",
+          contacto: "923700201",
+          metodoPagamento: { iban: "AO06000000000000000000001" },
+          regraComissao: {
+            tipo: "PERCENTUAL",
+            percentual: 12
+          }
+        }
+      });
+      expect(criador.statusCode).toBe(201);
+
+      const linkMiniLoja = await app.inject({
+        method: "POST",
+        url: `/afiliados/${criador.json().id}/links`,
+        headers: loja,
+        payload: {
+          codigo: "NIA-LOJA",
+          destinoTipo: "LOJA",
+          slugLoja: "loja-mini-criador",
+          canal: "instagram",
+          origemConteudo: "bio-criadora"
+        }
+      });
+      expect(linkMiniLoja.statusCode).toBe(201);
+
+      for (const codigoProduto of ["ML1", "ML2"]) {
+        const linkProduto = await app.inject({
+          method: "POST",
+          url: `/afiliados/${criador.json().id}/links`,
+          headers: loja,
+          payload: {
+            codigo: `NIA-${codigoProduto}`,
+            destinoTipo: "PRODUTO",
+            slugLoja: "loja-mini-criador",
+            codigoProduto,
+            canal: "instagram",
+            origemConteudo: "mini-loja"
+          }
+        });
+        expect(linkProduto.statusCode).toBe(201);
+      }
+
+      const miniLoja = await app.inject({
+        method: "GET",
+        url: "/publico/mini-lojas/NIA-LOJA?trackingId=trk-mini-nia"
+      });
+      expect(miniLoja.statusCode).toBe(200);
+      expect(miniLoja.json()).toEqual(
+        expect.objectContaining({
+          parceiro: expect.objectContaining({
+            codigo: "NIA",
+            nomePublico: "Nia Looks",
+            tipo: "CRIADOR"
+          }),
+          miniLoja: expect.objectContaining({
+            codigo: "NIA-LOJA",
+            canal: "instagram",
+            origemConteudo: "bio-criadora"
+          }),
+          rastreamento: expect.objectContaining({
+            referenciaPrincipal: "NIA-LOJA",
+            trackingId: "trk-mini-nia",
+            origem: "mini-loja:NIA"
+          })
+        })
+      );
+      expect(miniLoja.json().produtos.map((produto: { codigo: string }) => produto.codigo)).toEqual(["ML1", "ML2"]);
+      expect(JSON.stringify(miniLoja.json().produtos)).not.toContain("ML3");
+      expect(miniLoja.json().produtos[0]).toEqual(
+        expect.objectContaining({
+          codigo: "ML1",
+          link: expect.objectContaining({
+            codigo: "NIA-ML1",
+            urlPublica: expect.stringContaining("ref=NIA-ML1")
+          })
+        })
+      );
+      expect(JSON.stringify(miniLoja.json())).not.toContain("923700201");
+    } finally {
+      await app.close();
+    }
+  });
 });

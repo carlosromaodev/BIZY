@@ -21,6 +21,22 @@ export const moduloAfiliados: ModuloHttp = {
       return link;
     });
 
+    app.get("/publico/mini-lojas/:codigo", async (request, reply) => {
+      const { codigo } = request.params as { codigo: string };
+      const query = request.query as { trackingId?: string };
+      const miniLoja = await contexto.gestaoAfiliados.obterMiniLojaPublica(codigo, {
+        trackingId: query.trackingId
+      });
+      if (!miniLoja) {
+        return reply.code(404).send({
+          erro: "MINI_LOJA_NAO_ENCONTRADA",
+          mensagem: "Mini-loja de criador não encontrada ou inativa."
+        });
+      }
+
+      return miniLoja;
+    });
+
     app.get("/afiliados", async (request, reply) => {
       const contextoComercial = await exigirAcessoComercial(contexto, request, reply, {
         permissao: "afiliados:ler",

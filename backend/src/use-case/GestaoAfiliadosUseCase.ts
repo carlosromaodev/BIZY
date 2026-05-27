@@ -7,6 +7,7 @@ import type {
   NovoLinkAfiliado,
   NovoParceiroComercial,
   ParceiroComercial,
+  Peca,
   Pedido,
   RegraComissaoParceiro,
   ResumoSaldosComissoes,
@@ -112,8 +113,7 @@ export class GestaoAfiliadosUseCase {
 
   async resolverLinkPublico(codigo: string) {
     const link = await this.afiliados.buscarLinkPorCodigo(this.normalizarCodigo(codigo));
-    if (!link || !link.ativo) return null;
-    if (link.expiraEm && link.expiraEm.getTime() <= Date.now()) return null;
+    if (!link || !this.linkDisponivel(link)) return null;
 
     return {
       codigo: link.codigo,
@@ -126,6 +126,50 @@ export class GestaoAfiliadosUseCase {
         origemConteudo: link.origemConteudo
       },
       link: this.comUrlPublica(link)
+    };
+  }
+
+  async obterMiniLojaPublica(codigo: string, opcoes: { trackingId?: string | null } = {}) {
+    const linkPrincipal = await this.afiliados.buscarLinkPorCodigo(this.normalizarCodigo(codigo));
+    if (!linkPrincipal || !this.linkDisponivel(linkPrincipal)) return null;
+
+    const parceiro = await this.afiliados.buscarParceiroPorId(linkPrincipal.afiliadoId, linkPrincipal.negocioId);
+    if (!parceiro || parceiro.estado !== "ATIVO") return null;
+
+    const links = await this.afiliados.listarLinks(linkPrincipal.negocioId);
+    const linksProdutos = links
+      .filter((link) => link.afiliadoId === parceiro.id)
+      .filter((link) => link.destinoTipo === "PRODUTO" && Boolean(link.codigoProduto))
+      .filter((link) => this.linkDisponivel(link))
+      .filter((link) => !linkPrincipal.slugLoja || !link.slugLoja || link.slugLoja === linkPrincipal.slugLoja)
+      .sort((a, b) => (a.codigoProduto ?? a.codigo).localeCompare(b.codigoProduto ?? b.codigo));
+
+    const produtos = await this.produtosAutorizadosMiniLoja(linksProdutos);
+
+    return {
+      parceiro: {
+        id: parceiro.id,
+        codigo: parceiro.codigo,
+        nomePublico: parceiro.nomePublico,
+        tipo: parceiro.tipo,
+        estado: parceiro.estado
+      },
+      miniLoja: {
+        codigo: linkPrincipal.codigo,
+        slugLoja: linkPrincipal.slugLoja,
+        canal: linkPrincipal.canal,
+        origemConteudo: linkPrincipal.origemConteudo,
+        urlPublica: this.comUrlPublica(linkPrincipal).urlPublica
+      },
+      rastreamento: {
+        referenciaPrincipal: linkPrincipal.codigo,
+        trackingId: opcoes.trackingId?.trim() || null,
+        origem: `mini-loja:${parceiro.codigo}`,
+        canal: linkPrincipal.canal,
+        origemConteudo: linkPrincipal.origemConteudo,
+        produtosAutorizados: produtos.length
+      },
+      produtos
     };
   }
 
@@ -564,6 +608,47 @@ export class GestaoAfiliadosUseCase {
       ...link,
       urlPublica: this.montarUrlPublica(link)
     };
+  }
+
+  private async produtosAutorizadosMiniLoja(linksProdutos: LinkAfiliado[]) {
+    if (!this.pecas) return [];
+
+    const vistos = new Set<string>();
+    const produtos = [];
+    for (const link of linksProdutos) {
+      const codigoProduto = link.codigoProduto ? this.normalizarCodigo(link.codigoProduto) : null;
+      if (!codigoProduto || vistos.has(codigoProduto)) continue;
+      vistos.add(codigoProduto);
+
+      const produto = await this.pecas.buscarPorCodigo(codigoProduto, link.negocioId);
+      if (!produto || !this.produtoDisponivel(produto)) continue;
+
+      produtos.push({
+        codigo: produto.codigo,
+        sku: produto.sku,
+        nome: produto.nome,
+        descricao: produto.descricao,
+        categoria: produto.categoria,
+        colecao: produto.colecao,
+        precoEmKwanza: produto.precoEmKwanza,
+        quantidade: produto.quantidade,
+        fotos: produto.fotos,
+        variantes: produto.variantes,
+        vitrine: produto.vitrine,
+        estadoStock: produto.estadoStock,
+        link: this.comUrlPublica(link)
+      });
+    }
+
+    return produtos;
+  }
+
+  private produtoDisponivel(produto: Peca): boolean {
+    return !produto.arquivadaEm && produto.quantidade > 0 && produto.estado !== "ESGOTADA" && produto.estado !== "VENDIDA";
+  }
+
+  private linkDisponivel(link: LinkAfiliado, agora = new Date()): boolean {
+    return link.ativo && (!link.expiraEm || link.expiraEm.getTime() > agora.getTime());
   }
 
   private montarUrlPublica(link: LinkAfiliado): string {
