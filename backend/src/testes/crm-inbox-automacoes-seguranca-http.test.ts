@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { criarAplicacao } from "../infra/http/criarAplicacao.js";
 
 const ambienteOriginal = { ...process.env };
@@ -48,6 +48,12 @@ async function criarPeca(app: Awaited<ReturnType<typeof criarAplicacao>>, header
   return resposta.json();
 }
 
+async function drenarEventosAssincronos() {
+  await Promise.resolve();
+  await Promise.resolve();
+  await Promise.resolve();
+}
+
 describe("CRM+ inbox, automações seguras e tracking privado", () => {
   beforeEach(() => {
     process.env = {
@@ -64,6 +70,7 @@ describe("CRM+ inbox, automações seguras e tracking privado", () => {
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     process.env = { ...ambienteOriginal };
   });
 
@@ -630,6 +637,77 @@ describe("CRM+ inbox, automações seguras e tracking privado", () => {
         expect.objectContaining({ tipo: "pedido", id: pedido.json().pedido.id, responsavelId: "atendente-novo" }),
         expect.objectContaining({ tipo: "tarefa", id: tarefa.json().tarefa.id, responsavelId: "atendente-novo" })
       ]);
+    } finally {
+      await app.close();
+    }
+  });
+
+  it("bloqueia texto livre de serviço quando a última mensagem inbound saiu da janela WhatsApp", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-05-25T10:00:00.000Z"));
+    const app = await criarAplicacao();
+
+    try {
+      const headers = await autenticar(app, "923810303", "Loja Janela WhatsApp");
+      const negocio = await app.inject({
+        method: "POST",
+        url: "/onboarding/negocio",
+        headers,
+        payload: {
+          nomeComercial: "Loja Janela WhatsApp",
+          segmento: "Moda",
+          tipo: "LOJA",
+          whatsapp: "923810303"
+        }
+      });
+      expect(negocio.statusCode).toBe(201);
+      const negocioId = negocio.json().negocio.id as string;
+
+      const webhook = await app.inject({
+        method: "POST",
+        url: "/webhooks/evolution",
+        payload: {
+          event: "messages.upsert",
+          instance: "bizy-janela",
+          negocioId,
+          data: {
+            key: {
+              remoteJid: "244937830303@s.whatsapp.net",
+              fromMe: false,
+              id: "msg-janela-antiga"
+            },
+            pushName: "Cliente Janela",
+            message: {
+              conversation: "Olá, quero saber o preço"
+            }
+          }
+        }
+      });
+      expect(webhook.statusCode).toBe(202);
+      await drenarEventosAssincronos();
+
+      const conversas = await app.inject({ method: "GET", url: "/atendimento/conversas", headers });
+      expect(conversas.statusCode).toBe(200);
+      const conversaId = conversas.json().conversas[0].conversaCrmId as string;
+
+      vi.setSystemTime(new Date("2026-05-26T10:30:00.000Z"));
+      const resposta = await app.inject({
+        method: "POST",
+        url: `/atendimento/conversas/${conversaId}/mensagens`,
+        headers,
+        payload: {
+          tipo: "TEXTO",
+          mensagem: "Olá, ainda estás disponível para continuar?"
+        }
+      });
+
+      expect(resposta.statusCode).toBe(400);
+      expect(resposta.json()).toEqual(
+        expect.objectContaining({
+          erro: "REGRA_NEGOCIO",
+          mensagem: expect.stringContaining("janela de atendimento")
+        })
+      );
     } finally {
       await app.close();
     }

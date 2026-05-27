@@ -129,6 +129,7 @@ function classificarErroDominio(mensagem: string): ErroHttpClassificado | null {
     normalizada.includes("expirad") ||
     normalizada.includes("muitas tentativas") ||
     normalizada.includes("não pode") ||
+    normalizada.includes("só pode") ||
     normalizada.includes("não está") ||
     normalizada.includes("rejeitad")
   ) {

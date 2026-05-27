@@ -29,6 +29,7 @@ import {
   type ConversaAtendimentoComMensagens,
   type EstadoTarefaOperacional,
   type EventoOperacional,
+  type MensagemAtendimento,
   type Pedido,
   type TipoEventoSistema
 } from "../../../dominio/tipos.js";
@@ -479,6 +480,7 @@ export const moduloOperacional: ModuloHttp = {
 
       const dados = EnviarMensagemConversaAtendimentoSchema.parse(request.body ?? {});
       const mensagemLivre = montarMensagemLivreConversa(dados);
+      const janelaAtendimentoAtiva = resolverJanelaAtendimentoWhatsApp(dados, []);
       const envio = await contexto.automacaoWhatsApp.enviarMensagemManual({
         negocioId: contextoComercial.negocio.id,
         telefone: item.clienteTelefone,
@@ -487,7 +489,7 @@ export const moduloOperacional: ModuloHttp = {
         variaveis: dados.variaveis,
         categoria: dados.categoria,
         consentimentoMarketing: dados.consentimentoMarketing,
-        janelaAtendimentoAtiva: dados.janelaAtendimentoAtiva
+        janelaAtendimentoAtiva
       });
 
       const mensagem = await contexto.repositorios.atendimento.registrarMensagem({
@@ -908,6 +910,7 @@ export const moduloOperacional: ModuloHttp = {
       if (!conversa) return reply.code(404).send({ erro: "CONVERSA_NAO_ENCONTRADA", mensagem: "Conversa não encontrada." });
 
       const mensagemLivre = montarMensagemLivreConversa(dados);
+      const janelaAtendimentoAtiva = resolverJanelaAtendimentoWhatsApp(dados, conversa.mensagens);
       const envio = await contexto.automacaoWhatsApp.enviarMensagemManual({
         negocioId: contextoComercial.negocio.id,
         telefone: conversa.conversa.telefone,
@@ -916,7 +919,7 @@ export const moduloOperacional: ModuloHttp = {
         variaveis: dados.variaveis,
         categoria: dados.categoria,
         consentimentoMarketing: dados.consentimentoMarketing,
-        janelaAtendimentoAtiva: dados.janelaAtendimentoAtiva
+        janelaAtendimentoAtiva
       });
       const mensagem = await contexto.repositorios.atendimento.registrarMensagem({
         negocioId: contextoComercial.negocio.id,
@@ -1141,6 +1144,42 @@ function montarMensagemLivreConversa(dados: {
   if (dados.mediaUrl && dados.tipo === "RECIBO") return `Recibo enviado: ${dados.mediaUrl}`;
   if (dados.mediaUrl && dados.tipo === "CATALOGO") return `Catálogo enviado: ${dados.mediaUrl}`;
   return undefined;
+}
+
+const JANELA_ATENDIMENTO_WHATSAPP_MS = 24 * 60 * 60 * 1000;
+
+function resolverJanelaAtendimentoWhatsApp(
+  dados: {
+    tipo: "TEXTO" | "TEMPLATE" | "IMAGEM" | "DOCUMENTO" | "RECIBO" | "CATALOGO";
+    templateId?: string;
+    categoria?: string;
+    janelaAtendimentoAtiva?: boolean;
+  },
+  mensagens: MensagemAtendimento[]
+): boolean | undefined {
+  if (!envioPrecisaJanelaDeServico(dados)) return dados.janelaAtendimentoAtiva;
+
+  const janelaCalculada = calcularJanelaServicoPorUltimaMensagemInbound(mensagens);
+  if (dados.janelaAtendimentoAtiva === false) return false;
+  return janelaCalculada;
+}
+
+function envioPrecisaJanelaDeServico(dados: {
+  templateId?: string;
+  categoria?: string;
+  tipo: "TEXTO" | "TEMPLATE" | "IMAGEM" | "DOCUMENTO" | "RECIBO" | "CATALOGO";
+}): boolean {
+  if (dados.categoria) return dados.categoria === "service";
+  return !dados.templateId && dados.tipo !== "TEMPLATE";
+}
+
+function calcularJanelaServicoPorUltimaMensagemInbound(mensagens: MensagemAtendimento[]): boolean {
+  const ultimaMensagemInbound = mensagens
+    .filter((mensagem) => mensagem.canal === "whatsapp" && mensagem.direcao === "INBOUND")
+    .sort((a, b) => b.enviadaEm.getTime() - a.enviadaEm.getTime())[0];
+
+  if (!ultimaMensagemInbound) return false;
+  return Date.now() - ultimaMensagemInbound.enviadaEm.getTime() <= JANELA_ATENDIMENTO_WHATSAPP_MS;
 }
 
 function descreverEventoOperacional(evento: EventoOperacional): string {
