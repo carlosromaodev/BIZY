@@ -126,6 +126,8 @@ Atualização 1.53: Permissões comerciais ficaram mais finas para ações crít
 
 Atualização 1.54: Auditoria crítica passou a registrar alterações humanas de pedido, pagamento, entrega, cancelamento, stock manual e permissões/membros com ator, papel, motivo e diff antes/depois.
 
+Atualização 1.55: Reservas de live passaram a poder virar pedidos completos por rota autenticada e auditada, de forma idempotente, preservando cliente, origem, item, desconto autorizado, entrega e compatibilidade com a operação antiga de reservas.
+
 ---
 
 ## 2. Legenda
@@ -374,7 +376,7 @@ Esta etapa transforma o Bizy de painel de live em CRM operacional para lojas que
 
 | ID | Requisito Funcional | Prioridade | Estado |
 |---|---|---|---|
-| RF97 | [~] Reservas devem evoluir para pedidos completos com cliente, itens, quantidade, desconto autorizado, total, estado de pagamento, estado de entrega e origem. | Alta | Parcial - pedido completo criado por API; falta conversão automática de reserva em pedido |
+| RF97 | [x] Reservas devem evoluir para pedidos completos com cliente, itens, quantidade, desconto autorizado, total, estado de pagamento, estado de entrega e origem. | Alta | Implementado - pedido completo criado por API e reservas de live convertidas por rota idempotente `/reservas/:id/converter-pedido` |
 | RF98 | [~] O vendedor deve criar pedido manual fora da live a partir do cliente ou da conversa. | Alta | Parcial - API manual implementada a partir do cliente; falta ação direta na conversa/UI |
 | RF99 | [~] O pedido deve suportar múltiplos itens, ajuste de quantidade, remoção de item e validação de stock antes de confirmar. | Alta | Parcial - criação com múltiplos itens e stock validado; faltam edição/remoção pós-criação |
 | RF100 | [~] O CRM deve ter funil de pedidos com estados: novo, aguardando pagamento, pago, em preparação, pronto para entrega, enviado, entregue, cancelado, trocado e devolvido. | Alta | Parcial - estados de funil suportados no backend; falta UI kanban/lista operacional |
@@ -790,7 +792,7 @@ Esta etapa vem antes da implementação visual dos novos módulos. O objetivo é
 | RNF105 | [~] Auditoria e logs operacionais devem ser compreensíveis pelo dono/admin, não apenas por desenvolvedor. | Alta | Parcial - eventos operacionais/auditoria possuem tipos e contexto de negócio; falta camada textual final para todos os eventos |
 | RNF106 | [~] Dados sensíveis de cliente devem ser minimizados em logs, eventos, URLs, cookies e relatórios de afiliados. | Alta | Parcial - tracking público rejeita dados pessoais e eventos públicos usam identificadores técnicos; falta revisão completa de logs/relatórios |
 | RNF107 | [~] Testes de regressão devem impedir voltar a usar código de produto, telefone ou nome como identificador global entre negócios. | Alta | Parcial |
-| RNF108 | [~] O backend deve suportar migração gradual do modelo de reservas para pedidos sem quebrar vendas de live já existentes. | Alta | Parcial - pedidos completos coexistem com reservas e aceitam `reservaId`; falta conversão automática e migração histórica |
+| RNF108 | [~] O backend deve suportar migração gradual do modelo de reservas para pedidos sem quebrar vendas de live já existentes. | Alta | Parcial - pedidos completos coexistem com reservas, aceitam `reservaId` e reservas de live podem ser convertidas de forma idempotente; falta migração histórica em lote |
 | RNF109 | [~] Novos módulos devem preservar fronteiras de domínio claras: Clientes, Pedidos, Produtos, Conversas, Campanhas, Loja, Afiliados, Social Inbox, Tracking e WhatsApp Policy. | Alta | Parcial - fronteiras implementadas para Clientes, Pedidos, Produtos, Loja Pública, Tracking, Afiliados, Social Inbox, Funil, Campanhas e WhatsApp Policy; falta revisão arquitetural final |
 | RNF110 | [~] Falhas de provider externo devem resultar em tarefa, retry ou estado falhado explícito, nunca em perda silenciosa de dado. | Alta | Parcial - WhatsApp bloqueado antes do provider cria tarefa e outbox WhatsApp preserva retry/falhas; faltam tarefas para falha final de provider e demais integrações |
 
@@ -984,7 +986,7 @@ Esta etapa vem antes da implementação visual dos novos módulos. O objetivo é
 | RN125 | [~] Produto, pedido, conversa, campanha, tarefa, afiliado, comissão e tracking sempre devem carregar origem e negócio responsável. | Parcial - produtos, pedidos, clientes, reservas, comentários, conversas, mensagens, outbox, instâncias WhatsApp, afiliados, comissões, campanhas, eventos, jobs e tracking avançados |
 | RN126 | [~] Módulo desativado não pode executar automação, receber webhook ativo, disparar campanha ou aparecer como promessa visual na operação comercial. | Parcial - guardas comerciais ativas em módulos HTTP principais e campanhas; falta cobertura total em webhooks/futuros conectores |
 | RN127 | [x] Código de produto só precisa ser único dentro do negócio, permitindo lojas diferentes usarem códigos iguais sem colisão. | Implementado |
-| RN128 | [~] Pedido deve ser a entidade comercial principal; reserva continua como mecanismo de bloqueio temporário dentro de live, conversa ou checkout. | Parcial - entidade Pedido completa existe e reserva pode vincular `reservaId`; falta conversão automática de reservas antigas |
+| RN128 | [x] Pedido deve ser a entidade comercial principal; reserva continua como mecanismo de bloqueio temporário dentro de live, conversa ou checkout. | Implementado - reservas bloqueiam stock temporariamente e podem evoluir para pedido comercial completo com vínculo `reservaId` |
 | RN129 | [x] Comissão de afiliado ou criador depende de pedido pago, atribuição válida e ausência de cancelamento/devolução/reembolso. | Implementado no backend |
 | RN130 | [x] Tracking ajuda atribuição, mas não substitui prova de pedido, pagamento ou consentimento. | Implementado: eventos de tracking não contam como venda sem pedido/pagamento |
 | RN131 | [~] Toda mensagem WhatsApp iniciada pelo sistema precisa de categoria, motivo, entidade relacionada e fallback antes do envio. | Parcial - política/categoria/motivo/contexto existem para WhatsApp e campanhas; faltam fallback estruturado em todos os eventos |
@@ -1052,7 +1054,7 @@ O CRM completo pode ser considerado pronto para primeira operação de loja quan
 - [x] A navegação comercial estiver reduzida aos módulos Painel, Pedidos, Produtos, Clientes, Conversas, Campanhas, Relatórios e Configurações da Loja.
 - [x] Submenus sem fluxo real estiverem removidos ou ocultos: `Drafts`, `Calendário`, `Resumo`, `Categoria`, `Descontos`, `Chatbot`, `Explorar`, `Site`, `Montra`, `Finalizar compra`, `Apresentação`, `Menu` e `Páginas`.
 - [~] Clientes tiverem perfil 360 com conversas, pedidos, pagamentos, entregas, notas, tags, tarefas e consentimento.
-- [~] Pedidos substituírem reservas como entidade comercial completa, mantendo compatibilidade com vendas de live.
+- [x] Pedidos substituírem reservas como entidade comercial completa, mantendo compatibilidade com vendas de live.
 - [~] Conversas permitirem responder, criar pedido, cobrar, confirmar pagamento, pedir entrega e criar tarefa sem sair da tela.
 - [x] Campanhas respeitarem opt-out, consentimento, segmentos e templates aprovados.
 - [~] Relatórios úteis responderem perguntas de venda, atendimento, produto, campanha e cliente.
@@ -1090,7 +1092,7 @@ O backend pode ser considerado pronto para receber os módulos CRM+ quando:
 - [~] Todas as rotas comerciais resolverem `usuarioId`, `negocioId`, papel, permissões e módulos ativos antes de consultar dados; fundação HTTP e governança de módulos já existem, faltam varredura final e cobertura em módulos futuros.
 - [~] Produtos, clientes, pedidos, conversas, mensagens, afiliados, comissões, campanhas, tarefas e tracking estiverem isolados por negócio; faltam varredura final em todos os webhooks futuros.
 - [~] Clientes globais e clientes por negócio estiverem deduplicados sem vazar histórico privado entre lojas; compartilhamento recebido sanitiza dados por escopo e revogação remove acesso, fusão backend existe, faltam portal de consentimento e políticas avançadas.
-- [~] Pedidos existirem como entidade comercial completa, com compatibilidade para reservas de live.
+- [x] Pedidos existirem como entidade comercial completa, com compatibilidade para reservas de live.
 - [~] O motor de WhatsApp Policy bloquear envio sem categoria, template, consentimento, janela válida ou texto promocional em categoria transacional.
 - [~] Outbox/event bus suportar retry e idempotência para WhatsApp, n8n, campanhas, tracking, social inbox e comissões.
 - [~] Permissões impedirem vendedor comum de acessar dados técnicos, tokens, configurações globais e exportações sensíveis.

@@ -418,6 +418,86 @@ describe("pedidos HTTP", () => {
     }
   });
 
+  it("converte reserva de live em pedido completo sem duplicar", async () => {
+    const app = await criarAplicacao();
+
+    try {
+      const loja = await autenticar(app, "923222180", "Loja Conversão Reserva");
+      await criarPeca(app, loja, "901", 3, 18_000);
+
+      const comentario = await app.inject({
+        method: "POST",
+        url: "/comentarios/manual",
+        headers: loja,
+        payload: {
+          liveId: "live_converte_reserva",
+          username: "cliente_reserva_pedido",
+          displayName: "Cliente Reserva Pedido",
+          commentText: "quero 901 937624791"
+        }
+      });
+      expect(comentario.statusCode).toBe(201);
+      expect(comentario.json().reserva).toEqual(
+        expect.objectContaining({
+          id: expect.any(String),
+          codigoPeca: "901",
+          clienteNegocioId: expect.any(String)
+        })
+      );
+
+      const conversao = await app.inject({
+        method: "POST",
+        url: `/reservas/${comentario.json().reserva.id}/converter-pedido`,
+        headers: loja,
+        payload: {
+          taxaEntregaEmKwanza: 1_500,
+          enderecoEntrega: "Benfica, Rua da Live",
+          observacao: "Reserva da live convertida no CRM."
+        }
+      });
+      expect(conversao.statusCode).toBe(201);
+      expect(conversao.json()).toEqual(
+        expect.objectContaining({
+          convertido: true,
+          pedido: expect.objectContaining({
+            reservaId: comentario.json().reserva.id,
+            clienteNegocioId: comentario.json().reserva.clienteNegocioId,
+            origem: "live",
+            canal: "manual",
+            totalEmKwanza: 19_500,
+            enderecoEntrega: "Benfica, Rua da Live"
+          })
+        })
+      );
+      expect(conversao.json().pedido.itens).toEqual([
+        expect.objectContaining({
+          codigoPeca: "901",
+          quantidade: 1,
+          precoUnitarioEmKwanza: 18_000
+        })
+      ]);
+
+      const repetida = await app.inject({
+        method: "POST",
+        url: `/reservas/${comentario.json().reserva.id}/converter-pedido`,
+        headers: loja,
+        payload: {
+          taxaEntregaEmKwanza: 1_500,
+          enderecoEntrega: "Benfica, Rua da Live"
+        }
+      });
+      expect(repetida.statusCode).toBe(200);
+      expect(repetida.json()).toEqual(
+        expect.objectContaining({
+          convertido: false,
+          pedido: expect.objectContaining({ id: conversao.json().pedido.id })
+        })
+      );
+    } finally {
+      await app.close();
+    }
+  });
+
   it("reutiliza endereço salvo do cliente ao criar pedido", async () => {
     const app = await criarAplicacao();
 

@@ -1,10 +1,17 @@
 import {
   CancelarReservaSchema,
   ConfirmarPagamentoSchema,
+  ConverterReservaPedidoSchema,
   RegistrarComprovativoPagamentoSchema
 } from "../../../dominio/esquemas.js";
 import { persistirValorMedia } from "../../media/MediaStorage.js";
-import { exigirAcessoComercial } from "../contextoComercial.js";
+import { registrarAuditoriaCritica } from "../auditoriaOperacional.js";
+import {
+  exigirAcessoComercial,
+  obterLimiteDescontoSemAprovacaoPercentual,
+  temPermissao,
+  type ContextoComercialHttp
+} from "../contextoComercial.js";
 import type { ModuloHttp } from "./ModuloHttp.js";
 
 export const moduloReservas: ModuloHttp = {
@@ -90,6 +97,54 @@ export const moduloReservas: ModuloHttp = {
       }
     );
 
+    app.post("/reservas/:id/converter-pedido", async (request, reply) => {
+      const contextoComercial = await exigirAcessoComercial(contexto, request, reply, {
+        permissao: "pedidos:gerir",
+        modulo: "reservas",
+        mensagemPermissao: "Sem permissão para converter reservas em pedidos.",
+        mensagemModulo: "Reservas desativadas para este negócio."
+      });
+      if (!contextoComercial) return;
+
+      const { id } = request.params as { id: string };
+      const reserva = await contexto.repositorios.reservas.buscarPorId(id, contextoComercial.negocio.id);
+      if (!reserva) {
+        return reply.code(404).send({ erro: "RESERVA_NAO_ENCONTRADA", mensagem: "Reserva não encontrada." });
+      }
+
+      const dados = ConverterReservaPedidoSchema.parse(request.body ?? {});
+      const resultado = await contexto.gestaoPedidos.converterReservaEmPedido(reserva, {
+        origem: dados.origem,
+        canal: dados.canal,
+        descontoEmKwanza: dados.descontoEmKwanza,
+        motivoDesconto: dados.motivoDesconto,
+        taxaEntregaEmKwanza: dados.taxaEntregaEmKwanza,
+        enderecoEntrega: dados.enderecoEntrega,
+        comprovativoPagamentoUrl: dados.comprovativoPagamentoUrl,
+        observacao: dados.observacao,
+        responsavelId: dados.responsavelId,
+        ...politicaDescontoDoContexto(contextoComercial)
+      });
+
+      if (resultado.convertido) {
+        await registrarAuditoriaCritica(contexto, contextoComercial, {
+          topico: "pedidos",
+          tipo: "RESERVA_CONVERTIDA_PEDIDO",
+          entidadeTipo: "pedido",
+          entidadeId: resultado.pedido.id,
+          motivo: dados.observacao ?? "Reserva convertida em pedido.",
+          payload: {
+            reservaId: reserva.id,
+            clienteNegocioId: reserva.clienteNegocioId,
+            codigoPeca: reserva.codigoPeca,
+            liveId: reserva.liveId
+          }
+        });
+      }
+
+      return reply.code(resultado.convertido ? 201 : 200).send(resultado);
+    });
+
     app.post("/reservas/:id/cancelar", async (request, reply) => {
       const contextoComercial = await exigirAcessoComercial(contexto, request, reply, {
         permissao: "pedidos:gerir",
@@ -127,3 +182,10 @@ export const moduloReservas: ModuloHttp = {
     });
   }
 };
+
+function politicaDescontoDoContexto(contextoComercial: ContextoComercialHttp) {
+  return {
+    podeAprovarDesconto: temPermissao(contextoComercial.permissoes, "descontos:aprovar"),
+    limiteDescontoSemAprovacaoPercentual: obterLimiteDescontoSemAprovacaoPercentual(contextoComercial.negocio)
+  };
+}

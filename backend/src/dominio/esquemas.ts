@@ -818,6 +818,18 @@ export const ConfirmarPagamentoPedidoSchema = z.object({
   observacao: z.string().trim().max(1000).nullable().optional().transform((valor) => valor ?? null)
 });
 
+export const ConverterReservaPedidoSchema = z.object({
+  origem: z.string().trim().min(1).max(80).default("live"),
+  canal: z.string().trim().min(1).max(80).default("manual"),
+  descontoEmKwanza: z.coerce.number().int().min(0).default(0),
+  motivoDesconto: z.string().trim().max(1000).nullable().optional().transform((valor) => valor ?? null),
+  taxaEntregaEmKwanza: z.coerce.number().int().min(0).default(0),
+  enderecoEntrega: z.string().trim().max(1000).nullable().optional().transform((valor) => valor ?? null),
+  comprovativoPagamentoUrl: z.string().trim().url().max(2048).nullable().optional().transform((valor) => valor ?? null),
+  observacao: z.string().trim().max(1000).nullable().optional().transform((valor) => valor ?? null),
+  responsavelId: TextoPerfilOpcionalSchema
+});
+
 export const PagarComissaoParceiroSchema = z.object({
   referenciaPagamento: z.string().trim().min(3).max(120),
   observacao: z.string().trim().max(1000).nullable().optional().transform((valor) => valor ?? null)

@@ -2436,6 +2436,13 @@ export class RepositorioPedidosMemoria implements RepositorioPedidos {
     return pedido?.negocioId === negocioId ? pedido : null;
   }
 
+  async buscarPorReservaId(reservaId: string, negocioId: string): Promise<Pedido | null> {
+    return (
+      [...this.pedidos.values()].find((pedido) => pedido.negocioId === negocioId && pedido.reservaId === reservaId) ??
+      null
+    );
+  }
+
   async atualizarEstado(id: string, negocioId: string, dados: AtualizacaoEstadoPedido): Promise<Pedido | null> {
     const pedido = await this.buscarPorId(id, negocioId);
     if (!pedido) return null;

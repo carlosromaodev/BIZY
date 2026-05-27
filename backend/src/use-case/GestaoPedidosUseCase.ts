@@ -15,7 +15,8 @@ import type {
   FiltrosPedidos,
   NovoPedido,
   NovaTarefaOperacional,
-  Pedido
+  Pedido,
+  Reserva
 } from "../dominio/tipos.js";
 
 const estadosQueConsomemStock = new Set<Pedido["estado"]>([
@@ -91,6 +92,32 @@ export class GestaoPedidosUseCase {
     });
 
     return pedido;
+  }
+
+  async converterReservaEmPedido(
+    reserva: Reserva,
+    dados: Omit<NovoPedido, "negocioId" | "clienteNegocioId" | "reservaId" | "itens"> = {}
+  ): Promise<{ reserva: Reserva; pedido: Pedido; convertido: boolean }> {
+    if (!reserva.negocioId) throw new Error("Reserva sem negócio não pode ser convertida em pedido.");
+    if (!reserva.clienteNegocioId) throw new Error("Reserva sem cliente vinculado não pode ser convertida em pedido.");
+
+    const existente = await this.pedidos.buscarPorReservaId(reserva.id, reserva.negocioId);
+    if (existente) return { reserva, pedido: existente, convertido: false };
+
+    const pedido = await this.criarPedido({
+      ...dados,
+      negocioId: reserva.negocioId,
+      clienteNegocioId: reserva.clienteNegocioId,
+      reservaId: reserva.id,
+      itens: [{ codigoPeca: reserva.codigoPeca, quantidade: 1 }],
+      origem: dados.origem ?? "live",
+      canal: dados.canal ?? "manual",
+      enderecoEntrega: dados.enderecoEntrega ?? reserva.enderecoEntrega,
+      comprovativoPagamentoUrl: dados.comprovativoPagamentoUrl ?? reserva.comprovativoPagamentoUrl,
+      observacao: dados.observacao ?? `Pedido criado a partir da reserva da live ${reserva.liveId}.`
+    });
+
+    return { reserva, pedido, convertido: true };
   }
 
   async listarPedidos(negocioId: string, filtros: FiltrosPedidos = {}) {

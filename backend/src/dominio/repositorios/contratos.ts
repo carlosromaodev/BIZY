@@ -375,6 +375,7 @@ export interface RepositorioPedidos {
   criar(dados: DadosPedidoResolvido): Promise<Pedido>;
   listar(negocioId: string, filtros?: FiltrosPedidos): Promise<Pedido[]>;
   buscarPorId(id: string, negocioId: string): Promise<Pedido | null>;
+  buscarPorReservaId(reservaId: string, negocioId: string): Promise<Pedido | null>;
   atualizarEstado(id: string, negocioId: string, dados: AtualizacaoEstadoPedido): Promise<Pedido | null>;
   atualizarFinanceiro(id: string, negocioId: string, dados: AtualizacaoFinanceiraPedido): Promise<Pedido | null>;
   confirmarPagamento(id: string, negocioId: string, dados: ConfirmacaoPagamentoPedido): Promise<Pedido | null>;

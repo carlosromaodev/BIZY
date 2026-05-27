@@ -2113,6 +2113,15 @@ export class RepositorioPedidosPrisma implements RepositorioPedidos {
     return pedido ? this.mapearPedido(pedido) : null;
   }
 
+  async buscarPorReservaId(reservaId: string, negocioId: string): Promise<Pedido | null> {
+    const pedido = await this.prisma.pedido.findFirst({
+      where: { reservaId, negocioId },
+      include: { itens: true },
+      orderBy: { criadoEm: "asc" }
+    });
+    return pedido ? this.mapearPedido(pedido) : null;
+  }
+
   async atualizarEstado(id: string, negocioId: string, dados: AtualizacaoEstadoPedido): Promise<Pedido | null> {
     const existente = await this.buscarPorId(id, negocioId);
     if (!existente) return null;
