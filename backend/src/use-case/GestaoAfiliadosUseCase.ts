@@ -1,8 +1,14 @@
 import type { DespachadorEventos } from "../dominio/eventos/DespachadorEventos.js";
-import type { RepositorioAfiliados, RepositorioPecas, RepositorioPedidos } from "../dominio/repositorios/contratos.js";
+import type {
+  RepositorioAfiliados,
+  RepositorioPecas,
+  RepositorioPedidos,
+  RepositorioTrackingComercial
+} from "../dominio/repositorios/contratos.js";
 import { normalizarTelefone } from "../dominio/servicos/normalizarContato.js";
 import type {
   LinkAfiliado,
+  EventoTrackingComercial,
   NovoLotePagamentoComissao,
   NovoLinkAfiliado,
   NovoParceiroComercial,
@@ -10,6 +16,7 @@ import type {
   Peca,
   Pedido,
   RegraComissaoParceiro,
+  ResumoAfiliadosComerciais,
   ResumoSaldosComissoes,
   SaldoComissaoParceiro
 } from "../dominio/tipos.js";
@@ -56,7 +63,8 @@ export class GestaoAfiliadosUseCase {
     private readonly afiliados: RepositorioAfiliados,
     eventos?: DespachadorEventos,
     private readonly pecas?: RepositorioPecas,
-    private readonly pedidos?: RepositorioPedidos
+    private readonly pedidos?: RepositorioPedidos,
+    private readonly tracking?: RepositorioTrackingComercial
   ) {
     eventos?.aoReceber("ORDER_PAYMENT_CONFIRMED", (evento) => {
       const pedidoId = typeof evento.dados.pedidoId === "string" ? evento.dados.pedidoId : null;
@@ -226,7 +234,74 @@ export class GestaoAfiliadosUseCase {
   }
 
   async resumir(negocioId: string) {
-    return this.afiliados.resumir(negocioId);
+    const resumo = await this.afiliados.resumir(negocioId);
+    if (!this.tracking) return resumo;
+
+    return this.enriquecerResumoComTracking(negocioId, resumo);
+  }
+
+  private async enriquecerResumoComTracking(
+    negocioId: string,
+    resumo: ResumoAfiliadosComerciais
+  ): Promise<ResumoAfiliadosComerciais> {
+    const [parceiros, links, eventos] = await Promise.all([
+      this.afiliados.listarParceiros(negocioId),
+      this.afiliados.listarLinks(negocioId),
+      this.tracking?.listarEventos(negocioId, { limite: 100_000 }) ?? []
+    ]);
+    const parceirosPorId = new Map(parceiros.map((parceiro) => [parceiro.id, parceiro]));
+    const linksPorId = new Map(links.map((link) => [link.id, link]));
+    const linksPorCodigo = new Map(links.map((link) => [link.codigo, link]));
+    const metricasPorAfiliado = new Map<string, { cliques: number; leads: number }>();
+
+    for (const evento of eventos) {
+      const afiliadoId = this.afiliadoDoEventoTracking(evento, linksPorId, linksPorCodigo);
+      if (!afiliadoId) continue;
+
+      const metricas = metricasPorAfiliado.get(afiliadoId) ?? { cliques: 0, leads: 0 };
+      if (evento.tipo === "WHATSAPP_CLICK") metricas.cliques += 1;
+      if (evento.tipo === "CHECKOUT_INICIADO") metricas.leads += 1;
+      metricasPorAfiliado.set(afiliadoId, metricas);
+    }
+
+    const rankingPorAfiliado = new Map(resumo.ranking.map((item) => [item.afiliadoId, item]));
+    for (const [afiliadoId, metricas] of metricasPorAfiliado) {
+      const parceiro = parceirosPorId.get(afiliadoId);
+      const atual = rankingPorAfiliado.get(afiliadoId) ?? {
+        afiliadoId,
+        codigo: parceiro?.codigo ?? "",
+        nomePublico: parceiro?.nomePublico ?? "Parceiro removido",
+        pedidos: 0,
+        pedidosPagos: 0,
+        cliques: 0,
+        leads: 0,
+        taxaPedidoPorClique: 0,
+        receitaAtribuidaEmKwanza: 0,
+        ticketMedioEmKwanza: 0,
+        comissaoConfirmadaEmKwanza: 0,
+        comissaoPendenteEmKwanza: 0,
+        comissaoPagaEmKwanza: 0
+      };
+
+      atual.cliques = metricas.cliques;
+      atual.leads = metricas.leads;
+      atual.taxaPedidoPorClique = this.taxaPercentual(atual.pedidos, metricas.cliques);
+      rankingPorAfiliado.set(afiliadoId, atual);
+    }
+
+    const ranking = [...rankingPorAfiliado.values()].sort(
+      (a, b) =>
+        b.receitaAtribuidaEmKwanza - a.receitaAtribuidaEmKwanza ||
+        b.comissaoConfirmadaEmKwanza - a.comissaoConfirmadaEmKwanza ||
+        b.cliques - a.cliques
+    );
+
+    return {
+      ...resumo,
+      totalCliques: [...metricasPorAfiliado.values()].reduce((total, item) => total + item.cliques, 0),
+      totalLeads: [...metricasPorAfiliado.values()].reduce((total, item) => total + item.leads, 0),
+      ranking
+    };
   }
 
   async marcarComissaoPaga(
@@ -552,6 +627,31 @@ export class GestaoAfiliadosUseCase {
       canal: item.link.canal,
       capturadoEm: item.capturadoEm
     };
+  }
+
+  private afiliadoDoEventoTracking(
+    evento: EventoTrackingComercial,
+    linksPorId: Map<string, LinkAfiliado>,
+    linksPorCodigo: Map<string, LinkAfiliado>
+  ): string | null {
+    const metadata = this.objeto(evento.metadata);
+    const atribuicao = this.objeto(metadata.atribuicao);
+    const principal = this.objeto(atribuicao.principal);
+    const afiliadoId = this.textoMetadata(metadata.afiliadoId) ?? this.textoMetadata(principal.parceiroId);
+    if (afiliadoId) return afiliadoId;
+
+    const linkId = this.textoMetadata(metadata.linkAfiliadoId) ?? this.textoMetadata(principal.linkId);
+    if (linkId && linksPorId.has(linkId)) return linksPorId.get(linkId)?.afiliadoId ?? null;
+
+    const codigoLink = this.textoMetadata(principal.codigoLink) ?? this.textoMetadata(metadata.referencia);
+    if (!codigoLink) return null;
+
+    return linksPorCodigo.get(this.normalizarCodigo(codigoLink))?.afiliadoId ?? null;
+  }
+
+  private taxaPercentual(parte: number, total: number): number {
+    if (total <= 0) return 0;
+    return Math.round((parte / total) * 10_000) / 100;
   }
 
   private janelaAtribuicaoParceiro(parceiro: ParceiroComercial): number | null {

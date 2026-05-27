@@ -2276,12 +2276,17 @@ export interface ResumoAfiliadosComerciais {
   comissaoPagaEmKwanza: number;
   comissaoRevertidaEmKwanza: number;
   receitaAtribuidaEmKwanza: number;
+  totalCliques: number;
+  totalLeads: number;
   ranking: Array<{
     afiliadoId: string;
     codigo: string;
     nomePublico: string;
     pedidos: number;
     pedidosPagos: number;
+    cliques: number;
+    leads: number;
+    taxaPedidoPorClique: number;
     receitaAtribuidaEmKwanza: number;
     ticketMedioEmKwanza: number;
     comissaoConfirmadaEmKwanza: number;

@@ -1569,6 +1569,8 @@ export class RepositorioAfiliadosPrisma implements RepositorioAfiliados {
       comissaoPagaEmKwanza: this.somarComissoesPorStatus(comissoes, "PAGA"),
       comissaoRevertidaEmKwanza: this.somarComissoesPorStatus(comissoes, "REVERTIDA"),
       receitaAtribuidaEmKwanza,
+      totalCliques: 0,
+      totalLeads: 0,
       ranking: [...rankingPorAfiliado.values()]
         .map((item) => ({
           afiliadoId: item.afiliadoId,
@@ -1576,6 +1578,9 @@ export class RepositorioAfiliadosPrisma implements RepositorioAfiliados {
           nomePublico: item.nomePublico,
           pedidos: item.pedidos.size,
           pedidosPagos: item.pedidosPagos.size,
+          cliques: 0,
+          leads: 0,
+          taxaPedidoPorClique: 0,
           receitaAtribuidaEmKwanza: item.receitaAtribuidaEmKwanza,
           ticketMedioEmKwanza: item.pedidosPagos.size
             ? Math.round(item.receitaAtribuidaEmKwanza / item.pedidosPagos.size)

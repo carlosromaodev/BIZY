@@ -296,7 +296,8 @@ export function criarContextoAplicacao(logger: FastifyBaseLogger): ContextoAplic
     repositorios.afiliados,
     eventos,
     repositorios.pecas,
-    repositorios.pedidos
+    repositorios.pedidos,
+    repositorios.trackingComercial
   );
   const gestaoCampanhasCrm = new GestaoCampanhasCrmUseCase(
     repositorios.campanhas,

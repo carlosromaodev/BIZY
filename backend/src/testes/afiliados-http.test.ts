@@ -250,6 +250,18 @@ describe("afiliados, criadores e comissões HTTP", () => {
         })
       );
 
+      const cliqueWhatsApp = await app.inject({
+        method: "POST",
+        url: "/publico/lojas/loja-afiliados/produtos/AF1/whatsapp",
+        payload: {
+          quantidade: 1,
+          referencia: "ANA-AF1",
+          trackingId: "trk-ana-1",
+          origem: "bio-tiktok"
+        }
+      });
+      expect(cliqueWhatsApp.statusCode).toBe(200);
+
       const checkout = await app.inject({
         method: "POST",
         url: "/publico/lojas/loja-afiliados/checkout",
@@ -334,6 +346,8 @@ describe("afiliados, criadores e comissões HTTP", () => {
           comissaoEstimadaEmKwanza: 0,
           comissaoConfirmadaEmKwanza: 2_500,
           comissaoPendenteEmKwanza: 2_500,
+          totalCliques: 1,
+          totalLeads: 1,
           receitaAtribuidaEmKwanza: 25_000
         })
       );
@@ -343,6 +357,9 @@ describe("afiliados, criadores e comissões HTTP", () => {
           nomePublico: "Ana Vendas",
           pedidos: 1,
           pedidosPagos: 1,
+          cliques: 1,
+          leads: 1,
+          taxaPedidoPorClique: 100,
           receitaAtribuidaEmKwanza: 25_000,
           ticketMedioEmKwanza: 25_000,
           comissaoConfirmadaEmKwanza: 2_500,
