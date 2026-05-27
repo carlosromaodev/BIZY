@@ -1,7 +1,7 @@
 # Bizy / ÉMeu V1 - Requisitos Funcionais, Não Funcionais e Regras de Negócio
 
 Documento: `RF-RNF-RN-EMEUV1.md`
-Versão: 1.85
+Versão: 1.86
 Data: 2026-05-26
 Autor: Carlos
 Status: MVP base implementado; fundação backend Bizy CRM+ com Clientes 360, Pedidos, Catálogo/Stock, Loja Pública, Vitrine Pública, Checkout, Entrega, Afiliados, Criadores, Revendedores, Mini-lojas Públicas, Comissões, Atribuição Comercial, Lotes Financeiros, Campanhas, Governança, Jobs, Eventos Operacionais, eventos server-side preparados, Inbox Comercial, SLA, Social Inbox seguro, transferência operacional, política WhatsApp, descontos aprováveis, carrinho abandonado, antifraude de afiliados, anonimização, SEO público, logs operacionais, navegação comercial, busca global, auditoria de exportações comerciais e painel diário em evolução
@@ -187,6 +187,8 @@ Atualização 1.83: Templates WhatsApp do negócio passaram a ter ciclo de vida 
 Atualização 1.84: Resumo de afiliados/criadores passou a expor receita atribuída, pedidos pagos, ticket médio e comissão pendente no ranking, deixando o backend mais pronto para painel operacional de parcerias.
 
 Atualização 1.85: Links de afiliados/criadores passaram a suportar destino comercial genérico e metadata operacional, permitindo rastrear campanhas, vendedor, post social, live e UTMs sem criar um link diferente para cada canal.
+
+Atualização 1.86: O resumo de tracking comercial passou a agregar conversão por campanha, vendedor, link e afiliado/criador, incluindo eventos, checkouts iniciados, pedidos criados, receita atribuída e taxa de pedido por checkout.
 
 ---
 
@@ -562,7 +564,7 @@ Esta etapa posiciona o Bizy como uma plataforma de operação comercial para cri
 | RF176 | [~] Links rastreáveis devem suportar UTM, código de referência, canal, campanha, criador, afiliado, vendedor e origem do conteúdo. | Alta | Parcial - UTM, canal, origem, trackingId, `ref`, campanha, vendedor e entidade de afiliado/criador implementados; falta consolidar relatórios por vendedor/campanha na UI |
 | RF177 | [~] O tracking deve associar visita anônima a lead, WhatsApp click, checkout ou pedido quando o cliente se identificar e houver base de consentimento aplicável. | Alta | Parcial - checkout associa trackingId/referência ao cliente/pedido quando há contacto e o funil preserva a jornada anônima até o pedido; falta associação retroativa de lead/conversa fora do checkout |
 | RF178 | [~] O sistema deve registrar eventos como página vista, produto visto, catálogo visto, clique WhatsApp, checkout iniciado, pedido criado, pagamento confirmado e compra entregue. | Alta | Parcial - loja visitada, catálogo visto, produto visto, clique WhatsApp, checkout iniciado, pedido criado, pagamento confirmado e compra entregue são aceites no tracking e os módulos de pedido/entrega agora movem o funil automaticamente; faltam webhooks financeiros/logísticos externos |
-| RF179 | [~] O dono do negócio deve ver conversão por link, produto, campanha, afiliado, criador, rede social e canal de venda. | Alta | Parcial - resumo por tipo/origem/canal, afiliados/comissões e social-receita implementados; faltam receita por campanha, ticket médio e conversão completa |
+| RF179 | [~] O dono do negócio deve ver conversão por link, produto, campanha, afiliado, criador, rede social e canal de venda. | Alta | Parcial - resumo por tipo/origem/canal, atribuições por campanha/vendedor/link/afiliado com pedidos, receita e taxa de pedido por checkout, afiliados/comissões e social-receita implementados; faltam ticket médio por recorte, redes sociais completas e UI analítica final |
 | RF180 | [x] O CRM+ deve suportar modelos de atribuição: primeiro toque, último toque, conversão assistida e ajuste manual auditado. | Média | Implementado no backend |
 | RF181 | [~] O prazo de atribuição por cookie/referral deve ser configurável por negócio, campanha ou afiliado. | Média | Parcial - backend usa janela por negócio e suporta metadata por parceiro; falta configuração dedicada por campanha/link |
 | RF182 | [~] A loja pública deve exibir consentimento/aviso de tracking quando necessário e permitir operação básica mesmo sem cookies. | Alta | Parcial - backend opera sem `trackingId` e bloqueia dados pessoais; falta aviso visual/consentimento no frontend |
@@ -1141,7 +1143,7 @@ O CRM+ Social Commerce pode ser considerado pronto para operação inicial quand
 - [~] Todo envio WhatsApp passar pela política de categoria: marketing, utilidade, autenticação ou serviço, incluindo bloqueio de texto promocional em utilidade/autenticação, recuperação comercial como marketing e janela de serviço calculada por conversa; faltam sincronização oficial/provider e preços por categoria.
 - [~] O sistema impedir envio quando template/categoria estiver ausente, incompatível ou sem aprovação, criando tarefa humana.
 - [x] Opt-out e consentimento bloquearem campanhas e mensagens promocionais.
-- [~] Relatórios mostrarem receita por canal, produto, campanha, criador, afiliado, social post e funil; backend social-receita existe, faltam campanha completa e UI.
+- [~] Relatórios mostrarem receita por canal, produto, campanha, criador, afiliado, social post e funil; backend social-receita e atribuição por campanha/link/criador existem, faltam ticket médio por recorte, redes sociais completas e UI.
 - [~] O dono/admin conseguir pausar campanhas, automações, afiliados e integrações sociais rapidamente.
 - [ ] A experiência mobile da loja pública, checkout, catálogo e principais telas CRM+ estiver sem scroll horizontal e com ações principais acessíveis.
 

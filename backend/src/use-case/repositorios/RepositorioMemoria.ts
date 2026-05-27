@@ -350,6 +350,7 @@ export class RepositorioTrackingComercialMemoria implements RepositorioTrackingC
       porTipo: this.contarPor(eventos, (evento) => evento.tipo),
       porOrigem: this.contarPor(eventos, (evento) => evento.origem ?? "sem_origem"),
       porCanal: this.contarPor(eventos, (evento) => evento.canal ?? "sem_canal"),
+      atribuicoes: this.montarAtribuicoes(eventos),
       funil: this.montarFunil(eventos)
     };
   }
@@ -413,6 +414,78 @@ export class RepositorioTrackingComercialMemoria implements RepositorioTrackingC
       taxaPedidoPorCheckout: this.percentual(pedidosCriados.length, checkoutsIniciados),
       taxaWhatsAppPorProduto: this.percentual(cliquesWhatsApp, produtosVistos)
     };
+  }
+
+  private montarAtribuicoes(eventos: EventoTrackingComercial[]): ResumoTrackingComercial["atribuicoes"] {
+    const atribuicoes: ResumoTrackingComercial["atribuicoes"] = {
+      porCampanha: {},
+      porVendedor: {},
+      porLink: {},
+      porAfiliado: {}
+    };
+
+    for (const evento of eventos) {
+      const contexto = this.contextoAtribuicao(evento);
+      this.acumularAtribuicao(atribuicoes.porCampanha, contexto.campanha, evento);
+      this.acumularAtribuicao(atribuicoes.porVendedor, contexto.vendedor, evento);
+      this.acumularAtribuicao(atribuicoes.porLink, contexto.link, evento);
+      this.acumularAtribuicao(atribuicoes.porAfiliado, contexto.afiliado, evento);
+    }
+
+    return atribuicoes;
+  }
+
+  private acumularAtribuicao(
+    grupo: Record<string, ResumoTrackingComercial["atribuicoes"]["porCampanha"][string]>,
+    chave: string | null,
+    evento: EventoTrackingComercial
+  ) {
+    if (!chave) return;
+    const atual = grupo[chave] ?? {
+      eventos: 0,
+      checkoutsIniciados: 0,
+      pedidosCriados: 0,
+      receitaAtribuidaEmKwanza: 0,
+      taxaPedidoPorCheckout: 0
+    };
+    atual.eventos += 1;
+    if (evento.tipo === "CHECKOUT_INICIADO") atual.checkoutsIniciados += 1;
+    if (evento.tipo === "PEDIDO_CRIADO") {
+      atual.pedidosCriados += 1;
+      atual.receitaAtribuidaEmKwanza += this.valorMonetario(evento.metadata.totalEmKwanza);
+    }
+    atual.taxaPedidoPorCheckout = this.percentual(atual.pedidosCriados, atual.checkoutsIniciados);
+    grupo[chave] = atual;
+  }
+
+  private contextoAtribuicao(evento: EventoTrackingComercial) {
+    const atribuicao = this.objeto(evento.metadata.atribuicao);
+    const principal = this.objeto(atribuicao.principal);
+    const metadata = this.objeto(principal.metadata);
+    const destinoTipo = this.valorTexto(principal.destinoTipo);
+    const campanha =
+      destinoTipo === "CAMPANHA"
+        ? this.valorTexto(principal.destinoId)
+        : this.valorTexto(evento.utm.utm_campaign ?? metadata.utmCampaign);
+
+    return {
+      campanha,
+      vendedor: this.valorTexto(metadata.vendedorId ?? principal.vendedorId),
+      link: this.valorTexto(principal.codigoLink ?? principal.linkId),
+      afiliado: this.valorTexto(principal.codigoParceiro ?? principal.parceiroId)
+    };
+  }
+
+  private objeto(valor: unknown): Record<string, unknown> {
+    return valor && typeof valor === "object" && !Array.isArray(valor) ? valor as Record<string, unknown> : {};
+  }
+
+  private valorTexto(valor: unknown): string | null {
+    return typeof valor === "string" && valor.trim() ? valor.trim() : null;
+  }
+
+  private valorMonetario(valor: unknown): number {
+    return typeof valor === "number" && Number.isFinite(valor) ? valor : 0;
   }
 
   private percentual(parte: number, total: number): number {

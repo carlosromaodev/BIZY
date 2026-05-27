@@ -965,7 +965,10 @@ export class LojaPublicaUseCase {
         codigoParceiro: atribuicao.parceiro.codigo,
         linkId: atribuicao.link.id,
         codigoLink: atribuicao.link.codigo,
+        destinoTipo: atribuicao.link.destinoTipo,
+        destinoId: atribuicao.link.destinoId,
         canal: atribuicao.link.canal,
+        metadata: atribuicao.link.metadata,
         capturadoEm: atribuicao.capturadoEm
       },
       assistencias: atribuicao.assistencias

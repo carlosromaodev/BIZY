@@ -715,6 +715,121 @@ describe("loja pública, catálogo digital e tracking HTTP", () => {
     }
   });
 
+  it("resume conversão por campanha, vendedor e link rastreável de criador", async () => {
+    const app = await criarAplicacao();
+
+    try {
+      const loja = await autenticar(app, "923444031", "Loja Tracking Campanha");
+      await criarProduto(app, loja, "CAMP1", 8);
+
+      const publicacao = await app.inject({
+        method: "PUT",
+        url: "/loja-publica/configuracao",
+        headers: loja,
+        payload: {
+          slug: "loja-campanha-tracking",
+          descricaoPublica: "Campanhas rastreáveis com criadores.",
+          publicada: true
+        }
+      });
+      expect(publicacao.statusCode).toBe(200);
+
+      const criador = await app.inject({
+        method: "POST",
+        url: "/afiliados",
+        headers: loja,
+        payload: {
+          tipo: "CRIADOR",
+          codigo: "criadora-lia",
+          nomePublico: "Criadora Lia",
+          contacto: "923744031",
+          regraComissao: {
+            tipo: "PERCENTUAL",
+            percentual: 12
+          }
+        }
+      });
+      expect(criador.statusCode).toBe(201);
+
+      const link = await app.inject({
+        method: "POST",
+        url: `/afiliados/${criador.json().id}/links`,
+        headers: loja,
+        payload: {
+          codigo: "LIA-CAMP-1",
+          destinoTipo: "CAMPANHA",
+          destinoId: "campanha-live-maio",
+          slugLoja: "loja-campanha-tracking",
+          canal: "instagram",
+          origemConteudo: "reel-lia-01",
+          metadata: {
+            vendedorId: "vend-luanda-01",
+            postSocialId: "ig-reel-lia-01",
+            liveId: "live-maio-01",
+            utmCampaign: "campanha-live-maio"
+          }
+        }
+      });
+      expect(link.statusCode).toBe(201);
+
+      const checkout = await app.inject({
+        method: "POST",
+        url: "/publico/lojas/loja-campanha-tracking/checkout",
+        payload: {
+          cliente: {
+            nome: "Cliente campanha",
+            telefone: "923755031",
+            consentimentoDados: true,
+            consentimentoMarketing: true
+          },
+          itens: [{ codigoPeca: "CAMP1", quantidade: 1 }],
+          entrega: { tipo: "RETIRADA" },
+          referencia: "LIA-CAMP-1",
+          trackingId: "trk-campanha-lia",
+          origem: "instagram-reel",
+          canal: "instagram"
+        }
+      });
+      expect(checkout.statusCode).toBe(201);
+
+      const resumoTracking = await app.inject({
+        method: "GET",
+        url: "/loja-publica/tracking/resumo",
+        headers: loja
+      });
+      expect(resumoTracking.statusCode).toBe(200);
+      expect(resumoTracking.json().atribuicoes.porCampanha["campanha-live-maio"]).toEqual(
+        expect.objectContaining({
+          eventos: 2,
+          checkoutsIniciados: 1,
+          pedidosCriados: 1,
+          receitaAtribuidaEmKwanza: 12_500,
+          taxaPedidoPorCheckout: 100
+        })
+      );
+      expect(resumoTracking.json().atribuicoes.porVendedor["vend-luanda-01"]).toEqual(
+        expect.objectContaining({
+          pedidosCriados: 1,
+          receitaAtribuidaEmKwanza: 12_500
+        })
+      );
+      expect(resumoTracking.json().atribuicoes.porLink["LIA-CAMP-1"]).toEqual(
+        expect.objectContaining({
+          pedidosCriados: 1,
+          receitaAtribuidaEmKwanza: 12_500
+        })
+      );
+      expect(resumoTracking.json().atribuicoes.porAfiliado["CRIADORA-LIA"]).toEqual(
+        expect.objectContaining({
+          pedidosCriados: 1,
+          receitaAtribuidaEmKwanza: 12_500
+        })
+      );
+    } finally {
+      await app.close();
+    }
+  });
+
   it("aceita orçamento humano de entrega sem bloquear checkout público por WhatsApp", async () => {
     const app = await criarAplicacao();
 

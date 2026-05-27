@@ -2018,6 +2018,12 @@ export interface ResumoTrackingComercial {
   porTipo: Partial<Record<TipoEventoTrackingComercial, number>>;
   porOrigem: Record<string, number>;
   porCanal: Record<string, number>;
+  atribuicoes: {
+    porCampanha: Record<string, ResumoConversaoTrackingComercial>;
+    porVendedor: Record<string, ResumoConversaoTrackingComercial>;
+    porLink: Record<string, ResumoConversaoTrackingComercial>;
+    porAfiliado: Record<string, ResumoConversaoTrackingComercial>;
+  };
   funil: {
     visitas: number;
     produtosVistos: number;
@@ -2032,6 +2038,14 @@ export interface ResumoTrackingComercial {
     taxaPedidoPorCheckout: number;
     taxaWhatsAppPorProduto: number;
   };
+}
+
+export interface ResumoConversaoTrackingComercial {
+  eventos: number;
+  checkoutsIniciados: number;
+  pedidosCriados: number;
+  receitaAtribuidaEmKwanza: number;
+  taxaPedidoPorCheckout: number;
 }
 
 export interface RegraComissaoProdutoParceiro {
