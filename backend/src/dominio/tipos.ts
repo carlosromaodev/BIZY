@@ -2,6 +2,8 @@ import type { CategoriaMensagemWhatsApp } from "./provedores/ProvedorWhatsApp.js
 
 export const estadosPeca = ["DISPONIVEL", "RESERVADA", "VENDIDA", "ESGOTADA"] as const;
 export type EstadoPeca = (typeof estadosPeca)[number];
+export const selosProdutoPublico = ["DESTAQUE", "PROMOCAO", "NOVIDADE", "MAIS_VENDIDO", "REPOSICAO", "KIT"] as const;
+export type SeloProdutoPublico = (typeof selosProdutoPublico)[number];
 
 export const estadosStockProduto = ["DISPONIVEL", "BAIXO_STOCK", "ESGOTADO", "ARQUIVADO"] as const;
 export type EstadoStockProduto = (typeof estadosStockProduto)[number];
@@ -211,11 +213,27 @@ export interface Peca {
   stockMinimo: number;
   fotos: string[];
   variantes: Record<string, string[]>;
+  vitrine: ConfiguracaoVitrineProduto;
   estado: EstadoPeca;
   estadoStock: EstadoStockProduto;
   arquivadaEm: Date | null;
   criadoEm: Date;
   atualizadoEm: Date;
+}
+
+export interface ComponenteKitProduto {
+  codigoPeca: string;
+  quantidade: number;
+}
+
+export interface ConfiguracaoVitrineProduto {
+  selos: SeloProdutoPublico[];
+  prioridade: number;
+  titulo: string | null;
+  descricao: string | null;
+  precoPromocionalEmKwanza: number | null;
+  ativaAte: Date | null;
+  componentesKit: ComponenteKitProduto[];
 }
 
 export interface NovaPeca {
@@ -232,6 +250,7 @@ export interface NovaPeca {
   stockMinimo?: number;
   fotos: string[];
   variantes?: Record<string, string[]>;
+  vitrine?: ConfiguracaoVitrineProduto;
   estado?: EstadoPeca;
   arquivadaEm?: Date | null;
 }
@@ -249,6 +268,7 @@ export interface AtualizarPeca {
   stockMinimo?: number;
   fotos?: string[];
   variantes?: Record<string, string[]>;
+  vitrine?: ConfiguracaoVitrineProduto;
   estado?: EstadoPeca;
   arquivadaEm?: Date | null;
 }

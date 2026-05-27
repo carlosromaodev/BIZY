@@ -32,6 +32,7 @@ async function criarProduto(
     categoria: string;
     colecao: string;
     precoEmKwanza: number;
+    vitrine: Record<string, unknown>;
   }> = {}
 ) {
   const resposta = await app.inject({
@@ -50,7 +51,8 @@ async function criarProduto(
       categoria: dados.categoria ?? "Roupas",
       colecao: dados.colecao ?? "Live atual",
       variantes: { tamanho: ["M", "G"] },
-      fotos: [`https://example.com/${codigo}.png`]
+      fotos: [`https://example.com/${codigo}.png`],
+      ...(dados.vitrine ? { vitrine: dados.vitrine } : {})
     }
   });
   expect(resposta.statusCode).toBe(201);
@@ -235,6 +237,95 @@ describe("loja pública, catálogo digital e tracking HTTP", () => {
           })
         })
       );
+    } finally {
+      await app.close();
+    }
+  });
+
+  it("organiza vitrine pública com destaques, promoções, novidades, reposições, kits e mais vendidos", async () => {
+    const app = await criarAplicacao();
+
+    try {
+      const loja = await autenticar(app, "923444130", "Loja Vitrine");
+      await criarProduto(app, loja, "D-1", 5, {
+        nome: "Vestido destaque",
+        vitrine: {
+          selos: ["DESTAQUE"],
+          prioridade: 2,
+          titulo: "Escolha da semana"
+        }
+      });
+      await criarProduto(app, loja, "P-1", 5, {
+        nome: "Blusa em promoção",
+        vitrine: {
+          selos: ["PROMOCAO"],
+          prioridade: 1,
+          precoPromocionalEmKwanza: 9_500,
+          descricao: "Preço especial até acabar o stock."
+        }
+      });
+      await criarProduto(app, loja, "N-1", 5, {
+        nome: "Novidade verde",
+        vitrine: { selos: ["NOVIDADE"], prioridade: 1 }
+      });
+      await criarProduto(app, loja, "R-1", 5, {
+        nome: "Reposição esperada",
+        vitrine: { selos: ["REPOSICAO"], prioridade: 1 }
+      });
+      await criarProduto(app, loja, "M-1", 5, {
+        nome: "Mais vendido",
+        vitrine: { selos: ["MAIS_VENDIDO"], prioridade: 1 }
+      });
+      await criarProduto(app, loja, "K-1", 5, {
+        nome: "Kit completo",
+        vitrine: {
+          selos: ["KIT", "DESTAQUE"],
+          prioridade: 0,
+          componentesKit: [
+            { codigoPeca: "D-1", quantidade: 1 },
+            { codigoPeca: "P-1", quantidade: 1 }
+          ]
+        }
+      });
+
+      const publicacao = await app.inject({
+        method: "PUT",
+        url: "/loja-publica/configuracao",
+        headers: loja,
+        payload: {
+          slug: "loja-vitrine",
+          publicada: true
+        }
+      });
+      expect(publicacao.statusCode).toBe(200);
+
+      const lojaPublica = await app.inject({
+        method: "GET",
+        url: "/publico/lojas/loja-vitrine"
+      });
+      expect(lojaPublica.statusCode).toBe(200);
+      expect(lojaPublica.json().vitrine).toEqual(
+        expect.objectContaining({
+          destaques: [
+            expect.objectContaining({ codigo: "K-1", nome: "Kit completo" }),
+            expect.objectContaining({ codigo: "D-1", nome: "Vestido destaque" })
+          ],
+          promocoes: [expect.objectContaining({ codigo: "P-1", precoPromocionalEmKwanza: 9_500 })],
+          novidades: [expect.objectContaining({ codigo: "N-1" })],
+          reposicoes: [expect.objectContaining({ codigo: "R-1" })],
+          maisVendidos: [expect.objectContaining({ codigo: "M-1" })],
+          kits: [expect.objectContaining({ codigo: "K-1" })]
+        })
+      );
+      expect(lojaPublica.json().produtos.find((produto: { codigo: string }) => produto.codigo === "K-1").vitrine)
+        .toEqual(expect.objectContaining({
+          selos: ["KIT", "DESTAQUE"],
+          prioridade: 0,
+          componentesKit: [
+            { codigoPeca: "D-1", quantidade: 1 },
+            { codigoPeca: "P-1", quantidade: 1 }
+          ]
+        }));
     } finally {
       await app.close();
     }

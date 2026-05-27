@@ -1,0 +1,2 @@
+ALTER TABLE "Peca"
+ADD COLUMN "vitrineJson" TEXT NOT NULL DEFAULT '{}';

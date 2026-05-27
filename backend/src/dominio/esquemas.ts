@@ -19,6 +19,7 @@ import {
   papeisNegocio,
   providersTemplateWhatsApp,
   statusMembroNegocio,
+  selosProdutoPublico,
   etapasFunilComercial,
   fontesLive,
   gatilhosPlaybookRecuperacao,
@@ -71,6 +72,24 @@ const VariantesPecaSchema = z
     z.array(z.string().trim().min(1).max(80)).max(60)
   )
   .default({});
+
+const VitrineProdutoSchema = z.object({
+  selos: z.array(z.enum(selosProdutoPublico)).default([]),
+  prioridade: z.coerce.number().int().min(0).max(9999).default(100),
+  titulo: TextoCatalogoOpcionalSchema,
+  descricao: z.preprocess(
+    (valor) => (typeof valor === "string" && valor.trim() === "" ? null : valor),
+    z.string().trim().min(1).max(240).nullable().optional()
+  ).transform((valor) => valor ?? null),
+  precoPromocionalEmKwanza: z.coerce.number().int().min(0).nullable().optional().transform((valor) => valor ?? null),
+  ativaAte: z.coerce.date().nullable().optional().transform((valor) => valor ?? null),
+  componentesKit: z.array(
+    z.object({
+      codigoPeca: z.string().trim().min(1).max(32).transform((valor) => valor.toUpperCase()),
+      quantidade: z.coerce.number().int().min(1).max(999)
+    })
+  ).default([])
+}).default({});
 
 export const ModuloNegocioParametroSchema = z.object({
   modulo: z.enum(modulosNegocioDisponiveis)
@@ -197,6 +216,7 @@ export const CriarPecaSchema = z.object({
   stockMinimo: z.coerce.number().int().min(0).default(0),
   fotos: z.array(z.string().url()).default([]),
   variantes: VariantesPecaSchema,
+  vitrine: VitrineProdutoSchema,
   estado: z.enum(estadosPeca).optional()
 });
 

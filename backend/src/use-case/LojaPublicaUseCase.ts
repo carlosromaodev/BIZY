@@ -143,10 +143,13 @@ export class LojaPublicaUseCase {
       utm: tracking?.utm ?? {}
     });
 
+    const produtosPublicos = produtos.map((peca) => this.mapearProdutoPublico(peca));
+
     return {
       loja: this.mapearLojaPublica(negocio),
-      produtos: produtos.map((peca) => this.mapearProdutoPublico(peca)),
+      produtos: produtosPublicos,
       filtros: this.filtrosPublicosAplicados(filtros),
+      vitrine: this.montarVitrinePublica(produtosPublicos),
       seo: this.mapearSeoLoja(negocio, produtos[0])
     };
   }
@@ -542,11 +545,30 @@ export class LojaPublicaUseCase {
       categoria: peca.categoria,
       colecao: peca.colecao,
       precoEmKwanza: peca.precoEmKwanza,
+      precoPromocionalEmKwanza: peca.vitrine.precoPromocionalEmKwanza,
       quantidade: peca.quantidade,
       fotos: peca.fotos,
       variantes: peca.variantes,
+      vitrine: peca.vitrine,
       estadoStock: peca.estadoStock,
       disponivel: this.pecaVendavel(peca)
+    };
+  }
+
+  private montarVitrinePublica<T extends { codigo: string; vitrine: Peca["vitrine"] }>(produtos: T[]) {
+    const porSelo = (selo: Peca["vitrine"]["selos"][number]) =>
+      produtos
+        .filter((produto) => produto.vitrine.selos.includes(selo))
+        .sort((a, b) => a.vitrine.prioridade - b.vitrine.prioridade || a.codigo.localeCompare(b.codigo, "pt-AO", { numeric: true }))
+        .slice(0, 20);
+
+    return {
+      destaques: porSelo("DESTAQUE"),
+      promocoes: porSelo("PROMOCAO"),
+      novidades: porSelo("NOVIDADE"),
+      reposicoes: porSelo("REPOSICAO"),
+      maisVendidos: porSelo("MAIS_VENDIDO"),
+      kits: porSelo("KIT")
     };
   }
 

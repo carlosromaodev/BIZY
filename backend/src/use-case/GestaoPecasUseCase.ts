@@ -2,6 +2,7 @@ import type { DespachadorEventos } from "../dominio/eventos/DespachadorEventos.j
 import type { RepositorioPecas, RepositorioReservas } from "../dominio/repositorios/contratos.js";
 import type {
   AtualizarPeca,
+  ConfiguracaoVitrineProduto,
   MovimentoStock,
   NovaPeca,
   Peca,
@@ -188,7 +189,11 @@ export class GestaoPecasUseCase {
   }
 
   private normalizarCriacao(dados: NovaPeca): NovaPeca {
-    const normalizada = { ...dados, codigo: this.normalizarCodigo(dados.codigo) };
+    const normalizada = {
+      ...dados,
+      codigo: this.normalizarCodigo(dados.codigo),
+      vitrine: this.normalizarVitrine(dados.vitrine)
+    };
 
     if (dados.quantidade === 0) {
       return { ...normalizada, estado: "ESGOTADA" };
@@ -237,21 +242,37 @@ export class GestaoPecasUseCase {
   }
 
   private normalizarAtualizacao(pecaAtual: Peca, dados: AtualizarPeca): AtualizarPeca {
+    const dadosNormalizados = dados.vitrine ? { ...dados, vitrine: this.normalizarVitrine(dados.vitrine) } : dados;
     const quantidade = dados.quantidade ?? pecaAtual.quantidade;
 
     if (quantidade === 0) {
-      return { ...dados, estado: "ESGOTADA" };
+      return { ...dadosNormalizados, estado: "ESGOTADA" };
     }
 
-    if (dados.estado) {
-      return dados;
+    if (dadosNormalizados.estado) {
+      return dadosNormalizados;
     }
 
     if (pecaAtual.estado === "ESGOTADA" && quantidade > 0) {
-      return { ...dados, estado: "DISPONIVEL" };
+      return { ...dadosNormalizados, estado: "DISPONIVEL" };
     }
 
-    return dados;
+    return dadosNormalizados;
+  }
+
+  private normalizarVitrine(vitrine?: ConfiguracaoVitrineProduto): ConfiguracaoVitrineProduto {
+    return {
+      selos: [...new Set(vitrine?.selos ?? [])],
+      prioridade: vitrine?.prioridade ?? 100,
+      titulo: vitrine?.titulo ?? null,
+      descricao: vitrine?.descricao ?? null,
+      precoPromocionalEmKwanza: vitrine?.precoPromocionalEmKwanza ?? null,
+      ativaAte: vitrine?.ativaAte ?? null,
+      componentesKit: (vitrine?.componentesKit ?? []).map((item) => ({
+        codigoPeca: this.normalizarCodigo(item.codigoPeca),
+        quantidade: item.quantidade
+      }))
+    };
   }
 
   private calcularQuantidadeNova(peca: Peca, dados: DadosRegistroMovimentoStock): number {

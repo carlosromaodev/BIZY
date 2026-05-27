@@ -192,6 +192,7 @@ export class RepositorioPecasMemoria implements RepositorioPecas {
       stockMinimo: dados.stockMinimo ?? 0,
       fotos: dados.fotos,
       variantes: dados.variantes ?? {},
+      vitrine: dados.vitrine ?? this.vitrinePadrao(),
       estado: dados.estado ?? (dados.quantidade > 0 ? "DISPONIVEL" : "ESGOTADA"),
       estadoStock: "DISPONIVEL",
       arquivadaEm: dados.arquivadaEm ?? null,
@@ -288,8 +289,21 @@ export class RepositorioPecasMemoria implements RepositorioPecas {
     const margemEstimadaEmKwanza = this.calcularMargem(peca.precoEmKwanza, peca.custoEmKwanza);
     return {
       ...peca,
+      vitrine: peca.vitrine ?? this.vitrinePadrao(),
       margemEstimadaEmKwanza,
       estadoStock: this.calcularEstadoStock(peca)
+    };
+  }
+
+  private vitrinePadrao(): Peca["vitrine"] {
+    return {
+      selos: [],
+      prioridade: 100,
+      titulo: null,
+      descricao: null,
+      precoPromocionalEmKwanza: null,
+      ativaAte: null,
+      componentesKit: []
     };
   }
 

@@ -186,6 +186,7 @@ export class RepositorioPecasPrisma implements RepositorioPecas {
         stockMinimo: dados.stockMinimo ?? 0,
         fotosJson: JSON.stringify(dados.fotos),
         variantesJson: JSON.stringify(dados.variantes ?? {}),
+        vitrineJson: JSON.stringify(dados.vitrine ?? this.vitrinePadrao()),
         estado: dados.estado ?? (dados.quantidade > 0 ? "DISPONIVEL" : "ESGOTADA")
       }
     });
@@ -234,7 +235,8 @@ export class RepositorioPecasPrisma implements RepositorioPecas {
         estado: dados.estado,
         arquivadaEm: dados.arquivadaEm,
         fotosJson: dados.fotos ? JSON.stringify(dados.fotos) : undefined,
-        variantesJson: dados.variantes ? JSON.stringify(dados.variantes) : undefined
+        variantesJson: dados.variantes ? JSON.stringify(dados.variantes) : undefined,
+        vitrineJson: dados.vitrine ? JSON.stringify(dados.vitrine) : undefined
       }
     });
 
@@ -291,6 +293,7 @@ export class RepositorioPecasPrisma implements RepositorioPecas {
     stockMinimo: number;
     fotosJson: string;
     variantesJson: string;
+    vitrineJson: string;
     estado: string;
     arquivadaEm: Date | null;
     criadoEm: Date;
@@ -301,6 +304,7 @@ export class RepositorioPecasPrisma implements RepositorioPecas {
       ...peca,
       fotos: this.lerFotos(peca.fotosJson),
       variantes: this.lerVariantes(peca.variantesJson),
+      vitrine: this.lerVitrine(peca.vitrineJson),
       estado: peca.estado as EstadoPeca,
       margemEstimadaEmKwanza,
       estadoStock: this.calcularEstadoStock({
@@ -354,6 +358,39 @@ export class RepositorioPecasPrisma implements RepositorioPecas {
     } catch {
       return {};
     }
+  }
+
+  private lerVitrine(valor: string): Peca["vitrine"] {
+    try {
+      const vitrine = JSON.parse(valor) as Partial<Peca["vitrine"]>;
+      return {
+        ...this.vitrinePadrao(),
+        ...vitrine,
+        selos: Array.isArray(vitrine.selos)
+          ? (vitrine.selos.filter((selo) => typeof selo === "string") as Peca["vitrine"]["selos"])
+          : [],
+        ativaAte: vitrine.ativaAte ? new Date(vitrine.ativaAte) : null,
+        componentesKit: Array.isArray(vitrine.componentesKit)
+          ? vitrine.componentesKit
+              .filter((item) => item && typeof item.codigoPeca === "string" && Number.isFinite(Number(item.quantidade)))
+              .map((item) => ({ codigoPeca: item.codigoPeca, quantidade: Number(item.quantidade) }))
+          : []
+      };
+    } catch {
+      return this.vitrinePadrao();
+    }
+  }
+
+  private vitrinePadrao(): Peca["vitrine"] {
+    return {
+      selos: [],
+      prioridade: 100,
+      titulo: null,
+      descricao: null,
+      precoPromocionalEmKwanza: null,
+      ativaAte: null,
+      componentesKit: []
+    };
   }
 
   private calcularMargem(precoEmKwanza: number, custoEmKwanza: number | null): number | null {
@@ -1957,6 +1994,7 @@ export class RepositorioReservasPrisma implements RepositorioReservas {
     stockMinimo: number;
     fotosJson: string;
     variantesJson: string;
+    vitrineJson: string;
     estado: string;
     arquivadaEm: Date | null;
     criadoEm: Date;
@@ -1967,6 +2005,7 @@ export class RepositorioReservasPrisma implements RepositorioReservas {
       ...peca,
       fotos: this.lerFotos(peca.fotosJson),
       variantes: this.lerVariantes(peca.variantesJson),
+      vitrine: this.lerVitrine(peca.vitrineJson),
       estado: peca.estado as EstadoPeca,
       margemEstimadaEmKwanza,
       estadoStock: this.calcularEstadoStock({
@@ -2000,6 +2039,37 @@ export class RepositorioReservasPrisma implements RepositorioReservas {
     } catch {
       return {};
     }
+  }
+
+  private lerVitrine(valor: string): Peca["vitrine"] {
+    try {
+      const vitrine = JSON.parse(valor) as Partial<Peca["vitrine"]>;
+      return {
+        ...this.vitrinePadrao(),
+        ...vitrine,
+        selos: Array.isArray(vitrine.selos) ? (vitrine.selos.filter((selo) => typeof selo === "string") as Peca["vitrine"]["selos"]) : [],
+        ativaAte: vitrine.ativaAte ? new Date(vitrine.ativaAte) : null,
+        componentesKit: Array.isArray(vitrine.componentesKit)
+          ? vitrine.componentesKit
+              .filter((item) => item && typeof item.codigoPeca === "string" && Number.isFinite(Number(item.quantidade)))
+              .map((item) => ({ codigoPeca: item.codigoPeca, quantidade: Number(item.quantidade) }))
+          : []
+      };
+    } catch {
+      return this.vitrinePadrao();
+    }
+  }
+
+  private vitrinePadrao(): Peca["vitrine"] {
+    return {
+      selos: [],
+      prioridade: 100,
+      titulo: null,
+      descricao: null,
+      precoPromocionalEmKwanza: null,
+      ativaAte: null,
+      componentesKit: []
+    };
   }
 
   private calcularMargem(precoEmKwanza: number, custoEmKwanza: number | null): number | null {

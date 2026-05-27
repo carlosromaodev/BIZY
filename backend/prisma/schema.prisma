@@ -23,6 +23,7 @@ model Peca {
   stockMinimo     Int              @default(0)
   fotosJson       String           @default("[]")
   variantesJson   String           @default("{}")
+  vitrineJson     String           @default("{}")
   estado          String           @default("DISPONIVEL")
   arquivadaEm     DateTime?
   criadoEm        DateTime         @default(now())
