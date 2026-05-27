@@ -14,9 +14,14 @@ export interface MensagemWhatsAppRecebida {
   idMensagem: string | null;
   recebidaEm: Date;
   payloadOriginal: Record<string, unknown>;
+  duplicado: boolean;
 }
 
 export class ReceberMensagemWhatsAppUseCase {
+  private readonly chavesProcessadas = new Set<string>();
+  private readonly ordemChavesProcessadas: string[] = [];
+  private readonly limiteChavesProcessadas = 5_000;
+
   constructor(private readonly eventos: DespachadorEventos) {}
 
   processarWebhookEvolution(payload: Record<string, unknown>): MensagemWhatsAppRecebida {
@@ -54,14 +59,21 @@ export class ReceberMensagemWhatsAppUseCase {
       texto,
       idMensagem,
       recebidaEm: new Date(),
-      payloadOriginal: payload
+      payloadOriginal: payload,
+      duplicado: false
     };
+    const chaveIdempotencia = this.montarChaveIdempotencia(mensagemRecebida);
+    mensagemRecebida.duplicado = chaveIdempotencia ? this.chavesProcessadas.has(chaveIdempotencia) : false;
 
-    if (direcao === "INBOUND" && telefone && texto) {
+    if (!mensagemRecebida.duplicado && chaveIdempotencia) {
+      this.registrarChaveProcessada(chaveIdempotencia);
+    }
+
+    if (!mensagemRecebida.duplicado && direcao === "INBOUND" && telefone && texto) {
       this.eventos.emitir("WHATSAPP_MESSAGE_RECEIVED", { mensagem: mensagemRecebida });
     }
 
-    if (direcao === "OUTBOUND" || direcao === "STATUS") {
+    if (!mensagemRecebida.duplicado && (direcao === "OUTBOUND" || direcao === "STATUS")) {
       this.eventos.emitir("WHATSAPP_MESSAGE_STATUS", { status: mensagemRecebida });
     }
 
@@ -82,6 +94,35 @@ export class ReceberMensagemWhatsAppUseCase {
     if (input.texto) return "INBOUND";
     if (input.statusProvider && input.idMensagem) return "STATUS";
     return "IGNORADO";
+  }
+
+  private montarChaveIdempotencia(mensagem: MensagemWhatsAppRecebida): string | null {
+    if (!mensagem.idMensagem) return null;
+
+    const complemento =
+      mensagem.direcao === "STATUS"
+        ? [mensagem.statusProvider ?? "sem-status", mensagem.erroProvider ?? "sem-erro"].join("|")
+        : "mensagem";
+
+    return [
+      mensagem.provider,
+      mensagem.instancia,
+      mensagem.direcao,
+      mensagem.idMensagem,
+      complemento
+    ].join(":");
+  }
+
+  private registrarChaveProcessada(chave: string) {
+    if (this.chavesProcessadas.has(chave)) return;
+
+    this.chavesProcessadas.add(chave);
+    this.ordemChavesProcessadas.push(chave);
+
+    while (this.ordemChavesProcessadas.length > this.limiteChavesProcessadas) {
+      const antiga = this.ordemChavesProcessadas.shift();
+      if (antiga) this.chavesProcessadas.delete(antiga);
+    }
   }
 
   private obterObjeto(valor: unknown): Record<string, unknown> {

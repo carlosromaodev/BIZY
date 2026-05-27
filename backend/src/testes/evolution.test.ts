@@ -229,4 +229,32 @@ describe("Integração Evolution", () => {
     expect(mensagem.texto).toBe("Ainda está disponível?");
     expect(eventosRecebidos).toContain("WHATSAPP_MESSAGE_RECEIVED");
   });
+
+  it("ignora webhook Evolution repetido com o mesmo identificador do provider", () => {
+    const eventos = new DespachadorEventos();
+    const eventosRecebidos: string[] = [];
+    eventos.aoReceberQualquer((evento) => eventosRecebidos.push(evento.tipo));
+    const useCase = new ReceberMensagemWhatsAppUseCase(eventos);
+    const payload = {
+      event: "messages.upsert",
+      instance: "bizy-principal",
+      data: {
+        pushName: "Cliente",
+        key: {
+          remoteJid: "244923456789@s.whatsapp.net",
+          id: "MSG_DUPLICADA"
+        },
+        message: {
+          conversation: "Quero o artigo 01"
+        }
+      }
+    };
+
+    const primeira = useCase.processarWebhookEvolution(payload);
+    const repetida = useCase.processarWebhookEvolution(payload);
+
+    expect(primeira.duplicado).toBe(false);
+    expect(repetida.duplicado).toBe(true);
+    expect(eventosRecebidos.filter((tipo) => tipo === "WHATSAPP_MESSAGE_RECEIVED")).toHaveLength(1);
+  });
 });
