@@ -2055,11 +2055,27 @@ export interface RegraComissaoProdutoParceiro {
   valorEmKwanza?: number;
 }
 
+export interface RegraComissaoColecaoParceiro {
+  colecao: string;
+  tipo: TipoComissaoParceiro;
+  percentual?: number;
+  valorEmKwanza?: number;
+}
+
+export interface RegraComissaoCampanhaParceiro {
+  campanhaId: string;
+  tipo: TipoComissaoParceiro;
+  percentual?: number;
+  valorEmKwanza?: number;
+}
+
 export interface RegraComissaoParceiro {
   tipo: TipoComissaoParceiro;
   percentual?: number;
   valorEmKwanza?: number;
   produtos?: RegraComissaoProdutoParceiro[];
+  colecoes?: RegraComissaoColecaoParceiro[];
+  campanhas?: RegraComissaoCampanhaParceiro[];
 }
 
 export interface ParceiroComercial {

@@ -645,6 +645,199 @@ describe("afiliados, criadores e comissões HTTP", () => {
     }
   });
 
+  it("aplica regra de comissão por coleção quando não há regra específica do produto", async () => {
+    const app = await criarAplicacao();
+
+    try {
+      const loja = await autenticar(app, "923600299", "Loja Comissão Coleção");
+      await criarProduto(app, loja, "COL1");
+
+      const publicacao = await app.inject({
+        method: "PUT",
+        url: "/loja-publica/configuracao",
+        headers: loja,
+        payload: {
+          slug: "loja-comissao-colecao",
+          descricaoPublica: "Produtos com comissão por coleção.",
+          publicada: true
+        }
+      });
+      expect(publicacao.statusCode).toBe(200);
+
+      const afiliado = await app.inject({
+        method: "POST",
+        url: "/afiliados",
+        headers: loja,
+        payload: {
+          tipo: "CRIADOR",
+          codigo: "bia-colecao",
+          nomePublico: "Bia Coleção",
+          contacto: "923800299",
+          regraComissao: {
+            tipo: "PERCENTUAL",
+            percentual: 5,
+            colecoes: [
+              {
+                colecao: "Afiliados",
+                tipo: "PERCENTUAL",
+                percentual: 15
+              }
+            ]
+          }
+        }
+      });
+      expect(afiliado.statusCode).toBe(201);
+
+      const link = await app.inject({
+        method: "POST",
+        url: `/afiliados/${afiliado.json().id}/links`,
+        headers: loja,
+        payload: {
+          codigo: "BIA-COL1",
+          destinoTipo: "PRODUTO",
+          slugLoja: "loja-comissao-colecao",
+          codigoProduto: "COL1",
+          canal: "instagram",
+          origemConteudo: "vitrine-colecao"
+        }
+      });
+      expect(link.statusCode).toBe(201);
+
+      const checkout = await app.inject({
+        method: "POST",
+        url: "/publico/lojas/loja-comissao-colecao/checkout",
+        payload: {
+          cliente: {
+            nome: "Cliente Coleção",
+            telefone: "923810299",
+            consentimentoDados: true,
+            consentimentoMarketing: true
+          },
+          itens: [{ codigoPeca: "COL1", quantidade: 1 }],
+          entrega: { tipo: "RETIRADA" },
+          referencia: "BIA-COL1",
+          trackingId: "trk-bia-colecao",
+          origem: "colecao-instagram"
+        }
+      });
+      expect(checkout.statusCode).toBe(201);
+
+      const comissoes = await app.inject({
+        method: "GET",
+        url: "/afiliados/comissoes",
+        headers: loja
+      });
+      expect(comissoes.statusCode).toBe(200);
+      expect(comissoes.json().comissoes).toEqual([
+        expect.objectContaining({
+          afiliadoId: afiliado.json().id,
+          pedidoId: checkout.json().pedido.id,
+          baseEmKwanza: 12_500,
+          valorEmKwanza: 1_875
+        })
+      ]);
+    } finally {
+      await app.close();
+    }
+  });
+
+  it("aplica regra de comissão por campanha do link quando não há regra de produto ou coleção", async () => {
+    const app = await criarAplicacao();
+
+    try {
+      const loja = await autenticar(app, "923600399", "Loja Comissão Campanha");
+      await criarProduto(app, loja, "CAMP-COM");
+
+      const publicacao = await app.inject({
+        method: "PUT",
+        url: "/loja-publica/configuracao",
+        headers: loja,
+        payload: {
+          slug: "loja-comissao-campanha",
+          descricaoPublica: "Produtos com comissão por campanha.",
+          publicada: true
+        }
+      });
+      expect(publicacao.statusCode).toBe(200);
+
+      const afiliado = await app.inject({
+        method: "POST",
+        url: "/afiliados",
+        headers: loja,
+        payload: {
+          tipo: "AFILIADO",
+          codigo: "bia-campanha",
+          nomePublico: "Bia Campanha",
+          contacto: "923800399",
+          regraComissao: {
+            tipo: "PERCENTUAL",
+            percentual: 5,
+            campanhas: [
+              {
+                campanhaId: "campanha-maio",
+                tipo: "PERCENTUAL",
+                percentual: 18
+              }
+            ]
+          }
+        }
+      });
+      expect(afiliado.statusCode).toBe(201);
+
+      const link = await app.inject({
+        method: "POST",
+        url: `/afiliados/${afiliado.json().id}/links`,
+        headers: loja,
+        payload: {
+          codigo: "BIA-CAMP-MAIO",
+          destinoTipo: "CAMPANHA",
+          destinoId: "campanha-maio",
+          slugLoja: "loja-comissao-campanha",
+          codigoProduto: "CAMP-COM",
+          canal: "instagram",
+          origemConteudo: "campanha-maio-live"
+        }
+      });
+      expect(link.statusCode).toBe(201);
+
+      const checkout = await app.inject({
+        method: "POST",
+        url: "/publico/lojas/loja-comissao-campanha/checkout",
+        payload: {
+          cliente: {
+            nome: "Cliente Campanha",
+            telefone: "923810399",
+            consentimentoDados: true,
+            consentimentoMarketing: true
+          },
+          itens: [{ codigoPeca: "CAMP-COM", quantidade: 1 }],
+          entrega: { tipo: "RETIRADA" },
+          referencia: "BIA-CAMP-MAIO",
+          trackingId: "trk-bia-campanha",
+          origem: "campanha-instagram"
+        }
+      });
+      expect(checkout.statusCode).toBe(201);
+
+      const comissoes = await app.inject({
+        method: "GET",
+        url: "/afiliados/comissoes",
+        headers: loja
+      });
+      expect(comissoes.statusCode).toBe(200);
+      expect(comissoes.json().comissoes).toEqual([
+        expect.objectContaining({
+          afiliadoId: afiliado.json().id,
+          pedidoId: checkout.json().pedido.id,
+          baseEmKwanza: 12_500,
+          valorEmKwanza: 2_250
+        })
+      ]);
+    } finally {
+      await app.close();
+    }
+  });
+
   it("aplica modelo de atribuição configurável e permite ajuste manual auditado", async () => {
     const app = await criarAplicacao();
 

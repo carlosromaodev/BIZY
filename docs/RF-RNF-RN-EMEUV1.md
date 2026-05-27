@@ -1,7 +1,7 @@
 # Bizy / ÉMeu V1 - Requisitos Funcionais, Não Funcionais e Regras de Negócio
 
 Documento: `RF-RNF-RN-EMEUV1.md`
-Versão: 1.87
+Versão: 1.88
 Data: 2026-05-26
 Autor: Carlos
 Status: MVP base implementado; fundação backend Bizy CRM+ com Clientes 360, Pedidos, Catálogo/Stock, Loja Pública, Vitrine Pública, Checkout, Entrega, Afiliados, Criadores, Revendedores, Mini-lojas Públicas, Comissões, Atribuição Comercial, Lotes Financeiros, Campanhas, Governança, Jobs, Eventos Operacionais, eventos server-side preparados, Inbox Comercial, SLA, Social Inbox seguro, transferência operacional, política WhatsApp, descontos aprováveis, carrinho abandonado, antifraude de afiliados, anonimização, SEO público, logs operacionais, navegação comercial, busca global, auditoria de exportações comerciais e painel diário em evolução
@@ -191,6 +191,8 @@ Atualização 1.85: Links de afiliados/criadores passaram a suportar destino com
 Atualização 1.86: O resumo de tracking comercial passou a agregar conversão por campanha, vendedor, link e afiliado/criador, incluindo eventos, checkouts iniciados, pedidos criados, receita atribuída e taxa de pedido por checkout.
 
 Atualização 1.87: A atribuição comercial passou a respeitar janela específica por link/campanha via metadata do link, antes da janela do parceiro ou da janela geral do negócio.
+
+Atualização 1.88: Regras de comissão passaram a suportar recortes por coleção e campanha, com precedência produto > coleção > campanha > regra geral.
 
 ---
 
@@ -582,7 +584,7 @@ Esta etapa posiciona o Bizy como uma plataforma de operação comercial para cri
 | RF187 | [~] Cada afiliado deve ter links rastreáveis próprios para produtos, catálogos e campanhas. | Alta | Parcial - links próprios para produto, loja/mini-loja e campanha implementados com metadata comercial; faltam catálogos selecionáveis |
 | RF188 | [~] O afiliado deve ter painel ou relatório com cliques, leads, pedidos, vendas pagas, conversão e comissão estimada. | Média | Parcial - API de comissões e resumo por afiliado implementada com valores estimados, confirmados, pagos e revertidos; faltam cliques/leads por link e UI própria do afiliado |
 | RF189 | [~] O dono do negócio deve ver ranking de afiliados/criadores por receita, pedidos pagos, conversão, ticket médio e comissões pendentes. | Alta | Parcial - ranking por pedidos atribuídos, pedidos pagos, receita atribuída, ticket médio, comissão confirmada, pendente e paga implementado; faltam conversão por clique/lead, receita líquida e recortes por período |
-| RF190 | [~] Regras de comissão devem suportar percentual, valor fixo, comissão por produto, por coleção, por campanha e por meta alcançada. | Alta | Parcial - percentual, valor fixo por parceiro e regra por produto implementados; faltam regras por coleção, campanha e meta |
+| RF190 | [~] Regras de comissão devem suportar percentual, valor fixo, comissão por produto, por coleção, por campanha e por meta alcançada. | Alta | Parcial - percentual, valor fixo por parceiro e regras por produto, coleção e campanha implementados; falta regra por meta alcançada com apuração de período |
 | RF191 | [x] Comissão só deve ficar confirmada depois do pagamento do pedido; cancelamentos, devoluções ou reembolsos devem reverter a comissão. | Alta | Implementado no backend |
 | RF192 | [x] O sistema deve ter proteção antifraude básica contra autoindicação, leads duplicados e atribuições suspeitas. | Alta | Implementado no backend com bloqueio de autoindicação em checkout afiliado, evento operacional de atribuição suspeita e deduplicação de carrinho abandonado/social |
 | RF193 | [x] O afiliado/criador deve poder receber pacote de divulgação com links, fotos, textos sugeridos e regras da campanha. | Média | Implementado no backend em `/afiliados/:id/pacote-divulgacao` com links, produto, fotos, textos sugeridos e política de comissão |

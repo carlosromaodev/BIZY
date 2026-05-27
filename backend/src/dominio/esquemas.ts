@@ -413,6 +413,36 @@ const RegraComissaoProdutoSchema = z
     { message: "Informe percentual ou valor fixo conforme o tipo de comissão por produto." }
   );
 
+const RegraComissaoColecaoSchema = z
+  .object({
+    colecao: z.string().trim().min(1).max(120),
+    tipo: z.enum(tiposComissaoParceiro),
+    percentual: z.coerce.number().min(0).max(100).optional(),
+    valorEmKwanza: z.coerce.number().int().min(0).optional()
+  })
+  .refine(
+    (regra) =>
+      regra.tipo === "PERCENTUAL"
+        ? typeof regra.percentual === "number"
+        : typeof regra.valorEmKwanza === "number",
+    { message: "Informe percentual ou valor fixo conforme o tipo de comissão por coleção." }
+  );
+
+const RegraComissaoCampanhaSchema = z
+  .object({
+    campanhaId: z.string().trim().min(1).max(120),
+    tipo: z.enum(tiposComissaoParceiro),
+    percentual: z.coerce.number().min(0).max(100).optional(),
+    valorEmKwanza: z.coerce.number().int().min(0).optional()
+  })
+  .refine(
+    (regra) =>
+      regra.tipo === "PERCENTUAL"
+        ? typeof regra.percentual === "number"
+        : typeof regra.valorEmKwanza === "number",
+    { message: "Informe percentual ou valor fixo conforme o tipo de comissão por campanha." }
+  );
+
 export const CriarAfiliadoSchema = z.object({
   tipo: z.enum(tiposParceiroComercial).default("AFILIADO"),
   codigo: z
@@ -429,7 +459,9 @@ export const CriarAfiliadoSchema = z.object({
   estado: z.enum(estadosParceiroComercial).default("ATIVO"),
   regraComissao: RegraComissaoBaseSchema.and(
     z.object({
-      produtos: z.array(RegraComissaoProdutoSchema).max(200).optional()
+      produtos: z.array(RegraComissaoProdutoSchema).max(200).optional(),
+      colecoes: z.array(RegraComissaoColecaoSchema).max(100).optional(),
+      campanhas: z.array(RegraComissaoCampanhaSchema).max(100).optional()
     })
   ),
   metodoPagamento: z.record(z.string(), z.unknown()).default({})

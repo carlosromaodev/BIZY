@@ -415,7 +415,7 @@ export class GestaoAfiliadosUseCase {
     if (!atribuicao) throw new Error("Referência de atribuição não encontrada ou inativa.");
 
     const baseEmKwanza = pedido.subtotalEmKwanza;
-    const valorEmKwanza = this.calcularComissaoPedido(pedido, atribuicao.parceiro.regraComissao);
+    const valorEmKwanza = await this.calcularComissaoPedido(pedido, atribuicao.parceiro.regraComissao, atribuicao.link);
     const status = dados.status ?? (pedido.estadoPagamento === "CONFIRMADO" ? "CONFIRMADA" : "ESTIMADA");
     const motivo = `Ajuste manual de atribuição: ${dados.motivo}`;
 
@@ -450,7 +450,11 @@ export class GestaoAfiliadosUseCase {
     atribuicao: AtribuicaoAfiliadoResolvida;
   }) {
     const baseEmKwanza = dados.pedido.subtotalEmKwanza;
-    const valorEmKwanza = this.calcularComissaoPedido(dados.pedido, dados.atribuicao.parceiro.regraComissao);
+    const valorEmKwanza = await this.calcularComissaoPedido(
+      dados.pedido,
+      dados.atribuicao.parceiro.regraComissao,
+      dados.atribuicao.link
+    );
 
     return this.afiliados.criarOuAtualizarComissao({
       negocioId: dados.negocioId,
@@ -592,6 +596,20 @@ export class GestaoAfiliadosUseCase {
       }
       this.validarRegraComissaoBase(produto);
     }
+
+    for (const colecao of regra.colecoes ?? []) {
+      if (!colecao.colecao?.trim()) {
+        throw new Error("Informe a coleção para comissão específica.");
+      }
+      this.validarRegraComissaoBase(colecao);
+    }
+
+    for (const campanha of regra.campanhas ?? []) {
+      if (!campanha.campanhaId?.trim()) {
+        throw new Error("Informe a campanha para comissão específica.");
+      }
+      this.validarRegraComissaoBase(campanha);
+    }
   }
 
   private validarRegraComissaoBase(regra: RegraComissaoParceiro): void {
@@ -607,20 +625,56 @@ export class GestaoAfiliadosUseCase {
     }
   }
 
-  private calcularComissaoPedido(pedido: Pedido, regra: RegraComissaoParceiro): number {
-    if (!regra.produtos?.length) {
+  private async calcularComissaoPedido(
+    pedido: Pedido,
+    regra: RegraComissaoParceiro,
+    link?: LinkAfiliado | null
+  ): Promise<number> {
+    if (!this.temRegrasEspecificas(regra)) {
       return this.calcularComissao(pedido.subtotalEmKwanza, regra);
     }
 
-    return pedido.itens.reduce((total, item) => {
+    const regraCampanha = this.buscarRegraCampanha(regra, link);
+
+    let total = 0;
+    for (const item of pedido.itens) {
       const regraProduto = this.buscarRegraProduto(regra, item.codigoPeca);
-      return total + this.calcularComissao(item.subtotalEmKwanza, regraProduto ?? regra);
-    }, 0);
+      const regraColecao = regraProduto ? null : await this.buscarRegraColecao(regra, pedido.negocioId, item.codigoPeca);
+      total += this.calcularComissao(item.subtotalEmKwanza, regraProduto ?? regraColecao ?? regraCampanha ?? regra);
+    }
+
+    return total;
+  }
+
+  private temRegrasEspecificas(regra: RegraComissaoParceiro): boolean {
+    return Boolean(regra.produtos?.length || regra.colecoes?.length || regra.campanhas?.length);
   }
 
   private buscarRegraProduto(regra: RegraComissaoParceiro, codigoProduto: string): RegraComissaoParceiro | null {
     const codigoNormalizado = this.normalizarCodigo(codigoProduto);
     return regra.produtos?.find((produto) => this.normalizarCodigo(produto.codigoProduto) === codigoNormalizado) ?? null;
+  }
+
+  private async buscarRegraColecao(
+    regra: RegraComissaoParceiro,
+    negocioId: string,
+    codigoProduto: string
+  ): Promise<RegraComissaoParceiro | null> {
+    if (!regra.colecoes?.length || !this.pecas) return null;
+
+    const produto = await this.pecas.buscarPorCodigo(this.normalizarCodigo(codigoProduto), negocioId);
+    const colecao = this.normalizarTexto(produto?.colecao);
+    if (!colecao) return null;
+
+    return regra.colecoes.find((item) => this.normalizarTexto(item.colecao) === colecao) ?? null;
+  }
+
+  private buscarRegraCampanha(regra: RegraComissaoParceiro, link?: LinkAfiliado | null): RegraComissaoParceiro | null {
+    if (!regra.campanhas?.length || !link) return null;
+    const campanhaId = this.normalizarTexto(link.destinoTipo === "CAMPANHA" ? link.destinoId : link.metadata.utmCampaign);
+    if (!campanhaId) return null;
+
+    return regra.campanhas.find((campanha) => this.normalizarTexto(campanha.campanhaId) === campanhaId) ?? null;
   }
 
   private calcularComissao(baseEmKwanza: number, regra: RegraComissaoParceiro): number {
@@ -757,6 +811,10 @@ export class GestaoAfiliadosUseCase {
 
   private textoMetadata(valor: unknown): string | null {
     return typeof valor === "string" && valor.trim() ? valor.trim() : null;
+  }
+
+  private normalizarTexto(valor: unknown): string | null {
+    return typeof valor === "string" && valor.trim() ? valor.trim().toUpperCase() : null;
   }
 
   private normalizarCodigo(codigo: string): string {
