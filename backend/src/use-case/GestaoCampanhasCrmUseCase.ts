@@ -2,6 +2,7 @@ import type {
   RepositorioAuditoria,
   RepositorioCampanhas,
   RepositorioClientes,
+  RepositorioTrackingComercial,
   RepositorioTemplatesWhatsApp
 } from "../dominio/repositorios/contratos.js";
 import { PoliticaMensagensWhatsApp } from "../dominio/servicos/PoliticaMensagensWhatsApp.js";
@@ -9,6 +10,7 @@ import type {
   CampanhaCrm,
   Cliente360,
   EstadoAprovacaoTemplateWhatsApp,
+  EventoTrackingComercial,
   EstadoCampanhaCrm,
   FiltrosCampanhasCrm,
   MetricasCampanhaCrm,
@@ -55,7 +57,8 @@ export class GestaoCampanhasCrmUseCase {
     private readonly campanhas: RepositorioCampanhas,
     private readonly templates: RepositorioTemplatesWhatsApp,
     private readonly clientes: RepositorioClientes,
-    private readonly auditoria: RepositorioAuditoria
+    private readonly auditoria: RepositorioAuditoria,
+    private readonly tracking?: RepositorioTrackingComercial
   ) {}
 
   criarTemplate(dados: NovoTemplateWhatsAppNegocio) {
@@ -251,6 +254,12 @@ export class GestaoCampanhasCrmUseCase {
       }
     );
 
+    const atribuicao = await this.calcularAtribuicaoTracking(campanha, negocioId);
+    if (atribuicao) {
+      metricas.pedidosGerados = Math.max(metricas.pedidosGerados, atribuicao.pedidosGerados);
+      metricas.receitaAtribuidaEmKwanza = Math.max(metricas.receitaAtribuidaEmKwanza, atribuicao.receitaAtribuidaEmKwanza);
+    }
+
     return { campanha, itens, metricas };
   }
 
@@ -379,5 +388,90 @@ export class GestaoCampanhasCrmUseCase {
     };
 
     return template.corpo.replace(/\{([a-zA-Z0-9_]+)\}/g, (_trecho, chave: string) => variaveis[chave] ?? "-");
+  }
+
+  private async calcularAtribuicaoTracking(
+    campanha: CampanhaCrm,
+    negocioId: string
+  ): Promise<Pick<MetricasCampanhaCrm, "pedidosGerados" | "receitaAtribuidaEmKwanza"> | null> {
+    if (!this.tracking) return null;
+
+    const eventos = await this.tracking.listarEventos(negocioId, {
+      tipo: "PEDIDO_CRIADO",
+      limite: 100_000
+    });
+    const pedidos = new Set<string>();
+    let receitaAtribuidaEmKwanza = 0;
+
+    for (const evento of eventos) {
+      if (!this.eventoPertenceCampanha(evento, campanha)) continue;
+
+      const chavePedido = this.chavePedidoTracking(evento);
+      if (pedidos.has(chavePedido)) continue;
+      pedidos.add(chavePedido);
+      receitaAtribuidaEmKwanza += this.valorReceitaTracking(evento);
+    }
+
+    return {
+      pedidosGerados: pedidos.size,
+      receitaAtribuidaEmKwanza
+    };
+  }
+
+  private eventoPertenceCampanha(evento: EventoTrackingComercial, campanha: CampanhaCrm): boolean {
+    const metadata = this.objeto(evento.metadata);
+    const atribuicao = this.objeto(metadata.atribuicao);
+    const principal = this.objeto(atribuicao.principal);
+    const candidatos = [
+      evento.utm.utm_campaign,
+      evento.utm.campaign,
+      metadata.campanhaId,
+      metadata.campaignId,
+      metadata.utmCampaign,
+      principal.destinoTipo === "CAMPANHA" ? principal.destinoId : null,
+      principal.campanhaId
+    ]
+      .map((valor) => this.texto(valor))
+      .filter((valor): valor is string => Boolean(valor));
+    const idsCampanha = new Set([this.normalizarChave(campanha.id), this.normalizarChave(campanha.nome)]);
+    return candidatos.some((valor) => idsCampanha.has(this.normalizarChave(valor)));
+  }
+
+  private chavePedidoTracking(evento: EventoTrackingComercial): string {
+    const metadata = this.objeto(evento.metadata);
+    const id =
+      this.texto(evento.entidadeId) ??
+      this.texto(metadata.pedidoId) ??
+      this.texto(metadata.reservaId) ??
+      this.texto(metadata.orderId);
+    if (id) return id;
+    return `${evento.trackingId ?? evento.id}:${evento.criadoEm.toISOString()}`;
+  }
+
+  private valorReceitaTracking(evento: EventoTrackingComercial): number {
+    const metadata = this.objeto(evento.metadata);
+    const valor =
+      this.numero(metadata.totalEmKwanza) ??
+      this.numero(metadata.valorTotalEmKwanza) ??
+      this.numero(metadata.receitaEmKwanza) ??
+      this.numero(metadata.total);
+    return valor ?? 0;
+  }
+
+  private objeto(valor: unknown): Record<string, unknown> {
+    return valor && typeof valor === "object" && !Array.isArray(valor) ? (valor as Record<string, unknown>) : {};
+  }
+
+  private texto(valor: unknown): string | null {
+    return typeof valor === "string" && valor.trim() ? valor.trim() : null;
+  }
+
+  private numero(valor: unknown): number | null {
+    const numero = typeof valor === "number" ? valor : typeof valor === "string" ? Number(valor) : NaN;
+    return Number.isFinite(numero) && numero >= 0 ? Math.trunc(numero) : null;
+  }
+
+  private normalizarChave(valor: string): string {
+    return valor.trim().toLocaleLowerCase("pt-AO");
   }
 }

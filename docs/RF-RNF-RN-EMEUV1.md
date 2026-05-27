@@ -1,10 +1,10 @@
 # Bizy / ÉMeu V1 - Requisitos Funcionais, Não Funcionais e Regras de Negócio
 
 Documento: `RF-RNF-RN-EMEUV1.md`
-Versão: 1.89
+Versão: 1.90
 Data: 2026-05-26
 Autor: Carlos
-Status: MVP base implementado; fundação backend Bizy CRM+ com Clientes 360, Pedidos, Catálogo/Stock, Loja Pública, Vitrine Pública, Checkout, Entrega, Afiliados, Criadores, Revendedores, Mini-lojas Públicas, Comissões, Atribuição Comercial, Lotes Financeiros, Campanhas, Governança, Jobs, Eventos Operacionais, eventos server-side preparados, Inbox Comercial, SLA, Social Inbox seguro, transferência operacional, política WhatsApp, descontos aprováveis, carrinho abandonado, antifraude de afiliados, anonimização, SEO público, logs operacionais, navegação comercial, busca global, auditoria de exportações comerciais e painel diário em evolução
+Status: MVP base implementado; fundação backend Bizy CRM+ com Clientes 360, Pedidos, Catálogo/Stock, Loja Pública, Vitrine Pública, Checkout, Entrega, Afiliados, Criadores, Revendedores, Mini-lojas Públicas, Comissões, Atribuição Comercial, Lotes Financeiros, Campanhas com receita atribuída por tracking, Governança, Jobs, Eventos Operacionais, eventos server-side preparados, Inbox Comercial, SLA, Social Inbox seguro, transferência operacional, política WhatsApp, descontos aprováveis, carrinho abandonado, antifraude de afiliados, anonimização, SEO público, logs operacionais, navegação comercial, busca global, auditoria de exportações comerciais e painel diário em evolução
 
 ---
 
@@ -195,6 +195,8 @@ Atualização 1.87: A atribuição comercial passou a respeitar janela específi
 Atualização 1.88: Regras de comissão passaram a suportar recortes por coleção e campanha, com precedência produto > coleção > campanha > regra geral.
 
 Atualização 1.89: O resumo de afiliados/criadores passou a cruzar tracking comercial com ranking financeiro, expondo cliques WhatsApp, leads de checkout e taxa de pedido por clique por parceiro.
+
+Atualização 1.90: Resultados de campanhas passaram a cruzar itens da campanha com tracking comercial, atribuindo pedidos criados e receita em Kz por `utm_campaign`, metadata ou contexto principal de campanha, sem duplicar pedidos.
 
 ---
 
@@ -486,7 +488,7 @@ Esta etapa transforma o Bizy de painel de live em CRM operacional para lojas que
 | RF126 | [~] `Chatbot` não deve ser módulo principal; automações devem aparecer como assistente dentro de Conversas, Campanhas ou Configurações da Loja. | Alta | Parcial - backend expõe automações como política/sugestão/tarefa dentro da conversa e campanhas; falta remoção total de qualquer promessa visual antiga |
 | RF127 | [x] Campanhas devem substituir o conceito genérico de `Transmissões`, com foco em mensagens segmentadas e autorizadas por WhatsApp. | Alta | Implementado no backend com módulo `/campanhas` e templates WhatsApp por negócio |
 | RF128 | [x] O vendedor deve criar campanha para segmentos de clientes com template aprovado, janela de envio, limite diário, preview e confirmação antes do disparo. | Alta | Implementado no backend com preview, bloqueios por política e confirmação explícita |
-| RF129 | [~] O sistema deve mostrar resultado de campanha: enviados, entregues, lidos, respondidos, falhados, pedidos gerados e receita atribuída. | Média | Parcial - backend calcula selecionados, bloqueados, enfileirados e estados dos itens; faltam atualização automática por webhooks/receita atribuída |
+| RF129 | [~] O sistema deve mostrar resultado de campanha: enviados, entregues, lidos, respondidos, falhados, pedidos gerados e receita atribuída. | Média | Parcial - backend calcula selecionados, bloqueados, enfileirados, estados dos itens, pedidos gerados e receita atribuída por tracking; falta atualização automática de itens por webhooks/status do provider |
 | RF130 | [x] Clientes sem consentimento ou com opt-out não devem receber campanhas, mas podem receber mensagens transacionais permitidas. | Alta | Implementado no backend para campanhas marketing com política WhatsApp e bloqueio por consentimento |
 | RF131 | [~] O CRM deve permitir sequências pós-venda: agradecer compra, pedir endereço, lembrar pagamento, confirmar entrega e reativar cliente inativo. | Média | Parcial - playbooks, templates utilidade e ações de conversa cobrem cobrança/endereço/entrega de forma segura; falta sequenciador temporal completo |
 | RF132 | [x] A caixa de entrada deve ter filtros úteis: sem resposta, pagamento pendente, entrega pendente, VIP, reclamação, campanha respondida e meu atendimento. | Alta | Implementado no backend com `/atendimento/conversas/filtros`, devolvendo contadores e conversas por filtro operacional |

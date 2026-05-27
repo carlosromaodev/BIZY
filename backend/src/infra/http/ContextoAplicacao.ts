@@ -303,7 +303,8 @@ export function criarContextoAplicacao(logger: FastifyBaseLogger): ContextoAplic
     repositorios.campanhas,
     repositorios.templatesWhatsApp,
     repositorios.clientes,
-    repositorios.auditoria
+    repositorios.auditoria,
+    repositorios.trackingComercial
   );
   const gestaoGovernancaCrm = new GestaoGovernancaCrmUseCase(
     repositorios.membrosNegocio,

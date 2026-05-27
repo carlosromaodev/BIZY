@@ -229,6 +229,38 @@ describe("CRM+ governança, campanhas, eventos e jobs", () => {
         ])
       );
 
+      const lojaPublica = await app.inject({
+        method: "PUT",
+        url: "/loja-publica/configuracao",
+        headers,
+        payload: {
+          slug: "loja-campanhas",
+          descricaoPublica: "Loja usada para atribuir campanhas ao funil comercial.",
+          publicada: true
+        }
+      });
+      expect(lojaPublica.statusCode).toBe(200);
+
+      const pedidoAtribuido = await app.inject({
+        method: "POST",
+        url: "/publico/tracking/eventos",
+        payload: {
+          slugLoja: "loja-campanhas",
+          tipo: "PEDIDO_CRIADO",
+          entidadeTipo: "pedido",
+          entidadeId: "pedido-campanha-vip-1",
+          trackingId: "trk-campanha-vip",
+          origem: "campanha",
+          canal: "whatsapp",
+          utm: { utm_campaign: campanha.json().campanha.id },
+          metadata: {
+            totalEmKwanza: 37000,
+            campanhaId: campanha.json().campanha.id
+          }
+        }
+      });
+      expect(pedidoAtribuido.statusCode).toBe(201);
+
       const resultados = await app.inject({
         method: "GET",
         url: `/campanhas/${campanha.json().campanha.id}/resultados`,
@@ -239,7 +271,9 @@ describe("CRM+ governança, campanhas, eventos e jobs", () => {
         expect.objectContaining({
           selecionados: 1,
           bloqueados: 1,
-          enfileirados: 1
+          enfileirados: 1,
+          pedidosGerados: 1,
+          receitaAtribuidaEmKwanza: 37000
         })
       );
 
