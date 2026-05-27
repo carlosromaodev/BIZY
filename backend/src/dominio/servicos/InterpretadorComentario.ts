@@ -8,6 +8,16 @@ interface TrechoEncontrado {
   valor: string;
 }
 
+export interface DicionarioParserComentario {
+  termosIntencaoCompra?: string[];
+  rotulosCodigoPeca?: string[];
+  aliasesCodigoPeca?: Record<string, string>;
+}
+
+interface ContextoInterpretadorComentario {
+  dicionario?: DicionarioParserComentario | null;
+}
+
 export class InterpretadorComentario {
   private readonly normalizadorTelefone = new NormalizadorTelefone();
 
@@ -28,15 +38,22 @@ export class InterpretadorComentario {
     /\bfica\s+para\s+mim\b/
   ];
 
-  interpretar(textoOriginal: string): ResultadoInterpretacaoComentario {
+  interpretar(textoOriginal: string, contexto: ContextoInterpretadorComentario = {}): ResultadoInterpretacaoComentario {
     const texto = this.normalizarTexto(textoOriginal);
     const motivos: string[] = [];
-    const temIntencaoCompra = this.padroesIntencaoCompra.some((padrao) => padrao.test(texto));
+    const dicionario = this.normalizarDicionario(contexto.dicionario);
+    const temIntencaoCompra =
+      this.padroesIntencaoCompra.some((padrao) => padrao.test(texto)) ||
+      this.temTermoDoDicionario(texto, dicionario.termosIntencaoCompra);
     const telefoneEncontrado = this.extrairTelefone(texto);
     const telefone = telefoneEncontrado ? this.normalizadorTelefone.normalizar(telefoneEncontrado.valor) : null;
-    const pecasComRotulo = this.extrairCodigosPecaRotulados(texto);
-    const pecasLivres = pecasComRotulo.length ? [] : this.extrairCodigosPecaLivres(texto, telefoneEncontrado);
-    const codigosPeca = this.removerDuplicados([...pecasComRotulo, ...pecasLivres].map((peca) => peca.valor));
+    const pecasPorAlias = this.extrairCodigosPecaPorAlias(texto, dicionario.aliasesCodigoPeca);
+    const pecasComRotulo = this.extrairCodigosPecaRotulados(texto, dicionario.rotulosCodigoPeca);
+    const pecasLivres =
+      pecasPorAlias.length || pecasComRotulo.length ? [] : this.extrairCodigosPecaLivres(texto, telefoneEncontrado);
+    const codigosPeca = this.removerDuplicados(
+      [...pecasPorAlias, ...pecasComRotulo, ...pecasLivres].map((peca) => peca.valor)
+    );
     const codigoPeca = codigosPeca[0] ?? null;
     const formatoDiretoTelefoneCodigo = this.temFormatoDiretoTelefoneCodigo(texto, telefoneEncontrado, codigoPeca);
     const temCompraOperacional = temIntencaoCompra || formatoDiretoTelefoneCodigo;
@@ -58,7 +75,7 @@ export class InterpretadorComentario {
       temIntencaoCompra: temCompraOperacional,
       telefoneValido: telefone !== null,
       codigoPecaEncontrado: codigoPeca !== null,
-      codigoComRotulo: pecasComRotulo.length > 0,
+      codigoComRotulo: pecasComRotulo.length > 0 || pecasPorAlias.length > 0,
       comentarioCurto: texto.split(/\s+/).length <= 3,
       formatoDiretoTelefoneCodigo
     });
@@ -87,6 +104,43 @@ export class InterpretadorComentario {
       .trim();
   }
 
+  private normalizarDicionario(dicionario?: DicionarioParserComentario | null): Required<DicionarioParserComentario> {
+    return {
+      termosIntencaoCompra: this.listaNormalizada(dicionario?.termosIntencaoCompra),
+      rotulosCodigoPeca: this.listaNormalizada(dicionario?.rotulosCodigoPeca),
+      aliasesCodigoPeca: this.aliasesNormalizados(dicionario?.aliasesCodigoPeca)
+    };
+  }
+
+  private listaNormalizada(valores?: string[]): string[] {
+    if (!Array.isArray(valores)) return [];
+
+    return this.removerDuplicados(
+      valores
+        .map((valor) => (typeof valor === "string" ? this.normalizarTexto(valor) : ""))
+        .filter((valor) => valor.length >= 2)
+        .slice(0, 80)
+    );
+  }
+
+  private aliasesNormalizados(aliases?: Record<string, string>): Record<string, string> {
+    if (!aliases || typeof aliases !== "object" || Array.isArray(aliases)) return {};
+
+    return Object.fromEntries(
+      Object.entries(aliases)
+        .map(([alias, codigo]) => [
+          this.normalizarTexto(alias),
+          typeof codigo === "string" ? this.normalizarCodigoPeca(codigo) : ""
+        ])
+        .filter(([alias, codigo]) => alias.length >= 2 && codigo.length > 0)
+        .slice(0, 120)
+    );
+  }
+
+  private temTermoDoDicionario(texto: string, termos: string[]): boolean {
+    return termos.some((termo) => this.criarPadraoTexto(termo)?.test(texto));
+  }
+
   private extrairTelefone(texto: string): TrechoEncontrado | null {
     const padraoTelefone = /(?<![a-z0-9])(?:(?:\+?244|00244)[\s.-]*)?9(?:1|2|3|4|5|9)(?:[\s.-]*\d){7}/g;
     const encontrado = padraoTelefone.exec(texto);
@@ -102,8 +156,38 @@ export class InterpretadorComentario {
     };
   }
 
-  private extrairCodigosPecaRotulados(texto: string): TrechoEncontrado[] {
-    const padraoRotulado = /(?:\b(?:peca|produto|item)\s*#?\s*([a-z0-9][a-z0-9_-]{0,31})\b)|(?:#\s*([a-z0-9][a-z0-9_-]{0,31})\b)/g;
+  private extrairCodigosPecaPorAlias(texto: string, aliases: Record<string, string>): TrechoEncontrado[] {
+    const resultados: TrechoEncontrado[] = [];
+    const aliasesOrdenados = Object.entries(aliases).sort(([primeiro], [segundo]) => segundo.length - primeiro.length);
+
+    for (const [alias, codigo] of aliasesOrdenados) {
+      const padrao = this.criarPadraoTexto(alias, "g");
+      if (!padrao) continue;
+
+      let encontrado: RegExpExecArray | null;
+      while ((encontrado = padrao.exec(texto)) !== null) {
+        const trecho = {
+          inicio: encontrado.index,
+          fim: encontrado.index + encontrado[0].length,
+          valor: codigo
+        };
+
+        if (!resultados.some((resultado) => this.trechosSobrepostos(resultado, trecho))) {
+          resultados.push(trecho);
+        }
+      }
+    }
+
+    return resultados.sort((primeiro, segundo) => primeiro.inicio - segundo.inicio);
+  }
+
+  private extrairCodigosPecaRotulados(texto: string, rotulosExtras: string[] = []): TrechoEncontrado[] {
+    const rotulos = this.removerDuplicados(["peca", "produto", "item", ...rotulosExtras]);
+    const rotulosRegex = rotulos.map((rotulo) => this.escaparRegex(rotulo).replace(/\s+/g, "\\s+")).join("|");
+    const padraoRotulado = new RegExp(
+      `(?:\\b(?:${rotulosRegex})\\s*#?\\s*([a-z0-9][a-z0-9_-]{0,31})\\b)|(?:#\\s*([a-z0-9][a-z0-9_-]{0,31})\\b)`,
+      "g"
+    );
     const resultados: TrechoEncontrado[] = [];
     let encontrado: RegExpExecArray | null;
 
@@ -154,6 +238,18 @@ export class InterpretadorComentario {
 
   private removerDuplicados(codigos: string[]): string[] {
     return [...new Set(codigos.filter((codigo) => codigo.length > 0))];
+  }
+
+  private criarPadraoTexto(texto: string, flags = ""): RegExp | null {
+    const normalizado = this.normalizarTexto(texto);
+    if (!normalizado) return null;
+
+    const corpo = this.escaparRegex(normalizado).replace(/\s+/g, "\\s+");
+    return new RegExp(`(?<![a-z0-9])${corpo}(?![a-z0-9])`, flags);
+  }
+
+  private escaparRegex(texto: string): string {
+    return texto.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   }
 
   private temFormatoDiretoTelefoneCodigo(

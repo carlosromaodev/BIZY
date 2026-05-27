@@ -77,4 +77,50 @@ describe("InterpretadorComentario", () => {
     expect(resultado.productCodes).toEqual(["4", "5"]);
     expect(resultado.requiresManualReview).toBe(false);
   });
+
+  it("usa dicionário do negócio para termos de compra, rótulos e aliases de produto", () => {
+    const resultado = interpretador.interpretar("923456789 leva look verde", {
+      dicionario: {
+        termosIntencaoCompra: ["leva"],
+        rotulosCodigoPeca: ["ref"],
+        aliasesCodigoPeca: {
+          "look verde": "LV-01"
+        }
+      }
+    });
+
+    expect(resultado.intent).toBe("BUY");
+    expect(resultado.phone).toBe("923456789");
+    expect(resultado.productCode).toBe("LV-01");
+    expect(resultado.productCodes).toEqual(["LV-01"]);
+    expect(resultado.requiresManualReview).toBe(false);
+  });
+
+  it("usa rótulos de artigo configurados por loja ou segmento", () => {
+    const resultado = interpretador.interpretar("separa ref abc-22 923456789", {
+      dicionario: {
+        termosIntencaoCompra: ["separa"],
+        rotulosCodigoPeca: ["ref", "artigo"]
+      }
+    });
+
+    expect(resultado.intent).toBe("BUY");
+    expect(resultado.phone).toBe("923456789");
+    expect(resultado.productCode).toBe("ABC-22");
+    expect(resultado.requiresManualReview).toBe(false);
+  });
+
+  it("prioriza alias mais específico quando houver termos sobrepostos", () => {
+    const resultado = interpretador.interpretar("923456789 leva look verde", {
+      dicionario: {
+        termosIntencaoCompra: ["leva"],
+        aliasesCodigoPeca: {
+          look: "LOOK",
+          "look verde": "LV-01"
+        }
+      }
+    });
+
+    expect(resultado.productCodes).toEqual(["LV-01"]);
+  });
 });

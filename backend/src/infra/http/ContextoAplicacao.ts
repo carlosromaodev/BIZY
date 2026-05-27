@@ -29,6 +29,7 @@ import type {
 } from "../../dominio/repositorios/contratos.js";
 import { AutomacaoWhatsApp } from "../../dominio/servicos/AutomacaoWhatsApp.js";
 import { InterpretadorComentario } from "../../dominio/servicos/InterpretadorComentario.js";
+import type { DicionarioParserComentario } from "../../dominio/servicos/InterpretadorComentario.js";
 import { AuditoriaEventosUseCase } from "../../use-case/AuditoriaEventosUseCase.js";
 import { AtendimentoCrmUseCase } from "../../use-case/AtendimentoCrmUseCase.js";
 import { AutenticacaoEstudantilUseCase, UorConnectAuthProvider } from "../../use-case/AutenticacaoEstudantilUseCase.js";
@@ -157,6 +158,7 @@ export interface RepositoriosAplicacao {
 export interface SessaoLive {
   id: string;
   negocioId: string | null;
+  dicionarioParser?: DicionarioParserComentario | null;
   username: string;
   providerNome: string;
   provider: LiveCommentProvider;

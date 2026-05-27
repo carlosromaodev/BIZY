@@ -6,7 +6,8 @@ import {
   LimparDadosOperacionaisSchema,
   RejeitarComentarioManualSchema
 } from "../../../dominio/esquemas.js";
-import type { ComentarioLive } from "../../../dominio/tipos.js";
+import type { DicionarioParserComentario } from "../../../dominio/servicos/InterpretadorComentario.js";
+import type { ComentarioLive, NegocioBizy } from "../../../dominio/tipos.js";
 import { criarProviderLive, type ContextoAplicacao, type SessaoLive } from "../ContextoAplicacao.js";
 import { exigirAcessoComercial } from "../contextoComercial.js";
 import { exigirUsuarioAutenticado } from "../seguranca.js";
@@ -35,6 +36,7 @@ export const moduloLives: ModuloHttp = {
       const sessao: SessaoLive = {
         id,
         negocioId: contextoComercial.negocio.id,
+        dicionarioParser: extrairDicionarioParserDoNegocio(contextoComercial.negocio),
         username: dados.liveUsername,
         providerNome: dados.provider,
         provider,
@@ -132,6 +134,7 @@ export const moduloLives: ModuloHttp = {
       if (!sessao || (sessao.negocioId && sessao.negocioId !== contextoComercial.negocio.id)) {
         return reply.code(404).send({ erro: "LIVE_NAO_ENCONTRADA", mensagem: "Sessão de live não encontrada." });
       }
+      sessao.dicionarioParser = extrairDicionarioParserDoNegocio(contextoComercial.negocio);
 
       const dados = ComentarioManualSessaoSchema.parse(request.body ?? {});
       const comentario: ComentarioLive = {
@@ -173,7 +176,8 @@ export const moduloLives: ModuloHttp = {
       };
 
       const resultado = await contexto.processadorComentarios.processar(comentario, {
-        negocioId: contextoComercial.negocio.id
+        negocioId: contextoComercial.negocio.id,
+        dicionarioParser: extrairDicionarioParserDoNegocio(contextoComercial.negocio)
       });
       return reply.code(201).send(resultado);
     });
@@ -239,7 +243,8 @@ async function processarComentarioDaSessao(contexto: ContextoAplicacao, sessao: 
 
   try {
     const resultado = await contexto.processadorComentarios.processar(comentario, {
-      negocioId: sessao.negocioId
+      negocioId: sessao.negocioId,
+      dicionarioParser: sessao.dicionarioParser
     });
     sessao.comentariosProcessados += 1;
     sessao.ultimoErro = null;
@@ -253,7 +258,78 @@ async function processarComentarioDaSessao(contexto: ContextoAplicacao, sessao: 
   }
 }
 
-function mapearSessaoLive({ provider: _provider, negocioId: _negocioId, ...sessao }: SessaoLive) {
+function extrairDicionarioParserDoNegocio(negocio: NegocioBizy): DicionarioParserComentario | null {
+  const entrega = objeto(negocio.entrega);
+  const onboarding = objeto(entrega.onboardingOperacional);
+  const parser = objeto(entrega.parserComentarios ?? entrega.dicionarioParser ?? entrega.dicionarioParserComentarios);
+  const parserOnboarding = objeto(onboarding.parserComentarios ?? onboarding.dicionarioParser);
+  const porSegmento = objeto(parser.porSegmento ?? entrega.parserComentariosPorSegmento);
+  const segmento = negocio.segmento.toLowerCase().trim();
+  const parserSegmento = objeto(porSegmento[segmento] ?? porSegmento[normalizarChave(segmento)]);
+  const fontes = [parserOnboarding, parser, parserSegmento];
+
+  const dicionario = fontes.reduce<DicionarioParserComentario>(
+    (acumulado, fonte) => ({
+      termosIntencaoCompra: [
+        ...(acumulado.termosIntencaoCompra ?? []),
+        ...listaTextos(fonte.termosIntencaoCompra ?? fonte.termosCompra)
+      ],
+      rotulosCodigoPeca: [
+        ...(acumulado.rotulosCodigoPeca ?? []),
+        ...listaTextos(fonte.rotulosCodigoPeca ?? fonte.rotulosCodigo ?? fonte.rotulosProduto)
+      ],
+      aliasesCodigoPeca: {
+        ...(acumulado.aliasesCodigoPeca ?? {}),
+        ...mapaTextos(fonte.aliasesCodigoPeca ?? fonte.aliasesProduto ?? fonte.produtosAlias)
+      }
+    }),
+    {}
+  );
+
+  const temDados =
+    Boolean(dicionario.termosIntencaoCompra?.length) ||
+    Boolean(dicionario.rotulosCodigoPeca?.length) ||
+    Boolean(Object.keys(dicionario.aliasesCodigoPeca ?? {}).length);
+
+  return temDados ? dicionario : null;
+}
+
+function objeto(valor: unknown): Record<string, unknown> {
+  return valor && typeof valor === "object" && !Array.isArray(valor) ? (valor as Record<string, unknown>) : {};
+}
+
+function listaTextos(valor: unknown): string[] {
+  if (!Array.isArray(valor)) return [];
+  return valor.filter((item): item is string => typeof item === "string" && item.trim().length > 0);
+}
+
+function mapaTextos(valor: unknown): Record<string, string> {
+  const dados = objeto(valor);
+  return Object.fromEntries(
+    Object.entries(dados).filter(
+      (entrada): entrada is [string, string] =>
+        typeof entrada[0] === "string" &&
+        entrada[0].trim().length > 0 &&
+        typeof entrada[1] === "string" &&
+        entrada[1].trim().length > 0
+    )
+  );
+}
+
+function normalizarChave(valor: string): string {
+  return valor
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+}
+
+function mapearSessaoLive({
+  provider: _provider,
+  negocioId: _negocioId,
+  dicionarioParser: _dicionarioParser,
+  ...sessao
+}: SessaoLive) {
   return sessao;
 }
 

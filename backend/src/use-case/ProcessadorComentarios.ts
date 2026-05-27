@@ -2,7 +2,7 @@ import { ComentarioLiveSchema } from "../dominio/esquemas.js";
 import type { DespachadorEventos } from "../dominio/eventos/DespachadorEventos.js";
 import type { RepositorioClientes, RepositorioComentarios } from "../dominio/repositorios/contratos.js";
 import type { AutomacaoWhatsApp } from "../dominio/servicos/AutomacaoWhatsApp.js";
-import type { InterpretadorComentario } from "../dominio/servicos/InterpretadorComentario.js";
+import type { DicionarioParserComentario, InterpretadorComentario } from "../dominio/servicos/InterpretadorComentario.js";
 import type { MotorReservas } from "./MotorReservas.js";
 import type { ComentarioLive, RegistroComentario, Reserva, ResultadoInterpretacaoComentario } from "../dominio/tipos.js";
 
@@ -16,6 +16,7 @@ export interface ResultadoProcessamentoComentario {
 
 interface OpcoesProcessamentoComentario {
   negocioId?: string | null;
+  dicionarioParser?: DicionarioParserComentario | null;
 }
 
 export class ProcessadorComentarios {
@@ -37,7 +38,9 @@ export class ProcessadorComentarios {
 
     this.eventos.emitir("COMMENT_RECEIVED", { comentario, negocioId });
 
-    const interpretacao = this.interpretadorComentario.interpretar(comentario.commentText);
+    const interpretacao = this.interpretadorComentario.interpretar(comentario.commentText, {
+      dicionario: opcoes.dicionarioParser
+    });
     this.eventos.emitir("COMMENT_PARSED", { comentario, interpretacao, negocioId });
 
     const registroInicial = await this.repositorioComentarios.criar({

@@ -1,7 +1,7 @@
 # Bizy / ÉMeu V1 - Requisitos Funcionais, Não Funcionais e Regras de Negócio
 
 Documento: `RF-RNF-RN-EMEUV1.md`
-Versão: 1.35
+Versão: 1.65
 Data: 2026-05-25
 Autor: Carlos
 Status: MVP base implementado; fundação backend Bizy CRM+ com Clientes 360, Pedidos, Catálogo/Stock, Loja Pública, Vitrine Pública, Checkout, Entrega, Afiliados, Comissões, Lotes Financeiros, Campanhas, Governança, Jobs, Eventos Operacionais, Inbox Comercial, SLA, Social Inbox seguro, transferência operacional, política WhatsApp, descontos aprováveis, carrinho abandonado, antifraude de afiliados, anonimização, SEO público, logs operacionais, navegação comercial, busca global, auditoria de exportações comerciais e painel diário em evolução
@@ -146,6 +146,8 @@ Atualização 1.63: Loja pública e página pública de produto passaram a devol
 
 Atualização 1.64: Produtos passaram a aceitar configuração de vitrine pública com selos comerciais, prioridade, texto promocional, preço promocional e componentes de kit. A loja pública agora devolve agrupamentos prontos para destaques, promoções, novidades, reposições, mais vendidos e kits.
 
+Atualização 1.65: Parser de comentários passou a aceitar dicionário por negócio ou segmento, com termos de intenção de compra, rótulos alternativos de artigo/ref/SKU e aliases de produto guardados na configuração do negócio e aplicados ao processamento manual ou live.
+
 ---
 
 ## 2. Legenda
@@ -235,7 +237,7 @@ Nas tabelas de RF, RNF, RN e fora de escopo, o marcador deve aparecer no início
 | RF24 | [x] O sistema deve calcular nível de confiança da interpretação. | Alta | Implementado |
 | RF25 | [x] O sistema deve marcar comentários ambíguos para revisão manual. | Alta | Implementado |
 | RF26 | [x] O sistema deve suportar variações como `peça 4`, `peca 4`, `#4`, `produto 4`, `item 4` e código livre. | Alta | Implementado |
-| RF27 | [ ] O sistema deve permitir evoluir o parser com dicionário de termos por loja ou por segmento. | Baixa | Pós-MVP |
+| RF27 | [x] O sistema deve permitir evoluir o parser com dicionário de termos por loja ou por segmento. | Baixa | Implementado no backend |
 | RF28 | [x] Quando o comentário mencionar mais de uma peça, o sistema deve permitir criar múltiplas reservas vinculadas ao mesmo telefone. | Média | Implementado |
 
 ### 3.5 Revisão Manual
