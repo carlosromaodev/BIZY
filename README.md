@@ -27,6 +27,7 @@ npm install
 cp backend/.env.example backend/.env
 npm run prisma:generate
 npm run prisma:migrate:deploy
+npm run bootstrap:ambiente
 npm run dev
 ```
 
@@ -63,6 +64,7 @@ Pontos obrigatórios antes de subir em servidor:
 
 - Criar PostgreSQL e configurar `DATABASE_URL`.
 - Executar `npm run prisma:migrate:deploy` no backend.
+- Executar `npm run bootstrap:ambiente` para validar variáveis críticas e criar configurações padrão dos módulos por negócio.
 - Configurar `N8N_WEBHOOK_EVENTOS_URL`, `N8N_WEBHOOK_SECRET` e `N8N_BACKEND_TOKEN`.
 - Configurar `EVOLUTION_API_URL`, `EVOLUTION_API_KEY`, `EVOLUTION_INSTANCE` e `EVOLUTION_WEBHOOK_TOKEN`.
 - Configurar `OMBALA_API_TOKEN` para SMS real.

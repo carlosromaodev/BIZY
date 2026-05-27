@@ -139,6 +139,7 @@ wait_container_health emeu_redis "Redis"
 echo "A aplicar migrations e atualizar Prisma Client..."
 npm run prisma:migrate:deploy
 npm run prisma:generate
+npm run bootstrap:ambiente --workspace backend
 
 echo "A parar backend/frontend Docker para evitar servidores duplicados..."
 docker compose stop backend frontend > /dev/null 2>&1 || true

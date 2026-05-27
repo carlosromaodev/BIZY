@@ -1,10 +1,10 @@
 # Bizy / ÉMeu V1 - Requisitos Funcionais, Não Funcionais e Regras de Negócio
 
 Documento: `RF-RNF-RN-EMEUV1.md`
-Versão: 1.98
+Versão: 1.99
 Data: 2026-05-26
 Autor: Carlos
-Status: MVP base implementado; fundação backend Bizy CRM+ com Clientes 360, Pedidos, Catálogo/Stock, Loja Pública, Vitrine Pública, Checkout, Entrega, Afiliados, Criadores, Revendedores, Mini-lojas Públicas, Comissões, Atribuição Comercial, Lotes Financeiros, Campanhas com receita atribuída por tracking, Governança, Jobs de Clientes/Produtos/Exportações, Contratos Versionados, Eventos Operacionais, eventos públicos idempotentes, webhook Evolution idempotente com ledger operacional, eventos server-side preparados, Inbox Comercial, SLA, Social Inbox seguro, transferência operacional, política WhatsApp, descontos aprováveis, carrinho abandonado, antifraude de afiliados, anonimização, SEO público, logs operacionais, navegação comercial, busca global, auditoria de exportações comerciais e painel diário em evolução
+Status: MVP base implementado; fundação backend Bizy CRM+ com Clientes 360, Pedidos, Catálogo/Stock, Loja Pública, Vitrine Pública, Checkout, Entrega, Afiliados, Criadores, Revendedores, Mini-lojas Públicas, Comissões, Atribuição Comercial, Lotes Financeiros, Campanhas com receita atribuída por tracking, Governança, Jobs de Clientes/Produtos/Exportações, Contratos Versionados, Eventos Operacionais, eventos públicos idempotentes, webhook Evolution idempotente com ledger operacional, bootstrap de ambiente, eventos server-side preparados, Inbox Comercial, SLA, Social Inbox seguro, transferência operacional, política WhatsApp, descontos aprováveis, carrinho abandonado, antifraude de afiliados, anonimização, SEO público, logs operacionais, navegação comercial, busca global, auditoria de exportações comerciais e painel diário em evolução
 
 ---
 
@@ -213,6 +213,8 @@ Atualização 1.96: Eventos operacionais persistidos passaram a ter campo formal
 Atualização 1.97: Webhook Evolution passou a bloquear reprocessamento local do mesmo callback quando o provider reenviar a mesma mensagem/status com o mesmo identificador, evitando duplicar eventos internos de conversa, funil e atendimento dentro do mesmo processo.
 
 Atualização 1.98: Rota `/webhooks/evolution` passou a usar `EventoOperacional` como ledger persistente de idempotência quando consegue resolver o negócio por `negocioId` ou instância WhatsApp, retornando `duplicado=true` sem reemitir eventos internos em callbacks repetidos.
+
+Atualização 1.99: Adicionado bootstrap formal de ambiente em `npm run bootstrap:ambiente`, validando variáveis obrigatórias para dev/staging/prod e criando configurações padrão dos módulos CRM+ para negócios existentes de forma reexecutável.
 
 ---
 
@@ -709,7 +711,7 @@ Esta etapa vem antes da implementação visual dos novos módulos. O objetivo é
 | RF265 | [~] Importações e exportações grandes devem rodar como jobs com estado, relatório de erros, idempotência e arquivo resultante. | Média | Parcial - jobs idempotentes de importação/exportação de clientes e produtos implementados com CSV no resultado; falta armazenamento externo/expirável do arquivo resultante para alto volume |
 | RF266 | [~] Módulos desativados devem bloquear rotas, automações e menus relacionados, preservando dados para reativação futura. | Alta | Parcial - guarda HTTP aplicada em rotas comerciais, conversas e WhatsApp |
 | RF267 | [~] Webhooks, importações, campanhas e eventos públicos devem usar chaves de idempotência para evitar duplicidade. | Alta | Parcial - eventos operacionais, jobs de importação/exportação de clientes/produtos, eventos públicos de tracking e webhook Evolution com negócio resolvido suportam idempotência persistente por chave técnica; faltam conectores sociais externos e campanhas públicas |
-| RF268 | [~] Migrations, seeds e scripts de bootstrap devem preparar ambientes dev/staging/prod sem depender de dados manuais invisíveis. | Alta | Parcial - migration Prisma adicionada para campanhas/governança; faltam seeds/bootstrap formais dos novos módulos |
+| RF268 | [x] Migrations, seeds e scripts de bootstrap devem preparar ambientes dev/staging/prod sem depender de dados manuais invisíveis. | Alta | Implementado com migrations versionadas, `npm run bootstrap:ambiente`, validação de variáveis por ambiente e seed reexecutável dos módulos CRM+ por negócio |
 | RF269 | [x] O backend deve manter contratos versionados para APIs internas, públicas, webhooks e eventos de automação. | Média | Implementado com `/contratos`, catálogo v1 para API interna, API pública, webhook Evolution e eventos de automação, incluindo política de compatibilidade, idempotência e `payloadVersion` |
 | RF270 | [~] Cada módulo backend novo deve nascer com testes de schema, use-case, repositório e rota HTTP antes de ser ligado ao frontend. | Alta | Parcial - novas rotas CRM+/campanhas/governança têm testes HTTP; faltam testes de repositório/use-case separados para todos |
 
@@ -1184,7 +1186,7 @@ O backend pode ser considerado pronto para receber os módulos CRM+ quando:
 - [~] Permissões impedirem vendedor comum de acessar dados técnicos, tokens, configurações globais e exportações sensíveis.
 - [x] Auditoria registrar ações críticas de dinheiro, cliente, stock, comissão, permissão e compartilhamento; exportação, pagamento, desconto, entrega, cancelamento, stock, permissões, comissão e compartilhamento têm trilhas com ator, motivo e diff quando aplicável.
 - [~] APIs novas tiverem testes de use-case, repositório e rota HTTP; inbox/SLA/social/tracking/transferência e política WhatsApp têm testes dedicados.
-- [~] Migrations e seeds permitirem subir dev/staging/prod sem correção manual invisível.
+- [x] Migrations e seeds permitirem subir dev/staging/prod sem correção manual invisível; `bootstrap:ambiente` valida segredos e prepara módulos CRM+ por negócio.
 
 ---
 

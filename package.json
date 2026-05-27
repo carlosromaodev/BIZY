@@ -15,6 +15,7 @@
     "build": "npm run build --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present",
+    "bootstrap:ambiente": "npm run bootstrap:ambiente --workspace backend",
     "prisma:generate": "npm run prisma:generate --workspace backend",
     "prisma:push": "npm run prisma:push --workspace backend",
     "prisma:migrate:dev": "npm run prisma:migrate:dev --workspace backend",

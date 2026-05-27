@@ -43,6 +43,7 @@ Depois de criar a base PostgreSQL vazia:
 npm install
 npm run prisma:generate
 DATABASE_URL="postgresql://emeu:senha_forte@host:5432/emeu?schema=public" npm run prisma:migrate:deploy
+BIZY_BOOTSTRAP_ENV=production DATABASE_URL="postgresql://emeu:senha_forte@host:5432/emeu?schema=public" npm run bootstrap:ambiente
 ```
 
 Para verificar estado das migrations:
@@ -58,6 +59,8 @@ npx prisma generate && npx prisma migrate deploy && node dist/main.js
 ```
 
 Não use `prisma db push` em produção; ele é útil apenas para prototipagem local.
+
+O bootstrap valida variáveis obrigatórias de produção e cria configurações padrão dos módulos CRM+ para negócios já existentes. Ele é seguro para reexecução: módulos já existentes são preservados.
 
 Se estiver a migrar uma base antiga que já foi criada com `prisma db push`, faça backup e marque a primeira migration como baseline apenas se a estrutura atual já corresponder ao schema Prisma:
 
