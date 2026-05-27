@@ -332,7 +332,9 @@ describe("afiliados, criadores e comissões HTTP", () => {
           totalLinks: 1,
           pedidosAtribuidos: 1,
           comissaoEstimadaEmKwanza: 0,
-          comissaoConfirmadaEmKwanza: 2_500
+          comissaoConfirmadaEmKwanza: 2_500,
+          comissaoPendenteEmKwanza: 2_500,
+          receitaAtribuidaEmKwanza: 25_000
         })
       );
       expect(resumo.json().ranking[0]).toEqual(
@@ -340,7 +342,11 @@ describe("afiliados, criadores e comissões HTTP", () => {
           afiliadoId: afiliado.json().id,
           nomePublico: "Ana Vendas",
           pedidos: 1,
-          comissaoConfirmadaEmKwanza: 2_500
+          pedidosPagos: 1,
+          receitaAtribuidaEmKwanza: 25_000,
+          ticketMedioEmKwanza: 25_000,
+          comissaoConfirmadaEmKwanza: 2_500,
+          comissaoPendenteEmKwanza: 2_500
         })
       );
     } finally {

@@ -2238,14 +2238,20 @@ export interface ResumoAfiliadosComerciais {
   pedidosAtribuidos: number;
   comissaoEstimadaEmKwanza: number;
   comissaoConfirmadaEmKwanza: number;
+  comissaoPendenteEmKwanza: number;
   comissaoPagaEmKwanza: number;
   comissaoRevertidaEmKwanza: number;
+  receitaAtribuidaEmKwanza: number;
   ranking: Array<{
     afiliadoId: string;
     codigo: string;
     nomePublico: string;
     pedidos: number;
+    pedidosPagos: number;
+    receitaAtribuidaEmKwanza: number;
+    ticketMedioEmKwanza: number;
     comissaoConfirmadaEmKwanza: number;
+    comissaoPendenteEmKwanza: number;
     comissaoPagaEmKwanza: number;
   }>;
 }

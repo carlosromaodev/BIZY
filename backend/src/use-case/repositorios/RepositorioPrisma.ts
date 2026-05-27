@@ -1446,7 +1446,10 @@ export class RepositorioAfiliadosPrisma implements RepositorioAfiliados {
         codigo: string;
         nomePublico: string;
         pedidos: Set<string>;
+        pedidosPagos: Set<string>;
+        receitaAtribuidaEmKwanza: number;
         comissaoConfirmadaEmKwanza: number;
+        comissaoPendenteEmKwanza: number;
         comissaoPagaEmKwanza: number;
       }
     >();
@@ -1458,14 +1461,28 @@ export class RepositorioAfiliadosPrisma implements RepositorioAfiliados {
         codigo: parceiro?.codigo ?? "",
         nomePublico: parceiro?.nomePublico ?? "Parceiro removido",
         pedidos: new Set<string>(),
+        pedidosPagos: new Set<string>(),
+        receitaAtribuidaEmKwanza: 0,
         comissaoConfirmadaEmKwanza: 0,
+        comissaoPendenteEmKwanza: 0,
         comissaoPagaEmKwanza: 0
       };
       item.pedidos.add(comissao.pedidoId);
-      if (comissao.status === "CONFIRMADA") item.comissaoConfirmadaEmKwanza += comissao.valorEmKwanza;
+      if (comissao.status === "CONFIRMADA" || comissao.status === "PAGA") {
+        item.pedidosPagos.add(comissao.pedidoId);
+        item.receitaAtribuidaEmKwanza += comissao.baseEmKwanza;
+      }
+      if (comissao.status === "CONFIRMADA") {
+        item.comissaoConfirmadaEmKwanza += comissao.valorEmKwanza;
+        item.comissaoPendenteEmKwanza += comissao.valorEmKwanza;
+      }
       if (comissao.status === "PAGA") item.comissaoPagaEmKwanza += comissao.valorEmKwanza;
       rankingPorAfiliado.set(comissao.afiliadoId, item);
     }
+
+    const receitaAtribuidaEmKwanza = comissoes
+      .filter((comissao) => comissao.status === "CONFIRMADA" || comissao.status === "PAGA")
+      .reduce((total, comissao) => total + comissao.baseEmKwanza, 0);
 
     return {
       totalParceiros: parceiros.length,
@@ -1473,14 +1490,30 @@ export class RepositorioAfiliadosPrisma implements RepositorioAfiliados {
       pedidosAtribuidos: new Set(comissoes.map((comissao) => comissao.pedidoId)).size,
       comissaoEstimadaEmKwanza: this.somarComissoesPorStatus(comissoes, "ESTIMADA"),
       comissaoConfirmadaEmKwanza: this.somarComissoesPorStatus(comissoes, "CONFIRMADA"),
+      comissaoPendenteEmKwanza: this.somarComissoesPorStatus(comissoes, "CONFIRMADA"),
       comissaoPagaEmKwanza: this.somarComissoesPorStatus(comissoes, "PAGA"),
       comissaoRevertidaEmKwanza: this.somarComissoesPorStatus(comissoes, "REVERTIDA"),
+      receitaAtribuidaEmKwanza,
       ranking: [...rankingPorAfiliado.values()]
         .map((item) => ({
-          ...item,
-          pedidos: item.pedidos.size
+          afiliadoId: item.afiliadoId,
+          codigo: item.codigo,
+          nomePublico: item.nomePublico,
+          pedidos: item.pedidos.size,
+          pedidosPagos: item.pedidosPagos.size,
+          receitaAtribuidaEmKwanza: item.receitaAtribuidaEmKwanza,
+          ticketMedioEmKwanza: item.pedidosPagos.size
+            ? Math.round(item.receitaAtribuidaEmKwanza / item.pedidosPagos.size)
+            : 0,
+          comissaoConfirmadaEmKwanza: item.comissaoConfirmadaEmKwanza,
+          comissaoPendenteEmKwanza: item.comissaoPendenteEmKwanza,
+          comissaoPagaEmKwanza: item.comissaoPagaEmKwanza
         }))
-        .sort((a, b) => b.comissaoConfirmadaEmKwanza - a.comissaoConfirmadaEmKwanza)
+        .sort(
+          (a, b) =>
+            b.receitaAtribuidaEmKwanza - a.receitaAtribuidaEmKwanza ||
+            b.comissaoConfirmadaEmKwanza - a.comissaoConfirmadaEmKwanza
+        )
     };
   }
 
