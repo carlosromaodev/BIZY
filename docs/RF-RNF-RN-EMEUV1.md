@@ -136,6 +136,8 @@ Atualização 1.58: Catálogo WhatsApp de cobrança passou a incluir template ap
 
 Atualização 1.59: Pedidos passaram a ter fluxo completo de comprovativo de pagamento no backend, com anexo por URL/data URL privada, rejeição com motivo, confirmação, recibo operacional e histórico auditável de aprovação/rejeição.
 
+Atualização 1.60: Loja pública passou a aceitar busca e filtros de produto no endpoint público, com normalização de acentos para categoria, coleção e texto livre, além de limite controlado para listagens.
+
 ---
 
 ## 2. Legenda
@@ -479,7 +481,7 @@ Esta etapa posiciona o Bizy como uma plataforma de operação comercial para cri
 | ID | Requisito Funcional | Prioridade | Estado |
 |---|---|---|---|
 | RF157 | [~] Cada negócio deve poder publicar uma loja virtual com URL própria por slug e, futuramente, domínio personalizado. | Alta | Parcial - publicação por slug implementada; faltam domínio personalizado e frontend público completo |
-| RF158 | [~] A loja virtual deve listar produtos com fotos, nome, preço, variantes, estado de stock, coleções, busca e filtros úteis. | Alta | Parcial - listagem pública com dados essenciais implementada; faltam busca/filtros avançados no endpoint público |
+| RF158 | [x] A loja virtual deve listar produtos com fotos, nome, preço, variantes, estado de stock, coleções, busca e filtros úteis. | Alta | Implementado no backend público com produtos vendáveis, fotos, preço, variantes, stock, coleção, busca, filtro por categoria, coleção, estado de stock e limite de listagem |
 | RF159 | [~] A página pública de produto deve permitir partilha direta, seleção de variante, cálculo inicial de entrega e chamada para comprar pelo WhatsApp ou pelo checkout do site. | Alta | Parcial - endpoint público, chamada WhatsApp, cálculo de entrega e checkout site básico implementados; faltam UI pública e seleção avançada de variante |
 | RF160 | [~] O dono do negócio deve poder criar catálogos digitais por coleção, campanha, live, afiliado, data comemorativa ou segmento de clientes. | Alta | Parcial - base de loja/catálogo público implementada; faltam entidades de catálogo por campanha/segmento |
 | RF161 | [~] O catálogo digital deve gerar link partilhável e, quando necessário, resumo visual ou PDF simples com produtos, preços e disponibilidade. | Média | Parcial - slug público e links de produto implementados; faltam resumo visual/PDF |
@@ -1075,7 +1077,7 @@ O CRM completo pode ser considerado pronto para primeira operação de loja quan
 
 O CRM+ Social Commerce pode ser considerado pronto para operação inicial quando:
 
-- [~] Um negócio conseguir publicar loja virtual com URL própria, produtos, coleções, stock e página pública de produto; backend público está pronto, faltam URL/domínio final e UI de coleção avançada.
+- [~] Um negócio conseguir publicar loja virtual com URL própria, produtos, coleções, stock e página pública de produto; backend público lista e filtra produtos, faltam domínio final e UI de coleção avançada.
 - [~] O cliente conseguir comprar pelo WhatsApp com mensagem pré-preenchida e pelo checkout do site com total calculado.
 - [~] O sistema calcular entrega por regra configurada e incluir o valor no total antes da confirmação.
 - [ ] O dono conseguir criar catálogo digital partilhável com produtos selecionados e disponibilidade correta.

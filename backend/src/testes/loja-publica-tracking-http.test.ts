@@ -25,7 +25,14 @@ async function criarProduto(
   app: Awaited<ReturnType<typeof criarAplicacao>>,
   headers: Record<string, string>,
   codigo: string,
-  quantidade: number
+  quantidade: number,
+  dados: Partial<{
+    nome: string;
+    descricao: string;
+    categoria: string;
+    colecao: string;
+    precoEmKwanza: number;
+  }> = {}
 ) {
   const resposta = await app.inject({
     method: "POST",
@@ -34,14 +41,14 @@ async function criarProduto(
     payload: {
       codigo,
       sku: `SKU-${codigo}`,
-      nome: `Produto ${codigo}`,
-      descricao: `Produto ${codigo} para loja pública`,
-      precoEmKwanza: 12_500,
+      nome: dados.nome ?? `Produto ${codigo}`,
+      descricao: dados.descricao ?? `Produto ${codigo} para loja pública`,
+      precoEmKwanza: dados.precoEmKwanza ?? 12_500,
       custoEmKwanza: 7_500,
       quantidade,
       stockMinimo: 1,
-      categoria: "Roupas",
-      colecao: "Live atual",
+      categoria: dados.categoria ?? "Roupas",
+      colecao: dados.colecao ?? "Live atual",
       variantes: { tamanho: ["M", "G"] },
       fotos: [`https://example.com/${codigo}.png`]
     }
@@ -196,6 +203,59 @@ describe("loja pública, catálogo digital e tracking HTTP", () => {
             receitaAtribuidaEmKwanza: 0,
             taxaWhatsAppPorProduto: 100
           })
+        })
+      );
+    } finally {
+      await app.close();
+    }
+  });
+
+  it("filtra produtos públicos por busca, categoria e coleção", async () => {
+    const app = await criarAplicacao();
+
+    try {
+      const loja = await autenticar(app, "923444120", "Loja Filtros Públicos");
+      await criarProduto(app, loja, "CAM-1", 5, {
+        nome: "Camisa Verde",
+        categoria: "Roupas",
+        colecao: "Live atual"
+      });
+      await criarProduto(app, loja, "TEN-1", 3, {
+        nome: "Tênis urbano",
+        descricao: "Tênis confortável para entrega rápida",
+        categoria: "Calçado",
+        colecao: "Promoção semanal"
+      });
+
+      const publicacao = await app.inject({
+        method: "PUT",
+        url: "/loja-publica/configuracao",
+        headers: loja,
+        payload: {
+          slug: "loja-filtros-publicos",
+          publicada: true
+        }
+      });
+      expect(publicacao.statusCode).toBe(200);
+
+      const filtrado = await app.inject({
+        method: "GET",
+        url: "/publico/lojas/loja-filtros-publicos?busca=tenis&categoria=Calcado&colecao=promocao"
+      });
+      expect(filtrado.statusCode).toBe(200);
+      expect(filtrado.json().produtos).toEqual([
+        expect.objectContaining({
+          codigo: "TEN-1",
+          nome: "Tênis urbano",
+          categoria: "Calçado",
+          colecao: "Promoção semanal"
+        })
+      ]);
+      expect(filtrado.json().filtros).toEqual(
+        expect.objectContaining({
+          busca: "tenis",
+          categoria: "Calcado",
+          colecao: "promocao"
         })
       );
     } finally {

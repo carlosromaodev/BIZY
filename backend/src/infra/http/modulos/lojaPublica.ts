@@ -56,7 +56,7 @@ export const moduloLojaPublica: ModuloHttp = {
         origem: query.origem,
         canal: query.canal,
         utm: extrairUtm(query)
-      });
+      }, extrairFiltrosProdutosPublicos(query));
     });
 
     app.get("/publico/lojas/:slug/produtos/:codigo", async (request) => {
@@ -120,6 +120,22 @@ function extrairUtm(query: Record<string, string | undefined>): Record<string, s
       .filter(([chave, valor]) => chave.startsWith("utm_") && typeof valor === "string" && valor.trim())
       .map(([chave, valor]) => [chave, valor as string])
   );
+}
+
+function extrairFiltrosProdutosPublicos(query: Record<string, string | undefined>) {
+  const limite = Number(query.limite);
+  return {
+    busca: textoQuery(query.busca),
+    categoria: textoQuery(query.categoria),
+    colecao: textoQuery(query.colecao),
+    estadoStock: textoQuery(query.estadoStock),
+    limite: Number.isFinite(limite) ? Math.trunc(limite) : undefined
+  };
+}
+
+function textoQuery(valor?: string): string | undefined {
+  const texto = valor?.trim();
+  return texto || undefined;
 }
 
 function contemDadoSensivelTracking(dados: {

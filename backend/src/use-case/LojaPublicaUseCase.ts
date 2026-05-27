@@ -23,6 +23,14 @@ interface OpcoesTrackingPublico {
   utm?: Record<string, string>;
 }
 
+interface FiltrosProdutosPublicos {
+  busca?: string | null;
+  categoria?: string | null;
+  colecao?: string | null;
+  estadoStock?: string | null;
+  limite?: number | null;
+}
+
 interface DadosCheckoutWhatsAppPublico {
   quantidade: number;
   variante: Record<string, string>;
@@ -115,9 +123,13 @@ export class LojaPublicaUseCase {
     });
   }
 
-  async obterLoja(slug: string, tracking?: OpcoesTrackingPublico) {
+  async obterLoja(slug: string, tracking?: OpcoesTrackingPublico, filtros: FiltrosProdutosPublicos = {}) {
     const negocio = await this.exigirLojaPublicada(slug);
-    const produtos = (await this.pecas.listar(negocio.id)).filter((peca) => this.pecaVendavel(peca));
+    const limite = Math.max(1, Math.min(filtros.limite ?? 100, 500));
+    const produtos = (await this.pecas.listar(negocio.id))
+      .filter((peca) => this.pecaVendavel(peca))
+      .filter((peca) => this.produtoAtendeFiltrosPublicos(peca, filtros))
+      .slice(0, limite);
 
     await this.registrarTrackingSilencioso({
       negocioId: negocio.id,
@@ -133,7 +145,8 @@ export class LojaPublicaUseCase {
 
     return {
       loja: this.mapearLojaPublica(negocio),
-      produtos: produtos.map((peca) => this.mapearProdutoPublico(peca))
+      produtos: produtos.map((peca) => this.mapearProdutoPublico(peca)),
+      filtros: this.filtrosPublicosAplicados(filtros)
     };
   }
 
@@ -463,6 +476,44 @@ export class LojaPublicaUseCase {
 
   private pecaVendavel(peca: Peca): boolean {
     return !peca.arquivadaEm && peca.quantidade > 0 && peca.estado !== "ESGOTADA" && peca.estado !== "VENDIDA";
+  }
+
+  private produtoAtendeFiltrosPublicos(peca: Peca, filtros: FiltrosProdutosPublicos): boolean {
+    const busca = this.normalizarTexto(filtros.busca);
+    if (busca) {
+      const camposBusca = [
+        peca.codigo,
+        peca.sku,
+        peca.nome,
+        peca.descricao,
+        peca.categoria,
+        peca.colecao
+      ].map((valor) => this.normalizarTexto(valor));
+
+      if (!camposBusca.some((campo) => campo.includes(busca))) return false;
+    }
+
+    const categoria = this.normalizarTexto(filtros.categoria);
+    if (categoria && !this.normalizarTexto(peca.categoria).includes(categoria)) return false;
+
+    const colecao = this.normalizarTexto(filtros.colecao);
+    if (colecao && !this.normalizarTexto(peca.colecao).includes(colecao)) return false;
+
+    const estadoStock = this.normalizarTexto(filtros.estadoStock);
+    if (estadoStock && this.normalizarTexto(peca.estadoStock) !== estadoStock) return false;
+
+    return true;
+  }
+
+  private filtrosPublicosAplicados(filtros: FiltrosProdutosPublicos) {
+    const limite = filtros.limite ? Math.max(1, Math.min(filtros.limite, 500)) : undefined;
+    return {
+      ...(filtros.busca ? { busca: filtros.busca } : {}),
+      ...(filtros.categoria ? { categoria: filtros.categoria } : {}),
+      ...(filtros.colecao ? { colecao: filtros.colecao } : {}),
+      ...(filtros.estadoStock ? { estadoStock: filtros.estadoStock } : {}),
+      ...(limite ? { limite } : {})
+    };
   }
 
   private mapearLojaPublica(negocio: NegocioBizy) {
