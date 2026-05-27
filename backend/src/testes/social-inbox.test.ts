@@ -309,6 +309,109 @@ describe("Social Inbox CRM+", () => {
       await app.close();
     }
   });
+
+  it("captura comentário de provider oficial somente quando a conta social está conectada", async () => {
+    const app = await criarAplicacao();
+
+    try {
+      const headers = await autenticar(app);
+
+      await app.inject({
+        method: "POST",
+        url: "/social/contas",
+        headers,
+        payload: {
+          canal: "instagram",
+          provider: "instagram_graph",
+          identificador: "17841400000000000",
+          username: "loja_bizy",
+          permissoes: ["comments.read", "profile.read"],
+          credencialRef: "vault:social/ig/loja_bizy",
+          webhookAtivo: true
+        }
+      });
+
+      const capturado = await app.inject({
+        method: "POST",
+        url: "/social/inbox/capturar",
+        headers,
+        payload: {
+          canal: "instagram",
+          provider: "instagram_graph",
+          contaIdentificador: "17841400000000000",
+          providerItemId: "ig_comment_live_001",
+          tipo: "COMENTARIO",
+          mediaTipo: "LIVE",
+          postId: "live_look_maio",
+          postUrl: "https://instagram.com/p/live_look_maio",
+          autor: {
+            id: "ig_cliente_777",
+            username: "cliente_live",
+            nome: "Cliente Live",
+            avatarUrl: "https://example.com/cliente-live.png"
+          },
+          texto: "Quero saber se ainda tem o look 01",
+          intencao: "COMPRA",
+          confianca: 0.88,
+          clienteTelefone: "923456701",
+          entidades: {
+            produtoCodigo: "01"
+          },
+          contexto: {
+            campanhaId: "live-maio"
+          },
+          capturadoEm: "2026-05-25T21:00:00.000Z"
+        }
+      });
+
+      expect(capturado.statusCode).toBe(201);
+      expect(capturado.json().item).toEqual(
+        expect.objectContaining({
+          canal: "instagram",
+          provider: "instagram_graph",
+          postId: "live_look_maio",
+          autorUsername: "cliente_live",
+          intencao: "COMPRA",
+          clienteTelefone: "923456701"
+        })
+      );
+      expect(capturado.json().item.contexto).toEqual(
+        expect.objectContaining({
+          origemCaptura: "provider",
+          mediaTipo: "LIVE",
+          providerItemId: "ig_comment_live_001",
+          providerContaId: "instagram:17841400000000000",
+          providerPermissoes: ["comments.read", "profile.read"],
+          campanhaId: "live-maio",
+          capturedAt: "2026-05-25T21:00:00.000Z"
+        })
+      );
+
+      const semConta = await app.inject({
+        method: "POST",
+        url: "/social/inbox/capturar",
+        headers,
+        payload: {
+          canal: "instagram",
+          provider: "instagram_graph",
+          contaIdentificador: "17841400000000009",
+          providerItemId: "ig_comment_live_002",
+          tipo: "COMENTARIO",
+          mediaTipo: "POST",
+          postId: "post_sem_conta",
+          autor: { username: "cliente_sem_conta" },
+          texto: "Ainda tem?",
+          intencao: "DUVIDA",
+          confianca: 0.65
+        }
+      });
+
+      expect(semConta.statusCode).toBe(404);
+      expect(semConta.json().mensagem).toContain("Conta social não encontrada");
+    } finally {
+      await app.close();
+    }
+  });
 });
 
 async function autenticar(app: Awaited<ReturnType<typeof criarAplicacao>>) {

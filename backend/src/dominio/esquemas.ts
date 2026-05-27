@@ -639,6 +639,29 @@ export const ConectarContaSocialSchema = z
   })
   .passthrough();
 
+export const CapturarSocialInboxProviderSchema = z.object({
+  canal: z.string().trim().min(2).max(40).transform((valor) => valor.toLowerCase()),
+  provider: z.string().trim().min(2).max(80).transform((valor) => valor.toLowerCase()),
+  contaIdentificador: z.string().trim().min(2).max(160),
+  providerItemId: z.string().trim().min(2).max(180),
+  tipo: z.enum(tiposSocialInbox).default("COMENTARIO"),
+  mediaTipo: z.enum(["FOTO", "VIDEO", "POST", "LIVE", "REEL", "STORY"]).default("POST"),
+  postId: TextoPerfilOpcionalSchema,
+  postUrl: z.preprocess(
+    (valor) => (typeof valor === "string" && valor.trim() === "" ? null : valor),
+    z.string().trim().url().max(2048).nullable().optional()
+  ).transform((valor) => valor ?? null),
+  autor: AutorSocialInboxSchema,
+  texto: z.string().trim().min(1).max(4000),
+  intencao: z.enum(intencoesSocialInbox).default("SEM_INTENCAO"),
+  confianca: z.coerce.number().min(0).max(1).default(0),
+  clienteTelefone: TextoPerfilOpcionalSchema,
+  clienteId: z.string().trim().uuid().nullable().optional().transform((valor) => valor ?? null),
+  entidades: z.record(z.string(), z.unknown()).default({}),
+  contexto: z.record(z.string(), z.unknown()).default({}),
+  capturadoEm: z.string().trim().datetime().nullable().optional().transform((valor) => valor ?? null)
+});
+
 export const CriarPlaybookRecuperacaoSchema = z.object({
   nome: z.string().trim().min(3).max(160),
   gatilho: z.enum(gatilhosPlaybookRecuperacao),

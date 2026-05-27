@@ -2,6 +2,7 @@ import {
   AtualizarConversaAtendimentoSchema,
   AtualizarOportunidadeRecuperacaoSchema,
   AtualizarTarefaOperacionalSchema,
+  CapturarSocialInboxProviderSchema,
   CriarTarefaOperacionalSchema,
   CriarPlaybookRecuperacaoSchema,
   CriarSocialInboxItemSchema,
@@ -391,6 +392,20 @@ export const moduloOperacional: ModuloHttp = {
         request.body ?? {}
       );
       return reply.code(201).send({ conta });
+    });
+
+    app.post("/social/inbox/capturar", async (request, reply) => {
+      const contextoComercial = await exigirAcessoComercial(contexto, request, reply, {
+        permissao: "social-inbox:gerir",
+        modulo: "social-inbox",
+        mensagemPermissao: "Sem permissão para capturar social inbox.",
+        mensagemModulo: "Social Inbox desativado para este negócio."
+      });
+      if (!contextoComercial) return;
+
+      const dados = CapturarSocialInboxProviderSchema.parse(request.body ?? {});
+      const item = await contexto.gestaoSocialInbox.capturarItemProvider(contextoComercial.negocio, dados);
+      return reply.code(201).send({ item });
     });
 
     app.post("/social/inbox/importar.csv", async (request, reply) => {

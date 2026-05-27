@@ -97,6 +97,31 @@ export interface DadosConexaoContaSocial {
   [chave: string]: unknown;
 }
 
+export interface DadosCapturaProviderSocial {
+  canal: string;
+  provider: string;
+  contaIdentificador: string;
+  providerItemId: string;
+  tipo: TipoSocialInbox;
+  mediaTipo: "FOTO" | "VIDEO" | "POST" | "LIVE" | "REEL" | "STORY";
+  postId: string | null;
+  postUrl: string | null;
+  autor: {
+    id?: string | null;
+    username?: string | null;
+    nome?: string | null;
+    avatarUrl?: string | null;
+  };
+  texto: string;
+  intencao: IntencaoSocialInbox;
+  confianca: number;
+  clienteTelefone: string | null;
+  clienteId: string | null;
+  entidades: Record<string, unknown>;
+  contexto: Record<string, unknown>;
+  capturadoEm: string | null;
+}
+
 interface ContaSocialConectada {
   id: string;
   canal: string;
@@ -190,6 +215,55 @@ export class GestaoSocialInboxUseCase {
 
     await this.autenticacao.atualizarContasSociaisNegocio(negocio.id, atualizado as unknown as Record<string, unknown>);
     return conta;
+  }
+
+  async capturarItemProvider(negocio: NegocioBizy, dados: DadosCapturaProviderSocial): Promise<SocialInboxItem> {
+    const provider = this.validarProvider({
+      canal: dados.canal,
+      provider: dados.provider,
+      identificador: dados.contaIdentificador,
+      username: null,
+      nomePublico: null,
+      avatarUrl: null,
+      permissoes: [],
+      credencialRef: null,
+      webhookAtivo: false
+    });
+    const conta = this.buscarContaSocialConectada(negocio, dados.canal, provider.codigo, dados.contaIdentificador);
+
+    if (!conta.permissoes.includes("comments.read")) {
+      throw new Error(`Permissão inválida para capturar comentários em ${provider.nome}: falta comments.read.`);
+    }
+
+    return this.criarItem({
+      negocioId: negocio.id,
+      canal: dados.canal,
+      provider: provider.codigo,
+      tipo: dados.tipo,
+      estado: "NOVO",
+      postId: dados.postId,
+      postUrl: dados.postUrl,
+      autorId: dados.autor.id ?? null,
+      autorUsername: dados.autor.username ?? null,
+      autorNome: dados.autor.nome ?? null,
+      autorAvatarUrl: dados.autor.avatarUrl ?? null,
+      texto: dados.texto,
+      intencao: dados.intencao,
+      confianca: dados.confianca,
+      clienteTelefone: dados.clienteTelefone,
+      clienteId: dados.clienteId,
+      entidades: dados.entidades,
+      contexto: {
+        ...dados.contexto,
+        origemCaptura: "provider",
+        mediaTipo: dados.mediaTipo,
+        providerItemId: dados.providerItemId,
+        providerContaId: conta.id,
+        providerPermissoes: conta.permissoes,
+        providerTipo: conta.providerTipo,
+        capturedAt: dados.capturadoEm ?? new Date().toISOString()
+      }
+    });
   }
 
   async criarItem(dados: NovoSocialInboxItem): Promise<SocialInboxItem> {
@@ -500,6 +574,25 @@ export class GestaoSocialInboxUseCase {
       throw new Error(`Provider social não autorizado ou inválido para ${dados.canal}: ${dados.provider}.`);
     }
     return provider;
+  }
+
+  private buscarContaSocialConectada(
+    negocio: NegocioBizy,
+    canal: string,
+    provider: string,
+    identificador: string
+  ): ContaSocialConectada {
+    const contaId = `${canal}:${identificador}`;
+    const conta = this.normalizarConfiguracaoContasSociais(negocio.contasSociais).contas.find(
+      (item) => item.id === contaId && item.provider === provider
+    );
+    if (!conta) {
+      throw new Error(`Conta social não encontrada para captura: ${contaId}.`);
+    }
+    if (conta.status !== "CONECTADA") {
+      throw new Error(`Conta social não está conectada para captura: ${contaId}.`);
+    }
+    return conta;
   }
 
   private normalizarConfiguracaoContasSociais(valor: Record<string, unknown> | undefined): ConfiguracaoContasSociais {
