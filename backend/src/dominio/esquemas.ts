@@ -558,6 +558,10 @@ export const FiltrosSocialInboxQuerySchema = z.object({
   limite: z.coerce.number().int().min(1).max(500).optional()
 });
 
+export const ImportarSocialInboxCsvSchema = z.object({
+  csv: z.string().trim().min(1, "Informe o conteúdo CSV para importar.")
+});
+
 export const CriarPlaybookRecuperacaoSchema = z.object({
   nome: z.string().trim().min(3).max(160),
   gatilho: z.enum(gatilhosPlaybookRecuperacao),

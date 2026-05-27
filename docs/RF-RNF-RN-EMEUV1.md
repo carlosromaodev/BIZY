@@ -138,6 +138,8 @@ Atualização 1.59: Pedidos passaram a ter fluxo completo de comprovativo de pag
 
 Atualização 1.60: Loja pública passou a aceitar busca e filtros de produto no endpoint público, com normalização de acentos para categoria, coleção e texto livre, além de limite controlado para listagens.
 
+Atualização 1.61: Social Inbox passou a aceitar importação CSV para fallback operacional quando o provider social não liberar extração automática, com relatório de criados, duplicados e erros por linha.
+
 ---
 
 ## 2. Legenda
@@ -547,7 +549,7 @@ Esta etapa posiciona o Bizy como uma plataforma de operação comercial para cri
 | RF201 | [~] Um comentário social deve poder gerar cliente, lead, conversa, tarefa, pedido ou oportunidade de recuperação. | Alta | Parcial - Social Inbox gera tarefa humana/lead; falta criação direta de pedido/oportunidade por todos os cenários |
 | RF202 | [~] Toda interação social deve preservar o link/post original, identificador do provider e contexto da campanha para auditoria e análise. | Alta | Parcial - backend guarda postUrl, postId, provider, autor e contexto/permissões; falta trilha formal de auditoria por captura |
 | RF203 | [~] Quando permitido pelo provider, o atendente deve poder responder ao comentário ou levar a conversa para WhatsApp com contexto. | Média | Parcial - interação social preserva contexto e gera tarefa/conversa operacional; falta envio direto pelo provider social |
-| RF204 | [~] Quando a API não permitir extração automática, o sistema deve oferecer fallback de importação manual, CSV, colagem assistida ou captura operacional controlada. | Alta | Parcial - API permite registro manual/controlado de interações sociais; falta CSV/colagem assistida |
+| RF204 | [x] Quando a API não permitir extração automática, o sistema deve oferecer fallback de importação manual, CSV, colagem assistida ou captura operacional controlada. | Alta | Implementado no backend com criação manual/controlada e importação CSV com deduplicação, contexto do provider, campanha, produto e permissões |
 | RF205 | [x] Comentários devem ser deduplicados por identificador do provider e por sinais de cliente, evitando criar leads repetidos. | Alta | Implementado no backend por identificador do provider e fallback por post/autor/texto |
 | RF206 | [x] A social inbox deve filtrar por rede, post, campanha, intenção, urgência, respondido/não respondido, produto e responsável. | Alta | Implementado no backend com filtros diretos e contexto comercial |
 | RF207 | [x] O CRM+ deve mostrar quais posts, vídeos, lives e criadores geram mais leads, pedidos e receita. | Alta | Implementado no backend em `/relatorios/social-receita`, cruzando Social Inbox, tracking, pedidos e receita atribuída |
@@ -781,7 +783,7 @@ Esta etapa vem antes da implementação visual dos novos módulos. O objetivo é
 | RNF89 | [ ] A UI deve ocultar módulos não ativados, mas preservar rotas e dados para reativação futura quando permitido. | Média | Planeado |
 | RNF90 | [~] Toda automação deve falhar de forma segura: mensagem não enviada, categoria inválida, template ausente ou provider indisponível devem criar tarefa humana com contexto. | Alta | Parcial - envios automáticos capturam falhas/outbox, política bloqueia categorias inválidas, bloqueios manuais criam tarefa e campanhas rejeitam template inseguro; faltam provider indisponível e automações não WhatsApp |
 | RNF91 | [x] O CRM+ deve manter logs operacionais compreensíveis para o dono do negócio, não apenas logs técnicos para desenvolvedores. | Alta | Implementado no backend em `/operacional/auditoria`, traduzindo eventos operacionais em mensagens legíveis |
-| RNF92 | [~] Importações e sincronizações sociais devem ter relatório de sucesso, falha, duplicados, ignorados e próximos passos. | Média | Parcial - importação de clientes/produtos tem relatório; falta sincronização social |
+| RNF92 | [~] Importações e sincronizações sociais devem ter relatório de sucesso, falha, duplicados, ignorados e próximos passos. | Média | Parcial - importações de clientes/produtos/social inbox têm relatório de criados, atualizados/duplicados e erros; falta sincronização automática por provider com próximos passos |
 | RNF93 | [x] Links rastreáveis devem ser estáveis, curtos quando possível e resilientes a mudanças de slug do produto/catálogo. | Média | Implementado no backend com resolução pública por código em `/publico/links/:codigo`, mantendo código de referência estável |
 | RNF94 | [~] O sistema deve permitir pausar rapidamente campanhas, afiliados, tracking, automações e integrações sociais sem desligar a loja inteira. | Alta | Parcial - campanha e módulos por negócio podem ser pausados/desativados; falta painel de emergência unificado |
 | RNF95 | [~] Decisões automáticas com baixa confiança devem ser explicáveis e encaminhadas para humano, preservando o motivo da decisão. | Alta | Parcial - Social Inbox, SLA e próximas ações preservam contexto e criam tarefa humana para casos sensíveis; falta motor único de explicabilidade |

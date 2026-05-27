@@ -2,9 +2,28 @@ import type {
   RepositorioSocialInbox,
   RepositorioTarefasOperacionais
 } from "../dominio/repositorios/contratos.js";
-import type { FiltrosSocialInbox, NovoSocialInboxItem, SocialInboxItem } from "../dominio/tipos.js";
+import {
+  estadosSocialInbox,
+  intencoesSocialInbox,
+  tiposSocialInbox,
+  type EstadoSocialInbox,
+  type FiltrosSocialInbox,
+  type IntencaoSocialInbox,
+  type NovoSocialInboxItem,
+  type SocialInboxItem,
+  type TipoSocialInbox
+} from "../dominio/tipos.js";
+import { lerBooleano, lerLista, parseCsv } from "./utils/csv.js";
 
 const LIMIAR_TAREFA_LEAD = 0.7;
+
+interface ResultadoLinhaImportacaoSocial {
+  linha: number;
+  status: "CRIADO" | "DUPLICADO" | "ERRO";
+  itemId?: string;
+  providerItemId?: string;
+  erro?: string;
+}
 
 export class GestaoSocialInboxUseCase {
   constructor(
@@ -88,6 +107,134 @@ export class GestaoSocialInboxUseCase {
 
   obterItem(id: string, negocioId: string) {
     return this.socialInbox.buscarPorId(id, negocioId);
+  }
+
+  async importarCsv(negocioId: string, conteudo: string) {
+    const linhasCsv = parseCsv(conteudo);
+    const linhas: ResultadoLinhaImportacaoSocial[] = [];
+
+    for (const linhaCsv of linhasCsv) {
+      try {
+        const dados = this.mapearLinhaImportacao(negocioId, linhaCsv.dados);
+        const providerItemId = this.extrairIdentificadorProvider(dados.contexto ?? {}) ?? undefined;
+        const duplicado = await this.buscarDuplicado(dados);
+        const item = await this.criarItem(dados);
+        linhas.push({
+          linha: linhaCsv.numero,
+          status: duplicado ? "DUPLICADO" : "CRIADO",
+          itemId: item.id,
+          providerItemId
+        });
+      } catch (erro) {
+        linhas.push({
+          linha: linhaCsv.numero,
+          status: "ERRO",
+          erro: erro instanceof Error ? erro.message : "Linha inválida."
+        });
+      }
+    }
+
+    return {
+      total: linhasCsv.length,
+      criados: linhas.filter((linha) => linha.status === "CRIADO").length,
+      duplicados: linhas.filter((linha) => linha.status === "DUPLICADO").length,
+      erros: linhas.filter((linha) => linha.status === "ERRO").length,
+      linhas
+    };
+  }
+
+  private mapearLinhaImportacao(negocioId: string, linha: Record<string, string>): NovoSocialInboxItem {
+    const canal = this.textoObrigatorio(linha.canal, "canal");
+    const provider = this.textoObrigatorio(linha.provider, "provider");
+    const texto = this.textoObrigatorio(linha.texto || linha.comentario || linha.mensagem, "texto");
+    const tipo = this.valorEnum<TipoSocialInbox>(linha.tipo, tiposSocialInbox, "tipo") ?? "COMENTARIO";
+    const estado = this.valorEnum<EstadoSocialInbox>(linha.estado, estadosSocialInbox, "estado") ?? "NOVO";
+    const intencao =
+      this.valorEnum<IntencaoSocialInbox>(linha.intencao || linha.intencao_compra, intencoesSocialInbox, "intencao") ??
+      "SEM_INTENCAO";
+    const confianca = this.numeroEntreZeroEUm(linha.confianca);
+    const respondido = lerBooleano(linha.respondido);
+    const providerPermissoes = lerLista(linha.provider_permissoes || linha.providerpermissoes || linha.permissoes);
+    const providerItemId = this.texto(
+      linha.provider_item_id ||
+        linha.provideritemid ||
+        linha.comment_id ||
+        linha.commentid ||
+        linha.comentario_id ||
+        linha.message_id ||
+        linha.messageid
+    );
+    const campanhaId = this.texto(linha.campanha_id || linha.campanhaid || linha.campanha);
+    const produtoCodigo = this.texto(
+      linha.produto_codigo ||
+        linha.produtocodigo ||
+        linha.codigo_produto ||
+        linha.codigoproduto ||
+        linha.codigo_peca ||
+        linha.codigopeca
+    );
+    const capturadoEm = this.texto(linha.capturado_em || linha.capturadoem || linha.captured_at || linha.data_captura);
+
+    return {
+      negocioId,
+      canal: canal.toLowerCase(),
+      provider: provider.toLowerCase(),
+      tipo,
+      estado,
+      postId: this.texto(linha.post_id || linha.postid),
+      postUrl: this.texto(linha.post_url || linha.posturl),
+      autorId: this.texto(linha.autor_id || linha.autorid || linha.user_id || linha.userid),
+      autorUsername: this.texto(linha.autor_username || linha.autorusername || linha.username || linha.user_name),
+      autorNome: this.texto(linha.autor_nome || linha.autornome || linha.nome || linha.name),
+      autorAvatarUrl: this.texto(
+        linha.autor_avatar_url || linha.autoravatarurl || linha.avatar_url || linha.avatarurl || linha.foto || linha.foto_perfil
+      ),
+      texto,
+      intencao,
+      confianca,
+      clienteTelefone: this.texto(linha.cliente_telefone || linha.clientetelefone || linha.telefone || linha.whatsapp),
+      entidades: {
+        ...(produtoCodigo ? { produtoCodigo } : {}),
+        ...(this.texto(linha.urgencia || linha.prioridade) ? { urgencia: this.texto(linha.urgencia || linha.prioridade) } : {})
+      },
+      contexto: {
+        origemImportacao: "csv",
+        ...(providerItemId ? { providerItemId } : {}),
+        ...(campanhaId ? { campanhaId } : {}),
+        ...(capturadoEm ? { capturedAt: capturadoEm } : {}),
+        ...(providerPermissoes.length ? { providerPermissoes } : {}),
+        ...(respondido !== undefined ? { respondido } : {})
+      }
+    };
+  }
+
+  private textoObrigatorio(valor: string | undefined, campo: string): string {
+    const texto = this.texto(valor);
+    if (!texto) throw new Error(`Campo obrigatório ausente na importação social: ${campo}.`);
+    return texto;
+  }
+
+  private texto(valor: string | undefined | null): string | null {
+    return typeof valor === "string" && valor.trim() ? valor.trim() : null;
+  }
+
+  private valorEnum<T extends string>(valor: string | undefined, permitidos: readonly T[], campo: string): T | null {
+    const texto = this.texto(valor);
+    if (!texto) return null;
+    const normalizado = texto.toUpperCase();
+    const encontrado = permitidos.find((permitido) => permitido === normalizado);
+    if (!encontrado) throw new Error(`Valor inválido para ${campo}: ${texto}.`);
+    return encontrado;
+  }
+
+  private numeroEntreZeroEUm(valor: string | undefined): number {
+    const texto = this.texto(valor);
+    if (!texto) return 0;
+    const numero = Number(texto.replace(",", "."));
+    if (!Number.isFinite(numero) || numero < 0 || numero > 1) {
+      throw new Error(`Confiança inválida na importação social: ${texto}.`);
+    }
+    return numero;
   }
 
   private deveCriarTarefaLead(item: SocialInboxItem): boolean {

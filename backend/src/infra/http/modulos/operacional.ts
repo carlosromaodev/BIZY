@@ -14,6 +14,7 @@ import {
   FiltrosPlaybookRecuperacaoQuerySchema,
   FiltrosSocialInboxQuerySchema,
   CriarPedidoConversaAtendimentoSchema,
+  ImportarSocialInboxCsvSchema,
   RegistrarNotaInternaAtendimentoSchema,
   RegistrarMovimentoFunilComercialSchema,
   RegistrarSugestaoIaAtendimentoSchema,
@@ -347,6 +348,20 @@ export const moduloOperacional: ModuloHttp = {
       const filtros = FiltrosSocialInboxQuerySchema.parse(request.query ?? {});
       const itens = await contexto.gestaoSocialInbox.listarItens(contextoComercial.negocio.id, filtros);
       return { itens };
+    });
+
+    app.post("/social/inbox/importar.csv", async (request, reply) => {
+      const contextoComercial = await exigirAcessoComercial(contexto, request, reply, {
+        permissao: "social-inbox:gerir",
+        modulo: "social-inbox",
+        mensagemPermissao: "Sem permissão para importar social inbox.",
+        mensagemModulo: "Social Inbox desativado para este negócio."
+      });
+      if (!contextoComercial) return;
+
+      const dados = ImportarSocialInboxCsvSchema.parse(request.body ?? {});
+      const resultado = await contexto.gestaoSocialInbox.importarCsv(contextoComercial.negocio.id, dados.csv);
+      return reply.code(201).send(resultado);
     });
 
     app.post("/social/inbox/itens", async (request, reply) => {
