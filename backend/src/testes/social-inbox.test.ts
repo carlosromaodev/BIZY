@@ -156,6 +156,36 @@ describe("Social Inbox CRM+", () => {
           motivo: "Lead social com intenção comercial exige acompanhamento."
         })
       ]);
+
+      const auditoria = await app.inject({
+        method: "GET",
+        url: "/operacional/auditoria?topico=social_inbox&tipo=SOCIAL_INBOX_CAPTURED",
+        headers
+      });
+
+      expect(auditoria.statusCode).toBe(200);
+      expect(auditoria.json().logs).toEqual([
+        expect.objectContaining({
+          topico: "social_inbox",
+          tipo: "SOCIAL_INBOX_CAPTURED",
+          entidadeTipo: "social_inbox_item",
+          entidadeId: criado.json().item.id,
+          estado: "PROCESSADO",
+          mensagem: "Interação social capturada em Instagram com intenção COMPRA.",
+          payload: expect.objectContaining({
+            canal: "instagram",
+            provider: "instagram_graph",
+            postId: "post_look_001",
+            postUrl: "https://instagram.com/p/post_look_001",
+            autorId: "ig_923456701",
+            autorUsername: "clientevip",
+            intencao: "COMPRA",
+            confianca: 0.94,
+            clienteTelefone: "923456701",
+            origemCaptura: "manual"
+          })
+        })
+      ]);
     } finally {
       await app.close();
     }

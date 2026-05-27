@@ -164,6 +164,8 @@ Atualização 1.72: Social Inbox ganhou classificador conservador de intenção 
 
 Atualização 1.73: Social Inbox passou a sincronizar comentários sociais acionáveis com o atendimento CRM, criando conversa com o cliente quando houver telefone, preservando autor/post/contexto na mensagem e abrindo oportunidade de recuperação vinculada à tarefa comercial.
 
+Atualização 1.74: Capturas do Social Inbox passaram a registrar auditoria operacional `SOCIAL_INBOX_CAPTURED` com provider, post, link original, autor, intenção, confiança, origem da captura, permissões e data, tornando a origem do lead rastreável fora do JSON interno do item.
+
 ---
 
 ## 2. Legenda
@@ -571,7 +573,7 @@ Esta etapa posiciona o Bizy como uma plataforma de operação comercial para cri
 | RF199 | [x] Comentários sociais devem ser normalizados numa entidade única de interação social com provider, post, autor, texto, data, link original e estado. | Alta | Implementado no backend em `SocialInboxItem` |
 | RF200 | [x] O sistema deve classificar comentários por intenção: preço, disponibilidade, tamanho/cor, entrega, reclamação, intenção de compra, lead frio/quente, spam ou dúvida geral. | Alta | Implementado com classificador conservador no Social Inbox e registro da regra no contexto |
 | RF201 | [~] Um comentário social deve poder gerar cliente, lead, conversa, tarefa, pedido ou oportunidade de recuperação. | Alta | Parcial - Social Inbox gera tarefa humana/lead, sincroniza conversa de atendimento quando há telefone e abre oportunidade de recuperação para intenção comercial; falta criação direta de pedido por cenários aprovados |
-| RF202 | [~] Toda interação social deve preservar o link/post original, identificador do provider e contexto da campanha para auditoria e análise. | Alta | Parcial - backend guarda postUrl, postId, provider, autor e contexto/permissões; falta trilha formal de auditoria por captura |
+| RF202 | [x] Toda interação social deve preservar o link/post original, identificador do provider e contexto da campanha para auditoria e análise. | Alta | Implementado - backend guarda postUrl, postId, provider, autor, contexto/permissões e registra auditoria operacional `SOCIAL_INBOX_CAPTURED` por captura |
 | RF203 | [~] Quando permitido pelo provider, o atendente deve poder responder ao comentário ou levar a conversa para WhatsApp com contexto. | Média | Parcial - interação social preserva contexto e gera tarefa/conversa operacional; falta envio direto pelo provider social |
 | RF204 | [x] Quando a API não permitir extração automática, o sistema deve oferecer fallback de importação manual, CSV, colagem assistida ou captura operacional controlada. | Alta | Implementado no backend com criação manual/controlada e importação CSV com deduplicação, contexto do provider, campanha, produto e permissões |
 | RF205 | [x] Comentários devem ser deduplicados por identificador do provider e por sinais de cliente, evitando criar leads repetidos. | Alta | Implementado no backend por identificador do provider e fallback por post/autor/texto |
@@ -995,7 +997,7 @@ Esta etapa vem antes da implementação visual dos novos módulos. O objetivo é
 | RN103 | [x] Cookies devem armazenar apenas identificadores técnicos, referência, campanha e timestamps, nunca telefone, email, nome ou endereço. | Implementado no backend de tracking público: payload com telefone, email, nome ou endereço é rejeitado |
 | RN104 | [x] O cliente deve conseguir comprar mesmo recusando cookies não essenciais, com perda apenas de parte da atribuição/analytics. | Implementado no checkout público: `trackingId` é opcional e compra segue sem cookie |
 | RN105 | [x] Evento de tracking não confirmado não pode ser tratado como venda, apenas como sinal de intenção ou oportunidade. | Implementado no resumo de tracking: venda/receita só entra com pedido criado/pagamento/entrega, não com visita ou clique |
-| RN106 | [~] Dados capturados de redes sociais devem manter origem, link, provider, permissões e data para auditoria. | Parcial - Social Inbox guarda canal/provider/postUrl/contexto/permissões/captura; falta auditoria formal por evento de captura |
+| RN106 | [x] Dados capturados de redes sociais devem manter origem, link, provider, permissões e data para auditoria. | Implementado - Social Inbox guarda canal/provider/postUrl/contexto/permissões/captura e registra evento operacional `SOCIAL_INBOX_CAPTURED` com payload auditável |
 | RN107 | [~] Quando a API social não permitir determinada extração, a plataforma deve indicar limitação e oferecer alternativa operacional sem fingir automação inexistente. | Parcial - Social Inbox aceita fallback manual/controlado com provider/permissões; falta UX dedicada por provider |
 | RN108 | [~] Automações devem priorizar recuperação comercial de baixo risco: lembrar pagamento, pedir endereço, enviar catálogo solicitado, avisar reposição e criar follow-up. | Parcial - playbooks começam com criação de follow-up humano para gatilhos de recuperação; faltam mensagens/templates seguros e ações específicas por cenário |
 | RN109 | [~] Automações não devem confirmar pagamento, conceder desconto, prometer entrega, resolver reclamação ou cancelar pedido sem regra explícita e permissão adequada. | Parcial - automações críticas viram tarefas/sugestões humanas em conversa/social; falta motor central de proibição para todos os futuros conectores |

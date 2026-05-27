@@ -1063,9 +1063,22 @@ function descreverEventoOperacional(evento: EventoOperacional): string {
   if (evento.tipo === "AFILIACAO_SUSPEITA") {
     return `Atribuição de afiliado bloqueada por ${String(payload.motivo ?? "suspeita operacional")}.`;
   }
+  if (evento.tipo === "SOCIAL_INBOX_CAPTURED") {
+    return `Interação social capturada em ${nomeCanalSocial(String(payload.canal ?? "rede social"))} com intenção ${String(payload.intencao ?? "SEM_INTENCAO")}.`;
+  }
   return `${evento.tipo} em ${evento.topico}${evento.entidadeTipo ? ` para ${evento.entidadeTipo}` : ""}.`;
 }
 
 function formatarKwanza(valor: number): string {
   return `${valor.toLocaleString("pt-AO")} Kz`;
+}
+
+function nomeCanalSocial(canal: string): string {
+  const nomes: Record<string, string> = {
+    instagram: "Instagram",
+    facebook: "Facebook",
+    tiktok: "TikTok",
+    whatsapp: "WhatsApp"
+  };
+  return nomes[canal.toLowerCase()] ?? canal;
 }

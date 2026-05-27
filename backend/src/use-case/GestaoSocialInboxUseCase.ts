@@ -1,6 +1,7 @@
 import type {
   RepositorioAutenticacao,
   RepositorioAtendimento,
+  RepositorioEventosOperacionais,
   RepositorioOportunidadesRecuperacao,
   RepositorioSocialInbox,
   RepositorioTarefasOperacionais
@@ -171,7 +172,8 @@ export class GestaoSocialInboxUseCase {
     private readonly tarefas: RepositorioTarefasOperacionais,
     private readonly autenticacao: RepositorioAutenticacao,
     private readonly atendimento: RepositorioAtendimento,
-    private readonly oportunidades: RepositorioOportunidadesRecuperacao
+    private readonly oportunidades: RepositorioOportunidadesRecuperacao,
+    private readonly eventos: RepositorioEventosOperacionais
   ) {}
 
   listarProvidersAutorizados() {
@@ -306,6 +308,8 @@ export class GestaoSocialInboxUseCase {
       contexto
     });
 
+    await this.registrarAuditoriaCapturaSocial(item);
+
     let tarefaLead: TarefaOperacional | null = null;
 
     if (this.deveCriarTarefaLead(item)) {
@@ -374,6 +378,41 @@ export class GestaoSocialInboxUseCase {
 
   obterItem(id: string, negocioId: string) {
     return this.socialInbox.buscarPorId(id, negocioId);
+  }
+
+  private async registrarAuditoriaCapturaSocial(item: SocialInboxItem): Promise<void> {
+    await this.eventos.registrar({
+      negocioId: item.negocioId,
+      topico: "social_inbox",
+      tipo: "SOCIAL_INBOX_CAPTURED",
+      entidadeTipo: "social_inbox_item",
+      entidadeId: item.id,
+      idempotencyKey: `social-inbox:${item.id}:captured`,
+      estado: "PROCESSADO",
+      payload: {
+        canal: item.canal,
+        provider: item.provider,
+        tipo: item.tipo,
+        estado: item.estado,
+        postId: item.postId,
+        postUrl: item.postUrl,
+        autorId: item.autorId,
+        autorUsername: item.autorUsername,
+        autorNome: item.autorNome,
+        intencao: item.intencao,
+        confianca: item.confianca,
+        clienteTelefone: item.clienteTelefone,
+        clienteId: item.clienteId,
+        entidades: item.entidades,
+        origemCaptura: String(item.contexto.origemCaptura ?? "manual"),
+        providerItemId: this.extrairIdentificadorProvider(item.contexto),
+        providerContaId: this.valorTextoContexto(item.contexto.providerContaId),
+        providerPermissoes: this.obterPermissoesProvider(item.contexto),
+        mediaTipo: this.valorTextoContexto(item.contexto.mediaTipo),
+        campanha: this.valorTextoContexto(item.contexto.campanha ?? item.contexto.campanhaId),
+        capturadoEm: this.valorTextoContexto(item.contexto.capturedAt) ?? item.criadoEm.toISOString()
+      }
+    });
   }
 
   async importarCsv(negocioId: string, conteudo: string) {
@@ -782,6 +821,10 @@ export class GestaoSocialInboxUseCase {
     const respondido = item.contexto.respondido ?? item.entidades.respondido;
     if (typeof respondido === "boolean") return respondido;
     return item.estado === "CONVERTIDO";
+  }
+
+  private valorTextoContexto(valor: unknown): string | null {
+    return typeof valor === "string" && valor.trim() ? valor.trim() : null;
   }
 
   private extrairIdentificadorProvider(contexto: Record<string, unknown>): string | null {
