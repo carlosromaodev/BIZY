@@ -1,10 +1,10 @@
 # Bizy / ÉMeu V1 - Requisitos Funcionais, Não Funcionais e Regras de Negócio
 
 Documento: `RF-RNF-RN-EMEUV1.md`
-Versão: 1.66
-Data: 2026-05-25
+Versão: 1.67
+Data: 2026-05-26
 Autor: Carlos
-Status: MVP base implementado; fundação backend Bizy CRM+ com Clientes 360, Pedidos, Catálogo/Stock, Loja Pública, Vitrine Pública, Checkout, Entrega, Afiliados, Comissões, Lotes Financeiros, Campanhas, Governança, Jobs, Eventos Operacionais, Inbox Comercial, SLA, Social Inbox seguro, transferência operacional, política WhatsApp, descontos aprováveis, carrinho abandonado, antifraude de afiliados, anonimização, SEO público, logs operacionais, navegação comercial, busca global, auditoria de exportações comerciais e painel diário em evolução
+Status: MVP base implementado; fundação backend Bizy CRM+ com Clientes 360, Pedidos, Catálogo/Stock, Loja Pública, Vitrine Pública, Checkout, Entrega, Afiliados, Comissões, Atribuição Comercial, Lotes Financeiros, Campanhas, Governança, Jobs, Eventos Operacionais, eventos server-side preparados, Inbox Comercial, SLA, Social Inbox seguro, transferência operacional, política WhatsApp, descontos aprováveis, carrinho abandonado, antifraude de afiliados, anonimização, SEO público, logs operacionais, navegação comercial, busca global, auditoria de exportações comerciais e painel diário em evolução
 
 ---
 
@@ -149,6 +149,8 @@ Atualização 1.64: Produtos passaram a aceitar configuração de vitrine públi
 Atualização 1.65: Parser de comentários passou a aceitar dicionário por negócio ou segmento, com termos de intenção de compra, rótulos alternativos de artigo/ref/SKU e aliases de produto guardados na configuração do negócio e aplicados ao processamento manual ou live.
 
 Atualização 1.66: Atribuição comercial do checkout passou a suportar primeiro toque, último toque, conversão assistida e ajuste manual auditado. A janela de atribuição pode vir da configuração do negócio ou de metadados do parceiro, preservando assistências no pedido/tracking e permitindo correção humana com motivo e histórico.
+
+Atualização 1.67: Loja pública e checkout passaram a preparar eventos server-side para providers futuros como Meta CAPI quando o negócio configura provider, pixel/dataset e referência segura de credencial. O backend só enfileira evento operacional com consentimento aplicável e armazena telefone/email como hash SHA-256, sem vazar dados pessoais no payload.
 
 ---
 
@@ -528,7 +530,7 @@ Esta etapa posiciona o Bizy como uma plataforma de operação comercial para cri
 | RF180 | [x] O CRM+ deve suportar modelos de atribuição: primeiro toque, último toque, conversão assistida e ajuste manual auditado. | Média | Implementado no backend |
 | RF181 | [~] O prazo de atribuição por cookie/referral deve ser configurável por negócio, campanha ou afiliado. | Média | Parcial - backend usa janela por negócio e suporta metadata por parceiro; falta configuração dedicada por campanha/link |
 | RF182 | [~] A loja pública deve exibir consentimento/aviso de tracking quando necessário e permitir operação básica mesmo sem cookies. | Alta | Parcial - backend opera sem `trackingId` e bloqueia dados pessoais; falta aviso visual/consentimento no frontend |
-| RF183 | [ ] O sistema deve preparar integração futura com eventos server-side, como Meta Conversions API, quando o negócio configurar credenciais e consentimentos. | Média | Planeado |
+| RF183 | [x] O sistema deve preparar integração futura com eventos server-side, como Meta Conversions API, quando o negócio configurar credenciais e consentimentos. | Média | Implementado no backend com fila operacional segura, provider configurável, consentimento obrigatório e dados pessoais hasheados |
 | RF184 | [x] Links, cookies e eventos não devem expor dados sensíveis do cliente em URL, query string ou identificadores públicos. | Alta | Implementado no backend de tracking público com rejeição de telefone, email, nome, endereço e chaves sensíveis |
 
 #### 3.14.5 Afiliados, Criadores e Revendedores

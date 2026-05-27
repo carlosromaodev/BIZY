@@ -639,4 +639,118 @@ describe("loja pública, catálogo digital e tracking HTTP", () => {
       await app.close();
     }
   });
+
+  it("prepara evento server-side apenas com credencial configurada e consentimento sem vazar dados pessoais", async () => {
+    const app = await criarAplicacao();
+
+    try {
+      const loja = await autenticar(app, "923444301", "Loja CAPI");
+
+      const negocio = await app.inject({
+        method: "POST",
+        url: "/onboarding/negocio",
+        headers: loja,
+        payload: {
+          nomeComercial: "Loja CAPI",
+          segmento: "Moda",
+          tipo: "LOJA",
+          telefone: "923444301",
+          whatsapp: "923444301",
+          provincia: "Luanda",
+          municipio: "Luanda",
+          canaisVenda: ["site", "whatsapp"],
+          metodosPagamento: ["transferencia"],
+          entrega: {
+            serverSideEvents: {
+              ativo: true,
+              providers: [
+                {
+                  provider: "meta_capi",
+                  pixelId: "PIXEL-123",
+                  credencialRef: "vault:meta:loja-capi",
+                  eventos: ["PEDIDO_CRIADO"],
+                  exigirConsentimentoMarketing: true
+                }
+              ]
+            }
+          }
+        }
+      });
+      expect(negocio.statusCode).toBe(201);
+
+      await criarProduto(app, loja, "SSE1", 4);
+
+      const publicacao = await app.inject({
+        method: "PUT",
+        url: "/loja-publica/configuracao",
+        headers: loja,
+        payload: {
+          slug: "loja-capi",
+          descricaoPublica: "Loja com eventos server-side preparados.",
+          publicada: true
+        }
+      });
+      expect(publicacao.statusCode).toBe(200);
+
+      const checkout = await app.inject({
+        method: "POST",
+        url: "/publico/lojas/loja-capi/checkout",
+        payload: {
+          cliente: {
+            nome: "Cliente CAPI",
+            telefone: "923555888",
+            email: "cliente.capi@example.com",
+            consentimentoDados: true,
+            consentimentoMarketing: true
+          },
+          itens: [{ codigoPeca: "SSE1", quantidade: 1 }],
+          entrega: { tipo: "RETIRADA" },
+          trackingId: "trk-capi-1",
+          origem: "anuncio-instagram",
+          canal: "site"
+        }
+      });
+      expect(checkout.statusCode).toBe(201);
+
+      const eventos = await app.inject({
+        method: "GET",
+        url: "/eventos-operacionais?topico=server-side-events",
+        headers: loja
+      });
+      expect(eventos.statusCode).toBe(200);
+      expect(eventos.json().eventos).toEqual([
+        expect.objectContaining({
+          topico: "server-side-events",
+          tipo: "META_CAPI_EVENT_READY",
+          entidadeTipo: "PEDIDO",
+          entidadeId: checkout.json().pedido.id,
+          estado: "PENDENTE",
+          payload: expect.objectContaining({
+            provider: "meta_capi",
+            eventName: "Purchase",
+            pixelId: "PIXEL-123",
+            credencialRef: "vault:meta:loja-capi",
+            consentimento: expect.objectContaining({
+              dados: true,
+              marketing: true
+            }),
+            userData: expect.objectContaining({
+              ph: expect.stringMatching(/^[a-f0-9]{64}$/),
+              em: expect.stringMatching(/^[a-f0-9]{64}$/)
+            }),
+            customData: expect.objectContaining({
+              currency: "AOA",
+              value: 12_500,
+              order_id: checkout.json().pedido.id
+            })
+          })
+        })
+      ]);
+      const payloadSerializado = JSON.stringify(eventos.json());
+      expect(payloadSerializado).not.toContain("923555888");
+      expect(payloadSerializado).not.toContain("cliente.capi@example.com");
+    } finally {
+      await app.close();
+    }
+  });
 });

@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import type {
   RepositorioAutenticacao,
   RepositorioEventosOperacionais,
@@ -5,9 +6,10 @@ import type {
   RepositorioPecas,
   RepositorioTrackingComercial
 } from "../dominio/repositorios/contratos.js";
-import { normalizarTelefone } from "../dominio/servicos/normalizarContato.js";
+import { normalizarEmail, normalizarTelefone } from "../dominio/servicos/normalizarContato.js";
 import type {
   DadosPublicacaoLoja,
+  EventoTrackingComercial,
   NegocioBizy,
   NovoEventoTrackingComercial,
   Peca
@@ -112,6 +114,22 @@ interface EntregaCalculadaPublica {
   prazo: string | null;
   descricao: string;
   endereco: string | null;
+}
+
+interface ConsentimentoServerSide {
+  dados?: boolean;
+  marketing?: boolean;
+  telefone?: string | null;
+  email?: string | null;
+  origem?: string | null;
+}
+
+interface ProviderServerSideConfigurado {
+  provider: "meta_capi" | string;
+  pixelId: string;
+  credencialRef: string;
+  eventos: string[];
+  exigirConsentimentoMarketing: boolean;
 }
 
 export class LojaPublicaUseCase {
@@ -342,7 +360,7 @@ export class LojaPublicaUseCase {
       });
     }
 
-    await this.registrarTrackingSilencioso({
+    const eventoPedidoCriado = await this.registrarTrackingSilencioso({
       negocioId: negocio.id,
       tipo: "PEDIDO_CRIADO",
       slugLoja: negocio.slugPublico,
@@ -362,6 +380,13 @@ export class LojaPublicaUseCase {
         afiliadoId: atribuicao?.parceiro.id ?? null,
         linkAfiliadoId: atribuicao?.link.id ?? null
       }
+    });
+    await this.prepararEventosServerSide(negocio, eventoPedidoCriado, {
+      dados: dados.cliente.consentimentoDados,
+      marketing: dados.cliente.consentimentoMarketing,
+      telefone: dados.cliente.telefone ?? null,
+      email: dados.cliente.email ?? null,
+      origem: "checkout_site"
     });
 
     return {
@@ -474,11 +499,17 @@ export class LojaPublicaUseCase {
 
   async registrarEventoPublico(slug: string, dados: Omit<NovoEventoTrackingComercial, "negocioId">) {
     const negocio = await this.exigirLojaPublicada(slug);
-    return this.tracking.registrarEvento({
+    const evento = await this.tracking.registrarEvento({
       ...dados,
       negocioId: negocio.id,
       slugLoja: negocio.slugPublico
     });
+    await this.prepararEventosServerSide(negocio, evento, {
+      dados: dados.metadata?.consentimentoDados === true,
+      marketing: dados.metadata?.consentimentoMarketing === true,
+      origem: "tracking_publico"
+    });
+    return evento;
   }
 
   async resumirTracking(negocioId: string) {
@@ -944,11 +975,12 @@ export class LojaPublicaUseCase {
     return this.texto(valor)?.toLowerCase().normalize("NFD").replace(/\p{Diacritic}/gu, "") ?? "";
   }
 
-  private async registrarTrackingSilencioso(dados: NovoEventoTrackingComercial): Promise<void> {
+  private async registrarTrackingSilencioso(dados: NovoEventoTrackingComercial): Promise<EventoTrackingComercial | null> {
     try {
-      await this.tracking.registrarEvento(dados);
+      return await this.tracking.registrarEvento(dados);
     } catch {
       // Tracking não deve derrubar a experiência pública de compra.
+      return null;
     }
   }
 
@@ -958,5 +990,178 @@ export class LojaPublicaUseCase {
     } catch {
       // O tracking público não deve falhar checkout por indisponibilidade de auditoria operacional.
     }
+  }
+
+  private async prepararEventosServerSide(
+    negocio: NegocioBizy,
+    evento: EventoTrackingComercial | null,
+    consentimento: ConsentimentoServerSide
+  ): Promise<void> {
+    if (!evento || !this.eventosOperacionais) return;
+
+    const providers = this.resolverProvidersServerSide(negocio);
+    for (const provider of providers) {
+      if (!provider.eventos.includes(evento.tipo)) continue;
+      if (!this.temConsentimentoServerSide(provider, consentimento)) continue;
+
+      await this.registrarEventoOperacionalSilencioso({
+        negocioId: negocio.id,
+        topico: "server-side-events",
+        tipo: this.tipoEventoServerSide(provider.provider),
+        entidadeTipo: evento.entidadeTipo,
+        entidadeId: evento.entidadeId,
+        idempotencyKey: `server-side:${provider.provider}:${negocio.id}:${evento.id}`,
+        estado: "PENDENTE",
+        payload: {
+          provider: provider.provider,
+          eventName: this.nomeEventoServerSide(evento.tipo),
+          eventTime: Math.floor(evento.criadoEm.getTime() / 1000),
+          eventId: evento.id,
+          actionSource: "website",
+          pixelId: provider.pixelId,
+          credencialRef: provider.credencialRef,
+          negocioId: negocio.id,
+          slugLoja: evento.slugLoja,
+          origem: evento.origem,
+          canal: evento.canal,
+          consentimento: {
+            dados: consentimento.dados === true,
+            marketing: consentimento.marketing === true,
+            origem: consentimento.origem ?? null
+          },
+          userData: this.montarUserDataServerSide(consentimento),
+          customData: this.montarCustomDataServerSide(negocio, evento)
+        }
+      });
+    }
+  }
+
+  private resolverProvidersServerSide(negocio: NegocioBizy): ProviderServerSideConfigurado[] {
+    const raiz = this.objeto(
+      negocio.entrega.serverSideEvents ??
+      negocio.entrega.eventosServerSide ??
+      negocio.entrega.conversionsApi
+    );
+    if (!this.booleano(raiz.ativo ?? raiz.enabled)) return [];
+
+    const candidatos = Array.isArray(raiz.providers)
+      ? raiz.providers
+      : Array.isArray(raiz.provedores)
+        ? raiz.provedores
+        : [raiz];
+
+    return candidatos
+      .map((item) => this.objeto(item))
+      .map((provider) => {
+        const codigoProvider = this.texto(provider.provider ?? provider.nome ?? provider.tipo)?.toLowerCase() ?? "meta_capi";
+        const pixelId = this.texto(provider.pixelId ?? provider.datasetId ?? raiz.pixelId ?? raiz.datasetId);
+        const credencialRef = this.texto(
+          provider.credencialRef ??
+          provider.credentialRef ??
+          provider.tokenRef ??
+          provider.accessTokenRef ??
+          raiz.credencialRef ??
+          raiz.tokenRef
+        );
+        const eventos = this.listaTextos(provider.eventos ?? raiz.eventos);
+
+        return {
+          provider: codigoProvider,
+          pixelId,
+          credencialRef,
+          eventos: eventos.length ? eventos.map((evento) => evento.toUpperCase()) : ["CHECKOUT_INICIADO", "PEDIDO_CRIADO"],
+          exigirConsentimentoMarketing: this.booleano(
+            provider.exigirConsentimentoMarketing ??
+            provider.requireMarketingConsent ??
+            raiz.exigirConsentimentoMarketing ??
+            true
+          )
+        };
+      })
+      .filter((provider): provider is ProviderServerSideConfigurado =>
+        Boolean(provider.provider && provider.pixelId && provider.credencialRef)
+      );
+  }
+
+  private temConsentimentoServerSide(
+    provider: ProviderServerSideConfigurado,
+    consentimento: ConsentimentoServerSide
+  ): boolean {
+    if (consentimento.dados !== true) return false;
+    if (provider.exigirConsentimentoMarketing && consentimento.marketing !== true) return false;
+    return true;
+  }
+
+  private tipoEventoServerSide(provider: string): string {
+    if (provider === "meta_capi") return "META_CAPI_EVENT_READY";
+    return `${provider.toUpperCase().replace(/[^A-Z0-9]+/g, "_")}_EVENT_READY`;
+  }
+
+  private nomeEventoServerSide(tipo: EventoTrackingComercial["tipo"]): string {
+    const mapa: Partial<Record<EventoTrackingComercial["tipo"], string>> = {
+      LOJA_VISITADA: "PageView",
+      PRODUTO_VISTO: "ViewContent",
+      WHATSAPP_CLICK: "Contact",
+      CHECKOUT_INICIADO: "InitiateCheckout",
+      PEDIDO_CRIADO: "Purchase",
+      PAGAMENTO_CONFIRMADO: "Purchase",
+      COMPRA_ENTREGUE: "Purchase"
+    };
+    return mapa[tipo] ?? tipo;
+  }
+
+  private montarUserDataServerSide(consentimento: ConsentimentoServerSide): Record<string, string> {
+    const telefoneHash = this.hashSha256(normalizarTelefone(consentimento.telefone)?.canonico ?? null);
+    const emailHash = this.hashSha256(normalizarEmail(consentimento.email));
+
+    return {
+      ...(telefoneHash ? { ph: telefoneHash } : {}),
+      ...(emailHash ? { em: emailHash } : {})
+    };
+  }
+
+  private montarCustomDataServerSide(negocio: NegocioBizy, evento: EventoTrackingComercial): Record<string, unknown> {
+    const metadata = evento.metadata;
+    const valor = this.numero(metadata.totalEmKwanza ?? metadata.valorEmKwanza ?? metadata.value);
+    const pedidoId = this.texto(metadata.pedidoId) ?? (evento.entidadeTipo === "PEDIDO" ? evento.entidadeId : null);
+    const contentIds = [
+      evento.codigoProduto,
+      ...this.codigosProdutoDeMetadata(metadata.itens)
+    ].filter((codigo): codigo is string => Boolean(codigo));
+
+    return {
+      currency: negocio.moeda || "AOA",
+      ...(valor !== null ? { value: valor } : {}),
+      ...(pedidoId ? { order_id: pedidoId } : {}),
+      ...(evento.entidadeTipo ? { content_type: evento.entidadeTipo.toLowerCase() } : {}),
+      ...(contentIds.length ? { content_ids: [...new Set(contentIds)] } : {})
+    };
+  }
+
+  private codigosProdutoDeMetadata(valor: unknown): string[] {
+    if (!Array.isArray(valor)) return [];
+    return valor
+      .map((item) => this.objeto(item).codigoPeca ?? this.objeto(item).codigoProduto ?? this.objeto(item).codigo)
+      .map((codigo) => this.texto(codigo))
+      .filter((codigo): codigo is string => Boolean(codigo));
+  }
+
+  private listaTextos(valor: unknown): string[] {
+    if (!Array.isArray(valor)) return [];
+    return valor
+      .map((item) => this.texto(item))
+      .filter((item): item is string => Boolean(item));
+  }
+
+  private booleano(valor: unknown): boolean {
+    if (typeof valor === "boolean") return valor;
+    if (typeof valor === "string") return ["true", "1", "sim", "yes", "ativo"].includes(valor.trim().toLowerCase());
+    if (typeof valor === "number") return valor > 0;
+    return false;
+  }
+
+  private hashSha256(valor: string | null): string | null {
+    if (!valor) return null;
+    return createHash("sha256").update(valor.trim().toLowerCase()).digest("hex");
   }
 }
