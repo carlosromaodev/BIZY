@@ -11,7 +11,12 @@ import {
 } from "../../../dominio/esquemas.js";
 import { exigirPermissaoComercial } from "../contextoComercial.js";
 import { ehErroInfraestrutura } from "../errosHttp.js";
-import { exigirUsuarioAutenticado, extrairTokenBearer } from "../seguranca.js";
+import {
+  criarCookieSessao,
+  criarCookieSessaoExpirado,
+  exigirUsuarioAutenticado,
+  extrairTokenAutenticacao
+} from "../seguranca.js";
 import type { ModuloHttp } from "./ModuloHttp.js";
 
 export const moduloAutenticacao: ModuloHttp = {
@@ -34,7 +39,9 @@ export const moduloAutenticacao: ModuloHttp = {
       const dados = ConfirmarCodigoLoginSchema.parse(request.body);
 
       try {
-        return await contexto.autenticacaoTelefone.confirmarCodigo(dados);
+        const resultado = await contexto.autenticacaoTelefone.confirmarCodigo(dados);
+        definirCookieSessao(reply, resultado.token, resultado.expiraEm);
+        return resultado;
       } catch (erro) {
         if (ehErroInfraestrutura(erro)) throw erro;
         return reply.code(400).send({ erro: "LOGIN_CODIGO", mensagem: (erro as Error).message });
@@ -45,7 +52,9 @@ export const moduloAutenticacao: ModuloHttp = {
       const dados = LoginEstudantilSchema.parse(request.body);
 
       try {
-        return await contexto.autenticacaoEstudantil.login(dados);
+        const resultado = await contexto.autenticacaoEstudantil.login(dados);
+        definirCookieSessao(reply, resultado.token, resultado.expiraEm);
+        return resultado;
       } catch (erro) {
         if (ehErroInfraestrutura(erro)) throw erro;
         return reply.code(401).send({ erro: "LOGIN_ESTUDANTIL", mensagem: (erro as Error).message });
@@ -118,6 +127,7 @@ export const moduloAutenticacao: ModuloHttp = {
           dados: perfil
         });
         const sessao = await contexto.autenticacaoTelefone.criarSessaoParaUsuario(usuario.id);
+        definirCookieSessao(reply, sessao.token, sessao.expiraEm);
 
         return reply.redirect(criarUrlFrontendComSessao(estado.redirect, sessao.token, usuario));
       } catch (erro) {
@@ -128,7 +138,7 @@ export const moduloAutenticacao: ModuloHttp = {
     });
 
     app.get("/auth/sessao", async (request, reply) => {
-      const usuario = await contexto.autenticacaoTelefone.obterSessao(extrairTokenBearer(request.headers.authorization));
+      const usuario = await contexto.autenticacaoTelefone.obterSessao(extrairTokenAutenticacao(request));
 
       if (!usuario) {
         return reply.code(401).send({ erro: "NAO_AUTENTICADO", mensagem: "Sessão inválida ou expirada." });
@@ -137,8 +147,9 @@ export const moduloAutenticacao: ModuloHttp = {
       return { usuario };
     });
 
-    app.delete("/auth/sessao", async (request) => {
-      await contexto.autenticacaoTelefone.encerrarSessao(extrairTokenBearer(request.headers.authorization));
+    app.delete("/auth/sessao", async (request, reply) => {
+      await contexto.autenticacaoTelefone.encerrarSessao(extrairTokenAutenticacao(request));
+      reply.header("Set-Cookie", criarCookieSessaoExpirado());
       return { sucesso: true };
     });
 
@@ -265,6 +276,10 @@ export const moduloAutenticacao: ModuloHttp = {
     });
   }
 };
+
+function definirCookieSessao(reply: { header(nome: string, valor: string): unknown }, token: string, expiraEm: Date) {
+  reply.header("Set-Cookie", criarCookieSessao(token, expiraEm));
+}
 
 function extrairPagamentosNegocio(negocio: {
   metodosPagamento: string[];

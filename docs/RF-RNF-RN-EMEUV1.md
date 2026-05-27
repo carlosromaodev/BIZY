@@ -1,10 +1,10 @@
 # Bizy / ÉMeu V1 - Requisitos Funcionais, Não Funcionais e Regras de Negócio
 
 Documento: `RF-RNF-RN-EMEUV1.md`
-Versão: 1.101
+Versão: 1.102
 Data: 2026-05-26
 Autor: Carlos
-Status: MVP base implementado; fundação backend Bizy CRM+ com Clientes 360, Pedidos, Catálogo/Stock, Loja Pública, Vitrine Pública, Checkout, Entrega, Afiliados, Criadores, Revendedores, Mini-lojas Públicas, Comissões, Atribuição Comercial, Lotes Financeiros, Campanhas com receita atribuída por tracking, Governança, Jobs de Clientes/Produtos/Exportações, Contratos Versionados, Eventos Operacionais, eventos públicos idempotentes, webhook Evolution idempotente com ledger operacional, bootstrap de ambiente, backup/restore PostgreSQL, rate limit distribuível por Redis REST, eventos server-side preparados, Inbox Comercial, SLA, Social Inbox seguro, transferência operacional, política WhatsApp, descontos aprováveis, carrinho abandonado, antifraude de afiliados, anonimização, SEO público, logs operacionais, navegação comercial, busca global, auditoria de exportações comerciais e painel diário em evolução
+Status: MVP base implementado; fundação backend Bizy CRM+ com Clientes 360, Pedidos, Catálogo/Stock, Loja Pública, Vitrine Pública, Checkout, Entrega, Afiliados, Criadores, Revendedores, Mini-lojas Públicas, Comissões, Atribuição Comercial, Lotes Financeiros, Campanhas com receita atribuída por tracking, Governança, Jobs de Clientes/Produtos/Exportações, Contratos Versionados, Eventos Operacionais, eventos públicos idempotentes, webhook Evolution idempotente com ledger operacional, bootstrap de ambiente, backup/restore PostgreSQL, rate limit distribuível por Redis REST, sessão HttpOnly compatível com Bearer, eventos server-side preparados, Inbox Comercial, SLA, Social Inbox seguro, transferência operacional, política WhatsApp, descontos aprováveis, carrinho abandonado, antifraude de afiliados, anonimização, SEO público, logs operacionais, navegação comercial, busca global, auditoria de exportações comerciais e painel diário em evolução
 
 ---
 
@@ -219,6 +219,8 @@ Atualização 1.99: Adicionado bootstrap formal de ambiente em `npm run bootstra
 Atualização 1.100: Adicionados scripts operacionais `npm run backup:postgres` e `npm run restore:postgres`, com dump PostgreSQL em formato custom, permissões restritas, checksum quando disponível, cópia opcional de media/comprovativos e restore protegido por confirmação explícita.
 
 Atualização 1.101: Rate limit HTTP passou a suportar armazenamento distribuído via Redis REST/Upstash (`RATE_LIMIT_REDIS_REST_URL`/`RATE_LIMIT_REDIS_REST_TOKEN`), mantendo fallback local em memória quando o provider externo falhar ou não estiver configurado.
+
+Atualização 1.102: Login por telefone, login estudantil e callback Gmail passaram a emitir cookie de sessão HttpOnly (`AUTH_COOKIE_NAME`), com CORS preparado para credenciais e leitura de sessão por Bearer ou cookie durante a migração.
 
 ---
 
@@ -770,7 +772,7 @@ Esta etapa vem antes da implementação visual dos novos módulos. O objetivo é
 | RNF26 | [x] CORS deve ser restrito à origem real do frontend em produção. | Alta | Implementado |
 | RNF27 | [x] Rate limit deve proteger endpoints HTTP sensíveis. | Alta | Implementado |
 | RNF28 | [x] Em escala, rate limit deve usar armazenamento distribuído como Redis. | Média | Implementado com Redis REST/Upstash opcional e fallback local em memória |
-| RNF29 | [ ] Em produção madura, sessão deve considerar cookie HttpOnly ou mecanismo equivalente mais seguro que `localStorage`. | Média | Pós-MVP |
+| RNF29 | [x] Em produção madura, sessão deve considerar cookie HttpOnly ou mecanismo equivalente mais seguro que `localStorage`. | Média | Implementado no backend com cookie HttpOnly/SameSite, `Secure` em produção e compatibilidade temporária com Bearer token |
 
 ### 4.5 Dados, Auditoria e Observabilidade
 

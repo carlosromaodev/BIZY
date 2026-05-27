@@ -5,7 +5,7 @@ import { criarContextoAplicacao, criarProviderLive, type ContextoAplicacao, type
 import { classificarErroHttp, ehErroInfraestrutura } from "./errosHttp.js";
 import { modulosHttp } from "./modulos/manifestoModulosHttp.js";
 import { criarRateLimit } from "./rateLimit.js";
-import { extrairTokenBearer } from "./seguranca.js";
+import { extrairTokenAutenticacao } from "./seguranca.js";
 
 type OrigemCorsPermitida = boolean | string | RegExp | Array<boolean | string | RegExp>;
 type ResolverOrigemCors = OrigemCorsPermitida | ((
@@ -26,7 +26,8 @@ export async function criarAplicacao(): Promise<FastifyInstance> {
   const contexto = criarContextoAplicacao(app.log);
 
   await app.register(cors, {
-    origin: resolverOrigemCors()
+    origin: resolverOrigemCors(),
+    credentials: true
   });
 
   validarConfiguracaoSegura();
@@ -47,7 +48,7 @@ export async function criarAplicacao(): Promise<FastifyInstance> {
     }
 
     const tokenQuery = (request.query as { token?: string } | undefined)?.token;
-    const token = extrairTokenBearer(request.headers.authorization) ?? tokenQuery ?? null;
+    const token = extrairTokenAutenticacao(request) ?? tokenQuery ?? null;
     const usuario = await contexto.autenticacaoTelefone.obterSessao(token);
 
     if (!usuario) {
