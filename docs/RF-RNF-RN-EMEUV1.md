@@ -1,7 +1,7 @@
 # Bizy / ÉMeu V1 - Requisitos Funcionais, Não Funcionais e Regras de Negócio
 
 Documento: `RF-RNF-RN-EMEUV1.md`
-Versão: 1.71
+Versão: 1.82
 Data: 2026-05-26
 Autor: Carlos
 Status: MVP base implementado; fundação backend Bizy CRM+ com Clientes 360, Pedidos, Catálogo/Stock, Loja Pública, Vitrine Pública, Checkout, Entrega, Afiliados, Criadores, Revendedores, Mini-lojas Públicas, Comissões, Atribuição Comercial, Lotes Financeiros, Campanhas, Governança, Jobs, Eventos Operacionais, eventos server-side preparados, Inbox Comercial, SLA, Social Inbox seguro, transferência operacional, política WhatsApp, descontos aprováveis, carrinho abandonado, antifraude de afiliados, anonimização, SEO público, logs operacionais, navegação comercial, busca global, auditoria de exportações comerciais e painel diário em evolução
@@ -179,6 +179,8 @@ Atualização 1.79: Respostas manuais de WhatsApp classificadas como serviço ag
 Atualização 1.80: Checkout público por WhatsApp passou a resolver referência de afiliado/criador antes de existir pedido, preservando origem efetiva, link principal, assistências e tracking do clique para que vendas iniciadas por WhatsApp não percam atribuição comercial.
 
 Atualização 1.81: Entrega pública passou a aceitar `ORCAMENTO`, permitindo checkout WhatsApp/site sem bloquear compra quando a taxa precisa de validação humana; o total fica sem taxa automática e a mensagem ao cliente informa que a equipa confirma o valor antes do pagamento.
+
+Atualização 1.82: Afiliados/criadores passaram a suportar regras de comissão específicas por produto, preservando a regra no cadastro do parceiro e calculando a comissão por item do pedido antes de aplicar a regra geral do parceiro.
 
 ---
 
@@ -570,7 +572,7 @@ Esta etapa posiciona o Bizy como uma plataforma de operação comercial para cri
 | RF187 | [~] Cada afiliado deve ter links rastreáveis próprios para produtos, catálogos e campanhas. | Alta | Parcial - links próprios para produto e loja/mini-loja implementados; faltam catálogos e campanhas |
 | RF188 | [~] O afiliado deve ter painel ou relatório com cliques, leads, pedidos, vendas pagas, conversão e comissão estimada. | Média | Parcial - API de comissões e resumo por afiliado implementada com valores estimados, confirmados, pagos e revertidos; faltam cliques/leads por link e UI própria do afiliado |
 | RF189 | [~] O dono do negócio deve ver ranking de afiliados/criadores por receita, pedidos pagos, conversão, ticket médio e comissões pendentes. | Alta | Parcial - ranking por pedidos atribuídos, comissão confirmada e comissão paga implementado; faltam receita líquida, ticket médio, conversão e pendências por período |
-| RF190 | [~] Regras de comissão devem suportar percentual, valor fixo, comissão por produto, por coleção, por campanha e por meta alcançada. | Alta | Parcial - percentual e valor fixo por parceiro implementados; faltam regras por produto, coleção, campanha e meta |
+| RF190 | [~] Regras de comissão devem suportar percentual, valor fixo, comissão por produto, por coleção, por campanha e por meta alcançada. | Alta | Parcial - percentual, valor fixo por parceiro e regra por produto implementados; faltam regras por coleção, campanha e meta |
 | RF191 | [x] Comissão só deve ficar confirmada depois do pagamento do pedido; cancelamentos, devoluções ou reembolsos devem reverter a comissão. | Alta | Implementado no backend |
 | RF192 | [x] O sistema deve ter proteção antifraude básica contra autoindicação, leads duplicados e atribuições suspeitas. | Alta | Implementado no backend com bloqueio de autoindicação em checkout afiliado, evento operacional de atribuição suspeita e deduplicação de carrinho abandonado/social |
 | RF193 | [x] O afiliado/criador deve poder receber pacote de divulgação com links, fotos, textos sugeridos e regras da campanha. | Média | Implementado no backend em `/afiliados/:id/pacote-divulgacao` com links, produto, fotos, textos sugeridos e política de comissão |
@@ -817,7 +819,7 @@ Esta etapa vem antes da implementação visual dos novos módulos. O objetivo é
 | RNF83 | [x] Cookies e identificadores de tracking não devem conter telefone, email, nome, endereço ou qualquer dado pessoal sensível. | Alta | Implementado no backend: tracking público rejeita telefone, email, nome, endereço e chaves sensíveis |
 | RNF84 | [ ] A loja pública deve exibir texto claro sobre tracking/privacidade quando cookies ou eventos de marketing forem usados. | Alta | Planeado |
 | RNF85 | [~] Relatórios de afiliados e criadores devem expor apenas dados necessários, evitando mostrar dados privados de clientes sem necessidade operacional. | Alta | Parcial - APIs administrativas de comissões/pacote não expõem histórico privado do cliente final; falta política granular por perfil externo |
-| RNF86 | [~] O cálculo de comissão deve ser reprocessável e auditável por período, pedido, afiliado, produto, reversão e pagamento. | Alta | Parcial - comissão por pedido/afiliado é persistida, auditada, resumida em saldo financeiro e exportável por lote; faltam reprocessamento por produto e conciliação financeira avançada |
+| RNF86 | [~] O cálculo de comissão deve ser reprocessável e auditável por período, pedido, afiliado, produto, reversão e pagamento. | Alta | Parcial - comissão por pedido/afiliado/produto é calculada, persistida, auditada, resumida em saldo financeiro e exportável por lote; faltam reprocessamento dedicado por período/produto e conciliação financeira avançada |
 | RNF87 | [~] Eventos analíticos devem ser armazenados de forma eficiente para pelo menos 100.000 eventos sem travar a UI operacional. | Média | Parcial - eventos já são agregados no backend em resumo de tracking e funil, evitando cálculo bruto na UI; faltam paginação/consulta temporal e otimização para alto volume real |
 | RNF88 | [ ] Páginas públicas de loja e catálogo devem ser cacheáveis sempre que possível, sem expor dados privados ou stock incorreto. | Média | Planeado |
 | RNF89 | [ ] A UI deve ocultar módulos não ativados, mas preservar rotas e dados para reativação futura quando permitido. | Média | Planeado |

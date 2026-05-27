@@ -384,6 +384,35 @@ export const CriarCheckoutAbandonadoPublicoSchema = CalcularEntregaPublicaSchema
   observacao: z.string().trim().max(1000).nullable().optional().transform((valor) => valor ?? null)
 });
 
+const RegraComissaoBaseSchema = z
+  .object({
+    tipo: z.enum(tiposComissaoParceiro),
+    percentual: z.coerce.number().min(0).max(100).optional(),
+    valorEmKwanza: z.coerce.number().int().min(0).optional()
+  })
+  .refine(
+    (regra) =>
+      regra.tipo === "PERCENTUAL"
+        ? typeof regra.percentual === "number"
+        : typeof regra.valorEmKwanza === "number",
+    { message: "Informe percentual ou valor fixo conforme o tipo de comissão." }
+  );
+
+const RegraComissaoProdutoSchema = z
+  .object({
+    codigoProduto: z.string().trim().min(1).max(64).transform((valor) => valor.toUpperCase()),
+    tipo: z.enum(tiposComissaoParceiro),
+    percentual: z.coerce.number().min(0).max(100).optional(),
+    valorEmKwanza: z.coerce.number().int().min(0).optional()
+  })
+  .refine(
+    (regra) =>
+      regra.tipo === "PERCENTUAL"
+        ? typeof regra.percentual === "number"
+        : typeof regra.valorEmKwanza === "number",
+    { message: "Informe percentual ou valor fixo conforme o tipo de comissão por produto." }
+  );
+
 export const CriarAfiliadoSchema = z.object({
   tipo: z.enum(tiposParceiroComercial).default("AFILIADO"),
   codigo: z
@@ -398,19 +427,11 @@ export const CriarAfiliadoSchema = z.object({
   nomePublico: z.string().trim().min(2).max(120),
   contacto: TextoCatalogoOpcionalSchema,
   estado: z.enum(estadosParceiroComercial).default("ATIVO"),
-  regraComissao: z
-    .object({
-      tipo: z.enum(tiposComissaoParceiro),
-      percentual: z.coerce.number().min(0).max(100).optional(),
-      valorEmKwanza: z.coerce.number().int().min(0).optional()
+  regraComissao: RegraComissaoBaseSchema.and(
+    z.object({
+      produtos: z.array(RegraComissaoProdutoSchema).max(200).optional()
     })
-    .refine(
-      (regra) =>
-        regra.tipo === "PERCENTUAL"
-          ? typeof regra.percentual === "number"
-          : typeof regra.valorEmKwanza === "number",
-      { message: "Informe percentual ou valor fixo conforme o tipo de comissão." }
-    ),
+  ),
   metodoPagamento: z.record(z.string(), z.unknown()).default({})
 });
 

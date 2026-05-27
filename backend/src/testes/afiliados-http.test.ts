@@ -444,6 +444,114 @@ describe("afiliados, criadores e comissões HTTP", () => {
     }
   });
 
+  it("aplica regra de comissão específica por produto antes da regra geral do parceiro", async () => {
+    const app = await criarAplicacao();
+
+    try {
+      const loja = await autenticar(app, "923600199", "Loja Comissão Produto");
+      await criarProduto(app, loja, "CP1");
+
+      const publicacao = await app.inject({
+        method: "PUT",
+        url: "/loja-publica/configuracao",
+        headers: loja,
+        payload: {
+          slug: "loja-comissao-produto",
+          descricaoPublica: "Produtos com comissão específica.",
+          publicada: true
+        }
+      });
+      expect(publicacao.statusCode).toBe(200);
+
+      const afiliado = await app.inject({
+        method: "POST",
+        url: "/afiliados",
+        headers: loja,
+        payload: {
+          tipo: "AFILIADO",
+          codigo: "bia-prod",
+          nomePublico: "Bia Produto",
+          contacto: "923800199",
+          metodoPagamento: { iban: "AO06000000000000000000000" },
+          regraComissao: {
+            tipo: "PERCENTUAL",
+            percentual: 5,
+            produtos: [
+              {
+                codigoProduto: "CP1",
+                tipo: "PERCENTUAL",
+                percentual: 20
+              }
+            ]
+          }
+        }
+      });
+      expect(afiliado.statusCode).toBe(201);
+      expect(afiliado.json().regraComissao).toEqual(
+        expect.objectContaining({
+          percentual: 5,
+          produtos: [
+            expect.objectContaining({
+              codigoProduto: "CP1",
+              percentual: 20
+            })
+          ]
+        })
+      );
+
+      const link = await app.inject({
+        method: "POST",
+        url: `/afiliados/${afiliado.json().id}/links`,
+        headers: loja,
+        payload: {
+          codigo: "BIA-CP1",
+          destinoTipo: "PRODUTO",
+          slugLoja: "loja-comissao-produto",
+          codigoProduto: "CP1",
+          canal: "instagram",
+          origemConteudo: "reels-produto"
+        }
+      });
+      expect(link.statusCode).toBe(201);
+
+      const checkout = await app.inject({
+        method: "POST",
+        url: "/publico/lojas/loja-comissao-produto/checkout",
+        payload: {
+          cliente: {
+            nome: "Cliente Produto",
+            telefone: "923810199",
+            consentimentoDados: true,
+            consentimentoMarketing: false
+          },
+          itens: [{ codigoPeca: "CP1", quantidade: 2 }],
+          entrega: { tipo: "RETIRADA" },
+          referencia: "BIA-CP1",
+          trackingId: "trk-bia-produto",
+          origem: "reels-instagram"
+        }
+      });
+      expect(checkout.statusCode).toBe(201);
+
+      const comissoes = await app.inject({
+        method: "GET",
+        url: "/afiliados/comissoes",
+        headers: loja
+      });
+      expect(comissoes.statusCode).toBe(200);
+      expect(comissoes.json().comissoes).toEqual([
+        expect.objectContaining({
+          afiliadoId: afiliado.json().id,
+          pedidoId: checkout.json().pedido.id,
+          baseEmKwanza: 25_000,
+          valorEmKwanza: 5_000
+        })
+      ]);
+    } finally {
+      await app.close();
+    }
+  });
+
   it("aplica modelo de atribuição configurável e permite ajuste manual auditado", async () => {
     const app = await criarAplicacao();
 

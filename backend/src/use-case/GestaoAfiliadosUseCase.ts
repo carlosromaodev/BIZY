@@ -413,7 +413,7 @@ export class GestaoAfiliadosUseCase {
     if (!atribuicao) throw new Error("Referência de atribuição não encontrada ou inativa.");
 
     const baseEmKwanza = pedido.subtotalEmKwanza;
-    const valorEmKwanza = this.calcularComissao(baseEmKwanza, atribuicao.parceiro.regraComissao);
+    const valorEmKwanza = this.calcularComissaoPedido(pedido, atribuicao.parceiro.regraComissao);
     const status = dados.status ?? (pedido.estadoPagamento === "CONFIRMADO" ? "CONFIRMADA" : "ESTIMADA");
     const motivo = `Ajuste manual de atribuição: ${dados.motivo}`;
 
@@ -448,7 +448,7 @@ export class GestaoAfiliadosUseCase {
     atribuicao: AtribuicaoAfiliadoResolvida;
   }) {
     const baseEmKwanza = dados.pedido.subtotalEmKwanza;
-    const valorEmKwanza = this.calcularComissao(baseEmKwanza, dados.atribuicao.parceiro.regraComissao);
+    const valorEmKwanza = this.calcularComissaoPedido(dados.pedido, dados.atribuicao.parceiro.regraComissao);
 
     return this.afiliados.criarOuAtualizarComissao({
       negocioId: dados.negocioId,
@@ -574,6 +574,17 @@ export class GestaoAfiliadosUseCase {
   }
 
   private validarRegraComissao(regra: RegraComissaoParceiro): void {
+    this.validarRegraComissaoBase(regra);
+
+    for (const produto of regra.produtos ?? []) {
+      if (!produto.codigoProduto?.trim()) {
+        throw new Error("Informe o código do produto para comissão específica.");
+      }
+      this.validarRegraComissaoBase(produto);
+    }
+  }
+
+  private validarRegraComissaoBase(regra: RegraComissaoParceiro): void {
     if (regra.tipo === "PERCENTUAL") {
       if (typeof regra.percentual !== "number" || regra.percentual < 0 || regra.percentual > 100) {
         throw new Error("Informe um percentual de comissão entre 0 e 100.");
@@ -584,6 +595,22 @@ export class GestaoAfiliadosUseCase {
     if (typeof regra.valorEmKwanza !== "number" || regra.valorEmKwanza < 0) {
       throw new Error("Informe um valor fixo de comissão válido.");
     }
+  }
+
+  private calcularComissaoPedido(pedido: Pedido, regra: RegraComissaoParceiro): number {
+    if (!regra.produtos?.length) {
+      return this.calcularComissao(pedido.subtotalEmKwanza, regra);
+    }
+
+    return pedido.itens.reduce((total, item) => {
+      const regraProduto = this.buscarRegraProduto(regra, item.codigoPeca);
+      return total + this.calcularComissao(item.subtotalEmKwanza, regraProduto ?? regra);
+    }, 0);
+  }
+
+  private buscarRegraProduto(regra: RegraComissaoParceiro, codigoProduto: string): RegraComissaoParceiro | null {
+    const codigoNormalizado = this.normalizarCodigo(codigoProduto);
+    return regra.produtos?.find((produto) => this.normalizarCodigo(produto.codigoProduto) === codigoNormalizado) ?? null;
   }
 
   private calcularComissao(baseEmKwanza: number, regra: RegraComissaoParceiro): number {
