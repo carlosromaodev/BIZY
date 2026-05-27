@@ -627,6 +627,53 @@ describe("CRM+ governança, campanhas, eventos e jobs", () => {
           job: expect.objectContaining({ id: jobProdutos.json().job.id })
         })
       );
+
+      const exportacaoProdutos = await app.inject({
+        method: "POST",
+        url: "/jobs/exportacao/produtos",
+        headers,
+        payload: {
+          idempotencyKey: "export-produtos-maio",
+          filtros: { categoria: "Roupas" }
+        }
+      });
+      expect(exportacaoProdutos.statusCode).toBe(202);
+      expect(exportacaoProdutos.json().job).toEqual(
+        expect.objectContaining({
+          tipo: "EXPORTACAO_PRODUTOS",
+          estado: "CONCLUIDO",
+          total: 1,
+          processados: 1,
+          erros: 0
+        })
+      );
+      expect(exportacaoProdutos.json().resultado).toEqual(
+        expect.objectContaining({
+          quantidade: 1,
+          arquivo: expect.objectContaining({
+            nome: "produtos-bizy.csv",
+            mimeType: "text/csv; charset=utf-8",
+            conteudo: expect.stringContaining("JOB-1")
+          })
+        })
+      );
+
+      const exportacaoProdutosRepetida = await app.inject({
+        method: "POST",
+        url: "/jobs/exportacao/produtos",
+        headers,
+        payload: {
+          idempotencyKey: "export-produtos-maio",
+          filtros: { categoria: "Outra" }
+        }
+      });
+      expect(exportacaoProdutosRepetida.statusCode).toBe(200);
+      expect(exportacaoProdutosRepetida.json()).toEqual(
+        expect.objectContaining({
+          duplicado: true,
+          job: expect.objectContaining({ id: exportacaoProdutos.json().job.id })
+        })
+      );
     } finally {
       await app.close();
     }

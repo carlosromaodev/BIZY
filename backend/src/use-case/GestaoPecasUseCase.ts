@@ -20,6 +20,14 @@ interface DadosRegistroMovimentoStock {
   origem?: string | null;
 }
 
+interface FiltrosExportacaoProdutos {
+  busca?: string;
+  categoria?: string;
+  colecao?: string;
+  estado?: Peca["estado"];
+  limite?: number;
+}
+
 export class GestaoPecasUseCase {
   constructor(
     private readonly repositorioPecas: RepositorioPecas,
@@ -76,6 +84,60 @@ export class GestaoPecasUseCase {
 
   async listarPecas(negocioId?: string | null) {
     return this.repositorioPecas.listar(negocioId);
+  }
+
+  async exportarCsv(
+    negocioId?: string | null,
+    filtros: FiltrosExportacaoProdutos = { limite: 10_000 }
+  ): Promise<{ csv: string; quantidade: number; filtros: FiltrosExportacaoProdutos }> {
+    const filtrosExportacao: FiltrosExportacaoProdutos = { limite: 10_000, ...filtros };
+    const pecas = (await this.repositorioPecas.listar(negocioId))
+      .filter((peca) => this.produtoEntraNaExportacao(peca, filtrosExportacao))
+      .slice(0, filtrosExportacao.limite ?? 10_000);
+    const linhas = [
+      [
+        "codigo",
+        "sku",
+        "nome",
+        "descricao",
+        "categoria",
+        "colecao",
+        "precoEmKwanza",
+        "custoEmKwanza",
+        "margemEstimadaEmKwanza",
+        "quantidade",
+        "stockMinimo",
+        "estado",
+        "estadoStock",
+        "arquivadaEm",
+        "fotos",
+        "variantes"
+      ],
+      ...pecas.map((peca) => [
+        peca.codigo,
+        peca.sku ?? "",
+        peca.nome,
+        peca.descricao,
+        peca.categoria ?? "",
+        peca.colecao ?? "",
+        String(peca.precoEmKwanza),
+        peca.custoEmKwanza === null ? "" : String(peca.custoEmKwanza),
+        peca.margemEstimadaEmKwanza === null ? "" : String(peca.margemEstimadaEmKwanza),
+        String(peca.quantidade),
+        String(peca.stockMinimo),
+        peca.estado,
+        peca.estadoStock,
+        peca.arquivadaEm?.toISOString() ?? "",
+        peca.fotos.join("|"),
+        JSON.stringify(peca.variantes)
+      ])
+    ];
+
+    return {
+      csv: `${linhas.map((linha) => linha.map((valor) => this.csv(valor)).join(",")).join("\n")}\n`,
+      quantidade: pecas.length,
+      filtros: filtrosExportacao
+    };
   }
 
   async resumirCatalogo(negocioId?: string | null): Promise<ResumoCatalogoComercial> {
@@ -200,6 +262,24 @@ export class GestaoPecasUseCase {
     }
 
     return normalizada;
+  }
+
+  private produtoEntraNaExportacao(peca: Peca, filtros: FiltrosExportacaoProdutos): boolean {
+    if (filtros.categoria && peca.categoria !== filtros.categoria) return false;
+    if (filtros.colecao && peca.colecao !== filtros.colecao) return false;
+    if (filtros.estado && peca.estado !== filtros.estado) return false;
+    if (!filtros.busca) return true;
+
+    const busca = filtros.busca.toLowerCase();
+    return [peca.codigo, peca.sku, peca.nome, peca.descricao, peca.categoria, peca.colecao]
+      .filter((valor): valor is string => Boolean(valor))
+      .some((valor) => valor.toLowerCase().includes(busca));
+  }
+
+  private csv(valor: string): string {
+    const precisaEscapar = /[",\n\r]/.test(valor);
+    const escapado = valor.replace(/"/g, '""');
+    return precisaEscapar ? `"${escapado}"` : escapado;
   }
 
   private mapearLinhaImportacao(negocioId: string, linha: Record<string, string>): NovaPeca {

@@ -869,6 +869,19 @@ export const CriarJobExportacaoClientesSchema = z.object({
   filtros: FiltrosClientes360QuerySchema.optional().default({})
 });
 
+export const FiltrosProdutosExportacaoSchema = z.object({
+  busca: z.string().trim().min(1).max(160).optional(),
+  categoria: z.string().trim().min(1).max(80).optional(),
+  colecao: z.string().trim().min(1).max(80).optional(),
+  estado: z.enum(estadosPeca).optional(),
+  limite: z.coerce.number().int().min(1).max(10_000).optional()
+});
+
+export const CriarJobExportacaoProdutosSchema = z.object({
+  idempotencyKey: z.string().trim().min(3).max(240).nullable().optional().transform((valor) => valor ?? null),
+  filtros: FiltrosProdutosExportacaoSchema.optional().default({})
+});
+
 export const AtualizarClienteCrmSchema = ClienteCrmBaseSchema.partial()
   .omit({ origem: true })
   .extend({
