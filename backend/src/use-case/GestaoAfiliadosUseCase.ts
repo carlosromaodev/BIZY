@@ -518,7 +518,7 @@ export class GestaoAfiliadosUseCase {
     const parceiro = await this.afiliados.buscarParceiroPorId(link.afiliadoId, negocioId);
     if (!parceiro || parceiro.estado !== "ATIVO") return null;
 
-    const janelaEfetiva = this.janelaAtribuicaoParceiro(parceiro) ?? janelaDias;
+    const janelaEfetiva = this.janelaAtribuicaoLink(link) ?? this.janelaAtribuicaoParceiro(parceiro) ?? janelaDias;
     if (janelaEfetiva && capturadoEm) {
       const limiteMs = janelaEfetiva * 24 * 60 * 60 * 1000;
       if (agora.getTime() - capturadoEm.getTime() > limiteMs) return null;
@@ -556,6 +556,14 @@ export class GestaoAfiliadosUseCase {
     if (direto) return direto;
 
     const atribuicao = this.objeto(configuracao.atribuicao);
+    return this.numero(atribuicao.janelaDias);
+  }
+
+  private janelaAtribuicaoLink(link: LinkAfiliado): number | null {
+    const direto = this.numero(link.metadata.janelaAtribuicaoDias);
+    if (direto) return direto;
+
+    const atribuicao = this.objeto(link.metadata.atribuicao);
     return this.numero(atribuicao.janelaDias);
   }
 

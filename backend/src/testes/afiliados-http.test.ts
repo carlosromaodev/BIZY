@@ -832,6 +832,153 @@ describe("afiliados, criadores e comissões HTTP", () => {
     }
   });
 
+  it("respeita janela de atribuição definida no link de campanha antes da janela geral do negócio", async () => {
+    const app = await criarAplicacao();
+
+    try {
+      const loja = await autenticar(app, "923700310", "Loja Janela Campanha");
+      await criarProduto(app, loja, "ATR-CAMP");
+
+      const negocio = await app.inject({
+        method: "POST",
+        url: "/onboarding/negocio",
+        headers: loja,
+        payload: {
+          nomeComercial: "Loja Janela Campanha",
+          segmento: "moda",
+          tipo: "LOJA",
+          entrega: {
+            atribuicao: {
+              modeloPadrao: "PRIMEIRO_TOQUE",
+              janelaDias: 30
+            }
+          }
+        }
+      });
+      expect(negocio.statusCode).toBe(201);
+
+      const publicacao = await app.inject({
+        method: "PUT",
+        url: "/loja-publica/configuracao",
+        headers: loja,
+        payload: {
+          slug: "loja-janela-campanha",
+          descricaoPublica: "Loja com campanhas de janela própria.",
+          publicada: true
+        }
+      });
+      expect(publicacao.statusCode).toBe(200);
+
+      const criadorCampanhaCurta = await app.inject({
+        method: "POST",
+        url: "/afiliados",
+        headers: loja,
+        payload: {
+          tipo: "CRIADOR",
+          codigo: "CAMP-CURTA",
+          nomePublico: "Campanha Curta",
+          contacto: "923700311",
+          regraComissao: { tipo: "PERCENTUAL", percentual: 8 }
+        }
+      });
+      expect(criadorCampanhaCurta.statusCode).toBe(201);
+
+      const criadorCampanhaValida = await app.inject({
+        method: "POST",
+        url: "/afiliados",
+        headers: loja,
+        payload: {
+          tipo: "CRIADOR",
+          codigo: "CAMP-VALIDA",
+          nomePublico: "Campanha Válida",
+          contacto: "923700312",
+          regraComissao: { tipo: "PERCENTUAL", percentual: 12 }
+        }
+      });
+      expect(criadorCampanhaValida.statusCode).toBe(201);
+
+      const linkCurto = await app.inject({
+        method: "POST",
+        url: `/afiliados/${criadorCampanhaCurta.json().id}/links`,
+        headers: loja,
+        payload: {
+          codigo: "LINK-CURTO",
+          destinoTipo: "CAMPANHA",
+          destinoId: "campanha-24h",
+          slugLoja: "loja-janela-campanha",
+          codigoProduto: "ATR-CAMP",
+          canal: "instagram",
+          origemConteudo: "story-24h",
+          metadata: {
+            janelaAtribuicaoDias: 1
+          }
+        }
+      });
+      expect(linkCurto.statusCode).toBe(201);
+
+      const linkValido = await app.inject({
+        method: "POST",
+        url: `/afiliados/${criadorCampanhaValida.json().id}/links`,
+        headers: loja,
+        payload: {
+          codigo: "LINK-VALIDO",
+          destinoTipo: "CAMPANHA",
+          destinoId: "campanha-30d",
+          slugLoja: "loja-janela-campanha",
+          codigoProduto: "ATR-CAMP",
+          canal: "tiktok",
+          origemConteudo: "live-30d"
+        }
+      });
+      expect(linkValido.statusCode).toBe(201);
+
+      const cincoDiasAtras = new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString();
+      const checkout = await app.inject({
+        method: "POST",
+        url: "/publico/lojas/loja-janela-campanha/checkout",
+        payload: {
+          cliente: {
+            nome: "Cliente Janela",
+            telefone: "923700319",
+            consentimentoDados: true,
+            consentimentoMarketing: true
+          },
+          itens: [{ codigoPeca: "ATR-CAMP", quantidade: 1 }],
+          entrega: { tipo: "RETIRADA" },
+          referencia: "LINK-VALIDO",
+          referenciasAssistidas: [
+            { codigo: "LINK-CURTO", capturadoEm: cincoDiasAtras },
+            { codigo: "LINK-VALIDO", capturadoEm: cincoDiasAtras }
+          ],
+          trackingId: "trk-janela-campanha",
+          origem: "campanha-social"
+        }
+      });
+      expect(checkout.statusCode).toBe(201);
+      expect(checkout.json().atribuicao.principal).toEqual(
+        expect.objectContaining({
+          codigoParceiro: "CAMP-VALIDA",
+          codigoLink: "LINK-VALIDO"
+        })
+      );
+
+      const comissoes = await app.inject({
+        method: "GET",
+        url: "/afiliados/comissoes",
+        headers: loja
+      });
+      expect(comissoes.statusCode).toBe(200);
+      expect(comissoes.json().comissoes).toEqual([
+        expect.objectContaining({
+          afiliadoId: criadorCampanhaValida.json().id,
+          linkId: linkValido.json().id
+        })
+      ]);
+    } finally {
+      await app.close();
+    }
+  });
+
   it("reverte comissão confirmada quando pedido atribuído é cancelado", async () => {
     const app = await criarAplicacao();
 
