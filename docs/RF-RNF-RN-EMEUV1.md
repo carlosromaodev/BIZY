@@ -1,10 +1,10 @@
 # Bizy / ÉMeu V1 - Requisitos Funcionais, Não Funcionais e Regras de Negócio
 
 Documento: `RF-RNF-RN-EMEUV1.md`
-Versão: 1.100
+Versão: 1.101
 Data: 2026-05-26
 Autor: Carlos
-Status: MVP base implementado; fundação backend Bizy CRM+ com Clientes 360, Pedidos, Catálogo/Stock, Loja Pública, Vitrine Pública, Checkout, Entrega, Afiliados, Criadores, Revendedores, Mini-lojas Públicas, Comissões, Atribuição Comercial, Lotes Financeiros, Campanhas com receita atribuída por tracking, Governança, Jobs de Clientes/Produtos/Exportações, Contratos Versionados, Eventos Operacionais, eventos públicos idempotentes, webhook Evolution idempotente com ledger operacional, bootstrap de ambiente, backup/restore PostgreSQL, eventos server-side preparados, Inbox Comercial, SLA, Social Inbox seguro, transferência operacional, política WhatsApp, descontos aprováveis, carrinho abandonado, antifraude de afiliados, anonimização, SEO público, logs operacionais, navegação comercial, busca global, auditoria de exportações comerciais e painel diário em evolução
+Status: MVP base implementado; fundação backend Bizy CRM+ com Clientes 360, Pedidos, Catálogo/Stock, Loja Pública, Vitrine Pública, Checkout, Entrega, Afiliados, Criadores, Revendedores, Mini-lojas Públicas, Comissões, Atribuição Comercial, Lotes Financeiros, Campanhas com receita atribuída por tracking, Governança, Jobs de Clientes/Produtos/Exportações, Contratos Versionados, Eventos Operacionais, eventos públicos idempotentes, webhook Evolution idempotente com ledger operacional, bootstrap de ambiente, backup/restore PostgreSQL, rate limit distribuível por Redis REST, eventos server-side preparados, Inbox Comercial, SLA, Social Inbox seguro, transferência operacional, política WhatsApp, descontos aprováveis, carrinho abandonado, antifraude de afiliados, anonimização, SEO público, logs operacionais, navegação comercial, busca global, auditoria de exportações comerciais e painel diário em evolução
 
 ---
 
@@ -217,6 +217,8 @@ Atualização 1.98: Rota `/webhooks/evolution` passou a usar `EventoOperacional`
 Atualização 1.99: Adicionado bootstrap formal de ambiente em `npm run bootstrap:ambiente`, validando variáveis obrigatórias para dev/staging/prod e criando configurações padrão dos módulos CRM+ para negócios existentes de forma reexecutável.
 
 Atualização 1.100: Adicionados scripts operacionais `npm run backup:postgres` e `npm run restore:postgres`, com dump PostgreSQL em formato custom, permissões restritas, checksum quando disponível, cópia opcional de media/comprovativos e restore protegido por confirmação explícita.
+
+Atualização 1.101: Rate limit HTTP passou a suportar armazenamento distribuído via Redis REST/Upstash (`RATE_LIMIT_REDIS_REST_URL`/`RATE_LIMIT_REDIS_REST_TOKEN`), mantendo fallback local em memória quando o provider externo falhar ou não estiver configurado.
 
 ---
 
@@ -767,7 +769,7 @@ Esta etapa vem antes da implementação visual dos novos módulos. O objetivo é
 | RNF25 | [x] Em produção, `LOGIN_SMS_DEV_MODE` e `LOGIN_SMS_EXPOR_CODIGO_DEV` devem estar desativados. | Alta | Implementado |
 | RNF26 | [x] CORS deve ser restrito à origem real do frontend em produção. | Alta | Implementado |
 | RNF27 | [x] Rate limit deve proteger endpoints HTTP sensíveis. | Alta | Implementado |
-| RNF28 | [ ] Em escala, rate limit deve usar armazenamento distribuído como Redis. | Média | Pós-MVP |
+| RNF28 | [x] Em escala, rate limit deve usar armazenamento distribuído como Redis. | Média | Implementado com Redis REST/Upstash opcional e fallback local em memória |
 | RNF29 | [ ] Em produção madura, sessão deve considerar cookie HttpOnly ou mecanismo equivalente mais seguro que `localStorage`. | Média | Pós-MVP |
 
 ### 4.5 Dados, Auditoria e Observabilidade

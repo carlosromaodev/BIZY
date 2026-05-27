@@ -54,7 +54,9 @@ const recomendadasProducao = [
   "N8N_WEBHOOK_EVENTOS_URL",
   "EVOLUTION_API_URL",
   "EVOLUTION_API_KEY",
-  "OMBALA_API_TOKEN"
+  "OMBALA_API_TOKEN",
+  "RATE_LIMIT_REDIS_REST_URL",
+  "RATE_LIMIT_REDIS_REST_TOKEN"
 ];
 
 export function resolverAmbienteBootstrap(env: AmbienteEntrada = process.env): AmbienteBootstrap {

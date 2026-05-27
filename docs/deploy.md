@@ -34,6 +34,7 @@ Notas:
 - `EVOLUTION_WEBHOOK_TOKEN` protege `POST /webhooks/evolution`.
 - `LOGIN_SMS_DEV_MODE=false` e `LOGIN_SMS_EXPOR_CODIGO_DEV=false` são obrigatórios em produção.
 - `RATE_LIMIT_ATIVO=true` deve ficar ligado para proteger login, catálogo, reservas e automações.
+- Em produção multi-instância, configure `RATE_LIMIT_REDIS_REST_URL` e `RATE_LIMIT_REDIS_REST_TOKEN` para partilhar contadores de rate limit entre réplicas. Sem essas variáveis, o backend usa fallback local em memória.
 
 ## 2. PostgreSQL e Prisma migrate deploy
 
