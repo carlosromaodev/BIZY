@@ -1,7 +1,7 @@
 # Bizy / ÉMeu V1 - Requisitos Funcionais, Não Funcionais e Regras de Negócio
 
 Documento: `RF-RNF-RN-EMEUV1.md`
-Versão: 1.69
+Versão: 1.70
 Data: 2026-05-26
 Autor: Carlos
 Status: MVP base implementado; fundação backend Bizy CRM+ com Clientes 360, Pedidos, Catálogo/Stock, Loja Pública, Vitrine Pública, Checkout, Entrega, Afiliados, Criadores, Revendedores, Mini-lojas Públicas, Comissões, Atribuição Comercial, Lotes Financeiros, Campanhas, Governança, Jobs, Eventos Operacionais, eventos server-side preparados, Inbox Comercial, SLA, Social Inbox seguro, transferência operacional, política WhatsApp, descontos aprováveis, carrinho abandonado, antifraude de afiliados, anonimização, SEO público, logs operacionais, navegação comercial, busca global, auditoria de exportações comerciais e painel diário em evolução
@@ -175,6 +175,8 @@ Atualização 1.77: Eventos de tracking da loja pública passaram a alimentar o 
 Atualização 1.78: Pedidos manuais e de checkout passaram a alimentar automaticamente o funil por pedido, registrando criação, pagamento pendente, pagamento confirmado, preparação, entrega, entregue e perda operacional quando o estado do pedido/entrega avançar de forma segura.
 
 Atualização 1.79: Respostas manuais de WhatsApp classificadas como serviço agora calculam automaticamente a janela de atendimento pela última mensagem inbound da conversa nos últimos 24h, bloqueando texto livre fora da janela e devolvendo erro de regra de negócio em vez de falha interna.
+
+Atualização 1.80: Checkout público por WhatsApp passou a resolver referência de afiliado/criador antes de existir pedido, preservando origem efetiva, link principal, assistências e tracking do clique para que vendas iniciadas por WhatsApp não percam atribuição comercial.
 
 ---
 
@@ -531,7 +533,7 @@ Esta etapa posiciona o Bizy como uma plataforma de operação comercial para cri
 
 | ID | Requisito Funcional | Prioridade | Estado |
 |---|---|---|---|
-| RF165 | [x] O checkout por WhatsApp deve gerar mensagem pré-preenchida com produto, variante, quantidade, preço, entrega estimada e origem do link. | Alta | Implementado no backend |
+| RF165 | [x] O checkout por WhatsApp deve gerar mensagem pré-preenchida com produto, variante, quantidade, preço, entrega estimada e origem do link. | Alta | Implementado no backend, incluindo referência de afiliado/criador quando existir |
 | RF166 | [~] O checkout pelo site deve criar pedido/carrinho com dados do cliente, itens, entrega, pagamento e origem comercial. | Alta | Parcial - endpoint público cria cliente e pedido com itens, entrega e origem; faltam carrinho persistente e etapa de pagamento no site |
 | RF167 | [~] O sistema deve calcular entrega por zona, município, bairro, tabela manual, retirada na loja ou regra de entrega grátis acima de valor configurado. | Alta | Parcial - cálculo por zona/bairro/município, taxa padrão, retirada e entrega grátis implementado; falta orçamento humano |
 | RF168 | [~] O total do pedido deve calcular itens, descontos, entrega, taxas e valor final antes da confirmação. | Alta | Parcial - checkout público calcula itens e entrega antes da confirmação; faltam descontos/taxas públicas configuráveis |
@@ -631,7 +633,7 @@ Esta etapa posiciona o Bizy como uma plataforma de operação comercial para cri
 | RF232 | [~] Módulos devem ser controlados por configuração/plano, sem expor páginas vazias para quem não ativou a função. | Alta | Parcial - backend controla módulos e bloqueia rotas; falta ocultação final em todos os pontos de UI |
 | RF233 | [x] A loja pública deve funcionar mesmo sem social inbox conectada. | Alta | Implementado no backend por módulos independentes |
 | RF234 | [x] A social inbox deve funcionar mesmo sem loja pública publicada. | Alta | Implementado no backend por módulos independentes |
-| RF235 | [~] O módulo de afiliados deve funcionar com checkout por WhatsApp antes do checkout completo do site estar maduro. | Alta | Parcial - afiliado funciona no checkout público do site; falta atribuição direta no checkout WhatsApp |
+| RF235 | [x] O módulo de afiliados deve funcionar com checkout por WhatsApp antes do checkout completo do site estar maduro. | Alta | Implementado no backend: checkout WhatsApp resolve `referencia`, modelo de atribuição, assistências, origem efetiva e tracking do clique |
 | RF236 | [~] A entrega deve aceitar cálculo automático, tabela manual, retirada na loja e orçamento humano. | Alta | Parcial - cálculo automático por configuração manual, retirada e entrega grátis implementados; falta orçamento humano |
 | RF237 | [~] O sistema deve usar Kwanza como moeda padrão e preparar arquitetura para múltiplas moedas no futuro. | Média | Parcial - valores operacionais usam Kwanza/AOA e onboarding guarda moeda; falta multi-moeda real |
 | RF238 | [~] A arquitetura deve preparar multi-loja, múltiplas linhas WhatsApp, múltiplos domínios e múltiplas equipas como evolução. | Média | Parcial |
@@ -658,7 +660,7 @@ Esta etapa vem antes da implementação visual dos novos módulos. O objetivo é
 | RF252 | [~] O backend deve expor APIs de Clientes 360 para criar, listar, segmentar, fundir, etiquetar, bloquear, exportar e gerir consentimento. | Alta | Parcial - criar, listar, pesquisar, detalhar, etiquetar, bloquear/estado, exportar, importar, fundir, segmentar parcialmente e consentimentos implementados; faltam segmentação comportamental completa |
 | RF253 | [x] O backend deve expor APIs de Pedidos com múltiplos itens, estados de funil, pagamento, entrega, desconto, comprovativos e origem comercial. | Alta | Implementado em `/pedidos`, com criação/listagem/detalhe/exportação, atualização de itens, estado/funil, pagamento, entrega, descontos, comprovativos, origem/canal e reserva vinculada |
 | RF254 | [~] O backend deve evoluir Produtos para suportar variantes, coleções, movimentos de stock, custo, margem, importação e catálogo digital. | Alta | Parcial - variantes, coleções, movimentos, custo, margem, importação CSV e loja pública implementados; faltam catálogos selecionáveis |
-| RF255 | [~] O backend deve expor APIs públicas e privadas para loja virtual, página de produto, catálogo digital, checkout WhatsApp e checkout site. | Alta | Parcial - loja pública, página de produto, cálculo de entrega, checkout WhatsApp e checkout site básico implementados; faltam catálogos selecionáveis e checkout/pagamento completo |
+| RF255 | [~] O backend deve expor APIs públicas e privadas para loja virtual, página de produto, catálogo digital, checkout WhatsApp e checkout site. | Alta | Parcial - loja pública, página de produto, cálculo de entrega, checkout WhatsApp com atribuição e checkout site básico implementados; faltam catálogos selecionáveis e checkout/pagamento completo |
 | RF256 | [~] O backend deve registrar tracking de links, UTM, referência, cookies técnicos, visitas, cliques WhatsApp, checkout iniciado, pedido e venda atribuída. | Alta | Parcial - trackingId, UTM, visitas, produto visto, clique WhatsApp, checkout iniciado, pedido criado, lead identificado e receita atribuída ao pedido implementados; faltam cookies técnicos e venda paga atribuída |
 | RF257 | [~] O backend deve suportar afiliados, criadores e revendedores com links próprios, regras de comissão, reversões, pagamentos e relatórios. | Alta | Parcial - parceiros, links próprios, mini-loja pública, regras públicas de revenda, comissão estimada/confirmada/paga/revertida, pagamento individual/lote, saldos, exportação CSV, auditoria e resumo implementados; faltam regras avançadas, portal do afiliado e relatórios avançados |
 | RF258 | [~] O backend deve normalizar social inbox com comentários de redes sociais, posts, autores, intenção, tarefas e oportunidades. | Alta | Parcial - endpoints `/social/inbox/itens` e `/social/inbox/capturar` registram canal, provider, conta, post, media, autor, texto, intenção, confiança, telefone, entidades/contexto, deduplicam, filtram, criam tarefas, conversa CRM e oportunidade estruturada; faltam anexos/media |
@@ -984,7 +986,7 @@ Esta etapa vem antes da implementação visual dos novos módulos. O objetivo é
 | RN80 | [~] A identidade canônica do cliente deve priorizar telefone/email quando existirem, mantendo aliases sociais como TikTok, Instagram, Facebook, username e nome exibido. | Parcial - Cliente 360 normaliza telefone/email e mantém username/userId/avatar; faltam aliases por provider em tabela própria |
 | RN81 | [~] Uma visita anônima só vira cliente identificado quando o usuário fornece contacto, faz checkout, conversa pelo WhatsApp ou é associado por regra segura e permitida. | Parcial - checkout público só cria cliente identificado quando telefone ou email é informado |
 | RN82 | [~] Um link rastreável pode atribuir origem/campanha, mas não pode sobrescrever dados confirmados do cliente sem auditoria. | Parcial - tracking público registra origem sem atualizar cliente; checkout preserva origem nas preferências; falta auditoria específica para correções de atribuição |
-| RN83 | [~] A atribuição padrão deve ser configurável, mas o sistema deve mostrar claramente se a venda veio de live, site, WhatsApp, catálogo, campanha, afiliado, criador ou comentário social. | Parcial - origem/canal do checkout WhatsApp, checkout site, pedido público, funil por trackingId e pedido atribuído a afiliado/criador implementados; faltam campanha e comentário social direto em pedido |
+| RN83 | [~] A atribuição padrão deve ser configurável, mas o sistema deve mostrar claramente se a venda veio de live, site, WhatsApp, catálogo, campanha, afiliado, criador ou comentário social. | Parcial - origem/canal do checkout WhatsApp, checkout site, pedido público, funil por trackingId e atribuição de afiliado/criador no checkout site e WhatsApp implementados; faltam campanha e comentário social direto em pedido |
 | RN84 | [x] Comissão de afiliado/criador só fica confirmada depois do pedido pago e dentro das regras de validade da atribuição. | Implementado no backend inicial de afiliados |
 | RN85 | [~] Cancelamento, devolução, chargeback, reembolso ou fraude devem reverter ou bloquear comissão. | Parcial - cancelamento, devolução e reembolso revertem comissão; faltam chargeback, fraude e bloqueio preventivo |
 | RN86 | [~] O dono/admin pode corrigir atribuição ou comissão manualmente, mas deve informar motivo e a alteração deve ficar auditada. | Parcial - pagamento individual e em lote de comissão guarda referência, observação, autor e histórico; faltam correção manual de atribuição/comissão e motivo obrigatório para esses ajustes |
@@ -1003,7 +1005,7 @@ Esta etapa vem antes da implementação visual dos novos módulos. O objetivo é
 | RN99 | [x] Comentário com intenção incerta, reclamação, pedido de desconto, troca ou conflito deve gerar tarefa humana. | Implementado no backend do Social Inbox para reclamação e palavras sensíveis como desconto, troca, devolução, cancelamento, problema ou reembolso |
 | RN100 | [x] O valor de entrega e total do pedido devem ser calculados antes do cliente confirmar compra pelo site ou WhatsApp. | Implementado no backend inicial de loja pública |
 | RN101 | [~] Stock só deve ser bloqueado quando pedido/reserva atingir estado configurado para bloqueio; simples visualização ou clique não bloqueia stock. | Parcial - criação de pedido valida stock e considera pedidos ativos; falta configuração por negócio e movimentos de stock |
-| RN102 | [x] O checkout por WhatsApp deve preservar origem do link e produto selecionado para que o atendente não precise perguntar tudo outra vez. | Implementado no backend |
+| RN102 | [x] O checkout por WhatsApp deve preservar origem do link e produto selecionado para que o atendente não precise perguntar tudo outra vez. | Implementado no backend com produto, variante, entrega, origem efetiva e referência comercial quando houver |
 | RN103 | [x] Cookies devem armazenar apenas identificadores técnicos, referência, campanha e timestamps, nunca telefone, email, nome ou endereço. | Implementado no backend de tracking público: payload com telefone, email, nome ou endereço é rejeitado |
 | RN104 | [x] O cliente deve conseguir comprar mesmo recusando cookies não essenciais, com perda apenas de parte da atribuição/analytics. | Implementado no checkout público: `trackingId` é opcional e compra segue sem cookie |
 | RN105 | [x] Evento de tracking não confirmado não pode ser tratado como venda, apenas como sinal de intenção ou oportunidade. | Implementado no resumo de tracking: venda/receita só entra com pedido criado/pagamento/entrega, não com visita ou clique |
@@ -1116,17 +1118,17 @@ O CRM completo pode ser considerado pronto para primeira operação de loja quan
 O CRM+ Social Commerce pode ser considerado pronto para operação inicial quando:
 
 - [~] Um negócio conseguir publicar loja virtual com URL própria, produtos, coleções, stock e página pública de produto; backend público lista e filtra produtos, faltam domínio final e UI de coleção avançada.
-- [~] O cliente conseguir comprar pelo WhatsApp com mensagem pré-preenchida e pelo checkout do site com total calculado.
+- [~] O cliente conseguir comprar pelo WhatsApp com mensagem pré-preenchida, entrega e atribuição comercial preservada, e pelo checkout do site com total calculado.
 - [~] O sistema calcular entrega por regra configurada e incluir o valor no total antes da confirmação.
 - [ ] O dono conseguir criar catálogo digital partilhável com produtos selecionados e disponibilidade correta.
-- [~] Links rastreáveis de produto, criador e afiliado registrarem referência, origem, mini-loja pública, checkout, pedido, comissão atribuída, resolução pública e bloqueio de autoindicação; faltam catálogo e campanha.
+- [~] Links rastreáveis de produto, criador e afiliado registrarem referência, origem, mini-loja pública, checkout WhatsApp/site, pedido, comissão atribuída, resolução pública e bloqueio de autoindicação; faltam catálogo e campanha.
 - [x] O tracking funcionar parcialmente sem cookies, mantendo operação de compra intacta e rejeitando dados pessoais no identificador público.
 - [~] O dono conseguir criar afiliado/criador, gerar link próprio, publicar mini-loja autorizada, receber pacote de divulgação, acompanhar pedidos atribuídos, confirmar comissão após pagamento, ver saldo financeiro e pagar/exportar comissões individualmente ou em lote; faltam UI e portal do afiliado.
 - [x] O sistema reverter comissão quando pedido for cancelado, devolvido ou reembolsado.
 - [~] Comentários sociais de posts, vídeos, fotos ou lives suportados forem capturados/importados, deduplicados, filtrados, classificados e convertidos em lead, conversa, tarefa ou oportunidade.
 - [~] O funil mostrar jornada do cliente desde visita/interação até pagamento, entrega, pós-venda e recompra.
 - [~] Playbooks e oportunidades de recuperação cobrirem carrinho abandonado, pagamento pendente, reserva expirada e cliente inativo; carrinho abandonado cria oportunidade deduplicada, faltam mensagens/templates automáticos finais.
-- [~] Todo envio WhatsApp passar pela política de categoria: marketing, utilidade, autenticação ou serviço, incluindo bloqueio de texto promocional em utilidade/autenticação e recuperação comercial como marketing; falta janela real do provider.
+- [~] Todo envio WhatsApp passar pela política de categoria: marketing, utilidade, autenticação ou serviço, incluindo bloqueio de texto promocional em utilidade/autenticação, recuperação comercial como marketing e janela de serviço calculada por conversa; faltam sincronização oficial/provider e preços por categoria.
 - [~] O sistema impedir envio quando template/categoria estiver ausente, incompatível ou sem aprovação, criando tarefa humana.
 - [x] Opt-out e consentimento bloquearem campanhas e mensagens promocionais.
 - [~] Relatórios mostrarem receita por canal, produto, campanha, criador, afiliado, social post e funil; backend social-receita existe, faltam campanha completa e UI.

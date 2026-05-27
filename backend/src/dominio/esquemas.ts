@@ -284,19 +284,6 @@ const EntregaCheckoutPublicoSchema = z
   })
   .default({ tipo: "ENTREGA" });
 
-export const GerarCheckoutWhatsAppPublicoSchema = z.object({
-  quantidade: z.coerce.number().int().min(1).max(999).default(1),
-  variante: z.record(z.string(), z.string()).default({}),
-  trackingId: z.string().trim().min(1).max(160).nullable().optional().transform((valor) => valor ?? null),
-  origem: z.string().trim().min(1).max(80).default("loja-publica"),
-  entrega: EntregaCheckoutPublicoSchema.optional()
-});
-
-export const CalcularEntregaPublicaSchema = z.object({
-  itens: z.array(ItemCheckoutPublicoSchema).min(1).max(100),
-  entrega: EntregaCheckoutPublicoSchema
-});
-
 const ModeloAtribuicaoComercialSchema = z.enum([
   "PRIMEIRO_TOQUE",
   "ULTIMO_TOQUE",
@@ -311,6 +298,27 @@ const ReferenciaAssistidaAtribuicaoSchema = z.union([
     capturadoEm: z.coerce.date().nullable().optional().transform((valor) => valor ?? null)
   })
 ]);
+
+export const GerarCheckoutWhatsAppPublicoSchema = z.object({
+  quantidade: z.coerce.number().int().min(1).max(999).default(1),
+  variante: z.record(z.string(), z.string()).default({}),
+  trackingId: z.string().trim().min(1).max(160).nullable().optional().transform((valor) => valor ?? null),
+  referencia: z.string().trim().min(1).max(120).nullable().optional().transform((valor) => valor ?? null),
+  referenciasAssistidas: z.array(ReferenciaAssistidaAtribuicaoSchema).max(20).default([]),
+  atribuicao: z
+    .object({
+      modelo: ModeloAtribuicaoComercialSchema.optional(),
+      janelaDias: z.coerce.number().int().min(1).max(365).optional()
+    })
+    .default({}),
+  origem: z.string().trim().min(1).max(80).default("loja-publica"),
+  entrega: EntregaCheckoutPublicoSchema.optional()
+});
+
+export const CalcularEntregaPublicaSchema = z.object({
+  itens: z.array(ItemCheckoutPublicoSchema).min(1).max(100),
+  entrega: EntregaCheckoutPublicoSchema
+});
 
 export const CriarCheckoutSitePublicoSchema = CalcularEntregaPublicaSchema.extend({
   cliente: z

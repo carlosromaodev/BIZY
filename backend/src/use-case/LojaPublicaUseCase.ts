@@ -44,6 +44,12 @@ interface DadosCheckoutWhatsAppPublico {
   quantidade: number;
   variante: Record<string, string>;
   trackingId?: string | null;
+  referencia?: string | null;
+  referenciasAssistidas?: Array<string | ReferenciaAtribuicaoComercial>;
+  atribuicao?: {
+    modelo?: ModeloAtribuicaoComercial;
+    janelaDias?: number;
+  };
   origem: string;
   entrega?: DadosEntregaCheckoutPublico;
 }
@@ -229,7 +235,16 @@ export class LojaPublicaUseCase {
       [{ codigoPeca: codigo, quantidade: dados.quantidade }],
       dados.entrega ?? { tipo: "RETIRADA" }
     );
-    const mensagem = this.montarMensagemWhatsApp(negocio, peca, dados, resumo);
+    const politicaAtribuicao = this.resolverPoliticaAtribuicao(negocio, dados.atribuicao);
+    const atribuicao = await this.afiliados?.resolverAtribuicao(negocio.id, {
+      referencia: dados.referencia,
+      referenciasAssistidas: dados.referenciasAssistidas,
+      modelo: politicaAtribuicao.modelo,
+      janelaDias: politicaAtribuicao.janelaDias
+    }) ?? null;
+    const origemEfetiva = atribuicao ? `afiliado:${atribuicao.parceiro.codigo}` : dados.origem;
+    const atribuicaoPublica = this.formatarAtribuicaoPublica(atribuicao);
+    const mensagem = this.montarMensagemWhatsApp(negocio, peca, dados, resumo, origemEfetiva, atribuicao);
     await this.registrarTrackingSilencioso({
       negocioId: negocio.id,
       tipo: "WHATSAPP_CLICK",
@@ -238,11 +253,16 @@ export class LojaPublicaUseCase {
       entidadeTipo: "PRODUTO",
       entidadeId: peca.codigo,
       trackingId: dados.trackingId ?? null,
-      origem: dados.origem,
+      origem: origemEfetiva,
       canal: "whatsapp",
       metadata: {
         quantidade: dados.quantidade,
         variante: dados.variante,
+        referencia: dados.referencia ?? null,
+        referenciasAssistidas: this.referenciasAssistidasParaTracking(dados.referenciasAssistidas),
+        atribuicao: atribuicaoPublica,
+        afiliadoId: atribuicao?.parceiro.id ?? null,
+        linkAfiliadoId: atribuicao?.link.id ?? null,
         entrega: resumo.entrega,
         totalEmKwanza: resumo.totalEmKwanza
       }
@@ -251,6 +271,9 @@ export class LojaPublicaUseCase {
     return {
       telefone,
       mensagem,
+      origem: origemEfetiva,
+      canal: "whatsapp",
+      atribuicao: atribuicaoPublica,
       whatsappUrl: `https://wa.me/${this.normalizarTelefoneWhatsApp(telefone)}?text=${encodeURIComponent(mensagem)}`
     };
   }
@@ -847,7 +870,9 @@ export class LojaPublicaUseCase {
     negocio: NegocioBizy,
     peca: Peca,
     dados: DadosCheckoutWhatsAppPublico,
-    resumo: ResumoCheckoutPublico
+    resumo: ResumoCheckoutPublico,
+    origemEfetiva: string,
+    atribuicao: AtribuicaoAfiliadoResolvida | null
   ): string {
     const variantes = Object.entries(dados.variante)
       .map(([nome, valor]) => `${nome}: ${valor}`)
@@ -860,7 +885,8 @@ export class LojaPublicaUseCase {
       `Entrega estimada: ${this.formatarKwanza(resumo.taxaEntregaEmKwanza)}`,
       `Total estimado: ${this.formatarKwanza(resumo.totalEmKwanza)}`,
       variantes ? `Variante: ${variantes}` : null,
-      `Origem: ${dados.origem}`
+      `Origem: ${origemEfetiva}`,
+      atribuicao ? `Referência: ${atribuicao.link.codigo}` : null
     ].filter(Boolean);
 
     return linhas.join("\n");

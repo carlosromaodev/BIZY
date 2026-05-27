@@ -348,6 +348,102 @@ describe("afiliados, criadores e comissões HTTP", () => {
     }
   });
 
+  it("preserva atribuição de afiliado no checkout por WhatsApp antes de existir pedido", async () => {
+    const app = await criarAplicacao();
+
+    try {
+      const loja = await autenticar(app, "923600099", "Loja WhatsApp Afiliado");
+      await criarProduto(app, loja, "WAF1");
+
+      const publicacao = await app.inject({
+        method: "PUT",
+        url: "/loja-publica/configuracao",
+        headers: loja,
+        payload: {
+          slug: "loja-whatsapp-afiliado",
+          descricaoPublica: "Produtos vendidos também por WhatsApp.",
+          publicada: true
+        }
+      });
+      expect(publicacao.statusCode).toBe(200);
+
+      const afiliado = await app.inject({
+        method: "POST",
+        url: "/afiliados",
+        headers: loja,
+        payload: {
+          tipo: "CRIADOR",
+          codigo: "ana-wa",
+          nomePublico: "Ana WhatsApp",
+          contacto: "923700099",
+          metodoPagamento: { iban: "AO06000000000000000000000" },
+          regraComissao: {
+            tipo: "PERCENTUAL",
+            percentual: 12
+          }
+        }
+      });
+      expect(afiliado.statusCode).toBe(201);
+
+      const link = await app.inject({
+        method: "POST",
+        url: `/afiliados/${afiliado.json().id}/links`,
+        headers: loja,
+        payload: {
+          codigo: "ANA-WA-LINK",
+          destinoTipo: "PRODUTO",
+          slugLoja: "loja-whatsapp-afiliado",
+          codigoProduto: "WAF1",
+          canal: "instagram",
+          origemConteudo: "stories-maio"
+        }
+      });
+      expect(link.statusCode).toBe(201);
+
+      const whatsapp = await app.inject({
+        method: "POST",
+        url: "/publico/lojas/loja-whatsapp-afiliado/produtos/WAF1/whatsapp",
+        payload: {
+          quantidade: 1,
+          variante: { tamanho: "M" },
+          trackingId: "trk-whatsapp-afiliado",
+          origem: "bio-instagram",
+          referencia: "ANA-WA-LINK"
+        }
+      });
+
+      expect(whatsapp.statusCode).toBe(200);
+      expect(whatsapp.json()).toEqual(
+        expect.objectContaining({
+          origem: "afiliado:ANA-WA",
+          atribuicao: expect.objectContaining({
+            principal: expect.objectContaining({
+              codigoParceiro: "ANA-WA",
+              codigoLink: "ANA-WA-LINK"
+            })
+          }),
+          whatsappUrl: expect.stringContaining("wa.me")
+        })
+      );
+      expect(whatsapp.json().mensagem).toContain("Origem: afiliado:ANA-WA");
+      expect(whatsapp.json().mensagem).toContain("Referência: ANA-WA-LINK");
+
+      const resumoTracking = await app.inject({
+        method: "GET",
+        url: "/loja-publica/tracking/resumo",
+        headers: loja
+      });
+      expect(resumoTracking.statusCode).toBe(200);
+      expect(resumoTracking.json().porOrigem).toEqual(
+        expect.objectContaining({
+          "afiliado:ANA-WA": 1
+        })
+      );
+    } finally {
+      await app.close();
+    }
+  });
+
   it("aplica modelo de atribuição configurável e permite ajuste manual auditado", async () => {
     const app = await criarAplicacao();
 
