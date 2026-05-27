@@ -2,6 +2,7 @@ import type {
   RepositorioAutenticacao,
   RepositorioAtendimento,
   RepositorioEventosOperacionais,
+  RepositorioFunilComercial,
   RepositorioOportunidadesRecuperacao,
   RepositorioSocialInbox,
   RepositorioTarefasOperacionais
@@ -10,6 +11,7 @@ import {
   estadosSocialInbox,
   intencoesSocialInbox,
   tiposSocialInbox,
+  type EtapaFunilComercial,
   type EstadoSocialInbox,
   type FiltrosSocialInbox,
   type IntencaoSocialInbox,
@@ -173,7 +175,8 @@ export class GestaoSocialInboxUseCase {
     private readonly autenticacao: RepositorioAutenticacao,
     private readonly atendimento: RepositorioAtendimento,
     private readonly oportunidades: RepositorioOportunidadesRecuperacao,
-    private readonly eventos: RepositorioEventosOperacionais
+    private readonly eventos: RepositorioEventosOperacionais,
+    private readonly funil: RepositorioFunilComercial
   ) {}
 
   listarProvidersAutorizados() {
@@ -337,7 +340,16 @@ export class GestaoSocialInboxUseCase {
       });
     }
 
+    if (this.deveCriarOportunidadeSocial(item)) {
+      await this.registrarMovimentoFunilSocial(item, "LEAD", "Comentário social classificado como intenção comercial.");
+    }
+
     await this.sincronizarAtendimentoSocial(item);
+
+    if (item.clienteTelefone && item.intencao !== "SPAM") {
+      await this.registrarMovimentoFunilSocial(item, "CONVERSA", "Comentário social com telefone abriu conversa no atendimento.");
+    }
+
     await this.criarOportunidadeSocial(item, tarefaLead);
 
     if (this.deveCriarTarefaHumana(item)) {
@@ -503,6 +515,40 @@ export class GestaoSocialInboxUseCase {
         postUrl: item.postUrl,
         intencao: item.intencao,
         confianca: item.confianca,
+        autorUsername: item.autorUsername,
+        entidades: item.entidades
+      }
+    });
+  }
+
+  private async registrarMovimentoFunilSocial(
+    item: SocialInboxItem,
+    etapaNova: EtapaFunilComercial,
+    motivo: string
+  ): Promise<void> {
+    const [ultimoMovimento] = await this.funil.listarMovimentos(item.negocioId, {
+      entidadeTipo: "social_inbox_item",
+      entidadeId: item.id,
+      limite: 1
+    });
+
+    await this.funil.registrarMovimento({
+      negocioId: item.negocioId,
+      entidadeTipo: "social_inbox_item",
+      entidadeId: item.id,
+      etapaAnterior: ultimoMovimento?.etapaNova ?? null,
+      etapaNova,
+      motivo,
+      origem: "social_inbox",
+      contexto: {
+        canal: item.canal,
+        provider: item.provider,
+        postId: item.postId,
+        postUrl: item.postUrl,
+        intencao: item.intencao,
+        confianca: item.confianca,
+        clienteTelefone: item.clienteTelefone,
+        autorId: item.autorId,
         autorUsername: item.autorUsername,
         entidades: item.entidades
       }

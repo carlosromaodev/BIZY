@@ -219,6 +219,32 @@ describe("Social Inbox CRM+", () => {
         })
       );
       expect(whatsapp.json().envio.politica.categoria).toBe("service");
+
+      const funil = await app.inject({
+        method: "GET",
+        url: `/funil/movimentos?entidadeTipo=social_inbox_item&entidadeId=${criado.json().item.id}`,
+        headers
+      });
+
+      expect(funil.statusCode).toBe(200);
+      expect(funil.json().movimentos).toEqual([
+        expect.objectContaining({
+          entidadeTipo: "social_inbox_item",
+          entidadeId: criado.json().item.id,
+          etapaAnterior: "LEAD",
+          etapaNova: "CONVERSA",
+          origem: "social_inbox",
+          motivo: "Comentário social com telefone abriu conversa no atendimento."
+        }),
+        expect.objectContaining({
+          entidadeTipo: "social_inbox_item",
+          entidadeId: criado.json().item.id,
+          etapaAnterior: null,
+          etapaNova: "LEAD",
+          origem: "social_inbox",
+          motivo: "Comentário social classificado como intenção comercial."
+        })
+      ]);
     } finally {
       await app.close();
     }

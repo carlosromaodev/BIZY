@@ -327,7 +327,8 @@ export function criarContextoAplicacao(logger: FastifyBaseLogger): ContextoAplic
     repositorios.autenticacao,
     repositorios.atendimento,
     repositorios.oportunidadesRecuperacao,
-    repositorios.eventosOperacionais
+    repositorios.eventosOperacionais,
+    repositorios.funilComercial
   );
   const gestaoPlaybooksRecuperacao = new GestaoPlaybooksRecuperacaoUseCase(
     repositorios.playbooksRecuperacao,
