@@ -351,7 +351,16 @@ export class GestaoPecasUseCase {
       componentesKit: (vitrine?.componentesKit ?? []).map((item) => ({
         codigoPeca: this.normalizarCodigo(item.codigoPeca),
         quantidade: item.quantidade
-      }))
+      })),
+      ...(vitrine?.publicacaoMarket
+        ? {
+            publicacaoMarket: {
+              publicado: vitrine.publicacaoMarket.publicado !== false,
+              atualizadoEm: vitrine.publicacaoMarket.atualizadoEm ?? null,
+              origem: vitrine.publicacaoMarket.origem ?? null
+            }
+          }
+        : {})
     };
   }
 

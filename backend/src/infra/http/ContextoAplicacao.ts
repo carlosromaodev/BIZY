@@ -34,6 +34,7 @@ import { AuditoriaEventosUseCase } from "../../use-case/AuditoriaEventosUseCase.
 import { AtendimentoCrmUseCase } from "../../use-case/AtendimentoCrmUseCase.js";
 import { AutenticacaoEstudantilUseCase, UorConnectAuthProvider } from "../../use-case/AutenticacaoEstudantilUseCase.js";
 import { AutenticacaoTelefoneUseCase } from "../../use-case/AutenticacaoTelefoneUseCase.js";
+import { BizyMarketUseCase } from "../../use-case/BizyMarketUseCase.js";
 import { ConsultaAtendimentoN8n } from "../../use-case/ConsultaAtendimentoN8n.js";
 import { ConsultaAtendimentoOperacionalUseCase } from "../../use-case/ConsultaAtendimentoOperacionalUseCase.js";
 import { ConsultaIntegracoesUseCase } from "../../use-case/ConsultaIntegracoesUseCase.js";
@@ -217,6 +218,7 @@ export interface ContextoAplicacao {
   recuperacaoMensagensWhatsApp: RecuperacaoMensagensWhatsAppUseCase;
   limparDadosComunicacao: LimparDadosComunicacaoUseCase;
   lojaPublica: LojaPublicaUseCase;
+  bizyMarket: BizyMarketUseCase;
   sessoesLive: Map<string, SessaoLive>;
 }
 
@@ -423,6 +425,7 @@ export function criarContextoAplicacao(logger: FastifyBaseLogger): ContextoAplic
     repositorios.eventosOperacionais,
     repositorios.funilComercial
   );
+  const bizyMarket = new BizyMarketUseCase(repositorios.autenticacao, repositorios.pecas);
 
   const publicadorEventosN8n = new PublicadorEventosN8n(eventos, {
     webhookUrl: process.env.N8N_WEBHOOK_EVENTOS_URL,
@@ -477,6 +480,7 @@ export function criarContextoAplicacao(logger: FastifyBaseLogger): ContextoAplic
     recuperacaoMensagensWhatsApp,
     limparDadosComunicacao,
     lojaPublica,
+    bizyMarket,
     sessoesLive: new Map()
   };
 }

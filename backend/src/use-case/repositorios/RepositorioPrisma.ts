@@ -2948,6 +2948,20 @@ export class RepositorioAutenticacaoPrisma implements RepositorioAutenticacao {
     return negocio ? this.mapearNegocio(negocio) : null;
   }
 
+  async listarNegociosPublicados(): Promise<NegocioBizy[]> {
+    const negocios = await this.prisma.negocio.findMany({
+      where: {
+        lojaPublicadaEm: { not: null },
+        slugPublico: { not: null }
+      },
+      orderBy: {
+        nomeComercial: "asc"
+      }
+    });
+
+    return negocios.map((negocio) => this.mapearNegocio(negocio));
+  }
+
   async listarModulosAtivosPorNegocio(negocioId: string): Promise<string[]> {
     const totalConfigurado = await this.prisma.moduloNegocio.count({ where: { negocioId } });
     if (totalConfigurado === 0) return [];

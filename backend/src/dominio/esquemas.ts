@@ -73,6 +73,12 @@ const VariantesPecaSchema = z
   )
   .default({});
 
+const PublicacaoMarketProdutoSchema = z.object({
+  publicado: z.boolean().default(true),
+  atualizadoEm: z.string().trim().min(1).max(80).nullable().optional().transform((valor) => valor ?? null),
+  origem: z.string().trim().min(1).max(80).nullable().optional().transform((valor) => valor ?? null)
+});
+
 const VitrineProdutoSchema = z.object({
   selos: z.array(z.enum(selosProdutoPublico)).default([]),
   prioridade: z.coerce.number().int().min(0).max(9999).default(100),
@@ -88,7 +94,8 @@ const VitrineProdutoSchema = z.object({
       codigoPeca: z.string().trim().min(1).max(32).transform((valor) => valor.toUpperCase()),
       quantidade: z.coerce.number().int().min(1).max(999)
     })
-  ).default([])
+  ).default([]),
+  publicacaoMarket: PublicacaoMarketProdutoSchema.optional()
 }).default({});
 
 export const ModuloNegocioParametroSchema = z.object({

@@ -154,19 +154,39 @@ export class LojaPublicaUseCase {
   ) {}
 
   async publicarLoja(negocioId: string, dados: DadosPublicacaoLoja) {
+    const slug = this.normalizarSlug(dados.slug);
+    if (this.slugReservado(slug)) {
+      throw new Error(`Slug público ${slug} já existe como slug reservado do Bizy.`);
+    }
+
     return this.autenticacao.atualizarPublicacaoLoja(negocioId, {
       ...dados,
-      slug: this.normalizarSlug(dados.slug)
+      slug
     });
+  }
+
+  async autorizarDominioPublico(dominio: string, dominioBase: string): Promise<{ autorizado: boolean; slug?: string }> {
+    const slug = this.extrairSlugSubdominio(dominio, dominioBase);
+    if (!slug) {
+      return { autorizado: false };
+    }
+
+    const negocio = await this.autenticacao.buscarNegocioPorSlugPublico(slug);
+    if (!negocio?.lojaPublicadaEm) {
+      return { autorizado: false };
+    }
+
+    return { autorizado: true, slug };
   }
 
   async obterLoja(slug: string, tracking?: OpcoesTrackingPublico, filtros: FiltrosProdutosPublicos = {}) {
     const negocio = await this.exigirLojaPublicada(slug);
     const limite = Math.max(1, Math.min(filtros.limite ?? 100, 500));
-    const produtos = (await this.pecas.listar(negocio.id))
-      .filter((peca) => this.pecaVendavel(peca))
+    const produtosVendaveis = (await this.pecas.listar(negocio.id)).filter((peca) => this.pecaVendavel(peca));
+    const produtos = produtosVendaveis
       .filter((peca) => this.produtoAtendeFiltrosPublicos(peca, filtros))
       .slice(0, limite);
+    const colecoes = this.montarColecoesPublicas(negocio, produtosVendaveis);
 
     await this.registrarTrackingSilencioso({
       negocioId: negocio.id,
@@ -184,6 +204,9 @@ export class LojaPublicaUseCase {
 
     return {
       loja: this.mapearLojaPublica(negocio),
+      perfil: this.mapearPerfilPublico(negocio, produtosVendaveis, colecoes),
+      colecoes,
+      market: this.mapearChamadaMarket(negocio, produtosVendaveis),
       produtos: produtosPublicos,
       filtros: this.filtrosPublicosAplicados(filtros),
       vitrine: this.montarVitrinePublica(produtosPublicos),
@@ -657,6 +680,134 @@ export class LojaPublicaUseCase {
     };
   }
 
+  private mapearPerfilPublico(
+    negocio: NegocioBizy,
+    produtos: Peca[],
+    colecoes: Array<{ id: string; nome: string; tipo: string; totalProdutos: number; url: string }>
+  ) {
+    const entrega = this.objeto(negocio.entrega);
+    const tema = this.objeto(entrega.temaLoja);
+    const corAcento = this.texto(tema.corPrimaria) ?? "#111111";
+    const urlLoja = `/lojas/${negocio.slugPublico}`;
+
+    return {
+      slug: negocio.slugPublico,
+      nomeComercial: negocio.nomeComercial,
+      bio: negocio.descricaoPublica,
+      segmento: negocio.segmento,
+      tipo: negocio.tipo,
+      avatarUrl: this.texto(tema.logoUrl),
+      capaUrl: this.texto(tema.capaUrl),
+      corAcento,
+      localizacao: this.montarLocalizacaoPublica(negocio),
+      contadores: {
+        seguidores: 0,
+        seguindo: 0,
+        produtos: produtos.length,
+        colecoes: colecoes.length
+      },
+      selos: this.montarSelosPublicos(negocio),
+      acoes: {
+        seguirDisponivel: false,
+        contactoDisponivel: Boolean(negocio.whatsapp ?? negocio.telefone),
+        checkoutDisponivel: produtos.length > 0,
+        urlLoja,
+        urlMarket: `/market?loja=${encodeURIComponent(negocio.slugPublico ?? "")}`
+      }
+    };
+  }
+
+  private montarColecoesPublicas(negocio: NegocioBizy, produtos: Peca[]) {
+    const slug = negocio.slugPublico ?? "";
+    return [
+      ...this.montarColecoesPorCampo(slug, produtos, "colecao", "colecao"),
+      ...this.montarColecoesPorCampo(slug, produtos, "categoria", "categoria")
+    ];
+  }
+
+  private montarColecoesPorCampo(
+    slug: string,
+    produtos: Peca[],
+    campo: "colecao" | "categoria",
+    tipo: "colecao" | "categoria"
+  ) {
+    const grupos = new Map<string, Peca[]>();
+    for (const produto of produtos) {
+      const nome = this.texto(produto[campo]);
+      if (!nome) continue;
+      grupos.set(nome, [...(grupos.get(nome) ?? []), produto]);
+    }
+
+    return [...grupos.entries()]
+      .map(([nome, itens]) => ({
+        id: `${tipo}-${this.normalizarIdPublico(nome)}`,
+        nome,
+        tipo,
+        totalProdutos: itens.length,
+        imagem: itens.find((item) => item.fotos.length > 0)?.fotos[0] ?? null,
+        url: `/lojas/${slug}?${tipo}=${encodeURIComponent(nome)}`
+      }))
+      .sort((a, b) => b.totalProdutos - a.totalProdutos || a.nome.localeCompare(b.nome, "pt-AO", { sensitivity: "base" }))
+      .slice(0, 24);
+  }
+
+  private mapearChamadaMarket(negocio: NegocioBizy, produtos: Peca[]) {
+    const categoriaPrincipal = this.categoriaPrincipal(produtos);
+    const slug = negocio.slugPublico ?? "";
+    const query = categoriaPrincipal
+      ? `categoria=${encodeURIComponent(categoriaPrincipal)}&lojaOrigem=${encodeURIComponent(slug)}`
+      : `lojaOrigem=${encodeURIComponent(slug)}`;
+
+    return {
+      disponivel: produtos.length > 0,
+      label: "Explorar similares no Bizy Market",
+      url: `/market?${query}`,
+      categoriaPrincipal
+    };
+  }
+
+  private montarSelosPublicos(negocio: NegocioBizy) {
+    const entrega = this.objeto(negocio.entrega);
+    const pagamentosAtivos = negocio.metodosPagamento.length > 0;
+    const entregaAtiva = this.objeto(entrega.retiradaNaLoja).ativa === true || entrega.entregaAtiva !== false;
+
+    return [
+      negocio.lojaPublicadaEm
+        ? {
+            id: "loja-publicada",
+            label: "Loja publicada",
+            tipo: "confianca"
+          }
+        : null,
+      entregaAtiva
+        ? {
+            id: "entrega-ativa",
+            label: "Entrega ativa",
+            tipo: "operacao"
+          }
+        : null,
+      pagamentosAtivos
+        ? {
+            id: "pagamento-configurado",
+            label: "Pagamento configurado",
+            tipo: "operacao"
+          }
+        : null
+    ].filter((selo): selo is { id: string; label: string; tipo: string } => Boolean(selo));
+  }
+
+  private categoriaPrincipal(produtos: Peca[]): string | null {
+    const totais = new Map<string, number>();
+    for (const produto of produtos) {
+      const categoria = this.texto(produto.categoria);
+      if (!categoria) continue;
+      totais.set(categoria, (totais.get(categoria) ?? 0) + 1);
+    }
+
+    return [...totais.entries()]
+      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], "pt-AO", { sensitivity: "base" }))[0]?.[0] ?? null;
+  }
+
   private montarVitrinePublica<T extends { codigo: string; vitrine: Peca["vitrine"] }>(produtos: T[]) {
     const porSelo = (selo: Peca["vitrine"]["selos"][number]) =>
       produtos
@@ -1020,8 +1171,66 @@ export class LojaPublicaUseCase {
     return `${valor.toLocaleString("pt-AO").replace(/\u00a0/g, " ")} Kz`;
   }
 
+  private montarLocalizacaoPublica(negocio: NegocioBizy): string | null {
+    return [negocio.municipio, negocio.provincia].filter((item): item is string => Boolean(this.texto(item))).join(", ") || null;
+  }
+
   private normalizarSlug(slug: string): string {
     return slug.trim().toLowerCase();
+  }
+
+  private extrairSlugSubdominio(dominio: string, dominioBase: string): string | null {
+    const host = this.normalizarDominio(dominio);
+    const base = this.normalizarDominio(dominioBase);
+    if (!host || !base || host === base || !host.endsWith(`.${base}`)) return null;
+
+    const subdominio = host.slice(0, -(base.length + 1));
+    if (!subdominio || subdominio.includes(".") || this.slugReservado(subdominio)) return null;
+
+    const slug = this.normalizarSlug(subdominio);
+    return slug === subdominio ? slug : null;
+  }
+
+  private normalizarDominio(valor: string): string {
+    return valor
+      .trim()
+      .toLowerCase()
+      .replace(/^https?:\/\//, "")
+      .split("/")[0]
+      ?.split(":")[0]
+      ?.replace(/\.$/, "") ?? "";
+  }
+
+  private slugReservado(slug: string): boolean {
+    return new Set([
+      "admin",
+      "api",
+      "app",
+      "assets",
+      "auth",
+      "checkout",
+      "dashboard",
+      "evolution",
+      "evolution-manager",
+      "market",
+      "n8n",
+      "painel",
+      "shop",
+      "static",
+      "suporte",
+      "wa",
+      "www"
+    ]).has(slug);
+  }
+
+  private normalizarIdPublico(valor: string): string {
+    return valor
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 80) || "catalogo";
   }
 
   private normalizarTelefoneWhatsApp(telefone: string): string {

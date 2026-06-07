@@ -418,6 +418,7 @@ export interface RepositorioAutenticacao {
   atualizarContasSociaisNegocio(negocioId: string, contasSociais: Record<string, unknown>): Promise<NegocioBizy>;
   atualizarPublicacaoLoja(negocioId: string, dados: DadosPublicacaoLoja): Promise<NegocioBizy>;
   buscarNegocioPorSlugPublico(slug: string): Promise<NegocioBizy | null>;
+  listarNegociosPublicados(): Promise<NegocioBizy[]>;
   listarModulosAtivosPorNegocio(negocioId: string): Promise<string[]>;
   listarModulosPorNegocio(negocioId: string): Promise<ModuloNegocioConfigurado[]>;
   salvarModuloNegocio(

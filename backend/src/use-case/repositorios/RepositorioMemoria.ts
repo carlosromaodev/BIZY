@@ -1764,6 +1764,12 @@ export class RepositorioAutenticacaoMemoria implements RepositorioAutenticacao {
     return [...this.negocios.values()].find((negocio) => negocio.slugPublico === slug.trim().toLowerCase()) ?? null;
   }
 
+  async listarNegociosPublicados(): Promise<NegocioBizy[]> {
+    return [...this.negocios.values()]
+      .filter((negocio) => Boolean(negocio.slugPublico && negocio.lojaPublicadaEm))
+      .sort((a, b) => a.nomeComercial.localeCompare(b.nomeComercial, "pt-AO", { sensitivity: "base" }));
+  }
+
   async listarModulosAtivosPorNegocio(negocioId: string): Promise<string[]> {
     const configurados = await this.listarModulosPorNegocio(negocioId);
     if (configurados.length === 0) return [];

@@ -227,6 +227,12 @@ export interface ComponenteKitProduto {
   quantidade: number;
 }
 
+export interface PublicacaoMarketProduto {
+  publicado: boolean;
+  atualizadoEm: string | null;
+  origem: string | null;
+}
+
 export interface ConfiguracaoVitrineProduto {
   selos: SeloProdutoPublico[];
   prioridade: number;
@@ -235,6 +241,7 @@ export interface ConfiguracaoVitrineProduto {
   precoPromocionalEmKwanza: number | null;
   ativaAte: Date | null;
   componentesKit: ComponenteKitProduto[];
+  publicacaoMarket?: PublicacaoMarketProduto;
 }
 
 export interface NovaPeca {
