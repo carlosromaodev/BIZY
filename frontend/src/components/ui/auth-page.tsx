@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { motion, useReducedMotion } from "framer-motion";
+import { motion, useReducedMotion } from "motion/react";
 import { ChevronLeftIcon, Grid2x2PlusIcon } from "lucide-react";
 import { Button } from "./button";
 import { cn } from "@/lib/utils";
@@ -30,8 +30,8 @@ export function AuthPage({
   homeHref = "/",
   homeLabel = "Home",
   title,
-  visualImage = "/bizy-login-team.png",
-  visualImageAlt = "Equipa Bizy a vender roupas numa live"
+  visualImage = "/bizy-live-commerce-hero.png",
+  visualImageAlt = "Vendedora em live commerce apresentando roupa no estúdio da loja"
 }: AuthPageProps) {
   return (
     <main

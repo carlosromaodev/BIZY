@@ -18,6 +18,7 @@ interface DadosRegistroMovimentoStock {
   motivo?: string | null;
   responsavelId?: string | null;
   origem?: string | null;
+  varianteSelecionada?: string | null;
 }
 
 interface FiltrosExportacaoProdutos {
@@ -227,6 +228,19 @@ export class GestaoPecasUseCase {
       this.normalizarAtualizacao(pecaAtual, { quantidade: quantidadeNova }),
       negocioId
     );
+
+    if (dados.varianteSelecionada && this.repositorioPecas.decrementarStockVariante) {
+      const ehSaida = ["SAIDA", "VENDA", "RESERVA"].includes(dados.tipo);
+      const ehEntrada = ["ENTRADA", "CANCELAMENTO", "DEVOLUCAO"].includes(dados.tipo);
+      if (ehSaida || ehEntrada) {
+        await this.repositorioPecas.decrementarStockVariante(
+          peca.id,
+          dados.varianteSelecionada,
+          ehSaida ? dados.quantidade : -dados.quantidade
+        );
+      }
+    }
+
     const movimento = await this.repositorioPecas.registrarMovimentoStock({
       negocioId: peca.negocioId,
       pecaId: peca.id,

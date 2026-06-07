@@ -17,7 +17,7 @@ function Item({
     <Comp
       data-slot="item"
       className={cn(
-        "group/item relative flex min-w-0 items-start gap-3 rounded-2xl border bg-background/80 p-3 text-left transition-all duration-300 hover:border-primary/25 hover:bg-primary/5 hover:shadow-sm",
+        "group/item relative flex min-w-0 items-start gap-3 border-b border-border/50 px-1 py-3 text-left last:border-b-0",
         className
       )}
       {...props}
@@ -33,7 +33,7 @@ function ItemMedia({
     <div
       data-slot="item-media"
       className={cn(
-        "grid size-10 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary transition-colors group-hover/item:bg-primary group-hover/item:text-primary-foreground",
+        "grid size-9 shrink-0 place-items-center rounded-lg text-muted-foreground",
         className
       )}
       {...props}
@@ -61,7 +61,7 @@ function ItemTitle({
   return (
     <div
       data-slot="item-title"
-      className={cn("text-sm font-black leading-5 text-foreground", className)}
+      className={cn("text-sm font-semibold leading-5 text-foreground", className)}
       {...props}
     />
   );

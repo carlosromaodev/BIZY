@@ -117,7 +117,7 @@ export class GestaoPedidosUseCase {
       negocioId: reserva.negocioId,
       clienteNegocioId: reserva.clienteNegocioId,
       reservaId: reserva.id,
-      itens: [{ codigoPeca: reserva.codigoPeca, quantidade: 1 }],
+      itens: [{ codigoPeca: reserva.codigoPeca, quantidade: 1, varianteSelecionada: reserva.varianteSelecionada ?? null }],
       origem: dados.origem ?? "live",
       canal: dados.canal ?? "manual",
       enderecoEntrega: dados.enderecoEntrega ?? reserva.enderecoEntrega,
@@ -669,6 +669,7 @@ export class GestaoPedidosUseCase {
         pecaId: peca.id,
         codigoPeca,
         nomeProduto: peca.nome,
+        varianteSelecionada: item.varianteSelecionada ?? null,
         quantidade: item.quantidade,
         precoUnitarioEmKwanza,
         subtotalEmKwanza: precoUnitarioEmKwanza * item.quantidade

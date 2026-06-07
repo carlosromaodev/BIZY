@@ -11,6 +11,63 @@ updated: 2026-06-07
 
 # Log da Wiki
 
+## [2026-06-07] backend | WhatsApp com cadencia e webhook CRM corrigido
+
+- Adicionado controle de envio WhatsApp por contacto nos providers reais Evolution e Cloud API, com `WHATSAPP_INTERVALO_POR_CONTATO_MS=6500` por padrao e `WHATSAPP_INTERVALO_GLOBAL_MS` opcional.
+- Envio manual passou a emitir `WHATSAPP_MESSAGE_FAILED` quando o provider falha, permitindo timeline com falha e recuperacao/outbox.
+- `POST /webhooks/evolution` agora injeta o `negocioId` resolvido pela instancia antes de processar a mensagem, para que a simulacao/entrada real apareca no CRM do negocio correto.
+- Atualizados exemplos de ambiente e `docs/integracoes.md` com as variaveis de cadencia.
+- Testes adicionados: `backend/src/testes/whatsapp-controle-envio.test.ts` e cobertura de webhook por instancia em `backend/src/testes/crm-atendimento.test.ts`.
+- Verificacoes locais: `npm test`, `npm run typecheck` e `npm run build` no backend.
+
+## [2026-06-07] frontend | Produtos mobile e deploy VPS
+
+- A aba `Produtos` recebeu modal de cadastro mobile-first: `DialogContent` com `100dvh`, corpo com scroll interno e rodape de acoes fixo com `env(safe-area-inset-bottom)`.
+- O botao `Cadastrar produto` agora e `type="submit"` explicito e permanece visivel no mobile, permitindo criar produto mesmo com formulario longo.
+- A grelha de produtos recebeu reforco de uma coluna em viewports estreitos para evitar overflow e cortes de cartao.
+- Criado teste de regressao em `frontend/testes/catalogo-produto-modal.test.ts`.
+- Verificacoes locais: teste focado do catalogo, `npm run typecheck`, `npm run build`, Playwright mobile/desktop em `http://127.0.0.1:5173/app/catalogo`.
+- Deploy feito na VPS antiga `135.181.47.46` com `docker-compose.yml + docker-compose.prod.yml + docker-compose.staging.yml`; validado por containers saudaveis, `https://api.usebizy.space/saude`, `https://usebizy.space/` e Playwright mobile na URL publica com API mockada.
+
+## [2026-06-07] dev | npm run dev do backend sobe ambiente completo
+
+- `backend/package.json` passou a separar `dev` e `dev:api`: `npm run dev` dentro do backend chama `../scripts/dev-full.sh`, enquanto `dev:api` mantém apenas `tsx watch src/main.ts`.
+- `scripts/dev-full.sh` agora inicia a API com `npm run dev:api --workspace backend`, evitando recursão quando o ambiente completo é iniciado pelo root ou pelo backend.
+- O script root `dev:backend` passou a usar `npm run dev:api --workspace backend` para continuar existindo como modo backend-only.
+- Verificações: `npx vitest run src/testes/dev-full-script.test.ts`, `npm run typecheck` no backend e `git diff --check`.
+
+## [2026-06-07] frontend | Inicio da loja publica social-comercial
+
+- A pagina `/lojas/:slug` começou a migrar para a experiencia Bizy Market: top app bar nativa, perfil com capa/avatar sobrepostos, bio/localizacao, contadores reais quando existirem e CTA para `Ver similares no Bizy Market`.
+- `LojaDigitalPublica.tsx` passou a usar a camada `frontend/src/lojas` para buscar `GET /publico/lojas/:slug` e registrar tracking publico, reduzindo fetch manual solto na pagina.
+- A UI publica recebeu `--loja-accent`, usando a cor do perfil/loja quando enviada pelo backend e o verde Bizy como fallback.
+- Acoes principais usam `--loja-action: var(--green)`, separando identidade visual da loja dos CTAs do Bizy e evitando regressao para rosa/vermelho nas barras e botoes.
+- Catalogos do perfil e categorias internas agora usam `CatalogoFiltroAtivo`, filtram a grelha sem trocar de pagina e registram `CATALOGO_VISTO`.
+- Plano e memoria do frontend das lojas foram atualizados com checkboxes do que ja foi entregue e do que ainda fica aberto: produto, Market e Studio.
+
+## [2026-06-07] frontend | Referencia Stitch para telas de lojas
+
+- Analisado o pacote local `/home/carlos/Downloads/vitorino/stitch_bizy_marketplace_suite.zip` com seis modelos mobile: Market home, categoria, perfil da loja, produto da loja, detalhe no Market e Minha Loja/Studio.
+- A spec das telas de lojas foi atualizada com os padroes aproveitaveis: marketplace claro/editorial, navegacao nativa mobile, cards com fornecedor visivel, produto com barra fixa e Studio denso.
+- Definidas adaptacoes obrigatorias para Bizy: `lucide-react`, verde do projeto, Kz/AOA, portugues, dados reais do backend e nada de copiar HTML estatico.
+- Atualizada a nota [[bizy-market-frontend-lojas]] com a sintese da referencia.
+
+## [2026-06-07] frontend | Fase 1 API das lojas e Market
+
+- Criada a camada `frontend/src/lojas` com tipos, rotas, helpers API e normalizadores para loja publica, Bizy Market e Minha Loja/Bizy Studio.
+- Chamadas publicas de loja/Market foram ligadas sem sessao via `requisitarApi(..., false)`, enquanto Studio usa `requisitarApi` autenticado com cookie.
+- Criado o teste `frontend/testes/lojas-api.test.ts` cobrindo filtros publicos, produto da loja, resumo/publicacao no Studio e normalizacao de produto Market.
+- Atualizado o plano `docs/superpowers/plans/2026-06-07-bizy-market-frontend-lojas.md` marcando a Fase 1 como concluida.
+- Verificacoes: `npx vitest run testes/lojas-api.test.ts` e `npm run typecheck` no frontend.
+
+## [2026-06-07] frontend | MDs das telas de loja e Market
+
+- A referencia visual colada foi sintetizada em direcao frontend, sem copiar HTML estatico para implementacao.
+- Telas aproveitaveis identificadas: Market categoria, perfil publico da loja, produto da loja, Market home, detalhe de produto no Market e Minha Loja/Bizy Studio.
+- Criada a spec `docs/superpowers/specs/2026-06-07-bizy-market-frontend-lojas-design.md` com contratos backend, rotas frontend, componentes, estados e regras de UX.
+- Criado o plano `docs/superpowers/plans/2026-06-07-bizy-market-frontend-lojas.md` com checklist por fase para implementar apenas o ramo das lojas.
+- Criada a nota [[bizy-market-frontend-lojas]] e atualizado [[index]] para ligar a nova frente ao Bizy Market.
+
 ## [2026-06-07] backend | Bizy Market pronto para primeira frente frontend
 
 - Backend do primeiro recorte navegavel do Bizy Market passou a expor categorias, detalhe de produto, similares de outros fornecedores e controlo CRM de publicacao.

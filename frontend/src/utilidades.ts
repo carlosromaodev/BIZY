@@ -8,6 +8,10 @@ export function formatarKwanza(valor: number): string {
   }).format(valor);
 }
 
+export function pluralizar(quantidade: number, singular: string, plural = `${singular}s`): string {
+  return quantidade === 1 ? singular : plural;
+}
+
 export function formatarTempoRestante(data: string | null): string {
   if (!data) return "Sem prazo";
   const milissegundos = new Date(data).getTime() - Date.now();

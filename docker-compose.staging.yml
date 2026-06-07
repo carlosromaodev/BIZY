@@ -15,6 +15,7 @@ services:
       ACME_EMAIL: ${ACME_EMAIL:?configure ACME_EMAIL para staging}
       FRONTEND_DOMAIN: ${FRONTEND_DOMAIN:?configure FRONTEND_DOMAIN para staging}
       API_DOMAIN: ${API_DOMAIN:?configure API_DOMAIN para staging}
+      PUBLIC_STORE_DOMAIN: ${PUBLIC_STORE_DOMAIN:?configure PUBLIC_STORE_DOMAIN para lojas}
       N8N_DOMAIN: ${N8N_DOMAIN:?configure N8N_DOMAIN para staging}
       EVOLUTION_DOMAIN: ${EVOLUTION_DOMAIN:?configure EVOLUTION_DOMAIN para staging}
       EVOLUTION_MANAGER_DOMAIN: ${EVOLUTION_MANAGER_DOMAIN:?configure EVOLUTION_MANAGER_DOMAIN para staging}

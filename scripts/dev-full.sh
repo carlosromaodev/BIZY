@@ -147,13 +147,14 @@ docker compose stop backend frontend > /dev/null 2>&1 || true
 if backend_local_pronto; then
   echo "Backend já está ativo e atualizado em http://localhost:$LOCAL_BACKEND_PORT."
 else
+  parar_backend_local_desatualizado
+
   if curl -fsS "http://localhost:$LOCAL_BACKEND_PORT/saude" > /dev/null 2>&1; then
     echo "Backend respondeu em /saude, mas não expôs as rotas novas de autenticação."
-    parar_backend_local_desatualizado
   fi
 
   echo "A iniciar backend local em http://localhost:$LOCAL_BACKEND_PORT..."
-  npm run dev --workspace backend &
+  npm run dev:api --workspace backend &
   BACKEND_PID=$!
   wait_http "http://localhost:$LOCAL_BACKEND_PORT/saude" "Backend"
   wait_http "http://localhost:$LOCAL_BACKEND_PORT/auth/google/status" "Rotas de autenticação do backend"

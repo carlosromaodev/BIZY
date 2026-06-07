@@ -5,44 +5,33 @@ import { describe, expect, it } from "vitest";
 const source = (path: string) => readFileSync(resolve(process.cwd(), path), "utf8");
 
 describe("design interno Comercio suave", () => {
-  it("define tokens globais de Comercio suave e motion acessivel", () => {
+  it("define sistema CRM operacional com tokens e acessibilidade", () => {
     const css = source("src/estilos.css");
 
     [
-      "Bizy Commerce Soft System",
-      "--commerce-bg:",
-      "--commerce-surface:",
-      "--commerce-surface-raised:",
-      "--commerce-border:",
-      "--commerce-shadow-card:",
-      "--commerce-shadow-modal:",
-      "--commerce-green:",
-      "--commerce-green-soft:",
-      "--commerce-warning-soft:",
-      "--commerce-danger-soft:",
-      "--motion-ui-fast:",
-      "--motion-ui-medium:",
-      "--motion-ui-spring:",
+      "CRM OPERATING SYSTEM",
+      "--shell-sidebar-w:",
+      "--shell-sidebar-w-compact:",
+      "--shell-chrome-h:",
+      "--shell-dock-h:",
+      "--shell-ease:",
       "@media (prefers-reduced-motion: reduce)"
     ].forEach((token) => expect(css).toContain(token));
-    expect(css).not.toContain("--commerce-wine:");
   });
 
-  it("aplica shadcn premium em cards, botoes, campos, badges, dialogs e sheets", () => {
+  it("aplica shadcn e design system nos elementos estruturais", () => {
     const css = source("src/estilos.css");
 
     [
-      "Bizy Shadcn Commerce Polish",
       '[data-slot="card"]',
-      '[data-slot="button"]',
       '[data-slot="input"]',
-      '[data-slot="textarea"]',
       '[data-slot="badge"]',
-      '[data-slot="dialog-content"]',
-      '[data-slot="alert-dialog-content"]',
-      '[data-slot="sheet-content"]',
-      "backdrop-filter: blur",
-      "animation: bizy-modal-pop"
+      ".app-commerce-shell",
+      ".app-desktop-sidebar",
+      ".app-mobile-dock",
+      ".app-conteudo",
+      ".chat-commerce-composer",
+      "color-mix(in srgb, var(--primary)"
     ].forEach((trecho) => expect(css).toContain(trecho));
   });
 
@@ -51,19 +40,11 @@ describe("design interno Comercio suave", () => {
     const conversas = source("src/paginas/Conversas.tsx");
     const clientes = source("src/paginas/Clientes.tsx");
     const reservas = source("src/paginas/Reservas.tsx");
-    const painel = source("src/paginas/Painel.tsx");
     const catalogo = source("src/paginas/Catalogo.tsx");
     const comentarios = source("src/paginas/Comentarios.tsx");
 
     expect(shell).toContain("app-commerce-shell");
-    expect(shell).toContain("app-commerce-nav");
-    expect(shell).toContain("app-commerce-summary");
-    expect(conversas).toContain("conversas-commerce-layout");
     expect(conversas).toContain("chat-commerce-composer");
-    expect(clientes).toContain("crm-commerce-list");
-    expect(reservas).toContain("reservas-commerce-list");
-    expect(painel).toContain("painel-commerce-grid");
-    expect(catalogo).toContain("catalogo-commerce-list");
     expect(comentarios).toContain("comentarios-commerce-list");
   });
 

@@ -67,8 +67,10 @@ export class RelatoriosComerciaisUseCase {
     ]);
     const pecasDoRelatorio = this.filtrarPecasPorColecao(pecas, filtros);
     const codigosDaColecao = this.obterCodigosDaColecao(pecasDoRelatorio, filtros);
-    const pedidosDoRelatorio = this.filtrarPedidosPorColecao(pedidos, codigosDaColecao, filtros);
     const reservasDoRelatorio = this.filtrarReservasPorColecao(reservas, codigosDaColecao, filtros);
+    const reservasPerdidasIds = this.obterIdsReservasPerdidas(reservasDoRelatorio);
+    const pedidosDoRelatorio = this.filtrarPedidosPorColecao(pedidos, codigosDaColecao, filtros)
+      .filter((pedido) => this.pedidoContaParaMetricasComerciais(pedido, reservasPerdidasIds));
     const pecasPorCodigo = new Map(pecasDoRelatorio.map((peca) => [peca.codigo, peca]));
     const pedidosPagos = pedidosDoRelatorio.filter((pedido) => pedido.estadoPagamento === "CONFIRMADO" || pedido.estado === "PAGO" || pedido.estado === "ENTREGUE");
     const pagamentosPendentes = pedidosDoRelatorio.filter((pedido) => pedido.estadoPagamento === "PENDENTE" || pedido.estado === "AGUARDANDO_PAGAMENTO");
@@ -389,6 +391,21 @@ export class RelatoriosComerciaisUseCase {
         return a.codigoPeca.localeCompare(b.codigoPeca, "pt-AO", { numeric: true });
       })
       .slice(0, 20);
+  }
+
+  private obterIdsReservasPerdidas(reservas: Reserva[]) {
+    return new Set(
+      reservas
+        .filter((reserva) => reserva.estado === "EXPIRED" || reserva.estado === "CANCELLED")
+        .map((reserva) => reserva.id)
+    );
+  }
+
+  private pedidoContaParaMetricasComerciais(pedido: Pedido, reservasPerdidasIds: Set<string>) {
+    if (pedido.reservaId && reservasPerdidasIds.has(pedido.reservaId)) return false;
+    if (pedido.canceladoEm) return false;
+    if (pedido.estado === "CANCELADO" || pedido.estado === "DEVOLVIDO" || pedido.estado === "TROCADO") return false;
+    return pedido.estadoPagamento !== "REEMBOLSADO";
   }
 
   private calcularMetricasAtendimento(

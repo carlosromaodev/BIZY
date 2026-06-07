@@ -1,5 +1,5 @@
 import type { FastifyReply, FastifyRequest } from "fastify";
-import { modulosNegocioPadrao } from "../../dominio/tipos.js";
+import { modulosNegocioDisponiveis, modulosNegocioPadrao } from "../../dominio/tipos.js";
 import type { DadosNegocioBizy, NegocioBizy, UsuarioSistema } from "../../dominio/tipos.js";
 import type { ContextoAplicacao } from "./ContextoAplicacao.js";
 import { exigirUsuarioAutenticado } from "./seguranca.js";
@@ -210,9 +210,10 @@ function normalizarPapel(papel?: string | null): string {
 
 async function modulosAtivosDoNegocio(contexto: ContextoAplicacao, negocioId: string): Promise<string[]> {
   const modulosConfigurados = await contexto.repositorios.autenticacao.listarModulosPorNegocio(negocioId);
-  if (modulosConfigurados.length === 0) return [...modulosNegocioPadrao];
+  const padrao = process.env.MODULOS_TODOS_ATIVOS === "true" ? [...modulosNegocioDisponiveis] : [...modulosNegocioPadrao];
+  if (modulosConfigurados.length === 0) return padrao;
 
-  const ativos = new Set<string>(modulosNegocioPadrao);
+  const ativos = new Set<string>(padrao);
   for (const modulo of modulosConfigurados) {
     if (modulo.ativo) {
       ativos.add(modulo.modulo);

@@ -49,7 +49,7 @@ export function FAQSection({
         </h2>
         <p className="mb-5 max-w-xl text-sm leading-6 text-muted-foreground sm:mx-auto sm:mb-6 sm:text-base">{description}</p>
         <Button
-          className="justify-center gap-2 rounded-full bg-[#166534] px-5 text-white shadow-[0_12px_28px_rgba(22,101,52,0.22)] hover:bg-[#14532d]"
+          className="justify-center gap-2 rounded-full bg-primary px-5 text-white shadow-lg hover:bg-primary/90"
           onClick={onButtonClick}
           style={{ fontFamily: PROMPT_FONT_FAMILY }}
           type="button"

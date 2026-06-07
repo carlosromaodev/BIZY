@@ -1,31 +1,34 @@
 import {
-  ChevronLeft,
-  ChevronRight,
+  Folder,
+  Home,
+  LayoutDashboard,
+  ListChecks,
   Loader2,
-  LogOut,
   Menu,
   MessageCircle,
-  MoreHorizontal,
   Package,
+  Plus,
   ReceiptText,
   Search,
+  Settings,
   Users,
 } from "lucide-react";
-import { type CSSProperties, type ReactNode, useEffect, useState } from "react";
+import { type ReactNode, useEffect, useMemo, useState } from "react";
+import { AnimatePresence, motion } from "motion/react";
 import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
 import { obterUsuario, removerToken, removerUsuario, requisitarApi } from "../api";
-import { LogoBizy, NOME_PRODUTO } from "../marca/bizy";
+import { CORES_LOGO_BIZY_ESCURA, LogoBizy, NOME_PRODUTO } from "../marca/bizy";
 import {
+  filtrarRotasPorModulos,
   rotasAdminSistema,
   rotasComerciais,
   secoesComerciais,
   usuarioPodeVerAdminSistema,
-  type RotaPrivada
+  type SecaoNavegacao,
 } from "../rotasApp";
 import type { Peca, Reserva, RespostaConversas } from "../tipos";
 import { formatarKwanza } from "../utilidades";
 import { CrmListItem } from "./CrmInterno21st";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -38,6 +41,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import { NativeBottomNav, type NativeBottomNavItem } from "@/components/ui/native-bottom-nav";
 import { cn } from "@/lib/utils";
 
 const caminhosMobilePrincipais = ["/app", "/app/reservas", "/app/clientes", "/app/conversas"];
@@ -49,18 +53,69 @@ const rotasMobilePrincipais = rotasComerciais.filter((rota) =>
 const rotasMaisMobile = rotasComerciais.filter((rota) =>
   !caminhosMobilePrincipais.includes(rota.caminho)
 );
+// Live, recuperação, produtos, relatórios e administração ficam em Mais no telemóvel.
+
+const descricaoSecaoDesktop: Record<SecaoNavegacao, string> = {
+  Hoje: "Comando, live e prioridades imediatas.",
+  Vendas: "Pedidos, atendimento e clientes em movimento.",
+  CRM: "Funil, agenda, respostas e cadências.",
+  Vitrine: "Produtos, loja digital e crescimento por canais.",
+  Gestão: "Relatórios, equipa, pagamentos e administração.",
+  "Admin/Sistema": "Monitorização técnica e auditoria.",
+};
+
+function iconeSecaoDesktop(secao: SecaoNavegacao) {
+  if (secao === "Hoje") return <LayoutDashboard size={22} />;
+  if (secao === "Vendas") return <ReceiptText size={22} />;
+  if (secao === "CRM") return <MessageCircle size={22} />;
+  if (secao === "Vitrine") return <Package size={22} />;
+  if (secao === "Gestão") return <Users size={22} />;
+  return <Settings size={22} />;
+}
 
 export function Shell({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
   const location = useLocation();
   const usuario = obterUsuario();
-  const [recolhida, setRecolhida] = useState(() => localStorage.getItem("emeu_sidebar_recolhida") === "1");
   const [menuMobileAberto, setMenuMobileAberto] = useState(false);
+  const [modulosAtivos, setModulosAtivos] = useState<string[]>([]);
+  const [secaoDesktopFocada, setSecaoDesktopFocada] = useState<SecaoNavegacao | null>(null);
   const podeVerAdminSistema = usuarioPodeVerAdminSistema(usuario?.papel);
 
   useEffect(() => {
-    localStorage.setItem("emeu_sidebar_recolhida", recolhida ? "1" : "0");
-  }, [recolhida]);
+    requisitarApi<{ modulosAtivos?: string[] }>("/negocio/modulos").then((r) => setModulosAtivos(r?.modulosAtivos ?? [])).catch(() => {});
+  }, []);
+
+  const rotasComerciaisFiltradas = useMemo(() => filtrarRotasPorModulos(rotasComerciais, modulosAtivos), [modulosAtivos]);
+
+  const secoesVisiveis = useMemo(() => {
+    const secoesFiltradas = new Set(rotasComerciaisFiltradas.map((r) => r.secao));
+    const secoes = secoesComerciais.filter((s) => secoesFiltradas.has(s));
+    if (podeVerAdminSistema) secoes.push("Admin/Sistema" as const);
+    return secoes;
+  }, [podeVerAdminSistema, rotasComerciaisFiltradas]);
+
+  const rotasDesktopVisiveis = useMemo(
+    () => [...rotasComerciaisFiltradas, ...(podeVerAdminSistema ? rotasAdminSistema : [])],
+    [podeVerAdminSistema, rotasComerciaisFiltradas]
+  );
+
+  const secaoAtual = useMemo<SecaoNavegacao>(() => {
+    const rotaAtual = rotasDesktopVisiveis.find((rota) =>
+      rota.fim ? location.pathname === rota.caminho : location.pathname.startsWith(rota.caminho)
+    );
+    return rotaAtual?.secao ?? "Hoje";
+  }, [location.pathname, rotasDesktopVisiveis]);
+
+  const secaoDesktopAtiva = secaoDesktopFocada && secoesVisiveis.includes(secaoDesktopFocada)
+    ? secaoDesktopFocada
+    : secoesVisiveis.includes(secaoAtual)
+      ? secaoAtual
+      : secoesVisiveis[0] ?? "Hoje";
+
+  const rotasSecaoDesktop = secaoDesktopAtiva === "Admin/Sistema"
+    ? rotasAdminSistema
+    : rotasComerciaisFiltradas.filter((rota) => rota.secao === secaoDesktopAtiva);
 
   useEffect(() => {
     setMenuMobileAberto(false);
@@ -79,10 +134,10 @@ export function Shell({ children }: { children: ReactNode }) {
 
   return (
     <div className="app-commerce-shell min-h-dvh bg-background text-foreground">
+      {/* ── Mobile header ── */}
       <header className="app-mobile-chrome app-mobile-chrome-transparente sticky top-0 z-40 flex items-center justify-between px-3 lg:hidden">
         <Link className="app-mobile-brand-pill flex items-center gap-2 font-semibold" to="/app" aria-label={`Painel ${NOME_PRODUTO}`}>
-          <LogoBizy variante="icone" aria-hidden="true" />
-          <span>{NOME_PRODUTO}</span>
+          <LogoBizy className="crm-brand-wordmark" aria-hidden="true" />
         </Link>
         <Button
           type="button"
@@ -96,214 +151,261 @@ export function Shell({ children }: { children: ReactNode }) {
         </Button>
       </header>
 
+      {/* ── Mobile sheet menu ── */}
       <Sheet open={menuMobileAberto} onOpenChange={setMenuMobileAberto}>
-        <SheetContent side="left" className="w-[86vw] max-w-sm p-0">
-          <SheetHeader className="app-sheet-header border-b p-4 text-left">
-            <SheetTitle className="flex items-center gap-2">
-              <LogoBizy variante="icone" aria-hidden="true" />
-              {NOME_PRODUTO}
+        <SheetContent side="left" className="w-[86vw] max-w-sm border-r p-0" style={{ borderColor: "var(--line)", background: "var(--surface)" }}>
+          <SheetHeader className="border-b p-4 text-left" style={{ borderColor: "var(--line)" }}>
+            <SheetTitle className="flex items-center gap-2" style={{ color: "var(--ink)" }}>
+              <LogoBizy className="crm-brand-wordmark" aria-hidden="true" />
             </SheetTitle>
-            <SheetDescription>Operação comercial da loja.</SheetDescription>
+            <SheetDescription style={{ color: "var(--ink-3)" }}>Operação comercial da loja.</SheetDescription>
           </SheetHeader>
           <ScrollArea className="h-[calc(100dvh-88px)]">
-            <nav className="app-desktop-nav grid gap-5 p-4">
-              <NavegacaoPrincipal recolhida={false} mostrarAdmin={podeVerAdminSistema} mostrarDescricaoMobile />
-              <Separator />
-              <Button variant="outline" className="justify-start" onClick={() => void sair()}>
-                <LogOut size={18} />
+            <nav className="app-mobile-sheet-nav p-2">
+              {secoesVisiveis.map((secao) => {
+                const rotasSecao = secao === "Admin/Sistema"
+                  ? rotasAdminSistema
+                  : rotasComerciaisFiltradas.filter((r) => r.secao === secao);
+                if (!rotasSecao.length) return null;
+                return (
+                  <div key={secao} className="side-nav-group">
+                    <div className="side-nav-label">{secao}</div>
+                    {rotasSecao.map((item) => {
+                      const ativo = item.fim ? location.pathname === item.caminho : location.pathname.startsWith(item.caminho);
+                      return (
+                        <NavLink
+                          key={item.caminho}
+                          to={item.caminho}
+                          end={item.fim}
+                          aria-current={ativo ? "page" : undefined}
+                          className="side-nav-item"
+                        >
+                          <span aria-hidden="true">{item.icone}</span>
+                          {item.rotulo}
+                        </NavLink>
+                      );
+                    })}
+                  </div>
+                );
+              })}
+              <Separator className="my-2" style={{ background: "var(--line)" }} />
+              <button
+                type="button"
+                className="side-nav-item w-full"
+                style={{ color: "var(--ink-3)" }}
+                onClick={() => void sair()}
+              >
+                <Settings size={17} />
                 Sair
-              </Button>
+              </button>
             </nav>
           </ScrollArea>
         </SheetContent>
       </Sheet>
 
-      <aside
-        className={cn(
-          "app-desktop-sidebar fixed inset-y-0 left-0 z-30 hidden border-r bg-card lg:flex lg:flex-col",
-          recolhida ? "w-20 app-desktop-sidebar-compacta" : "w-[17rem]"
-        )}
-      >
-        <div className="app-desktop-sidebar-top flex h-16 items-center justify-between border-b px-4">
-          <Link className="flex min-w-0 items-center gap-2 font-semibold" to="/app" aria-label={`Painel ${NOME_PRODUTO}`}>
-            <LogoBizy variante="icone" aria-hidden="true" />
-            {!recolhida && <span className="truncate">{NOME_PRODUTO}</span>}
+      {/* ── Desktop navigation inspired by the reference video ── */}
+      <aside className="desktop-nav-system fixed inset-y-4 left-4 z-30 hidden lg:flex">
+        <nav
+          className="desktop-nav-rail"
+          aria-label="Secções principais"
+          onMouseLeave={() => setSecaoDesktopFocada(null)}
+        >
+          <Link to="/app" className="desktop-nav-brand-link" aria-label={`Painel ${NOME_PRODUTO}`}>
+            <LogoBizy cores={CORES_LOGO_BIZY_ESCURA} className="crm-brand-wordmark desktop-nav-brand" aria-hidden="true" />
           </Link>
-          <Button
+
+          <div className="desktop-nav-rail-items">
+            {secoesVisiveis.map((secao) => {
+              const rotasSecao = secao === "Admin/Sistema"
+                ? rotasAdminSistema
+                : rotasComerciaisFiltradas.filter((rota) => rota.secao === secao);
+              const primeiraRota = rotasSecao[0];
+              const ativa = secaoDesktopAtiva === secao;
+              const atual = secaoAtual === secao;
+
+              return (
+                <button
+                  key={secao}
+                  type="button"
+                  className="desktop-nav-rail-item"
+                  data-active={ativa || undefined}
+                  data-current={atual || undefined}
+                  aria-label={secao}
+                  aria-current={atual ? "page" : undefined}
+                  onMouseEnter={() => setSecaoDesktopFocada(secao)}
+                  onFocus={() => setSecaoDesktopFocada(secao)}
+                  onClick={() => primeiraRota && navigate(primeiraRota.caminho)}
+                >
+                  {ativa && (
+                    <motion.span
+                      layoutId="desktop-nav-rail-active"
+                      className="desktop-nav-rail-active"
+                      transition={{ type: "spring", stiffness: 520, damping: 34, mass: 0.75 }}
+                    />
+                  )}
+                  <span className="desktop-nav-rail-icon" aria-hidden="true">
+                    {iconeSecaoDesktop(secao)}
+                  </span>
+                  {atual && <span className="desktop-nav-current-dot" aria-hidden="true" />}
+                </button>
+              );
+            })}
+          </div>
+
+          <button
             type="button"
-            variant="ghost"
-            size="icon-sm"
-            onClick={() => setRecolhida((valor) => !valor)}
-            aria-label={recolhida ? "Expandir menu" : "Recolher menu"}
+            className="desktop-nav-rail-item desktop-nav-rail-utility"
+            aria-label="Definições"
+            onClick={() => navigate("/app/administracao")}
           >
-            {recolhida ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
-          </Button>
-        </div>
+            <Settings size={22} />
+          </button>
+        </nav>
 
-        <ScrollArea className="flex-1">
-          <nav className="app-desktop-nav grid gap-5 p-3">
-            <NavegacaoPrincipal recolhida={recolhida} mostrarAdmin={podeVerAdminSistema} />
-          </nav>
-        </ScrollArea>
-
-        <div className="app-desktop-footer border-t p-3">
-          {!recolhida && (
-            <div className="app-desktop-usuario mb-3 flex min-w-0 items-center gap-3 rounded-lg bg-muted p-2">
-              <Avatar className="h-9 w-9">
-                <AvatarFallback>{(usuario?.nome ?? "V")[0].toUpperCase()}</AvatarFallback>
-              </Avatar>
-              <div className="min-w-0 text-sm">
-                <strong className="block truncate">{usuario?.nome ?? "Vendedor"}</strong>
-                <span className="block truncate text-muted-foreground">{usuario?.telefone ?? "sem sessão"}</span>
-              </div>
+        <div className="desktop-nav-panel" onMouseEnter={() => setSecaoDesktopFocada(secaoDesktopAtiva)}>
+          <div className="desktop-nav-panel-head">
+            <div className="min-w-0">
+              <p>{secaoDesktopAtiva}</p>
+              <h2>{secaoDesktopAtiva === "Hoje" ? "Comando" : secaoDesktopAtiva}</h2>
             </div>
-          )}
-          <Button variant="outline" className={cn("w-full", recolhida ? "px-0" : "justify-start")} onClick={() => void sair()}>
-            <LogOut size={18} />
-            {!recolhida && <span>Sair</span>}
-          </Button>
+            <span>{rotasSecaoDesktop.length}</span>
+          </div>
+          <p className="desktop-nav-panel-desc">{descricaoSecaoDesktop[secaoDesktopAtiva]}</p>
+
+          <div className="desktop-nav-search" role="button" tabIndex={0} aria-label="Buscar">
+            <Search size={16} />
+            <span>Buscar</span>
+            <small>⌘K</small>
+          </div>
+
+          <ScrollArea className="desktop-nav-scroll">
+            <nav className="desktop-nav-list" aria-label={`Páginas de ${secaoDesktopAtiva}`}>
+              {rotasSecaoDesktop.map((item) => {
+                const ativo = item.fim ? location.pathname === item.caminho : location.pathname.startsWith(item.caminho);
+
+                return (
+                  <NavLink
+                    key={item.caminho}
+                    to={item.caminho}
+                    end={item.fim}
+                    aria-current={ativo ? "page" : undefined}
+                    className="desktop-nav-panel-item"
+                  >
+                    {ativo && (
+                      <motion.span
+                        layoutId="desktop-nav-panel-active"
+                        className="desktop-nav-panel-active"
+                        transition={{ type: "spring", stiffness: 480, damping: 36, mass: 0.8 }}
+                      />
+                    )}
+                    <span className="desktop-nav-panel-icon" aria-hidden="true">{item.icone}</span>
+                    <span className="desktop-nav-panel-label">{item.rotulo}</span>
+                    {ativo && <span className="desktop-nav-panel-live" aria-hidden="true" />}
+                  </NavLink>
+                );
+              })}
+            </nav>
+          </ScrollArea>
+
+          <div className="desktop-nav-user">
+            <div className="side-who-avatar">
+              {(usuario?.nome ?? "V")[0].toUpperCase()}
+            </div>
+            <div className="min-w-0">
+              <div className="side-who-name">{usuario?.nome ?? "Vendedor"}</div>
+              <div className="side-who-phone">{usuario?.telefone ?? "sem sessão"}</div>
+            </div>
+            <button type="button" onClick={() => void sair()} aria-label="Sair">
+              Sair
+            </button>
+          </div>
         </div>
       </aside>
 
-      <main className={cn("app-route-surface min-h-dvh", recolhida ? "lg:ml-20" : "lg:ml-[17rem]")}>
-        <div className="app-conteudo">
+      {/* ── Main content ── */}
+      <main className="app-route-surface sidebar-v2-content min-h-dvh lg:ml-[404px]">
+        <div className="lg:hidden">
           <BuscaGlobalComercial />
-          {children}
         </div>
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={location.pathname}
+            className="app-conteudo"
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ type: "spring", stiffness: 300, damping: 26, mass: 0.7 }}
+          >
+            {children}
+          </motion.div>
+        </AnimatePresence>
       </main>
 
-      <nav className="app-commerce-nav app-mobile-dock app-mobile-nav-island fixed inset-x-3 bottom-3 z-40 grid grid-cols-5 rounded-2xl border bg-background/95 p-1 shadow-lg backdrop-blur lg:hidden" aria-label="Atalhos principais">
-        {rotasMobilePrincipais.map((item, index) => {
-          const ativo = item.fim ? location.pathname === item.caminho : location.pathname.startsWith(item.caminho);
-
-          return (
-            <NavLink
-              key={item.caminho}
-              to={item.caminho}
-              end={item.fim}
-              aria-current={ativo ? "page" : undefined}
-              style={{ "--nav-index": index } as CSSProperties}
-              className={() =>
-                cn(
-                  "app-mobile-nav-item grid min-h-14 place-items-center rounded-xl px-1 text-[0.7rem] font-medium text-muted-foreground",
-                  ativo && "bg-primary text-primary-foreground [&_span]:text-primary-foreground [&_svg]:text-primary-foreground"
-                )
-              }
-            >
-              <span className="app-nav-icon" aria-hidden="true">{item.icone}</span>
-              <span className="app-nav-label">{item.rotulo}</span>
-              {ativo && <span className="sr-only">Atalho ativo</span>}
-            </NavLink>
-          );
-        })}
-        <Button
-          type="button"
-          variant={menuMobileAberto || !rotaAtualEhPrincipal ? "default" : "ghost"}
-          style={{ "--nav-index": rotasMobilePrincipais.length } as CSSProperties}
-          className={cn(
-            "app-mobile-nav-item app-mobile-nav-more grid h-14 place-items-center rounded-xl px-1 text-[0.7rem]",
-            (menuMobileAberto || !rotaAtualEhPrincipal) && "text-primary-foreground [&_span]:text-primary-foreground [&_svg]:text-primary-foreground"
-          )}
-          onClick={() => setMenuMobileAberto(true)}
-          aria-label="Abrir mais opções"
-        >
-          <span className="app-nav-icon" aria-hidden="true">
-            <MoreHorizontal size={20} />
-          </span>
-          <span className="app-nav-label">Mais</span>
-        </Button>
-      </nav>
+      <MobileMenuDock
+        location={location}
+        navigate={navigate}
+        onAbrirMenu={() => setMenuMobileAberto(true)}
+        menuAberto={menuMobileAberto}
+        rotaAtualEhPrincipal={rotaAtualEhPrincipal}
+      />
     </div>
   );
 }
 
-function NavegacaoPrincipal({
-  recolhida,
-  mostrarAdmin = false,
-  mostrarDescricaoMobile = false
+const mobileMenuItems: NativeBottomNavItem[] = [
+  { id: "painel", label: "Painel", icon: Home, path: "/app" },
+  { id: "pedidos", label: "Pedidos", icon: ListChecks, path: "/app/reservas" },
+  { id: "clientes", label: "Clientes", icon: Folder, path: "/app/clientes" },
+  { id: "chat", label: "Chat", icon: MessageCircle, path: "/app/conversas" },
+  { id: "mais", label: "Mais", icon: Plus, ariaLabel: "Abrir mais opções", variant: "cta" },
+];
+
+function MobileMenuDock({
+  location,
+  navigate,
+  onAbrirMenu,
+  menuAberto,
+  rotaAtualEhPrincipal
 }: {
-  recolhida: boolean;
-  mostrarAdmin?: boolean;
-  mostrarDescricaoMobile?: boolean;
+  location: { pathname: string };
+  navigate: (path: string) => void;
+  onAbrirMenu: () => void;
+  menuAberto: boolean;
+  rotaAtualEhPrincipal: boolean;
 }) {
-  const location = useLocation();
+  const activeIndex = useMemo(() => {
+    const path = location.pathname;
+    if (path === "/app") return 0;
+    if (path.startsWith("/app/reservas")) return 1;
+    if (path.startsWith("/app/clientes")) return 2;
+    if (path.startsWith("/app/conversas")) return 3;
+    // If on a non-primary route, highlight "Mais"
+    if (!rotaAtualEhPrincipal || menuAberto) return 4;
+    return 0;
+  }, [location.pathname, rotaAtualEhPrincipal, menuAberto]);
 
-  return (
-    <>
-      {secoesComerciais.map((secao) => (
-        <ListaRotasNavegacao
-          key={secao}
-          locationPathname={location.pathname}
-          recolhida={recolhida}
-          rotas={rotasComerciais.filter((item) => item.secao === secao)}
-          secao={secao}
-        />
-      ))}
-
-      {mostrarDescricaoMobile && (
-        <p className="rounded-lg bg-muted/60 px-3 py-2 text-xs leading-5 text-muted-foreground">
-          Produtos, campanhas, relatórios e configurações ficam em Mais no telemóvel.
-          {rotasMaisMobile.length > 0 && <span className="sr-only"> {rotasMaisMobile.map((rota) => rota.rotulo).join(", ")}</span>}
-        </p>
-      )}
-
-      {mostrarAdmin && (
-        <>
-          <Separator />
-          <ListaRotasNavegacao
-            locationPathname={location.pathname}
-            recolhida={recolhida}
-            rotas={rotasAdminSistema}
-            secao="Admin/Sistema"
-          />
-        </>
-      )}
-    </>
+  const items = useMemo(
+    () => mobileMenuItems.map((item, index) => (
+      index === 4 ? { ...item, ariaExpanded: menuAberto } : item
+    )),
+    [menuAberto]
   );
-}
-
-function ListaRotasNavegacao({
-  locationPathname,
-  recolhida,
-  rotas,
-  secao
-}: {
-  locationPathname: string;
-  recolhida: boolean;
-  rotas: RotaPrivada[];
-  secao: RotaPrivada["secao"];
-}) {
-  if (!rotas.length) return null;
 
   return (
-    <div className="app-nav-section grid gap-1" key={secao}>
-      {!recolhida && <span className="app-nav-section-label px-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{secao}</span>}
-      {rotas.map((item, index) => {
-        const ativo = item.fim ? locationPathname === item.caminho : locationPathname.startsWith(item.caminho);
-
-        return (
-          <NavLink
-            key={item.caminho}
-            to={item.caminho}
-            end={item.fim}
-            aria-current={ativo ? "page" : undefined}
-            style={{ "--nav-index": index } as CSSProperties}
-            className={() =>
-              cn(
-                "app-nav-link flex h-10 items-center gap-3 rounded-lg px-3 text-sm font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground",
-                ativo && "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground [&_span]:text-primary-foreground [&_svg]:text-primary-foreground",
-                recolhida && "justify-center px-0"
-              )
-            }
-            title={recolhida ? item.rotulo : undefined}
-          >
-            <span className="app-nav-icon" aria-hidden="true">{item.icone}</span>
-            {!recolhida && <span className="app-nav-label">{item.rotulo}</span>}
-            {ativo && <span className="sr-only">Atalho ativo</span>}
-          </NavLink>
-        );
-      })}
-    </div>
+    <NativeBottomNav
+      activeIndex={activeIndex}
+      activePillId="crm-mobile-nav"
+      className="app-mobile-menu-dock lg:hidden"
+      items={items}
+      label="Navegação principal"
+      onItemClick={(index, item) => {
+        if (index === 4) {
+          onAbrirMenu();
+        } else if (item.path) {
+          navigate(item.path);
+        }
+      }}
+    />
   );
 }
 
@@ -450,7 +552,7 @@ function BuscaGlobalComercial() {
         <Search className="pointer-events-none absolute left-3 top-1/2 z-10 -translate-y-1/2 text-muted-foreground" size={16} />
         <Input
           aria-label="Buscar cliente, telefone, produto, pedido ou conversa"
-          className="h-11 rounded-xl bg-card pl-9 pr-10 shadow-sm"
+          className="h-10 rounded-lg border-border/50 bg-card pl-9 pr-10 shadow-none text-sm"
           placeholder="Buscar cliente, telefone, produto, pedido..."
           style={{ paddingLeft: "2.25rem", paddingRight: "2.5rem" }}
           value={termo}
@@ -458,8 +560,6 @@ function BuscaGlobalComercial() {
         />
         {carregando && <Loader2 className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-muted-foreground" aria-hidden="true" />}
       </div>
-      <p className="text-xs text-muted-foreground">Pesquise por cliente, telefone, produto, código, pedido ou conversa.</p>
-
       {mostrarPainel && (
         <Card size="sm" className="border-border/80 shadow-sm">
           <CardContent className="grid gap-2 p-2">
@@ -507,7 +607,7 @@ export function CabecalhoPagina({
   return (
     <header className="app-cabecalho">
       <div className="min-w-0">
-        <p className="app-rotulo text-primary">{rotulo}</p>
+        <p className="app-rotulo">{rotulo}</p>
         <h1 className="app-titulo">{titulo}</h1>
       </div>
       {children && <div className="app-cabecalho-acoes">{children}</div>}
@@ -516,34 +616,41 @@ export function CabecalhoPagina({
 }
 
 export function CartaoIndicador({
-  icone,
   titulo,
   valor,
   detalhe,
   tom = "neutro"
 }: {
-  icone: ReactNode;
+  icone?: ReactNode;
   titulo: string;
   valor: ReactNode;
   detalhe: string;
   tom?: "neutro" | "atencao" | "sucesso" | "perigo";
 }) {
-  const estilos = {
-    neutro: "bg-muted text-foreground",
-    atencao: "bg-warning/10 text-warning",
-    sucesso: "bg-success/10 text-success",
-    perigo: "bg-destructive/10 text-destructive"
-  } satisfies Record<typeof tom, string>;
-
   return (
-    <Card size="sm" className="min-w-0">
-      <CardContent className="grid grid-cols-[2rem_minmax(0,1fr)] items-center gap-x-2 gap-y-0.5 p-3 sm:grid-cols-1 sm:items-start sm:gap-2 sm:p-4">
-        <div className={cn("row-span-2 grid h-8 w-8 place-items-center rounded-lg sm:h-10 sm:w-10", estilos[tom])}>{icone}</div>
-        <span className="min-w-0 truncate text-xs font-semibold text-muted-foreground sm:text-sm">{titulo}</span>
-        <strong className="min-w-0 truncate text-xl font-bold leading-none tabular-nums text-foreground sm:text-2xl">{valor}</strong>
-        <small className="col-span-2 line-clamp-2 text-xs leading-snug text-muted-foreground sm:col-span-1 sm:text-sm">{detalhe}</small>
-      </CardContent>
-    </Card>
+    <div style={{
+      display: "flex",
+      flexDirection: "column",
+      gap: "0.25rem",
+      padding: "1.375rem 1.75rem 1.5rem",
+      borderLeft: "1px solid var(--line-2)",
+    }}>
+      <span style={{ fontSize: "0.75rem", color: "var(--ink-3)", display: "flex", alignItems: "center", gap: "0.4375rem" }}>
+        <span style={{ width: 5, height: 5, borderRadius: "50%", background: "var(--ink-4)", flexShrink: 0 }} />
+        {titulo}
+      </span>
+      <strong style={{
+        fontFamily: "var(--font-serif)",
+        fontSize: "2.5rem",
+        fontWeight: 300,
+        lineHeight: 1,
+        color: tom === "sucesso" ? "var(--emerald-ink)" : tom === "atencao" ? "var(--gold)" : tom === "perigo" ? "var(--destructive)" : "var(--ink)",
+        fontVariantNumeric: "tabular-nums",
+        letterSpacing: "-0.01em",
+        marginTop: "0.625rem",
+      }}>{valor}</strong>
+      <small style={{ fontSize: "0.75rem", color: "var(--ink-3)", marginTop: "0.375rem" }}>{detalhe}</small>
+    </div>
   );
 }
 
@@ -569,46 +676,45 @@ export function ResumoIndicadores({
   colunas?: 3 | 4;
   className?: string;
 }) {
-  const estilos = {
-    neutro: "bg-muted text-foreground",
-    principal: "bg-primary/10 text-primary",
-    atencao: "bg-warning/10 text-warning",
-    sucesso: "bg-success/10 text-success",
-    perigo: "bg-destructive/10 text-destructive",
-    info: "bg-info/10 text-info"
-  } satisfies Record<TomIndicador, string>;
   const grade = {
-    3: "grid-cols-3",
+    3: "grid-cols-1 sm:grid-cols-3",
     4: "grid-cols-2 sm:grid-cols-4"
   } satisfies Record<3 | 4, string>;
-  const bordaItem =
-    colunas === 3
-      ? "border-r last:border-r-0"
-      : "odd:border-r [&:nth-child(-n+2)]:border-b sm:border-b-0 sm:border-r sm:last:border-r-0";
 
   return (
     <section aria-label={rotulo} className={cn("app-commerce-summary", className)}>
-      <Card size="sm" className="crm21-summary py-0">
-        <CardContent className={cn("grid gap-0 p-0", grade[colunas])}>
-          {itens.map((item) => (
-            <div
-              key={item.titulo}
-              aria-label={`${item.titulo}: ${item.valorAcessivel ?? String(item.valor)} ${item.detalhe}`}
-              className={cn(
-                "grid min-w-0 grid-cols-[1.5rem_minmax(0,1fr)] items-center gap-x-2 gap-y-0.5 border-border/70 p-2 sm:grid-cols-[1.875rem_minmax(0,1fr)] sm:p-3",
-                bordaItem
-              )}
-            >
-              <span className={cn("row-span-2 grid h-6 w-6 place-items-center rounded-md [&_svg]:h-4 [&_svg]:w-4 sm:h-7 sm:w-7", estilos[item.tom ?? "neutro"])}>
-                {item.icone}
-              </span>
-              <span className="min-w-0 truncate text-xs font-semibold text-muted-foreground">{item.titulo}</span>
-              <strong className="min-w-0 truncate text-lg font-bold leading-none tabular-nums text-foreground sm:text-xl">{item.valor}</strong>
-              <small className="hidden text-xs leading-snug text-muted-foreground sm:col-start-2 sm:block sm:truncate">{item.detalhe}</small>
-            </div>
-          ))}
-        </CardContent>
-      </Card>
+      <div className={cn("crm21-summary grid gap-0", grade[colunas])} style={{ borderTop: "1px solid var(--line)", borderBottom: "1px solid var(--line)" }}>
+        {itens.map((item, i) => (
+          <div
+            key={item.titulo}
+            aria-label={`${item.titulo}: ${item.valorAcessivel ?? String(item.valor)} ${item.detalhe}`}
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: "0.25rem",
+              padding: "1.375rem 1.75rem 1.5rem",
+              borderLeft: i > 0 ? "1px solid var(--line-2)" : "none",
+              paddingLeft: i === 0 ? "0.125rem" : undefined,
+            }}
+          >
+            <span style={{ fontSize: "0.75rem", color: "var(--ink-3)", display: "flex", alignItems: "center", gap: "0.4375rem" }}>
+              <span style={{ width: 5, height: 5, borderRadius: "50%", background: "var(--ink-4)", flexShrink: 0 }} />
+              {item.titulo}
+            </span>
+            <strong style={{
+              fontFamily: "var(--font-serif)",
+              fontSize: "clamp(1.5rem, 5vw, 2.5rem)",
+              fontWeight: 300,
+              lineHeight: 1,
+              color: item.tom === "sucesso" || item.tom === "principal" ? "var(--emerald-ink)" : item.tom === "atencao" ? "var(--gold)" : item.tom === "perigo" ? "var(--destructive)" : "var(--ink)",
+              fontVariantNumeric: "tabular-nums",
+              letterSpacing: "-0.01em",
+              marginTop: "0.625rem",
+            }}>{item.valor}</strong>
+            <small style={{ fontSize: "0.75rem", color: "var(--ink-3)", marginTop: "0.375rem" }}>{item.detalhe}</small>
+          </div>
+        ))}
+      </div>
     </section>
   );
 }
@@ -623,12 +729,10 @@ export function EstadoVazio({
   detalhe: string;
 }) {
   return (
-    <Card className="crm21-empty border-dashed">
-      <CardContent className="grid min-h-40 place-items-center gap-2 p-6 text-center">
-        <div className="grid h-12 w-12 place-items-center rounded-xl bg-primary/10 text-primary">{icone}</div>
-        <strong>{titulo}</strong>
-        <span className="max-w-sm text-sm text-muted-foreground">{detalhe}</span>
-      </CardContent>
-    </Card>
+    <div className="crm21-empty grid min-h-32 place-items-center gap-2 rounded-lg border border-dashed border-border/50 bg-(--color-surface-warm) p-6 text-center">
+      <span className="text-muted-foreground/60 [&_svg]:h-6 [&_svg]:w-6">{icone}</span>
+      <strong className="text-sm font-medium text-foreground/80">{titulo}</strong>
+      <span className="max-w-sm text-xs text-muted-foreground">{detalhe}</span>
+    </div>
   );
 }

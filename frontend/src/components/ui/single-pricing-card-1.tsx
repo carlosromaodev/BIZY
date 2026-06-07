@@ -1,5 +1,5 @@
 import { CheckCircle2, PlusIcon, ShieldCheckIcon } from "lucide-react";
-import { motion } from "framer-motion";
+import { motion } from "motion/react";
 import { Link } from "react-router-dom";
 import { Badge } from "./badge";
 import { BorderTrail } from "./border-trail";

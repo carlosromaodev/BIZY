@@ -26,7 +26,7 @@ describe("landing page Bizy", () => {
     const authPage = authPageSource();
     const login = loginSource();
 
-    expect(source).toContain("framer-motion");
+    expect(source).toContain("motion/react");
     expect(source).toContain("useReducedMotion");
     expect(source).toContain("MotionDiv");
     expect(source).toContain("LiveCommerceHero");

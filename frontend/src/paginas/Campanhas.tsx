@@ -1,148 +1,242 @@
 import {
-  Copy,
-  Download,
-  Megaphone,
+  Mail,
   MessageCircle,
+  Pause,
+  Play,
+  Plus,
   RefreshCcw,
   Send,
-  Users,
-  WalletCards
+  Smartphone,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { requisitarApi } from "../api";
-import { clientesParaCsv, montarClientesCrm, montarSegmentosCampanha, type ClienteCrm, type SegmentoCampanha } from "../crm";
-import { CabecalhoPagina, EstadoVazio, ResumoIndicadores } from "../componentes/Shell";
-import { CrmList, CrmListItem, CrmMetricMini, CrmPageMotion, CrmSection } from "../componentes/CrmInterno21st";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import type { Peca, Reserva, RespostaConversas } from "../tipos";
-import { formatarKwanza } from "../utilidades";
+import { CrmPageMotion } from "../componentes/CrmInterno21st";
+import {
+  PageHead,
+  KpiGrid,
+  KpiCard,
+  TableCard,
+  Table,
+  TableHead,
+  Th,
+  Td,
+  StatusBadge,
+  BotaoBizy,
+  FilterChips,
+  Money,
+} from "../componentes/BizyDesignSystem";
+import type {
+  Campanha,
+  EstadoCampanha,
+  RespostaCampanhas,
+  WhatsAppTemplate,
+  RespostaWhatsAppTemplates,
+} from "../tipos";
 
-function baixarCsv(nome: string, conteudo: string) {
-  const blob = new Blob([conteudo], { type: "text/csv;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = nome;
-  link.click();
-  URL.revokeObjectURL(url);
+const FILTROS_ESTADO: Array<{ id: EstadoCampanha | "TODAS"; rotulo: string }> = [
+  { id: "TODAS", rotulo: "Todas" },
+  { id: "EM_ENVIO", rotulo: "Em envio" },
+  { id: "AGENDADA", rotulo: "Agendadas" },
+  { id: "CONCLUIDA", rotulo: "Concluídas" },
+  { id: "RASCUNHO", rotulo: "Rascunhos" },
+  { id: "PAUSADA", rotulo: "Pausadas" },
+];
+
+function corEstadoCampanha(estado: EstadoCampanha): "green" | "amber" | "blue" | "rose" | "violet" | "mute" {
+  switch (estado) {
+    case "EM_ENVIO": return "blue";
+    case "AGENDADA": return "amber";
+    case "CONCLUIDA": return "green";
+    case "RASCUNHO": return "mute";
+    case "PAUSADA": return "violet";
+    case "CANCELADA": return "rose";
+  }
 }
 
-function telefonesDoSegmento(clientes: ClienteCrm[]): string {
-  return clientes.map((cliente) => cliente.telefoneFormatado).join("\n");
+function rotuloEstado(estado: EstadoCampanha): string {
+  return { RASCUNHO: "Rascunho", AGENDADA: "Agendada", EM_ENVIO: "Em envio", CONCLUIDA: "Concluída", PAUSADA: "Pausada", CANCELADA: "Cancelada" }[estado];
 }
 
 export function PaginaCampanhas() {
-  const [segmentos, setSegmentos] = useState<SegmentoCampanha[]>([]);
+  const [campanhas, setCampanhas] = useState<Campanha[]>([]);
+  const [templates, setTemplates] = useState<WhatsAppTemplate[]>([]);
+  const [filtro, setFiltro] = useState<EstadoCampanha | "TODAS">("TODAS");
   const [carregando, setCarregando] = useState(true);
-  const [mensagem, setMensagem] = useState("");
+  const [abaAtiva, setAbaAtiva] = useState<"campanhas" | "templates">("campanhas");
 
   async function carregar() {
     setCarregando(true);
     try {
-      const [respostaConversas, reservas, pecas] = await Promise.all([
-        requisitarApi<RespostaConversas>("/atendimento/conversas"),
-        requisitarApi<Reserva[]>("/reservas"),
-        requisitarApi<Peca[]>("/pecas")
+      const [rc, rt] = await Promise.allSettled([
+        requisitarApi<RespostaCampanhas>("/campanhas"),
+        requisitarApi<RespostaWhatsAppTemplates>("/whatsapp/templates"),
       ]);
-      const clientes = montarClientesCrm({ conversas: respostaConversas.conversas, reservas, pecas });
-      setSegmentos(montarSegmentosCampanha(clientes));
-      setMensagem("");
-    } catch (erro) {
-      setMensagem(erro instanceof Error ? erro.message : "Erro ao carregar campanhas.");
-    } finally {
-      setCarregando(false);
-    }
+      setCampanhas(rc.status === "fulfilled" ? rc.value.campanhas : []);
+      setTemplates(rt.status === "fulfilled" ? rt.value.templates : []);
+    } catch { /* silencioso */ }
+    finally { setCarregando(false); }
   }
 
   useEffect(() => { void carregar(); }, []);
 
-  const totalClientes = new Set(segmentos.flatMap((segmento) => segmento.clientes.map((cliente) => cliente.telefone))).size;
-  const alcanceQuente = segmentos.find((segmento) => segmento.id === "compradores")?.clientes.length ?? 0;
-  const pendentes = segmentos.find((segmento) => segmento.id === "pagamento-pendente")?.clientes.length ?? 0;
-  const valorPendente = segmentos.find((segmento) => segmento.id === "pagamento-pendente")?.valorEstimado ?? 0;
+  const campanhasFiltradas = useMemo(() => {
+    if (filtro === "TODAS") return campanhas;
+    return campanhas.filter((c) => c.estado === filtro);
+  }, [campanhas, filtro]);
 
-  async function copiarSegmento(segmento: SegmentoCampanha) {
-    await navigator.clipboard.writeText(telefonesDoSegmento(segmento.clientes));
-    setMensagem(`${segmento.clientes.length} contactos copiados.`);
-  }
-
-  function exportarSegmento(segmento: SegmentoCampanha) {
-    baixarCsv(`campanha-${segmento.id}-bizy.csv`, clientesParaCsv(segmento.clientes));
-    setMensagem(`${segmento.clientes.length} contactos exportados.`);
-  }
+  const totalEnviados = campanhas.reduce((s, c) => s + c.enviados, 0);
+  const totalEntregues = campanhas.reduce((s, c) => s + c.entregues, 0);
+  const totalRespostas = campanhas.reduce((s, c) => s + c.respostas, 0);
+  const taxaEntrega = totalEnviados > 0 ? Math.round((totalEntregues / totalEnviados) * 100) : 0;
 
   return (
     <CrmPageMotion>
-      <CabecalhoPagina rotulo="WhatsApp comercial" titulo="Campanhas">
-        <Button variant="outline" size="lg" onClick={() => void carregar()} disabled={carregando}>
-          <RefreshCcw size={18} />
-          Atualizar
-        </Button>
-      </CabecalhoPagina>
-
-      <ResumoIndicadores
-        rotulo="Resumo das campanhas"
-        itens={[
-          { icone: <Users />, titulo: "Base ativa", valor: totalClientes, detalhe: "clientes segmentados", tom: "principal" },
-          { icone: <MessageCircle />, titulo: "Alcance quente", valor: alcanceQuente, detalhe: "clientes que já compraram", tom: "sucesso" },
-          { icone: <Send />, titulo: "Pendentes", valor: pendentes, detalhe: "contactos para cobrança", tom: pendentes ? "atencao" : "neutro" },
-          { icone: <WalletCards />, titulo: "Valor em aberto", valor: formatarKwanza(valorPendente), detalhe: "reservas por fechar" }
-        ]}
-      />
-
-      <CrmSection
-        icon={<Megaphone size={20} />}
-        title="Segmentos prontos para ação"
-        description="Listas comerciais para cobrança, reativação e campanhas de relacionamento."
+      <PageHead
+        eyebrow={`Marketing directo · ${campanhas.length} campanha${campanhas.length !== 1 ? "s" : ""}`}
+        titulo="Campanhas"
+        tamanhoTitulo="sm"
       >
-        <CrmList columns="three">
-          {segmentos.length ? (
-            segmentos.map((segmento) => (
-              <CrmListItem
-                key={segmento.id}
-                media={<Megaphone size={19} />}
-                title={segmento.titulo}
-                description={segmento.foco}
-                tone={segmento.id === "compradores" ? "sucesso" : segmento.id === "pagamento-pendente" ? "atencao" : "principal"}
-                badges={(
-                  <>
-                    {segmento.clientes.slice(0, 4).map((cliente) => (
-                      <Badge key={cliente.telefone} variant="secondary">{cliente.nome}</Badge>
-                    ))}
-                    {segmento.clientes.length > 4 && <Badge variant="outline">+{segmento.clientes.length - 4}</Badge>}
-                  </>
-                )}
-                actions={(
-                  <>
-                    <Button variant="outline" size="lg" onClick={() => void copiarSegmento(segmento)} disabled={!segmento.clientes.length}>
-                      <Copy size={16} />
-                      Copiar
-                    </Button>
-                    <Button size="lg" onClick={() => exportarSegmento(segmento)} disabled={!segmento.clientes.length}>
-                      <Download size={16} />
-                      CSV
-                    </Button>
-                  </>
-                )}
-              >
-                <div className="grid gap-2 sm:grid-cols-2">
-                  <CrmMetricMini label="contactos" value={segmento.clientes.length} tone="principal" />
-                  <CrmMetricMini label="potencial" value={formatarKwanza(segmento.valorEstimado)} tone={segmento.valorEstimado ? "sucesso" : "neutro"} />
-                </div>
-              </CrmListItem>
-            ))
-          ) : (
-            <EstadoVazio
-              icone={<Megaphone />}
-              titulo={carregando ? "A preparar segmentos" : "Sem base para campanhas"}
-              detalhe={carregando ? "A ler clientes e pedidos." : "Os segmentos aparecem depois das primeiras conversas ou vendas."}
-            />
-          )}
-        </CrmList>
-      </CrmSection>
+        <BotaoBizy icone={Plus} onClick={() => void requisitarApi("/campanhas", { method: "POST", body: { nome: `Campanha ${Date.now().toString(36)}`, canal: "WHATSAPP" } }).then(() => void carregar())}>
+          Nova campanha
+        </BotaoBizy>
+        <button type="button" className="bz-iconbtn" onClick={() => void carregar()} disabled={carregando} title="Atualizar">
+          <RefreshCcw size={16} />
+        </button>
+      </PageHead>
 
-      {mensagem && <footer className="rounded-lg border bg-card px-4 py-3 text-sm text-muted-foreground" aria-live="polite">{mensagem}</footer>}
+      <KpiGrid>
+        <KpiCard hero icone={Send} rotulo="Total enviadas" valor={totalEnviados} delta={`${campanhas.filter((c) => c.estado === "EM_ENVIO").length} em envio`} deltaPositivo />
+        <KpiCard icone={Mail} cor="blue" rotulo="Entregues" valor={totalEntregues} delta={`${taxaEntrega}% taxa`} deltaPositivo={taxaEntrega >= 90} />
+        <KpiCard icone={MessageCircle} cor="violet" rotulo="Respostas" valor={totalRespostas} />
+        <KpiCard icone={Smartphone} cor="amber" rotulo="Templates" valor={templates.length} delta={`${templates.filter((t) => t.estado === "APROVADO").length} aprovados`} />
+      </KpiGrid>
+
+      {/* ── Tabs ── */}
+      <div className="flex gap-2 mb-4">
+        <button
+          type="button"
+          className={`bz-tab ${abaAtiva === "campanhas" ? "active" : ""}`}
+          onClick={() => setAbaAtiva("campanhas")}
+          style={abaAtiva === "campanhas" ? { borderBottomColor: "var(--green)" } : undefined}
+        >
+          Campanhas
+        </button>
+        <button
+          type="button"
+          className={`bz-tab ${abaAtiva === "templates" ? "active" : ""}`}
+          onClick={() => setAbaAtiva("templates")}
+          style={abaAtiva === "templates" ? { borderBottomColor: "var(--green)" } : undefined}
+        >
+          Templates WhatsApp
+        </button>
+      </div>
+
+      {abaAtiva === "campanhas" && (
+        <>
+          <FilterChips
+            opcoes={FILTROS_ESTADO.map((f) => ({ id: f.id, rotulo: f.rotulo }))}
+            activo={filtro}
+            onChange={(id) => setFiltro(id as EstadoCampanha | "TODAS")}
+          />
+
+          <TableCard>
+            <Table>
+              <TableHead>
+                <Th>Campanha</Th>
+                <Th>Canal</Th>
+                <Th right>Enviados</Th>
+                <Th right>Entregues</Th>
+                <Th right>Respostas</Th>
+                <Th>Estado</Th>
+                <Th>Ações</Th>
+              </TableHead>
+              <tbody>
+                {campanhasFiltradas.length > 0 ? campanhasFiltradas.map((c) => (
+                  <tr key={c.id}>
+                    <Td>
+                      <div>
+                        <div style={{ fontWeight: 600, fontSize: 13.5 }}>{c.nome}</div>
+                        <div style={{ fontSize: 11.5, color: "var(--ink-3)", marginTop: 2 }}>
+                          {new Date(c.criadaEm).toLocaleDateString("pt-AO", { day: "2-digit", month: "short" })}
+                        </div>
+                      </div>
+                    </Td>
+                    <Td>
+                      <StatusBadge cor={c.canal === "WHATSAPP" ? "green" : c.canal === "SMS" ? "blue" : "violet"}>
+                        {c.canal === "WHATSAPP" ? "WhatsApp" : c.canal}
+                      </StatusBadge>
+                    </Td>
+                    <Td right><span className="bz-tnum">{c.enviados}</span></Td>
+                    <Td right><span className="bz-tnum">{c.entregues}</span></Td>
+                    <Td right><span className="bz-tnum">{c.respostas}</span></Td>
+                    <Td><StatusBadge cor={corEstadoCampanha(c.estado)}>{rotuloEstado(c.estado)}</StatusBadge></Td>
+                    <Td>
+                      <div style={{ display: "flex", gap: 4 }}>
+                        {c.estado === "RASCUNHO" && (
+                          <button type="button" className="bz-iconbtn" title="Confirmar" onClick={() => void requisitarApi(`/campanhas/${c.id}/confirmar`, { method: "POST" }).then(() => void carregar())}>
+                            <Play size={14} />
+                          </button>
+                        )}
+                        {c.estado === "EM_ENVIO" && (
+                          <button type="button" className="bz-iconbtn" title="Pausar" onClick={() => void requisitarApi(`/campanhas/${c.id}/pausar`, { method: "POST" }).then(() => void carregar())}>
+                            <Pause size={14} />
+                          </button>
+                        )}
+                      </div>
+                    </Td>
+                  </tr>
+                )) : (
+                  <tr>
+                    <td colSpan={7} className="bz-feed-empty">
+                      {carregando ? "A carregar campanhas..." : "Sem campanhas. Crie a primeira para disparar mensagens em massa."}
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </Table>
+          </TableCard>
+        </>
+      )}
+
+      {abaAtiva === "templates" && (
+        <TableCard>
+          <Table>
+            <TableHead>
+              <Th>Template</Th>
+              <Th>Categoria</Th>
+              <Th>Idioma</Th>
+              <Th>Estado</Th>
+              <Th>Criado</Th>
+            </TableHead>
+            <tbody>
+              {templates.length > 0 ? templates.map((t) => (
+                <tr key={t.id}>
+                  <Td>
+                    <div>
+                      <div style={{ fontWeight: 600, fontSize: 13.5 }}>{t.nome}</div>
+                      <div style={{ fontSize: 11.5, color: "var(--ink-3)", marginTop: 2 }} className="truncate">{t.corpo}</div>
+                    </div>
+                  </Td>
+                  <Td><span style={{ fontSize: 12, textTransform: "capitalize" }}>{t.categoria}</span></Td>
+                  <Td><span style={{ fontSize: 12 }}>{t.idioma}</span></Td>
+                  <Td>
+                    <StatusBadge cor={t.estado === "APROVADO" ? "green" : t.estado === "PENDENTE" ? "amber" : t.estado === "REJEITADO" ? "rose" : "mute"}>
+                      {t.estado === "APROVADO" ? "Aprovado" : t.estado === "PENDENTE" ? "Pendente" : t.estado === "REJEITADO" ? "Rejeitado" : "Rascunho"}
+                    </StatusBadge>
+                  </Td>
+                  <Td><span style={{ fontSize: 12 }}>{new Date(t.criadoEm).toLocaleDateString("pt-AO", { day: "2-digit", month: "short" })}</span></Td>
+                </tr>
+              )) : (
+                <tr>
+                  <td colSpan={5} className="bz-feed-empty">
+                    {carregando ? "A carregar templates..." : "Sem templates. Configure mensagens aprovadas pelo WhatsApp Business."}
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </Table>
+        </TableCard>
+      )}
     </CrmPageMotion>
   );
 }

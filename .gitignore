@@ -16,3 +16,4 @@ tmp/
 .agents/
 .codex/
 .superpowers/
+docs/wiki/.obsidian/workspace*.json

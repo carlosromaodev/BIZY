@@ -1,19 +1,26 @@
 import { type ReactNode } from "react";
-import { motion } from "framer-motion";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { Item, ItemActions, ItemContent, ItemDescription, ItemMedia, ItemTitle } from "@/components/ui/item";
+import { motion } from "motion/react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
 type TomCrm = "neutro" | "principal" | "sucesso" | "atencao" | "perigo" | "info";
 
 const tonsItem = {
-  neutro: "bg-background text-foreground",
-  principal: "bg-primary/10 text-primary",
-  sucesso: "bg-success/10 text-success",
-  atencao: "bg-warning/10 text-warning",
-  perigo: "bg-destructive/10 text-destructive",
-  info: "bg-info/10 text-info"
+  neutro: "text-muted-foreground",
+  principal: "text-primary",
+  sucesso: "text-success",
+  atencao: "text-warning",
+  perigo: "text-destructive",
+  info: "text-info"
+} satisfies Record<TomCrm, string>;
+
+const tonsItemBg = {
+  neutro: "",
+  principal: "bg-black/[0.03]",
+  sucesso: "bg-emerald-50",
+  atencao: "bg-amber-50",
+  perigo: "bg-red-50",
+  info: "bg-blue-50"
 } satisfies Record<TomCrm, string>;
 
 export function CrmPageMotion({
@@ -25,10 +32,10 @@ export function CrmPageMotion({
 }) {
   return (
     <motion.div
-      className={cn("crm-market-page grid gap-5", className)}
-      initial={{ opacity: 0, y: 12 }}
+      className={cn("crm-market-page crm-cal-shell grid gap-5", className)}
+      initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+      transition={{ type: "spring", stiffness: 280, damping: 22, mass: 0.8 }}
     >
       {children}
     </motion.div>
@@ -51,21 +58,21 @@ export function CrmSection({
   actions?: ReactNode;
 }) {
   return (
-    <Card className={cn("crm21-section", className)}>
+    <section className={cn("crm21-section grid gap-4", className)}>
       {(title || description || actions) && (
-        <CardHeader className="crm21-section-header flex flex-row items-start justify-between gap-3">
-          <div className="flex min-w-0 items-start gap-3">
-            {icon && <div className="crm21-section-icon">{icon}</div>}
+        <div className="crm21-section-header flex items-start justify-between gap-3">
+          <div className="flex min-w-0 items-start gap-2.5">
+            {icon && <span className="crm21-section-icon text-primary">{icon}</span>}
             <div className="min-w-0">
-              {title && <h2 className="crm21-section-title text-base font-semibold leading-tight text-foreground">{title}</h2>}
-              {description && <p className="mt-1 text-sm leading-5 text-muted-foreground">{description}</p>}
+              {title && <h2 className="crm21-section-title font-heading text-base font-semibold leading-tight text-foreground">{title}</h2>}
+              {description && <p className="mt-1 text-xs leading-5 text-muted-foreground">{description}</p>}
             </div>
           </div>
           {actions && <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">{actions}</div>}
-        </CardHeader>
+        </div>
       )}
-      <CardContent className="grid gap-3">{children}</CardContent>
-    </Card>
+      <div className="grid gap-0">{children}</div>
+    </section>
   );
 }
 
@@ -100,10 +107,8 @@ export function CrmCommandPanel({
     <section className={cn("crm-command-panel", className)}>
       <div className="crm-command-panel-copy">
         {eyebrow && <p className="crm-command-panel-eyebrow">{eyebrow}</p>}
-        <div className="grid gap-2">
-          <h2 className="crm-command-panel-title">{title}</h2>
-          {description && <p className="crm-command-panel-description">{description}</p>}
-        </div>
+        <h2 className="crm-command-panel-title">{title}</h2>
+        {description && <p className="crm-command-panel-description">{description}</p>}
       </div>
       <div className="crm-command-panel-body">{children}</div>
       {actions && <div className="crm-command-panel-actions">{actions}</div>}
@@ -145,9 +150,10 @@ export function CrmList({
   return (
     <div
       className={cn(
-        "crm21-list grid gap-3",
-        columns === "two" && "lg:grid-cols-2",
-        columns === "three" && "md:grid-cols-2 xl:grid-cols-3",
+        "crm21-list",
+        columns === "two" && "grid gap-4 lg:grid-cols-2",
+        columns === "three" && "grid gap-4 md:grid-cols-2 xl:grid-cols-3",
+        columns === "one" && "grid gap-1",
         className
       )}
       {...props}
@@ -179,23 +185,23 @@ export function CrmListItem({
   tone?: TomCrm;
 }) {
   return (
-    <Item className={cn("crm21-item", className)}>
-      <ItemMedia className={cn("crm21-item-media", tonsItem[tone])}>
-        {media}
-      </ItemMedia>
-      <ItemContent>
-        <div className="grid gap-1 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start">
-          <div className="min-w-0">
-            <ItemTitle className="crm21-item-title truncate">{title}</ItemTitle>
-            {description && <ItemDescription className="crm21-item-description line-clamp-2">{description}</ItemDescription>}
-          </div>
-          {meta && <div className="text-sm font-semibold text-muted-foreground sm:text-right">{meta}</div>}
+    <div className={cn("crm21-item flex min-w-0 items-start gap-3 py-3 first:pt-0 last:pb-0 rounded-lg px-2 -mx-2 transition-colors", tonsItemBg[tone], className)}>
+      {media && (
+        <span className={cn("crm21-item-media mt-0.5 grid size-9 shrink-0 place-items-center rounded-lg bg-(--color-surface-warm)", tonsItem[tone])}>
+          {media}
+        </span>
+      )}
+      <div className="min-w-0 flex-1">
+        <div className="flex items-baseline justify-between gap-2">
+          <span className="crm21-item-title truncate text-sm font-medium text-foreground">{title}</span>
+          {meta && <span className="shrink-0 text-xs tabular-nums text-muted-foreground">{meta}</span>}
         </div>
-        {badges && <div className="mt-2 flex flex-wrap gap-1.5">{badges}</div>}
-        {children && <div className="mt-3">{children}</div>}
-      </ItemContent>
-      {actions && <ItemActions className="crm21-item-actions">{actions}</ItemActions>}
-    </Item>
+        {description && <p className="crm21-item-description mt-0.5 truncate text-xs text-muted-foreground">{description}</p>}
+        {badges && <div className="mt-1.5 flex flex-wrap gap-1">{badges}</div>}
+        {children && <div className="mt-2">{children}</div>}
+      </div>
+      {actions && <div className="crm21-item-actions flex shrink-0 flex-wrap items-center justify-end gap-2">{actions}</div>}
+    </div>
   );
 }
 

@@ -55,6 +55,7 @@ export class MotorReservas {
       negocioId: opcoes.negocioId ?? null,
       clienteNegocioId: opcoes.clienteNegocioId ?? null,
       codigoPeca: interpretacao.productCode,
+      varianteSelecionada: interpretacao.variant ?? null,
       telefoneCliente: interpretacao.phone,
       nomeCliente: comentario.displayName || comentario.username,
       usernameCliente: comentario.username,

@@ -122,6 +122,7 @@ export interface RepositorioPecas {
   atualizarEstado(codigo: string, estado: EstadoPeca, negocioId?: string | null): Promise<Peca>;
   registrarMovimentoStock(dados: NovoMovimentoStock): Promise<MovimentoStock>;
   listarMovimentosStock(codigoPeca: string, negocioId?: string | null): Promise<MovimentoStock[]>;
+  decrementarStockVariante?(pecaId: string, combinacao: string, quantidade: number): Promise<{ quantidade: number }>;
 }
 
 export interface RepositorioTrackingComercial {
@@ -442,7 +443,7 @@ export interface RepositorioAutenticacao {
   marcarCodigoUsado(id: string, usadoEm: Date): Promise<CodigoLoginSms>;
   incrementarTentativasCodigo(id: string): Promise<CodigoLoginSms>;
   revogarCodigosAbertos(telefone: string, agora: Date): Promise<void>;
-  criarSessao(dados: { tokenHash: string; usuarioId: string; expiraEm: Date }): Promise<void>;
+  criarSessao(dados: { tokenHash: string; usuarioId: string; expiraEm: Date }): Promise<{ id: string }>;
   buscarSessaoPorTokenHash(tokenHash: string, agora: Date): Promise<{
     id: string;
     usuario: UsuarioSistema;

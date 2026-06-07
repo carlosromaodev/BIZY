@@ -47,6 +47,7 @@ export class AutenticacaoEstudantilUseCase {
   async login(credenciais: CredenciaisEstudantis): Promise<{
     sucesso: true;
     token: string;
+    sessaoId: string;
     expiraEm: Date;
     usuario: UsuarioSistema;
     perfil: PerfilAcademicoAutenticado;
@@ -95,6 +96,7 @@ export class AutenticacaoEstudantilUseCase {
     return {
       sucesso: true,
       token: sessao.token,
+      sessaoId: sessao.sessaoId,
       expiraEm: sessao.expiraEm,
       usuario,
       perfil

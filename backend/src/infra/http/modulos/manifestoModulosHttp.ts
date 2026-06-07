@@ -4,6 +4,7 @@ import { moduloCampanhas } from "./campanhas.js";
 import { moduloCatalogo } from "./catalogo.js";
 import { moduloClientes } from "./clientes.js";
 import { moduloContratos } from "./contratos.js";
+import { moduloCrmApoio } from "./crmApoio.js";
 import { moduloDiagnosticos } from "./diagnosticos.js";
 import { moduloIntegracoes } from "./integracoes.js";
 import { moduloLives } from "./lives.js";
@@ -25,6 +26,7 @@ export const modulosHttp = [
   moduloCatalogo,
   moduloClientes,
   moduloCampanhas,
+  moduloCrmApoio,
   moduloContratos,
   moduloLojaPublica,
   moduloMarket,

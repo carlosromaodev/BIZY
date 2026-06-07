@@ -16,6 +16,9 @@ export interface SessaoLiveResumo {
   comentariosRecebidos: number;
   comentariosProcessados: number;
   comentariosComErro: number;
+  espectadoresAtuais: number | null;
+  picoEspectadores: number | null;
+  metricasAtualizadasEm: Date | null;
   ultimoComentarioEm: Date | null;
   ultimoErro: string | null;
 }

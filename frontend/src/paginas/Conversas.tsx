@@ -1,24 +1,40 @@
 import {
   AlertTriangle,
+  ArrowLeft,
   Ban,
-  ChevronLeft,
+  Bell,
   CheckCircle2,
+  ChevronDown,
   ClipboardList,
   Link2,
   MessageCircle,
-  Phone,
   Package,
+  Phone,
+  Plus,
   RefreshCcw,
   Save,
   Search,
   Send,
+  Settings2,
   StickyNote,
-  UserRound
+  UserRound,
+  X,
+  Zap
 } from "lucide-react";
-import { type FormEvent, type ReactNode, useEffect, useMemo, useRef, useState } from "react";
-import { obterUrlEventos, requisitarApi } from "../api";
-import { CabecalhoPagina, EstadoVazio } from "../componentes/Shell";
+import { type FormEvent, type KeyboardEvent as ReactKeyboardEvent, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "react-router-dom";
+import { motion, AnimatePresence } from "motion/react";
+import { criarFonteEventosAutenticada, requisitarApi } from "../api";
+import { EstadoVazio } from "../componentes/Shell";
+import { SkeletonPagina } from "../componentes/SkeletonBlocks";
 import { CrmList, CrmListItem, CrmMetricMini, CrmPageMotion } from "../componentes/CrmInterno21st";
+import { AvatarBizy, obterCorAvatar, obterIniciais, StatusBadge, type CorSemantica } from "../componentes/BizyDesignSystem";
+import { BarraAcoesInteligente, type TipoAcaoInteligente } from "../componentes/atendimento/BarraAcoesInteligente";
+import { RespostasRapidasPainel } from "../componentes/atendimento/RespostasRapidasPainel";
+import { CriarLembretePainel } from "../componentes/atendimento/CriarLembretePainel";
+import { ResumoClienteCartao } from "../componentes/atendimento/ResumoClienteCartao";
+import { AcoesRapidasMobile } from "../componentes/atendimento/AcoesRapidasMobile";
+import { useTeclasAtalho } from "../componentes/atendimento/useTeclasAtalho";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -31,8 +47,30 @@ import {
   SelectTrigger,
   SelectValue
 } from "@/components/ui/select";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger
+} from "@/components/ui/sheet";
 import { Textarea } from "@/components/ui/textarea";
-import type { Conversa, Mensagem, Peca, Reserva, RespostaConversas } from "../tipos";
+import type {
+  Cliente360,
+  Conversa,
+  Lembrete,
+  Mensagem,
+  Peca,
+  ProximaAcaoAtendimento,
+  Reserva,
+  RespostaClientes360,
+  RespostaConversas,
+  RespostaLembretes,
+  RespostaProximasAcoesAtendimento,
+  RespostaRapida,
+  RespostaRespostasRapidas
+} from "../tipos";
 import {
   formatarKwanza,
   formatarTempoRestante,
@@ -71,11 +109,23 @@ type ContextoComercialDados = {
   reservasFiltradas: Reserva[];
 };
 
+type FiltroRapido = "todas" | "abertas" | "aguardando" | "resolvidas";
+
+const FILTROS_RAPIDOS: Array<{ valor: FiltroRapido; rotulo: string }> = [
+  { valor: "todas",     rotulo: "Todas" },
+  { valor: "abertas",   rotulo: "Abertas" },
+  { valor: "aguardando", rotulo: "Aguardando" },
+  { valor: "resolvidas", rotulo: "Resolvidas" },
+];
+
 export function PaginaConversas() {
+  const [searchParams] = useSearchParams();
   const [conversas, setConversas] = useState<Conversa[]>([]);
   const [conversaSelecionada, setConversaSelecionada] = useState<string | null>(null);
+  const [chatAberto, setChatAberto] = useState(false);
   const [busca, setBusca] = useState("");
   const [filtroResponsavel, setFiltroResponsavel] = useState("todos");
+  const [filtroRapido, setFiltroRapido] = useState<FiltroRapido>("todas");
   const [pecas, setPecas] = useState<Peca[]>([]);
   const [reservas, setReservas] = useState<Reserva[]>([]);
   const [buscaContexto, setBuscaContexto] = useState("");
@@ -83,8 +133,8 @@ export function PaginaConversas() {
   const [mensagem, setMensagem] = useState("");
   const [textoResposta, setTextoResposta] = useState("");
   const [notaInterna, setNotaInterna] = useState("");
-  const [mobileDetalheAberto, setMobileDetalheAberto] = useState(false);
   const mensagensRef = useRef<HTMLDivElement | null>(null);
+  const mensagensRefDesktop = useRef<HTMLDivElement | null>(null);
   const [formCrm, setFormCrm] = useState({
     estadoCrm: "NOVA" as Conversa["estadoCrm"],
     prioridade: "NORMAL" as Conversa["prioridade"],
@@ -92,6 +142,21 @@ export function PaginaConversas() {
     politicaAutomacao: "AUTOMATICO" as Conversa["politicaAutomacao"]
   });
   const [carregando, setCarregando] = useState(false);
+  const [carregandoInicial, setCarregandoInicial] = useState(true);
+  const [respostasRapidas, setRespostasRapidas] = useState<RespostaRapida[]>([]);
+  const [clientes, setClientes] = useState<Cliente360[]>([]);
+  const [lembretes, setLembretes] = useState<Lembrete[]>([]);
+  const [proximasAcoes, setProximasAcoes] = useState<ProximaAcaoAtendimento[]>([]);
+  const [respostasRapidasAbertas, setRespostasRapidasAbertas] = useState(false);
+  const [criarLembreteAberto, setCriarLembreteAberto] = useState(false);
+  const [drawerMobileAberto, setDrawerMobileAberto] = useState(false);
+  const [gestaoMobileAberta, setGestaoMobileAberta] = useState(false);
+  const [notaMobileAberta, setNotaMobileAberta] = useState(false);
+  const enviarRef = useRef<(() => void) | null>(null);
+  const contextoUrlAplicadoRef = useRef<string | null>(null);
+  const clienteIdUrl = searchParams.get("clienteId");
+  const telefoneUrl = searchParams.get("telefone");
+  const conversaIdUrl = searchParams.get("conversaId");
 
   async function carregar() {
     try {
@@ -104,15 +169,25 @@ export function PaginaConversas() {
       setConversas(conversasNormalizadas);
       setPecas(listaPecas);
       setReservas(listaReservas);
-      setConversaSelecionada((atual) => atual ?? conversasNormalizadas[0]?.id ?? null);
     } catch (erro) {
       setMensagem(erro instanceof Error ? erro.message : "Não foi possível carregar conversas.");
     }
   }
 
+  async function carregarDadosApoio() {
+    const [rr, cl, lb] = await Promise.allSettled([
+      requisitarApi<RespostaRespostasRapidas>("/respostas-rapidas?limite=100"),
+      requisitarApi<RespostaClientes360>("/clientes?limite=500"),
+      requisitarApi<RespostaLembretes>("/lembretes?limite=100")
+    ]);
+    if (rr.status === "fulfilled") setRespostasRapidas(rr.value.respostas ?? []);
+    if (cl.status === "fulfilled") setClientes(cl.value.clientes ?? []);
+    if (lb.status === "fulfilled") setLembretes(lb.value.lembretes ?? []);
+  }
+
   useEffect(() => {
-    void carregar();
-    const eventos = new EventSource(obterUrlEventos());
+    void Promise.all([carregar(), carregarDadosApoio()]).finally(() => setCarregandoInicial(false));
+    const eventos = criarFonteEventosAutenticada();
     const atualizar = () => void carregar();
     [
       "COMMENT_RECEIVED",
@@ -127,6 +202,35 @@ export function PaginaConversas() {
     ].forEach((evento) => eventos.addEventListener(evento, atualizar));
     return () => eventos.close();
   }, []);
+
+  useEffect(() => {
+    if (!clienteIdUrl && !telefoneUrl && !conversaIdUrl) return;
+    if (!conversas.length) return;
+
+    const contextoUrlKey = `${clienteIdUrl ?? ""}|${telefoneUrl ?? ""}|${conversaIdUrl ?? ""}`;
+    if (contextoUrlAplicadoRef.current === contextoUrlKey) return;
+
+    const telefoneCliente =
+      telefoneUrl ??
+      clientes.find((cliente) => cliente.id === clienteIdUrl)?.telefone ??
+      null;
+    const telefoneNormalizado = normalizarTelefoneLocal(telefoneCliente);
+    const conversaEncontrada =
+      conversas.find((conversa) => conversaIdUrl && (conversa.id === conversaIdUrl || conversa.conversaCrmId === conversaIdUrl)) ??
+      conversas.find((conversa) => telefoneNormalizado && normalizarTelefoneLocal(conversa.telefone) === telefoneNormalizado);
+
+    if (conversaEncontrada) {
+      abrirConversa(conversaEncontrada.id);
+      setBusca("");
+      contextoUrlAplicadoRef.current = contextoUrlKey;
+      return;
+    }
+
+    if (telefoneCliente) {
+      setBusca(telefoneCliente);
+      contextoUrlAplicadoRef.current = contextoUrlKey;
+    }
+  }, [clienteIdUrl, clientes, conversaIdUrl, conversas, telefoneUrl]);
 
   async function executar(acao: () => Promise<unknown>, sucesso: string) {
     setCarregando(true);
@@ -165,6 +269,22 @@ export function PaginaConversas() {
     return porBusca.filter((conversa) => conversa.responsavelId === filtroResponsavel);
   }, [busca, conversas, filtroResponsavel]);
 
+  const conversasDesktop = useMemo(() => {
+    switch (filtroRapido) {
+      case "abertas":   return conversasFiltradas.filter((c) => ["NOVA", "ABERTA"].includes(c.estadoCrm));
+      case "aguardando": return conversasFiltradas.filter((c) => c.estadoCrm.startsWith("AGUARDANDO_"));
+      case "resolvidas": return conversasFiltradas.filter((c) => ["RESOLVIDA", "ENCERRADA"].includes(c.estadoCrm));
+      default:           return conversasFiltradas;
+    }
+  }, [conversasFiltradas, filtroRapido]);
+
+  const contagensFiltros = useMemo(() => ({
+    todas:     conversasFiltradas.length,
+    abertas:   conversasFiltradas.filter((c) => ["NOVA", "ABERTA"].includes(c.estadoCrm)).length,
+    aguardando: conversasFiltradas.filter((c) => c.estadoCrm.startsWith("AGUARDANDO_")).length,
+    resolvidas: conversasFiltradas.filter((c) => ["RESOLVIDA", "ENCERRADA"].includes(c.estadoCrm)).length,
+  }), [conversasFiltradas]);
+
   useEffect(() => {
     if (!conversaAtual) return;
     setFormCrm({
@@ -185,26 +305,59 @@ export function PaginaConversas() {
   useEffect(() => {
     setBuscaContexto("");
     setContextoAberto(false);
+    setGestaoMobileAberta(false);
+    setNotaMobileAberta(false);
   }, [conversaAtual?.id]);
 
-  const detalheMobileAtivo = Boolean(mobileDetalheAberto && conversaAtual);
+  useEffect(() => {
+    let cancelado = false;
+    setProximasAcoes([]);
 
+    if (!conversaAtual?.conversaCrmId) return () => {
+      cancelado = true;
+    };
+
+    requisitarApi<RespostaProximasAcoesAtendimento>(`/atendimento/conversas/${conversaAtual.conversaCrmId}/proximas-acoes`)
+      .then((resposta) => {
+        if (!cancelado) setProximasAcoes(resposta.acoes ?? []);
+      })
+      .catch(() => {
+        if (!cancelado) setProximasAcoes([]);
+      });
+
+    return () => {
+      cancelado = true;
+    };
+  }, [
+    conversaAtual?.conversaCrmId,
+    conversaAtual?.estadoCrm,
+    conversaAtual?.mensagens.length,
+    conversaAtual?.prioridade,
+    conversaAtual?.reservaAtual?.id
+  ]);
+
+  const chatImersivo = Boolean(chatAberto && conversaAtual);
+
+  // Scroll to bottom — both mobile and desktop refs
   useEffect(() => {
     if (!conversaAtual) return;
 
     const frame = window.requestAnimationFrame(() => {
-      if (!mensagensRef.current) return;
-
-      mensagensRef.current.scrollTo({ top: mensagensRef.current.scrollHeight, behavior: "auto" });
+      if (mensagensRef.current) {
+        mensagensRef.current.scrollTo({ top: mensagensRef.current.scrollHeight, behavior: "auto" });
+      }
+      if (mensagensRefDesktop.current) {
+        mensagensRefDesktop.current.scrollTo({ top: mensagensRefDesktop.current.scrollHeight, behavior: "auto" });
+      }
     });
 
     return () => window.cancelAnimationFrame(frame);
-  }, [conversaAtual?.id, conversaAtual?.mensagens.length, detalheMobileAtivo]);
+  }, [conversaAtual?.id, conversaAtual?.mensagens.length, chatAberto]);
 
   useEffect(() => {
     if (typeof document === "undefined") return;
 
-    if (!detalheMobileAtivo) {
+    if (!chatImersivo) {
       delete document.body.dataset.mobileChatImersivo;
       document.body.classList.remove("mobile-chat-imersivo");
       return;
@@ -217,37 +370,60 @@ export function PaginaConversas() {
       delete document.body.dataset.mobileChatImersivo;
       document.body.classList.remove("mobile-chat-imersivo");
     };
-  }, [detalheMobileAtivo]);
+  }, [chatImersivo]);
+
+  function abrirConversa(id: string) {
+    setConversaSelecionada(id);
+    setChatAberto(true);
+  }
+
+  function voltarParaLista() {
+    setChatAberto(false);
+  }
 
   async function enviarMensagem(e: FormEvent) {
     e.preventDefault();
     const texto = textoResposta.trim();
     if (!conversaAtual || !texto) return;
 
-    await executar(
-      () => requisitarApi("/whatsapp/mensagens", {
-        method: "POST",
-        body: {
-          telefone: conversaAtual.telefone,
-          mensagem: texto
-        }
-      }),
-      "Mensagem enviada para o WhatsApp."
-    );
+    await enviarTextoAtendimento(texto);
     setTextoResposta("");
   }
 
   async function enviarMensagemRapida(texto: string) {
     if (!conversaAtual || !texto.trim()) return;
 
+    await enviarTextoAtendimento(texto);
+  }
+
+  async function enviarTextoAtendimento(
+    texto: string,
+    contextoAcao?: { entidadeTipo?: string; entidadeId?: string }
+  ) {
+    if (!conversaAtual || !texto.trim()) return;
+
     await executar(
-      () => requisitarApi("/whatsapp/mensagens", {
-        method: "POST",
-        body: {
-          telefone: conversaAtual.telefone,
-          mensagem: texto.trim()
-        }
-      }),
+      () => conversaAtual.conversaCrmId
+        ? requisitarApi(`/atendimento/conversas/${conversaAtual.conversaCrmId}/mensagens`, {
+            method: "POST",
+            body: {
+              tipo: "TEXTO",
+              mensagem: texto.trim(),
+              entidadeTipo: contextoAcao?.entidadeTipo ?? null,
+              entidadeId: contextoAcao?.entidadeId ?? null,
+              contexto: {
+                origemInterface: "atendimento",
+                clienteTelefone: conversaAtual.telefone
+              }
+            }
+          })
+        : requisitarApi("/whatsapp/mensagens", {
+            method: "POST",
+            body: {
+              telefone: conversaAtual.telefone,
+              mensagem: texto.trim()
+            }
+          }),
       "Mensagem enviada para o WhatsApp."
     );
   }
@@ -255,17 +431,7 @@ export function PaginaConversas() {
   async function reenviarMensagem(mensagemFalhada: Mensagem) {
     if (!conversaAtual || !mensagemFalhada.conteudo.trim()) return;
 
-    await executar(
-      () =>
-        requisitarApi("/whatsapp/mensagens", {
-          method: "POST",
-          body: {
-            telefone: conversaAtual.telefone,
-            mensagem: mensagemFalhada.conteudo
-          }
-        }),
-      "Reenvio solicitado pelo WhatsApp."
-    );
+    await enviarTextoAtendimento(mensagemFalhada.conteudo);
   }
 
   async function guardarGestaoCrm(e: FormEvent) {
@@ -330,6 +496,24 @@ export function PaginaConversas() {
     setTextoResposta("");
   }
 
+  async function criarPedidoPorPeca(peca: Peca) {
+    if (!conversaAtual?.conversaCrmId) return;
+
+    await executar(
+      () =>
+        requisitarApi(`/atendimento/conversas/${conversaAtual.conversaCrmId}/pedidos`, {
+          method: "POST",
+          body: {
+            itens: [{ codigoPeca: peca.codigo, quantidade: 1 }],
+            origem: "conversa",
+            canal: "whatsapp",
+            observacao: `Pedido criado pelo atendimento a partir do produto #${peca.codigo}.`
+          }
+        }),
+      "Pedido criado e ligado à conversa."
+    );
+  }
+
   const contextoComercial = useMemo<ContextoComercialDados>(() => {
     if (!conversaAtual) {
       return {
@@ -374,371 +558,883 @@ export function PaginaConversas() {
     };
   }, [buscaContexto, conversaAtual, pecas, reservas]);
 
-  return (
-    <CrmPageMotion>
-      <CabecalhoPagina rotulo="Atendimento" titulo="Conversas e contexto">
-        <Button variant="outline" size="lg" onClick={() => void carregar()}>
-          <RefreshCcw data-icon="inline-start" className="size-4" aria-hidden="true" />
-          Atualizar
-        </Button>
-      </CabecalhoPagina>
+  const clienteAtual = useMemo(() => {
+    if (!conversaAtual) return null;
+    const tel = normalizarTelefoneLocal(conversaAtual.telefone);
+    return clientes.find((c) => normalizarTelefoneLocal(c.telefone) === tel) ?? null;
+  }, [conversaAtual, clientes]);
 
-      <section className="conversas-commerce-layout grid gap-4 lg:grid-cols-[360px_minmax(0,1fr)]">
-        <Card className={`market-panel ${detalheMobileAtivo ? "hidden lg:block" : "block"}`}>
-          <CardContent className="grid gap-3 p-4">
-            <CampoBusca aria-label="Buscar conversas" placeholder="Buscar cliente, telefone ou peça..." value={busca} onChange={setBusca} />
-            <div className="flex items-center gap-2">
-              <UserRound className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
-              <Select value={filtroResponsavel} onValueChange={setFiltroResponsavel}>
-                <SelectTrigger aria-label="Filtrar conversas por responsável">
-                  <SelectValue placeholder="Responsável" />
-                </SelectTrigger>
+  const pecaRelacionadaObj = useMemo(() => {
+    const codigo = conversaAtual?.reservaAtual?.codigoPeca ?? conversaAtual?.pecaRelacionada;
+    if (!codigo) return null;
+    return pecas.find((p) => p.codigo.toLowerCase() === codigo.toLowerCase()) ?? null;
+  }, [conversaAtual, pecas]);
+
+  // Ctrl+Enter send ref
+  enviarRef.current = useCallback(() => {
+    if (textoResposta.trim() && conversaAtual) {
+      void enviarMensagemRapida(textoResposta.trim());
+      setTextoResposta("");
+    }
+  }, [textoResposta, conversaAtual]);
+
+  const atalhos = useMemo(() => {
+    const mapa = new Map<string, () => void>();
+    mapa.set("escape", () => {
+      if (respostasRapidasAbertas) { setRespostasRapidasAbertas(false); return; }
+      if (contextoAberto) { setContextoAberto(false); return; }
+      if (chatAberto) voltarParaLista();
+    });
+    return mapa;
+  }, [respostasRapidasAbertas, contextoAberto, chatAberto]);
+
+  useTeclasAtalho(atalhos);
+
+  function lidarComTeclaComposer(e: ReactKeyboardEvent<HTMLTextAreaElement>) {
+    if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+      e.preventDefault();
+      enviarRef.current?.();
+    }
+  }
+
+  function lidarComAcaoInteligente(
+    tipo: TipoAcaoInteligente,
+    dados?: string,
+    contextoAcao?: { entidadeTipo?: string; entidadeId?: string }
+  ) {
+    if (!conversaAtual) return;
+    switch (tipo) {
+      case "confirmar-pagamento":
+        if (conversaAtual.reservaAtual) {
+          void executar(
+            () => requisitarApi(`/reservas/${conversaAtual.reservaAtual?.id}/confirmar-pagamento`, { method: "POST", body: {} }),
+            "Pagamento confirmado."
+          );
+        }
+        break;
+      case "assumir-atendimento":
+        if (conversaAtual.conversaCrmId) {
+          void executar(
+            () => requisitarApi(`/atendimento/conversas/${conversaAtual.conversaCrmId}`, {
+              method: "PATCH",
+              body: { estado: "ABERTA", prioridade: formCrm.prioridade, responsavelId: formCrm.responsavelId.trim() || null }
+            }),
+            "Atendimento assumido."
+          );
+        }
+        break;
+      case "produto-esgotado":
+      case "enviar-info-produto":
+      case "pedir-comprovativo":
+      case "enviar-dados-pagamento":
+      case "pedir-endereco":
+      case "confirmar-entrega":
+        if (dados) setTextoResposta(dados);
+        break;
+      case "criar-pedido":
+        setContextoAberto(true);
+        setBuscaContexto(conversaAtual.pecaRelacionada ?? conversaAtual.reservaAtual?.codigoPeca ?? "");
+        if (contextoAcao?.entidadeTipo && contextoAcao.entidadeId) {
+          setMensagem("Escolha o produto no painel e envie a proposta ao cliente.");
+        }
+        break;
+      case "agendar-followup":
+        setCriarLembreteAberto(true);
+        break;
+      case "reserva-expira":
+        break;
+    }
+  }
+
+  if (carregandoInicial) return <CrmPageMotion><SkeletonPagina /></CrmPageMotion>;
+
+  // ─── Painel de propriedades (reutilizado no mobile e desktop) ────────────
+  const painelPropriedades = conversaAtual ? (
+    <div className="atendimento-props-corpo">
+      {/* ── Cliente ── */}
+      {clienteAtual && (
+        <ResumoClienteCartao cliente={clienteAtual} />
+      )}
+
+      {/* ── Lembrete rápido ── */}
+      <div className="atendimento-props-section">
+        <Button
+          variant="outline"
+          size="sm"
+          className="w-full gap-1.5"
+          onClick={() => setCriarLembreteAberto(true)}
+        >
+          <Bell className="size-3.5" />
+          Agendar lembrete
+        </Button>
+      </div>
+
+      {/* ── Estado do atendimento ── */}
+      <SecaoPropriedade titulo="Estado do atendimento" icone={<Settings2 size={13} />} inicialmenteAberta>
+        <form className="grid gap-3" onSubmit={(e) => void guardarGestaoCrm(e)}>
+          <label className="grid gap-1">
+            <span className="atendimento-props-label">Estado</span>
+            <Select
+              value={formCrm.estadoCrm}
+              onValueChange={(v) => setFormCrm((a) => ({ ...a, estadoCrm: v as Conversa["estadoCrm"] }))}
+              disabled={carregando || !conversaAtual.conversaCrmId}
+            >
+              <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {estadosCrm.map((e) => (
+                  <SelectItem key={e} value={e}>{traduzirEstadoCrm(e)}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </label>
+          <div className="grid grid-cols-2 gap-2.5">
+            <label className="grid gap-1">
+              <span className="atendimento-props-label">Prioridade</span>
+              <Select
+                value={formCrm.prioridade}
+                onValueChange={(v) => setFormCrm((a) => ({ ...a, prioridade: v as Conversa["prioridade"] }))}
+                disabled={carregando || !conversaAtual.conversaCrmId}
+              >
+                <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="todos">Todos os responsáveis</SelectItem>
-                  <SelectItem value="sem-responsavel">Sem responsável</SelectItem>
-                  {responsaveis.map((responsavel) => (
-                    <SelectItem key={responsavel} value={responsavel}>
-                      {responsavel}
-                    </SelectItem>
+                  {prioridadesCrm.map((p) => (
+                    <SelectItem key={p} value={p}>{traduzirPrioridade(p)}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
+            </label>
+            <label className="grid gap-1">
+              <span className="atendimento-props-label">Automação</span>
+              <Select
+                value={formCrm.politicaAutomacao}
+                onValueChange={(v) => setFormCrm((a) => ({ ...a, politicaAutomacao: v as Conversa["politicaAutomacao"] }))}
+                disabled={carregando || !conversaAtual.conversaCrmId}
+              >
+                <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {politicasAutomacao.map((p) => (
+                    <SelectItem key={p} value={p}>{traduzirPoliticaAutomacao(p)}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </label>
+          </div>
+          <label className="grid gap-1">
+            <span className="atendimento-props-label">Responsável</span>
+            <Input
+              className="h-8 text-sm"
+              value={formCrm.responsavelId}
+              onChange={(e) => setFormCrm((a) => ({ ...a, responsavelId: e.target.value }))}
+              placeholder="Nome ou ID"
+              disabled={carregando || !conversaAtual.conversaCrmId}
+            />
+          </label>
+          <Button variant="outline" size="sm" disabled={carregando || !conversaAtual.conversaCrmId} className="w-full">
+            <Save className="size-3.5 mr-1.5" />
+            Guardar alterações
+          </Button>
+        </form>
+      </SecaoPropriedade>
+
+      {/* ── Reserva vinculada ── */}
+      {conversaAtual.reservaAtual && (
+        <SecaoPropriedade titulo="Reserva vinculada" icone={<ClipboardList size={13} />} inicialmenteAberta>
+          <div className="grid gap-2.5 rounded-lg border bg-muted/20 p-3">
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <ClipboardList className="size-3.5 shrink-0" />
+              <span>{conversaAtual.reservaAtual.estado} · pgto {conversaAtual.reservaAtual.estadoPagamento}</span>
             </div>
-            <CrmList className="max-h-[calc(100dvh-260px)] overflow-y-auto pr-1">
-              {conversasFiltradas.length ? (
-                conversasFiltradas.map((conversa) => {
-                  const ativa = conversaSelecionada === conversa.id;
+            <Button
+              variant="success"
+              size="sm"
+              disabled={carregando || conversaAtual.reservaAtual.estado === "PAID"}
+              onClick={() =>
+                void executar(
+                  () => requisitarApi(`/reservas/${conversaAtual.reservaAtual?.id}/confirmar-pagamento`, { method: "POST", body: {} }),
+                  "Pagamento confirmado."
+                )
+              }
+            >
+              <CheckCircle2 className="size-3.5 mr-1.5" />
+              Confirmar pagamento
+            </Button>
+            <Button
+              variant="destructive"
+              size="sm"
+              disabled={carregando || ["CANCELLED", "EXPIRED", "PAID"].includes(conversaAtual.reservaAtual.estado)}
+              onClick={() =>
+                void executar(
+                  () => requisitarApi(`/reservas/${conversaAtual.reservaAtual?.id}/cancelar`, { method: "POST", body: { motivo: "Cancelada pelo vendedor." } }),
+                  "Reserva cancelada."
+                )
+              }
+            >
+              <Ban className="size-3.5 mr-1.5" />
+              Cancelar reserva
+            </Button>
+          </div>
+        </SecaoPropriedade>
+      )}
 
-                  return (
-                    <Button
-                      type="button"
-                      key={conversa.id}
-                      variant="ghost"
-                      className="h-auto w-full justify-start whitespace-normal p-0 text-left hover:bg-transparent"
-                      aria-label={`Abrir conversa com ${conversa.nomeCliente}`}
-                      aria-pressed={ativa}
-                      onClick={() => {
-                        setConversaSelecionada(conversa.id);
-                        setMobileDetalheAberto(true);
-                      }}
-                    >
-                      <CrmListItem
-                        className={ativa ? "border-primary/35 bg-primary/5" : undefined}
-                        media={(
-                          <div className="relative">
-                          <Avatar className="h-10 w-10">
-                            {conversa.avatarUrlCliente && <AvatarImage src={conversa.avatarUrlCliente} alt="" />}
-                            <AvatarFallback>{conversa.nomeCliente[0]?.toUpperCase() ?? "C"}</AvatarFallback>
-                          </Avatar>
-                          {conversa.mensagensNaoLidas > 0 && (
-                            <span className="absolute -right-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full bg-primary px-1 text-[0.65rem] text-primary-foreground">
-                              {conversa.mensagensNaoLidas}
-                            </span>
-                          )}
-                        </div>
-                        )}
-                        title={conversa.nomeCliente}
-                        description={conversa.ultimaMensagem}
-                        meta={formatarHora(conversa.ultimaAtualizacao)}
-                        tone={conversa.mensagensNaoLidas > 0 ? "principal" : conversa.estadoCrm === "AGUARDANDO_HUMANO" ? "atencao" : "neutro"}
-                        badges={(
-                          <>
-                            <Badge variant={obterVarianteEstadoConversa(conversa.estado)}>{traduzirEstadoConversa(conversa.estado)}</Badge>
-                            <Badge variant={obterVarianteEstadoCrm(conversa.estadoCrm)}>{traduzirEstadoCrm(conversa.estadoCrm)}</Badge>
-                            {conversa.responsavelId && <Badge variant="secondary">{conversa.responsavelId}</Badge>}
-                            {["ALTA", "URGENTE"].includes(conversa.prioridade) && (
-                              <Badge variant={obterVariantePrioridade(conversa.prioridade)}>{traduzirPrioridade(conversa.prioridade)}</Badge>
-                            )}
-                            {conversa.pecaRelacionada && <Badge variant="outline">{conversa.pecaRelacionada}</Badge>}
-                          </>
-                        )}
-                      />
-                    </Button>
-                  );
-                })
-              ) : (
-                <EstadoVazio icone={<MessageCircle />} titulo="Sem conversas" detalhe="Comentários com telefone e reservas aparecem aqui." />
-              )}
-            </CrmList>
-          </CardContent>
-        </Card>
+      {/* ── Notas internas ── */}
+      <SecaoPropriedade titulo="Nota interna" icone={<StickyNote size={13} />}>
+        <form className="grid gap-2" onSubmit={(e) => void guardarNotaInterna(e)}>
+          <Textarea
+            placeholder="Nota para a equipa..."
+            value={notaInterna}
+            onChange={(e) => setNotaInterna(e.target.value)}
+            disabled={carregando || !conversaAtual.conversaCrmId}
+            rows={2}
+            className="text-sm"
+          />
+          <Button variant="outline" size="sm" disabled={carregando || !notaInterna.trim() || !conversaAtual.conversaCrmId} className="w-full">
+            <StickyNote className="size-3.5 mr-1.5" />
+            Adicionar nota
+          </Button>
+        </form>
+      </SecaoPropriedade>
 
-        <Card className={`market-panel chat-social-panel ${detalheMobileAtivo ? "block" : "hidden lg:block"}`}>
-          <CardContent className="chat-social-shell grid min-h-0 gap-3 p-3 lg:p-4">
-            {conversaAtual ? (
-              <>
-                <div className="chat-social-header flex flex-wrap items-center gap-3 border-b pb-3">
+      {/* ── Tags ── */}
+      {conversaAtual.tags.length > 0 && (
+        <div className="flex flex-wrap gap-1.5 pt-1">
+          {conversaAtual.tags.map((tag) => (
+            <Badge key={tag} variant="secondary" className="text-xs">{tag.replace("politica:", "auto:")}</Badge>
+          ))}
+        </div>
+      )}
+    </div>
+  ) : null;
+
+  return (
+    <CrmPageMotion className={chatImersivo ? "chat-imersivo-ativo" : undefined}>
+
+      {/* ═══════════════════════════════════════════════════════════════
+          MOBILE — slide animation (< lg)
+          ═══════════════════════════════════════════════════════════════ */}
+      <div className="lg:hidden">
+        <AnimatePresence mode="wait">
+          {chatImersivo && conversaAtual ? (
+            <motion.div
+              key="chat-view"
+              className="chat-social-view grid min-h-0"
+              initial={{ opacity: 0, x: "100%" }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: "100%" }}
+              transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+            >
+              <Card className="market-panel chat-social-panel flex flex-col overflow-hidden">
+                {/* Mobile chat header */}
+                <div className="chat-social-header flex min-h-15 items-center gap-2.5 border-b bg-card px-3 py-2.5">
                   <Button
                     type="button"
-                    className="lg:hidden"
-                    variant="outline"
+                    variant="ghost"
                     size="icon-lg"
-                    onClick={() => setMobileDetalheAberto(false)}
-                    aria-label="Voltar às conversas"
-                    title="Voltar às conversas"
+                    onClick={voltarParaLista}
+                    className="shrink-0 -ml-0.5 h-11 w-11"
                   >
-                    <ChevronLeft className="size-4" aria-hidden="true" />
+                    <ArrowLeft className="size-5" />
                   </Button>
-                  <Avatar className="h-11 w-11">
+                  <Avatar className="h-9 w-9 shrink-0">
                     {conversaAtual.avatarUrlCliente && <AvatarImage src={conversaAtual.avatarUrlCliente} alt="" />}
-                    <AvatarFallback>{conversaAtual.nomeCliente[0]?.toUpperCase() ?? "C"}</AvatarFallback>
+                    <AvatarFallback className="text-sm">{conversaAtual.nomeCliente[0]?.toUpperCase() ?? "C"}</AvatarFallback>
                   </Avatar>
                   <div className="min-w-0 flex-1">
-                    <strong className="block truncate">{conversaAtual.nomeCliente}</strong>
-                    <span className="block truncate text-sm text-muted-foreground">{conversaAtual.telefone} · {conversaAtual.pecaRelacionada ?? "sem peça ativa"}</span>
+                    <strong className="block truncate text-[0.9375rem] leading-tight">{conversaAtual.nomeCliente}</strong>
+                    <span className="block truncate text-xs text-muted-foreground">{conversaAtual.telefone}{conversaAtual.pecaRelacionada ? ` · ${conversaAtual.pecaRelacionada}` : ""}</span>
                   </div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Badge variant={obterVarianteEstadoConversa(conversaAtual.estado)}>{traduzirEstadoConversa(conversaAtual.estado)}</Badge>
-                    <Badge variant={obterVarianteEstadoCrm(conversaAtual.estadoCrm)}>{traduzirEstadoCrm(conversaAtual.estadoCrm)}</Badge>
-                    <Button asChild variant="outline" size="icon-lg">
+                  <div className="flex shrink-0 items-center gap-1">
+                    <Badge variant={obterVarianteEstadoCrm(conversaAtual.estadoCrm)} className="hidden sm:flex">{traduzirEstadoCrm(conversaAtual.estadoCrm)}</Badge>
+                    <Sheet>
+                      <SheetTrigger asChild>
+                        <Button variant="ghost" size="icon-lg" title="Gestão do atendimento">
+                          <Settings2 className="size-4" />
+                        </Button>
+                      </SheetTrigger>
+                      <SheetContent className="overflow-y-auto sm:max-w-md">
+                        <SheetHeader>
+                          <SheetTitle>Gestão do atendimento</SheetTitle>
+                          <SheetDescription>{conversaAtual.nomeCliente} · {traduzirEstadoCrm(conversaAtual.estadoCrm)}</SheetDescription>
+                        </SheetHeader>
+                        <div className="px-1 pt-4">
+                          {painelPropriedades}
+                        </div>
+                      </SheetContent>
+                    </Sheet>
+                    <Button asChild variant="ghost" size="icon-lg">
                       <a title="Ligar" href={`tel:${conversaAtual.telefone}`}>
-                        <Phone className="size-4" aria-hidden="true" />
+                        <Phone className="size-4" />
                       </a>
                     </Button>
                   </div>
                 </div>
 
-              <details className="market-management chat-social-management rounded-lg border bg-muted/20 p-3 lg:p-4">
-                <summary className="cursor-pointer">
-                  <span>Gestão do atendimento</span>
-                  <small className="ml-2 text-muted-foreground">
-                    {traduzirEstadoCrm(conversaAtual.estadoCrm)} · {traduzirPrioridade(conversaAtual.prioridade)}
-                  </small>
-                </summary>
-
-                <form className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-5" onSubmit={(e) => void guardarGestaoCrm(e)}>
-                  <label className="grid gap-2">
-                    <span className="text-sm font-medium">Estado</span>
-                    <Select
-                      value={formCrm.estadoCrm}
-                      onValueChange={(estado) => setFormCrm((atual) => ({ ...atual, estadoCrm: estado as Conversa["estadoCrm"] }))}
-                      disabled={carregando || !conversaAtual.conversaCrmId}
-                    >
-                      <SelectTrigger aria-label="Alterar estado do atendimento">
-                        <SelectValue placeholder="Estado" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {estadosCrm.map((estado) => (
-                          <SelectItem key={estado} value={estado}>
-                            {traduzirEstadoCrm(estado)}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </label>
-                  <label className="grid gap-2">
-                    <span className="text-sm font-medium">Prioridade</span>
-                    <Select
-                      value={formCrm.prioridade}
-                      onValueChange={(prioridade) => setFormCrm((atual) => ({ ...atual, prioridade: prioridade as Conversa["prioridade"] }))}
-                      disabled={carregando || !conversaAtual.conversaCrmId}
-                    >
-                      <SelectTrigger aria-label="Alterar prioridade do atendimento">
-                        <SelectValue placeholder="Prioridade" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {prioridadesCrm.map((prioridade) => (
-                          <SelectItem key={prioridade} value={prioridade}>
-                            {traduzirPrioridade(prioridade)}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </label>
-                  <label className="grid gap-2">
-                    <span className="text-sm font-medium">Responsável</span>
-                    <Input
-                      aria-label="Responsável pelo atendimento"
-                      value={formCrm.responsavelId}
-                      onChange={(e) => setFormCrm((atual) => ({ ...atual, responsavelId: e.target.value }))}
-                      placeholder="Nome ou ID"
-                      disabled={carregando || !conversaAtual.conversaCrmId}
-                    />
-                  </label>
-                  <label className="grid gap-2">
-                    <span className="text-sm font-medium">Automação</span>
-                    <Select
-                      value={formCrm.politicaAutomacao}
-                      onValueChange={(politica) =>
-                        setFormCrm((atual) => ({
-                          ...atual,
-                          politicaAutomacao: politica as Conversa["politicaAutomacao"]
-                        }))
-                      }
-                      disabled={carregando || !conversaAtual.conversaCrmId}
-                    >
-                      <SelectTrigger aria-label="Alterar política de automação">
-                        <SelectValue placeholder="Automação" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {politicasAutomacao.map((politica) => (
-                          <SelectItem key={politica} value={politica}>
-                            {traduzirPoliticaAutomacao(politica)}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </label>
-                  <Button className="self-end" variant="outline" size="lg" disabled={carregando || !conversaAtual.conversaCrmId}>
-                    <Save data-icon="inline-start" className="size-4" aria-hidden="true" />
-                    Guardar
-                  </Button>
-                </form>
-
-                {conversaAtual.tags.length > 0 && (
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    {conversaAtual.tags.map((tag) => (
-                      <Badge key={tag} variant="secondary">
-                        {tag.replace("politica:", "auto:")}
-                      </Badge>
-                    ))}
-                  </div>
-                )}
-
-                <form className="mt-3 grid gap-2 sm:grid-cols-[1fr_auto]" onSubmit={(e) => void guardarNotaInterna(e)}>
-                  <Textarea
-                    aria-label="Nota interna"
-                    placeholder="Nota interna para a equipa..."
-                    value={notaInterna}
-                    onChange={(e) => setNotaInterna(e.target.value)}
-                    disabled={carregando || !conversaAtual.conversaCrmId}
-                    rows={1}
-                  />
-                  <Button variant="outline" size="lg" disabled={carregando || !notaInterna.trim() || !conversaAtual.conversaCrmId}>
-                    <StickyNote data-icon="inline-start" className="size-4" aria-hidden="true" />
-                    Nota
-                  </Button>
-                </form>
-
-                <div className="mt-3 grid gap-3 rounded-lg border bg-background p-3">
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <ClipboardList className="size-4 shrink-0" aria-hidden="true" />
-                    <span>
-                      {conversaAtual.reservaAtual
-                        ? `Reserva ${conversaAtual.reservaAtual.estado} · pagamento ${conversaAtual.reservaAtual.estadoPagamento}`
-                        : "Sem reserva ativa no backend"}
-                    </span>
-                  </div>
-                  {conversaAtual.reservaAtual && (
-                    <div className="flex flex-col gap-2 sm:flex-row">
-                      <Button
-                        variant="success"
-                        size="lg"
-                        disabled={carregando || conversaAtual.reservaAtual.estado === "PAID"}
-                        onClick={() =>
-                          void executar(
-                            () => requisitarApi(`/reservas/${conversaAtual.reservaAtual?.id}/confirmar-pagamento`, { method: "POST", body: {} }),
-                            "Pagamento confirmado."
-                          )
-                        }
-                      >
-                        <CheckCircle2 data-icon="inline-start" className="size-4" aria-hidden="true" />
-                        Confirmar pagamento
-                      </Button>
-                      <Button
-                        variant="destructive"
-                        size="lg"
-                        disabled={carregando || ["CANCELLED", "EXPIRED", "PAID"].includes(conversaAtual.reservaAtual.estado)}
-                        onClick={() =>
-                          void executar(
-                            () => requisitarApi(`/reservas/${conversaAtual.reservaAtual?.id}/cancelar`, { method: "POST", body: { motivo: "Cancelada pelo vendedor." } }),
-                            "Reserva cancelada."
-                          )
-                        }
-                      >
-                        <Ban data-icon="inline-start" className="size-4" aria-hidden="true" />
-                        Cancelar
-                      </Button>
+                {/* Messages */}
+                <div ref={mensagensRef} className="market-chat-surface chat-commerce-messages flex-1 grid auto-rows-max content-start min-h-0 gap-2 overflow-y-auto bg-muted/20 px-3 py-4">
+                  {conversaAtual.mensagens.length === 0 ? (
+                    <div className="flex h-full min-h-32 items-center justify-center">
+                      <span className="text-xs text-muted-foreground">Sem mensagens ainda</span>
                     </div>
-                  )}
+                  ) : conversaAtual.mensagens.map((item) => (
+                    <MensagemLinha
+                      key={item.id}
+                      mensagem={item}
+                      carregando={carregando}
+                      onReenviar={(m) => void reenviarMensagem(m)}
+                      onUsarSugestao={(m) => setTextoResposta(m.conteudo)}
+                    />
+                  ))}
                 </div>
-              </details>
 
-              <div ref={mensagensRef} className="market-chat-surface chat-commerce-messages grid auto-rows-max content-start min-h-0 gap-3 overflow-y-auto rounded-lg bg-muted/20 p-3">
-                {conversaAtual.mensagens.map((item) => (
-                  <MensagemLinha
-                    key={item.id}
-                    mensagem={item}
-                    carregando={carregando}
-                    onReenviar={(mensagemFalhada) => void reenviarMensagem(mensagemFalhada)}
-                    onUsarSugestao={(mensagemSugestao) => setTextoResposta(mensagemSugestao.conteudo)}
-                  />
-                ))}
+                {/* Smart actions bar */}
+                <BarraAcoesInteligente
+                  conversaAtual={conversaAtual}
+                  pecas={pecas}
+                  reservas={reservas}
+                  acoesServidor={proximasAcoes}
+                  onAccao={lidarComAcaoInteligente}
+                />
+
+                {/* Composer */}
+                <form className="chat-commerce-composer chat-social-composer grid gap-2 border-t bg-card p-3" onSubmit={(e) => void enviarMensagem(e)}>
+                  {respostasRapidasAbertas && (
+                    <RespostasRapidasPainel
+                      respostas={respostasRapidas}
+                      conversaAtual={conversaAtual}
+                      pecaRelacionada={pecaRelacionadaObj}
+                      aberto={respostasRapidasAbertas}
+                      onFechar={() => setRespostasRapidasAbertas(false)}
+                      onUsarTexto={(texto) => { setTextoResposta(texto); setRespostasRapidasAbertas(false); }}
+                      onEnviarTexto={(texto) => { void enviarMensagemRapida(texto); setRespostasRapidasAbertas(false); }}
+                    />
+                  )}
+                  {contextoAberto && (
+                    <PainelContextoComercial
+                      contexto={contextoComercial}
+                      pecas={pecas}
+                      buscaContexto={buscaContexto}
+                      onBuscarContexto={setBuscaContexto}
+                      onCriarPedido={criarPedidoPorPeca}
+                      onUsarTexto={(texto) => setTextoResposta(texto)}
+                      onEnviarTexto={(texto) => void enviarMensagemRapida(texto)}
+                    />
+                  )}
+                  <div className="chat-commerce-row grid items-end gap-2">
+                    <Button type="button" variant="outline" size="icon-lg" className="atendimento-fab-mobile" onClick={() => setDrawerMobileAberto(true)} disabled={carregando}>
+                      <Plus className="size-4" />
+                    </Button>
+                    <Textarea
+                      aria-label="Responder pelo WhatsApp"
+                      className="chat-commerce-textarea min-h-11 max-h-32 resize-none"
+                      placeholder="Responder..."
+                      value={textoResposta}
+                      onChange={(e) => setTextoResposta(e.target.value)}
+                      onKeyDown={lidarComTeclaComposer}
+                      disabled={carregando}
+                      rows={1}
+                    />
+                    <Button type="button" variant={respostasRapidasAbertas ? "secondary" : "outline"} size="icon-lg" onClick={() => setRespostasRapidasAbertas((a) => !a)} disabled={carregando} title="Respostas rápidas">
+                      <Zap className="size-4" />
+                    </Button>
+                    <Button type="button" variant={contextoAberto ? "secondary" : "outline"} size="icon-lg" onClick={() => setContextoAberto((a) => !a)} disabled={carregando} title="Consultar produtos">
+                      <Package className="size-4" />
+                    </Button>
+                    <Button type="button" variant="outline" size="icon-lg" onClick={() => void guardarSugestaoResposta()} disabled={carregando || !textoResposta.trim() || !conversaAtual.conversaCrmId} title="Guardar rascunho">
+                      <StickyNote className="size-4" />
+                    </Button>
+                    <Button size="icon-lg" disabled={carregando || !textoResposta.trim()}>
+                      <Send className="size-4" />
+                    </Button>
+                  </div>
+                </form>
+              </Card>
+              {/* Drawer acoes rapidas mobile */}
+              <AcoesRapidasMobile
+                conversaAtual={conversaAtual}
+                aberto={drawerMobileAberto}
+                onFechar={() => setDrawerMobileAberto(false)}
+                onAbrirRespostasRapidas={() => setRespostasRapidasAbertas(true)}
+                onAbrirLembrete={() => setCriarLembreteAberto(true)}
+                onAbrirContexto={() => setContextoAberto((a) => !a)}
+                onAbrirGestao={() => setGestaoMobileAberta(true)}
+                onAbrirNota={() => setNotaMobileAberta(true)}
+                onConfirmarPagamento={() => {
+                  if (conversaAtual.reservaAtual) {
+                    void executar(
+                      () => requisitarApi(`/reservas/${conversaAtual.reservaAtual?.id}/confirmar-pagamento`, { method: "POST", body: {} }),
+                      "Pagamento confirmado."
+                    );
+                  }
+                }}
+              />
+
+              <Sheet open={gestaoMobileAberta} onOpenChange={setGestaoMobileAberta}>
+                <SheetContent side="bottom" className="max-h-[86dvh] overflow-y-auto rounded-t-2xl pb-8">
+                  <SheetHeader className="text-left pb-3">
+                    <SheetTitle style={{ fontFamily: "var(--font-heading)" }}>Gestão do atendimento</SheetTitle>
+                    <SheetDescription>{conversaAtual.nomeCliente} · {traduzirEstadoCrm(conversaAtual.estadoCrm)}</SheetDescription>
+                  </SheetHeader>
+                  <div className="px-1 pt-2">
+                    {painelPropriedades}
+                  </div>
+                </SheetContent>
+              </Sheet>
+
+              <Sheet open={notaMobileAberta} onOpenChange={setNotaMobileAberta}>
+                <SheetContent side="bottom" className="rounded-t-2xl pb-8">
+                  <SheetHeader className="text-left pb-3">
+                    <SheetTitle style={{ fontFamily: "var(--font-heading)" }}>Nota interna rápida</SheetTitle>
+                    <SheetDescription>{conversaAtual.nomeCliente} · visível apenas para a equipa</SheetDescription>
+                  </SheetHeader>
+                  <form className="grid gap-3" onSubmit={(e) => void guardarNotaInterna(e)}>
+                    <Textarea
+                      aria-label="Nota interna rápida"
+                      placeholder="Ex: Cliente pediu entrega depois das 18h"
+                      value={notaInterna}
+                      onChange={(e) => setNotaInterna(e.target.value)}
+                      rows={4}
+                    />
+                    <Button type="submit" disabled={carregando || !notaInterna.trim() || !conversaAtual.conversaCrmId}>
+                      <Save className="size-4" />
+                      Guardar nota
+                    </Button>
+                  </form>
+                </SheetContent>
+              </Sheet>
+
+              {/* Criar lembrete dialog */}
+              <CriarLembretePainel
+                conversaAtual={conversaAtual}
+                aberto={criarLembreteAberto}
+                onFechar={() => setCriarLembreteAberto(false)}
+                onCriado={() => void carregarDadosApoio()}
+              />
+
+              {mensagem && <footer className="market-feedback rounded-lg border bg-card px-4 py-3 text-sm text-muted-foreground" aria-live="polite">{mensagem}</footer>}
+            </motion.div>
+          ) : (
+            <motion.div
+              key="list-view"
+              className="chat-social-list-view grid gap-4"
+              initial={{ opacity: 0, x: "-30%" }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: "-30%" }}
+              transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+            >
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="app-rotulo text-xs font-semibold uppercase tracking-widest text-muted-foreground">Atendimento</p>
+                  <h1 className="app-titulo font-heading text-2xl font-semibold">Conversas</h1>
+                </div>
+                <Button variant="outline" size="icon-lg" onClick={() => void carregar()}>
+                  <RefreshCcw className="size-4" />
+                </Button>
               </div>
 
-              <form className="chat-commerce-composer chat-social-composer grid gap-2 rounded-lg border bg-background p-2 shadow-sm" onSubmit={(e) => void enviarMensagem(e)}>
+              <div className="grid gap-2.5">
+                <CampoBusca placeholder="Buscar cliente, telefone ou peça..." value={busca} onChange={setBusca} />
+                <div className="flex items-center gap-2">
+                  <UserRound className="size-4 shrink-0 text-muted-foreground" />
+                  <Select value={filtroResponsavel} onValueChange={setFiltroResponsavel}>
+                    <SelectTrigger className="flex-1 max-w-xs">
+                      <SelectValue placeholder="Responsável" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="todos">Todos os responsáveis</SelectItem>
+                      <SelectItem value="sem-responsavel">Sem responsável</SelectItem>
+                      {responsaveis.map((r) => <SelectItem key={r} value={r}>{r}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="rounded-xl border bg-card overflow-hidden shadow-xs">
+                {conversasFiltradas.length ? (
+                  conversasFiltradas.map((conversa, idx) => (
+                    <button
+                      type="button"
+                      key={conversa.id}
+                      className={`atendimento-item w-full text-left outline-none transition-colors active:bg-(--color-surface-warm) focus-visible:bg-(--color-surface-warm) ${idx > 0 ? "border-t border-border/40" : ""}`}
+                      onClick={() => abrirConversa(conversa.id)}
+                    >
+                      <div className="flex min-w-0 items-center gap-3 px-4 py-3.5">
+                        <div className="relative shrink-0">
+                          <Avatar className="h-11 w-11">
+                            {conversa.avatarUrlCliente && <AvatarImage src={conversa.avatarUrlCliente} alt="" />}
+                            <AvatarFallback className="text-sm font-semibold">{conversa.nomeCliente[0]?.toUpperCase() ?? "C"}</AvatarFallback>
+                          </Avatar>
+                          {conversa.mensagensNaoLidas > 0 && (
+                            <span className="absolute -right-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full bg-primary px-1 text-[0.6rem] font-bold text-primary-foreground">
+                              {conversa.mensagensNaoLidas}
+                            </span>
+                          )}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-baseline justify-between gap-2">
+                            <span className={`truncate text-sm ${conversa.mensagensNaoLidas > 0 ? "font-semibold text-foreground" : "font-medium text-foreground"}`}>
+                              {conversa.nomeCliente}
+                            </span>
+                            <span className="shrink-0 text-[0.7rem] tabular-nums text-muted-foreground">{formatarHora(conversa.ultimaAtualizacao)}</span>
+                          </div>
+                          <p className={`atendimento-item-message mt-0.5 text-xs ${conversa.mensagensNaoLidas > 0 ? "font-medium text-foreground/80" : "text-muted-foreground"}`}>
+                            {conversa.ultimaMensagem || "Sem mensagens"}
+                          </p>
+                          <div className="mt-1.5 flex flex-wrap gap-1">
+                            <Badge variant={obterVarianteEstadoCrm(conversa.estadoCrm)} className="h-4 px-1.5 text-[0.6rem]">{traduzirEstadoCrm(conversa.estadoCrm)}</Badge>
+                            {["ALTA", "URGENTE"].includes(conversa.prioridade) && (
+                              <Badge variant={obterVariantePrioridade(conversa.prioridade)} className="h-4 px-1.5 text-[0.6rem]">{traduzirPrioridade(conversa.prioridade)}</Badge>
+                            )}
+                            {conversa.pecaRelacionada && <Badge variant="outline" className="h-4 px-1.5 text-[0.6rem]">{conversa.pecaRelacionada}</Badge>}
+                          </div>
+                        </div>
+                      </div>
+                    </button>
+                  ))
+                ) : (
+                  <div className="p-4">
+                    <EstadoVazio icone={<MessageCircle />} titulo="Sem conversas" detalhe="Comentários com telefone e reservas aparecem aqui." />
+                  </div>
+                )}
+              </div>
+              {mensagem && <footer className="market-feedback rounded-lg border bg-card px-4 py-3 text-sm text-muted-foreground" aria-live="polite">{mensagem}</footer>}
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+
+      {/* ═══════════════════════════════════════════════════════════════
+          DESKTOP — Inbox v2 (≥ lg)
+          ═══════════════════════════════════════════════════════════════ */}
+      <div className="hidden lg:grid gap-5">
+        <div className="bz-page-head">
+          <div>
+            <p className="bz-eyebrow"><span className="bz-pip" />Atendimento · {conversasFiltradas.length} conversa{conversasFiltradas.length === 1 ? "" : "s"}</p>
+            <h1 className="bz-title bz-title-sm">Conversas</h1>
+          </div>
+          <div className="bz-head-aside">
+            <button type="button" className="bz-btn bz-btn-ghost" onClick={() => void carregar()} disabled={carregando}>
+              <RefreshCcw size={16} />
+              Atualizar
+            </button>
+          </div>
+        </div>
+
+        <div className="bz-inbox">
+
+        {/* ── Coluna 1: Lista de conversas ──────────────────────────── */}
+        <div className="bz-conv-col">
+          {/* Tabs */}
+          <div className="bz-conv-tabs">
+            {FILTROS_RAPIDOS.map((f) => (
+              <button
+                key={f.valor}
+                type="button"
+                className={`bz-conv-tab${filtroRapido === f.valor ? " active" : ""}`}
+                onClick={() => setFiltroRapido(f.valor)}
+              >
+                {f.rotulo}
+                {contagensFiltros[f.valor] > 0 && <span className="c">{contagensFiltros[f.valor]}</span>}
+              </button>
+            ))}
+          </div>
+
+          {/* Search */}
+          <div className="bz-conv-search">
+            <Search size={14} />
+            <input
+              type="text"
+              placeholder="Buscar conversa..."
+              value={busca}
+              onChange={(e) => setBusca(e.target.value)}
+            />
+          </div>
+
+          {/* Conversation list */}
+          <div className="bz-conv-list">
+            {conversasDesktop.length ? (
+              conversasDesktop.map((conversa) => (
+                <button
+                  key={conversa.id}
+                  type="button"
+                  className={`bz-conv${conversaSelecionada === conversa.id ? " sel" : ""}`}
+                  onClick={() => abrirConversa(conversa.id)}
+                >
+                  <div className="av">
+                    <AvatarBizy
+                      iniciais={obterIniciais(conversa.nomeCliente)}
+                      cor={obterCorAvatar(conversa.nomeCliente)}
+                      tamanho={38}
+                      src={conversa.avatarUrlCliente}
+                      alt={conversa.nomeCliente}
+                    />
+                    {conversa.mensagensNaoLidas > 0 && <span className="bn">{conversa.mensagensNaoLidas}</span>}
+                  </div>
+                  <div className="bd">
+                    <div className="top">
+                      <span className="nm">{conversa.nomeCliente}</span>
+                      <span className="tm">{formatarHora(conversa.ultimaAtualizacao)}</span>
+                    </div>
+                    <div className="msg">{conversa.ultimaMensagem || "Sem mensagens"}</div>
+                    <div className="meta">
+                      <span className={`tagm ${corEstadoCrmTag(conversa.estadoCrm)}`}>{traduzirEstadoCrm(conversa.estadoCrm)}</span>
+                      {["ALTA", "URGENTE"].includes(conversa.prioridade) && (
+                        <span className="tagm b-rose">{traduzirPrioridade(conversa.prioridade)}</span>
+                      )}
+                      {conversa.pecaRelacionada && <span className="tagm prod">{conversa.pecaRelacionada}</span>}
+                    </div>
+                  </div>
+                </button>
+              ))
+            ) : (
+              <div style={{ padding: 40, textAlign: "center", color: "var(--ink-3)", fontSize: 13 }}>
+                Nenhuma conversa neste filtro.
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* ── Coluna 2: Thread + Propriedades ────────────────────────── */}
+        {conversaAtual ? (
+          <div className="bz-thread">
+            {/* Thread header */}
+            <div className="bz-thread-head">
+              <AvatarBizy
+                iniciais={obterIniciais(conversaAtual.nomeCliente)}
+                cor={obterCorAvatar(conversaAtual.nomeCliente)}
+                tamanho={38}
+                src={conversaAtual.avatarUrlCliente}
+                alt={conversaAtual.nomeCliente}
+              />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div className="nm">{conversaAtual.nomeCliente}</div>
+                <div className="sub">
+                  <StatusBadge cor={corEstadoCrmSemantica(conversaAtual.estadoCrm)}>{traduzirEstadoCrm(conversaAtual.estadoCrm)}</StatusBadge>
+                  <span> · {conversaAtual.telefone}</span>
+                  {conversaAtual.pecaRelacionada && <span> · {conversaAtual.pecaRelacionada}</span>}
+                </div>
+              </div>
+              <div className="right">
+                <a href={`tel:${conversaAtual.telefone}`} className="bz-iconbtn" title="Ligar"><Phone size={15} /></a>
+                <Sheet>
+                  <SheetTrigger asChild>
+                    <button type="button" className="bz-iconbtn" title="Gestão"><Settings2 size={15} /></button>
+                  </SheetTrigger>
+                  <SheetContent className="overflow-y-auto sm:max-w-md">
+                    <SheetHeader>
+                      <SheetTitle>Gestão do atendimento</SheetTitle>
+                      <SheetDescription>{conversaAtual.nomeCliente} · {traduzirEstadoCrm(conversaAtual.estadoCrm)}</SheetDescription>
+                    </SheetHeader>
+                    <div className="px-1 pt-4">{painelPropriedades}</div>
+                  </SheetContent>
+                </Sheet>
+                <button
+                  type="button"
+                  className="bz-iconbtn"
+                  title="Encerrar"
+                  disabled={carregando || !conversaAtual.conversaCrmId || conversaAtual.estadoCrm === "ENCERRADA"}
+                  onClick={() =>
+                    void executar(
+                      () => requisitarApi(`/atendimento/conversas/${conversaAtual.conversaCrmId}`, {
+                        method: "PATCH",
+                        body: { estado: "ENCERRADA", prioridade: formCrm.prioridade, responsavelId: formCrm.responsavelId.trim() || null }
+                      }),
+                      "Atendimento encerrado."
+                    )
+                  }
+                >
+                  <CheckCircle2 size={15} />
+                </button>
+              </div>
+            </div>
+
+            {/* Context card (related order) */}
+            {pecaRelacionadaObj && (
+              <div className="bz-ctx">
+                <span className="ph" />
+                <div>
+                  <div className="nm">
+                    {conversaAtual.reservaAtual ? `Pedido #${conversaAtual.reservaAtual.codigoPeca} · ` : ""}
+                    {pecaRelacionadaObj.nome}
+                  </div>
+                  <div className="meta">
+                    {conversaAtual.reservaAtual
+                      ? `${traduzirEstadoReserva(conversaAtual.reservaAtual.estado)} · pgto ${traduzirEstadoPagamentoCurto(conversaAtual.reservaAtual.estadoPagamento)}`
+                      : `Stock: ${pecaRelacionadaObj.quantidade} · ${pecaRelacionadaObj.estado.toLowerCase()}`
+                    }
+                  </div>
+                </div>
+                <span className="price bz-tnum">{formatarKwanza(pecaRelacionadaObj.precoEmKwanza)}</span>
+              </div>
+            )}
+
+            {/* Body: messages + props */}
+            <div className="bz-inbox-corpo">
+              <div style={{ display: "flex", flexDirection: "column", minHeight: 0, overflow: "hidden" }}>
+                {/* Messages */}
+                <div ref={mensagensRefDesktop} className="bz-thread-body">
+                  {conversaAtual.mensagens.length === 0 ? (
+                    <div className="bz-thread-vazio">Sem mensagens ainda</div>
+                  ) : (
+                    <>
+                      <div className="bz-daysep">Hoje</div>
+                      {conversaAtual.mensagens.map((item) => (
+                        <MensagemBizy
+                          key={item.id}
+                          mensagem={item}
+                          carregando={carregando}
+                          onReenviar={(m) => void reenviarMensagem(m)}
+                          onUsarSugestao={(m) => setTextoResposta(m.conteudo)}
+                        />
+                      ))}
+                    </>
+                  )}
+                </div>
+
+                {/* Smart actions bar */}
+                <BarraAcoesInteligente
+                  conversaAtual={conversaAtual}
+                  pecas={pecas}
+                  reservas={reservas}
+                  acoesServidor={proximasAcoes}
+                  onAccao={lidarComAcaoInteligente}
+                />
+
+                {/* Panels above composer */}
+                {respostasRapidasAbertas && (
+                  <RespostasRapidasPainel
+                    respostas={respostasRapidas}
+                    conversaAtual={conversaAtual}
+                    pecaRelacionada={pecaRelacionadaObj}
+                    aberto={respostasRapidasAbertas}
+                    onFechar={() => setRespostasRapidasAbertas(false)}
+                    onUsarTexto={(texto) => { setTextoResposta(texto); setRespostasRapidasAbertas(false); }}
+                    onEnviarTexto={(texto) => { void enviarMensagemRapida(texto); setRespostasRapidasAbertas(false); }}
+                  />
+                )}
                 {contextoAberto && (
                   <PainelContextoComercial
                     contexto={contextoComercial}
                     pecas={pecas}
                     buscaContexto={buscaContexto}
                     onBuscarContexto={setBuscaContexto}
+                    onCriarPedido={criarPedidoPorPeca}
                     onUsarTexto={(texto) => setTextoResposta(texto)}
                     onEnviarTexto={(texto) => void enviarMensagemRapida(texto)}
                   />
                 )}
 
-                <div className="chat-commerce-row grid items-end gap-2">
-                  <Textarea
+                {/* Composer */}
+                <form className="bz-composer" onSubmit={(e) => void enviarMensagem(e)}>
+                  <button type="button" className="bz-iconbtn" onClick={() => setRespostasRapidasAbertas((a) => !a)} disabled={carregando} title="Respostas rápidas">
+                    <Zap size={16} />
+                  </button>
+                  <button type="button" className="bz-iconbtn" onClick={() => setContextoAberto((a) => !a)} disabled={carregando} title="Consultar produtos">
+                    <Package size={16} />
+                  </button>
+                  <textarea
+                    className="inp"
                     aria-label="Responder pelo WhatsApp"
-                    className="chat-commerce-textarea min-h-11 max-h-32 resize-none"
-                    placeholder="Responder..."
+                    placeholder="Escreve uma mensagem…"
                     value={textoResposta}
                     onChange={(e) => setTextoResposta(e.target.value)}
+                    onKeyDown={lidarComTeclaComposer}
                     disabled={carregando}
                     rows={1}
                   />
-                  <Button
-                    type="button"
-                    variant={contextoAberto ? "secondary" : "outline"}
-                    size="icon-lg"
-                    className="chat-commerce-context-button shadow-xs"
-                    aria-label="Consultar produtos e pedidos"
-                    title="Consultar produtos e pedidos"
-                    aria-expanded={contextoAberto}
-                    disabled={carregando}
-                    onClick={() => setContextoAberto((aberto) => !aberto)}
-                  >
-                    <Package className="size-4" aria-hidden="true" />
-                  </Button>
+                  <button type="submit" className="send" disabled={carregando || !textoResposta.trim()} title="Enviar">
+                    <Send size={16} />
+                  </button>
+                </form>
+              </div>
 
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="icon-lg"
-                    className="chat-commerce-draft-button"
-                    aria-label="Guardar rascunho"
-                    title="Guardar rascunho"
-                    disabled={carregando || !textoResposta.trim() || !conversaAtual.conversaCrmId}
-                    onClick={() => void guardarSugestaoResposta()}
-                  >
-                    <StickyNote className="size-4" aria-hidden="true" />
-                  </Button>
-                  <Button
-                    size="icon-lg"
-                    className="chat-commerce-send-button"
-                    aria-label="Enviar mensagem"
-                    title="Enviar mensagem"
-                    disabled={carregando || !textoResposta.trim()}
-                  >
-                    <Send className="size-4" aria-hidden="true" />
-                  </Button>
+              {/* Properties panel (xl+) */}
+              <div className="bz-inbox-props">
+                <div className="bz-inbox-props-header">Detalhes</div>
+                <div className="overflow-y-auto flex-1 p-4 scrollbar-thin">
+                  {painelPropriedades}
                 </div>
-              </form>
-            </>
-          ) : (
-            <EstadoVazio
-              icone={<MessageCircle />}
-              titulo="Selecione uma conversa"
-              detalhe="Escolha uma conversa na lista para ver o contexto."
-            />
-          )}
-          </CardContent>
-        </Card>
-      </section>
+              </div>
+            </div>
 
-      {mensagem && <footer className="market-feedback rounded-lg border bg-card px-4 py-3 text-sm text-muted-foreground" aria-live="polite">{mensagem}</footer>}
+            {/* Criar lembrete dialog (desktop) */}
+            <CriarLembretePainel
+              conversaAtual={conversaAtual}
+              aberto={criarLembreteAberto}
+              onFechar={() => setCriarLembreteAberto(false)}
+              onCriado={() => void carregarDadosApoio()}
+            />
+          </div>
+        ) : (
+          <div className="bz-thread-vazio" style={{ background: "var(--bg)" }}>
+            <div style={{ textAlign: "center" }}>
+              <MessageCircle size={32} style={{ color: "var(--ink-3)", marginBottom: 12, opacity: 0.4 }} />
+              <div style={{ fontSize: 14, fontWeight: 600, color: "var(--ink-2)" }}>Seleciona uma conversa</div>
+              <div style={{ fontSize: 12.5, color: "var(--ink-3)", marginTop: 4 }}>Escolhe uma conversa à esquerda para começar o atendimento.</div>
+            </div>
+          </div>
+        )}
+        </div>
+      </div>
+
+      {/* Feedback toast */}
+      {mensagem && (
+        <div className="fixed bottom-4 right-4 z-50 hidden lg:flex items-center gap-3 bz-panel px-4 py-3 text-sm shadow-lg" style={{ fontSize: 13, color: "var(--ink-2)" }} aria-live="polite">
+          {mensagem}
+          <button type="button" onClick={() => setMensagem("")} className="bz-iconbtn" style={{ marginLeft: 4 }}>
+            <X size={14} />
+          </button>
+        </div>
+      )}
+
     </CrmPageMotion>
+  );
+}
+
+// ─── Helper components ────────────────────────────────────────────────────────
+
+function SecaoPropriedade({
+  titulo,
+  icone,
+  inicialmenteAberta = false,
+  children
+}: {
+  titulo: string;
+  icone: ReactNode;
+  inicialmenteAberta?: boolean;
+  children: ReactNode;
+}) {
+  const [aberta, setAberta] = useState(inicialmenteAberta);
+
+  return (
+    <div className="atendimento-props-section">
+      <button
+        type="button"
+        className="atendimento-props-section-header"
+        onClick={() => setAberta((a) => !a)}
+      >
+        <span className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
+          {icone}
+          {titulo}
+        </span>
+        <ChevronDown
+          size={13}
+          className="text-muted-foreground transition-transform"
+          style={{ transform: aberta ? "rotate(180deg)" : "rotate(0deg)" }}
+        />
+      </button>
+      <AnimatePresence initial={false}>
+        {aberta && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            style={{ overflow: "hidden" }}
+          >
+            <div className="pt-2">{children}</div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
   );
 }
 
@@ -747,6 +1443,7 @@ function PainelContextoComercial({
   pecas,
   buscaContexto,
   onBuscarContexto,
+  onCriarPedido,
   onUsarTexto,
   onEnviarTexto
 }: {
@@ -754,6 +1451,7 @@ function PainelContextoComercial({
   pecas: Peca[];
   buscaContexto: string;
   onBuscarContexto: (valor: string) => void;
+  onCriarPedido?: (peca: Peca) => void;
   onUsarTexto: (texto: string) => void;
   onEnviarTexto: (texto: string) => void;
 }) {
@@ -765,36 +1463,24 @@ function PainelContextoComercial({
           <h2 className="text-base font-semibold">Produtos e pedidos</h2>
         </div>
         <Badge className="h-7 gap-1.5 px-2.5" variant="outline">
-          <Link2 data-icon="inline-start" className="size-3.5" aria-hidden="true" />
+          <Link2 className="size-3.5" />
           Banco ligado
         </Badge>
       </div>
 
-      <CampoBusca aria-label="Buscar produtos e pedidos" placeholder="Buscar produto, pedido ou cliente..." value={buscaContexto} onChange={onBuscarContexto} />
+      <CampoBusca placeholder="Buscar produto, pedido ou cliente..." value={buscaContexto} onChange={onBuscarContexto} />
 
       <div className="grid gap-3 lg:grid-cols-2">
         <div className="grid gap-2">
-          <RotuloComIcone icone={<Package className="size-4" aria-hidden="true" />}>
-            Produtos
-          </RotuloComIcone>
+          <RotuloComIcone icone={<Package className="size-4" />}>Produtos</RotuloComIcone>
           {contexto.pecaRelacionada && (
-            <ContextoPeca
-              peca={contexto.pecaRelacionada}
-              destaque="Relacionado à conversa"
-              onUsar={onUsarTexto}
-              onEnviar={onEnviarTexto}
-            />
+            <ContextoPeca peca={contexto.pecaRelacionada} destaque="Relacionado à conversa" onCriarPedido={onCriarPedido} onUsar={onUsarTexto} onEnviar={onEnviarTexto} />
           )}
           {contexto.pecasFiltradas
             .filter((peca) => peca.codigo !== contexto.pecaRelacionada?.codigo)
             .slice(0, contexto.pecaRelacionada ? 3 : 4)
             .map((peca) => (
-              <ContextoPeca
-                key={peca.codigo}
-                peca={peca}
-                onUsar={onUsarTexto}
-                onEnviar={onEnviarTexto}
-              />
+              <ContextoPeca key={peca.codigo} peca={peca} onCriarPedido={onCriarPedido} onUsar={onUsarTexto} onEnviar={onEnviarTexto} />
             ))}
           {!contexto.pecaRelacionada && contexto.pecasFiltradas.length === 0 && (
             <p className="rounded-lg border bg-background p-3 text-sm text-muted-foreground">Nenhum produto encontrado.</p>
@@ -802,20 +1488,18 @@ function PainelContextoComercial({
         </div>
 
         <div className="grid gap-2">
-          <RotuloComIcone icone={<ClipboardList className="size-4" aria-hidden="true" />}>
-            Pedidos
-          </RotuloComIcone>
+          <RotuloComIcone icone={<ClipboardList className="size-4" />}>Pedidos</RotuloComIcone>
           {contexto.reservasFiltradas.map((reserva) => (
             <ContextoReserva
               key={reserva.id}
               reserva={reserva}
-              peca={pecas.find((peca) => peca.codigo === reserva.codigoPeca) ?? null}
+              peca={pecas.find((p) => p.codigo === reserva.codigoPeca) ?? null}
               onUsar={onUsarTexto}
               onEnviar={onEnviarTexto}
             />
           ))}
           {contexto.reservasFiltradas.length === 0 && (
-            <p className="rounded-lg border bg-background p-3 text-sm text-muted-foreground">Nenhum pedido encontrado para este contexto.</p>
+            <p className="rounded-lg border bg-background p-3 text-sm text-muted-foreground">Nenhum pedido encontrado.</p>
           )}
         </div>
       </div>
@@ -826,9 +1510,7 @@ function PainelContextoComercial({
 function RotuloComIcone({ icone, children }: { icone: ReactNode; children: ReactNode }) {
   return (
     <div className="inline-flex min-h-6 items-center gap-2 text-sm font-semibold leading-none">
-      <span className="grid size-5 shrink-0 place-items-center text-muted-foreground">
-        {icone}
-      </span>
+      <span className="grid size-5 shrink-0 place-items-center text-muted-foreground">{icone}</span>
       <span className="leading-none">{children}</span>
     </div>
   );
@@ -853,19 +1535,19 @@ function MensagemLinha({
   const mensagemFalhou = enviadaPelaLoja && mensagem.status === "FAILED";
   const classeBalao = enviadaPelaLoja
     ? mensagemFalhou
-      ? "max-w-[85%] rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-foreground shadow-xs"
-      : "max-w-[85%] rounded-lg bg-primary p-3 text-primary-foreground"
-    : "max-w-[85%] rounded-lg border bg-background p-3";
+      ? "max-w-[85%] rounded-2xl rounded-br-sm border border-destructive/30 bg-destructive/5 p-3 text-foreground shadow-xs"
+      : "max-w-[85%] rounded-2xl rounded-br-sm bg-primary p-3 text-primary-foreground"
+    : "max-w-[85%] rounded-2xl rounded-bl-sm border bg-background p-3";
 
   return (
     <div className={enviadaPelaLoja ? "flex justify-end" : "flex justify-start"}>
-      <div className={classeBalao}>
+      <div className={`atendimento-message-bubble ${classeBalao}`}>
         {mensagem.remetente !== "cliente" && (
           <span className={mensagemFalhou ? "mb-1 block text-xs font-semibold text-destructive" : "mb-1 block text-xs font-semibold opacity-80"}>
             {traduzirRemetenteMensagem(mensagem)}
           </span>
         )}
-        <p className="whitespace-pre-wrap text-sm leading-6">{mensagem.conteudo}</p>
+        <p className="atendimento-message-text whitespace-pre-wrap text-sm leading-6">{mensagem.conteudo}</p>
         <span className={mensagemFalhou ? "mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground" : "mt-2 flex flex-wrap items-center gap-2 text-xs opacity-80"}>
           {formatarHora(mensagem.enviadaEm)}
           {status && (
@@ -885,37 +1567,23 @@ function MensagemLinha({
         {erroTecnicoEvolution ? (
           <div className="mt-2">
             <Button asChild variant="outline" size="sm">
-              <a href="/app/whatsapp" title="Ver conexão WhatsApp">
-                <AlertTriangle data-icon="inline-start" className="size-3.5" aria-hidden="true" />
+              <a href="/app/administracao" title="Ver conexão WhatsApp">
+                <AlertTriangle className="size-3.5 mr-1.5" />
                 Ver conexão
               </a>
             </Button>
           </div>
         ) : permiteReenvio && onReenviar ? (
           <div className="mt-2">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              disabled={carregando}
-              onClick={() => onReenviar(mensagem)}
-              title="Reenviar pelo WhatsApp"
-            >
-              <RefreshCcw data-icon="inline-start" className="size-3.5" aria-hidden="true" />
+            <Button type="button" variant="outline" size="sm" disabled={carregando} onClick={() => onReenviar(mensagem)}>
+              <RefreshCcw className="size-3.5 mr-1.5" />
               Reenviar
             </Button>
           </div>
         ) : permiteUsarSugestao && onUsarSugestao ? (
           <div className="mt-2">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              disabled={carregando}
-              onClick={() => onUsarSugestao(mensagem)}
-              title="Usar rascunho como resposta"
-            >
-              <CheckCircle2 data-icon="inline-start" className="size-3.5" aria-hidden="true" />
+            <Button type="button" variant="outline" size="sm" disabled={carregando} onClick={() => onUsarSugestao(mensagem)}>
+              <CheckCircle2 className="size-3.5 mr-1.5" />
               Usar
             </Button>
           </div>
@@ -939,11 +1607,11 @@ function CampoBusca({
   return (
     <div className="market-search-field relative">
       <span className="pointer-events-none absolute left-3 top-1/2 grid size-4 -translate-y-1/2 place-items-center text-muted-foreground">
-        <Search className="size-4 shrink-0" aria-hidden="true" />
+        <Search className="size-4 shrink-0" />
       </span>
       <Input
         aria-label={ariaLabel ?? placeholder}
-        className="market-input h-11"
+        className="market-input h-9"
         style={{ paddingLeft: "2.25rem" }}
         placeholder={placeholder}
         value={value}
@@ -956,11 +1624,13 @@ function CampoBusca({
 function ContextoPeca({
   peca,
   destaque,
+  onCriarPedido,
   onUsar,
   onEnviar
 }: {
   peca: Peca;
   destaque?: string;
+  onCriarPedido?: (peca: Peca) => void;
   onUsar: (texto: string) => void;
   onEnviar: (texto: string) => void;
 }) {
@@ -968,7 +1638,7 @@ function ContextoPeca({
 
   return (
     <CrmListItem
-      media={<Package className="size-4" aria-hidden="true" />}
+      media={<Package className="size-4" />}
       title={`#${peca.codigo} · ${peca.nome}`}
       description={peca.descricao || "Produto do catálogo"}
       tone={peca.estado === "DISPONIVEL" ? "sucesso" : "neutro"}
@@ -985,13 +1655,19 @@ function ContextoPeca({
       </div>
       <div className="mt-2 flex flex-wrap gap-2">
         <Button type="button" variant="outline" size="sm" onClick={() => onUsar(texto)}>
-          <StickyNote data-icon="inline-start" className="size-3.5" aria-hidden="true" />
+          <StickyNote className="size-3.5 mr-1" />
           Usar
         </Button>
         <Button type="button" size="sm" onClick={() => onEnviar(texto)}>
-          <Send data-icon="inline-start" className="size-3.5" aria-hidden="true" />
+          <Send className="size-3.5 mr-1" />
           Enviar
         </Button>
+        {onCriarPedido && peca.estado === "DISPONIVEL" && (
+          <Button type="button" variant="secondary" size="sm" onClick={() => onCriarPedido(peca)}>
+            <ClipboardList className="size-3.5 mr-1" />
+            Criar pedido
+          </Button>
+        )}
       </div>
     </CrmListItem>
   );
@@ -1012,7 +1688,7 @@ function ContextoReserva({
 
   return (
     <CrmListItem
-      media={<ClipboardList className="size-4" aria-hidden="true" />}
+      media={<ClipboardList className="size-4" />}
       title={`Pedido #${reserva.codigoPeca}`}
       description={`${peca ? peca.nome : "Produto não encontrado"} · ${formatarTempoRestante(reserva.expiraEm)}`}
       tone={reserva.estado === "PAID" ? "sucesso" : reserva.estado === "WAITING_PAYMENT" ? "atencao" : "principal"}
@@ -1025,17 +1701,19 @@ function ContextoReserva({
     >
       <div className="flex flex-wrap gap-2">
         <Button type="button" variant="outline" size="sm" onClick={() => onUsar(texto)}>
-          <StickyNote data-icon="inline-start" className="size-3.5" aria-hidden="true" />
+          <StickyNote className="size-3.5 mr-1" />
           Usar
         </Button>
         <Button type="button" size="sm" onClick={() => onEnviar(texto)}>
-          <Send data-icon="inline-start" className="size-3.5" aria-hidden="true" />
+          <Send className="size-3.5 mr-1" />
           Enviar
         </Button>
       </div>
     </CrmListItem>
   );
 }
+
+// ─── Utility functions ────────────────────────────────────────────────────────
 
 function montarMensagemPeca(peca: Peca) {
   return [
@@ -1052,13 +1730,8 @@ function montarMensagemReserva(reserva: Reserva, peca: Peca | null) {
     `Pagamento: ${traduzirEstadoPagamentoCurto(reserva.estadoPagamento).toLowerCase()}.`
   ];
 
-  if (peca) {
-    partes.push(`Valor: ${formatarKwanza(peca.precoEmKwanza)}.`);
-  }
-
-  if (reserva.expiraEm) {
-    partes.push(`Tempo restante: ${formatarTempoRestante(reserva.expiraEm)}.`);
-  }
+  if (peca) partes.push(`Valor: ${formatarKwanza(peca.precoEmKwanza)}.`);
+  if (reserva.expiraEm) partes.push(`Tempo restante: ${formatarTempoRestante(reserva.expiraEm)}.`);
 
   return partes.join(" ");
 }
@@ -1124,17 +1797,6 @@ function formatarHora(data: string) {
   return new Date(data).toLocaleTimeString("pt-AO", { hour: "2-digit", minute: "2-digit" });
 }
 
-function traduzirEstadoConversa(estado: Conversa["estado"]) {
-  const traducoes: Record<Conversa["estado"], string> = {
-    ativo: "Ativo",
-    automacao: "Automação",
-    encerrado: "Encerrado",
-    fila: "Fila",
-    historico: "Histórico"
-  };
-  return traducoes[estado];
-}
-
 function traduzirEstadoCrm(estado: Conversa["estadoCrm"]) {
   const traducoes: Record<Conversa["estadoCrm"], string> = {
     NOVA: "Nova",
@@ -1187,13 +1849,6 @@ function traduzirStatusMensagem(mensagem: Mensagem) {
   return mensagem.status ? traducoes[mensagem.status] : null;
 }
 
-function obterVarianteEstadoConversa(estado: Conversa["estado"]): "success" | "warning" | "info" | "secondary" {
-  if (estado === "ativo") return "success";
-  if (estado === "fila") return "warning";
-  if (estado === "automacao") return "info";
-  return "secondary";
-}
-
 function obterVarianteEstadoCrm(estado: Conversa["estadoCrm"]): "success" | "warning" | "info" | "secondary" {
   if (estado === "RESOLVIDA" || estado === "ENCERRADA") return "success";
   if (estado === "AGUARDANDO_CLIENTE" || estado === "AGUARDANDO_PAGAMENTO" || estado === "AGUARDANDO_HUMANO") return "warning";
@@ -1221,6 +1876,65 @@ function obterVarianteReserva(estado: Reserva["estado"]): "success" | "warning" 
   if (estado === "WAITLISTED") return "info";
   if (estado === "CANCELLED" || estado === "EXPIRED") return "destructive";
   return "secondary";
+}
+
+function corEstadoCrmTag(estado: Conversa["estadoCrm"]): string {
+  if (estado === "RESOLVIDA" || estado === "ENCERRADA") return "b-green";
+  if (estado === "AGUARDANDO_CLIENTE" || estado === "AGUARDANDO_PAGAMENTO") return "b-amber";
+  if (estado === "AGUARDANDO_HUMANO") return "b-rose";
+  if (estado === "NOVA" || estado === "ABERTA") return "b-blue";
+  return "b-mute";
+}
+
+function corEstadoCrmSemantica(estado: Conversa["estadoCrm"]): CorSemantica {
+  if (estado === "RESOLVIDA" || estado === "ENCERRADA") return "green";
+  if (estado === "AGUARDANDO_CLIENTE" || estado === "AGUARDANDO_PAGAMENTO") return "amber";
+  if (estado === "AGUARDANDO_HUMANO") return "rose";
+  if (estado === "NOVA" || estado === "ABERTA") return "blue";
+  return "mute";
+}
+
+function MensagemBizy({
+  mensagem,
+  carregando,
+  onReenviar,
+  onUsarSugestao
+}: {
+  mensagem: Mensagem;
+  carregando: boolean;
+  onReenviar?: (mensagem: Mensagem) => void;
+  onUsarSugestao?: (mensagem: Mensagem) => void;
+}) {
+  const enviadaPelaLoja = mensagem.remetente !== "cliente";
+  const falhou = enviadaPelaLoja && mensagem.status === "FAILED";
+  const permiteReenvio = falhou && mensagem.origem === "whatsapp";
+  const permiteUsarSugestao = mensagem.origem === "ia_sugestao" && mensagem.status === "QUEUED";
+  const classe = falhou ? "bz-msg msg-fail" : enviadaPelaLoja ? "bz-msg msg-out" : "bz-msg msg-in";
+
+  return (
+    <div className={classe}>
+      {enviadaPelaLoja && (
+        <span className="sender-label">{traduzirRemetenteMensagem(mensagem)}</span>
+      )}
+      <span className="bz-msg-text">{mensagem.conteudo}</span>
+      <span className="tm">{formatarHora(mensagem.enviadaEm)}</span>
+      {mensagem.erro && (
+        <div style={{ marginTop: 6, fontSize: 11, color: "var(--rose-ink)", background: "var(--rose-tint)", padding: "4px 8px", borderRadius: 8 }}>
+          {mensagem.erro}
+        </div>
+      )}
+      {permiteReenvio && onReenviar && (
+        <button type="button" className="bz-iconbtn" style={{ marginTop: 6 }} disabled={carregando} onClick={() => onReenviar(mensagem)} title="Reenviar">
+          <RefreshCcw size={12} />
+        </button>
+      )}
+      {permiteUsarSugestao && onUsarSugestao && (
+        <button type="button" className="bz-iconbtn" style={{ marginTop: 6 }} disabled={carregando} onClick={() => onUsarSugestao(mensagem)} title="Usar sugestão">
+          <CheckCircle2 size={12} />
+        </button>
+      )}
+    </div>
+  );
 }
 
 function ehErroTecnicoEvolution(erro?: string | null) {

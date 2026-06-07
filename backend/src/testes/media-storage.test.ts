@@ -74,6 +74,33 @@ describe("MediaStorage", () => {
     expect(storedUrl).toMatch(/^\/media\/files\/comprovativos-pagamento\//);
   });
 
+  it("serve media de catálogo sem sessão e mantém comprovativos privados", async () => {
+    const app = await criarAplicacao();
+
+    try {
+      const imagemCatalogo = await salvarMediaDataUrl(png1x1, { purpose: "catalogo" });
+      const comprovativo = await salvarMediaDataUrl(pdfTiny, {
+        purpose: "comprovativos-pagamento",
+        allowDocuments: true
+      });
+
+      const respostaPublica = await app.inject({
+        method: "GET",
+        url: imagemCatalogo.url
+      });
+      expect(respostaPublica.statusCode).toBe(200);
+      expect(respostaPublica.headers["content-type"]).toContain("image/webp");
+
+      const respostaPrivada = await app.inject({
+        method: "GET",
+        url: comprovativo.url
+      });
+      expect(respostaPrivada.statusCode).toBe(401);
+    } finally {
+      await app.close();
+    }
+  });
+
   it("expõe upload autenticado por HTTP", async () => {
     const app = await criarAplicacao();
 

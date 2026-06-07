@@ -5,16 +5,30 @@ export interface MensagemWhatsAppRecebida {
   instancia: string;
   eventoProvider: string | null;
   direcao: "INBOUND" | "OUTBOUND" | "STATUS" | "IGNORADO";
+  tipoMensagem: "text" | "image" | "document" | "audio" | "video" | "sticker" | "unknown";
   fromMe: boolean;
   statusProvider: string | null;
   erroProvider: string | null;
   telefone: string | null;
   nomeCliente: string | null;
   texto: string | null;
+  media: MediaWhatsAppRecebida | null;
   idMensagem: string | null;
   recebidaEm: Date;
   payloadOriginal: Record<string, unknown>;
   duplicado: boolean;
+}
+
+export interface MediaWhatsAppRecebida {
+  tipo: "image" | "document" | "audio" | "video" | "sticker" | "unknown";
+  mimeType: string | null;
+  fileName: string | null;
+  caption: string | null;
+  url: string | null;
+  dataUrl: string | null;
+  base64: string | null;
+  tamanhoBytes: number | null;
+  sha256: string | null;
 }
 
 export class ReceberMensagemWhatsAppUseCase {
@@ -37,7 +51,12 @@ export class ReceberMensagemWhatsAppUseCase {
       this.registrarChaveProcessada(chaveIdempotencia);
     }
 
-    if (!mensagemRecebida.duplicado && mensagemRecebida.direcao === "INBOUND" && mensagemRecebida.telefone && mensagemRecebida.texto) {
+    if (
+      !mensagemRecebida.duplicado &&
+      mensagemRecebida.direcao === "INBOUND" &&
+      mensagemRecebida.telefone &&
+      (mensagemRecebida.texto || mensagemRecebida.media)
+    ) {
       this.eventos.emitir("WHATSAPP_MESSAGE_RECEIVED", { mensagem: mensagemRecebida });
     }
 
@@ -58,9 +77,11 @@ export class ReceberMensagemWhatsAppUseCase {
     const statusProvider = this.obterString(dados.status);
     const erroProvider = this.obterErroProvider(payload, dados);
     const telefone = remoteJid ? remoteJid.replace(/\D/g, "").replace(/^244/, "") : null;
+    const media = this.normalizarMediaMensagem(mensagem, dados);
     const texto =
       this.obterString(mensagem.conversation) ??
       this.obterString(this.obterObjeto(mensagem.extendedTextMessage).text) ??
+      media?.caption ??
       this.obterString(this.obterObjeto(mensagem.imageMessage).caption) ??
       this.obterString(this.obterObjeto(mensagem.documentMessage).caption);
     const idMensagem =
@@ -68,19 +89,21 @@ export class ReceberMensagemWhatsAppUseCase {
       this.obterString(dados.keyId) ??
       this.obterString(dados.messageId) ??
       this.obterString(dados.id);
-    const direcao = this.resolverDirecao({ eventoProvider, fromMe, texto, statusProvider, idMensagem });
+    const direcao = this.resolverDirecao({ eventoProvider, fromMe, texto, media, statusProvider, idMensagem });
 
     const mensagemRecebida: MensagemWhatsAppRecebida = {
       provider: "evolution",
       instancia: this.obterString(payload.instance) ?? this.obterString(payload.instanceName) ?? "desconhecida",
       eventoProvider,
       direcao,
+      tipoMensagem: media?.tipo ?? "text",
       fromMe,
       statusProvider,
       erroProvider,
       telefone,
       nomeCliente: this.obterString(dados.pushName),
       texto,
+      media,
       idMensagem,
       recebidaEm: new Date(),
       payloadOriginal: payload,
@@ -94,6 +117,7 @@ export class ReceberMensagemWhatsAppUseCase {
     eventoProvider: string | null;
     fromMe: boolean;
     texto: string | null;
+    media: MediaWhatsAppRecebida | null;
     statusProvider: string | null;
     idMensagem: string | null;
   }): MensagemWhatsAppRecebida["direcao"] {
@@ -101,9 +125,69 @@ export class ReceberMensagemWhatsAppUseCase {
 
     if (evento.includes("messages.update")) return "STATUS";
     if (input.fromMe) return "OUTBOUND";
-    if (input.texto) return "INBOUND";
+    if (input.texto || input.media) return "INBOUND";
     if (input.statusProvider && input.idMensagem) return "STATUS";
     return "IGNORADO";
+  }
+
+  private normalizarMediaMensagem(
+    mensagem: Record<string, unknown>,
+    dados: Record<string, unknown>
+  ): MediaWhatsAppRecebida | null {
+    const candidatos: Array<{ tipo: MediaWhatsAppRecebida["tipo"]; dados: Record<string, unknown> }> = [
+      { tipo: "document", dados: this.obterObjeto(mensagem.documentMessage) },
+      { tipo: "image", dados: this.obterObjeto(mensagem.imageMessage) },
+      { tipo: "video", dados: this.obterObjeto(mensagem.videoMessage) },
+      { tipo: "audio", dados: this.obterObjeto(mensagem.audioMessage) },
+      { tipo: "sticker", dados: this.obterObjeto(mensagem.stickerMessage) }
+    ];
+
+    const candidato = candidatos.find((item) => Object.keys(item.dados).length > 0);
+    if (!candidato) return null;
+
+    const mimeType =
+      this.obterString(candidato.dados.mimetype) ??
+      this.obterString(candidato.dados.mimeType) ??
+      this.obterString(candidato.dados.mediaType);
+    const base64 =
+      this.obterString(candidato.dados.media) ??
+      this.obterString(candidato.dados.base64) ??
+      this.obterString(candidato.dados.file) ??
+      this.obterString(this.obterObjeto(dados.message).base64) ??
+      this.obterString(dados.base64);
+    const dataUrl = this.normalizarDataUrl(base64, mimeType);
+
+    return {
+      tipo: candidato.tipo,
+      mimeType,
+      fileName:
+        this.obterString(candidato.dados.fileName) ??
+        this.obterString(candidato.dados.filename) ??
+        this.obterString(candidato.dados.title),
+      caption: this.obterString(candidato.dados.caption),
+      url:
+        this.obterString(candidato.dados.url) ??
+        this.obterString(candidato.dados.mediaUrl) ??
+        this.obterString(candidato.dados.directPath),
+      dataUrl,
+      base64: dataUrl ? null : base64,
+      tamanhoBytes:
+        this.obterNumero(candidato.dados.fileLength) ??
+        this.obterNumero(candidato.dados.size) ??
+        this.obterNumero(candidato.dados.length),
+      sha256:
+        this.obterString(candidato.dados.fileSha256) ??
+        this.obterString(candidato.dados.sha256) ??
+        this.obterString(candidato.dados.mediaKey)
+    };
+  }
+
+  private normalizarDataUrl(valor: string | null, mimeType: string | null): string | null {
+    if (!valor) return null;
+    if (valor.startsWith("data:")) return valor;
+    if (!mimeType) return null;
+    if (!/^[A-Za-z0-9+/=]+$/.test(valor)) return null;
+    return `data:${mimeType};base64,${valor}`;
   }
 
   private montarChaveIdempotencia(mensagem: MensagemWhatsAppRecebida): string | null {
@@ -145,6 +229,15 @@ export class ReceberMensagemWhatsAppUseCase {
 
   private obterBoolean(valor: unknown): boolean | null {
     return typeof valor === "boolean" ? valor : null;
+  }
+
+  private obterNumero(valor: unknown): number | null {
+    if (typeof valor === "number" && Number.isFinite(valor)) return valor;
+    if (typeof valor === "string" && valor.trim()) {
+      const numero = Number(valor);
+      return Number.isFinite(numero) ? numero : null;
+    }
+    return null;
   }
 
   private obterErroProvider(payload: Record<string, unknown>, dados: Record<string, unknown>): string | null {

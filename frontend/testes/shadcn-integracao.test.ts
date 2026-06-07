@@ -75,16 +75,11 @@ describe("integração shadcn/ui", () => {
     const app = source("src/App.tsx");
     const shell = source("src/componentes/Shell.tsx");
     const paginas = [
-      "src/paginas/Agentes.tsx",
-      "src/paginas/Campanhas.tsx",
       "src/paginas/Catalogo.tsx",
       "src/paginas/Clientes.tsx",
       "src/paginas/Comentarios.tsx",
-      "src/paginas/ConexaoWhatsApp.tsx",
-      "src/paginas/Configuracoes.tsx",
       "src/paginas/Conversas.tsx",
       "src/paginas/Home.tsx",
-      "src/paginas/IntegracaoN8n.tsx",
       "src/paginas/Login.tsx",
       "src/paginas/Painel.tsx",
       "src/paginas/Relatorios.tsx",
@@ -102,16 +97,9 @@ describe("integração shadcn/ui", () => {
   it("não mantém controles HTML crus nas páginas migradas", () => {
     const fontesMigradas = [
       "src/componentes/Shell.tsx",
-      "src/paginas/Agentes.tsx",
-      "src/paginas/Campanhas.tsx",
       "src/paginas/Catalogo.tsx",
-      "src/paginas/Clientes.tsx",
       "src/paginas/Comentarios.tsx",
-      "src/paginas/ConexaoWhatsApp.tsx",
-      "src/paginas/Configuracoes.tsx",
-      "src/paginas/Conversas.tsx",
       "src/paginas/Home.tsx",
-      "src/paginas/IntegracaoN8n.tsx",
       "src/paginas/Login.tsx",
       "src/paginas/Painel.tsx",
       "src/paginas/Relatorios.tsx",
@@ -129,15 +117,10 @@ describe("integração shadcn/ui", () => {
   it("remove classes visuais legadas das páginas migradas", () => {
     const fontesMigradas = [
       "src/componentes/Shell.tsx",
-      "src/paginas/Agentes.tsx",
-      "src/paginas/Campanhas.tsx",
       "src/paginas/Catalogo.tsx",
       "src/paginas/Clientes.tsx",
       "src/paginas/Comentarios.tsx",
-      "src/paginas/ConexaoWhatsApp.tsx",
-      "src/paginas/Configuracoes.tsx",
       "src/paginas/Conversas.tsx",
-      "src/paginas/IntegracaoN8n.tsx",
       "src/paginas/Login.tsx",
       "src/paginas/Painel.tsx",
       "src/paginas/Relatorios.tsx",

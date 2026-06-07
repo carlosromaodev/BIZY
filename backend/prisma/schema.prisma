@@ -31,6 +31,7 @@ model Peca {
   reservas        Reserva[]
   itensPedido     ItemPedido[]
   movimentosStock MovimentoStock[]
+  variantesPeca   VariantePeca[]
 
   @@unique([negocioId, codigo])
   @@index([negocioId])
@@ -38,6 +39,22 @@ model Peca {
   @@index([negocioId, categoria])
   @@index([negocioId, colecao])
   @@index([negocioId, sku])
+}
+
+model VariantePeca {
+  id            String   @id @default(uuid())
+  pecaId        String
+  peca          Peca     @relation(fields: [pecaId], references: [id], onDelete: Cascade)
+  combinacao    String
+  sku           String?
+  quantidade    Int      @default(0)
+  stockMinimo   Int      @default(0)
+  criadoEm      DateTime @default(now())
+  atualizadoEm  DateTime @updatedAt
+
+  @@unique([pecaId, combinacao])
+  @@index([pecaId])
+  @@index([pecaId, quantidade])
 }
 
 model MovimentoStock {
@@ -69,7 +86,8 @@ model Reserva {
   clienteNegocio    ClienteNegocio? @relation(fields: [clienteNegocioId], references: [id])
   pecaId            String
   peca              Peca     @relation(fields: [pecaId], references: [id])
-  codigoPeca        String
+  codigoPeca            String
+  varianteSelecionada   String?
   telefoneCliente   String
   nomeCliente       String
   usernameCliente   String
@@ -139,6 +157,7 @@ model ItemPedido {
   pecaId                String
   peca                  Peca     @relation(fields: [pecaId], references: [id])
   codigoPeca            String
+  varianteSelecionada   String?
   nomeProduto           String
   quantidade            Int
   precoUnitarioEmKwanza Int
@@ -164,6 +183,8 @@ model ComentarioRecebido {
   avatarUrl             String?
   commentText           String
   timestamp             DateTime
+  perfilUsuarioJson     String   @default("{}")
+  eventoBrutoJson       String   @default("{}")
   intent                String?
   phone                 String?
   productCode           String?
@@ -441,6 +462,10 @@ model Negocio {
   metodosPagamentoJson  String          @default("[]")
   contasSociaisJson     String          @default("{}")
   entregaJson           String          @default("{}")
+  perfil360Json         String          @default("{}")
+  dadosOperacionaisJson String          @default("{}")
+  fontesDadosJson       String          @default("{}")
+  ultimoEnriquecimentoEm DateTime?
   minutosReservaPadrao  Int             @default(10)
   slugPublico           String?         @unique
   descricaoPublica      String?
@@ -964,6 +989,10 @@ model ClienteGlobal {
   avatarUrl          String?
   origemPrimeira     String?
   dadosJson          String              @default("{}")
+  perfil360Json      String              @default("{}")
+  identidadesDigitaisJson String          @default("{}")
+  fontesDadosJson    String              @default("{}")
+  ultimoEnriquecimentoEm DateTime?
   criadoEm           DateTime            @default(now())
   atualizadoEm       DateTime            @updatedAt
   clientesNegocio    ClienteNegocio[]
@@ -989,6 +1018,13 @@ model ClienteNegocio {
   origem               String?
   tagsJson             String          @default("[]")
   preferenciasJson     String          @default("{}")
+  perfil360Json        String          @default("{}")
+  identidadesDigitaisJson String       @default("{}")
+  fontesDadosJson      String          @default("{}")
+  perfilComercialJson  String          @default("{}")
+  sinaisRelacionamentoJson String      @default("{}")
+  dadosCapturaJson     String          @default("{}")
+  ultimoEnriquecimentoEm DateTime?
   consentimentoMarketing Boolean       @default(false)
   consentimentoDados   Boolean         @default(false)
   estadoRelacionamento String          @default("ATIVO")

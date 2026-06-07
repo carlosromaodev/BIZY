@@ -41,9 +41,35 @@ describe("experiência CRM em conversas", () => {
     expect(source).toContain("montarMensagemPeca");
     expect(source).toContain("montarMensagemReserva");
     expect(source).toContain("enviarMensagemRapida");
-    expect(source).toContain("Consultar produtos e pedidos");
+    expect(source).toContain("Consultar produtos");
     expect(source).toContain("PainelContextoComercial");
     expect(source).toContain("RotuloComIcone");
     expect(source).toContain("Banco ligado");
+  });
+
+  it("usa próximas ações do backend e envia mensagens pelo contexto da conversa", () => {
+    const source = conversasSource();
+    const barra = readFileSync(resolve(process.cwd(), "src/componentes/atendimento/BarraAcoesInteligente.tsx"), "utf8");
+
+    expect(source).toContain("RespostaProximasAcoesAtendimento");
+    expect(source).toContain("/proximas-acoes");
+    expect(source).toContain("acoesServidor={proximasAcoes}");
+    expect(source).toContain("/atendimento/conversas/${conversaAtual.conversaCrmId}/mensagens");
+    expect(source).toContain("entidadeTipo");
+    expect(source).toContain("pedir-comprovativo");
+    expect(barra).toContain("acoesServidor");
+    expect(barra).toContain("PEDIR_COMPROVATIVO");
+    expect(barra).toContain("ENVIAR_DADOS_PAGAMENTO");
+    expect(barra).toContain("PEDIR_ENDERECO");
+  });
+
+  it("permite criar pedido diretamente a partir do produto no atendimento", () => {
+    const source = conversasSource();
+
+    expect(source).toContain("criarPedidoPorPeca");
+    expect(source).toContain("/atendimento/conversas/${conversaAtual.conversaCrmId}/pedidos");
+    expect(source).toContain("onCriarPedido={criarPedidoPorPeca}");
+    expect(source).toContain("onCriarPedido?: (peca: Peca) => void");
+    expect(source).toContain("Criar pedido");
   });
 });

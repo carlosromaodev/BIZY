@@ -10,7 +10,7 @@
   "scripts": {
     "dev": "bash scripts/dev-full.sh",
     "dev:full": "bash scripts/dev-full.sh",
-    "dev:backend": "npm run dev --workspace backend",
+    "dev:backend": "npm run dev:api --workspace backend",
     "dev:frontend": "npm run dev --workspace frontend",
     "build": "npm run build --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",

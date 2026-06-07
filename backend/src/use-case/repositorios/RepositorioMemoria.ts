@@ -271,6 +271,10 @@ export class RepositorioPecasMemoria implements RepositorioPecas {
       .sort((a, b) => b.criadoEm.getTime() - a.criadoEm.getTime());
   }
 
+  async decrementarStockVariante(_pecaId: string, _combinacao: string, _quantidade: number): Promise<{ quantidade: number }> {
+    return { quantidade: 0 };
+  }
+
   private async exigirPeca(codigo: string, negocioId?: string | null): Promise<Peca> {
     const peca = await this.buscarPorCodigo(codigo, negocioId);
 
@@ -1691,6 +1695,7 @@ export class RepositorioAutenticacaoMemoria implements RepositorioAutenticacao {
     this.exigirUsuario(usuarioId);
     const existente = await this.buscarNegocioPrincipalPorUsuario(usuarioId);
     const agora = new Date();
+    const snapshotNegocio = this.construirSnapshotNegocio(dados, agora);
     const negocio: NegocioBizy = {
       id: existente?.id ?? randomUUID(),
       nomeComercial: dados.nomeComercial,
@@ -1711,6 +1716,16 @@ export class RepositorioAutenticacaoMemoria implements RepositorioAutenticacao {
       metodosPagamento: dados.metodosPagamento ?? [],
       contasSociais: dados.contasSociais ?? existente?.contasSociais ?? {},
       entrega: dados.entrega ?? {},
+      perfil360: this.mesclarObjetos(existente?.perfil360 ?? {}, dados.perfil360 ?? { onboarding: snapshotNegocio }),
+      dadosOperacionais: this.mesclarObjetos(
+        existente?.dadosOperacionais ?? {},
+        dados.dadosOperacionais ?? { onboarding: snapshotNegocio }
+      ),
+      fontesDados: this.mesclarObjetos(
+        existente?.fontesDados ?? {},
+        dados.fontesDados ?? { onboarding: { origem: "onboarding", capturadoEm: agora.toISOString() } }
+      ),
+      ultimoEnriquecimentoEm: dados.ultimoEnriquecimentoEm ?? agora,
       minutosReservaPadrao: dados.minutosReservaPadrao ?? 10,
       slugPublico: existente?.slugPublico ?? dados.slugPublico ?? null,
       descricaoPublica: dados.descricaoPublica ?? existente?.descricaoPublica ?? null,
@@ -1888,7 +1903,7 @@ export class RepositorioAutenticacaoMemoria implements RepositorioAutenticacao {
     }
   }
 
-  async criarSessao(dados: { tokenHash: string; usuarioId: string; expiraEm: Date }): Promise<void> {
+  async criarSessao(dados: { tokenHash: string; usuarioId: string; expiraEm: Date }): Promise<{ id: string }> {
     const sessao = {
       id: randomUUID(),
       tokenHash: dados.tokenHash,
@@ -1898,6 +1913,7 @@ export class RepositorioAutenticacaoMemoria implements RepositorioAutenticacao {
       ultimoUsoEm: null
     };
     this.sessoes.set(sessao.tokenHash, sessao);
+    return { id: sessao.id };
   }
 
   async buscarSessaoPorTokenHash(tokenHash: string, agora: Date) {
@@ -1940,6 +1956,64 @@ export class RepositorioAutenticacaoMemoria implements RepositorioAutenticacao {
 
   private chaveIdentidade(tipo: string, provider: string, providerUserId: string) {
     return `${tipo}:${provider}:${providerUserId}`;
+  }
+
+  private construirSnapshotNegocio(dados: DadosNegocioBizy, capturadoEm: Date): Record<string, unknown> {
+    return {
+      ...dados,
+      capturadoEm: capturadoEm.toISOString(),
+      origem: "onboarding"
+    };
+  }
+
+  private mesclarObjetos(atual: Record<string, unknown>, novo?: Record<string, unknown> | null): Record<string, unknown> {
+    if (!novo) return atual;
+    const resultado: Record<string, unknown> = { ...atual };
+
+    for (const [chave, valorNovo] of Object.entries(novo)) {
+      if (this.valorVazioParaEnriquecimento(valorNovo)) continue;
+
+      const valorAtual = resultado[chave];
+      if (this.ehObjetoPlano(valorAtual) && this.ehObjetoPlano(valorNovo)) {
+        resultado[chave] = this.mesclarObjetos(valorAtual, valorNovo);
+      } else if (Array.isArray(valorAtual) && Array.isArray(valorNovo)) {
+        resultado[chave] = this.mesclarListas(valorAtual, valorNovo);
+      } else {
+        resultado[chave] = valorNovo;
+      }
+    }
+
+    return resultado;
+  }
+
+  private valorVazioParaEnriquecimento(valor: unknown): boolean {
+    return valor === undefined || valor === null || valor === "" || (Array.isArray(valor) && valor.length === 0);
+  }
+
+  private ehObjetoPlano(valor: unknown): valor is Record<string, unknown> {
+    return Boolean(valor && typeof valor === "object" && !Array.isArray(valor) && !(valor instanceof Date));
+  }
+
+  private mesclarListas(atual: unknown[], novo: unknown[]): unknown[] {
+    const chaves = new Set(atual.map((item) => this.chaveListaEnriquecimento(item)));
+    const resultado = [...atual];
+
+    for (const item of novo) {
+      const chave = this.chaveListaEnriquecimento(item);
+      if (chaves.has(chave)) continue;
+      chaves.add(chave);
+      resultado.push(item);
+    }
+
+    return resultado;
+  }
+
+  private chaveListaEnriquecimento(valor: unknown): string {
+    try {
+      return JSON.stringify(valor);
+    } catch {
+      return String(valor);
+    }
   }
 }
 
@@ -2115,6 +2189,10 @@ interface ClienteGlobalMemoria {
   avatarUrl: string | null;
   origemPrimeira: string | null;
   dados: Record<string, unknown>;
+  perfil360: Record<string, unknown>;
+  identidadesDigitais: Record<string, unknown>;
+  fontesDados: Record<string, unknown>;
+  ultimoEnriquecimentoEm: Date | null;
   criadoEm: Date;
   atualizadoEm: Date;
 }
@@ -2140,6 +2218,14 @@ export class RepositorioClientesMemoria implements RepositorioClientes {
           origem: existente.origem ?? dados.origem ?? null,
           tags: dados.tags ? this.unirTags(existente.tags, dados.tags) : existente.tags,
           preferencias: dados.preferencias ? { ...existente.preferencias, ...dados.preferencias } : existente.preferencias,
+          perfil360: this.mesclarObjetos(existente.perfil360, dados.perfil360),
+          identidadesDigitais: this.mesclarObjetos(existente.identidadesDigitais, dados.identidadesDigitais),
+          fontesDados: this.mesclarObjetos(existente.fontesDados, dados.fontesDados),
+          perfilComercial: this.mesclarObjetos(existente.perfilComercial, dados.perfilComercial),
+          sinaisRelacionamento: this.mesclarObjetos(existente.sinaisRelacionamento, dados.sinaisRelacionamento),
+          dadosCaptura: this.mesclarObjetos(existente.dadosCaptura, dados.dadosCaptura),
+          ultimoEnriquecimentoEm:
+            dados.ultimoEnriquecimentoEm ?? existente.ultimoEnriquecimentoEm ?? this.dataEnriquecimentoOuNulo(dados),
           consentimentoMarketing: dados.consentimentoMarketing ?? existente.consentimentoMarketing,
           consentimentoDados: dados.consentimentoDados ?? existente.consentimentoDados,
           estadoRelacionamento: dados.estadoRelacionamento ?? existente.estadoRelacionamento,
@@ -2159,6 +2245,13 @@ export class RepositorioClientesMemoria implements RepositorioClientes {
           origem: dados.origem ?? null,
           tags: this.normalizarTags(dados.tags ?? []),
           preferencias: dados.preferencias ?? {},
+          perfil360: dados.perfil360 ?? {},
+          identidadesDigitais: dados.identidadesDigitais ?? {},
+          fontesDados: dados.fontesDados ?? {},
+          perfilComercial: dados.perfilComercial ?? {},
+          sinaisRelacionamento: dados.sinaisRelacionamento ?? {},
+          dadosCaptura: dados.dadosCaptura ?? {},
+          ultimoEnriquecimentoEm: dados.ultimoEnriquecimentoEm ?? this.dataEnriquecimentoOuNulo(dados),
           consentimentoMarketing: dados.consentimentoMarketing ?? false,
           consentimentoDados: dados.consentimentoDados ?? false,
           estadoRelacionamento: dados.estadoRelacionamento ?? "ATIVO",
@@ -2232,6 +2325,13 @@ export class RepositorioClientesMemoria implements RepositorioClientes {
       origem: dados.origem === undefined ? existente.origem : dados.origem,
       tags: dados.tags === undefined ? existente.tags : this.normalizarTags(dados.tags),
       preferencias: dados.preferencias === undefined ? existente.preferencias : dados.preferencias,
+      perfil360: this.mesclarObjetos(existente.perfil360, dados.perfil360),
+      identidadesDigitais: this.mesclarObjetos(existente.identidadesDigitais, dados.identidadesDigitais),
+      fontesDados: this.mesclarObjetos(existente.fontesDados, dados.fontesDados),
+      perfilComercial: this.mesclarObjetos(existente.perfilComercial, dados.perfilComercial),
+      sinaisRelacionamento: this.mesclarObjetos(existente.sinaisRelacionamento, dados.sinaisRelacionamento),
+      dadosCaptura: this.mesclarObjetos(existente.dadosCaptura, dados.dadosCaptura),
+      ultimoEnriquecimentoEm: dados.ultimoEnriquecimentoEm ?? existente.ultimoEnriquecimentoEm,
       consentimentoMarketing: dados.consentimentoMarketing ?? existente.consentimentoMarketing,
       consentimentoDados: dados.consentimentoDados ?? existente.consentimentoDados,
       estadoRelacionamento: dados.estadoRelacionamento ?? existente.estadoRelacionamento,
@@ -2266,6 +2366,13 @@ export class RepositorioClientesMemoria implements RepositorioClientes {
         anonimizadoEm: anonimizadoEm.toISOString(),
         motivoAnonimizacao: dados.motivo
       },
+      perfil360: {},
+      identidadesDigitais: {},
+      fontesDados: {},
+      perfilComercial: {},
+      sinaisRelacionamento: {},
+      dadosCaptura: {},
+      ultimoEnriquecimentoEm: null,
       consentimentoMarketing: false,
       consentimentoDados: false,
       estadoRelacionamento: "BLOQUEADO",
@@ -2291,6 +2398,11 @@ export class RepositorioClientesMemoria implements RepositorioClientes {
         ...existente,
         nomePreferido: dados.nome ?? existente.nomePreferido,
         avatarUrl: dados.avatarUrl ?? existente.avatarUrl,
+        perfil360: this.mesclarObjetos(existente.perfil360, dados.perfil360),
+        identidadesDigitais: this.mesclarObjetos(existente.identidadesDigitais, dados.identidadesDigitais),
+        fontesDados: this.mesclarObjetos(existente.fontesDados, dados.fontesDados),
+        ultimoEnriquecimentoEm:
+          dados.ultimoEnriquecimentoEm ?? existente.ultimoEnriquecimentoEm ?? this.dataEnriquecimentoOuNulo(dados),
         atualizadoEm: agora
       };
       this.clientesGlobais.set(atualizado.id, atualizado);
@@ -2305,6 +2417,10 @@ export class RepositorioClientesMemoria implements RepositorioClientes {
       avatarUrl: dados.avatarUrl ?? null,
       origemPrimeira: dados.origem ?? null,
       dados: {},
+      perfil360: dados.perfil360 ?? {},
+      identidadesDigitais: dados.identidadesDigitais ?? {},
+      fontesDados: dados.fontesDados ?? {},
+      ultimoEnriquecimentoEm: dados.ultimoEnriquecimentoEm ?? this.dataEnriquecimentoOuNulo(dados),
       criadoEm: agora,
       atualizadoEm: agora
     };
@@ -2346,6 +2462,72 @@ export class RepositorioClientesMemoria implements RepositorioClientes {
 
   private normalizarTags(tags: string[]): string[] {
     return [...new Set(tags.map((tag) => tag.trim()).filter(Boolean))];
+  }
+
+  private mesclarObjetos(
+    atual: Record<string, unknown>,
+    novo?: Record<string, unknown> | null
+  ): Record<string, unknown> {
+    if (!novo) return atual;
+    const resultado: Record<string, unknown> = { ...atual };
+
+    for (const [chave, valorNovo] of Object.entries(novo)) {
+      if (this.valorVazioParaEnriquecimento(valorNovo)) continue;
+
+      const valorAtual = resultado[chave];
+      if (this.ehObjetoPlano(valorAtual) && this.ehObjetoPlano(valorNovo)) {
+        resultado[chave] = this.mesclarObjetos(valorAtual, valorNovo);
+      } else if (Array.isArray(valorAtual) && Array.isArray(valorNovo)) {
+        resultado[chave] = this.mesclarListas(valorAtual, valorNovo);
+      } else {
+        resultado[chave] = valorNovo;
+      }
+    }
+
+    return resultado;
+  }
+
+  private valorVazioParaEnriquecimento(valor: unknown): boolean {
+    return valor === undefined || valor === null || valor === "" || (Array.isArray(valor) && valor.length === 0);
+  }
+
+  private ehObjetoPlano(valor: unknown): valor is Record<string, unknown> {
+    return Boolean(valor && typeof valor === "object" && !Array.isArray(valor) && !(valor instanceof Date));
+  }
+
+  private mesclarListas(atual: unknown[], novo: unknown[]): unknown[] {
+    const chaves = new Set(atual.map((item) => this.chaveListaEnriquecimento(item)));
+    const resultado = [...atual];
+
+    for (const item of novo) {
+      const chave = this.chaveListaEnriquecimento(item);
+      if (chaves.has(chave)) continue;
+      chaves.add(chave);
+      resultado.push(item);
+    }
+
+    return resultado;
+  }
+
+  private chaveListaEnriquecimento(valor: unknown): string {
+    try {
+      return JSON.stringify(valor);
+    } catch {
+      return String(valor);
+    }
+  }
+
+  private dataEnriquecimentoOuNulo(dados: DadosCliente360): Date | null {
+    return [
+      dados.perfil360,
+      dados.identidadesDigitais,
+      dados.fontesDados,
+      dados.perfilComercial,
+      dados.sinaisRelacionamento,
+      dados.dadosCaptura
+    ].some((valor) => valor && Object.keys(valor).length > 0)
+      ? new Date()
+      : null;
   }
 }
 

@@ -505,6 +505,8 @@ Mapa detalhado: `docs/wiki/pages/bizy-market-rotas-roadmap.md`.
 
 #### Primeira sequencia frontend
 
+- [x] Base tecnica `frontend/src/lojas`: tipos, rotas, helpers API e normalizadores para consumir loja publica, Market e Studio.
+- [x] Teste de contrato frontend `frontend/testes/lojas-api.test.ts`.
 - [ ] `/market`: home de descoberta com busca, categorias e destaques.
 - [ ] `/market/categorias/:categoria`: navegação por categoria global.
 - [ ] `/lojas/:slug`: perfil publico mobile-first da loja.

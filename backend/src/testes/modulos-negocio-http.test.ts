@@ -36,40 +36,53 @@ describe("Módulos do negócio", () => {
       });
 
       expect(inicial.statusCode).toBe(200);
-      expect(inicial.json().modulosAtivos).toEqual(expect.arrayContaining(["crm", "conversas", "afiliados"]));
+      expect(inicial.json().modulosAtivos).toEqual(expect.arrayContaining(["crm", "catalogo", "conversas", "pedidos"]));
+      expect(inicial.json().modulosAtivos).not.toContain("afiliados");
       expect(inicial.json().modulos).toEqual(
         expect.arrayContaining([
           expect.objectContaining({
             modulo: "afiliados",
-            ativo: true,
+            ativo: false,
             categoria: "CRESCIMENTO"
           })
         ])
       );
+
+      const ativado = await app.inject({
+        method: "PATCH",
+        url: "/negocio/modulos/afiliados",
+        headers,
+        payload: {
+          ativo: true,
+          configuracao: {
+            motivo: "Piloto com criadores externos"
+          }
+        }
+      });
+
+      expect(ativado.statusCode).toBe(200);
+      expect(ativado.json().modulo).toEqual(
+        expect.objectContaining({
+          modulo: "afiliados",
+          ativo: true,
+          configuracao: {
+            motivo: "Piloto com criadores externos"
+          }
+        })
+      );
+      expect(ativado.json().modulosAtivos).toContain("crm");
+      expect(ativado.json().modulosAtivos).toContain("afiliados");
 
       const desativado = await app.inject({
         method: "PATCH",
         url: "/negocio/modulos/afiliados",
         headers,
         payload: {
-          ativo: false,
-          configuracao: {
-            motivo: "Piloto ainda sem criadores externos"
-          }
+          ativo: false
         }
       });
 
       expect(desativado.statusCode).toBe(200);
-      expect(desativado.json().modulo).toEqual(
-        expect.objectContaining({
-          modulo: "afiliados",
-          ativo: false,
-          configuracao: {
-            motivo: "Piloto ainda sem criadores externos"
-          }
-        })
-      );
-      expect(desativado.json().modulosAtivos).toContain("crm");
       expect(desativado.json().modulosAtivos).not.toContain("afiliados");
 
       const rotaAfiliados = await app.inject({
@@ -85,18 +98,6 @@ describe("Módulos do negócio", () => {
           modulo: "afiliados"
         })
       );
-
-      const reativado = await app.inject({
-        method: "PATCH",
-        url: "/negocio/modulos/afiliados",
-        headers,
-        payload: {
-          ativo: true
-        }
-      });
-
-      expect(reativado.statusCode).toBe(200);
-      expect(reativado.json().modulosAtivos).toContain("afiliados");
     } finally {
       await app.close();
     }

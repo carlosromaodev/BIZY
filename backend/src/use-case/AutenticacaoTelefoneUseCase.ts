@@ -116,6 +116,7 @@ export class AutenticacaoTelefoneUseCase {
     return {
       sucesso: true,
       token: sessao.token,
+      sessaoId: sessao.sessaoId,
       expiraEm: sessao.expiraEm,
       usuario
     };
@@ -125,13 +126,13 @@ export class AutenticacaoTelefoneUseCase {
     const token = randomUUID();
     const expiraEm = new Date(agora.getTime() + this.diasExpiracaoSessao * 24 * 60 * 60_000);
 
-    await this.repositorio.criarSessao({
+    const sessao = await this.repositorio.criarSessao({
       tokenHash: this.hashToken(token),
       usuarioId,
       expiraEm
     });
 
-    return { token, expiraEm };
+    return { token, sessaoId: sessao.id, expiraEm };
   }
 
   async criarSessaoComUsuario(usuario: UsuarioSistema, agora = new Date()) {
@@ -139,17 +140,20 @@ export class AutenticacaoTelefoneUseCase {
     return {
       sucesso: true,
       token: sessao.token,
+      sessaoId: sessao.sessaoId,
       expiraEm: sessao.expiraEm,
       usuario
     };
   }
 
-  async obterSessao(token: string | null) {
+  async obterSessao(token: string | null, opcoes: { usuarioId?: string; sessaoId?: string } = {}) {
     if (!token) return null;
 
     const agora = new Date();
     const sessao = await this.repositorio.buscarSessaoPorTokenHash(this.hashToken(token), agora);
     if (!sessao) return null;
+    if (opcoes.sessaoId && sessao.id !== opcoes.sessaoId) return null;
+    if (opcoes.usuarioId && sessao.usuario.id !== opcoes.usuarioId) return null;
 
     await this.repositorio.tocarSessao(sessao.id, agora);
     return sessao.usuario;

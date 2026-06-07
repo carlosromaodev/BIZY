@@ -26,6 +26,7 @@ export interface Peca {
 export interface Reserva {
   id: string;
   codigoPeca: string;
+  varianteSelecionada?: Record<string, string> | null;
   telefoneCliente: string;
   nomeCliente: string;
   usernameCliente: string;
@@ -77,6 +78,9 @@ export interface LiveResumo {
   comentariosRecebidos: number;
   comentariosProcessados: number;
   comentariosComErro: number;
+  espectadoresAtuais: number | null;
+  picoEspectadores: number | null;
+  metricasAtualizadasEm: string | null;
   ultimoComentarioEm: string | null;
   ultimoErro: string | null;
 }
@@ -157,6 +161,30 @@ export interface Conversa {
   pecaRelacionada: string | null;
   reservaAtual: Reserva | null;
   mensagens: Mensagem[];
+}
+
+export type TipoProximaAcaoAtendimento =
+  | "CRIAR_PEDIDO"
+  | "PEDIR_COMPROVATIVO"
+  | "ENVIAR_DADOS_PAGAMENTO"
+  | "CONFIRMAR_ENTREGA"
+  | "PEDIR_ENDERECO"
+  | "ASSUMIR_ATENDIMENTO";
+
+export type PrioridadeProximaAcaoAtendimento = "NORMAL" | "ALTA" | "URGENTE";
+
+export interface ProximaAcaoAtendimento {
+  tipo: TipoProximaAcaoAtendimento;
+  titulo: string;
+  prioridade: PrioridadeProximaAcaoAtendimento;
+  motivo: string;
+  entidadeTipo: "conversa" | "pedido";
+  entidadeId: string;
+}
+
+export interface RespostaProximasAcoesAtendimento {
+  conversaId: string;
+  acoes: ProximaAcaoAtendimento[];
 }
 
 export interface Mensagem {
@@ -256,6 +284,13 @@ export interface Cliente360 {
   origem: string | null;
   tags: string[];
   preferencias: Record<string, unknown>;
+  perfil360: Record<string, unknown>;
+  identidadesDigitais: Record<string, unknown>;
+  fontesDados: Record<string, unknown>;
+  perfilComercial: Record<string, unknown>;
+  sinaisRelacionamento: Record<string, unknown>;
+  dadosCaptura: Record<string, unknown>;
+  ultimoEnriquecimentoEm: string | null;
   consentimentoMarketing: boolean;
   consentimentoDados: boolean;
   estadoRelacionamento: EstadoRelacionamentoCliente;
@@ -307,6 +342,7 @@ export type EstadoEntregaPedido = "PENDENTE" | "RETIRADA_LOJA" | "EM_PREPARACAO"
 export interface ItemPedido {
   id: string;
   codigoPeca: string;
+  varianteSelecionada?: Record<string, string> | null;
   nomeProduto: string;
   quantidade: number;
   precoUnitarioEmKwanza: number;
@@ -512,6 +548,352 @@ export interface ResumoAfiliados {
   comissaoConfirmadaEmKwanza?: number;
   comissaoPagaEmKwanza?: number;
   [chave: string]: unknown;
+}
+
+// ── Pipeline de Vendas ──
+
+export type EtapaPipeline = "LEAD" | "CONTACTO_FEITO" | "PROPOSTA_ENVIADA" | "NEGOCIACAO" | "FECHADO_GANHO" | "FECHADO_PERDIDO";
+
+export interface NegocioPipeline {
+  id: string;
+  titulo: string;
+  clienteId: string | null;
+  clienteNome: string | null;
+  clienteTelefone: string | null;
+  etapa: EtapaPipeline;
+  valorEstimadoEmKwanza: number;
+  responsavelId: string | null;
+  dataPrevisaoFecho: string | null;
+  motivoPerda: string | null;
+  produtoId: string | null;
+  produtoNome: string | null;
+  observacao: string | null;
+  criadoEm: string;
+  atualizadoEm: string;
+}
+
+export interface RespostaPipeline {
+  negocios: NegocioPipeline[];
+}
+
+// ── Agenda e Lembretes ──
+
+export type TipoLembrete = "FOLLOW_UP" | "COBRANCA" | "ENTREGA" | "CALLBACK" | "REUNIAO" | "OUTRO";
+export type EstadoLembrete = "PENDENTE" | "CONCLUIDO" | "VENCIDO" | "CANCELADO";
+
+export interface Lembrete {
+  id: string;
+  titulo: string;
+  tipo: TipoLembrete;
+  estado: EstadoLembrete;
+  clienteId: string | null;
+  clienteNome: string | null;
+  pedidoId: string | null;
+  conversaId: string | null;
+  dataHora: string;
+  recorrente: boolean;
+  observacao: string | null;
+  responsavelId: string | null;
+  criadoEm: string;
+}
+
+export interface RespostaLembretes {
+  lembretes: Lembrete[];
+}
+
+// ── Metas de Vendas ──
+
+export type PeriodoMeta = "SEMANAL" | "MENSAL";
+
+export interface MetaVenda {
+  id: string;
+  tipo: "RECEITA" | "PEDIDOS" | "CLIENTES_NOVOS";
+  periodo: PeriodoMeta;
+  valorAlvo: number;
+  valorAtual: number;
+  valorAnterior: number;
+  vendedorId: string | null;
+  vendedorNome: string | null;
+  inicioEm: string;
+  fimEm: string;
+  criadoEm: string;
+}
+
+export interface RespostaMetasVendas {
+  metas: MetaVenda[];
+}
+
+// ── Cotações e Orçamentos ──
+
+export type EstadoCotacao = "ABERTA" | "ACEITE" | "EXPIRADA" | "RECUSADA";
+
+export interface ItemCotacao {
+  codigoPeca: string;
+  nomeProduto: string;
+  quantidade: number;
+  precoUnitarioEmKwanza: number;
+  subtotalEmKwanza: number;
+}
+
+export interface Cotacao {
+  id: string;
+  numero: number;
+  clienteId: string | null;
+  clienteNome: string | null;
+  clienteTelefone: string | null;
+  estado: EstadoCotacao;
+  itens: ItemCotacao[];
+  subtotalEmKwanza: number;
+  descontoEmKwanza: number;
+  totalEmKwanza: number;
+  validadeEm: string;
+  pedidoConvertidoId: string | null;
+  observacao: string | null;
+  criadaEm: string;
+  atualizadaEm: string;
+}
+
+export interface RespostaCotacoes {
+  cotacoes: Cotacao[];
+}
+
+// ── Respostas Rápidas ──
+
+export type CategoriaRespostaRapida = "SAUDACAO" | "PRECO" | "DISPONIBILIDADE" | "PAGAMENTO" | "ENTREGA" | "POS_VENDA" | "OUTRO";
+
+export interface RespostaRapida {
+  id: string;
+  titulo: string;
+  texto: string;
+  categoria: CategoriaRespostaRapida;
+  variaveisUsadas: string[];
+  favorita: boolean;
+  criadaEm: string;
+  atualizadaEm: string;
+}
+
+export interface RespostaRespostasRapidas {
+  respostas: RespostaRapida[];
+}
+
+// ── Notas e Histórico de Actividades ──
+
+export type TipoActividade = "NOTA" | "CHAMADA" | "VISITA" | "REUNIAO" | "WHATSAPP" | "EMAIL";
+
+export interface Actividade {
+  id: string;
+  tipo: TipoActividade;
+  titulo: string;
+  descricao: string | null;
+  clienteId: string;
+  clienteNome: string | null;
+  responsavelId: string | null;
+  dataHora: string;
+  futura: boolean;
+  criadaEm: string;
+}
+
+export interface RespostaActividades {
+  actividades: Actividade[];
+}
+
+// ── Formulários de Captação ──
+
+export interface FormularioCaptacao {
+  id: string;
+  titulo: string;
+  descricao: string | null;
+  campos: string[];
+  tagAutomatica: string | null;
+  linkPublico: string;
+  totalSubmissoes: number;
+  ativo: boolean;
+  criadoEm: string;
+  atualizadoEm: string;
+}
+
+export interface RespostaFormularios {
+  formularios: FormularioCaptacao[];
+}
+
+// ── Sequências Automáticas ──
+
+export type TipoSequencia = "BOAS_VINDAS" | "COBRANCA" | "POS_VENDA" | "REACTIVACAO" | "PERSONALIZADA";
+export type EstadoSequencia = "ATIVA" | "PAUSADA" | "RASCUNHO" | "ARQUIVADA";
+export type TipoPassoSequencia = "ENVIAR_TEMPLATE" | "CRIAR_TAREFA" | "ADICIONAR_TAG";
+
+export interface PassoSequencia {
+  ordem: number;
+  tipo: TipoPassoSequencia;
+  detalhe: string;
+  esperaMinutos: number;
+}
+
+export interface Sequencia {
+  id: string;
+  nome: string;
+  tipo: TipoSequencia;
+  estado: EstadoSequencia;
+  passos: PassoSequencia[];
+  totalInscritos: number;
+  totalConvertidos: number;
+  pausaSeResponder: boolean;
+  limiteExecucoesPorCliente: number;
+  criadaEm: string;
+  atualizadaEm: string;
+}
+
+export interface RespostaSequencias {
+  sequencias: Sequencia[];
+}
+
+/* ── Campanhas ── */
+export type EstadoCampanha = "RASCUNHO" | "AGENDADA" | "EM_ENVIO" | "CONCLUIDA" | "PAUSADA" | "CANCELADA";
+
+export interface Campanha {
+  id: string;
+  nome: string;
+  estado: EstadoCampanha;
+  canal: "WHATSAPP" | "SMS" | "EMAIL";
+  segmentoId: string | null;
+  templateId: string | null;
+  totalDestinatarios: number;
+  enviados: number;
+  entregues: number;
+  lidos: number;
+  respostas: number;
+  erros: number;
+  agendadaPara: string | null;
+  criadaEm: string;
+  atualizadaEm: string;
+}
+
+export interface RespostaCampanhas {
+  campanhas: Campanha[];
+}
+
+export interface WhatsAppTemplate {
+  id: string;
+  nome: string;
+  estado: "APROVADO" | "PENDENTE" | "REJEITADO" | "RASCUNHO";
+  idioma: string;
+  categoria: string;
+  corpo: string;
+  variaveis: string[];
+  criadoEm: string;
+}
+
+export interface RespostaWhatsAppTemplates {
+  templates: WhatsAppTemplate[];
+}
+
+/* ── Equipa / Membros ── */
+export interface MembroNegocio {
+  id: string;
+  nome: string;
+  email: string | null;
+  telefone: string | null;
+  papel: string;
+  estado: "ATIVO" | "INATIVO" | "CONVIDADO";
+  permissoes: string[];
+  ultimoAcesso: string | null;
+  criadoEm: string;
+}
+
+export interface PapelNegocio {
+  id: string;
+  nome: string;
+  descricao: string | null;
+  permissoes: string[];
+  totalMembros: number;
+}
+
+export interface RespostaMembros {
+  membros: MembroNegocio[];
+}
+
+export interface RespostaPapeis {
+  papeis: PapelNegocio[];
+}
+
+/* ── Diagnósticos SMS ── */
+export interface DiagnosticoSmsOverview {
+  totalEnviados: number;
+  totalEntregues: number;
+  totalFalhados: number;
+  taxaEntrega: number;
+  remetentes: Array<{ nome: string; numero: string; estado: string }>;
+}
+
+export interface MensagemSms {
+  id: string;
+  de: string;
+  para: string;
+  corpo: string;
+  estado: "ENVIADO" | "ENTREGUE" | "FALHADO" | "PENDENTE";
+  criadoEm: string;
+}
+
+export interface RespostaDiagnosticoSms {
+  overview: DiagnosticoSmsOverview;
+  mensagens: MensagemSms[];
+}
+
+/* ── Auditoria ── */
+export interface EventoAuditoria {
+  id: string;
+  tipo: string;
+  acao: string;
+  autorId: string | null;
+  autorNome: string | null;
+  entidadeTipo: string | null;
+  entidadeId: string | null;
+  descricao: string;
+  metadata: Record<string, unknown>;
+  ip: string | null;
+  criadoEm: string;
+}
+
+export interface RespostaEventosAuditoria {
+  eventos: EventoAuditoria[];
+}
+
+/* ── Pagamentos Negócio ── */
+export interface MetodoPagamentoNegocio {
+  id: string;
+  tipo: "TRANSFERENCIA" | "MULTICAIXA" | "NUMERARIO" | "OUTRO";
+  nome: string;
+  detalhes: Record<string, string>;
+  ativo: boolean;
+  principal: boolean;
+}
+
+export interface RespostaMetodosPagamento {
+  metodos: MetodoPagamentoNegocio[];
+}
+
+/* ── Relatórios Expandidos ── */
+export interface RelatorioComercial {
+  periodo: { inicio: string; fim: string };
+  receita: { total: number; confirmada: number; pendente: number };
+  pedidos: { total: number; concluidos: number; cancelados: number; ticketMedio: number };
+  clientes: { novos: number; recorrentes: number; total: number };
+  produtos: { maisVendido: string; totalVendidos: number };
+  porDia: Array<{ data: string; receita: number; pedidos: number }>;
+}
+
+export interface ResumoDiario {
+  data: string;
+  receita: number;
+  pedidos: number;
+  clientesNovos: number;
+  conversas: number;
+  tarefasConcluidas: number;
+}
+
+export interface RelatorioSocialReceita {
+  porCanal: Array<{ canal: string; receita: number; pedidos: number; leads: number }>;
+  porOrigem: Array<{ origem: string; receita: number; pedidos: number }>;
 }
 
 export const resumoInicial: ResumoPainel = {

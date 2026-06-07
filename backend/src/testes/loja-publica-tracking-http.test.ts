@@ -79,6 +79,507 @@ describe("loja pública, catálogo digital e tracking HTTP", () => {
     process.env = { ...ambienteOriginal };
   });
 
+  it("autoriza subdomínio de loja publicada para TLS sob demanda", async () => {
+    process.env.PUBLIC_STORE_DOMAIN = "usebizy.space";
+    const app = await criarAplicacao();
+
+    try {
+      const headers = await autenticar(app, "923444101", "Uorconnect");
+      await criarProduto(app, headers, "SUB1", 5);
+
+      const publicacao = await app.inject({
+        method: "PUT",
+        url: "/loja-publica/configuracao",
+        headers,
+        payload: {
+          slug: "uorconnect",
+          descricaoPublica: "Loja com domínio próprio da Bizy.",
+          publicada: true
+        }
+      });
+      expect(publicacao.statusCode).toBe(200);
+
+      const autorizado = await app.inject({
+        method: "GET",
+        url: "/publico/lojas/dominios/autorizar?domain=uorconnect.usebizy.space"
+      });
+      expect(autorizado.statusCode).toBe(200);
+      expect(autorizado.json()).toEqual({ autorizado: true, slug: "uorconnect" });
+
+      const reservado = await app.inject({
+        method: "GET",
+        url: "/publico/lojas/dominios/autorizar?domain=api.usebizy.space"
+      });
+      expect(reservado.statusCode).toBe(404);
+    } finally {
+      await app.close();
+    }
+  });
+
+  it("guarda configuração detalhada da loja digital e mantém dados ligados ao checkout", async () => {
+    const app = await criarAplicacao();
+
+    try {
+      const headers = await autenticar(app, "923444777", "Loja Digital Guiada");
+      await criarProduto(app, headers, "GUIA1", 5);
+      await criarProduto(app, headers, "GUIA2", 0);
+
+      const configuracaoInicial = await app.inject({
+        method: "GET",
+        url: "/loja-publica/configuracao",
+        headers
+      });
+      expect(configuracaoInicial.statusCode).toBe(200);
+      expect(configuracaoInicial.json()).toEqual(
+        expect.objectContaining({
+          configuracao: expect.objectContaining({
+            identidade: expect.objectContaining({
+              nomeComercial: expect.stringContaining("Loja Digital Guiada")
+            })
+          }),
+          catalogo: expect.objectContaining({
+            totalProdutos: 2,
+            produtosVendaveis: 1,
+            produtosSemStock: 1
+          }),
+          criacao: expect.objectContaining({
+            concluida: false
+          })
+        })
+      );
+
+      const salvar = await app.inject({
+        method: "PUT",
+        url: "/loja-publica/configuracao",
+        headers,
+        payload: {
+          identidade: {
+            nomeComercial: "Muanacacri",
+            telefone: "934586574",
+            whatsapp: "934586574",
+            email: "loja@example.com",
+            provincia: "Luanda",
+            municipio: "Talatona",
+            endereco: "Rua 7, Talatona",
+            descricaoPublica: "Pastelaria com encomendas pelo site e WhatsApp."
+          },
+          publicacao: {
+            slug: "muanacacri",
+            publicada: true
+          },
+          criacao: {
+            confirmar: true
+          },
+          tema: {
+            corPrimaria: "#c6003b",
+            logoUrl: "https://example.com/logo.png",
+            capaUrl: "https://example.com/capa.png"
+          },
+          entrega: {
+            entregaAtiva: true,
+            retiradaAtiva: true,
+            consumoLocalAtivo: false,
+            taxaPadraoEmKwanza: 1500,
+            entregaGratisAcimaDeKwanza: 25000,
+            prazoPadrao: "24h",
+            enderecoRetirada: "Rua 7, Talatona",
+            instrucoesEntrega: "Ligar antes de sair para entrega."
+          },
+          pagamentos: {
+            metodosPagamento: ["transferencia", "cash"],
+            instrucoesCobranca: "Enviar comprovativo pelo WhatsApp.",
+            mensagemComprovativoPendente: "Recebemos o pedido e aguardamos comprovativo.",
+            mensagemPagamentoConfirmado: "Pagamento confirmado. Vamos preparar o pedido."
+          },
+          experiencia: {
+            modoNegocio: "moda",
+            ordemVitrines: ["destaques", "promocoes", "novidades"],
+            catalogosEditaveis: true,
+            leadCaptureAtivo: true,
+            leadCaptureTitulo: "Receba reposições e medidas pelo WhatsApp.",
+            cupomDestaque: "BIZY10",
+            politicaTroca: "Trocas em até 48h para peças sem uso.",
+            politicaEntrega: "Entregas em Luanda com confirmação no checkout.",
+            politicaPrivacidade: "Dados usados apenas para atendimento e entrega.",
+            catalogosPersonalizados: [
+              {
+                id: "looks-evento",
+                nome: "Looks para evento",
+                descricao: "Vestidos e peças prontas para ocasiões especiais.",
+                criterio: "categoria",
+                valor: "Roupas"
+              }
+            ],
+            operacao: {
+              plano: {
+                planoAtual: "growth",
+                recursosBloqueados: ["email-broadcast"],
+                quotas: {
+                  encomendasMensais: 500,
+                  imagens: 150,
+                  whatsapp: 3000,
+                  email: 1200
+                },
+                upgradeContextual: true
+              },
+              checkout: {
+                ignorarPaginaPagamento: false,
+                manterRascunhoAtePago: true,
+                confirmacaoAutomaticaPagamento: false,
+                entradaAtiva: true,
+                entradaPercentual: 40,
+                taxaServicoPercentual: 2,
+                taxaServicoFixaEmKwanza: 500,
+                prefixoPedido: "UOR",
+                sufixoPedido: "AO",
+                exigirTelefoneCheckout: true,
+                exigirLoginCheckout: false,
+                mostrarNumeroEncomendaNaMensagem: true
+              },
+              pagamentos: {
+                dinheiroEntrega: true,
+                transferenciaBancaria: true,
+                cartaoAdyen: true,
+                paypal: false,
+                pagamentoPersonalizado: true,
+                pagamentoComInstrucoes: true,
+                creditoLoja: true,
+                instrucoesPagamento: "Confirmar comprovativo antes da entrega."
+              },
+              entrega: {
+                gerirDisponibilidade: true,
+                adicionarMetodoEntrega: true,
+                disponibilidadeSemanal: ["segunda 09:00-18:00", "sabado 10:00-14:00"],
+                zonas: [
+                  { nome: "Talatona", precoEmKwanza: 1500, prazo: "Hoje" },
+                  { nome: "Kilamba", precoEmKwanza: 2500, prazo: "24h" }
+                ]
+              },
+              fidelizacao: {
+                acessoLoja: "telefone",
+                ofertaBoasVindasAtiva: true,
+                cupomBoasVindas: "BEMVINDO10",
+                recompensasAtivas: true,
+                recompensasIndicacaoAtivas: true,
+                creditoLojaAtivo: true
+              },
+              automacoes: {
+                perfilCliente: true,
+                carrinhoAbandonado: true,
+                pedidoAvaliacao: true,
+                avaliacaoRecebida: true,
+                pedidoNovamente: true,
+                aniversarioCliente: true,
+                pagamentoPendente: true,
+                pagamentoConfirmado: true,
+                creditoAtualizado: true,
+                creditoReembolsado: true,
+                pedidoSaiuEntrega: true,
+                pedidoCancelado: true,
+                produtoDigitalConfirmado: true,
+                operacaoInternaPedidoCriado: true
+              },
+              canais: {
+                site: true,
+                whatsapp: true,
+                instagram: true,
+                google: true,
+                pos: true,
+                transmissoes: true,
+                chatbot: true,
+                appMovelQr: true,
+                caixaEntradaUnificada: true,
+                broadcasts: true
+              },
+              catalogo: {
+                categoriasVisiveis: ["Roupas", "Kits"],
+                categoriasOcultas: ["Arquivo"],
+                sequenciaCategorias: ["Roupas", "Kits"],
+                descontosAtivos: true,
+                produtosPorColecao: true,
+                produtosComEstatisticas: true
+              },
+              clientes: {
+                importar: true,
+                exportar: true,
+                edicaoMassa: true,
+                adicionarManual: true,
+                pesquisaAvancada: true,
+                filtrosInteligentes: ["todos", "inativos", "primeiro-pedido", "nunca-comprou"],
+                transmissaoFiltrada: true
+              },
+              encomendas: {
+                criarManual: true,
+                exportar: true,
+                resumoAtivo: true,
+                rascunhos: true,
+                pagamentos: true,
+                calendario: true,
+                colunasOperacionais: ["cliente", "total", "estado", "pagamento", "entrega", "equipa"]
+              },
+              relatorios: {
+                metricas: ["pedidos", "vendas", "lucro"],
+                agruparPor: "produto",
+                filtrosPedidos: ["PENDENTE", "PAGO", "CONCLUIDA"],
+                relatoriosProntos: ["pedidos-tempo", "produtos-lucro", "referenciadores"]
+              },
+              siteSeo: {
+                dominioPersonalizado: "loja.uorconnect.ao",
+                instrucoesDns: "CNAME para lojas.usebizy.space",
+                tituloSite: "Uorconnect Store",
+                uploadLogotipo: true,
+                imagemGeradaIa: false,
+                categoriasDiretorio: ["Moda", "Luanda"]
+              }
+            },
+            tabelaMedidas: [
+              { tamanho: "P", busto: "84-88", cintura: "66-70", quadril: "90-94", observacao: "Forma normal" },
+              { tamanho: "M", busto: "89-94", cintura: "71-76", quadril: "95-100", observacao: "Forma normal" }
+            ]
+          }
+        }
+      });
+      expect(salvar.statusCode).toBe(200);
+      expect(salvar.json()).toEqual(
+        expect.objectContaining({
+          nomeComercial: "Muanacacri",
+          whatsapp: "934586574",
+          slugPublico: "muanacacri",
+          descricaoPublica: "Pastelaria com encomendas pelo site e WhatsApp.",
+          lojaPublicadaEm: expect.any(String),
+          metodosPagamento: ["transferencia", "cash"],
+          entrega: expect.objectContaining({
+            temaLoja: expect.objectContaining({ corPrimaria: "#c6003b" }),
+            taxaPadraoEmKwanza: 1500,
+            entregaGratisAcimaDeKwanza: 25000,
+            prazoPadrao: "24h",
+            retiradaNaLoja: expect.objectContaining({ ativa: true, endereco: "Rua 7, Talatona" }),
+            consumoLocal: expect.objectContaining({ ativo: false }),
+            pagamentos: expect.objectContaining({
+              instrucoesCobranca: "Enviar comprovativo pelo WhatsApp."
+            }),
+            lojaDigital: expect.objectContaining({
+              experiencia: expect.objectContaining({
+                modoNegocio: "moda",
+                ordemVitrines: ["destaques", "promocoes", "novidades"],
+                catalogosEditaveis: true,
+                leadCaptureAtivo: true,
+                politicaTroca: "Trocas em até 48h para peças sem uso.",
+                catalogosPersonalizados: [
+                  expect.objectContaining({ id: "looks-evento", nome: "Looks para evento", criterio: "categoria" })
+                ],
+                operacao: expect.objectContaining({
+                  plano: expect.objectContaining({
+                    planoAtual: "growth",
+                    quotas: expect.objectContaining({ whatsapp: 3000 })
+                  }),
+                  checkout: expect.objectContaining({
+                    manterRascunhoAtePago: true,
+                    entradaPercentual: 40,
+                    prefixoPedido: "UOR",
+                    mostrarNumeroEncomendaNaMensagem: true
+                  }),
+                  pagamentos: expect.objectContaining({
+                    cartaoAdyen: true,
+                    creditoLoja: true
+                  }),
+                  entrega: expect.objectContaining({
+                    gerirDisponibilidade: true,
+                    zonas: [
+                      expect.objectContaining({ nome: "Talatona", precoEmKwanza: 1500 }),
+                      expect.objectContaining({ nome: "Kilamba", precoEmKwanza: 2500 })
+                    ]
+                  }),
+                  fidelizacao: expect.objectContaining({
+                    acessoLoja: "telefone",
+                    cupomBoasVindas: "BEMVINDO10"
+                  }),
+                  automacoes: expect.objectContaining({
+                    carrinhoAbandonado: true,
+                    pedidoAvaliacao: true,
+                    creditoAtualizado: true
+                  }),
+                  canais: expect.objectContaining({
+                    instagram: true,
+                    pos: true,
+                    broadcasts: true
+                  }),
+                  clientes: expect.objectContaining({
+                    transmissaoFiltrada: true
+                  }),
+                  encomendas: expect.objectContaining({
+                    calendario: true
+                  }),
+                  relatorios: expect.objectContaining({
+                    metricas: ["pedidos", "vendas", "lucro"],
+                    agruparPor: "produto",
+                    relatoriosProntos: ["pedidos-tempo", "produtos-lucro", "referenciadores"]
+                  }),
+                  siteSeo: expect.objectContaining({
+                    dominioPersonalizado: "loja.uorconnect.ao",
+                    tituloSite: "Uorconnect Store"
+                  })
+                }),
+                tabelaMedidas: [
+                  expect.objectContaining({ tamanho: "P", busto: "84-88" }),
+                  expect.objectContaining({ tamanho: "M", cintura: "71-76" })
+                ]
+              })
+            })
+          })
+        })
+      );
+
+      const configuracaoAtualizada = await app.inject({
+        method: "GET",
+        url: "/loja-publica/configuracao",
+        headers
+      });
+      expect(configuracaoAtualizada.statusCode).toBe(200);
+      expect(configuracaoAtualizada.json()).toEqual(
+        expect.objectContaining({
+          configuracao: expect.objectContaining({
+            identidade: expect.objectContaining({
+              nomeComercial: "Muanacacri",
+              whatsapp: "934586574",
+              endereco: "Rua 7, Talatona"
+            }),
+            publicacao: expect.objectContaining({
+              slug: "muanacacri",
+              publicada: true,
+              urlPublica: expect.stringContaining("/lojas/muanacacri")
+            }),
+            tema: expect.objectContaining({
+              corPrimaria: "#c6003b",
+              logoUrl: "https://example.com/logo.png"
+            }),
+            entrega: expect.objectContaining({
+              entregaAtiva: true,
+              taxaPadraoEmKwanza: 1500,
+              entregaGratisAcimaDeKwanza: 25000
+            }),
+            pagamentos: expect.objectContaining({
+              metodosPagamento: ["transferencia", "cash"],
+              mensagemPagamentoConfirmado: "Pagamento confirmado. Vamos preparar o pedido."
+            }),
+            experiencia: expect.objectContaining({
+              modoNegocio: "moda",
+              ordemVitrines: ["destaques", "promocoes", "novidades"],
+              catalogosEditaveis: true,
+              leadCaptureTitulo: "Receba reposições e medidas pelo WhatsApp.",
+              cupomDestaque: "BIZY10",
+              politicaTroca: "Trocas em até 48h para peças sem uso.",
+              catalogosPersonalizados: [
+                expect.objectContaining({ id: "looks-evento", nome: "Looks para evento", valor: "Roupas" })
+              ],
+              operacao: expect.objectContaining({
+                checkout: expect.objectContaining({
+                  manterRascunhoAtePago: true,
+                  taxaServicoFixaEmKwanza: 500,
+                  exigirTelefoneCheckout: true,
+                  mostrarNumeroEncomendaNaMensagem: true
+                }),
+                pagamentos: expect.objectContaining({
+                  pagamentoPersonalizado: true,
+                  instrucoesPagamento: "Confirmar comprovativo antes da entrega."
+                }),
+                entrega: expect.objectContaining({
+                  disponibilidadeSemanal: ["segunda 09:00-18:00", "sabado 10:00-14:00"]
+                }),
+                fidelizacao: expect.objectContaining({
+                  recompensasIndicacaoAtivas: true,
+                  creditoLojaAtivo: true
+                }),
+                canais: expect.objectContaining({
+                  transmissoes: true,
+                  chatbot: true,
+                  caixaEntradaUnificada: true
+                }),
+                catalogo: expect.objectContaining({
+                  categoriasVisiveis: ["Roupas", "Kits"],
+                  descontosAtivos: true
+                }),
+                encomendas: expect.objectContaining({
+                  colunasOperacionais: ["cliente", "total", "estado", "pagamento", "entrega", "equipa"]
+                }),
+                siteSeo: expect.objectContaining({
+                  categoriasDiretorio: ["Moda", "Luanda"]
+                })
+              }),
+              tabelaMedidas: [
+                expect.objectContaining({ tamanho: "P", busto: "84-88" }),
+                expect.objectContaining({ tamanho: "M", cintura: "71-76" })
+              ]
+            })
+          }),
+          prontidao: expect.objectContaining({
+            prontaParaPublicar: true
+          }),
+          criacao: expect.objectContaining({
+            concluida: true,
+            origem: "assistente-loja-digital"
+          })
+        })
+      );
+
+      const entrega = await app.inject({
+        method: "POST",
+        url: "/publico/lojas/muanacacri/entrega/calcular",
+        payload: {
+          itens: [{ codigoPeca: "GUIA1", quantidade: 1 }],
+          entrega: { tipo: "ENTREGA", municipio: "Talatona", endereco: "Cliente, Talatona" }
+        }
+      });
+      expect(entrega.statusCode).toBe(200);
+      expect(entrega.json()).toEqual(
+        expect.objectContaining({
+          taxaEntregaEmKwanza: 1500,
+          entrega: expect.objectContaining({
+            descricao: "Entrega calculada pela configuração da loja."
+          })
+        })
+      );
+
+      const lojaPublica = await app.inject({
+        method: "GET",
+        url: "/publico/lojas/muanacacri?trackingId=anon-experiencia"
+      });
+      expect(lojaPublica.statusCode).toBe(200);
+      expect(lojaPublica.json().loja.experiencia).toEqual(
+        expect.objectContaining({
+          modoNegocio: "moda",
+          leadCaptureAtivo: true,
+          politicaEntrega: "Entregas em Luanda com confirmação no checkout.",
+          catalogosPersonalizados: [
+            expect.objectContaining({ id: "looks-evento", nome: "Looks para evento", criterio: "categoria" })
+          ],
+          operacao: expect.objectContaining({
+            checkout: expect.objectContaining({ prefixoPedido: "UOR" }),
+            pagamentos: expect.objectContaining({ cartaoAdyen: true }),
+            entrega: expect.objectContaining({ gerirDisponibilidade: true }),
+            automacoes: expect.objectContaining({ pedidoNovamente: true }),
+            canais: expect.objectContaining({ broadcasts: true }),
+            relatorios: expect.objectContaining({
+              filtrosPedidos: ["PENDENTE", "PAGO", "CONCLUIDA"],
+              relatoriosProntos: ["pedidos-tempo", "produtos-lucro", "referenciadores"]
+            }),
+            siteSeo: expect.objectContaining({ tituloSite: "Uorconnect Store" })
+          }),
+          tabelaMedidas: [expect.objectContaining({ tamanho: "P" }), expect.objectContaining({ tamanho: "M" })]
+        })
+      );
+      expect(lojaPublica.json().loja).toEqual(
+        expect.objectContaining({
+          corPrimaria: "#c6003b",
+          logoUrl: "https://example.com/logo.png",
+          capaUrl: "https://example.com/capa.png"
+        })
+      );
+    } finally {
+      await app.close();
+    }
+  });
+
   it("publica loja por slug, expõe apenas produtos vendáveis e gera checkout WhatsApp rastreável", async () => {
     const app = await criarAplicacao();
 
@@ -264,6 +765,128 @@ describe("loja pública, catálogo digital e tracking HTTP", () => {
           motivo: "Cliente visitou a loja pública."
         })
       ]);
+    } finally {
+      await app.close();
+    }
+  });
+
+  it("expõe perfil social com coleções clicáveis, ponte para o Market e bloqueia slug reservado", async () => {
+    const app = await criarAplicacao();
+
+    try {
+      const headers = await autenticar(app, "923444041", "Loja Perfil Bizy");
+      await criarProduto(app, headers, "LOOK-1", 7, {
+        nome: "Vestido verde para evento",
+        categoria: "Roupas",
+        colecao: "Looks para evento",
+        vitrine: { selos: ["DESTAQUE"], prioridade: 1 }
+      });
+      await criarProduto(app, headers, "LOOK-2", 3, {
+        nome: "Blazer casual",
+        categoria: "Roupas",
+        colecao: "Looks para evento"
+      });
+      await criarProduto(app, headers, "ACESS-1", 5, {
+        nome: "Bolsa minimal",
+        categoria: "Acessórios",
+        colecao: "Acessórios"
+      });
+
+      const slugReservado = await app.inject({
+        method: "PUT",
+        url: "/loja-publica/configuracao",
+        headers,
+        payload: {
+          slug: "market",
+          publicada: true
+        }
+      });
+      expect(slugReservado.statusCode).toBe(409);
+      expect(slugReservado.json().mensagem).toContain("reservado");
+
+      const publicacao = await app.inject({
+        method: "PUT",
+        url: "/loja-publica/configuracao",
+        headers,
+        payload: {
+          identidade: {
+            nomeComercial: "Loja Perfil Bizy",
+            provincia: "Luanda",
+            municipio: "Talatona",
+            descricaoPublica: "Perfil comercial com coleções prontas para explorar."
+          },
+          tema: {
+            corPrimaria: "#0f8a5f",
+            logoUrl: "https://example.com/perfil-logo.png",
+            capaUrl: "https://example.com/perfil-capa.png"
+          },
+          publicacao: {
+            slug: "loja-perfil-bizy",
+            publicada: true
+          },
+          criacao: { confirmar: true }
+        }
+      });
+      expect(publicacao.statusCode).toBe(200);
+
+      const lojaPublica = await app.inject({
+        method: "GET",
+        url: "/publico/lojas/loja-perfil-bizy?colecao=Looks%20para%20evento&trackingId=perfil-1"
+      });
+      expect(lojaPublica.statusCode).toBe(200);
+      const corpo = lojaPublica.json();
+
+      expect(corpo.perfil).toEqual(
+        expect.objectContaining({
+          slug: "loja-perfil-bizy",
+          nomeComercial: "Loja Perfil Bizy",
+          bio: "Perfil comercial com coleções prontas para explorar.",
+          avatarUrl: "https://example.com/perfil-logo.png",
+          capaUrl: "https://example.com/perfil-capa.png",
+          corAcento: "#0f8a5f",
+          localizacao: "Talatona, Luanda",
+          contadores: {
+            seguidores: 0,
+            seguindo: 0,
+            produtos: 3,
+            colecoes: 4
+          },
+          acoes: expect.objectContaining({
+            seguirDisponivel: false,
+            urlLoja: "/lojas/loja-perfil-bizy",
+            urlMarket: "/market?loja=loja-perfil-bizy"
+          })
+        })
+      );
+      expect(corpo.colecoes).toEqual(expect.arrayContaining([
+        expect.objectContaining({
+          id: "colecao-looks-para-evento",
+          nome: "Looks para evento",
+          tipo: "colecao",
+          totalProdutos: 2,
+          url: "/lojas/loja-perfil-bizy?colecao=Looks%20para%20evento"
+        }),
+        expect.objectContaining({
+          id: "categoria-roupas",
+          nome: "Roupas",
+          tipo: "categoria",
+          totalProdutos: 2,
+          url: "/lojas/loja-perfil-bizy?categoria=Roupas"
+        })
+      ]));
+      expect(corpo.colecoes).toHaveLength(4);
+      expect(corpo.market).toEqual(
+        expect.objectContaining({
+          disponivel: true,
+          label: "Explorar similares no Bizy Market",
+          url: "/market?categoria=Roupas&lojaOrigem=loja-perfil-bizy",
+          categoriaPrincipal: "Roupas"
+        })
+      );
+      expect(corpo.produtos).toHaveLength(2);
+      expect(JSON.stringify(corpo)).not.toContain("negocioId");
+      expect(JSON.stringify(corpo)).not.toContain("custoEmKwanza");
+      expect(JSON.stringify(corpo)).not.toContain("margemEstimadaEmKwanza");
     } finally {
       await app.close();
     }

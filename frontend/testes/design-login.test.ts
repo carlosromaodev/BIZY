@@ -22,7 +22,7 @@ describe("login Bizy", () => {
     expect(login).toContain('className={cn(CLASSE_BOTAO_CONTORNO_ESCURO, "h-10 rounded-xl")}');
     expect(login).toContain("AuthSeparator");
     expect(login).toContain("GoogleIcon");
-    expect(login).toContain('visualImage="/bizy-login-team.png"');
+    expect(login).toContain('visualImage="/bizy-live-commerce-hero.png"');
     expect(login).toContain("visualImageAlt");
     expect(login).toContain('useState("")');
     expect(login).toContain("{mensagem ? (");
@@ -64,7 +64,7 @@ describe("login Bizy", () => {
     expect(authPage).not.toContain("border-r border-[#d8ff72]");
     expect(authPage).not.toContain("lg:bg-[#FBFDF8]");
     expect(authPage).toContain("visualImage");
-    expect(authPage).toContain("bizy-login-team.png");
+    expect(authPage).toContain("bizy-live-commerce-hero.png");
     expect(authPage).toContain("object-cover");
     expect(authPage).toContain("bg-black/32");
     expect(authPage).toContain("text-[#d8ff72]");
@@ -75,7 +75,7 @@ describe("login Bizy", () => {
     expect(authPage).toContain("strokeDasharray");
     expect(authPage).toContain("useReducedMotion");
     expect(authPage).toContain("motion.path");
-    expect(animatedTabs).toContain("framer-motion");
+    expect(animatedTabs).toContain("motion/react");
     expect(animatedTabs).toContain("layoutId=\"animated-tabs-active\"");
     expect(animatedTabs).toContain("--animated-tabs-active-bg");
     expect(estilosFormularioEscuro).toContain("!bg-transparent");

@@ -480,7 +480,7 @@ export const moduloOperacional: ModuloHttp = {
 
       const dados = EnviarMensagemConversaAtendimentoSchema.parse(request.body ?? {});
       const mensagemLivre = montarMensagemLivreConversa(dados);
-      const janelaAtendimentoAtiva = resolverJanelaAtendimentoWhatsApp(dados, []);
+      const janelaAtendimentoAtiva = resolverJanelaAtendimentoSocialWhatsApp(dados, item);
       const envio = await contexto.automacaoWhatsApp.enviarMensagemManual({
         negocioId: contextoComercial.negocio.id,
         telefone: item.clienteTelefone,
@@ -1162,6 +1162,22 @@ function resolverJanelaAtendimentoWhatsApp(
   const janelaCalculada = calcularJanelaServicoPorUltimaMensagemInbound(mensagens);
   if (dados.janelaAtendimentoAtiva === false) return false;
   return janelaCalculada;
+}
+
+function resolverJanelaAtendimentoSocialWhatsApp(
+  dados: {
+    tipo: "TEXTO" | "TEMPLATE" | "IMAGEM" | "DOCUMENTO" | "RECIBO" | "CATALOGO";
+    templateId?: string;
+    categoria?: string;
+    janelaAtendimentoAtiva?: boolean;
+  },
+  item: { criadoEm: Date; clienteTelefone?: string | null; intencao?: string | null }
+): boolean | undefined {
+  if (!envioPrecisaJanelaDeServico(dados)) return dados.janelaAtendimentoAtiva;
+  if (dados.janelaAtendimentoAtiva === false) return false;
+  if (dados.janelaAtendimentoAtiva === true) return true;
+  if (!item.clienteTelefone || item.intencao === "SPAM") return false;
+  return Date.now() - item.criadoEm.getTime() <= JANELA_ATENDIMENTO_WHATSAPP_MS;
 }
 
 function envioPrecisaJanelaDeServico(dados: {

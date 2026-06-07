@@ -24,6 +24,25 @@ describe("InterpretadorComentario", () => {
     expect(resultado.confidence).toBeGreaterThanOrEqual(0.85);
   });
 
+  it("trata telefone e id do artigo separados em texto natural como compra automática", () => {
+    const resultado = interpretador.interpretar("o meu contacto é 923456789 e o id é RAW360");
+
+    expect(resultado.intent).toBe("BUY");
+    expect(resultado.phone).toBe("923456789");
+    expect(resultado.productCode).toBe("RAW360");
+    expect(resultado.requiresManualReview).toBe(false);
+    expect(resultado.confidence).toBeGreaterThanOrEqual(0.85);
+  });
+
+  it("aceita telefone e artigo sem verbo explícito de compra", () => {
+    const resultado = interpretador.interpretar("fala comigo no 923 456 789 artigo ABC-22");
+
+    expect(resultado.intent).toBe("BUY");
+    expect(resultado.phone).toBe("923456789");
+    expect(resultado.productCode).toBe("ABC-22");
+    expect(resultado.requiresManualReview).toBe(false);
+  });
+
   it("interpreta compra com erro de escrita e peça rotulada", () => {
     const resultado = interpretador.interpretar("eu queri peça 4 923456789");
 

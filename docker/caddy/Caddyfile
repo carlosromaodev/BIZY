@@ -1,23 +1,49 @@
 {
 	email {$ACME_EMAIL}
+	on_demand_tls {
+		ask http://backend:3333/publico/lojas/dominios/autorizar
+	}
 }
 
 {$FRONTEND_DOMAIN} {
 	reverse_proxy frontend:80
 }
 
+www.{$FRONTEND_DOMAIN} {
+	redir https://{$FRONTEND_DOMAIN}{uri} permanent
+}
+
 {$API_DOMAIN} {
-	reverse_proxy backend:3333
+	reverse_proxy backend:3333 {
+		flush_interval -1
+	}
 }
 
 {$N8N_DOMAIN} {
-	reverse_proxy n8n:5678
+	reverse_proxy n8n:5678 {
+		flush_interval -1
+	}
 }
 
 {$EVOLUTION_DOMAIN} {
-	reverse_proxy evolution-api:8080
+	reverse_proxy evolution-api:8080 {
+		flush_interval -1
+	}
 }
 
 {$EVOLUTION_MANAGER_DOMAIN} {
 	reverse_proxy evolution-manager:80
+}
+
+https:// {
+	tls {
+		on_demand
+	}
+
+	@lojas host *.{$PUBLIC_STORE_DOMAIN}
+	handle @lojas {
+		reverse_proxy frontend:80
+	}
+
+	respond 404
 }

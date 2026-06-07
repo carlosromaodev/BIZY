@@ -647,6 +647,9 @@ export class LojaPublicaUseCase {
   }
 
   private mapearLojaPublica(negocio: NegocioBizy) {
+    const entrega = this.objeto(negocio.entrega);
+    const lojaDigital = this.objeto(entrega.lojaDigital);
+    const tema = this.objeto(entrega.temaLoja);
     return {
       slug: negocio.slugPublico,
       nomeComercial: negocio.nomeComercial,
@@ -657,7 +660,12 @@ export class LojaPublicaUseCase {
       municipio: negocio.municipio,
       instagram: negocio.instagram,
       tiktok: negocio.tiktok,
-      moeda: negocio.moeda
+      moeda: negocio.moeda,
+      corPrimaria: this.texto(tema.corPrimaria) ?? "#111111",
+      logoUrl: this.texto(tema.logoUrl),
+      capaUrl: this.texto(tema.capaUrl),
+      whatsapp: negocio.whatsapp ?? negocio.telefone,
+      experiencia: this.normalizarExperienciaLoja(lojaDigital.experiencia)
     };
   }
 
@@ -1627,6 +1635,231 @@ export class LojaPublicaUseCase {
       .filter((codigo): codigo is string => Boolean(codigo));
   }
 
+  private normalizarExperienciaLoja(valor: unknown) {
+    const dados = this.objeto(valor);
+    const ordemPadrao = ["destaques", "promocoes", "novidades", "maisVendidos", "kits", "reposicoes"];
+    const secoesPermitidas = new Set(ordemPadrao);
+    const ordemInformada = Array.isArray(dados.ordemVitrines)
+      ? dados.ordemVitrines.filter((item): item is string => typeof item === "string" && secoesPermitidas.has(item))
+      : [];
+    const tabelaMedidas = Array.isArray(dados.tabelaMedidas)
+      ? dados.tabelaMedidas
+          .map((linha) => this.objeto(linha))
+          .map((linha) => ({
+            tamanho: this.texto(linha.tamanho) ?? "",
+            busto: this.texto(linha.busto),
+            cintura: this.texto(linha.cintura),
+            quadril: this.texto(linha.quadril),
+            observacao: this.texto(linha.observacao)
+          }))
+          .filter((linha) => linha.tamanho)
+          .slice(0, 24)
+      : [];
+    const criteriosCatalogo = new Set(["categoria", "colecao", "busca", "todos"]);
+    const catalogosPersonalizados = Array.isArray(dados.catalogosPersonalizados)
+      ? dados.catalogosPersonalizados
+          .map((item, indice) => this.objeto(item))
+          .map((item, indice) => {
+            const criterio = this.texto(item.criterio);
+            const nome = this.texto(item.nome);
+            return {
+              id: this.normalizarIdCatalogo(this.texto(item.id) ?? nome ?? `catalogo-${indice + 1}`),
+              nome: nome ?? "",
+              descricao: this.texto(item.descricao),
+              criterio: criteriosCatalogo.has(criterio ?? "") ? criterio : "busca",
+              valor: this.texto(item.valor)
+            };
+          })
+          .filter((item) => item.nome)
+          .slice(0, 12)
+      : [];
+    const modo = this.texto(dados.modoNegocio);
+
+    return {
+      modoNegocio: ["auto", "moda", "comida", "servicos", "geral"].includes(modo ?? "") ? modo : "auto",
+      ordemVitrines: [...new Set(ordemInformada.length ? ordemInformada : ordemPadrao)],
+      catalogosEditaveis: typeof dados.catalogosEditaveis === "boolean" ? dados.catalogosEditaveis : true,
+      leadCaptureAtivo: typeof dados.leadCaptureAtivo === "boolean" ? dados.leadCaptureAtivo : true,
+      leadCaptureTitulo: this.texto(dados.leadCaptureTitulo),
+      cupomDestaque: this.texto(dados.cupomDestaque),
+      politicaTroca: this.texto(dados.politicaTroca),
+      politicaEntrega: this.texto(dados.politicaEntrega),
+      politicaPrivacidade: this.texto(dados.politicaPrivacidade),
+      catalogosPersonalizados,
+      operacao: this.normalizarOperacaoLoja(dados.operacao),
+      tabelaMedidas
+    };
+  }
+
+  private normalizarOperacaoLoja(valor: unknown) {
+    const dados = this.objeto(valor);
+    const plano = this.objeto(dados.plano);
+    const quotas = this.objeto(plano.quotas);
+    const checkout = this.objeto(dados.checkout);
+    const pagamentosAvancados = this.objeto(dados.pagamentos);
+    const entregaAvancada = this.objeto(dados.entrega);
+    const fidelizacao = this.objeto(dados.fidelizacao);
+    const automacoes = this.objeto(dados.automacoes);
+    const canais = this.objeto(dados.canais);
+    const catalogo = this.objeto(dados.catalogo);
+    const clientes = this.objeto(dados.clientes);
+    const encomendas = this.objeto(dados.encomendas);
+    const relatorios = this.objeto(dados.relatorios);
+    const siteSeo = this.objeto(dados.siteSeo);
+    const acessoLoja = this.texto(fidelizacao.acessoLoja);
+    const agruparPor = this.texto(relatorios.agruparPor);
+    const acessosPermitidos = new Set(["aberto", "telefone", "login", "membros"]);
+    const agrupamentosPermitidos = new Set(["hora", "produto", "cliente"]);
+
+    return {
+      plano: {
+        planoAtual: this.texto(plano.planoAtual) ?? "starter",
+        recursosBloqueados: this.listaTextos(plano.recursosBloqueados).slice(0, 40),
+        quotas: {
+          encomendasMensais: Math.round(Math.max(0, this.numero(quotas.encomendasMensais) ?? 0)),
+          imagens: Math.round(Math.max(0, this.numero(quotas.imagens) ?? 0)),
+          whatsapp: Math.round(Math.max(0, this.numero(quotas.whatsapp) ?? 0)),
+          email: Math.round(Math.max(0, this.numero(quotas.email) ?? 0))
+        },
+        upgradeContextual: this.booleanoComPadrao(plano.upgradeContextual, true)
+      },
+      checkout: {
+        ignorarPaginaPagamento: this.booleanoComPadrao(checkout.ignorarPaginaPagamento, false),
+        manterRascunhoAtePago: this.booleanoComPadrao(checkout.manterRascunhoAtePago, false),
+        confirmacaoAutomaticaPagamento: this.booleanoComPadrao(checkout.confirmacaoAutomaticaPagamento, false),
+        entradaAtiva: this.booleanoComPadrao(checkout.entradaAtiva, false),
+        entradaPercentual: this.limitarNumero(checkout.entradaPercentual, 0, 100, 0),
+        taxaServicoPercentual: this.limitarNumero(checkout.taxaServicoPercentual, 0, 100, 0),
+        taxaServicoFixaEmKwanza: Math.round(Math.max(0, this.numero(checkout.taxaServicoFixaEmKwanza) ?? 0)),
+        prefixoPedido: this.texto(checkout.prefixoPedido),
+        sufixoPedido: this.texto(checkout.sufixoPedido),
+        exigirTelefoneCheckout: this.booleanoComPadrao(checkout.exigirTelefoneCheckout, true),
+        exigirLoginCheckout: this.booleanoComPadrao(checkout.exigirLoginCheckout, false),
+        mostrarNumeroEncomendaNaMensagem: this.booleanoComPadrao(checkout.mostrarNumeroEncomendaNaMensagem, true)
+      },
+      pagamentos: {
+        dinheiroEntrega: this.booleanoComPadrao(pagamentosAvancados.dinheiroEntrega, true),
+        transferenciaBancaria: this.booleanoComPadrao(pagamentosAvancados.transferenciaBancaria, true),
+        cartaoAdyen: this.booleanoComPadrao(pagamentosAvancados.cartaoAdyen, false),
+        paypal: this.booleanoComPadrao(pagamentosAvancados.paypal, false),
+        pagamentoPersonalizado: this.booleanoComPadrao(pagamentosAvancados.pagamentoPersonalizado, false),
+        pagamentoComInstrucoes: this.booleanoComPadrao(pagamentosAvancados.pagamentoComInstrucoes, true),
+        creditoLoja: this.booleanoComPadrao(pagamentosAvancados.creditoLoja, false),
+        instrucoesPagamento: this.texto(pagamentosAvancados.instrucoesPagamento)
+      },
+      entrega: {
+        gerirDisponibilidade: this.booleanoComPadrao(entregaAvancada.gerirDisponibilidade, false),
+        adicionarMetodoEntrega: this.booleanoComPadrao(entregaAvancada.adicionarMetodoEntrega, false),
+        disponibilidadeSemanal: this.listaTextos(entregaAvancada.disponibilidadeSemanal).slice(0, 21),
+        zonas: this.normalizarZonasEntregaOperacao(entregaAvancada.zonas)
+      },
+      fidelizacao: {
+        acessoLoja: acessosPermitidos.has(acessoLoja ?? "") ? acessoLoja : "aberto",
+        ofertaBoasVindasAtiva: this.booleanoComPadrao(fidelizacao.ofertaBoasVindasAtiva, false),
+        cupomBoasVindas: this.texto(fidelizacao.cupomBoasVindas),
+        recompensasAtivas: this.booleanoComPadrao(fidelizacao.recompensasAtivas, false),
+        recompensasIndicacaoAtivas: this.booleanoComPadrao(fidelizacao.recompensasIndicacaoAtivas, false),
+        creditoLojaAtivo: this.booleanoComPadrao(fidelizacao.creditoLojaAtivo, false)
+      },
+      automacoes: {
+        perfilCliente: this.booleanoComPadrao(automacoes.perfilCliente, true),
+        carrinhoAbandonado: this.booleanoComPadrao(automacoes.carrinhoAbandonado, true),
+        pedidoAvaliacao: this.booleanoComPadrao(automacoes.pedidoAvaliacao, true),
+        avaliacaoRecebida: this.booleanoComPadrao(automacoes.avaliacaoRecebida, true),
+        pedidoNovamente: this.booleanoComPadrao(automacoes.pedidoNovamente, true),
+        aniversarioCliente: this.booleanoComPadrao(automacoes.aniversarioCliente, false),
+        pagamentoPendente: this.booleanoComPadrao(automacoes.pagamentoPendente, true),
+        pagamentoConfirmado: this.booleanoComPadrao(automacoes.pagamentoConfirmado, true),
+        creditoAtualizado: this.booleanoComPadrao(automacoes.creditoAtualizado, false),
+        creditoReembolsado: this.booleanoComPadrao(automacoes.creditoReembolsado, false),
+        pedidoSaiuEntrega: this.booleanoComPadrao(automacoes.pedidoSaiuEntrega, true),
+        pedidoCancelado: this.booleanoComPadrao(automacoes.pedidoCancelado, true),
+        produtoDigitalConfirmado: this.booleanoComPadrao(automacoes.produtoDigitalConfirmado, false),
+        operacaoInternaPedidoCriado: this.booleanoComPadrao(automacoes.operacaoInternaPedidoCriado, true)
+      },
+      canais: {
+        site: this.booleanoComPadrao(canais.site, true),
+        whatsapp: this.booleanoComPadrao(canais.whatsapp, true),
+        instagram: this.booleanoComPadrao(canais.instagram, false),
+        google: this.booleanoComPadrao(canais.google, false),
+        pos: this.booleanoComPadrao(canais.pos, false),
+        transmissoes: this.booleanoComPadrao(canais.transmissoes, false),
+        chatbot: this.booleanoComPadrao(canais.chatbot, true),
+        appMovelQr: this.booleanoComPadrao(canais.appMovelQr, false),
+        caixaEntradaUnificada: this.booleanoComPadrao(canais.caixaEntradaUnificada, true),
+        broadcasts: this.booleanoComPadrao(canais.broadcasts, false)
+      },
+      catalogo: {
+        categoriasVisiveis: this.listaTextos(catalogo.categoriasVisiveis).slice(0, 60),
+        categoriasOcultas: this.listaTextos(catalogo.categoriasOcultas).slice(0, 60),
+        sequenciaCategorias: this.listaTextos(catalogo.sequenciaCategorias).slice(0, 60),
+        descontosAtivos: this.booleanoComPadrao(catalogo.descontosAtivos, false),
+        produtosPorColecao: this.booleanoComPadrao(catalogo.produtosPorColecao, true),
+        produtosComEstatisticas: this.booleanoComPadrao(catalogo.produtosComEstatisticas, true)
+      },
+      clientes: {
+        importar: this.booleanoComPadrao(clientes.importar, true),
+        exportar: this.booleanoComPadrao(clientes.exportar, true),
+        edicaoMassa: this.booleanoComPadrao(clientes.edicaoMassa, false),
+        adicionarManual: this.booleanoComPadrao(clientes.adicionarManual, true),
+        pesquisaAvancada: this.booleanoComPadrao(clientes.pesquisaAvancada, true),
+        filtrosInteligentes: this.listaTextos(clientes.filtrosInteligentes).length
+          ? this.listaTextos(clientes.filtrosInteligentes).slice(0, 20)
+          : ["todos", "inativos", "primeiro-pedido", "nunca-comprou"],
+        transmissaoFiltrada: this.booleanoComPadrao(clientes.transmissaoFiltrada, false)
+      },
+      encomendas: {
+        criarManual: this.booleanoComPadrao(encomendas.criarManual, true),
+        exportar: this.booleanoComPadrao(encomendas.exportar, true),
+        resumoAtivo: this.booleanoComPadrao(encomendas.resumoAtivo, true),
+        rascunhos: this.booleanoComPadrao(encomendas.rascunhos, true),
+        pagamentos: this.booleanoComPadrao(encomendas.pagamentos, true),
+        calendario: this.booleanoComPadrao(encomendas.calendario, true),
+        colunasOperacionais: this.listaTextos(encomendas.colunasOperacionais).length
+          ? this.listaTextos(encomendas.colunasOperacionais).slice(0, 30)
+          : ["cliente", "total", "estado", "pagamento", "entrega", "criadoEm"]
+      },
+      relatorios: {
+        metricas: this.listaTextos(relatorios.metricas).slice(0, 12),
+        agruparPor: agrupamentosPermitidos.has(agruparPor ?? "") ? agruparPor : "produto",
+        filtrosPedidos: this.listaTextos(relatorios.filtrosPedidos).slice(0, 12),
+        relatoriosProntos: this.listaTextos(relatorios.relatoriosProntos).slice(0, 40)
+      },
+      siteSeo: {
+        dominioPersonalizado: this.texto(siteSeo.dominioPersonalizado),
+        instrucoesDns: this.texto(siteSeo.instrucoesDns),
+        tituloSite: this.texto(siteSeo.tituloSite),
+        uploadLogotipo: this.booleanoComPadrao(siteSeo.uploadLogotipo, true),
+        imagemGeradaIa: this.booleanoComPadrao(siteSeo.imagemGeradaIa, false),
+        categoriasDiretorio: this.listaTextos(siteSeo.categoriasDiretorio).slice(0, 12)
+      }
+    };
+  }
+
+  private normalizarZonasEntregaOperacao(valor: unknown) {
+    if (!Array.isArray(valor)) return [];
+    return valor
+      .map((item) => this.objeto(item))
+      .map((item) => ({
+        nome: this.texto(item.nome) ?? "",
+        precoEmKwanza: Math.round(Math.max(0, this.numero(item.precoEmKwanza) ?? 0)),
+        prazo: this.texto(item.prazo)
+      }))
+      .filter((zona) => zona.nome)
+      .slice(0, 60);
+  }
+
+  private normalizarIdCatalogo(valor: string): string {
+    return valor
+      .trim()
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 80) || "catalogo";
+  }
+
   private listaTextos(valor: unknown): string[] {
     if (!Array.isArray(valor)) return [];
     return valor
@@ -1634,11 +1867,23 @@ export class LojaPublicaUseCase {
       .filter((item): item is string => Boolean(item));
   }
 
+  private booleanoComPadrao(valor: unknown, padrao: boolean): boolean {
+    if (typeof valor === "boolean") return valor;
+    if (valor === undefined || valor === null || valor === "") return padrao;
+    return this.booleano(valor);
+  }
+
   private booleano(valor: unknown): boolean {
     if (typeof valor === "boolean") return valor;
     if (typeof valor === "string") return ["true", "1", "sim", "yes", "ativo"].includes(valor.trim().toLowerCase());
     if (typeof valor === "number") return valor > 0;
     return false;
+  }
+
+  private limitarNumero(valor: unknown, minimo: number, maximo: number, padrao: number): number {
+    const informado = this.numero(valor);
+    if (informado === null) return padrao;
+    return Math.min(maximo, Math.max(minimo, informado));
   }
 
   private hashSha256(valor: string | null): string | null {

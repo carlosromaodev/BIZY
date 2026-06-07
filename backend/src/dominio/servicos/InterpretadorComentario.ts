@@ -56,7 +56,8 @@ export class InterpretadorComentario {
     );
     const codigoPeca = codigosPeca[0] ?? null;
     const formatoDiretoTelefoneCodigo = this.temFormatoDiretoTelefoneCodigo(texto, telefoneEncontrado, codigoPeca);
-    const temCompraOperacional = temIntencaoCompra || formatoDiretoTelefoneCodigo;
+    const temTelefoneECodigo = telefone !== null && codigoPeca !== null;
+    const temCompraOperacional = temIntencaoCompra || formatoDiretoTelefoneCodigo || temTelefoneECodigo;
 
     if (!temCompraOperacional) {
       motivos.push("Intenção de compra não identificada.");
@@ -182,10 +183,21 @@ export class InterpretadorComentario {
   }
 
   private extrairCodigosPecaRotulados(texto: string, rotulosExtras: string[] = []): TrechoEncontrado[] {
-    const rotulos = this.removerDuplicados(["peca", "produto", "item", ...rotulosExtras]);
+    const rotulos = this.removerDuplicados([
+      "peca",
+      "produto",
+      "item",
+      "artigo",
+      "ref",
+      "referencia",
+      "codigo",
+      "cod",
+      "id",
+      ...rotulosExtras
+    ]);
     const rotulosRegex = rotulos.map((rotulo) => this.escaparRegex(rotulo).replace(/\s+/g, "\\s+")).join("|");
     const padraoRotulado = new RegExp(
-      `(?:\\b(?:${rotulosRegex})\\s*#?\\s*([a-z0-9][a-z0-9_-]{0,31})\\b)|(?:#\\s*([a-z0-9][a-z0-9_-]{0,31})\\b)`,
+      `(?:\\b(?:${rotulosRegex})\\s*(?:e\\s+|eh\\s+)?#?\\s*([a-z0-9][a-z0-9_-]{0,31})\\b)|(?:#\\s*([a-z0-9][a-z0-9_-]{0,31})\\b)`,
       "g"
     );
     const resultados: TrechoEncontrado[] = [];

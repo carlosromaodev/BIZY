@@ -15,6 +15,7 @@ import {
   guardarSessao,
   obterBaseApiUrl,
   obterToken,
+  obterUsuario,
   requisitarApi,
   type UsuarioSessao
 } from "../api";
@@ -100,9 +101,32 @@ export function PaginaLogin() {
     const parametros = new URLSearchParams(window.location.hash.replace(/^#/, ""));
     const token = parametros.get("bizy_token");
     const usuario = parseUsuarioHash(parametros.get("bizy_usuario"));
+    const sessaoPorCookie = parametros.get("bizy_auth") === "cookie";
     const erro = parametros.get("bizy_erro");
     const destinoSolicitado = new URLSearchParams(window.location.search).get("pos_auth");
     const destinoHash = destinoSolicitado === "/app" ? "/app" : "/onboarding";
+    let cancelado = false;
+
+    if (sessaoPorCookie) {
+      setCarregando(true);
+      window.history.replaceState(null, "", window.location.pathname + window.location.search);
+      void requisitarApi<{ usuario: UsuarioSessao }>("/auth/sessao")
+        .then((resposta) => {
+          if (cancelado) return;
+          guardarSessao(null, resposta.usuario);
+          navigate(destinoHash, { replace: true });
+        })
+        .catch((falha) => {
+          if (cancelado) return;
+          setMensagem(falha instanceof Error ? falha.message : "Sessão Gmail inválida ou expirada.");
+        })
+        .finally(() => {
+          if (!cancelado) setCarregando(false);
+        });
+      return () => {
+        cancelado = true;
+      };
+    }
 
     if (token && usuario) {
       guardarSessao(token, usuario);
@@ -117,7 +141,7 @@ export function PaginaLogin() {
       return;
     }
 
-    if (obterToken()) navigate("/app", { replace: true });
+    if (obterToken() || obterUsuario()) navigate("/app", { replace: true });
   }, [navigate]);
 
   useEffect(() => {
@@ -280,8 +304,8 @@ export function PaginaLogin() {
       brand={<LogoBizy cores={CORES_LOGO_BIZY_ESCURA} />}
       title={tituloPagina}
       description={descricaoPagina}
-      visualImage="/bizy-login-team.png"
-      visualImageAlt="Equipa Bizy em live commerce apresentando roupas no estúdio da loja"
+      visualImage="/bizy-live-commerce-hero.png"
+      visualImageAlt="Vendedora em live commerce apresentando roupa no estúdio da loja"
       homeAction={(
         <Button asChild variant="ghost" className="w-fit text-white/82 hover:bg-white/10 hover:text-white">
           <Link to="/">

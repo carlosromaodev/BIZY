@@ -27,8 +27,9 @@ Os tokens antigos em português ficam como aliases de compatibilidade. Código n
 
 ## Paleta
 
-- `#971A58` é a cor principal da identidade Bizy: ação primária, foco, navegação ativa, destaque comercial e elementos de marca.
-- Verde é reservado para sucesso, confirmação, saldo positivo, disponibilidade, pagamento confirmado e ações de aprovação.
+- Esmeralda `#16A07A` é a cor principal da identidade Bizy: ponto da marca, ação primária, foco, navegação ativa e destaque comercial.
+- Neutro profundo `#0B1014` é a tinta oficial do wordmark e a base do favicon/app icon.
+- Verde funcional adicional continua reservado para sucesso, confirmação, saldo positivo, disponibilidade, pagamento confirmado e ações de aprovação.
 - Vermelho é reservado para erro, falha, perigo e ação destrutiva.
 - Amarelo/laranja é reservado para aviso, pendência, fila, expiração e atenção operacional.
 - Azul escuro é apenas informativo/tecnológico, sem competir com a marca.
@@ -38,7 +39,7 @@ Não usar cor funcional como decoração genérica. Sempre que a cor comunicar e
 
 ## Marca Bizy
 
-A marca temporária usa vinho `#971A58`, verde de confirmação e neutros profundos. O logo e o favicon ficam centralizados em `frontend/src/marca/bizy.tsx`.
+A marca final usa o wordmark lowercase `bizy.` em Geist 700, letter spacing `-0.055em`, texto `#0B1014` em fundo claro e ponto esmeralda `#16A07A`. Dentro do CRM, sidebar, header mobile e sheets usam apenas este wordmark; não usar o símbolo `b.` como marca de navegação interna. O favicon/app icon oficial continua `b.` branco em quadrado arredondado `#0B1014`. O logo e o favicon ficam centralizados em `frontend/src/marca/bizy.tsx`.
 
 - `LogoBizy`: componente React para o logo horizontal ou ícone.
 - `resolverCoresBizy`: combina cores parciais com a paleta padrão.
@@ -51,12 +52,12 @@ Para trocar a direção visual depois, altere primeiro `CORES_BIZY_PADRAO` ou ch
 
 ```ts
 aplicarIdentidadeBizy({
-  principal: "#971A58",
-  cinzaClaro: "#a21b60",
-  cinzaMedio: "#312330",
-  faviconBase: "#971A58",
+  principal: "#0B1014",
+  cinzaClaro: "#6B7178",
+  cinzaMedio: "#0B1014",
+  faviconBase: "#0B1014",
   faviconCheck: "#ffffff",
-  faviconLinhas: "#166534"
+  faviconLinhas: "#16A07A"
 });
 ```
 
@@ -84,14 +85,15 @@ aplicarIdentidadeBizy({
 - Página: `pagina-rotulo` pequeno, `pagina-titulo` forte e ações alinhadas à direita quando houver espaço.
 - Painel: `cartao-header h2` deve ser menor que o título da página e com menor espaçamento.
 - Métrica: valor em destaque, título curto e detalhe discreto; ícone não deve competir com o número no mobile.
-- Cor funcional: vinho `#971A58` para ação/marca, verde para sucesso e saldo positivo, azul escuro para informação, amarelo/laranja para atenção, vermelho para erro e neutros para estrutura.
-- Texto em fundo vinho, verde, vermelho, laranja ou azul escuro usa branco. Texto em fundos tintados usa foreground escuro do próprio estado.
+- Cor funcional: esmeralda `#16A07A` para ação/marca, verde para sucesso e saldo positivo, azul escuro para informação, amarelo/laranja para atenção, vermelho para erro e neutros para estrutura.
+- Texto em fundo esmeralda, verde, vermelho, laranja ou azul escuro usa branco. Texto em fundos tintados usa foreground escuro do próprio estado.
 - Borda: usar `--border-ui`, `--border-ui-soft` e `--border-ui-strong`; não misturar raios diferentes para componentes do mesmo nível.
 - Cards comerciais não usam linha colorida no início. Estados aparecem por tint leve, badge, ícone e copy curta.
 
 ## Componentes
 
 - `Shell`: uma fonte de verdade para navegação desktop e mobile.
+- Navegação desktop do `Shell`: rail preto estreito com cantos grandes, ícones em coluna, capsule ativa animada e painel secundário claro com páginas da secção. O wordmark `bizy.` aparece no rail; não usar símbolo `b.` dentro do CRM.
 - `CabecalhoPagina`: título curto e ação principal da página.
 - `CartaoIndicador`, `.cartao`, `.indicador`: usar tokens de superfície/borda/sombra.
 - `Bizy App Polish`: camada global no final de `frontend/src/estilos.css` que normaliza borda, sombra, densidade e hierarquia entre Dashboard, Catálogo, Comentários, Reservas, Conversas, WhatsApp, Agentes, n8n e Configurações.

@@ -28,6 +28,7 @@ updated: 2026-06-07
 - [[loja-digital-operacao-crm|Loja Digital com Operacao CRM]]
 - [[bizy-market-lojas-digitais|Bizy Market e Lojas Digitais]]
 - [[bizy-market-rotas-roadmap|Bizy Market Rotas e Roadmap]]
+- [[bizy-market-frontend-lojas|Frontend das Lojas e Bizy Market]]
 - [[arquitetura-e-guardrails-bizy|Arquitetura e Guardrails]]
 - [[prioridades-lancamento-bizy|Prioridades de Lancamento]]
 - [[identidade-visual-bizy-v2|Identidade Visual Bizy v2]]
@@ -76,6 +77,8 @@ updated: 2026-06-07
 
 ## Planos e Specs Recentes
 
+- [`docs/superpowers/specs/2026-06-07-bizy-market-frontend-lojas-design.md`](../superpowers/specs/2026-06-07-bizy-market-frontend-lojas-design.md)
+- [`docs/superpowers/plans/2026-06-07-bizy-market-frontend-lojas.md`](../superpowers/plans/2026-06-07-bizy-market-frontend-lojas.md)
 - [`docs/superpowers/plans/2026-06-07-bizy-market-perfil-loja-backend.md`](../superpowers/plans/2026-06-07-bizy-market-perfil-loja-backend.md)
 - [`docs/superpowers/plans/2026-06-07-bizy-market-backend-foundation.md`](../superpowers/plans/2026-06-07-bizy-market-backend-foundation.md)
 - [`docs/superpowers/plans/2026-05-21-migracao-uorconnect-servicos.md`](../superpowers/plans/2026-05-21-migracao-uorconnect-servicos.md)

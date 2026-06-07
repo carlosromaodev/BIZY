@@ -4,12 +4,24 @@ function ehHostLocal(hostname: string): boolean {
   return ["localhost", "127.0.0.1", "0.0.0.0", "::1"].includes(hostname);
 }
 
+function inferirApiUrlProducao(): string {
+  if (typeof window === "undefined") return "";
+  const { protocol, hostname } = window.location;
+  if (ehHostLocal(hostname)) return "";
+  const partes = hostname.split(".");
+  if (partes.length >= 2) {
+    const dominio = partes.slice(-2).join(".");
+    return `${protocol}//api.${dominio}`;
+  }
+  return "";
+}
+
 function obterApiUrl(): string {
   if (apiUrlConfigurada) {
     if (typeof window !== "undefined" && !ehHostLocal(window.location.hostname)) {
       try {
         const destino = new URL(apiUrlConfigurada);
-        if (ehHostLocal(destino.hostname)) return "";
+        if (ehHostLocal(destino.hostname)) return inferirApiUrlProducao();
       } catch {
         return apiUrlConfigurada;
       }
@@ -18,11 +30,7 @@ function obterApiUrl(): string {
     return apiUrlConfigurada;
   }
 
-  if (import.meta.env.DEV && typeof window !== "undefined" && ehHostLocal(window.location.hostname)) {
-    return "http://localhost:3333";
-  }
-
-  return "";
+  return inferirApiUrlProducao();
 }
 
 const apiUrl = obterApiUrl();
@@ -31,9 +39,18 @@ export function obterBaseApiUrl(): string {
   return apiUrl;
 }
 
+export function resolverUrlMedia(url?: string | null): string {
+  const valor = url?.trim();
+  if (!valor) return "";
+  if (/^(https?:|data:|blob:)/i.test(valor)) return valor;
+  if (valor.startsWith("/media/files/")) return `${apiUrl}${valor}`;
+  return valor;
+}
+
 const CHAVE_TOKEN = "emeu_token";
 const CHAVE_USUARIO = "emeu_usuario";
 export const EVENTO_SESSAO_EXPIRADA = "emeu:sessao-expirada";
+export const EVENTO_SESSAO_ATUALIZADA = "emeu:sessao-atualizada";
 const EVENTO_NOTIFICACAO_SITE = "bizy:notificacao";
 
 function emitirNotificacaoSite(detalhe: {
@@ -101,9 +118,17 @@ export function guardarUsuario(usuario: UsuarioSessao): void {
   localStorage.setItem(CHAVE_USUARIO, JSON.stringify(usuario));
 }
 
-export function guardarSessao(token: string, usuario: UsuarioSessao): void {
-  guardarToken(token);
+export function guardarSessao(token: string | null | undefined, usuario: UsuarioSessao): void {
+  if (token) {
+    guardarToken(token);
+  } else {
+    removerToken();
+  }
   guardarUsuario(usuario);
+
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new Event(EVENTO_SESSAO_ATUALIZADA));
+  }
 }
 
 export function removerUsuario(): void {
@@ -125,10 +150,52 @@ function notificarSessaoExpirada(): void {
   });
 }
 
+function mensagemRespostaInesperada(caminho: string, texto: string): string {
+  const inicio = texto.trimStart().slice(0, 80).toLowerCase();
+  if (inicio.startsWith("<!doctype") || inicio.startsWith("<html")) {
+    return `A rota ${caminho} devolveu HTML em vez de JSON. Verifique se o backend está ativo e se o proxy do Vite conhece esta rota.`;
+  }
+
+  return `A rota ${caminho} devolveu uma resposta inesperada em vez de JSON.`;
+}
+
+async function lerRespostaApi(resposta: Response, caminho: string): Promise<unknown> {
+  const texto = await resposta.text();
+  if (!texto.trim()) return null;
+
+  const tipoConteudo = resposta.headers.get("content-type")?.toLowerCase() ?? "";
+  const inicio = texto.trimStart();
+  const pareceJson =
+    tipoConteudo.includes("application/json") ||
+    tipoConteudo.includes("+json") ||
+    inicio.startsWith("{") ||
+    inicio.startsWith("[");
+
+  if (!pareceJson) {
+    throw new Error(mensagemRespostaInesperada(caminho, texto));
+  }
+
+  try {
+    return JSON.parse(texto);
+  } catch {
+    throw new Error(`A rota ${caminho} devolveu JSON inválido.`);
+  }
+}
+
+function extrairMensagemErro(corpo: unknown): string | null {
+  if (!corpo || typeof corpo !== "object") return null;
+  const erro = corpo as { mensagem?: unknown; message?: unknown };
+  if (typeof erro.mensagem === "string") return erro.mensagem;
+  if (typeof erro.message === "string") return erro.message;
+  return null;
+}
+
 export function obterUrlEventos(): string {
-  const token = obterToken();
-  const parametros = token ? `?token=${encodeURIComponent(token)}` : "";
-  return `${apiUrl}/eventos${parametros}`;
+  return `${apiUrl}/eventos`;
+}
+
+export function criarFonteEventosAutenticada(): EventSource {
+  return new EventSource(obterUrlEventos(), { withCredentials: true });
 }
 
 export async function requisitarApi<T = unknown>(
@@ -152,7 +219,8 @@ export async function requisitarApi<T = unknown>(
     resposta = await fetch(`${apiUrl}${caminho}`, {
       method: opcoes.method ?? "GET",
       headers,
-      body: opcoes.body !== undefined ? JSON.stringify(opcoes.body) : undefined
+      body: opcoes.body !== undefined ? JSON.stringify(opcoes.body) : undefined,
+      credentials: "include"
     });
   } catch {
     const mensagem = "Não foi possível contactar o backend. Verifique se a API e o Postgres estão em execução.";
@@ -164,13 +232,22 @@ export async function requisitarApi<T = unknown>(
     throw new Error(mensagem);
   }
 
-  if (!resposta.ok) {
-    const erro = await resposta.json().catch(() => null);
+  let corpo: unknown;
+  try {
+    corpo = await lerRespostaApi(resposta, caminho);
+  } catch (erro) {
     if (autenticado && resposta.status === 401) {
       notificarSessaoExpirada();
     }
-    throw new Error(erro?.mensagem ?? erro?.message ?? "Pedido rejeitado pelo backend.");
+    throw erro;
   }
 
-  return resposta.json();
+  if (!resposta.ok) {
+    if (autenticado && resposta.status === 401) {
+      notificarSessaoExpirada();
+    }
+    throw new Error(extrairMensagemErro(corpo) ?? "Pedido rejeitado pelo backend.");
+  }
+
+  return corpo as T;
 }

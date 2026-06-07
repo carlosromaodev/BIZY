@@ -1,11 +1,15 @@
+import cookie from "@fastify/cookie";
 import cors from "@fastify/cors";
+import helmet from "@fastify/helmet";
 import Fastify, { type FastifyInstance } from "fastify";
 import type { ComentarioLive } from "../../dominio/tipos.js";
 import { criarContextoAplicacao, criarProviderLive, type ContextoAplicacao, type SessaoLive } from "./ContextoAplicacao.js";
 import { classificarErroHttp, ehErroInfraestrutura } from "./errosHttp.js";
+import { atualizarMetricasSessaoLive } from "./liveMetricas.js";
 import { modulosHttp } from "./modulos/manifestoModulosHttp.js";
 import { criarRateLimit } from "./rateLimit.js";
-import { extrairTokenAutenticacao } from "./seguranca.js";
+import { exigirUsuarioAutenticado } from "./seguranca.js";
+import { isPrivateStoredMediaUrl } from "../media/MediaStorage.js";
 
 type OrigemCorsPermitida = boolean | string | RegExp | Array<boolean | string | RegExp>;
 type ResolverOrigemCors = OrigemCorsPermitida | ((
@@ -24,6 +28,14 @@ export async function criarAplicacao(): Promise<FastifyInstance> {
     }
   });
   const contexto = criarContextoAplicacao(app.log);
+
+  await app.register(cookie, {
+    hook: "onRequest"
+  });
+
+  await app.register(helmet, {
+    contentSecurityPolicy: false
+  });
 
   await app.register(cors, {
     origin: resolverOrigemCors(),
@@ -47,13 +59,7 @@ export async function criarAplicacao(): Promise<FastifyInstance> {
       return;
     }
 
-    const tokenQuery = (request.query as { token?: string } | undefined)?.token;
-    const token = extrairTokenAutenticacao(request) ?? tokenQuery ?? null;
-    const usuario = await contexto.autenticacaoTelefone.obterSessao(token);
-
-    if (!usuario) {
-      return reply.code(401).send({ erro: "NAO_AUTENTICADO", mensagem: "Faça login para continuar." });
-    }
+    await exigirUsuarioAutenticado(contexto, request, reply);
   });
 
   app.addHook("preHandler", async (request, reply) => {
@@ -140,6 +146,9 @@ async function restaurarSessoesLiveAtivas(contexto: ContextoAplicacao): Promise<
       comentariosRecebidos: registro.comentariosRecebidos,
       comentariosProcessados: registro.comentariosProcessados,
       comentariosComErro: registro.comentariosComErro,
+      espectadoresAtuais: null,
+      picoEspectadores: null,
+      metricasAtualizadasEm: null,
       ultimoComentarioEm: registro.ultimoComentarioEm,
       ultimoErro: null
     };
@@ -150,6 +159,7 @@ async function restaurarSessoesLiveAtivas(contexto: ContextoAplicacao): Promise<
         await persistirSessaoRestaurada(contexto, sessao, true).catch(() => undefined);
       });
     });
+    provider.onMetrics?.((metricas) => atualizarMetricasSessaoLive(contexto, sessao, metricas));
 
     contexto.sessoesLive.set(sessao.id, sessao);
 
@@ -224,6 +234,7 @@ function deveExigirSessaoOperacional(url: string): boolean {
 
   if (rotasPublicas.includes(caminho)) return false;
   if (caminho.startsWith("/auth/")) return false;
+  if (caminho.startsWith("/media/files/") && !isPrivateStoredMediaUrl(caminho)) return false;
   if (caminho.startsWith("/n8n/")) return false;
   if (caminho.startsWith("/publico/")) return false;
   if (caminho.startsWith("/webhooks/")) return false;
@@ -237,7 +248,8 @@ function validarConfiguracaoSegura() {
   const erros: string[] = [];
   const n8nAtivo = process.env.N8N_EVENTOS_ATIVOS !== "false";
 
-  if (!process.env.AUTH_SECRET) erros.push("AUTH_SECRET");
+  const segredoJwt = process.env.AUTH_JWT_SECRET ?? process.env.AUTH_SECRET;
+  if (!segredoJwt || segredoJwt.length < 32) erros.push("AUTH_JWT_SECRET ou AUTH_SECRET com pelo menos 32 caracteres");
   if (!process.env.ORIGEM_FRONTEND) erros.push("ORIGEM_FRONTEND");
   if (n8nAtivo && !process.env.N8N_BACKEND_TOKEN) erros.push("N8N_BACKEND_TOKEN");
   if (n8nAtivo && process.env.N8N_WEBHOOK_EVENTOS_URL && !process.env.N8N_WEBHOOK_SECRET) {
@@ -246,6 +258,9 @@ function validarConfiguracaoSegura() {
   if (!process.env.EVOLUTION_WEBHOOK_TOKEN) erros.push("EVOLUTION_WEBHOOK_TOKEN");
   if (process.env.LOGIN_SMS_DEV_MODE === "true") erros.push("LOGIN_SMS_DEV_MODE deve ser false");
   if (process.env.LOGIN_SMS_EXPOR_CODIGO_DEV === "true") erros.push("LOGIN_SMS_EXPOR_CODIGO_DEV deve ser false");
+  if (process.env.AUTH_COOKIE_SAMESITE?.toLowerCase() === "none" && process.env.AUTH_COOKIE_SECURE !== "true") {
+    erros.push("AUTH_COOKIE_SECURE deve ser true quando AUTH_COOKIE_SAMESITE=none");
+  }
 
   if (erros.length) {
     throw new Error(`Configuração insegura para produção: ${erros.join(", ")}.`);
@@ -254,6 +269,7 @@ function validarConfiguracaoSegura() {
 
 function resolverOrigemCors(): ResolverOrigemCors {
   const origem = process.env.ORIGEM_FRONTEND?.trim();
+  const dominioPublicoLoja = normalizarDominioPublicoLoja(process.env.PUBLIC_STORE_DOMAIN);
 
   if (origem) {
     const origens = origem
@@ -261,14 +277,19 @@ function resolverOrigemCors(): ResolverOrigemCors {
       .map((item) => item.trim())
       .filter(Boolean);
 
-    if (process.env.NODE_ENV !== "production") {
+    if (process.env.NODE_ENV !== "production" || dominioPublicoLoja) {
       return (origin, callback) => {
         if (!origin) {
           callback(null, true);
           return;
         }
 
-        callback(null, origens.includes(origin) || origemLocalDevPermitida(origin) ? origin : false);
+        const permitido =
+          origens.includes(origin) ||
+          origemLocalDevPermitida(origin) ||
+          origemSubdominioLojaPermitida(origin, dominioPublicoLoja);
+
+        callback(null, permitido ? origin : false);
       };
     }
 
@@ -276,6 +297,57 @@ function resolverOrigemCors(): ResolverOrigemCors {
   }
 
   return process.env.NODE_ENV === "production" ? false : true;
+}
+
+const SUBDOMINIOS_RESERVADOS_LOJA = new Set([
+  "admin",
+  "api",
+  "app",
+  "assets",
+  "auth",
+  "dashboard",
+  "evolution",
+  "evolution-manager",
+  "n8n",
+  "painel",
+  "static",
+  "wa",
+  "www"
+]);
+
+function origemSubdominioLojaPermitida(origin: string, dominioPublicoLoja: string | null): boolean {
+  if (!dominioPublicoLoja) return false;
+
+  try {
+    const url = new URL(origin);
+    const protocoloPermitido = process.env.NODE_ENV === "production" ? url.protocol === "https:" : ["http:", "https:"].includes(url.protocol);
+    if (!protocoloPermitido) return false;
+
+    const host = normalizarDominioPublicoLoja(url.hostname);
+    if (!host) return false;
+
+    if (host === dominioPublicoLoja) return true;
+
+    if (!host.endsWith(`.${dominioPublicoLoja}`)) return false;
+
+    const subdominio = host.slice(0, -(dominioPublicoLoja.length + 1));
+    return Boolean(subdominio && !subdominio.includes(".") && !SUBDOMINIOS_RESERVADOS_LOJA.has(subdominio));
+  } catch {
+    return false;
+  }
+}
+
+function normalizarDominioPublicoLoja(valor?: string | null): string | null {
+  if (!valor) return null;
+  const dominio = valor
+    .trim()
+    .toLowerCase()
+    .replace(/^https?:\/\//, "")
+    .split("/")[0]
+    ?.split(":")[0]
+    ?.replace(/\.$/, "") ?? "";
+
+  return dominio || null;
 }
 
 function origemLocalDevPermitida(origin: string): boolean {

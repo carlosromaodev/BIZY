@@ -1,54 +1,46 @@
 import {
-  Activity,
-  AlertTriangle,
-  Boxes,
-  CircleDollarSign,
-  ClipboardList,
-  Clock3,
-  MessageCircle,
-  MessageSquareText,
-  PackageSearch,
   Radio,
-  Send,
-  Signal,
-  Square,
-  Truck,
-  UserRoundCheck,
-  WalletCards,
-  Zap
+  Coins,
+  ShoppingBag,
+  Clock,
+  AlertTriangle,
+  MessageSquare,
+  Plus,
+  CheckCircle2,
 } from "lucide-react";
-import { type FormEvent, type ReactNode, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { requisitarApi, obterUrlEventos } from "../api";
-import { CabecalhoPagina, ResumoIndicadores } from "../componentes/Shell";
+import { motion } from "motion/react";
+import { criarFonteEventosAutenticada, requisitarApi, obterUsuario } from "../api";
+import { SkeletonPagina } from "../componentes/SkeletonBlocks";
+import { CrmPageMotion } from "../componentes/CrmInterno21st";
 import {
-  CrmCommandMetric,
-  CrmCommandPanel,
-  CrmList,
-  CrmListItem,
-  CrmMetricMini,
-  CrmPageMotion,
-  CrmSection,
-  CrmStatusBadge
-} from "../componentes/CrmInterno21st";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
+  type RespostaConversas,
+  type ResumoPainel,
+  resumoInicial,
+  estadosReservaAtiva,
+} from "../tipos";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue
-} from "@/components/ui/select";
-import { type RespostaConversas, type ResumoPainel, resumoInicial, estadosReservaAtiva } from "../tipos";
-import { formatarDataCurta, formatarKwanza, formatarTempoRestante, obterPrecoDaPeca } from "../utilidades";
+  formatarDataCurta,
+  formatarKwanza,
+  formatarTempoRestante,
+  obterPrecoDaPeca,
+} from "../utilidades";
+import {
+  PageHead,
+  KpiGrid,
+  KpiCard,
+  TwoUp,
+  PanelCard,
+  GaugeBar,
+  AttentionRow,
+  BotaoBizy,
+  PillBizy,
+  StatusBadge,
+  Money,
+} from "../componentes/BizyDesignSystem";
 
-function obterUsernameTikTokPadrao() {
-  const configurado = import.meta.env.VITE_TIKTOK_LIVE_USERNAME_PADRAO?.trim();
-  const username = configurado && configurado.length > 0 ? configurado : "@loja_teste";
-  return username.startsWith("@") ? username : `@${username}`;
-}
+/* ── Types ──────────────────────────────────────────────────────── */
 
 interface TarefaPainel {
   id: string;
@@ -63,16 +55,13 @@ interface RespostaTarefasPainel {
   tarefas: TarefaPainel[];
 }
 
-interface PrioridadePainel {
-  acao: string;
-  detalhe: string;
-  descricao: string;
-  icone: ReactNode;
-  id: string;
-  rota: string;
-  titulo: string;
-  tom: "neutro" | "principal" | "sucesso" | "atencao" | "perigo" | "info";
-  valor: ReactNode;
+/* ── Helpers ────────────────────────────────────────────────────── */
+
+function obterSaudacao(): string {
+  const hora = new Date().getHours();
+  if (hora < 12) return "Bom dia";
+  if (hora < 18) return "Boa tarde";
+  return "Boa noite";
 }
 
 function dataEhHoje(valor: string | null | undefined): boolean {
@@ -91,19 +80,38 @@ function tarefaEstaAtrasada(tarefa: TarefaPainel): boolean {
   return Number(new Date(tarefa.prazoEm)) < Date.now();
 }
 
+function traduzirPrioridadeTarefa(prioridade: TarefaPainel["prioridade"]): string {
+  const mapa = { BAIXA: "Baixa", NORMAL: "Normal", ALTA: "Alta", URGENTE: "Urgente" };
+  return mapa[prioridade];
+}
+
+const DIAS_SEMANA = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
+
+function obterDiasSemana(): string[] {
+  const hoje = new Date().getDay();
+  const dias: string[] = [];
+  for (let i = 6; i >= 1; i--) {
+    dias.push(DIAS_SEMANA[(hoje - i + 7) % 7]);
+  }
+  dias.push("Hoje");
+  return dias;
+}
+
+/* ── Component ──────────────────────────────────────────────────── */
+
 export function PaginaPainel() {
   const [resumo, setResumo] = useState<ResumoPainel>(resumoInicial);
-  const [mensagem, setMensagem] = useState("Painel pronto.");
-  const [carregando, setCarregando] = useState(false);
-  const [liveUsername, setLiveUsername] = useState(obterUsernameTikTokPadrao);
-  const [providerLive, setProviderLive] = useState("manual");
-  const [comentarioManual, setComentarioManual] = useState("eu quero 923456789 peça 4");
+  const [mensagem, setMensagem] = useState("");
   const [conversas, setConversas] = useState<RespostaConversas["conversas"]>([]);
   const [tarefas, setTarefas] = useState<TarefaPainel[]>([]);
+  const [carregandoInicial, setCarregandoInicial] = useState(true);
+  const usuario = obterUsuario();
+
+  /* ── Derived data ──────────────────────────────────────────── */
 
   const reservasAtivas = useMemo(
     () => resumo.reservas.filter((r) => estadosReservaAtiva.includes(r.estado)),
-    [resumo.reservas]
+    [resumo.reservas],
   );
 
   const receitaReservada = useMemo(
@@ -111,25 +119,61 @@ export function PaginaPainel() {
       resumo.reservas
         .filter((r) => [...estadosReservaAtiva, "PAID"].includes(r.estado))
         .reduce((t, r) => t + obterPrecoDaPeca(resumo.pecas, r.codigoPeca), 0),
-    [resumo.pecas, resumo.reservas]
-  );
-
-  const receitaPaga = useMemo(
-    () =>
-      resumo.reservas
-        .filter((r) => r.estado === "PAID")
-        .reduce((t, r) => t + obterPrecoDaPeca(resumo.pecas, r.codigoPeca), 0),
-    [resumo.pecas, resumo.reservas]
+    [resumo.pecas, resumo.reservas],
   );
 
   const filaTotal = useMemo(
     () => Object.values(resumo.filaEspera).reduce((t, q) => t + q, 0),
-    [resumo.filaEspera]
+    [resumo.filaEspera],
   );
 
-  const taxaConversao = resumo.comentariosRecebidos
-    ? Math.round((resumo.comentariosValidos / resumo.comentariosRecebidos) * 100)
-    : 0;
+  const pecasDisponiveis = resumo.pecas.filter((p) => p.estado === "DISPONIVEL").length;
+  const aguardandoPagamento = resumo.reservas.filter((r) => r.estado === "WAITING_PAYMENT").length;
+
+  const pedidosNovosHoje = useMemo(
+    () => resumo.reservas.filter((reserva) => dataEhHoje(reserva.criadaEm)).length,
+    [resumo.reservas],
+  );
+
+  const conversasSemResposta = useMemo(
+    () =>
+      conversas.filter(
+        (c) =>
+          c.mensagensNaoLidas > 0 ||
+          ["NOVA", "ABERTA", "AGUARDANDO_HUMANO"].includes(c.estadoCrm),
+      ).length,
+    [conversas],
+  );
+
+  const produtosStockBaixo = useMemo(
+    () => resumo.pecas.filter((p) => p.estado !== "VENDIDA" && p.quantidade <= 2).length,
+    [resumo.pecas],
+  );
+
+  const entregasPendentes = useMemo(
+    () => resumo.reservas.filter((r) => r.estado === "PAID").length,
+    [resumo.reservas],
+  );
+
+  const faturacaoDia = useMemo(
+    () =>
+      resumo.reservas
+        .filter((r) => r.estado === "PAID" && dataEhHoje(r.criadaEm))
+        .reduce((total, r) => total + obterPrecoDaPeca(resumo.pecas, r.codigoPeca), 0),
+    [resumo.pecas, resumo.reservas],
+  );
+
+  const tarefasAtrasadas = useMemo(() => tarefas.filter(tarefaEstaAtrasada).length, [tarefas]);
+
+  const tarefasAbertas = useMemo(
+    () => tarefas.filter((t) => t.estado === "ABERTA" || t.estado === "EM_ANDAMENTO").slice(0, 5),
+    [tarefas],
+  );
+
+  const liveAtual = useMemo(
+    () => resumo.lives.find((live) => live.status !== "ENCERRADA") ?? null,
+    [resumo.lives],
+  );
 
   const taxaPagamento = resumo.reservasCriadas
     ? Math.round((resumo.reservasPagas / resumo.reservasCriadas) * 100)
@@ -139,115 +183,45 @@ export function PaginaPainel() {
     () =>
       reservasAtivas
         .filter((r) => r.expiraEm)
-        .sort((a, b) => Number(new Date(a.expiraEm ?? 0)) - Number(new Date(b.expiraEm ?? 0)))[0] ?? null,
-    [reservasAtivas]
+        .sort((a, b) => Number(new Date(a.expiraEm ?? 0)) - Number(new Date(b.expiraEm ?? 0)))[0] ??
+      null,
+    [reservasAtivas],
   );
 
-  const pecasDisponiveis = resumo.pecas.filter((p) => p.estado === "DISPONIVEL").length;
-  const aguardandoPagamento = resumo.reservas.filter((r) => r.estado === "WAITING_PAYMENT").length;
-  const pedidosNovosHoje = useMemo(
-    () => resumo.reservas.filter((reserva) => dataEhHoje(reserva.criadaEm)).length,
-    [resumo.reservas]
-  );
-  const conversasSemResposta = useMemo(
-    () =>
-      conversas.filter((conversa) =>
-        conversa.mensagensNaoLidas > 0 ||
-        ["NOVA", "ABERTA", "AGUARDANDO_HUMANO"].includes(conversa.estadoCrm)
-      ).length,
-    [conversas]
-  );
-  const produtosStockBaixo = useMemo(
-    () => resumo.pecas.filter((peca) => peca.estado !== "VENDIDA" && peca.quantidade <= 2).length,
-    [resumo.pecas]
-  );
-  const entregasPendentes = useMemo(
-    () => resumo.reservas.filter((reserva) => reserva.estado === "PAID").length,
-    [resumo.reservas]
-  );
-  const faturacaoDia = useMemo(
-    () =>
-      resumo.reservas
-        .filter((reserva) => reserva.estado === "PAID" && dataEhHoje(reserva.criadaEm))
-        .reduce((total, reserva) => total + obterPrecoDaPeca(resumo.pecas, reserva.codigoPeca), 0),
-    [resumo.pecas, resumo.reservas]
-  );
-  const tarefasAtrasadas = useMemo(
-    () => tarefas.filter(tarefaEstaAtrasada).length,
-    [tarefas]
-  );
-  const liveAtual = useMemo(
-    () => resumo.lives.find((live) => live.status !== "ENCERRADA") ?? null,
-    [resumo.lives]
-  );
-  const rotuloEstadoLive = liveAtual
-    ? liveAtual.status === "ERRO"
-      ? "Com alerta"
-      : liveAtual.status === "CONECTANDO"
-        ? "A ligar"
-        : "Ativa"
-    : "Inativa";
-
-  const prioridadesOperacionais: PrioridadePainel[] = [
-    {
-      acao: "Cobrar",
-      detalhe: `${taxaPagamento}% liquidação`,
-      descricao: aguardandoPagamento
-        ? "Clientes com intenção real precisam receber cobrança, prova social ou alternativa de pagamento."
-        : "Não há cobrança pendente agora. Mantém o acompanhamento para não perder pedidos novos.",
-      icone: <WalletCards size={18} />,
-      id: "pagamentos",
-      rota: "/app/pedidos",
-      titulo: "Pagamentos por fechar",
-      tom: aguardandoPagamento ? "atencao" : "sucesso",
-      valor: aguardandoPagamento
-    },
-    {
-      acao: "Atender",
-      detalhe: "WhatsApp e comentários",
-      descricao: conversasSemResposta
-        ? "Há conversas abertas que podem virar venda, suporte ou pedido de entrega."
-        : "Caixa de entrada sem pressão. Bom momento para campanhas de recompra.",
-      icone: <MessageCircle size={18} />,
-      id: "conversas",
-      rota: "/app/conversas",
-      titulo: "Conversas sem resposta",
-      tom: conversasSemResposta ? "principal" : "sucesso",
-      valor: conversasSemResposta
-    },
-    {
-      acao: "Repor",
-      detalhe: "quantidade menor ou igual a 2",
-      descricao: produtosStockBaixo
-        ? "Produtos com baixa disponibilidade podem quebrar campanhas e lives em andamento."
-        : "Stock saudável para continuar a vender nos canais digitais.",
-      icone: <PackageSearch size={18} />,
-      id: "stock",
-      rota: "/app/produtos",
-      titulo: "Stock em risco",
-      tom: produtosStockBaixo ? "perigo" : "sucesso",
-      valor: produtosStockBaixo
-    },
-    {
-      acao: "Organizar",
-      detalhe: "entrega e tarefas",
-      descricao: tarefasAtrasadas || entregasPendentes
-        ? "Existem ações pós-venda que precisam de dono, prazo e resolução."
-        : "Operação pós-venda controlada. Mantém o SLA visível para a equipa.",
-      icone: <Truck size={18} />,
-      id: "pos-venda",
-      rota: "/app/operacao",
-      titulo: "Pós-venda em aberto",
-      tom: tarefasAtrasadas ? "perigo" : entregasPendentes ? "atencao" : "sucesso",
-      valor: tarefasAtrasadas + entregasPendentes
+  // Weekly billing for the bar chart
+  const faturacaoSemanal = useMemo(() => {
+    const dias: number[] = [];
+    const hoje = new Date();
+    for (let i = 6; i >= 0; i--) {
+      const dia = new Date(hoje);
+      dia.setDate(hoje.getDate() - i);
+      const totalDia = resumo.reservas
+        .filter((r) => {
+          if (r.estado !== "PAID" || !r.criadaEm) return false;
+          const d = new Date(r.criadaEm);
+          return (
+            d.getFullYear() === dia.getFullYear() &&
+            d.getMonth() === dia.getMonth() &&
+            d.getDate() === dia.getDate()
+          );
+        })
+        .reduce((t, r) => t + obterPrecoDaPeca(resumo.pecas, r.codigoPeca), 0);
+      dias.push(totalDia);
     }
-  ];
+    return dias;
+  }, [resumo.pecas, resumo.reservas]);
+
+  const totalSemana = faturacaoSemanal.reduce((a, b) => a + b, 0);
+  const maxFat = Math.max(...faturacaoSemanal, 1);
+  const diasLabels = obterDiasSemana();
+
+  /* ── Data fetching ─────────────────────────────────────────── */
 
   async function carregarResumo() {
     const [respostaResumo, respostaConversas, respostaTarefas] = await Promise.allSettled([
       requisitarApi<ResumoPainel>("/painel/resumo"),
       requisitarApi<RespostaConversas>("/atendimento/conversas"),
-      requisitarApi<RespostaTarefasPainel>("/tarefas?estado=ABERTA&limite=8")
+      requisitarApi<RespostaTarefasPainel>("/tarefas?estado=ABERTA&limite=8"),
     ]);
 
     if (respostaResumo.status === "rejected") throw respostaResumo.reason;
@@ -258,366 +232,248 @@ export function PaginaPainel() {
   }
 
   useEffect(() => {
-    void carregarResumo().catch(() => setMensagem("Backend ainda não respondeu."));
+    void carregarResumo()
+      .catch(() => setMensagem("Backend ainda não respondeu."))
+      .finally(() => setCarregandoInicial(false));
 
-    const eventos = new EventSource(obterUrlEventos());
+    const eventos = criarFonteEventosAutenticada();
     const atualizar = () => void carregarResumo().catch(() => undefined);
 
     [
       "LIVE_CONNECTED", "LIVE_DISCONNECTED", "COMMENT_RECEIVED", "COMMENT_PARSED",
       "RESERVATION_CREATED", "RESERVATION_EXPIRING", "RESERVATION_WAITLISTED",
       "PAYMENT_CONFIRMED", "RESERVATION_EXPIRED", "STOCK_UPDATED",
-      "WHATSAPP_MESSAGE_SENT"
+      "WHATSAPP_MESSAGE_SENT",
     ].forEach((e) => eventos.addEventListener(e, atualizar));
 
     const intervalo = window.setInterval(atualizar, 15_000);
-    return () => { eventos.close(); window.clearInterval(intervalo); };
+    return () => {
+      eventos.close();
+      window.clearInterval(intervalo);
+    };
   }, []);
 
-  async function enviar(evento: FormEvent, acao: () => Promise<unknown>, sucesso: string) {
-    evento.preventDefault();
-    await executarAcao(acao, sucesso);
-  }
-
-  async function executarAcao(acao: () => Promise<unknown>, sucesso: string) {
-    setCarregando(true);
-    setMensagem("A processar...");
-    try {
-      await acao();
-      await carregarResumo();
-      setMensagem(sucesso);
-    } catch (e) {
-      setMensagem(e instanceof Error ? e.message : "Erro inesperado.");
-    } finally {
-      setCarregando(false);
-    }
-  }
-
-  async function encerrarLive() {
-    if (!liveAtual) return;
-
-    await executarAcao(
-      () => requisitarApi(`/lives/${encodeURIComponent(liveAtual.id)}/parar`, { method: "POST" }),
-      "Live encerrada."
-    );
-  }
+  if (carregandoInicial) return <CrmPageMotion><SkeletonPagina /></CrmPageMotion>;
 
   return (
     <CrmPageMotion>
-      <CabecalhoPagina rotulo="Operação comercial" titulo="Painel">
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="flex items-center gap-3 rounded-lg border bg-card px-3 py-2 text-sm">
-            <Radio className={liveAtual && liveAtual.status !== "ERRO" ? "text-success" : "text-muted-foreground"} size={18} />
-            <div>
-              <span className="block text-muted-foreground">{liveAtual ? `${liveAtual.providerNome} · ${liveAtual.username}` : "Estado da live"}</span>
-              <strong className="block leading-tight">{rotuloEstadoLive}</strong>
-            </div>
-          </div>
-          {liveAtual && (
-            <Button type="button" variant="destructive" size="sm" onClick={() => void encerrarLive()} disabled={carregando}>
-              <Square size={15} />
-              Encerrar
-            </Button>
-          )}
-        </div>
-      </CabecalhoPagina>
-
-      <CrmCommandPanel
-        eyebrow="Centro de comando"
-        title="O que precisa de atenção agora"
-        description="Um resumo operacional para decidir onde a equipa deve agir primeiro: cobrança, atendimento, stock, entrega e live."
-        actions={(
-          <>
-            <Button asChild variant="outline" size="lg">
-              <Link to="/app/pedidos">
-                <ClipboardList size={18} />
-                Abrir pedidos
-              </Link>
-            </Button>
-            <Button asChild variant="outline" size="lg">
-              <Link to="/app/conversas">
-                <MessageCircle size={18} />
-                Atender clientes
-              </Link>
-            </Button>
-          </>
-        )}
+      {/* ── Page Header ────────────────────────────────────────── */}
+      <PageHead
+        eyebrow={`${formatarDataCurta(new Date())} · Visão geral`}
+        titulo={`${obterSaudacao()}, ${usuario?.nome ?? "Vendedor"}`}
       >
-        <div className="command-metrics-grid">
-          <CrmCommandMetric
-            detail={`${formatarKwanza(receitaPaga)} já pagos hoje e no histórico ativo`}
-            icon={<CircleDollarSign size={18} />}
-            label="Receita em movimento"
-            tone="sucesso"
-            value={formatarKwanza(receitaReservada)}
-          />
-          <CrmCommandMetric
-            detail={`${resumo.comentariosValidos} comentários válidos de ${resumo.comentariosRecebidos}`}
-            icon={<MessageSquareText size={18} />}
-            label="Conversão da captação"
-            tone={taxaConversao ? "principal" : "neutro"}
-            value={`${taxaConversao}%`}
-          />
-          <CrmCommandMetric
-            detail={proximaExpirar ? `Peça #${proximaExpirar.codigoPeca}` : "Sem reserva crítica"}
-            icon={<Clock3 size={18} />}
-            label="Próxima urgência"
-            tone={proximaExpirar ? "atencao" : "sucesso"}
-            value={proximaExpirar ? formatarTempoRestante(proximaExpirar.expiraEm) : "Controlado"}
-          />
-          <CrmCommandMetric
-            detail={`${filaTotal} clientes em fila de espera`}
-            icon={<Boxes size={18} />}
-            label="Stock vendável"
-            tone={pecasDisponiveis ? "sucesso" : "atencao"}
-            value={pecasDisponiveis}
-          />
-        </div>
-        <div className="command-progress" aria-label="Progresso de liquidação dos pedidos">
-          <div className="command-progress-label">
-            <span>Liquidação de pedidos</span>
-            <strong>{taxaPagamento}%</strong>
-          </div>
-          <div className="command-progress-track">
-            <span className="command-progress-bar" style={{ width: `${Math.min(taxaPagamento, 100)}%` }} />
-          </div>
-        </div>
-      </CrmCommandPanel>
+        <Link to="/app/live">
+          <PillBizy>
+            {liveAtual ? (
+              <>
+                <span className="bz-live-dot" />
+                Live ativa · <strong>{liveAtual.username}</strong>
+              </>
+            ) : (
+              <>
+                <Radio size={13} style={{ color: "var(--ink-4)" }} />
+                Sem live
+              </>
+            )}
+          </PillBizy>
+        </Link>
+        <Link to="/app/reservas">
+          <BotaoBizy icone={Plus}>Novo pedido</BotaoBizy>
+        </Link>
+      </PageHead>
 
-      <section className="grid gap-4 xl:grid-cols-[minmax(0,1.15fr)_minmax(340px,0.85fr)]">
-        <CrmSection
-          icon={<AlertTriangle size={20} />}
-          title="Fila de decisão"
-          description="Prioridades ordenadas para o dono da loja não perder venda por atraso operacional."
-        >
-          <CrmList columns="two">
-            {prioridadesOperacionais.map((prioridade) => (
-              <CrmListItem
-                key={prioridade.id}
-                media={prioridade.icone}
-                title={prioridade.titulo}
-                description={prioridade.descricao}
-                tone={prioridade.tom}
-                meta={prioridade.valor}
-                badges={(
-                  <>
-                    <CrmStatusBadge tone={prioridade.tom}>{prioridade.detalhe}</CrmStatusBadge>
-                  </>
-                )}
-                actions={(
-                  <Button asChild variant="outline" size="sm">
-                    <Link to={prioridade.rota}>{prioridade.acao}</Link>
-                  </Button>
-                )}
-              />
+      {/* ── KPI Grid ───────────────────────────────────────────── */}
+      <KpiGrid>
+        <KpiCard
+          icone={Coins}
+          hero
+          rotulo="Receita reservada"
+          valor={formatarKwanza(receitaReservada)}
+          deltaPositivo={true}
+          delta={`${resumo.reservasPagas} de ${resumo.reservasCriadas || 0} reservas pagas`}
+          rodape={`${resumo.reservasPagas} de ${resumo.reservasCriadas || 0} reservas já pagas`}
+        />
+        <KpiCard
+          icone={ShoppingBag}
+          cor="blue"
+          rotulo="Pedidos hoje"
+          valor={pedidosNovosHoje}
+          delta={`${aguardandoPagamento} aguarda pagamento`}
+        />
+        <KpiCard
+          icone={Clock}
+          cor="amber"
+          rotulo="A confirmar"
+          valor={aguardandoPagamento}
+          delta="comprovativo pendente"
+          deltaPositivo={aguardandoPagamento > 0 ? false : undefined}
+        />
+        <KpiCard
+          icone={AlertTriangle}
+          cor="rose"
+          rotulo="Stock em risco"
+          valor={produtosStockBaixo}
+          delta={`quantidade ≤ 2`}
+        />
+      </KpiGrid>
+
+      {/* ── Row 1: Chart + Gauge ───────────────────────────────── */}
+      <TwoUp ratio="1.4fr 1fr">
+        {/* Bar chart — Faturação 7 dias */}
+        <PanelCard titulo="Faturação · últimos 7 dias" linkTexto="Ver relatório" linkRota="/app/relatorios">
+          <div className="bz-chart">
+            {faturacaoSemanal.map((val, i) => (
+              <div key={i} className={`bz-bar-col${i === 6 ? " today" : ""}`}>
+                <motion.div
+                  className={`bz-bar${i === 6 ? " active" : ""}`}
+                  initial={{ height: 0 }}
+                  animate={{ height: `${Math.max(4, (val / maxFat) * 100)}%` }}
+                  transition={{ duration: 0.6, delay: i * 0.05, ease: "easeOut" }}
+                />
+                <span className="bz-bar-label">{diasLabels[i]}</span>
+              </div>
             ))}
-          </CrmList>
-        </CrmSection>
+          </div>
+          <div className="bz-chart-foot">
+            <div>
+              <div className="bz-chart-big">{formatarKwanza(totalSemana)}</div>
+              <div className="bz-chart-label">total da semana</div>
+            </div>
+          </div>
+        </PanelCard>
 
-        <CrmSection
-          icon={<Activity size={20} />}
-          title="Pulso comercial"
-          description={`${formatarDataCurta(new Date())}: leitura rápida do negócio antes de abrir as telas profundas.`}
+        {/* Gauge — Taxa de pagamento */}
+        <PanelCard titulo="Taxa de pagamento">
+          <GaugeBar
+            titulo="Reservas liquidadas"
+            valor={<>{taxaPagamento}%</>}
+            percentagem={taxaPagamento}
+            rodapeEsq={`${resumo.reservasPagas} pagos`}
+            rodapeDir={`${resumo.reservasCriadas} criados`}
+          />
+          <div style={{ marginTop: 20, display: "flex", flexDirection: "column", gap: 0 }}>
+            <AttentionRow
+              icone={Clock}
+              cor="amber"
+              titulo="Pagamentos pendentes"
+              detalhe="a aguardar comprovativo"
+              valor={aguardandoPagamento}
+            />
+            <AttentionRow
+              icone={MessageSquare}
+              cor="blue"
+              titulo="Conversas abertas"
+              detalhe="WhatsApp e comentários"
+              valor={conversasSemResposta}
+            />
+          </div>
+        </PanelCard>
+      </TwoUp>
+
+      {/* ── Row 2: Tasks + Pulse ───────────────────────────────── */}
+      <TwoUp ratio="1fr 1.4fr">
+        {/* Próximas acções */}
+        <PanelCard titulo="Próximas acções" linkTexto="Todas" linkRota="/app/tarefas">
+          <div className="bz-tasks">
+            {tarefasAbertas.length ? (
+              tarefasAbertas.map((tarefa) => (
+                <div key={tarefa.id} className="bz-task">
+                  <span
+                    className={`bz-task-box${tarefaEstaAtrasada(tarefa) || tarefa.prioridade === "URGENTE" ? " urgent" : ""}`}
+                  />
+                  <div className="bz-task-body">
+                    <div className="bz-task-h">{tarefa.titulo}</div>
+                    <div className="bz-task-p">{tarefa.descricao}</div>
+                  </div>
+                  <span
+                    className={`bz-task-tg${
+                      tarefa.prioridade === "URGENTE" || tarefaEstaAtrasada(tarefa)
+                        ? " urgent"
+                        : tarefa.prioridade === "ALTA"
+                          ? " soon"
+                          : ""
+                    }`}
+                  >
+                    {traduzirPrioridadeTarefa(tarefa.prioridade)}
+                  </span>
+                </div>
+              ))
+            ) : (
+              <p className="bz-empty-msg">Sem tarefas abertas.</p>
+            )}
+          </div>
+        </PanelCard>
+
+        {/* Pulso comercial */}
+        <PanelCard titulo="Pulso comercial">
+          <div className="bz-pulse-grid">
+            <PulseItem label="Pedidos hoje" value={pedidosNovosHoje} />
+            <PulseItem label="Ticket médio" value={pedidosNovosHoje > 0 ? formatarKwanza(Math.round(faturacaoDia / Math.max(pedidosNovosHoje, 1))) : "—"} />
+            <PulseItem label="Stock vendável" value={pecasDisponiveis} />
+            <PulseItem label="Fila de espera" value={filaTotal} />
+            <PulseItem label="Entregas pend." value={entregasPendentes} />
+            <PulseItem
+              label="Tarefas atrasadas"
+              value={tarefasAtrasadas}
+              accent={tarefasAtrasadas > 0}
+            />
+          </div>
+        </PanelCard>
+      </TwoUp>
+
+      {/* ── Expiration alert ───────────────────────────────────── */}
+      {proximaExpirar && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.5 }}
+          className="bz-alert"
         >
-          <div className="grid gap-2 sm:grid-cols-2">
-            <CrmMetricMini label="pedidos hoje" value={pedidosNovosHoje} tone={pedidosNovosHoje ? "principal" : "neutro"} />
-            <CrmMetricMini label="pagamentos pendentes" value={aguardandoPagamento} tone={aguardandoPagamento ? "atencao" : "sucesso"} />
-            <CrmMetricMini label="faturação do dia" value={formatarKwanza(faturacaoDia)} tone={faturacaoDia ? "sucesso" : "neutro"} />
-            <CrmMetricMini label="tarefas atrasadas" value={tarefasAtrasadas} tone={tarefasAtrasadas ? "perigo" : "sucesso"} />
-          </div>
-        </CrmSection>
-      </section>
-
-      <ResumoIndicadores
-        rotulo="Hoje na loja"
-        itens={[
-          {
-            icone: <ClipboardList />,
-            titulo: "Pedidos novos",
-            valor: pedidosNovosHoje,
-            detalhe: "criados hoje",
-            tom: pedidosNovosHoje ? "principal" : "neutro"
-          },
-          {
-            icone: <WalletCards />,
-            titulo: "Pagamentos pendentes",
-            valor: aguardandoPagamento,
-            detalhe: "aguardam cobrança",
-            tom: aguardandoPagamento ? "atencao" : "sucesso"
-          },
-          {
-            icone: <MessageCircle />,
-            titulo: "Conversas sem resposta",
-            valor: conversasSemResposta,
-            detalhe: "precisam de resposta",
-            tom: conversasSemResposta ? "atencao" : "sucesso"
-          },
-          {
-            icone: <PackageSearch />,
-            titulo: "Stock baixo",
-            valor: produtosStockBaixo,
-            detalhe: "quantidade crítica",
-            tom: produtosStockBaixo ? "perigo" : "sucesso"
-          },
-          {
-            icone: <Truck />,
-            titulo: "Entregas pendentes",
-            valor: entregasPendentes,
-            detalhe: "pagas e por acompanhar",
-            tom: entregasPendentes ? "atencao" : "neutro"
-          },
-          {
-            icone: <CircleDollarSign />,
-            titulo: "Faturação do dia",
-            valor: formatarKwanza(faturacaoDia),
-            detalhe: "confirmada hoje",
-            tom: faturacaoDia ? "sucesso" : "neutro"
-          },
-          {
-            icone: <AlertTriangle />,
-            titulo: "Tarefas atrasadas",
-            valor: tarefasAtrasadas,
-            detalhe: "com prazo vencido",
-            tom: tarefasAtrasadas ? "perigo" : "sucesso"
-          }
-        ]}
-      />
-
-      <section className="grid painel-commerce-grid gap-4 lg:grid-cols-3">
-        <Card>
-          <CardContent className="grid gap-4 p-4">
-          <form
-            onSubmit={(e) => {
-              const username = liveUsername.trim();
-              if (!username) {
-                e.preventDefault();
-                setMensagem("Informe o username da live antes de iniciar.");
-                return;
-              }
-              if (liveAtual) {
-                e.preventDefault();
-                setMensagem("Já existe uma live conectada. Encerre a sessão atual antes de iniciar outra.");
-                return;
-              }
-              if (providerLive !== "manual" && !window.confirm(`Iniciar captação automática para ${username}?`)) {
-                e.preventDefault();
-                return;
-              }
-              void enviar(
-                e,
-                () => requisitarApi("/lives/iniciar", { method: "POST", body: { liveUsername: username, provider: providerLive } }),
-                "Live conectada."
-              );
+          <StatusBadge cor="amber">
+            Próxima reserva a expirar: <strong>#{proximaExpirar.codigoPeca}</strong> —{" "}
+            {formatarTempoRestante(proximaExpirar.expiraEm)}
+          </StatusBadge>
+          <Link
+            to="/app/reservas"
+            style={{
+              marginLeft: "auto",
+              fontSize: "13px",
+              fontWeight: 600,
+              color: "var(--ink)",
             }}
-            className="contents"
           >
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <p className="text-xs font-bold uppercase tracking-wide text-primary">Captação</p>
-              <h2 className="text-lg font-semibold">Live de vendas</h2>
-            </div>
-            <Signal className="text-muted-foreground" size={20} />
-          </div>
-          <div className="grid gap-2">
-            <label className="text-sm font-medium" htmlFor="liveUser">Username</label>
-            <Input id="liveUser" value={liveUsername} onChange={(e) => setLiveUsername(e.target.value)} />
-          </div>
-          <div className="grid gap-2">
-            <label className="text-sm font-medium" htmlFor="provider">Método</label>
-            <Select value={providerLive} onValueChange={setProviderLive}>
-              <SelectTrigger id="provider">
-                <SelectValue placeholder="Método" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="manual">Manual</SelectItem>
-                <SelectItem value="tiktok-live-connector">TikTok Live Connector</SelectItem>
-                <SelectItem value="tiktok-live-python">TikTokLive Python</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <Button size="lg" disabled={carregando || Boolean(liveAtual)}>
-            <Radio size={18} />
-            {liveAtual ? "Live em andamento" : "Iniciar captação"}
-          </Button>
-          </form>
-          </CardContent>
-        </Card>
+            Ver pedidos →
+          </Link>
+        </motion.div>
+      )}
 
-        <Card>
-          <CardContent className="grid gap-4 p-4">
-          <form
-            onSubmit={(e) => {
-              const endpoint = liveAtual
-                ? `/lives/${encodeURIComponent(liveAtual.id)}/comentarios/manual`
-                : "/comentarios/manual";
-              const body = liveAtual
-                ? {
-                    username: "cliente_live",
-                    displayName: "Cliente Live",
-                    commentText: comentarioManual
-                  }
-                : {
-                    liveId: "manual_local",
-                    username: "cliente_live",
-                    displayName: "Cliente Live",
-                    commentText: comentarioManual
-                  };
-
-              void enviar(e, () => requisitarApi(endpoint, { method: "POST", body }), "Comentário enviado.");
-            }}
-            className="contents"
-          >
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <p className="text-xs font-bold uppercase tracking-wide text-primary">Teste rápido</p>
-              <h2 className="text-lg font-semibold">Comentário manual</h2>
-            </div>
-            <Zap className="text-muted-foreground" size={20} />
-          </div>
-          <div className="grid gap-2">
-            <label className="text-sm font-medium" htmlFor="comManual">Texto do comentário</label>
-            <Input id="comManual" value={comentarioManual} onChange={(e) => setComentarioManual(e.target.value)} />
-          </div>
-          <Button variant="outline" size="lg" disabled={carregando}>
-            <Send size={18} />
-            Enviar para parser
-          </Button>
-          </form>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="grid gap-4 p-4">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <p className="text-xs font-bold uppercase tracking-wide text-primary">Resumo ao vivo</p>
-              <h2 className="text-lg font-semibold">Atividade recente</h2>
-            </div>
-            <Activity className="text-muted-foreground" size={20} />
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="rounded-lg border bg-muted/30 p-3">
-              <span>Comentários</span>
-              <strong className="block text-2xl">{resumo.comentariosRecebidos}</strong>
-            </div>
-            <div className="rounded-lg border bg-muted/30 p-3">
-              <span>Reservas criadas</span>
-              <strong className="block text-2xl">{resumo.reservasCriadas}</strong>
-            </div>
-            <div className="rounded-lg border bg-muted/30 p-3">
-              <span>Reservas ativas</span>
-              <strong className="block text-2xl">{reservasAtivas.length}</strong>
-            </div>
-            <div className="rounded-lg border bg-muted/30 p-3">
-              <span>Pagas</span>
-              <strong className="block text-2xl">{resumo.reservasPagas}</strong>
-            </div>
-          </div>
-          </CardContent>
-        </Card>
-      </section>
-
-      <footer className="market-feedback rounded-lg border bg-card px-4 py-3 text-sm text-muted-foreground" aria-live="polite">{mensagem}</footer>
+      {mensagem && (
+        <footer
+          className="rounded-lg border bg-card px-4 py-3 text-sm text-muted-foreground"
+          aria-live="polite"
+        >
+          {mensagem}
+        </footer>
+      )}
     </CrmPageMotion>
+  );
+}
+
+/* ── Sub-components ───────────────────────────────────────────────── */
+
+function PulseItem({
+  label,
+  value,
+  accent,
+}: {
+  label: string;
+  value: string | number;
+  accent?: boolean;
+}) {
+  return (
+    <div className="bz-pulse-item">
+      <div className="bz-pulse-label">{label}</div>
+      <div className={`bz-pulse-value${accent ? " accent" : ""}`}>{value}</div>
+    </div>
   );
 }

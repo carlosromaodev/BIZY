@@ -6,8 +6,34 @@ import type {
   RepositorioClientes
 } from "../dominio/repositorios/contratos.js";
 import type { Cliente360, ComentarioLive, DadosCliente360, EventoSistema, Reserva, StatusMensagemAtendimento } from "../dominio/tipos.js";
+import { extrairInformacoesComprovativoPdf, type InformacoesComprovativoPdf } from "./ExtratorComprovativoPdf.js";
 
 type Logger = Pick<Console, "error" | "warn">;
+
+interface MediaAtendimentoRecebida {
+  tipo?: string | null;
+  mimeType?: string | null;
+  fileName?: string | null;
+  caption?: string | null;
+  url?: string | null;
+  dataUrl?: string | null;
+  base64?: string | null;
+  tamanhoBytes?: number | null;
+  sha256?: string | null;
+}
+
+interface MediaPersistidaAtendimento {
+  url: string;
+  thumbnailUrl?: string | null;
+  mimeType?: string | null;
+  size?: number | null;
+  metadataUrl?: string | null;
+}
+
+interface AtendimentoCrmOpcoes {
+  persistirMedia?: (dataUrl: string, media: MediaAtendimentoRecebida) => Promise<MediaPersistidaAtendimento | null>;
+  baixarMediaUrl?: (url: string, media: MediaAtendimentoRecebida) => Promise<string | null>;
+}
 
 export class AtendimentoCrmUseCase {
   constructor(
@@ -15,7 +41,8 @@ export class AtendimentoCrmUseCase {
     private readonly repositorioAtendimento: RepositorioAtendimento,
     private readonly repositorioAuditoria: RepositorioAuditoria,
     private readonly logger: Logger = console,
-    private readonly repositorioClientes?: RepositorioClientes
+    private readonly repositorioClientes?: RepositorioClientes,
+    private readonly opcoes: AtendimentoCrmOpcoes = {}
   ) {
     eventos.aoReceberQualquer((evento) => {
       void this.processarEvento(evento).catch((erro) => {
@@ -240,7 +267,9 @@ export class AtendimentoCrmUseCase {
   private async registrarWhatsappRecebido(evento: EventoSistema): Promise<void> {
     const mensagem = this.obterObjeto(evento.dados.mensagem);
     const telefone = this.obterString(mensagem.telefone);
-    const conteudo = this.obterString(mensagem.texto);
+    const media = this.obterObjeto(mensagem.media) as MediaAtendimentoRecebida;
+    const preparacaoMedia = await this.prepararMediaRecebida(media);
+    const conteudo = this.montarConteudoWhatsappRecebido(mensagem, media, preparacaoMedia.comprovativo);
     const negocioId = this.obterNegocioIdDoContexto(mensagem.payloadOriginal) ?? this.obterString(mensagem.negocioId);
 
     if (!telefone || !conteudo) return;
@@ -268,15 +297,140 @@ export class AtendimentoCrmUseCase {
       direcao: "INBOUND",
       remetente: "cliente",
       canal: "whatsapp",
-      tipo: "RECEBIDA",
+      tipo: preparacaoMedia.comprovativo ? "COMPROVATIVO_PAGAMENTO" : "RECEBIDA",
       conteudo,
       provider: this.obterString(mensagem.provider),
       providerMessageId: this.obterString(mensagem.idMensagem),
       status: "RECEIVED",
       origem: "whatsapp",
-      contexto: this.obterObjeto(mensagem.payloadOriginal),
+      contexto: {
+        ...this.sanitizarPayloadWhatsapp(mensagem.payloadOriginal),
+        ...(preparacaoMedia.media ? { media: preparacaoMedia.media } : {}),
+        ...(preparacaoMedia.comprovativo ? { comprovativo: preparacaoMedia.comprovativo } : {})
+      },
       enviadaEm: this.obterData(mensagem.recebidaEm)
     });
+  }
+
+  private async prepararMediaRecebida(media: MediaAtendimentoRecebida): Promise<{
+    media: Record<string, unknown> | null;
+    comprovativo: InformacoesComprovativoPdf | null;
+  }> {
+    const tipo = this.obterString(media.tipo);
+    const mimeType = this.obterString(media.mimeType);
+    const urlOriginal = this.obterString(media.url);
+    const dataUrl = await this.resolverDataUrlMedia(media, mimeType, urlOriginal);
+    const mediaNormalizada: Record<string, unknown> | null = tipo || mimeType
+      ? {
+          tipo,
+          mimeType,
+          fileName: this.obterString(media.fileName),
+          caption: this.obterString(media.caption),
+          url: urlOriginal,
+          ...(urlOriginal ? { originalUrl: urlOriginal } : {}),
+          tamanhoBytes: typeof media.tamanhoBytes === "number" ? media.tamanhoBytes : null,
+          sha256: this.obterString(media.sha256)
+        }
+      : null;
+
+    if (mimeType !== "application/pdf" || !dataUrl) {
+      return { media: mediaNormalizada, comprovativo: null };
+    }
+
+    const [comprovativo, armazenamento] = await Promise.all([
+      extrairInformacoesComprovativoPdf(dataUrl).catch((erro) => {
+        this.logger.warn("[crm] Falha ao extrair comprovativo PDF", erro);
+        return null;
+      }),
+      this.opcoes.persistirMedia?.(dataUrl, media).catch((erro) => {
+        this.logger.warn("[crm] Falha ao persistir comprovativo PDF", erro);
+        return null;
+      }) ?? Promise.resolve(null)
+    ]);
+
+    return {
+      media: {
+        ...mediaNormalizada,
+        ...(armazenamento
+          ? {
+              url: armazenamento.url,
+              ...(mediaNormalizada?.originalUrl ? { originalUrl: mediaNormalizada.originalUrl } : {}),
+              thumbnailUrl: armazenamento.thumbnailUrl ?? null,
+              metadataUrl: armazenamento.metadataUrl ?? null,
+              tamanhoBytes: armazenamento.size ?? mediaNormalizada?.tamanhoBytes ?? null
+            }
+          : {})
+      },
+      comprovativo
+    };
+  }
+
+  private async resolverDataUrlMedia(
+    media: MediaAtendimentoRecebida,
+    mimeType: string | null,
+    urlOriginal: string | null
+  ): Promise<string | null> {
+    const dataUrlLocal = this.obterString(media.dataUrl) ?? this.montarDataUrlMedia(media);
+    if (dataUrlLocal) return dataUrlLocal;
+    if (mimeType !== "application/pdf" || !urlOriginal || !this.opcoes.baixarMediaUrl) return null;
+
+    return this.opcoes.baixarMediaUrl(urlOriginal, media).catch((erro) => {
+      this.logger.warn("[crm] Falha ao baixar media recebida pelo WhatsApp", erro);
+      return null;
+    });
+  }
+
+  private montarConteudoWhatsappRecebido(
+    mensagem: Record<string, unknown>,
+    media: MediaAtendimentoRecebida,
+    comprovativo: InformacoesComprovativoPdf | null
+  ): string | null {
+    const texto = this.obterString(mensagem.texto);
+    if (texto) return texto;
+
+    const caption = this.obterString(media.caption);
+    if (caption) return caption;
+
+    const fileName = this.obterString(media.fileName);
+    if (comprovativo) {
+      const partes = [
+        `Comprovativo PDF recebido${fileName ? `: ${fileName}` : "."}`,
+        comprovativo.valorEmKwanza ? `Valor: ${comprovativo.valorEmKwanza} Kz` : null,
+        comprovativo.referencia ? `Referência: ${comprovativo.referencia}` : null
+      ].filter(Boolean);
+      return partes.join(" | ");
+    }
+
+    const tipo = this.obterString(media.tipo);
+    if (tipo || fileName) return `${tipo === "document" ? "Documento" : "Media"} recebido${fileName ? `: ${fileName}` : "."}`;
+    return null;
+  }
+
+  private montarDataUrlMedia(media: MediaAtendimentoRecebida): string | null {
+    const base64 = this.obterString(media.base64);
+    const mimeType = this.obterString(media.mimeType);
+    if (!base64 || !mimeType || !/^[A-Za-z0-9+/=]+$/.test(base64)) return null;
+    return `data:${mimeType};base64,${base64}`;
+  }
+
+  private sanitizarPayloadWhatsapp(payload: unknown): Record<string, unknown> {
+    const copia = this.clonarSemMediaPesada(payload);
+    return this.obterObjeto(copia);
+  }
+
+  private clonarSemMediaPesada(valor: unknown): unknown {
+    if (Array.isArray(valor)) return valor.map((item) => this.clonarSemMediaPesada(item));
+    if (!valor || typeof valor !== "object") return valor;
+
+    const resultado: Record<string, unknown> = {};
+    for (const [chave, item] of Object.entries(valor as Record<string, unknown>)) {
+      if (["media", "base64", "file"].includes(chave) && typeof item === "string" && item.length > 256) {
+        resultado[chave] = "[removido:conteudo-media]";
+        continue;
+      }
+      resultado[chave] = this.clonarSemMediaPesada(item);
+    }
+    return resultado;
   }
 
   private async registrarStatusWhatsapp(evento: EventoSistema): Promise<void> {

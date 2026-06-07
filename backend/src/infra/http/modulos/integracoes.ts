@@ -148,9 +148,10 @@ export const moduloIntegracoes: ModuloHttp = {
         return reply.code(401).send({ erro: "NAO_AUTORIZADO", mensagem: "Token da Evolution inválido." });
       }
 
-      const payload = request.body as Record<string, unknown>;
+      const payloadRecebido = request.body as Record<string, unknown>;
+      const negocioId = await resolverNegocioWebhookEvolution(contexto, payloadRecebido);
+      const payload = negocioId ? incluirNegocioIdNoPayload(payloadRecebido, negocioId) : payloadRecebido;
       const idempotencyKey = contexto.receberMensagemWhatsApp.gerarChaveIdempotenciaEvolution(payload);
-      const negocioId = await resolverNegocioWebhookEvolution(contexto, payload);
 
       if (idempotencyKey && negocioId) {
         const registro = await contexto.repositorios.eventosOperacionais.registrar({
@@ -195,6 +196,15 @@ function templateNegocioAtendeFiltros(template: TemplateWhatsAppNegocio, filtros
   if (filtros.estadoAprovacao && template.estadoAprovacao !== filtros.estadoAprovacao) return false;
   if (filtros.evento && !template.eventosCompativeis.includes(filtros.evento)) return false;
   return true;
+}
+
+function incluirNegocioIdNoPayload(payload: Record<string, unknown>, negocioId: string): Record<string, unknown> {
+  if (obterString(payload.negocioId)) return payload;
+
+  return {
+    ...payload,
+    negocioId
+  };
 }
 
 async function resolverNegocioWebhookEvolution(

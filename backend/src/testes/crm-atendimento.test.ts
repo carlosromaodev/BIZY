@@ -1,3 +1,5 @@
+import { createServer } from "node:http";
+import type { AddressInfo } from "node:net";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { DespachadorEventos } from "../dominio/eventos/DespachadorEventos.js";
 import { criarAplicacao } from "../infra/http/criarAplicacao.js";
@@ -210,6 +212,256 @@ describe("CRM de atendimento", () => {
       expect(outbox.json()).toEqual(expect.objectContaining({ total: 1, pendentes: 1 }));
     } finally {
       await app.close();
+    }
+  });
+
+  it("simula chat recebido via webhook Evolution e associa a conversa ao negócio da instância", async () => {
+    const app = await criarAplicacao();
+
+    try {
+      const headers = await autenticar(app);
+
+      const instancia = await app.inject({
+        method: "POST",
+        url: "/evolution/instancias",
+        headers,
+        payload: {
+          nome: "loja_webhook",
+          etiqueta: "Loja Webhook",
+          baseUrl: "https://evolution.local",
+          apiKey: "api_key",
+          padrao: true
+        }
+      });
+      expect(instancia.statusCode).toBe(201);
+
+      const webhook = await app.inject({
+        method: "POST",
+        url: "/webhooks/evolution",
+        payload: {
+          event: "messages.upsert",
+          instance: "loja_webhook",
+          data: {
+            pushName: "Cliente Webhook",
+            key: {
+              remoteJid: "244923333222@s.whatsapp.net",
+              fromMe: false,
+              id: "INBOUND_WEBHOOK_NEGOCIO"
+            },
+            message: {
+              conversation: "Olá, quero simular o chat pelo sistema"
+            }
+          }
+        }
+      });
+      expect(webhook.statusCode).toBe(202);
+      expect(webhook.json().mensagem.direcao).toBe("INBOUND");
+
+      await aguardarProcessamentoEventos();
+
+      const conversas = await app.inject({ method: "GET", url: "/atendimento/conversas", headers });
+      expect(conversas.statusCode).toBe(200);
+      expect(conversas.json().conversas).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            telefone: "923333222",
+            mensagens: expect.arrayContaining([
+              expect.objectContaining({
+                remetente: "cliente",
+                origem: "whatsapp",
+                providerMessageId: "INBOUND_WEBHOOK_NEGOCIO",
+                conteudo: "Olá, quero simular o chat pelo sistema"
+              })
+            ])
+          })
+        ])
+      );
+    } finally {
+      await app.close();
+    }
+  });
+
+  it("recebe comprovativo PDF pelo webhook Evolution, extrai dados e associa ao cliente da conversa", async () => {
+    const app = await criarAplicacao();
+
+    try {
+      const headers = await autenticar(app);
+
+      const instancia = await app.inject({
+        method: "POST",
+        url: "/evolution/instancias",
+        headers,
+        payload: {
+          nome: "loja_pdf",
+          etiqueta: "Loja PDF",
+          baseUrl: "https://evolution.local",
+          apiKey: "api_key",
+          padrao: true
+        }
+      });
+      expect(instancia.statusCode).toBe(201);
+
+      const webhook = await app.inject({
+        method: "POST",
+        url: "/webhooks/evolution",
+        payload: {
+          event: "messages.upsert",
+          instance: "loja_pdf",
+          data: {
+            pushName: "Cliente PDF",
+            key: {
+              remoteJid: "244923444555@s.whatsapp.net",
+              fromMe: false,
+              id: "PDF_COMPROVATIVO_1"
+            },
+            message: {
+              documentMessage: {
+                mimetype: "application/pdf",
+                fileName: "comprovativo-bai.pdf",
+                caption: "",
+                media: `data:application/pdf;base64,${pdfComprovativoBase64()}`
+              }
+            }
+          }
+        }
+      });
+
+      expect(webhook.statusCode).toBe(202);
+      expect(webhook.json().mensagem).toEqual(
+        expect.objectContaining({
+          direcao: "INBOUND",
+          telefone: "923444555",
+          tipoMensagem: "document",
+          media: expect.objectContaining({
+            mimeType: "application/pdf",
+            fileName: "comprovativo-bai.pdf"
+          })
+        })
+      );
+
+      await aguardarProcessamentoEventos();
+
+      const conversas = await app.inject({ method: "GET", url: "/atendimento/conversas", headers });
+      expect(conversas.statusCode).toBe(200);
+      const conversa = conversas.json().conversas.find((item: { telefone: string }) => item.telefone === "923444555");
+      expect(conversa).toEqual(expect.objectContaining({ telefone: "923444555" }));
+      expect(conversa.mensagens).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            remetente: "cliente",
+            origem: "whatsapp",
+            tipo: "COMPROVATIVO_PAGAMENTO",
+            providerMessageId: "PDF_COMPROVATIVO_1",
+            conteudo: expect.stringContaining("comprovativo-bai.pdf"),
+            contexto: expect.objectContaining({
+              media: expect.objectContaining({
+                mimeType: "application/pdf",
+                fileName: "comprovativo-bai.pdf"
+              }),
+              comprovativo: expect.objectContaining({
+                tipo: "pdf",
+                textoExtraido: expect.stringContaining("TX123456"),
+                referencia: "TX123456",
+                valorEmKwanza: 15000
+              })
+            })
+          })
+        ])
+      );
+    } finally {
+      await app.close();
+    }
+  });
+
+  it("baixa comprovativo PDF recebido apenas por URL, extrai dados e associa ao cliente", async () => {
+    const servidorPdf = await criarServidorPdf(Buffer.from(pdfComprovativoBase64(), "base64"));
+    const app = await criarAplicacao();
+
+    try {
+      const headers = await autenticar(app);
+
+      const instancia = await app.inject({
+        method: "POST",
+        url: "/evolution/instancias",
+        headers,
+        payload: {
+          nome: "loja_pdf_url",
+          etiqueta: "Loja PDF URL",
+          baseUrl: "https://evolution.local",
+          apiKey: "api_key",
+          padrao: true
+        }
+      });
+      expect(instancia.statusCode).toBe(201);
+
+      const webhook = await app.inject({
+        method: "POST",
+        url: "/webhooks/evolution",
+        payload: {
+          event: "messages.upsert",
+          instance: "loja_pdf_url",
+          data: {
+            pushName: "Cliente PDF URL",
+            key: {
+              remoteJid: "244923555666@s.whatsapp.net",
+              fromMe: false,
+              id: "PDF_COMPROVATIVO_URL_1"
+            },
+            message: {
+              documentMessage: {
+                mimetype: "application/pdf",
+                fileName: "comprovativo-url-bai.pdf",
+                mediaUrl: servidorPdf.url
+              }
+            }
+          }
+        }
+      });
+
+      expect(webhook.statusCode).toBe(202);
+      expect(webhook.json().mensagem).toEqual(
+        expect.objectContaining({
+          direcao: "INBOUND",
+          telefone: "923555666",
+          tipoMensagem: "document",
+          media: expect.objectContaining({
+            url: servidorPdf.url,
+            mimeType: "application/pdf"
+          })
+        })
+      );
+
+      await aguardarProcessamentoEventos(150);
+
+      const conversas = await app.inject({ method: "GET", url: "/atendimento/conversas", headers });
+      expect(conversas.statusCode).toBe(200);
+      const conversa = conversas.json().conversas.find((item: { telefone: string }) => item.telefone === "923555666");
+      expect(conversa).toEqual(expect.objectContaining({ telefone: "923555666" }));
+      expect(conversa.mensagens).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            remetente: "cliente",
+            origem: "whatsapp",
+            tipo: "COMPROVATIVO_PAGAMENTO",
+            providerMessageId: "PDF_COMPROVATIVO_URL_1",
+            conteudo: expect.stringContaining("comprovativo-url-bai.pdf"),
+            contexto: expect.objectContaining({
+              media: expect.objectContaining({
+                mimeType: "application/pdf",
+                fileName: "comprovativo-url-bai.pdf",
+                originalUrl: servidorPdf.url
+              }),
+              comprovativo: expect.objectContaining({
+                referencia: "TX123456",
+                valorEmKwanza: 15000
+              })
+            })
+          })
+        ])
+      );
+    } finally {
+      await app.close();
+      await servidorPdf.close();
     }
   });
 
@@ -483,6 +735,42 @@ async function criarPeca(
   });
 }
 
-function aguardarProcessamentoEventos() {
-  return new Promise((resolve) => setImmediate(resolve));
+function aguardarProcessamentoEventos(ms = 25) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function criarServidorPdf(buffer: Buffer) {
+  const server = createServer((_, response) => {
+    response.writeHead(200, {
+      "content-type": "application/pdf",
+      "content-length": String(buffer.length)
+    });
+    response.end(buffer);
+  });
+
+  await new Promise<void>((resolve) => {
+    server.listen(0, "127.0.0.1", resolve);
+  });
+
+  const address = server.address() as AddressInfo;
+  return {
+    url: `http://127.0.0.1:${address.port}/comprovativo.pdf`,
+    close: () => new Promise<void>((resolve, reject) => server.close((erro) => (erro ? reject(erro) : resolve())))
+  };
+}
+
+function pdfComprovativoBase64() {
+  const textoPdf = [
+    "%PDF-1.1",
+    "1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj",
+    "2 0 obj << /Type /Pages /Kids [3 0 R] /Count 1 >> endobj",
+    "3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >> endobj",
+    "4 0 obj << /Length 116 >> stream",
+    "BT /F1 12 Tf 72 720 Td (Comprovativo BAI Valor 15000 Kz Referencia TX123456 Cliente Carlos) Tj ET",
+    "endstream endobj",
+    "5 0 obj << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> endobj",
+    "trailer << /Root 1 0 R >>",
+    "%%EOF"
+  ].join("\n");
+  return Buffer.from(textoPdf).toString("base64");
 }

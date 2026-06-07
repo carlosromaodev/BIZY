@@ -45,7 +45,7 @@ const produtoLinks = [
 const operacaoLinks = [
   { text: "Afiliados", href: "/app/afiliados" },
   { text: "Pagamentos", href: "/app/reservas" },
-  { text: "Campanhas", href: "/app/campanhas" },
+  { text: "Recuperação", href: "/app/recuperacao" },
   { text: "Relatórios", href: "/app/relatorios" }
 ];
 
@@ -53,7 +53,7 @@ const suporteLinks = [
   { text: "FAQ", href: "#faq" },
   { text: "Atendimento WhatsApp", href: "/app/conversas", hasIndicator: true },
   { text: "Criar loja", href: "/onboarding" },
-  { text: "Conexão WhatsApp", href: "/app/whatsapp" }
+  { text: "Conexão WhatsApp", href: "/app/administracao" }
 ];
 
 const contactoInfo: Array<{ icon: LucideIcon; text: string; href: string; isAddress?: boolean }> = [
@@ -185,7 +185,7 @@ export default function Footer4Col() {
           <div className="flex flex-wrap gap-x-5 gap-y-2">
             <FooterLink href="#faq">Privacidade</FooterLink>
             <FooterLink href="#faq">Termos</FooterLink>
-            <FooterLink href="/app/whatsapp">
+            <FooterLink href="/app/administracao">
               <span className="inline-flex items-center gap-2">
                 <MessageCircle className="size-4 text-[#d8ff72]" />
                 Estado do WhatsApp

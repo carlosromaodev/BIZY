@@ -122,6 +122,7 @@ Ver mapa de rotas e sequencia de implementacao em [[bizy-market-rotas-roadmap]].
 Impactos principais:
 
 - [[loja-digital-operacao-crm]] deixa de ser apenas loja publica operacional e passa a ser base para Bizy Loja + Bizy Studio.
+- [[bizy-market-frontend-lojas]] passa a ser a nota de referencia para implementar apenas as telas de loja, sem refazer o CRM inteiro.
 - [[mapa-de-modulos-bizy]] precisa tratar Bizy Market como modulo/servico proprio.
 - [[visao-produto-bizy]] passa a incluir shopping center e perfis de loja como expansao natural do CRM+.
 - [[dominio-e-entidades-bizy]] futuramente deve modelar entidades como Market, PerfilLoja, ColecaoPublica, CompraUnificada, PedidoFornecedor, SeguidorLoja, RepasseMarket e CategoriaGlobal.
@@ -143,6 +144,11 @@ Impactos principais:
 - [x] Detalhe publico de produto do Market exposto em `GET /publico/market/produtos/:codigo`.
 - [x] Produtos similares de outros fornecedores expostos em `GET /publico/market/produtos/:codigo/similares`.
 - [x] Controlo CRM de publicacao no Market exposto em `GET /crm/loja/market/resumo`, `PUT /crm/loja/produtos/:codigo/publicacao` e `PUT /crm/loja/produtos/publicacao-em-massa`.
+- [x] Spec frontend das telas de loja criada em `docs/superpowers/specs/2026-06-07-bizy-market-frontend-lojas-design.md`.
+- [x] Plano frontend das telas de loja criado em `docs/superpowers/plans/2026-06-07-bizy-market-frontend-lojas.md`.
+- [x] Nota de memoria frontend criada em [[bizy-market-frontend-lojas]].
+- [x] Camada frontend `frontend/src/lojas` criada com tipos, rotas, helpers API e normalizadores.
+- [x] Teste de contrato frontend criado em `frontend/testes/lojas-api.test.ts`.
 - [ ] Bizy Studio completo dentro do CRM.
 - [ ] Checkout unificado e compra multi-loja.
 - [ ] Repasses, taxas, cancelamentos parciais e conciliacao financeira.
@@ -161,6 +167,7 @@ Impactos principais:
 
 - [[loja-digital-operacao-crm]]
 - [[bizy-market-rotas-roadmap]]
+- [[bizy-market-frontend-lojas]]
 - [[visao-produto-bizy]]
 - [[mapa-de-modulos-bizy]]
 - [[fluxos-operacionais-bizy]]

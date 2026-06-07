@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { LayoutGroup, motion } from "framer-motion";
+import { LayoutGroup, motion } from "motion/react";
 import { Tabs as TabsPrimitive } from "radix-ui";
 import { cn } from "@/lib/utils";
 
@@ -33,7 +33,7 @@ function Component({
           data-slot="animated-tabs"
           value={currentValue}
           onValueChange={handleValueChange}
-          className={cn("grid gap-3", className)}
+          className={cn("grid min-w-0 max-w-full gap-3", className)}
           {...props}
         />
       </LayoutGroup>
@@ -48,7 +48,7 @@ function TabsList({
   return (
     <TabsPrimitive.List
       data-slot="animated-tabs-list"
-      className={cn("relative grid items-center rounded-2xl bg-muted p-1", className)}
+      className={cn("relative grid min-w-0 max-w-full items-center rounded-2xl bg-muted p-1", className)}
       {...props}
     />
   );
@@ -108,10 +108,11 @@ function TabsContent({
   return (
     <TabsPrimitive.Content
       data-slot="animated-tabs-content"
-      className={cn("text-sm outline-none data-[state=inactive]:hidden", className)}
+      className={cn("min-w-0 max-w-full text-sm outline-none data-[state=inactive]:hidden", className)}
       {...props}
     >
       <motion.div
+        className="min-w-0 max-w-full"
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}

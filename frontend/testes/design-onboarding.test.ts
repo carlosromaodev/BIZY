@@ -9,7 +9,7 @@ describe("onboarding Bizy", () => {
     const onboarding = source("src/paginas/Onboarding.tsx");
     const estilosFormularioEscuro = source("src/componentes/estilosFormularioEscuro.ts");
 
-    expect(onboarding).toContain("/bizy-login-team.png");
+    expect(onboarding).toContain("/bizy-live-commerce-hero.png");
     expect(onboarding).toContain("CLASSE_CAMPO_ESCURO");
     expect(onboarding).toContain("CLASSE_TEXTAREA_ESCURO");
     expect(onboarding).toContain("CLASSE_BOTAO_CONTORNO_ESCURO");

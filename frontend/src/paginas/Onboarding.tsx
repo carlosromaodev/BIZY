@@ -22,7 +22,7 @@ import { cn } from "@/lib/utils";
 
 const canaisDisponiveis = ["tiktok", "instagram", "whatsapp", "facebook"];
 const pagamentosDisponiveis = ["transferencia", "multicaixa", "cash", "referencia"];
-const imagemOnboarding = "/bizy-login-team.png";
+const imagemOnboarding = "/bizy-live-commerce-hero.png";
 
 interface EstadoOnboarding {
   negocio: NegocioSessao | null;
@@ -186,32 +186,57 @@ export function PaginaOnboarding() {
           </div>
 
           <div className="grid gap-3">
+            <div className="flex items-center gap-2 px-1">
+              <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-white/10">
+                <div
+                  className="h-full rounded-full bg-[#d8ff72] transition-all duration-500"
+                  style={{ width: passo === "negocio" ? "33%" : passo === "produto" ? "66%" : "100%" }}
+                />
+              </div>
+              <span className="text-xs tabular-nums text-white/50">
+                {passo === "negocio" ? "1" : passo === "produto" ? "2" : "3"}/3
+              </span>
+            </div>
             {[
               ["negocio", "Negócio", Building2],
               ["produto", "Produto inicial", PackagePlus],
               ["pronto", "Operação pronta", CheckCircle2]
-            ].map(([id, titulo, Icone], index) => (
-              <div
-                key={id as string}
-                className={cn(
-                  "flex items-center gap-3 rounded-2xl border p-3 text-sm transition-all",
-                  passo === id
-                    ? "border-transparent bg-[#d8ff72] text-[#050706] shadow-[0_8px_22px_rgba(216,255,114,0.16)]"
-                    : "border-white/12 bg-black/20 text-white/62"
-                )}
-              >
-                <span
+            ].map(([id, titulo, Icone], index) => {
+              const passos = ["negocio", "produto", "pronto"];
+              const passoAtual = passos.indexOf(passo);
+              const indiceItem = passos.indexOf(id as string);
+              const completo = indiceItem < passoAtual;
+              const ativo = passo === id;
+
+              return (
+                <div
+                  key={id as string}
                   className={cn(
-                    "grid size-8 place-items-center rounded-full shadow-sm",
-                    passo === id ? "bg-[#050706] text-[#d8ff72]" : "bg-white/8 text-white/70"
+                    "flex items-center gap-3 rounded-2xl border p-3 text-sm transition-all",
+                    ativo
+                      ? "border-transparent bg-[#d8ff72] text-[#050706] shadow-[0_8px_22px_rgba(216,255,114,0.16)]"
+                      : completo
+                        ? "border-[#d8ff72]/20 bg-[#d8ff72]/8 text-[#d8ff72]"
+                        : "border-white/12 bg-black/20 text-white/62"
                   )}
                 >
-                  {index + 1}
-                </span>
-                <Icone size={18} />
-                <strong>{titulo as string}</strong>
-              </div>
-            ))}
+                  <span
+                    className={cn(
+                      "grid size-8 place-items-center rounded-full shadow-sm",
+                      ativo
+                        ? "bg-[#050706] text-[#d8ff72]"
+                        : completo
+                          ? "bg-[#d8ff72]/20 text-[#d8ff72]"
+                          : "bg-white/8 text-white/70"
+                    )}
+                  >
+                    {completo ? <CheckCircle2 size={16} /> : index + 1}
+                  </span>
+                  <Icone size={18} />
+                  <strong>{titulo as string}</strong>
+                </div>
+              );
+            })}
           </div>
         </aside>
 

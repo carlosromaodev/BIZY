@@ -210,6 +210,42 @@ describe("catálogo e movimentos de stock HTTP", () => {
     }
   });
 
+  it("aceita fotos guardadas no storage local da VPS no cadastro de produto", async () => {
+    const app = await criarAplicacao();
+
+    try {
+      const loja = await autenticar(app, "923333010", "Loja Media Local");
+
+      const resposta = await app.inject({
+        method: "POST",
+        url: "/pecas",
+        headers: loja,
+        payload: {
+          codigo: "media-local-01",
+          nome: "Blazer com foto local",
+          descricao: "Produto criado a partir do upload local do backend",
+          precoEmKwanza: 32_000,
+          quantidade: 2,
+          categoria: "Roupa social",
+          colecao: "Pronta entrega",
+          fotos: ["/media/files/catalogo/2026/05/produto-local.webp"]
+        }
+      });
+
+      expect(resposta.statusCode).toBe(201);
+      expect(resposta.json()).toEqual(
+        expect.objectContaining({
+          codigo: "MEDIA-LOCAL-01",
+          categoria: "Roupa social",
+          colecao: "Pronta entrega",
+          fotos: ["/media/files/catalogo/2026/05/produto-local.webp"]
+        })
+      );
+    } finally {
+      await app.close();
+    }
+  });
+
   it("mantém stock isolado por loja e recusa saída maior que o disponível", async () => {
     const app = await criarAplicacao();
 

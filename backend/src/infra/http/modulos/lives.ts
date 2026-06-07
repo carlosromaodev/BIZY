@@ -10,6 +10,7 @@ import type { DicionarioParserComentario } from "../../../dominio/servicos/Inter
 import type { ComentarioLive, NegocioBizy } from "../../../dominio/tipos.js";
 import { criarProviderLive, type ContextoAplicacao, type SessaoLive } from "../ContextoAplicacao.js";
 import { exigirAcessoComercial } from "../contextoComercial.js";
+import { atualizarMetricasSessaoLive } from "../liveMetricas.js";
 import { exigirUsuarioAutenticado } from "../seguranca.js";
 import type { ModuloHttp } from "./ModuloHttp.js";
 
@@ -45,6 +46,9 @@ export const moduloLives: ModuloHttp = {
         comentariosRecebidos: 0,
         comentariosProcessados: 0,
         comentariosComErro: 0,
+        espectadoresAtuais: null,
+        picoEspectadores: null,
+        metricasAtualizadasEm: null,
         ultimoComentarioEm: null,
         ultimoErro: null
       };
@@ -54,6 +58,7 @@ export const moduloLives: ModuloHttp = {
           app.log.error(erro);
         });
       });
+      provider.onMetrics?.((metricas) => atualizarMetricasSessaoLive(contexto, sessao, metricas));
 
       contexto.sessoesLive.set(id, sessao);
       await salvarSessaoLive(contexto, sessao, true);
@@ -64,11 +69,20 @@ export const moduloLives: ModuloHttp = {
         sessao.ultimoErro = null;
         await salvarSessaoLive(contexto, sessao, true);
       } catch (erro) {
+        const mensagem = erro instanceof Error ? erro.message : "Falha ao conectar live.";
         sessao.status = "ERRO";
-        sessao.ultimoErro = erro instanceof Error ? erro.message : "Falha ao conectar live.";
+        sessao.ultimoErro = mensagem;
         contexto.sessoesLive.delete(id);
         await salvarSessaoLive(contexto, sessao, false, new Date());
-        throw erro;
+        return reply.code(502).send({
+          erro: "LIVE_CONEXAO_FALHOU",
+          mensagem,
+          dica: mensagem.includes("rede") || mensagem.includes("proxy")
+            ? "Verifique se a VPS tem acesso à internet e se TIKTOK_PROXY_URL está configurado no .env."
+            : mensagem.includes("não está em live")
+              ? "O utilizador precisa estar a transmitir ao vivo no TikTok."
+              : "Verifique o username e tente novamente."
+        });
       }
 
       contexto.eventos.emitir("LIVE_CONNECTED", {
@@ -146,7 +160,9 @@ export const moduloLives: ModuloHttp = {
         displayName: dados.displayName,
         avatarUrl: dados.avatarUrl,
         commentText: dados.commentText,
-        timestamp: new Date()
+        timestamp: new Date(),
+        perfilUsuario: dados.perfilUsuario,
+        eventoBruto: dados.eventoBruto
       };
 
       const resultado = await processarComentarioDaSessao(contexto, sessao, comentario);
@@ -172,7 +188,9 @@ export const moduloLives: ModuloHttp = {
         displayName: dados.displayName,
         avatarUrl: dados.avatarUrl,
         commentText: dados.commentText,
-        timestamp: new Date()
+        timestamp: new Date(),
+        perfilUsuario: dados.perfilUsuario,
+        eventoBruto: dados.eventoBruto
       };
 
       const resultado = await contexto.processadorComentarios.processar(comentario, {

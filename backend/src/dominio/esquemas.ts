@@ -48,10 +48,242 @@ const AvatarPerfilOpcionalSchema = z.preprocess(
   z.string().trim().url().max(2048).nullable().optional()
 ).transform((valor) => valor ?? null);
 
+const JsonLivreSchema = z.record(z.string(), z.unknown()).default({});
+
 const TextoCatalogoOpcionalSchema = z.preprocess(
   (valor) => (typeof valor === "string" && valor.trim() === "" ? null : valor),
   z.string().trim().min(1).max(120).nullable().optional()
 ).transform((valor) => valor ?? null);
+
+const TextoLongoLojaOpcionalSchema = z.preprocess(
+  (valor) => (typeof valor === "string" && valor.trim() === "" ? null : valor),
+  z.string().trim().min(1).max(1000).nullable().optional()
+).transform((valor) => valor ?? null);
+
+const UrlLojaOpcionalSchema = z.preprocess(
+  (valor) => (typeof valor === "string" && valor.trim() === "" ? null : valor),
+  z.string().trim().url().max(2048).nullable().optional()
+).transform((valor) => valor ?? null);
+
+const OrdemVitrineLojaSchema = z.enum(["destaques", "promocoes", "novidades", "reposicoes", "maisVendidos", "kits"]);
+const ModoNegocioLojaPublicaSchema = z.enum(["auto", "moda", "comida", "servicos", "geral"]);
+const ordemVitrinePadraoLoja = ["destaques", "promocoes", "novidades", "maisVendidos", "kits", "reposicoes"] as const;
+const CriterioCatalogoPersonalizadoLojaSchema = z.enum(["categoria", "colecao", "busca", "todos"]);
+const AcessoLojaPublicaSchema = z.enum(["aberto", "telefone", "login", "membros"]);
+const AgrupamentoRelatorioLojaSchema = z.enum(["hora", "produto", "cliente"]);
+
+const LinhaTabelaMedidasLojaSchema = z.object({
+  tamanho: z.string().trim().min(1).max(24),
+  busto: TextoCatalogoOpcionalSchema,
+  cintura: TextoCatalogoOpcionalSchema,
+  quadril: TextoCatalogoOpcionalSchema,
+  observacao: TextoCatalogoOpcionalSchema
+});
+
+const CatalogoPersonalizadoLojaSchema = z.object({
+  id: z.string().trim().min(1).max(80),
+  nome: z.string().trim().min(1).max(80),
+  descricao: TextoLongoLojaOpcionalSchema,
+  criterio: CriterioCatalogoPersonalizadoLojaSchema.default("busca"),
+  valor: TextoCatalogoOpcionalSchema
+});
+
+const CheckoutOperacaoLojaSchema = z
+  .object({
+    ignorarPaginaPagamento: z.boolean().default(false),
+    manterRascunhoAtePago: z.boolean().default(false),
+    confirmacaoAutomaticaPagamento: z.boolean().default(false),
+    entradaAtiva: z.boolean().default(false),
+    entradaPercentual: z.coerce.number().min(0).max(100).default(0),
+    taxaServicoPercentual: z.coerce.number().min(0).max(100).default(0),
+    taxaServicoFixaEmKwanza: z.coerce.number().int().min(0).default(0),
+    prefixoPedido: TextoCatalogoOpcionalSchema,
+    sufixoPedido: TextoCatalogoOpcionalSchema,
+    exigirTelefoneCheckout: z.boolean().default(true),
+    exigirLoginCheckout: z.boolean().default(false),
+    mostrarNumeroEncomendaNaMensagem: z.boolean().default(true)
+  })
+  .default({});
+
+const QuotasPlanoLojaSchema = z
+  .object({
+    encomendasMensais: z.coerce.number().int().min(0).default(0),
+    imagens: z.coerce.number().int().min(0).default(0),
+    whatsapp: z.coerce.number().int().min(0).default(0),
+    email: z.coerce.number().int().min(0).default(0)
+  })
+  .default({});
+
+const PlanoOperacaoLojaSchema = z
+  .object({
+    planoAtual: z.string().trim().min(1).max(40).default("starter"),
+    recursosBloqueados: z.array(z.string().trim().min(1).max(80)).max(40).default([]),
+    quotas: QuotasPlanoLojaSchema,
+    upgradeContextual: z.boolean().default(true)
+  })
+  .default({});
+
+const PagamentosAvancadosOperacaoLojaSchema = z
+  .object({
+    dinheiroEntrega: z.boolean().default(true),
+    transferenciaBancaria: z.boolean().default(true),
+    cartaoAdyen: z.boolean().default(false),
+    paypal: z.boolean().default(false),
+    pagamentoPersonalizado: z.boolean().default(false),
+    pagamentoComInstrucoes: z.boolean().default(true),
+    creditoLoja: z.boolean().default(false),
+    instrucoesPagamento: TextoLongoLojaOpcionalSchema
+  })
+  .default({});
+
+const ZonaEntregaOperacaoLojaSchema = z.object({
+  nome: z.string().trim().min(1).max(120),
+  precoEmKwanza: z.coerce.number().int().min(0).default(0),
+  prazo: TextoCatalogoOpcionalSchema
+});
+
+const EntregaOperacaoLojaSchema = z
+  .object({
+    gerirDisponibilidade: z.boolean().default(false),
+    adicionarMetodoEntrega: z.boolean().default(false),
+    disponibilidadeSemanal: z.array(z.string().trim().min(1).max(120)).max(21).default([]),
+    zonas: z.array(ZonaEntregaOperacaoLojaSchema).max(60).default([])
+  })
+  .default({});
+
+const CatalogoOperacaoLojaSchema = z
+  .object({
+    categoriasVisiveis: z.array(z.string().trim().min(1).max(80)).max(60).default([]),
+    categoriasOcultas: z.array(z.string().trim().min(1).max(80)).max(60).default([]),
+    sequenciaCategorias: z.array(z.string().trim().min(1).max(80)).max(60).default([]),
+    descontosAtivos: z.boolean().default(false),
+    produtosPorColecao: z.boolean().default(true),
+    produtosComEstatisticas: z.boolean().default(true)
+  })
+  .default({});
+
+const ClientesOperacaoLojaSchema = z
+  .object({
+    importar: z.boolean().default(true),
+    exportar: z.boolean().default(true),
+    edicaoMassa: z.boolean().default(false),
+    adicionarManual: z.boolean().default(true),
+    pesquisaAvancada: z.boolean().default(true),
+    filtrosInteligentes: z.array(z.string().trim().min(1).max(80)).max(20).default(["todos", "inativos", "primeiro-pedido", "nunca-comprou"]),
+    transmissaoFiltrada: z.boolean().default(false)
+  })
+  .default({});
+
+const EncomendasOperacaoLojaSchema = z
+  .object({
+    criarManual: z.boolean().default(true),
+    exportar: z.boolean().default(true),
+    resumoAtivo: z.boolean().default(true),
+    rascunhos: z.boolean().default(true),
+    pagamentos: z.boolean().default(true),
+    calendario: z.boolean().default(true),
+    colunasOperacionais: z.array(z.string().trim().min(1).max(80)).max(30).default(["cliente", "total", "estado", "pagamento", "entrega", "criadoEm"])
+  })
+  .default({});
+
+const SiteSeoOperacaoLojaSchema = z
+  .object({
+    dominioPersonalizado: TextoCatalogoOpcionalSchema,
+    instrucoesDns: TextoLongoLojaOpcionalSchema,
+    tituloSite: TextoCatalogoOpcionalSchema,
+    uploadLogotipo: z.boolean().default(true),
+    imagemGeradaIa: z.boolean().default(false),
+    categoriasDiretorio: z.array(z.string().trim().min(1).max(80)).max(12).default([])
+  })
+  .default({});
+
+const FidelizacaoOperacaoLojaSchema = z
+  .object({
+    acessoLoja: AcessoLojaPublicaSchema.default("aberto"),
+    ofertaBoasVindasAtiva: z.boolean().default(false),
+    cupomBoasVindas: TextoCatalogoOpcionalSchema,
+    recompensasAtivas: z.boolean().default(false),
+    recompensasIndicacaoAtivas: z.boolean().default(false),
+    creditoLojaAtivo: z.boolean().default(false)
+  })
+  .default({});
+
+const AutomacoesOperacaoLojaSchema = z
+  .object({
+    perfilCliente: z.boolean().default(true),
+    carrinhoAbandonado: z.boolean().default(true),
+    pedidoAvaliacao: z.boolean().default(true),
+    avaliacaoRecebida: z.boolean().default(true),
+    pedidoNovamente: z.boolean().default(true),
+    aniversarioCliente: z.boolean().default(false),
+    pagamentoPendente: z.boolean().default(true),
+    pagamentoConfirmado: z.boolean().default(true),
+    creditoAtualizado: z.boolean().default(false),
+    creditoReembolsado: z.boolean().default(false),
+    pedidoSaiuEntrega: z.boolean().default(true),
+    pedidoCancelado: z.boolean().default(true),
+    produtoDigitalConfirmado: z.boolean().default(false),
+    operacaoInternaPedidoCriado: z.boolean().default(true)
+  })
+  .default({});
+
+const CanaisOperacaoLojaSchema = z
+  .object({
+    site: z.boolean().default(true),
+    whatsapp: z.boolean().default(true),
+    instagram: z.boolean().default(false),
+    google: z.boolean().default(false),
+    pos: z.boolean().default(false),
+    transmissoes: z.boolean().default(false),
+    chatbot: z.boolean().default(true),
+    appMovelQr: z.boolean().default(false),
+    caixaEntradaUnificada: z.boolean().default(true),
+    broadcasts: z.boolean().default(false)
+  })
+  .default({});
+
+const RelatoriosOperacaoLojaSchema = z
+  .object({
+    metricas: z.array(z.string().trim().min(1).max(40)).max(12).default(["pedidos", "vendas", "conversao"]),
+    agruparPor: AgrupamentoRelatorioLojaSchema.default("produto"),
+    filtrosPedidos: z.array(z.string().trim().min(1).max(40)).max(12).default(["PENDENTE", "PAGO", "CONCLUIDA"]),
+    relatoriosProntos: z.array(z.string().trim().min(1).max(80)).max(40).default([])
+  })
+  .default({});
+
+const OperacaoLojaPublicaSchema = z
+  .object({
+    plano: PlanoOperacaoLojaSchema,
+    checkout: CheckoutOperacaoLojaSchema,
+    pagamentos: PagamentosAvancadosOperacaoLojaSchema,
+    entrega: EntregaOperacaoLojaSchema,
+    fidelizacao: FidelizacaoOperacaoLojaSchema,
+    automacoes: AutomacoesOperacaoLojaSchema,
+    canais: CanaisOperacaoLojaSchema,
+    catalogo: CatalogoOperacaoLojaSchema,
+    clientes: ClientesOperacaoLojaSchema,
+    encomendas: EncomendasOperacaoLojaSchema,
+    relatorios: RelatoriosOperacaoLojaSchema,
+    siteSeo: SiteSeoOperacaoLojaSchema
+  })
+  .default({});
+
+const ExperienciaLojaPublicaSchema = z
+  .object({
+    modoNegocio: ModoNegocioLojaPublicaSchema.default("auto"),
+    ordemVitrines: z.array(OrdemVitrineLojaSchema).max(8).default([...ordemVitrinePadraoLoja]),
+    catalogosEditaveis: z.boolean().default(true),
+    leadCaptureAtivo: z.boolean().default(true),
+    leadCaptureTitulo: TextoCatalogoOpcionalSchema,
+    cupomDestaque: TextoCatalogoOpcionalSchema,
+    politicaTroca: TextoLongoLojaOpcionalSchema,
+    politicaEntrega: TextoLongoLojaOpcionalSchema,
+    politicaPrivacidade: TextoLongoLojaOpcionalSchema,
+    catalogosPersonalizados: z.array(CatalogoPersonalizadoLojaSchema).max(12).default([]),
+    operacao: OperacaoLojaPublicaSchema,
+    tabelaMedidas: z.array(LinhaTabelaMedidasLojaSchema).max(24).default([])
+  })
+  .default({});
 
 const BooleanQueryOpcionalSchema = z.preprocess((valor) => {
   if (valor === undefined || valor === null || valor === "") return undefined;
@@ -197,7 +429,9 @@ export const ComentarioLiveSchema = z.object({
   displayName: z.string().default(""),
   avatarUrl: AvatarPerfilOpcionalSchema,
   commentText: z.string().min(1),
-  timestamp: z.coerce.date()
+  timestamp: z.coerce.date(),
+  perfilUsuario: JsonLivreSchema,
+  eventoBruto: JsonLivreSchema
 });
 
 export const ResultadoInterpretacaoComentarioSchema = z.object({
@@ -209,6 +443,15 @@ export const ResultadoInterpretacaoComentarioSchema = z.object({
   requiresManualReview: z.boolean(),
   reasons: z.array(z.string())
 });
+
+const UrlMediaCatalogoSchema = z.string().trim().max(2048).refine(
+  (valor) => {
+    if (!valor) return false;
+    if (valor.startsWith("/media/files/")) return true;
+    return z.string().url().safeParse(valor).success;
+  },
+  { message: "Informe uma URL pública ou um ficheiro guardado em /media/files." }
+);
 
 export const CriarPecaSchema = z.object({
   codigo: z.string().trim().min(1).max(32),
@@ -222,7 +465,7 @@ export const CriarPecaSchema = z.object({
   custoEmKwanza: z.coerce.number().int().min(0).nullable().optional().transform((valor) => valor ?? null),
   quantidade: z.coerce.number().int().min(0),
   stockMinimo: z.coerce.number().int().min(0).default(0),
-  fotos: z.array(z.string().url()).default([]),
+  fotos: z.array(UrlMediaCatalogoSchema).default([]),
   variantes: VariantesPecaSchema,
   vitrine: VitrineProdutoSchema,
   estado: z.enum(estadosPeca).optional()
@@ -249,21 +492,85 @@ export const RegistrarMovimentoStockSchema = z.object({
   quantidade: z.coerce.number().int().min(1).max(999_999),
   motivo: z.string().trim().min(3).max(500),
   responsavelId: z.string().trim().min(1).max(120).nullable().optional().transform((valor) => valor ?? null),
-  origem: z.string().trim().min(1).max(80).nullable().optional().transform((valor) => valor ?? null)
+  origem: z.string().trim().min(1).max(80).nullable().optional().transform((valor) => valor ?? null),
+  varianteSelecionada: z.string().trim().min(1).max(200).nullable().optional().transform((valor) => valor ?? null)
 });
 
+const SlugLojaPublicaSchema = z
+  .string()
+  .trim()
+  .min(3)
+  .max(80)
+  .transform((valor) => valor.toLowerCase())
+  .refine((valor) => /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(valor), {
+    message: "Use um slug com letras minúsculas, números e hífens, sem espaços."
+  });
+
 export const PublicarLojaSchema = z.object({
-  slug: z
-    .string()
-    .trim()
-    .min(3)
-    .max(80)
-    .transform((valor) => valor.toLowerCase())
-    .refine((valor) => /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(valor), {
-      message: "Use um slug com letras minúsculas, números e hífens, sem espaços."
-    }),
+  slug: SlugLojaPublicaSchema,
   descricaoPublica: TextoCatalogoOpcionalSchema,
   publicada: z.boolean().default(true)
+});
+
+export const SalvarConfiguracaoLojaPublicaSchema = z.object({
+  slug: SlugLojaPublicaSchema.optional(),
+  descricaoPublica: TextoLongoLojaOpcionalSchema,
+  publicada: z.boolean().optional(),
+  criacao: z
+    .object({
+      confirmar: z.boolean().optional()
+    })
+    .default({}),
+  identidade: z
+    .object({
+      nomeComercial: z.string().trim().min(2).max(120).optional(),
+      telefone: TextoCatalogoOpcionalSchema,
+      whatsapp: TextoCatalogoOpcionalSchema,
+      email: z.preprocess(
+        (valor) => (typeof valor === "string" && valor.trim() === "" ? null : valor),
+        z.string().trim().email().max(160).nullable().optional()
+      ).transform((valor) => valor ?? null),
+      provincia: TextoCatalogoOpcionalSchema,
+      municipio: TextoCatalogoOpcionalSchema,
+      endereco: TextoLongoLojaOpcionalSchema,
+      descricaoPublica: TextoLongoLojaOpcionalSchema
+    })
+    .default({}),
+  publicacao: z
+    .object({
+      slug: SlugLojaPublicaSchema.optional(),
+      descricaoPublica: TextoLongoLojaOpcionalSchema,
+      publicada: z.boolean().optional()
+    })
+    .default({}),
+  tema: z
+    .object({
+      corPrimaria: z.string().trim().regex(/^#[0-9a-fA-F]{6}$/).optional(),
+      logoUrl: UrlLojaOpcionalSchema,
+      capaUrl: UrlLojaOpcionalSchema
+    })
+    .default({}),
+  entrega: z
+    .object({
+      entregaAtiva: z.boolean().optional(),
+      retiradaAtiva: z.boolean().optional(),
+      consumoLocalAtivo: z.boolean().optional(),
+      taxaPadraoEmKwanza: z.coerce.number().int().min(0).optional(),
+      entregaGratisAcimaDeKwanza: z.coerce.number().int().min(0).nullable().optional().transform((valor) => valor ?? null),
+      prazoPadrao: TextoCatalogoOpcionalSchema,
+      enderecoRetirada: TextoLongoLojaOpcionalSchema,
+      instrucoesEntrega: TextoLongoLojaOpcionalSchema
+    })
+    .default({}),
+  pagamentos: z
+    .object({
+      metodosPagamento: z.array(z.string().trim().min(1).max(40)).max(12).optional(),
+      instrucoesCobranca: TextoLongoLojaOpcionalSchema,
+      mensagemComprovativoPendente: TextoLongoLojaOpcionalSchema,
+      mensagemPagamentoConfirmado: TextoLongoLojaOpcionalSchema
+    })
+    .default({}),
+  experiencia: ExperienciaLojaPublicaSchema
 });
 
 export const RegistrarEventoTrackingSchema = z.object({
@@ -512,7 +819,9 @@ export const ComentarioManualSchema = z.object({
   displayName: z.string().trim().default("Cliente"),
   avatarUrl: AvatarPerfilOpcionalSchema,
   commentText: z.string().trim().min(1),
-  provider: z.string().trim().default("manual")
+  provider: z.string().trim().default("manual"),
+  perfilUsuario: JsonLivreSchema,
+  eventoBruto: JsonLivreSchema
 });
 
 export const ComentarioManualSessaoSchema = z.object({
@@ -520,7 +829,9 @@ export const ComentarioManualSessaoSchema = z.object({
   userId: TextoPerfilOpcionalSchema,
   displayName: z.string().trim().default("Cliente"),
   avatarUrl: AvatarPerfilOpcionalSchema,
-  commentText: z.string().trim().min(1)
+  commentText: z.string().trim().min(1),
+  perfilUsuario: JsonLivreSchema,
+  eventoBruto: JsonLivreSchema
 });
 
 export const AprovarComentarioManualSchema = z.object({
@@ -1271,6 +1582,10 @@ export const SalvarNegocioOnboardingSchema = z.object({
   politicaTrocaDevolucao: z.record(z.string(), z.unknown()).default({}),
   contasSociais: z.record(z.string(), z.unknown()).default({}),
   entrega: z.record(z.string(), z.unknown()).default({}),
+  perfil360: JsonLivreSchema,
+  dadosOperacionais: JsonLivreSchema,
+  fontesDados: JsonLivreSchema,
+  ultimoEnriquecimentoEm: z.coerce.date().nullable().optional(),
   minutosReservaPadrao: z.coerce.number().int().min(1).max(180).default(10)
 });
 

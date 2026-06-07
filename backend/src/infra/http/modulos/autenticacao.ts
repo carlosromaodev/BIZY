@@ -9,13 +9,14 @@ import {
   SalvarNegocioOnboardingSchema,
   SolicitarCodigoLoginSchema
 } from "../../../dominio/esquemas.js";
-import { exigirPermissaoComercial } from "../contextoComercial.js";
+import { exigirPermissaoComercial, resolverContextoComercial } from "../contextoComercial.js";
 import { ehErroInfraestrutura } from "../errosHttp.js";
 import {
-  criarCookieSessao,
-  criarCookieSessaoExpirado,
+  assinarJwtSessao,
+  definirCookieSessao,
   exigirUsuarioAutenticado,
-  extrairTokenAutenticacao
+  limparCookieSessao,
+  resolverSessaoJwt
 } from "../seguranca.js";
 import type { ModuloHttp } from "./ModuloHttp.js";
 
@@ -40,24 +41,42 @@ export const moduloAutenticacao: ModuloHttp = {
 
       try {
         const resultado = await contexto.autenticacaoTelefone.confirmarCodigo(dados);
-        definirCookieSessao(reply, resultado.token, resultado.expiraEm);
-        return resultado;
+        const token = await assinarJwtSessao({
+          usuarioId: resultado.usuario.id,
+          sessaoId: resultado.sessaoId,
+          tokenInterno: resultado.token,
+          expiraEm: resultado.expiraEm
+        });
+        definirCookieSessao(reply, token, resultado.expiraEm);
+        return {
+          sucesso: resultado.sucesso,
+          token,
+          expiraEm: resultado.expiraEm,
+          usuario: resultado.usuario
+        };
       } catch (erro) {
         if (ehErroInfraestrutura(erro)) throw erro;
         return reply.code(400).send({ erro: "LOGIN_CODIGO", mensagem: (erro as Error).message });
       }
     });
 
+
     app.post("/auth/estudantil/login", async (request, reply) => {
       const dados = LoginEstudantilSchema.parse(request.body);
 
       try {
         const resultado = await contexto.autenticacaoEstudantil.login(dados);
-        definirCookieSessao(reply, resultado.token, resultado.expiraEm);
-        return resultado;
+        const token = await assinarJwtSessao({
+          usuarioId: resultado.usuario.id,
+          sessaoId: resultado.sessaoId,
+          tokenInterno: resultado.token,
+          expiraEm: resultado.expiraEm
+        });
+        definirCookieSessao(reply, token, resultado.expiraEm);
+        return { token, expiraEm: resultado.expiraEm, usuario: resultado.usuario, perfil: resultado.perfil };
       } catch (erro) {
         if (ehErroInfraestrutura(erro)) throw erro;
-        return reply.code(401).send({ erro: "LOGIN_ESTUDANTIL", mensagem: (erro as Error).message });
+        return reply.code(400).send({ erro: "LOGIN_ESTUDANTIL", mensagem: (erro as Error).message });
       }
     });
 
@@ -127,9 +146,15 @@ export const moduloAutenticacao: ModuloHttp = {
           dados: perfil
         });
         const sessao = await contexto.autenticacaoTelefone.criarSessaoParaUsuario(usuario.id);
-        definirCookieSessao(reply, sessao.token, sessao.expiraEm);
+        const token = await assinarJwtSessao({
+          usuarioId: usuario.id,
+          sessaoId: sessao.sessaoId,
+          tokenInterno: sessao.token,
+          expiraEm: sessao.expiraEm
+        });
+        definirCookieSessao(reply, token, sessao.expiraEm);
 
-        return reply.redirect(criarUrlFrontendComSessao(estado.redirect, sessao.token, usuario));
+        return reply.redirect(criarUrlFrontendComSessao(estado.redirect));
       } catch (erro) {
         return reply.redirect(
           criarUrlFrontendComErro("/login", erro instanceof Error ? erro.message : "Não foi possível entrar com Gmail.")
@@ -138,18 +163,16 @@ export const moduloAutenticacao: ModuloHttp = {
     });
 
     app.get("/auth/sessao", async (request, reply) => {
-      const usuario = await contexto.autenticacaoTelefone.obterSessao(extrairTokenAutenticacao(request));
-
-      if (!usuario) {
-        return reply.code(401).send({ erro: "NAO_AUTENTICADO", mensagem: "Sessão inválida ou expirada." });
-      }
+      const usuario = await exigirUsuarioAutenticado(contexto, request, reply, "Sessão inválida ou expirada.");
+      if (!usuario) return;
 
       return { usuario };
     });
 
     app.delete("/auth/sessao", async (request, reply) => {
-      await contexto.autenticacaoTelefone.encerrarSessao(extrairTokenAutenticacao(request));
-      reply.header("Set-Cookie", criarCookieSessaoExpirado());
+      const sessao = await resolverSessaoJwt(request);
+      await contexto.autenticacaoTelefone.encerrarSessao(sessao?.tokenInterno ?? null);
+      limparCookieSessao(reply);
       return { sucesso: true };
     });
 
@@ -240,13 +263,7 @@ export const moduloAutenticacao: ModuloHttp = {
     });
 
     app.get("/negocio/modulos", async (request, reply) => {
-      const contextoComercial = await exigirPermissaoComercial(
-        contexto,
-        request,
-        reply,
-        "configuracoes:gerir",
-        "Sem permissão para consultar módulos do negócio."
-      );
+      const contextoComercial = await resolverContextoComercial(contexto, request, reply);
       if (!contextoComercial) return;
 
       return contexto.gestaoModulosNegocio.listar(contextoComercial.negocio.id);
@@ -276,10 +293,6 @@ export const moduloAutenticacao: ModuloHttp = {
     });
   }
 };
-
-function definirCookieSessao(reply: { header(nome: string, valor: string): unknown }, token: string, expiraEm: Date) {
-  reply.header("Set-Cookie", criarCookieSessao(token, expiraEm));
-}
 
 function extrairPagamentosNegocio(negocio: {
   metodosPagamento: string[];
@@ -390,12 +403,9 @@ async function obterPerfilGoogle(code: string): Promise<{
   };
 }
 
-function criarUrlFrontendComSessao(redirect: string, token: string, usuario: unknown) {
+function criarUrlFrontendComSessao(redirect: string) {
   const destino = new URL(sanitizarRedirectFrontend(redirect), obterFrontendUrl());
-  destino.hash = new URLSearchParams({
-    bizy_token: token,
-    bizy_usuario: JSON.stringify(usuario)
-  }).toString();
+  destino.hash = new URLSearchParams({ bizy_auth: "cookie" }).toString();
   return destino.toString();
 }
 

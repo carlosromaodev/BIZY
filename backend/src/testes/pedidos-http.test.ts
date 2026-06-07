@@ -347,6 +347,112 @@ describe("pedidos HTTP", () => {
     }
   });
 
+  it("mostra pedido e artigo na aba pedidos quando comentário da live cria reserva", async () => {
+    const app = await criarAplicacao();
+
+    try {
+      const loja = await autenticar(app, "923222181", "Loja Pedidos Live");
+      await criarPeca(app, loja, "LIVE-77", 2, 21_000);
+
+      const comentario = await app.inject({
+        method: "POST",
+        url: "/comentarios/manual",
+        headers: loja,
+        payload: {
+          liveId: "live_pedidos_visiveis",
+          provider: "tiktok-live-connector",
+          username: "cliente_pedido_live",
+          displayName: "Cliente Pedido Live",
+          commentText: "quero produto LIVE-77 937624792"
+        }
+      });
+      expect(comentario.statusCode).toBe(201);
+      expect(comentario.json().reserva).toEqual(
+        expect.objectContaining({
+          id: expect.any(String),
+          codigoPeca: "LIVE-77",
+          clienteNegocioId: expect.any(String)
+        })
+      );
+
+      const pedidos = await app.inject({ method: "GET", url: "/pedidos", headers: loja });
+      expect(pedidos.statusCode).toBe(200);
+      expect(pedidos.json().pedidos).toEqual([
+        expect.objectContaining({
+          reservaId: comentario.json().reserva.id,
+          clienteNegocioId: comentario.json().reserva.clienteNegocioId,
+          origem: "live",
+          canal: "tiktok",
+          totalEmKwanza: 21_000,
+          itens: [
+            expect.objectContaining({
+              codigoPeca: "LIVE-77",
+              nomeProduto: "Produto LIVE-77",
+              quantidade: 1,
+              precoUnitarioEmKwanza: 21_000
+            })
+          ]
+        })
+      ]);
+    } finally {
+      await app.close();
+    }
+  });
+
+  it("cria pedido automaticamente quando comentário tem telefone e id do artigo sem verbo de compra", async () => {
+    const app = await criarAplicacao();
+
+    try {
+      const loja = await autenticar(app, "923222182", "Loja Pedidos Sem Verbo");
+      await criarPeca(app, loja, "AUTO-ID", 2, 17_000);
+
+      const comentario = await app.inject({
+        method: "POST",
+        url: "/comentarios/manual",
+        headers: loja,
+        payload: {
+          liveId: "live_pedidos_sem_verbo",
+          provider: "tiktok-live-connector",
+          username: "cliente_pedido_sem_verbo",
+          displayName: "Cliente Pedido Sem Verbo",
+          commentText: "o meu contacto é 937624793 e o id é AUTO-ID"
+        }
+      });
+
+      expect(comentario.statusCode).toBe(201);
+      expect(comentario.json()).toEqual(
+        expect.objectContaining({
+          estado: "PROCESSADO",
+          reserva: expect.objectContaining({
+            codigoPeca: "AUTO-ID",
+            telefoneCliente: "937624793"
+          }),
+          pedido: expect.objectContaining({
+            origem: "live",
+            canal: "tiktok",
+            totalEmKwanza: 17_000
+          })
+        })
+      );
+
+      const pedidos = await app.inject({ method: "GET", url: "/pedidos", headers: loja });
+      expect(pedidos.statusCode).toBe(200);
+      expect(pedidos.json().pedidos).toEqual([
+        expect.objectContaining({
+          reservaId: comentario.json().reserva.id,
+          itens: [
+            expect.objectContaining({
+              codigoPeca: "AUTO-ID",
+              quantidade: 1
+            })
+          ]
+        })
+      ]);
+    } finally {
+      await app.close();
+    }
+  });
+
   it("recusa desconto sem motivo e quantidade acima do stock", async () => {
     const app = await criarAplicacao();
 
@@ -457,7 +563,7 @@ describe("pedidos HTTP", () => {
     }
   });
 
-  it("converte reserva de live em pedido completo sem duplicar", async () => {
+  it("mantém conversão de reserva idempotente quando a live já criou o pedido", async () => {
     const app = await criarAplicacao();
 
     try {
@@ -494,17 +600,17 @@ describe("pedidos HTTP", () => {
           observacao: "Reserva da live convertida no CRM."
         }
       });
-      expect(conversao.statusCode).toBe(201);
+      expect(conversao.statusCode).toBe(200);
       expect(conversao.json()).toEqual(
         expect.objectContaining({
-          convertido: true,
+          convertido: false,
           pedido: expect.objectContaining({
             reservaId: comentario.json().reserva.id,
             clienteNegocioId: comentario.json().reserva.clienteNegocioId,
             origem: "live",
             canal: "manual",
-            totalEmKwanza: 19_500,
-            enderecoEntrega: "Benfica, Rua da Live"
+            totalEmKwanza: 18_000,
+            enderecoEntrega: null
           })
         })
       );
@@ -532,6 +638,10 @@ describe("pedidos HTTP", () => {
           pedido: expect.objectContaining({ id: conversao.json().pedido.id })
         })
       );
+
+      const pedidos = await app.inject({ method: "GET", url: "/pedidos", headers: loja });
+      expect(pedidos.statusCode).toBe(200);
+      expect(pedidos.json().pedidos).toHaveLength(1);
     } finally {
       await app.close();
     }

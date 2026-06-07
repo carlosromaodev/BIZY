@@ -123,11 +123,14 @@ import { FutureInstagramProvider } from "../provedores/FutureInstagramProvider.j
 import { ManualProvider } from "../provedores/ManualProvider.js";
 import { ProvedorSmsOmbala } from "../provedores/ProvedorSmsOmbala.js";
 import { ProvedorWhatsAppCloudApi } from "../provedores/ProvedorWhatsAppCloudApi.js";
+import { ProvedorWhatsAppComControleEnvio } from "../provedores/ProvedorWhatsAppComControleEnvio.js";
 import { ProvedorWhatsAppEvolutionDinamico } from "../provedores/ProvedorWhatsAppEvolution.js";
 import { TikTokLiveConnectorProvider } from "../provedores/TikTokLiveConnectorProvider.js";
 import { TikTokLivePythonProvider } from "../provedores/TikTokLivePythonProvider.js";
 import { WhatsAppConsoleProvider } from "../provedores/WhatsAppConsoleProvider.js";
 import { HubTempoReal } from "./HubTempoReal.js";
+import { baixarMediaUrlComoDataUrl } from "../media/MediaDownloader.js";
+import { salvarMediaDataUrl } from "../media/MediaStorage.js";
 
 export interface RepositoriosAplicacao {
   pecas: RepositorioPecas;
@@ -169,6 +172,9 @@ export interface SessaoLive {
   comentariosRecebidos: number;
   comentariosProcessados: number;
   comentariosComErro: number;
+  espectadoresAtuais: number | null;
+  picoEspectadores: number | null;
+  metricasAtualizadasEm: Date | null;
   ultimoComentarioEm: Date | null;
   ultimoErro: string | null;
 }
@@ -265,15 +271,6 @@ export function criarContextoAplicacao(logger: FastifyBaseLogger): ContextoAplic
     permitirSmsDev: process.env.LOGIN_SMS_DEV_MODE === "true" || process.env.NODE_ENV !== "production",
     exporCodigoDev: process.env.LOGIN_SMS_EXPOR_CODIGO_DEV === "true" || process.env.NODE_ENV !== "production"
   });
-  const autenticacaoEstudantil = new AutenticacaoEstudantilUseCase(
-    repositorios.autenticacao,
-    new UorConnectAuthProvider({
-      baseUrl: process.env.UORCONNECT_API_URL ?? process.env.UOR_CONNECT_API_URL,
-      timeoutMs: Number(process.env.UORCONNECT_AUTH_TIMEOUT_MS ?? 25_000),
-      permitirDev: process.env.LOGIN_ESTUDANTIL_DEV_MODE === "true" || process.env.NODE_ENV !== "production"
-    }),
-    autenticacaoTelefone
-  );
   const gestaoWhatsAppEvolution = new GestaoWhatsAppEvolutionUseCase(repositorios.instanciasWhatsApp, {
     baseUrl: process.env.EVOLUTION_API_URL ?? "http://localhost:8080",
     apiKey: process.env.EVOLUTION_API_KEY ?? "",
@@ -314,6 +311,16 @@ export function criarContextoAplicacao(logger: FastifyBaseLogger): ContextoAplic
     repositorios.membrosNegocio,
     repositorios.eventosOperacionais,
     repositorios.jobsOperacionais
+  );
+  const provedorEstudantil = new UorConnectAuthProvider({
+    baseUrl: process.env.UORCONNECT_API_URL,
+    timeoutMs: Number(process.env.UORCONNECT_AUTH_TIMEOUT_MS ?? 25_000),
+    permitirDev: process.env.LOGIN_ESTUDANTIL_DEV_MODE === "true" || process.env.NODE_ENV !== "production"
+  });
+  const autenticacaoEstudantil = new AutenticacaoEstudantilUseCase(
+    repositorios.autenticacao,
+    provedorEstudantil,
+    autenticacaoTelefone
   );
   const onboardingBizy = new OnboardingBizyUseCase(repositorios.autenticacao, gestaoPecas);
   const gestaoClientesCrm = new GestaoClientesCrmUseCase(
@@ -390,7 +397,22 @@ export function criarContextoAplicacao(logger: FastifyBaseLogger): ContextoAplic
     repositorios.atendimento,
     repositorios.auditoria,
     logger,
-    repositorios.clientes
+    repositorios.clientes,
+    {
+      baixarMediaUrl: (url, media) =>
+        baixarMediaUrlComoDataUrl(url, {
+          expectedMimeType: media.mimeType,
+          allowedMimeTypes: ["application/pdf"],
+          allowedHosts: process.env.WHATSAPP_MEDIA_DOWNLOAD_ALLOWED_HOSTS?.split(","),
+          maxBytes: Number(process.env.WHATSAPP_INBOUND_MEDIA_MAX_BYTES ?? 10 * 1024 * 1024)
+        }),
+      persistirMedia: (dataUrl) =>
+        salvarMediaDataUrl(dataUrl, {
+          purpose: "comprovativos-pagamento",
+          allowDocuments: true,
+          maxBytes: Number(process.env.WHATSAPP_INBOUND_MEDIA_MAX_BYTES ?? 10 * 1024 * 1024)
+        })
+    }
   );
   const receberMensagemWhatsApp = new ReceberMensagemWhatsAppUseCase(eventos);
   const processadorComentarios = new ProcessadorComentarios(
@@ -399,7 +421,8 @@ export function criarContextoAplicacao(logger: FastifyBaseLogger): ContextoAplic
     automacaoWhatsApp,
     repositorios.comentarios,
     eventos,
-    repositorios.clientes
+    repositorios.clientes,
+    gestaoPedidos
   );
   const revisaoComentarios = new RevisaoComentariosUseCase(
     repositorios.comentarios,
@@ -572,16 +595,18 @@ function criarProvedorWhatsApp(repositorioInstancias: RepositorioInstanciasWhats
       throw new Error("Configure EVOLUTION_API_URL e EVOLUTION_API_KEY para usar Evolution.");
     }
 
-    return new ProvedorWhatsAppEvolutionDinamico({
-      repositorioInstancias,
-      baseUrl,
-      apiKey,
-      instanciaFallback: instancia,
-      atrasoMs: Number(process.env.EVOLUTION_DELAY_MS ?? 800),
-      linkPreview: process.env.EVOLUTION_LINK_PREVIEW === "true",
-      tentativas: Number(process.env.EVOLUTION_RETRY_ATTEMPTS ?? 3),
-      intervaloRetryMs: Number(process.env.EVOLUTION_RETRY_INTERVAL_MS ?? 600)
-    });
+    return aplicarControleEnvioWhatsApp(
+      new ProvedorWhatsAppEvolutionDinamico({
+        repositorioInstancias,
+        baseUrl,
+        apiKey,
+        instanciaFallback: instancia,
+        atrasoMs: Number(process.env.EVOLUTION_DELAY_MS ?? 800),
+        linkPreview: process.env.EVOLUTION_LINK_PREVIEW === "true",
+        tentativas: Number(process.env.EVOLUTION_RETRY_ATTEMPTS ?? 3),
+        intervaloRetryMs: Number(process.env.EVOLUTION_RETRY_INTERVAL_MS ?? 600)
+      })
+    );
   }
 
   if (provider === "cloud-api" || provider === "whatsapp-cloud-api") {
@@ -592,18 +617,39 @@ function criarProvedorWhatsApp(repositorioInstancias: RepositorioInstanciasWhats
       throw new Error("Configure WHATSAPP_CLOUD_PHONE_NUMBER_ID e WHATSAPP_CLOUD_ACCESS_TOKEN para usar WhatsApp Cloud API.");
     }
 
-    return new ProvedorWhatsAppCloudApi({
-      phoneNumberId,
-      accessToken,
-      apiVersion: process.env.WHATSAPP_CLOUD_API_VERSION ?? "v25.0",
-      baseUrl: process.env.WHATSAPP_CLOUD_API_BASE_URL ?? "https://graph.facebook.com",
-      linkPreview: process.env.WHATSAPP_CLOUD_LINK_PREVIEW === "true",
-      defaultTemplateName: process.env.WHATSAPP_CLOUD_DEFAULT_TEMPLATE_NAME ?? null,
-      defaultTemplateLanguage: process.env.WHATSAPP_CLOUD_DEFAULT_TEMPLATE_LANGUAGE ?? "pt_PT"
-    });
+    return aplicarControleEnvioWhatsApp(
+      new ProvedorWhatsAppCloudApi({
+        phoneNumberId,
+        accessToken,
+        apiVersion: process.env.WHATSAPP_CLOUD_API_VERSION ?? "v25.0",
+        baseUrl: process.env.WHATSAPP_CLOUD_API_BASE_URL ?? "https://graph.facebook.com",
+        linkPreview: process.env.WHATSAPP_CLOUD_LINK_PREVIEW === "true",
+        defaultTemplateName: process.env.WHATSAPP_CLOUD_DEFAULT_TEMPLATE_NAME ?? null,
+        defaultTemplateLanguage: process.env.WHATSAPP_CLOUD_DEFAULT_TEMPLATE_LANGUAGE ?? "pt_PT"
+      })
+    );
   }
 
   return new WhatsAppConsoleProvider();
+}
+
+function aplicarControleEnvioWhatsApp(provedor: ProvedorWhatsApp): ProvedorWhatsApp {
+  const intervaloPorContatoMs = normalizarIntervaloWhatsApp(process.env.WHATSAPP_INTERVALO_POR_CONTATO_MS, 6_500);
+  const intervaloGlobalMs = normalizarIntervaloWhatsApp(process.env.WHATSAPP_INTERVALO_GLOBAL_MS, 0);
+
+  if (intervaloPorContatoMs <= 0 && intervaloGlobalMs <= 0) {
+    return provedor;
+  }
+
+  return new ProvedorWhatsAppComControleEnvio(provedor, {
+    intervaloPorContatoMs,
+    intervaloGlobalMs
+  });
+}
+
+function normalizarIntervaloWhatsApp(valor: string | undefined, padrao: number): number {
+  const intervalo = Number(valor ?? padrao);
+  return Number.isFinite(intervalo) ? intervalo : padrao;
 }
 
 function criarProvedorSms() {

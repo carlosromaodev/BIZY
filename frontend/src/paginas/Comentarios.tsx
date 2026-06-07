@@ -9,7 +9,7 @@ import {
   XCircle
 } from "lucide-react";
 import { type FormEvent, useEffect, useState } from "react";
-import { requisitarApi, obterUrlEventos } from "../api";
+import { criarFonteEventosAutenticada, requisitarApi } from "../api";
 import { CrmList, CrmListItem, CrmPageMotion, CrmSection } from "../componentes/CrmInterno21st";
 import { EstadoVazio, ResumoIndicadores } from "../componentes/Shell";
 import {
@@ -100,7 +100,7 @@ export function PaginaComentarios() {
 
   useEffect(() => {
     void carregar({ silencioso: true });
-    const eventos = new EventSource(obterUrlEventos());
+    const eventos = criarFonteEventosAutenticada();
     const atualizar = () => void carregar({ silencioso: true });
     eventos.addEventListener("COMMENT_RECEIVED", atualizar);
     eventos.addEventListener("COMMENT_PARSED", atualizar);

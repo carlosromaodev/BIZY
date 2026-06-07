@@ -14,7 +14,7 @@ import {
   Users,
   X
 } from "lucide-react";
-import { motion, useReducedMotion, type Variants } from "framer-motion";
+import { motion, useReducedMotion, type Variants } from "motion/react";
 import { useMemo, useState, type CSSProperties } from "react";
 import { Link } from "react-router-dom";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";

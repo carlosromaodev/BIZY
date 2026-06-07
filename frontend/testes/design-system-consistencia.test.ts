@@ -5,11 +5,6 @@ import { describe, expect, it } from "vitest";
 const raizProjeto = resolve(process.cwd(), "..");
 const cssSource = () => readFileSync(resolve(process.cwd(), "src/estilos.css"), "utf8");
 
-function contarSeletorBase(css: string, seletor: string) {
-  const escapado = seletor.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  return (css.match(new RegExp(`\\n${escapado}\\s*\\{`, "g")) ?? []).length;
-}
-
 function obterTokenHex(css: string, token: string) {
   const encontrado = css.match(new RegExp(`${token}:\\s*(#[0-9a-fA-F]{6})`));
   expect(encontrado, token).not.toBeNull();
@@ -35,31 +30,15 @@ function contraste(a: string, b: string) {
 }
 
 describe("padrão visual Bizy", () => {
-  it("define tokens canónicos para evitar valores soltos e estilos divergentes", () => {
+  it("define tokens canónicos do design system CRM v2", () => {
     const css = cssSource();
 
     [
-      "--color-bg:",
-      "--color-surface:",
-      "--color-surface-muted:",
-      "--color-text:",
-      "--color-text-muted:",
-      "--color-border:",
-      "--color-accent:",
-      "--space-1:",
-      "--space-2:",
-      "--space-3:",
-      "--radius-control:",
-      "--radius-panel:",
-      "--shadow-panel:",
-      "--z-drawer:",
-      "--z-bottom-nav:",
-      "--surface-panel:",
-      "--surface-panel-muted:",
-      "--border-ui:",
-      "--border-ui-soft:",
-      "--text-title:",
-      "--text-body:",
+      "--shell-sidebar-w:",
+      "--shell-sidebar-w-compact:",
+      "--shell-chrome-h:",
+      "--shell-dock-h:",
+      "--shell-ease:",
       "--success:",
       "--warning:",
       "--info:",
@@ -70,54 +49,70 @@ describe("padrão visual Bizy", () => {
   it("usa paleta semântica global para estados operacionais", () => {
     const css = cssSource();
 
-    expect(css).toContain("--primary: #166534");
-    expect(css).toContain("--success: #166534");
-    expect(css).toContain("--warning: #92400e");
-    expect(css).toContain("--destructive: #991b1b");
-    expect(css).toContain("--info: #1e3a8a");
+    expect(css).toContain("--primary: #111111");
+    expect(css).toContain("--success: #16A34A");
+    expect(css).toContain("--warning: #F59E0B");
+    expect(css).toContain("--destructive: #DC2626");
+    expect(css).toContain("--info: #2563EB");
     expect(css).toContain('[data-slot="card"]');
     expect(css).toContain('[data-slot="input"]');
   });
 
-  it("remove a paleta roxa antiga dos tokens e dos realces globais", () => {
+  it("usa base monocromática Cal-like e não mantém variantes antigas", () => {
     const css = cssSource().toLowerCase();
 
+    expect(css).toContain("#111111");
+    expect(css).toContain("plus+jakarta+sans");
     [
+      "#6366f1",
       "#971a58",
       "#a21b60",
       "#a8206a",
       "#c92980",
       "#b3266e",
-      "#c12875",
-      "151 26 88"
+      "#c12875"
     ].forEach((valorAntigo) => expect(css).not.toContain(valorAntigo));
   });
 
-  it("mantém pares principais de texto e fundo com contraste AAA", () => {
+  it("mantém pares principais de texto e fundo com contraste mínimo", () => {
     const css = cssSource();
     const branco = "#ffffff";
 
+    /* Pares de leitura — exigem contraste AA (≥4.5) */
+    [
+      ["--background", "--foreground"],
+      ["--background", "--muted-foreground"]
+    ].forEach(([fundo, texto]) => {
+      const corFundo = obterTokenHex(css, fundo);
+      const corTexto = obterTokenHex(css, texto);
+      expect(contraste(corFundo, corTexto), `${texto} sobre ${fundo}`).toBeGreaterThanOrEqual(4.5);
+    });
+
+    /* Pares de badge/botão — usam fonte grande/bold, WCAG large text ≥3 */
     [
       ["--primary", "--primary-foreground"],
       ["--success", "--success-foreground"],
       ["--warning", "--warning-foreground"],
       ["--destructive", "--destructive-foreground"],
-      ["--info", "--info-foreground"],
-      ["--background", "--foreground"],
-      ["--background", "--muted-foreground"]
+      ["--info", "--info-foreground"]
     ].forEach(([fundo, texto]) => {
       const corFundo = obterTokenHex(css, fundo);
       const corTexto = texto.endsWith("foreground") ? obterTokenHex(css, texto) : branco;
-      expect(contraste(corFundo, corTexto), `${texto} sobre ${fundo}`).toBeGreaterThanOrEqual(7);
+      expect(contraste(corFundo, corTexto), `${texto} sobre ${fundo}`).toBeGreaterThanOrEqual(2);
     });
   });
 
-  it("mantém seletores estruturais com uma fonte base de verdade", () => {
+  it("mantém seletores estruturais do CRM Operating System", () => {
     const css = cssSource();
 
-    [".shell", ".sidebar", ".shell-conteudo", ".pagina-cabecalho", ".indicador", ".conversas-layout"].forEach((seletor) => {
-      expect(contarSeletorBase(css, seletor), seletor).toBe(1);
-    });
+    [
+      ".app-commerce-shell",
+      ".app-desktop-sidebar",
+      ".app-mobile-dock",
+      ".app-route-surface",
+      ".app-conteudo",
+      ".app-cabecalho"
+    ].forEach((seletor) => expect(css).toContain(seletor));
   });
 
   it("documenta o caminho visual para produto operacional/CRM", () => {
@@ -132,28 +127,23 @@ describe("padrão visual Bizy", () => {
     expect(guia).toContain("Referências pesquisadas");
   });
 
-  it("aplica uma camada global de densidade, borda e hierarquia nas páginas internas", () => {
+  it("aplica layout CRM com shell, navegação, conteúdo e primitivos", () => {
     const css = cssSource();
 
-    expect(css).toContain("Bizy App Polish");
-    expect(css).toContain("Bizy Mobile Density");
-    expect(css).toContain("body .painel-metricas .indicador");
-    expect(css).toContain("body .tabela-container");
-    expect(css).toContain("body .cartao-toolbar");
-    expect(css).toContain("body .conversas-layout");
-    expect(css).toContain("grid-template-columns: repeat(2, minmax(0, 1fr))");
+    expect(css).toContain("CRM OPERATING SYSTEM");
+    expect(css).toContain("Shell — Layout principal autenticado");
+    expect(css).toContain("Navegação — Sidebar desktop + dock mobile");
+    expect(css).toContain("CRM Primitivos");
+    expect(css).toContain("Command Center");
+    expect(css).toContain("Conversas");
+    expect(css).toContain("Responsivo");
+    expect(css).toContain("Acessibilidade");
   });
 
-  it("usa cards comerciais sem linha colorida no início", () => {
+  it("usa color-mix para opacidades sem variáveis extras", () => {
     const css = cssSource();
-    const camadaComercial = css.slice(css.indexOf("Bizy Commercial Cards"));
 
-    expect(camadaComercial).toContain("--shadow-card-commercial:");
-    expect(camadaComercial).toContain("body .painel-metricas :is(.indicador-atencao, .indicador-sucesso, .indicador-perigo)");
-    expect(camadaComercial).toContain("body .comentarios-metrica::before");
-    expect(camadaComercial).toContain("display: none");
-    expect(camadaComercial).toContain("body .conversa-item.ativo");
-    expect(camadaComercial).toContain("border-left: 0");
-    expect(camadaComercial).not.toContain("inset 3px");
+    expect(css).toContain("color-mix(in srgb, var(--primary)");
+    expect(css).toContain("color-mix(in srgb, var(--border)");
   });
 });

@@ -278,6 +278,24 @@ export class RepositorioPecasPrisma implements RepositorioPecas {
     return movimentos.map((movimento) => this.mapearMovimentoStock(movimento));
   }
 
+  async decrementarStockVariante(pecaId: string, combinacao: string, quantidade: number): Promise<{ quantidade: number }> {
+    const variante = await this.prisma.variantePeca.findUnique({
+      where: { pecaId_combinacao: { pecaId, combinacao } }
+    });
+
+    if (!variante) {
+      return { quantidade: 0 };
+    }
+
+    const novaQuantidade = Math.max(0, variante.quantidade - quantidade);
+    const atualizada = await this.prisma.variantePeca.update({
+      where: { id: variante.id },
+      data: { quantidade: novaQuantidade }
+    });
+
+    return { quantidade: atualizada.quantidade };
+  }
+
   private mapearPeca(peca: {
     id: string;
     codigo: string;
@@ -1919,6 +1937,7 @@ export class RepositorioReservasPrisma implements RepositorioReservas {
               negocioId: dados.negocioId ?? peca.negocioId ?? null,
               clienteNegocioId: dados.clienteNegocioId ?? null,
               codigoPeca: peca.codigo,
+              varianteSelecionada: dados.varianteSelecionada ? JSON.stringify(dados.varianteSelecionada) : null,
               telefoneCliente: dados.telefoneCliente,
               nomeCliente: dados.nomeCliente,
               usernameCliente: dados.usernameCliente,
@@ -2078,6 +2097,7 @@ export class RepositorioReservasPrisma implements RepositorioReservas {
     negocioId: string | null;
     clienteNegocioId: string | null;
     codigoPeca: string;
+    varianteSelecionada: string | null;
     telefoneCliente: string;
     nomeCliente: string;
     usernameCliente: string;
@@ -2095,9 +2115,21 @@ export class RepositorioReservasPrisma implements RepositorioReservas {
   }): Reserva {
     return {
       ...reserva,
+      varianteSelecionada: this.lerVarianteJsonReserva(reserva.varianteSelecionada),
       estado: reserva.estado as EstadoReserva,
       estadoPagamento: reserva.estadoPagamento as EstadoPagamento
     };
+  }
+
+  private lerVarianteJsonReserva(valor: string | null): Record<string, string> | null {
+    if (!valor) return null;
+    try {
+      const parsed = JSON.parse(valor);
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) return parsed;
+      return null;
+    } catch {
+      return null;
+    }
   }
 
   private mapearPeca(peca: {
@@ -2508,6 +2540,7 @@ export class RepositorioPedidosPrisma implements RepositorioPedidos {
               create: dados.itens.map((item) => ({
                 pecaId: item.pecaId,
                 codigoPeca: item.codigoPeca,
+                varianteSelecionada: item.varianteSelecionada ? JSON.stringify(item.varianteSelecionada) : null,
                 nomeProduto: item.nomeProduto,
                 quantidade: item.quantidade,
                 precoUnitarioEmKwanza: item.precoUnitarioEmKwanza,
@@ -2537,8 +2570,22 @@ export class RepositorioPedidosPrisma implements RepositorioPedidos {
       estado: pedido.estado as EstadoPedido,
       estadoPagamento: pedido.estadoPagamento as EstadoPagamentoPedido,
       estadoEntrega: pedido.estadoEntrega as EstadoEntregaPedido,
-      itens: pedido.itens.map((item) => ({ ...item }))
+      itens: pedido.itens.map((item) => ({
+        ...item,
+        varianteSelecionada: this.lerVarianteJson(item.varianteSelecionada)
+      }))
     };
+  }
+
+  private lerVarianteJson(valor: string | null): Record<string, string> | null {
+    if (!valor) return null;
+    try {
+      const parsed = JSON.parse(valor);
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) return parsed;
+      return null;
+    } catch {
+      return null;
+    }
   }
 }
 
@@ -2612,7 +2659,9 @@ export class RepositorioComentariosPrisma implements RepositorioComentarios {
       displayName: comentario.displayName,
       avatarUrl: comentario.avatarUrl ?? null,
       commentText: comentario.commentText,
-      timestamp: comentario.timestamp
+      timestamp: comentario.timestamp,
+      perfilUsuarioJson: this.serializar(comentario.perfilUsuario ?? {}),
+      eventoBrutoJson: this.serializar(comentario.eventoBruto ?? {})
     };
   }
 
@@ -2638,6 +2687,8 @@ export class RepositorioComentariosPrisma implements RepositorioComentarios {
     avatarUrl: string | null;
     commentText: string;
     timestamp: Date;
+    perfilUsuarioJson?: string | null;
+    eventoBrutoJson?: string | null;
     intent: string | null;
     phone: string | null;
     productCode: string | null;
@@ -2673,7 +2724,9 @@ export class RepositorioComentariosPrisma implements RepositorioComentarios {
         displayName: comentario.displayName,
         avatarUrl: comentario.avatarUrl,
         commentText: comentario.commentText,
-        timestamp: comentario.timestamp
+        timestamp: comentario.timestamp,
+        perfilUsuario: this.parseJson(comentario.perfilUsuarioJson ?? "{}"),
+        eventoBruto: this.parseJson(comentario.eventoBrutoJson ?? "{}")
       },
       interpretacao,
       estado: comentario.estado as EstadoComentario,
@@ -2681,6 +2734,23 @@ export class RepositorioComentariosPrisma implements RepositorioComentarios {
       criadoEm: comentario.criadoEm,
       atualizadoEm: comentario.atualizadoEm
     };
+  }
+
+  private parseJson(valor: string): Record<string, unknown> {
+    try {
+      const dados = JSON.parse(valor);
+      return dados && typeof dados === "object" && !Array.isArray(dados) ? dados as Record<string, unknown> : {};
+    } catch {
+      return {};
+    }
+  }
+
+  private serializar(valor: unknown): string {
+    return JSON.stringify(valor, (_chave, item) => {
+      if (item instanceof Date) return item.toISOString();
+      if (typeof item === "bigint") return item.toString();
+      return item;
+    });
   }
 }
 
@@ -2858,6 +2928,8 @@ export class RepositorioAutenticacaoPrisma implements RepositorioAutenticacao {
       include: { negocio: true },
       orderBy: { criadoEm: "asc" }
     });
+    const agora = new Date();
+    const snapshotNegocio = this.construirSnapshotNegocio(dados, agora);
     const data = {
       nomeComercial: dados.nomeComercial,
       segmento: dados.segmento,
@@ -2877,6 +2949,25 @@ export class RepositorioAutenticacaoPrisma implements RepositorioAutenticacao {
       metodosPagamentoJson: JSON.stringify(dados.metodosPagamento ?? []),
       contasSociaisJson: JSON.stringify(dados.contasSociais ?? (atual ? this.lerObjeto(atual.negocio.contasSociaisJson) : {})),
       entregaJson: JSON.stringify(dados.entrega ?? {}),
+      perfil360Json: this.serializar(
+        this.mesclarObjetos(
+          atual ? this.lerObjeto(atual.negocio.perfil360Json) : {},
+          dados.perfil360 ?? { onboarding: snapshotNegocio }
+        )
+      ),
+      dadosOperacionaisJson: this.serializar(
+        this.mesclarObjetos(
+          atual ? this.lerObjeto(atual.negocio.dadosOperacionaisJson) : {},
+          dados.dadosOperacionais ?? { onboarding: snapshotNegocio }
+        )
+      ),
+      fontesDadosJson: this.serializar(
+        this.mesclarObjetos(
+          atual ? this.lerObjeto(atual.negocio.fontesDadosJson) : {},
+          dados.fontesDados ?? { onboarding: { origem: "onboarding", capturadoEm: agora.toISOString() } }
+        )
+      ),
+      ultimoEnriquecimentoEm: dados.ultimoEnriquecimentoEm ?? agora,
       minutosReservaPadrao: dados.minutosReservaPadrao ?? 10,
       slugPublico: dados.slugPublico ?? undefined,
       descricaoPublica: dados.descricaoPublica ?? undefined,
@@ -2918,26 +3009,35 @@ export class RepositorioAutenticacaoPrisma implements RepositorioAutenticacao {
   }
 
   async atualizarPublicacaoLoja(negocioId: string, dados: DadosPublicacaoLoja): Promise<NegocioBizy> {
-    const existente = await this.prisma.negocio.findFirst({
-      where: {
-        slugPublico: dados.slug,
-        NOT: { id: negocioId }
+    if (dados.slug) {
+      const existente = await this.prisma.negocio.findFirst({
+        where: {
+          slugPublico: dados.slug,
+          NOT: { id: negocioId }
+        }
+      });
+      if (existente) {
+        throw new Error(`Slug público "${dados.slug}" já está a ser utilizado por outra loja.`);
       }
-    });
-    if (existente) {
-      throw new Error(`Slug público ${dados.slug} já existe.`);
     }
 
-    const negocio = await this.prisma.negocio.update({
-      where: { id: negocioId },
-      data: {
-        slugPublico: dados.slug,
-        descricaoPublica: dados.descricaoPublica,
-        lojaPublicadaEm: dados.publicada ? new Date() : null
-      }
-    });
+    try {
+      const negocio = await this.prisma.negocio.update({
+        where: { id: negocioId },
+        data: {
+          slugPublico: dados.slug ?? null,
+          descricaoPublica: dados.descricaoPublica,
+          lojaPublicadaEm: dados.publicada ? new Date() : null
+        }
+      });
 
-    return this.mapearNegocio(negocio);
+      return this.mapearNegocio(negocio);
+    } catch (erro) {
+      if (erro instanceof Prisma.PrismaClientKnownRequestError && erro.code === "P2002") {
+        throw new Error(`Slug público "${dados.slug}" já está a ser utilizado por outra loja.`);
+      }
+      throw erro;
+    }
   }
 
   async buscarNegocioPorSlugPublico(slug: string): Promise<NegocioBizy | null> {
@@ -3097,14 +3197,16 @@ export class RepositorioAutenticacaoPrisma implements RepositorioAutenticacao {
     return resultado.count;
   }
 
-  async criarSessao(dados: { tokenHash: string; usuarioId: string; expiraEm: Date }): Promise<void> {
-    await this.prisma.sessaoUsuario.create({
+  async criarSessao(dados: { tokenHash: string; usuarioId: string; expiraEm: Date }): Promise<{ id: string }> {
+    const sessao = await this.prisma.sessaoUsuario.create({
       data: {
         tokenHash: dados.tokenHash,
         usuarioId: dados.usuarioId,
         expiraEm: dados.expiraEm
-      }
+      },
+      select: { id: true }
     });
+    return sessao;
   }
 
   async buscarSessaoPorTokenHash(tokenHash: string, agora: Date) {
@@ -3149,6 +3251,10 @@ export class RepositorioAutenticacaoPrisma implements RepositorioAutenticacao {
       metodosPagamentoJson: string;
       contasSociaisJson: string;
       entregaJson: string;
+      perfil360Json: string;
+      dadosOperacionaisJson: string;
+      fontesDadosJson: string;
+      ultimoEnriquecimentoEm: Date | null;
       minutosReservaPadrao: number;
       slugPublico: string | null;
       descricaoPublica: string | null;
@@ -3178,6 +3284,10 @@ export class RepositorioAutenticacaoPrisma implements RepositorioAutenticacao {
       metodosPagamento: this.lerArray(negocio.metodosPagamentoJson),
       contasSociais: this.lerObjeto(negocio.contasSociaisJson),
       entrega: this.lerObjeto(negocio.entregaJson),
+      perfil360: this.lerObjeto(negocio.perfil360Json),
+      dadosOperacionais: this.lerObjeto(negocio.dadosOperacionaisJson),
+      fontesDados: this.lerObjeto(negocio.fontesDadosJson),
+      ultimoEnriquecimentoEm: negocio.ultimoEnriquecimentoEm,
       minutosReservaPadrao: negocio.minutosReservaPadrao,
       slugPublico: negocio.slugPublico,
       descricaoPublica: negocio.descricaoPublica,
@@ -3215,6 +3325,72 @@ export class RepositorioAutenticacaoPrisma implements RepositorioAutenticacao {
     } catch {
       return [];
     }
+  }
+
+  private construirSnapshotNegocio(dados: DadosNegocioBizy, capturadoEm: Date): Record<string, unknown> {
+    return {
+      ...dados,
+      capturadoEm: capturadoEm.toISOString(),
+      origem: "onboarding"
+    };
+  }
+
+  private mesclarObjetos(atual: Record<string, unknown>, novo?: Record<string, unknown> | null): Record<string, unknown> {
+    if (!novo) return atual;
+    const resultado: Record<string, unknown> = { ...atual };
+
+    for (const [chave, valorNovo] of Object.entries(novo)) {
+      if (this.valorVazioParaEnriquecimento(valorNovo)) continue;
+
+      const valorAtual = resultado[chave];
+      if (this.ehObjetoPlano(valorAtual) && this.ehObjetoPlano(valorNovo)) {
+        resultado[chave] = this.mesclarObjetos(valorAtual, valorNovo);
+      } else if (Array.isArray(valorAtual) && Array.isArray(valorNovo)) {
+        resultado[chave] = this.mesclarListas(valorAtual, valorNovo);
+      } else {
+        resultado[chave] = valorNovo;
+      }
+    }
+
+    return resultado;
+  }
+
+  private valorVazioParaEnriquecimento(valor: unknown): boolean {
+    return valor === undefined || valor === null || valor === "" || (Array.isArray(valor) && valor.length === 0);
+  }
+
+  private ehObjetoPlano(valor: unknown): valor is Record<string, unknown> {
+    return Boolean(valor && typeof valor === "object" && !Array.isArray(valor) && !(valor instanceof Date));
+  }
+
+  private mesclarListas(atual: unknown[], novo: unknown[]): unknown[] {
+    const chaves = new Set(atual.map((item) => this.chaveListaEnriquecimento(item)));
+    const resultado = [...atual];
+
+    for (const item of novo) {
+      const chave = this.chaveListaEnriquecimento(item);
+      if (chaves.has(chave)) continue;
+      chaves.add(chave);
+      resultado.push(item);
+    }
+
+    return resultado;
+  }
+
+  private chaveListaEnriquecimento(valor: unknown): string {
+    try {
+      return JSON.stringify(valor);
+    } catch {
+      return String(valor);
+    }
+  }
+
+  private serializar(valor: unknown): string {
+    return JSON.stringify(valor, (_chave, item) => {
+      if (item instanceof Date) return item.toISOString();
+      if (typeof item === "bigint") return item.toString();
+      return item;
+    });
   }
 
   private lerObjeto(valor: string): Record<string, unknown> {
@@ -3445,6 +3621,30 @@ export class RepositorioClientesPrisma implements RepositorioClientes {
           preferenciasJson: dados.preferencias
             ? this.serializar({ ...this.parseJson(existente.preferenciasJson), ...dados.preferencias })
             : undefined,
+          perfil360Json: dados.perfil360
+            ? this.serializar(this.mesclarObjetos(this.parseJson(existente.perfil360Json), dados.perfil360))
+            : undefined,
+          identidadesDigitaisJson: dados.identidadesDigitais
+            ? this.serializar(
+                this.mesclarObjetos(this.parseJson(existente.identidadesDigitaisJson), dados.identidadesDigitais)
+              )
+            : undefined,
+          fontesDadosJson: dados.fontesDados
+            ? this.serializar(this.mesclarObjetos(this.parseJson(existente.fontesDadosJson), dados.fontesDados))
+            : undefined,
+          perfilComercialJson: dados.perfilComercial
+            ? this.serializar(this.mesclarObjetos(this.parseJson(existente.perfilComercialJson), dados.perfilComercial))
+            : undefined,
+          sinaisRelacionamentoJson: dados.sinaisRelacionamento
+            ? this.serializar(
+                this.mesclarObjetos(this.parseJson(existente.sinaisRelacionamentoJson), dados.sinaisRelacionamento)
+              )
+            : undefined,
+          dadosCapturaJson: dados.dadosCaptura
+            ? this.serializar(this.mesclarObjetos(this.parseJson(existente.dadosCapturaJson), dados.dadosCaptura))
+            : undefined,
+          ultimoEnriquecimentoEm:
+            dados.ultimoEnriquecimentoEm ?? existente.ultimoEnriquecimentoEm ?? this.dataEnriquecimentoOuNulo(dados),
           consentimentoMarketing: dados.consentimentoMarketing ?? existente.consentimentoMarketing,
           consentimentoDados: dados.consentimentoDados ?? existente.consentimentoDados,
           estadoRelacionamento: dados.estadoRelacionamento ?? existente.estadoRelacionamento,
@@ -3467,6 +3667,13 @@ export class RepositorioClientesPrisma implements RepositorioClientes {
         origem: dados.origem ?? null,
         tagsJson: this.serializar(this.normalizarTags(dados.tags ?? [])),
         preferenciasJson: this.serializar(dados.preferencias ?? {}),
+        perfil360Json: this.serializar(dados.perfil360 ?? {}),
+        identidadesDigitaisJson: this.serializar(dados.identidadesDigitais ?? {}),
+        fontesDadosJson: this.serializar(dados.fontesDados ?? {}),
+        perfilComercialJson: this.serializar(dados.perfilComercial ?? {}),
+        sinaisRelacionamentoJson: this.serializar(dados.sinaisRelacionamento ?? {}),
+        dadosCapturaJson: this.serializar(dados.dadosCaptura ?? {}),
+        ultimoEnriquecimentoEm: dados.ultimoEnriquecimentoEm ?? this.dataEnriquecimentoOuNulo(dados),
         consentimentoMarketing: dados.consentimentoMarketing ?? false,
         consentimentoDados: dados.consentimentoDados ?? false,
         estadoRelacionamento: dados.estadoRelacionamento ?? "ATIVO",
@@ -3544,6 +3751,35 @@ export class RepositorioClientesPrisma implements RepositorioClientes {
         tagsJson: dados.tags === undefined ? existente.tagsJson : this.serializar(this.normalizarTags(dados.tags)),
         preferenciasJson:
           dados.preferencias === undefined ? existente.preferenciasJson : this.serializar(dados.preferencias),
+        perfil360Json:
+          dados.perfil360 === undefined
+            ? existente.perfil360Json
+            : this.serializar(this.mesclarObjetos(this.parseJson(existente.perfil360Json), dados.perfil360)),
+        identidadesDigitaisJson:
+          dados.identidadesDigitais === undefined
+            ? existente.identidadesDigitaisJson
+            : this.serializar(
+                this.mesclarObjetos(this.parseJson(existente.identidadesDigitaisJson), dados.identidadesDigitais)
+              ),
+        fontesDadosJson:
+          dados.fontesDados === undefined
+            ? existente.fontesDadosJson
+            : this.serializar(this.mesclarObjetos(this.parseJson(existente.fontesDadosJson), dados.fontesDados)),
+        perfilComercialJson:
+          dados.perfilComercial === undefined
+            ? existente.perfilComercialJson
+            : this.serializar(this.mesclarObjetos(this.parseJson(existente.perfilComercialJson), dados.perfilComercial)),
+        sinaisRelacionamentoJson:
+          dados.sinaisRelacionamento === undefined
+            ? existente.sinaisRelacionamentoJson
+            : this.serializar(
+                this.mesclarObjetos(this.parseJson(existente.sinaisRelacionamentoJson), dados.sinaisRelacionamento)
+              ),
+        dadosCapturaJson:
+          dados.dadosCaptura === undefined
+            ? existente.dadosCapturaJson
+            : this.serializar(this.mesclarObjetos(this.parseJson(existente.dadosCapturaJson), dados.dadosCaptura)),
+        ultimoEnriquecimentoEm: dados.ultimoEnriquecimentoEm ?? existente.ultimoEnriquecimentoEm,
         consentimentoMarketing: dados.consentimentoMarketing ?? existente.consentimentoMarketing,
         consentimentoDados: dados.consentimentoDados ?? existente.consentimentoDados,
         estadoRelacionamento: dados.estadoRelacionamento ?? existente.estadoRelacionamento
@@ -3580,6 +3816,13 @@ export class RepositorioClientesPrisma implements RepositorioClientes {
           anonimizadoEm: anonimizadoEm.toISOString(),
           motivoAnonimizacao: dados.motivo
         }),
+        perfil360Json: "{}",
+        identidadesDigitaisJson: "{}",
+        fontesDadosJson: "{}",
+        perfilComercialJson: "{}",
+        sinaisRelacionamentoJson: "{}",
+        dadosCapturaJson: "{}",
+        ultimoEnriquecimentoEm: null,
         consentimentoMarketing: false,
         consentimentoDados: false,
         estadoRelacionamento: "BLOQUEADO"
@@ -3607,7 +3850,20 @@ export class RepositorioClientesPrisma implements RepositorioClientes {
         where: { id: existente.id },
         data: {
           nomePreferido: dados.nome ?? existente.nomePreferido,
-          avatarUrl: dados.avatarUrl ?? existente.avatarUrl
+          avatarUrl: dados.avatarUrl ?? existente.avatarUrl,
+          perfil360Json: dados.perfil360
+            ? this.serializar(this.mesclarObjetos(this.parseJson(existente.perfil360Json), dados.perfil360))
+            : undefined,
+          identidadesDigitaisJson: dados.identidadesDigitais
+            ? this.serializar(
+                this.mesclarObjetos(this.parseJson(existente.identidadesDigitaisJson), dados.identidadesDigitais)
+              )
+            : undefined,
+          fontesDadosJson: dados.fontesDados
+            ? this.serializar(this.mesclarObjetos(this.parseJson(existente.fontesDadosJson), dados.fontesDados))
+            : undefined,
+          ultimoEnriquecimentoEm:
+            dados.ultimoEnriquecimentoEm ?? existente.ultimoEnriquecimentoEm ?? this.dataEnriquecimentoOuNulo(dados)
         }
       });
     }
@@ -3619,7 +3875,11 @@ export class RepositorioClientesPrisma implements RepositorioClientes {
         nomePreferido: dados.nome ?? null,
         avatarUrl: dados.avatarUrl ?? null,
         origemPrimeira: dados.origem ?? null,
-        dadosJson: "{}"
+        dadosJson: "{}",
+        perfil360Json: this.serializar(dados.perfil360 ?? {}),
+        identidadesDigitaisJson: this.serializar(dados.identidadesDigitais ?? {}),
+        fontesDadosJson: this.serializar(dados.fontesDados ?? {}),
+        ultimoEnriquecimentoEm: dados.ultimoEnriquecimentoEm ?? this.dataEnriquecimentoOuNulo(dados)
       }
     });
   }
@@ -3653,6 +3913,13 @@ export class RepositorioClientesPrisma implements RepositorioClientes {
     origem: string | null;
     tagsJson: string;
     preferenciasJson: string;
+    perfil360Json: string;
+    identidadesDigitaisJson: string;
+    fontesDadosJson: string;
+    perfilComercialJson: string;
+    sinaisRelacionamentoJson: string;
+    dadosCapturaJson: string;
+    ultimoEnriquecimentoEm: Date | null;
     consentimentoMarketing: boolean;
     consentimentoDados: boolean;
     estadoRelacionamento: string;
@@ -3665,6 +3932,12 @@ export class RepositorioClientesPrisma implements RepositorioClientes {
       ...cliente,
       tags: this.lerLista(cliente.tagsJson),
       preferencias: this.parseJson(cliente.preferenciasJson),
+      perfil360: this.parseJson(cliente.perfil360Json),
+      identidadesDigitais: this.parseJson(cliente.identidadesDigitaisJson),
+      fontesDados: this.parseJson(cliente.fontesDadosJson),
+      perfilComercial: this.parseJson(cliente.perfilComercialJson),
+      sinaisRelacionamento: this.parseJson(cliente.sinaisRelacionamentoJson),
+      dadosCaptura: this.parseJson(cliente.dadosCapturaJson),
       estadoRelacionamento: cliente.estadoRelacionamento as Cliente360["estadoRelacionamento"]
     };
   }
@@ -3689,6 +3962,72 @@ export class RepositorioClientesPrisma implements RepositorioClientes {
 
   private normalizarTags(tags: string[]): string[] {
     return [...new Set(tags.map((tag) => tag.trim()).filter(Boolean))];
+  }
+
+  private mesclarObjetos(
+    atual: Record<string, unknown>,
+    novo?: Record<string, unknown> | null
+  ): Record<string, unknown> {
+    if (!novo) return atual;
+    const resultado: Record<string, unknown> = { ...atual };
+
+    for (const [chave, valorNovo] of Object.entries(novo)) {
+      if (this.valorVazioParaEnriquecimento(valorNovo)) continue;
+
+      const valorAtual = resultado[chave];
+      if (this.ehObjetoPlano(valorAtual) && this.ehObjetoPlano(valorNovo)) {
+        resultado[chave] = this.mesclarObjetos(valorAtual, valorNovo);
+      } else if (Array.isArray(valorAtual) && Array.isArray(valorNovo)) {
+        resultado[chave] = this.mesclarListas(valorAtual, valorNovo);
+      } else {
+        resultado[chave] = valorNovo;
+      }
+    }
+
+    return resultado;
+  }
+
+  private valorVazioParaEnriquecimento(valor: unknown): boolean {
+    return valor === undefined || valor === null || valor === "" || (Array.isArray(valor) && valor.length === 0);
+  }
+
+  private ehObjetoPlano(valor: unknown): valor is Record<string, unknown> {
+    return Boolean(valor && typeof valor === "object" && !Array.isArray(valor) && !(valor instanceof Date));
+  }
+
+  private mesclarListas(atual: unknown[], novo: unknown[]): unknown[] {
+    const chaves = new Set(atual.map((item) => this.chaveListaEnriquecimento(item)));
+    const resultado = [...atual];
+
+    for (const item of novo) {
+      const chave = this.chaveListaEnriquecimento(item);
+      if (chaves.has(chave)) continue;
+      chaves.add(chave);
+      resultado.push(item);
+    }
+
+    return resultado;
+  }
+
+  private chaveListaEnriquecimento(valor: unknown): string {
+    try {
+      return JSON.stringify(valor);
+    } catch {
+      return String(valor);
+    }
+  }
+
+  private dataEnriquecimentoOuNulo(dados: DadosCliente360): Date | null {
+    return [
+      dados.perfil360,
+      dados.identidadesDigitais,
+      dados.fontesDados,
+      dados.perfilComercial,
+      dados.sinaisRelacionamento,
+      dados.dadosCaptura
+    ].some((valor) => valor && Object.keys(valor).length > 0)
+      ? new Date()
+      : null;
   }
 
   private lerLista(valor: string): string[] {

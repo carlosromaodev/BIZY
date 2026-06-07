@@ -15,7 +15,6 @@ describe("Rotas HTTP de identidade e onboarding", () => {
       RESTAURAR_LIVES_ATIVAS: "false",
       N8N_EVENTOS_ATIVOS: "false",
       WHATSAPP_PROVIDER: "console",
-      LOGIN_ESTUDANTIL_DEV_MODE: "true",
       RATE_LIMIT_ATIVO: "false"
     };
   });
@@ -24,25 +23,28 @@ describe("Rotas HTTP de identidade e onboarding", () => {
     process.env = { ...ambienteOriginal };
   });
 
-  it("publica login estudantil e cadastro de negócio no app Fastify", async () => {
+  it("publica login por telefone e cadastro de negócio no app Fastify", async () => {
     const app = await criarAplicacao();
 
     try {
-      const login = await app.inject({
+      const solicitacao = await app.inject({
         method: "POST",
-        url: "/auth/estudantil/login",
-        payload: {
-          provider: "uor",
-          identificador: "20243454",
-          tipoIdentificador: "studentNumber",
-          palavraPasse: "senha-dev"
-        }
+        url: "/auth/telefone/solicitar-codigo",
+        payload: { telefone: "923000222" }
       });
 
-      expect(login.statusCode).toBe(200);
-      expect(login.body).not.toContain("Route POST:/auth/estudantil/login not found");
+      expect(solicitacao.statusCode).toBe(202);
+      const { codigoDev } = solicitacao.json() as { codigoDev?: string };
 
-      const token = login.json().token as string;
+      const confirmacao = await app.inject({
+        method: "POST",
+        url: "/auth/telefone/confirmar-codigo",
+        payload: { telefone: "923000222", codigo: codigoDev, nome: "Teste Identidade" }
+      });
+
+      expect(confirmacao.statusCode).toBe(200);
+      const token = confirmacao.json().token as string;
+
       const negocio = await app.inject({
         method: "POST",
         url: "/onboarding/negocio",

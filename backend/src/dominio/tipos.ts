@@ -69,6 +69,7 @@ export type FonteLive = (typeof fontesLive)[number];
 export const tiposEventoSistema = [
   "LIVE_CONNECTED",
   "LIVE_DISCONNECTED",
+  "LIVE_METRICS_UPDATED",
   "COMMENT_RECEIVED",
   "COMMENT_PARSED",
   "COMMENT_REVIEWED",
@@ -125,6 +126,8 @@ export const estadosPagamento = [
 ] as const;
 export type EstadoPagamento = (typeof estadosPagamento)[number];
 
+export type DadosLivres = Record<string, unknown>;
+
 export interface ComentarioLive {
   source: FonteLive;
   provider: string;
@@ -135,6 +138,14 @@ export interface ComentarioLive {
   avatarUrl?: string | null;
   commentText: string;
   timestamp: Date;
+  perfilUsuario?: DadosLivres;
+  eventoBruto?: DadosLivres;
+}
+
+export interface MetricasLive {
+  espectadoresAtuais?: number | null;
+  picoEspectadores?: number | null;
+  atualizadaEm?: Date | null;
 }
 
 export type EstadoSessaoLive = "CONECTANDO" | "CONECTADA" | "ERRO" | "ENCERRADA";
@@ -193,6 +204,7 @@ export interface ResultadoInterpretacaoComentario {
   phone: string | null;
   productCode: string | null;
   productCodes?: string[];
+  variant?: Record<string, string> | null;
   confidence: number;
   requiresManualReview: boolean;
   reasons: string[];
@@ -355,6 +367,7 @@ export interface Reserva {
   negocioId: string | null;
   clienteNegocioId: string | null;
   codigoPeca: string;
+  varianteSelecionada?: Record<string, string> | null;
   telefoneCliente: string;
   nomeCliente: string;
   usernameCliente: string;
@@ -375,6 +388,7 @@ export interface NovaReserva {
   negocioId?: string | null;
   clienteNegocioId?: string | null;
   codigoPeca: string;
+  varianteSelecionada?: Record<string, string> | null;
   telefoneCliente: string;
   nomeCliente: string;
   usernameCliente: string;
@@ -393,6 +407,7 @@ export interface DadosCriacaoReservaComControleStock {
   negocioId?: string | null;
   clienteNegocioId?: string | null;
   codigoPeca: string;
+  varianteSelecionada?: Record<string, string> | null;
   telefoneCliente: string;
   nomeCliente: string;
   usernameCliente: string;
@@ -1258,6 +1273,13 @@ export interface Cliente360 {
   origem: string | null;
   tags: string[];
   preferencias: Record<string, unknown>;
+  perfil360: Record<string, unknown>;
+  identidadesDigitais: Record<string, unknown>;
+  fontesDados: Record<string, unknown>;
+  perfilComercial: Record<string, unknown>;
+  sinaisRelacionamento: Record<string, unknown>;
+  dadosCaptura: Record<string, unknown>;
+  ultimoEnriquecimentoEm: Date | null;
   consentimentoMarketing: boolean;
   consentimentoDados: boolean;
   estadoRelacionamento: EstadoRelacionamentoCliente;
@@ -1380,6 +1402,13 @@ export interface DadosCliente360 {
   origem?: string | null;
   tags?: string[];
   preferencias?: Record<string, unknown>;
+  perfil360?: Record<string, unknown>;
+  identidadesDigitais?: Record<string, unknown>;
+  fontesDados?: Record<string, unknown>;
+  perfilComercial?: Record<string, unknown>;
+  sinaisRelacionamento?: Record<string, unknown>;
+  dadosCaptura?: Record<string, unknown>;
+  ultimoEnriquecimentoEm?: Date | null;
   consentimentoMarketing?: boolean;
   consentimentoDados?: boolean;
   estadoRelacionamento?: EstadoRelacionamentoCliente;
@@ -1398,6 +1427,13 @@ export type AtualizacaoCliente360 = Partial<
     | "origem"
     | "tags"
     | "preferencias"
+    | "perfil360"
+    | "identidadesDigitais"
+    | "fontesDados"
+    | "perfilComercial"
+    | "sinaisRelacionamento"
+    | "dadosCaptura"
+    | "ultimoEnriquecimentoEm"
     | "consentimentoMarketing"
     | "consentimentoDados"
     | "estadoRelacionamento"
@@ -1473,6 +1509,7 @@ export interface ItemPedido {
   pedidoId: string;
   pecaId: string;
   codigoPeca: string;
+  varianteSelecionada?: Record<string, string> | null;
   nomeProduto: string;
   quantidade: number;
   precoUnitarioEmKwanza: number;
@@ -1511,6 +1548,7 @@ export interface Pedido {
 
 export interface ItemNovoPedido {
   codigoPeca: string;
+  varianteSelecionada?: Record<string, string> | null;
   quantidade: number;
   precoUnitarioEmKwanza?: number;
 }
@@ -1547,6 +1585,7 @@ export interface DadosPedidoResolvido extends Omit<NovoPedido, "itens"> {
     pecaId: string;
     codigoPeca: string;
     nomeProduto: string;
+    varianteSelecionada?: Record<string, string> | null;
     quantidade: number;
     precoUnitarioEmKwanza: number;
     subtotalEmKwanza: number;
@@ -1766,14 +1805,11 @@ export const modulosNegocioPadrao: ModuloNegocioCodigo[] = [
   "reservas",
   "pedidos",
   "whatsapp",
+  "relatorios",
+  "entregas",
+  "stock",
   "loja-publica",
-  "afiliados",
-  "tracking",
-  "social-inbox",
-  "automacoes",
-  "funil",
-  "campanhas",
-  "relatorios"
+  "tracking"
 ];
 
 export const modulosNegocioObrigatorios: ModuloNegocioCodigo[] = ["crm"];
@@ -1955,6 +1991,10 @@ export interface DadosNegocioBizy {
   politicaTrocaDevolucao?: Record<string, unknown>;
   contasSociais?: Record<string, unknown>;
   entrega?: Record<string, unknown>;
+  perfil360?: Record<string, unknown>;
+  dadosOperacionais?: Record<string, unknown>;
+  fontesDados?: Record<string, unknown>;
+  ultimoEnriquecimentoEm?: Date | null;
   minutosReservaPadrao?: number;
   slugPublico?: string | null;
   descricaoPublica?: string | null;
@@ -1978,6 +2018,10 @@ export interface NegocioBizy extends Required<Pick<DadosNegocioBizy, "nomeComerc
   metodosPagamento: string[];
   contasSociais: Record<string, unknown>;
   entrega: Record<string, unknown>;
+  perfil360: Record<string, unknown>;
+  dadosOperacionais: Record<string, unknown>;
+  fontesDados: Record<string, unknown>;
+  ultimoEnriquecimentoEm: Date | null;
   minutosReservaPadrao: number;
   slugPublico: string | null;
   descricaoPublica: string | null;

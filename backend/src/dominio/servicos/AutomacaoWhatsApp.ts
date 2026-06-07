@@ -399,30 +399,46 @@ Assim que receber o código da peça, confirmo a disponibilidade e sigo com a tu
     politica: PoliticaEnvioWhatsApp
   ) {
     const contextoComPolitica = this.comPolitica(contexto, politica);
-    const resultado = await this.provedorWhatsApp.enviarMensagem({
-      telefone,
-      conteudo,
-      tipo,
-      categoria: politica.categoria,
-      politica,
-      contexto: contextoComPolitica
-    });
     const negocioId = this.extrairNegocioIdDoContexto(contexto);
 
-    this.eventos.emitir("WHATSAPP_MESSAGE_SENT", {
-      negocioId,
-      telefone,
-      tipo,
-      categoriaWhatsApp: politica.categoria,
-      politicaWhatsApp: politica,
-      conteudo,
-      contexto: contextoComPolitica,
-      provider: resultado.provider,
-      idExterno: resultado.idExterno,
-      enviadoEm: resultado.enviadoEm
-    });
+    try {
+      const resultado = await this.provedorWhatsApp.enviarMensagem({
+        telefone,
+        conteudo,
+        tipo,
+        categoria: politica.categoria,
+        politica,
+        contexto: contextoComPolitica
+      });
 
-    return resultado;
+      this.eventos.emitir("WHATSAPP_MESSAGE_SENT", {
+        negocioId,
+        telefone,
+        tipo,
+        categoriaWhatsApp: politica.categoria,
+        politicaWhatsApp: politica,
+        conteudo,
+        contexto: contextoComPolitica,
+        provider: resultado.provider,
+        idExterno: resultado.idExterno,
+        enviadoEm: resultado.enviadoEm
+      });
+
+      return resultado;
+    } catch (erro) {
+      this.eventos.emitir("WHATSAPP_MESSAGE_FAILED", {
+        negocioId,
+        telefone,
+        tipo,
+        categoriaWhatsApp: politica.categoria,
+        politicaWhatsApp: politica,
+        conteudo,
+        contexto: contextoComPolitica,
+        erro: erro instanceof Error ? erro.message : "Falha desconhecida ao enviar WhatsApp.",
+        ocorridoEm: new Date()
+      });
+      throw erro;
+    }
   }
 
   private exigirTemplate(templateId: string): TemplateWhatsApp {
