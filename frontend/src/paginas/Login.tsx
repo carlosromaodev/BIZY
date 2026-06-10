@@ -1,6 +1,7 @@
 import {
   ArrowLeft,
   ArrowRight,
+  Bolt,
   Eye,
   EyeOff,
   GraduationCap,
@@ -19,7 +20,6 @@ import {
   requisitarApi,
   type UsuarioSessao
 } from "../api";
-import { CLASSE_BOTAO_CONTORNO_ESCURO, CLASSE_CAMPO_ESCURO } from "../componentes/estilosFormularioEscuro";
 import { CORES_LOGO_BIZY_ESCURA, LogoBizy, NOME_PRODUTO } from "../marca/bizy";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AuthPage, AuthSeparator, GoogleIcon } from "@/components/ui/auth-page";
@@ -40,6 +40,9 @@ type ModoLogin = "telefone" | "estudante";
 type FluxoIdentidade = "criar" | "entrar";
 type ProviderEstudantil = "uor" | "isptec";
 type TipoIdentificador = "studentNumber" | "username";
+
+const CLASSE_CAMPO_PUBLICO = "bizy-flow-input";
+const CLASSE_BOTAO_CONTORNO_PUBLICO = "bizy-btn bizy-btn-outline";
 
 function normalizarTelefoneFormulario(valor: string): string | null {
   const digitos = valor.replace(/\D/g, "");
@@ -299,6 +302,19 @@ export function PaginaLogin() {
     }
   }
 
+  function entrarModoTeste() {
+    guardarSessao(null, {
+      id: "usuario-teste-bizy",
+      nome: nome.trim() || `Vendedor ${NOME_PRODUTO}`,
+      telefone: normalizarTelefoneFormulario(telefone) ?? "923456789",
+      email: "teste@bizy.local",
+      papel: "ADMIN",
+      origemCadastro: "Modo teste",
+      perfilCompletoEm: null
+    });
+    navigate("/onboarding", { replace: true });
+  }
+
   return (
     <AuthPage
       brand={<LogoBizy cores={CORES_LOGO_BIZY_ESCURA} />}
@@ -307,16 +323,16 @@ export function PaginaLogin() {
       visualImage="/bizy-live-commerce-hero.png"
       visualImageAlt="Vendedora em live commerce apresentando roupa no estúdio da loja"
       homeAction={(
-        <Button asChild variant="ghost" className="w-fit text-white/82 hover:bg-white/10 hover:text-white">
-          <Link to="/">
+        <Button asChild variant="ghost" className="bizy-auth-home-link">
+          <Link to="/" style={{ color: "inherit" }}>
             <ArrowLeft />
             Home
           </Link>
         </Button>
       )}
     >
-      <div className="grid gap-5 rounded-[1.75rem] border border-white/12 bg-[#050706]/76 p-4 text-white shadow-[0_24px_80px_rgba(0,0,0,0.38)] backdrop-blur-xl sm:p-6">
-        <div className="grid grid-cols-2 gap-1 rounded-2xl border border-white/12 bg-black/30 p-1" aria-label="Modo de acesso Bizy">
+      <div className="bizy-auth-card">
+        <div className="bizy-segment" aria-label="Modo de acesso Bizy">
           {([
             ["criar", "Criar conta"],
             ["entrar", "Entrar"]
@@ -326,43 +342,36 @@ export function PaginaLogin() {
               type="button"
               variant="ghost"
               className={cn(
-                "h-10 rounded-xl border border-transparent text-sm font-bold transition-all active:border-[#d8ff72]",
-                fluxoIdentidade === valor
-                  ? "bg-[#d8ff72] text-[#050706] shadow-[0_8px_22px_rgba(216,255,114,0.22)]"
-                  : "text-white/66 hover:bg-white/6 hover:text-white"
+                "bizy-segment-option",
+                fluxoIdentidade === valor ? "is-active" : ""
               )}
               onClick={() => alterarFluxoIdentidade(valor)}
               aria-pressed={fluxoIdentidade === valor}
-              style={
-                fluxoIdentidade === valor
-                  ? { backgroundColor: "#d8ff72", color: "#050706" }
-                  : undefined
-              }
             >
               {rotulo}
             </Button>
           ))}
         </div>
 
-        <div className="grid gap-2">
-          <Badge className="w-fit border border-white/12 bg-[#d8ff72]/12 text-[#d8ff72] hover:bg-[#d8ff72]/12" variant="outline">
+        <div className="bizy-auth-card-head">
+          <Badge className="bizy-soft-badge" variant="outline">
             Acesso seguro
           </Badge>
-          <div className="flex items-start justify-between gap-4">
+          <div>
             <div>
-              <h2 className="font-heading text-2xl font-black !text-white">{tituloFormulario}</h2>
-              <p className="mt-1 text-sm leading-6 !text-white/62">
+              <h2>{tituloFormulario}</h2>
+              <p>
                 {descricaoFormulario}
               </p>
             </div>
-            <ShieldCheck className="mt-1 text-[#d8ff72]" size={24} />
+            <ShieldCheck size={24} />
           </div>
         </div>
 
         <Button
           type="button"
           variant="outline"
-          className="h-12 justify-between rounded-2xl border-white/16 bg-[#d8ff72]/10 px-4 text-[#d8ff72] hover:border-white/28 hover:bg-[#d8ff72]/16 hover:text-[#d8ff72] active:border-[#d8ff72]"
+          className="bizy-oauth-button"
           onClick={() => void entrarComGmail()}
           disabled={carregando}
         >
@@ -373,40 +382,40 @@ export function PaginaLogin() {
           {carregando ? <Loader2 className="animate-spin" size={16} /> : <ArrowRight size={16} />}
         </Button>
 
-        <AuthSeparator />
+        <AuthSeparator label="OU COM" />
 
         <AnimatedTabs value={modo} onValueChange={(valor) => setModo(valor as ModoLogin)} className="gap-3">
           <TabsList
-            className="grid h-11 w-full grid-cols-2 rounded-2xl border border-white/12 bg-black/24 p-1"
+            className="bizy-method-toggle"
             style={{
-              "--animated-tabs-active-bg": "#d8ff72",
-              "--animated-tabs-active-ring": "rgb(255 255 255 / 0.12)"
+              "--animated-tabs-active-bg": "#ffffff",
+              "--animated-tabs-active-ring": "rgb(14 140 104 / 0.12)"
             } as CSSProperties}
           >
-            <TabsTrigger value="telefone" className="h-9 rounded-xl text-white/70 data-[state=active]:text-[#050706]">
+            <TabsTrigger value="telefone" className="bizy-method-trigger">
               <Phone />
               Telefone
             </TabsTrigger>
-            <TabsTrigger value="estudante" className="h-9 rounded-xl text-white/70 data-[state=active]:text-[#050706]">
+            <TabsTrigger value="estudante" className="bizy-method-trigger">
               <GraduationCap />
               Estudante
             </TabsTrigger>
           </TabsList>
 
-          <TabsContents className="border-white/12 bg-black/20">
+          <TabsContents className="bizy-tabs-content">
             <TabsContent value="telefone" className="mt-0">
               {etapaTelefone === "telefone" ? (
                 <form onSubmit={solicitarCodigo} className="grid gap-4">
                   {estaCriandoConta ? (
                     <div className="grid gap-2">
                       <Label htmlFor="nomeLogin">Nome do vendedor</Label>
-                      <Input id="nomeLogin" className={CLASSE_CAMPO_ESCURO} value={nome} onChange={(e) => setNome(e.target.value)} />
+                      <Input id="nomeLogin" className={CLASSE_CAMPO_PUBLICO} value={nome} onChange={(e) => setNome(e.target.value)} />
                     </div>
                   ) : null}
                   <div className="grid gap-2">
                     <Label htmlFor="telefoneLogin">Telefone</Label>
                     <Input
-                      className={CLASSE_CAMPO_ESCURO}
+                      className={CLASSE_CAMPO_PUBLICO}
                       id="telefoneLogin"
                       inputMode="tel"
                       value={telefone}
@@ -414,7 +423,7 @@ export function PaginaLogin() {
                       placeholder="923456789"
                     />
                   </div>
-                  <Button className="h-11 rounded-2xl" size="lg" disabled={carregando}>
+                  <Button className="bizy-btn bizy-btn-primary w-full" size="lg" disabled={carregando}>
                     {carregando ? <Loader2 className="animate-spin" /> : <KeyRound />}
                     {carregando ? "A enviar..." : rotuloTelefone}
                   </Button>
@@ -424,7 +433,7 @@ export function PaginaLogin() {
                   <div className="grid gap-2">
                     <Label htmlFor="codigoLogin">Código</Label>
                     <Input
-                      className={CLASSE_CAMPO_ESCURO}
+                      className={CLASSE_CAMPO_PUBLICO}
                       id="codigoLogin"
                       inputMode="numeric"
                       maxLength={6}
@@ -434,27 +443,27 @@ export function PaginaLogin() {
                     />
                   </div>
                   {codigoDev ? (
-                    <div className="rounded-2xl border border-white/12 bg-[#d8ff72]/8 p-3 text-sm text-white/70">
-                      Código em modo dev: <strong className="text-[#d8ff72]">{codigoDev}</strong>
+                    <div className="bizy-inline-note">
+                      Código em modo dev: <strong>{codigoDev}</strong>
                     </div>
                   ) : null}
                   {segundosRestantes > 0 && (
-                    <div className="rounded-2xl border border-white/12 bg-black/20 p-3 text-sm text-white/68">
+                    <div className="bizy-inline-note">
                       Reenvio disponível em {Math.floor(segundosRestantes / 60)}:{String(segundosRestantes % 60).padStart(2, "0")}
                     </div>
                   )}
-                  <Button className="h-11 rounded-2xl" size="lg" disabled={carregando || codigo.trim().length < 4}>
+                  <Button className="bizy-btn bizy-btn-primary w-full" size="lg" disabled={carregando || codigo.trim().length < 4}>
                     {carregando ? <Loader2 className="animate-spin" /> : <ShieldCheck />}
                     {carregando ? "A validar..." : "Validar e continuar"}
                   </Button>
                   <div className="grid gap-2 sm:grid-cols-2">
-                    <Button type="button" variant="outline" className={cn(CLASSE_BOTAO_CONTORNO_ESCURO, "h-10 rounded-xl")} onClick={() => void enviarCodigo()} disabled={carregando || segundosRestantes > 0}>
+                    <Button type="button" variant="outline" className={CLASSE_BOTAO_CONTORNO_PUBLICO} onClick={() => void enviarCodigo()} disabled={carregando || segundosRestantes > 0}>
                       Reenviar
                     </Button>
                     <Button
                       type="button"
                       variant="outline"
-                      className={cn(CLASSE_BOTAO_CONTORNO_ESCURO, "h-10 rounded-xl")}
+                      className={CLASSE_BOTAO_CONTORNO_PUBLICO}
                       onClick={() => {
                         setEtapaTelefone("telefone");
                         setCodigo("");
@@ -478,16 +487,9 @@ export function PaginaLogin() {
                       type="button"
                       variant="ghost"
                       className={cn(
-                        "h-11 rounded-2xl border px-3 text-sm font-bold transition-all active:border-[#d8ff72]",
-                        providerEstudantil === provider
-                          ? "shadow-sm"
-                          : "border-white/12 bg-black/18 text-white/68 hover:border-white/24 hover:text-white"
+                        "bizy-choice-button",
+                        providerEstudantil === provider ? "is-active" : ""
                       )}
-                      style={
-                        providerEstudantil === provider
-                          ? { backgroundColor: "#d8ff72", color: "#050706" }
-                          : undefined
-                      }
                       onClick={() => {
                         setProviderEstudantil(provider);
                         setTipoIdentificador("studentNumber");
@@ -501,7 +503,7 @@ export function PaginaLogin() {
                 </div>
 
                 {providerEstudantil === "uor" ? (
-                  <div className="grid grid-cols-2 gap-1 rounded-2xl border border-white/12 bg-black/20 p-1">
+                  <div className="bizy-segment">
                     {([
                       ["studentNumber", "Número"],
                       ["username", "Username"]
@@ -511,14 +513,9 @@ export function PaginaLogin() {
                         type="button"
                         variant="ghost"
                         className={cn(
-                          "h-9 rounded-xl border border-transparent text-sm font-semibold transition-all active:border-[#d8ff72]",
-                          tipoIdentificador === valor ? "bg-[#d8ff72] text-[#050706] shadow-sm" : "text-white/68"
+                          "bizy-segment-option",
+                          tipoIdentificador === valor ? "is-active" : ""
                         )}
-                        style={
-                          tipoIdentificador === valor
-                            ? { backgroundColor: "#d8ff72", color: "#050706" }
-                            : undefined
-                        }
                         onClick={() => {
                           setTipoIdentificador(valor);
                           setIdentificador("");
@@ -534,7 +531,7 @@ export function PaginaLogin() {
                 <div className="grid gap-2">
                   <Label htmlFor="identificadorEstudante">{rotuloIdentificador}</Label>
                   <Input
-                    className={CLASSE_CAMPO_ESCURO}
+                    className={CLASSE_CAMPO_PUBLICO}
                     id="identificadorEstudante"
                     autoComplete="username"
                     inputMode={tipoIdentificador === "username" && providerEstudantil === "uor" ? "text" : "numeric"}
@@ -559,13 +556,13 @@ export function PaginaLogin() {
                       autoComplete="current-password"
                       value={palavraPasse}
                       onChange={(e) => setPalavraPasse(e.target.value)}
-                      className={cn(CLASSE_CAMPO_ESCURO, "pr-11")}
+                      className={cn(CLASSE_CAMPO_PUBLICO, "pr-11")}
                     />
                     <Button
                       type="button"
                       variant="ghost"
                       size="icon"
-                      className="absolute right-2 top-1/2 size-8 -translate-y-1/2 rounded-lg text-white/50 transition-colors hover:bg-white/8 hover:text-white focus-visible:ring-[#d8ff72]/25"
+                      className="absolute right-2 top-1/2 size-8 -translate-y-1/2 rounded-lg text-[var(--bizy-ink-3)] transition-colors hover:bg-[var(--bizy-cream)] hover:text-[var(--bizy-ink)]"
                       onClick={() => setMostrarPasse((valor) => !valor)}
                       aria-label={mostrarPasse ? "Ocultar palavra-passe" : "Mostrar palavra-passe"}
                     >
@@ -574,7 +571,7 @@ export function PaginaLogin() {
                   </div>
                 </div>
 
-                <Button className="h-11 rounded-2xl" size="lg" disabled={carregando || !identificador || !palavraPasse}>
+                <Button className="bizy-btn bizy-btn-primary w-full" size="lg" disabled={carregando || !identificador || !palavraPasse}>
                   {carregando ? <Loader2 className="animate-spin" /> : <GraduationCap />}
                   {carregando ? "A validar..." : rotuloEstudantil}
                 </Button>
@@ -583,8 +580,20 @@ export function PaginaLogin() {
           </TabsContents>
         </AnimatedTabs>
 
+        <button type="button" className="bizy-testmode" onClick={entrarModoTeste}>
+          <span><Bolt size={15} /></span>
+          <b>Só queres espreitar?</b>
+          <small>Entrar em modo teste sem SMS nem Gmail.</small>
+          <strong>Entrar</strong>
+        </button>
+
+        <div className="bizy-trust-row">
+          <span><ShieldCheck size={13} />Dados encriptados</span>
+          <span><KeyRound size={13} />Pronto em 2 min</span>
+        </div>
+
         {mensagem ? (
-          <Alert className="rounded-2xl border-white/12 bg-[#d8ff72]/10 text-[#d8ff72]">
+          <Alert className="bizy-auth-alert">
             <AlertDescription className="text-sm leading-6">{mensagem}</AlertDescription>
           </Alert>
         ) : null}

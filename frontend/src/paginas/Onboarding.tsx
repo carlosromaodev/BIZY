@@ -1,18 +1,28 @@
 import {
+  ArrowLeft,
   ArrowRight,
+  Box,
   Building2,
   CheckCircle2,
+  Eye,
+  Flag,
+  ImageIcon,
+  Link2,
   Loader2,
+  MapPin,
+  MessageCircle,
   PackagePlus,
   Rocket,
+  ShoppingBag,
   Store,
+  Tag,
+  Upload,
   UserRound
 } from "lucide-react";
-import { type FormEvent, type ReactNode, useEffect, useState } from "react";
+import { type FormEvent, type ReactNode, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { obterUsuario, requisitarApi, type NegocioSessao } from "../api";
-import { CLASSE_BOTAO_CONTORNO_ESCURO, CLASSE_CAMPO_ESCURO, CLASSE_TEXTAREA_ESCURO } from "../componentes/estilosFormularioEscuro";
-import { LogoBizy } from "../marca/bizy";
+import { CORES_LOGO_BIZY_ESCURA, LogoBizy } from "../marca/bizy";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,7 +32,11 @@ import { cn } from "@/lib/utils";
 
 const canaisDisponiveis = ["tiktok", "instagram", "whatsapp", "facebook"];
 const pagamentosDisponiveis = ["transferencia", "multicaixa", "cash", "referencia"];
-const imagemOnboarding = "/bizy-live-commerce-hero.png";
+const CLASSE_CAMPO_PUBLICO = "bizy-flow-input";
+const CLASSE_TEXTAREA_PUBLICO = "bizy-flow-textarea";
+
+type PassoOnboarding = "objetivo" | "negocio" | "produto" | "pronto";
+type ObjetivoOnboarding = "loja" | "crm" | "live" | "explorar";
 
 interface EstadoOnboarding {
   negocio: NegocioSessao | null;
@@ -30,14 +44,94 @@ interface EstadoOnboarding {
   completo: boolean;
 }
 
+const passosOnboarding: Array<{ id: PassoOnboarding; titulo: string; eta?: string; icone: typeof Store }> = [
+  { id: "objetivo", titulo: "Objetivo", eta: "~30s", icone: Rocket },
+  { id: "negocio", titulo: "Negócio", eta: "~2min", icone: Building2 },
+  { id: "produto", titulo: "Produto inicial", eta: "~1min", icone: PackagePlus },
+  { id: "pronto", titulo: "Loja pronta", eta: "feito", icone: CheckCircle2 }
+];
+
+const objetivos: Array<{
+  id: ObjetivoOnboarding;
+  titulo: string;
+  texto: string;
+  etiqueta?: string;
+  tom: string;
+  icone: typeof Store;
+}> = [
+  {
+    id: "loja",
+    titulo: "Criar loja digital",
+    texto: "Montar perfil, link público, primeiro produto e checklist de publicação.",
+    etiqueta: "Mais escolhido",
+    tom: "verde",
+    icone: Store
+  },
+  {
+    id: "crm",
+    titulo: "Gerir clientes e vendas",
+    texto: "Começar pelo CRM com clientes, pedidos, pagamentos e relatórios.",
+    tom: "azul",
+    icone: ShoppingBag
+  },
+  {
+    id: "live",
+    titulo: "Vender por WhatsApp / Live",
+    texto: "Preparar atendimento, conversas e captação de pedidos pelos canais sociais.",
+    tom: "violeta",
+    icone: MessageCircle
+  },
+  {
+    id: "explorar",
+    titulo: "Só explorar a plataforma",
+    texto: "Entrar no painel e conhecer os módulos antes de publicar a loja.",
+    tom: "ambar",
+    icone: Eye
+  }
+];
+
+function criarNegocioSessaoDemo(negocio: {
+  nomeComercial: string;
+  segmento: string;
+  tipo: string;
+  telefone: string;
+  whatsapp: string;
+  email: string;
+  provincia: string;
+  municipio: string;
+  canaisVenda: string[];
+  metodosPagamento: string[];
+  minutosReservaPadrao: number;
+}): NegocioSessao {
+  return {
+    id: "negocio-teste-bizy",
+    nomeComercial: negocio.nomeComercial,
+    segmento: negocio.segmento,
+    tipo: negocio.tipo,
+    telefone: negocio.telefone || null,
+    whatsapp: negocio.whatsapp || null,
+    email: negocio.email || null,
+    provincia: negocio.provincia || null,
+    municipio: negocio.municipio || null,
+    moeda: "AOA",
+    fusoHorario: "Africa/Luanda",
+    canaisVenda: negocio.canaisVenda,
+    metodosPagamento: negocio.metodosPagamento,
+    minutosReservaPadrao: negocio.minutosReservaPadrao,
+    usuarioPapel: "ADMIN"
+  };
+}
+
 export function PaginaOnboarding() {
   const navigate = useNavigate();
   const usuario = obterUsuario();
+  const modoTeste = usuario?.origemCadastro === "Modo teste";
   const [estado, setEstado] = useState<EstadoOnboarding | null>(null);
-  const [passo, setPasso] = useState<"negocio" | "produto" | "pronto">("negocio");
+  const [passo, setPasso] = useState<PassoOnboarding>("objetivo");
+  const [objetivo, setObjetivo] = useState<ObjetivoOnboarding>("loja");
   const [carregando, setCarregando] = useState(true);
   const [salvando, setSalvando] = useState(false);
-  const [mensagem, setMensagem] = useState("Completa os dados essenciais para o Bizy operar com contexto.");
+  const [mensagem, setMensagem] = useState("Escolhe o caminho e o Bizy prepara o CRM certo para o teu momento.");
   const [negocio, setNegocio] = useState({
     nomeComercial: "",
     segmento: "",
@@ -63,16 +157,35 @@ export function PaginaOnboarding() {
     fotos: [] as string[]
   });
 
+  const indicePassoAtual = passosOnboarding.findIndex((item) => item.id === passo);
+  const progresso = `${((indicePassoAtual + 1) / passosOnboarding.length) * 100}%`;
+  const iniciaisUsuario = useMemo(() => {
+    const nome = usuario?.nome?.trim() || "Vendedor Bizy";
+    return nome
+      .split(/\s+/)
+      .slice(0, 2)
+      .map((parte) => parte[0]?.toUpperCase())
+      .join("");
+  }, [usuario?.nome]);
+
   useEffect(() => {
     let ativo = true;
 
     async function carregar() {
       setCarregando(true);
+      if (modoTeste) {
+        setEstado({ negocio: null, pendencias: ["CADASTRAR_NEGOCIO"], completo: false });
+        setPasso("objetivo");
+        setMensagem("Modo teste ativo. Podes experimentar o lançamento sem SMS nem Gmail.");
+        setCarregando(false);
+        return;
+      }
+
       try {
         const resposta = await requisitarApi<EstadoOnboarding>("/onboarding/estado");
         if (!ativo) return;
         setEstado(resposta);
-        setPasso(resposta.negocio ? "produto" : "negocio");
+        setPasso(resposta.negocio ? "produto" : "objetivo");
         if (resposta.negocio) {
           setNegocio((atual) => ({
             ...atual,
@@ -102,12 +215,21 @@ export function PaginaOnboarding() {
     return () => {
       ativo = false;
     };
-  }, []);
+  }, [modoTeste]);
 
   async function salvarNegocio(evento: FormEvent) {
     evento.preventDefault();
     setSalvando(true);
-    setMensagem("A guardar dados do negócio...");
+    setMensagem("A guardar dados da loja...");
+
+    if (modoTeste) {
+      const negocioDemo = criarNegocioSessaoDemo(negocio);
+      setEstado({ negocio: negocioDemo, pendencias: [], completo: true });
+      setPasso("produto");
+      setMensagem("Loja demo guardada. Agora adiciona o primeiro produto para ver o catálogo ganhar forma.");
+      setSalvando(false);
+      return;
+    }
 
     try {
       const resposta = await requisitarApi<{ negocio: NegocioSessao }>("/onboarding/negocio", {
@@ -132,6 +254,13 @@ export function PaginaOnboarding() {
     evento.preventDefault();
     setSalvando(true);
     setMensagem("A criar produto inicial...");
+
+    if (modoTeste) {
+      setPasso("pronto");
+      setMensagem("Base demo criada. O Bizy já tem loja e produto inicial para explorar.");
+      setSalvando(false);
+      return;
+    }
 
     try {
       await requisitarApi("/onboarding/produto-inicial", {
@@ -158,224 +287,259 @@ export function PaginaOnboarding() {
   }
 
   return (
-    <main className="relative min-h-dvh overflow-hidden bg-[#050706] text-white">
-      <div aria-hidden className="absolute inset-0">
-        <img
-          alt=""
-          className="h-full w-full object-cover opacity-20"
-          src={imagemOnboarding}
-        />
-        <div className="absolute inset-0 bg-black/72" />
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_14%_10%,rgba(216,255,114,0.07),transparent_28%),linear-gradient(180deg,rgba(5,7,6,0.46)_0%,rgba(5,7,6,0.94)_72%)]" />
-      </div>
+    <main className="bizy-public bizy-wizard-page">
+      <aside className="bizy-wizard-rail">
+        <LogoBizy cores={CORES_LOGO_BIZY_ESCURA} />
+        <Badge className="bizy-wizard-tag" variant="outline">
+          <Rocket size={14} />
+          Lançamento da loja
+        </Badge>
+        <div>
+          <h1>Vamos lançar a tua loja.</h1>
+          <p>A loja nasce em rascunho. Publicas quando tiver identidade, contacto e primeiro produto.</p>
+        </div>
 
-      <div className="relative z-10 mx-auto grid min-h-dvh max-w-6xl gap-5 px-4 py-5 lg:grid-cols-[0.78fr_1.22fr]">
-        <aside className="grid content-between gap-6 rounded-[1.75rem] border border-white/12 bg-[#050706]/76 p-5 text-white shadow-[0_24px_80px_rgba(0,0,0,0.38)] backdrop-blur-xl lg:sticky lg:top-5 lg:h-[calc(100dvh-2.5rem)]">
-          <div className="grid gap-8">
-            <LogoBizy />
-            <div className="grid gap-3">
-              <Badge className="w-fit gap-2 rounded-full border border-white/12 bg-[#d8ff72]/12 text-[#d8ff72] hover:bg-[#d8ff72]/12" variant="outline">
-                <Rocket size={14} />
-                Primeiro setup
-              </Badge>
-              <h1 className="font-heading text-4xl font-black leading-tight !text-white">Vamos montar a base da tua operação.</h1>
-              <p className="text-sm leading-6 !text-white/68">
-                Estes dados ajudam o CRM a relacionar clientes, produtos, mensagens, pagamentos e reservas desde o primeiro dia.
-              </p>
-            </div>
+        <div className="bizy-wizard-steps">
+          <div className="bizy-wizard-progress">
+            <span><i style={{ width: progresso }} /></span>
+            <b>{indicePassoAtual + 1}/4</b>
+          </div>
+          {passosOnboarding.map((item, index) => {
+            const completo = index < indicePassoAtual;
+            const ativo = item.id === passo;
+            const Icone = item.icone;
+
+            return (
+              <div
+                key={item.id}
+                className={cn("bizy-wizard-step", ativo ? "is-active" : "", completo ? "is-done" : "")}
+              >
+                <span>{completo ? <CheckCircle2 size={14} /> : index + 1}</span>
+                <Icone size={17} />
+                <strong>{item.titulo}</strong>
+                <small>{item.eta}</small>
+              </div>
+            );
+          })}
+        </div>
+      </aside>
+
+      <section className="bizy-wizard-main">
+        <div className="bizy-wizard-head">
+          <div>
+            <span><i />Passo {indicePassoAtual + 1} de 4</span>
+            <h2>
+              {passo === "objetivo"
+                ? "Por onde queres começar?"
+                : passo === "negocio"
+                  ? "Dados da loja"
+                  : passo === "produto"
+                    ? "O teu primeiro produto"
+                    : "Loja pronta"}
+            </h2>
+            <p>{mensagem}</p>
           </div>
 
-          <div className="grid gap-3">
-            <div className="flex items-center gap-2 px-1">
-              <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-white/10">
-                <div
-                  className="h-full rounded-full bg-[#d8ff72] transition-all duration-500"
-                  style={{ width: passo === "negocio" ? "33%" : passo === "produto" ? "66%" : "100%" }}
-                />
-              </div>
-              <span className="text-xs tabular-nums text-white/50">
-                {passo === "negocio" ? "1" : passo === "produto" ? "2" : "3"}/3
-              </span>
+          <div className="bizy-user-pill">
+            <span>{iniciaisUsuario || "VB"}</span>
+            <div>
+              <strong>{usuario?.nome ?? "Vendedor Bizy"}</strong>
+              <small>{usuario?.email ?? usuario?.telefone ?? "sessão ativa"}</small>
             </div>
-            {[
-              ["negocio", "Negócio", Building2],
-              ["produto", "Produto inicial", PackagePlus],
-              ["pronto", "Operação pronta", CheckCircle2]
-            ].map(([id, titulo, Icone], index) => {
-              const passos = ["negocio", "produto", "pronto"];
-              const passoAtual = passos.indexOf(passo);
-              const indiceItem = passos.indexOf(id as string);
-              const completo = indiceItem < passoAtual;
-              const ativo = passo === id;
+          </div>
+        </div>
 
-              return (
-                <div
-                  key={id as string}
-                  className={cn(
-                    "flex items-center gap-3 rounded-2xl border p-3 text-sm transition-all",
-                    ativo
-                      ? "border-transparent bg-[#d8ff72] text-[#050706] shadow-[0_8px_22px_rgba(216,255,114,0.16)]"
-                      : completo
-                        ? "border-[#d8ff72]/20 bg-[#d8ff72]/8 text-[#d8ff72]"
-                        : "border-white/12 bg-black/20 text-white/62"
-                  )}
-                >
-                  <span
-                    className={cn(
-                      "grid size-8 place-items-center rounded-full shadow-sm",
-                      ativo
-                        ? "bg-[#050706] text-[#d8ff72]"
-                        : completo
-                          ? "bg-[#d8ff72]/20 text-[#d8ff72]"
-                          : "bg-white/8 text-white/70"
-                    )}
+        {carregando ? (
+          <div className="bizy-loading-card">
+            <Loader2 className="animate-spin" size={30} />
+          </div>
+        ) : passo === "objetivo" ? (
+          <div className="bizy-objective-wrap">
+            <div className="bizy-objective-grid">
+              {objetivos.map((item) => {
+                const Icone = item.icone;
+                const ativo = objetivo === item.id;
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    className={cn("bizy-objective-card", ativo ? "is-active" : "")}
+                    data-tone={item.tom}
+                    onClick={() => setObjetivo(item.id)}
+                    aria-pressed={ativo}
                   >
-                    {completo ? <CheckCircle2 size={16} /> : index + 1}
-                  </span>
-                  <Icone size={18} />
-                  <strong>{titulo as string}</strong>
-                </div>
-              );
-            })}
-          </div>
-        </aside>
-
-        <section className="grid content-center gap-4">
-          <div className="rounded-[1.75rem] border border-white/12 bg-[#050706]/76 text-white shadow-[0_24px_80px_rgba(0,0,0,0.38)] backdrop-blur-xl">
-            <div className="grid gap-5 p-4 sm:p-6">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                <div className="grid gap-1">
-                  <Badge variant="outline" className="w-fit border-white/12 bg-white/8 text-white/74">
-                    {usuario?.origemCadastro ?? "Conta Bizy"}
-                  </Badge>
-                  <h2 className="font-heading text-2xl font-black !text-white">
-                    {passo === "negocio" ? "Dados do negócio" : passo === "produto" ? "Primeiro produto" : "Tudo pronto"}
-                  </h2>
-                  <p className="text-sm leading-6 !text-white/68">{mensagem}</p>
-                </div>
-                <div className="flex items-center gap-3 rounded-2xl border border-white/12 bg-black/20 p-3">
-                  <div className="grid size-10 place-items-center rounded-full bg-[#d8ff72] text-[#050706]">
-                    <UserRound size={18} />
-                  </div>
-                  <div className="min-w-0">
-                    <strong className="block truncate text-sm !text-white">{usuario?.nome ?? "Usuário Bizy"}</strong>
-                    <span className="block truncate text-xs !text-white/58">
-                      {usuario?.email ?? usuario?.telefone ?? "sessão ativa"}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {carregando ? (
-                <div className="grid min-h-80 place-items-center rounded-2xl border border-white/12 bg-black/20">
-                  <Loader2 className="animate-spin text-[#d8ff72]" size={28} />
-                </div>
-              ) : passo === "negocio" ? (
-                <form onSubmit={salvarNegocio} className="grid gap-4">
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <Campo label="Nome comercial" id="nomeComercial">
-                      <Input id="nomeComercial" className={CLASSE_CAMPO_ESCURO} value={negocio.nomeComercial} onChange={(e) => setNegocio({ ...negocio, nomeComercial: e.target.value })} required />
-                    </Campo>
-                    <Campo label="Segmento" id="segmento">
-                      <Input id="segmento" className={CLASSE_CAMPO_ESCURO} value={negocio.segmento} onChange={(e) => setNegocio({ ...negocio, segmento: e.target.value })} placeholder="Moda, eletrônicos, cosméticos..." required />
-                    </Campo>
-                    <Campo label="WhatsApp oficial" id="whatsapp">
-                      <Input id="whatsapp" className={CLASSE_CAMPO_ESCURO} value={negocio.whatsapp} onChange={(e) => setNegocio({ ...negocio, whatsapp: e.target.value })} inputMode="tel" />
-                    </Campo>
-                    <Campo label="Email" id="emailNegocio">
-                      <Input id="emailNegocio" className={CLASSE_CAMPO_ESCURO} type="email" value={negocio.email} onChange={(e) => setNegocio({ ...negocio, email: e.target.value })} />
-                    </Campo>
-                    <Campo label="Província" id="provincia">
-                      <Input id="provincia" className={CLASSE_CAMPO_ESCURO} value={negocio.provincia} onChange={(e) => setNegocio({ ...negocio, provincia: e.target.value })} />
-                    </Campo>
-                    <Campo label="Município" id="municipio">
-                      <Input id="municipio" className={CLASSE_CAMPO_ESCURO} value={negocio.municipio} onChange={(e) => setNegocio({ ...negocio, municipio: e.target.value })} />
-                    </Campo>
-                  </div>
-
-                  <SelecaoCompacta titulo="Canais de venda" itens={canaisDisponiveis} ativos={negocio.canaisVenda} onToggle={(valor) => alternarLista("canaisVenda", valor)} />
-                  <SelecaoCompacta titulo="Métodos de pagamento" itens={pagamentosDisponiveis} ativos={negocio.metodosPagamento} onToggle={(valor) => alternarLista("metodosPagamento", valor)} />
-
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    <Campo label="Reserva padrão em minutos" id="reservaMinutos">
-                      <Input
-                        className={CLASSE_CAMPO_ESCURO}
-                        id="reservaMinutos"
-                        type="number"
-                        min={1}
-                        max={180}
-                        value={negocio.minutosReservaPadrao}
-                        onChange={(e) => setNegocio({ ...negocio, minutosReservaPadrao: Number(e.target.value) })}
-                      />
-                    </Campo>
-                    <Button className="h-11 rounded-2xl bg-[#18733a] text-white hover:bg-[#219447] active:border-[#d8ff72] sm:self-end" disabled={salvando || !negocio.nomeComercial || !negocio.segmento}>
-                      {salvando ? <Loader2 className="animate-spin" /> : <Store />}
-                      Guardar negócio
-                    </Button>
-                  </div>
-                </form>
-              ) : passo === "produto" ? (
-                <form onSubmit={criarProduto} className="grid gap-4">
-                  <div className="rounded-2xl border border-white/12 bg-[#d8ff72]/10 p-4 text-sm text-[#d8ff72]">
-                    Negócio ativo: <strong>{estado?.negocio?.nomeComercial ?? negocio.nomeComercial}</strong>
-                  </div>
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <Campo label="Código da peça" id="codigoProduto">
-                      <Input id="codigoProduto" className={CLASSE_CAMPO_ESCURO} value={produto.codigo} onChange={(e) => setProduto({ ...produto, codigo: e.target.value })} required />
-                    </Campo>
-                    <Campo label="Nome do produto" id="nomeProduto">
-                      <Input id="nomeProduto" className={CLASSE_CAMPO_ESCURO} value={produto.nome} onChange={(e) => setProduto({ ...produto, nome: e.target.value })} required />
-                    </Campo>
-                    <Campo label="Categoria" id="categoriaProduto">
-                      <Input id="categoriaProduto" className={CLASSE_CAMPO_ESCURO} value={produto.categoria} onChange={(e) => setProduto({ ...produto, categoria: e.target.value })} />
-                    </Campo>
-                    <Campo label="Preço em Kz" id="precoProduto">
-                      <Input id="precoProduto" className={CLASSE_CAMPO_ESCURO} type="number" min={0} value={produto.precoEmKwanza} onChange={(e) => setProduto({ ...produto, precoEmKwanza: Number(e.target.value) })} required />
-                    </Campo>
-                    <Campo label="Stock" id="stockProduto">
-                      <Input id="stockProduto" className={CLASSE_CAMPO_ESCURO} type="number" min={0} value={produto.quantidade} onChange={(e) => setProduto({ ...produto, quantidade: Number(e.target.value) })} required />
-                    </Campo>
-                  </div>
-                  <Campo label="Descrição" id="descricaoProduto">
-                    <Textarea id="descricaoProduto" className={CLASSE_TEXTAREA_ESCURO} value={produto.descricao} onChange={(e) => setProduto({ ...produto, descricao: e.target.value })} rows={4} />
-                  </Campo>
-                  <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
-                    <Button type="button" variant="outline" className={cn(CLASSE_BOTAO_CONTORNO_ESCURO, "h-11 rounded-2xl")} onClick={() => navigate("/app")}>
-                      Fazer depois
-                    </Button>
-                    <Button className="h-11 rounded-2xl bg-[#18733a] text-white hover:bg-[#219447] active:border-[#d8ff72]" disabled={salvando || !produto.codigo || !produto.nome}>
-                      {salvando ? <Loader2 className="animate-spin" /> : <PackagePlus />}
-                      Criar produto
-                    </Button>
-                  </div>
-                </form>
-              ) : (
-                <div className="grid gap-5 rounded-[1.5rem] border border-white/12 bg-[#d8ff72]/10 p-6 text-[#d8ff72]">
-                  <CheckCircle2 size={34} />
-                  <div className="grid gap-2">
-                    <h3 className="font-heading text-2xl font-black text-[#d8ff72]">A base do CRM está pronta.</h3>
-                    <p className="max-w-xl text-sm leading-6 text-white/70">
-                      Agora podes acompanhar painel, catálogo, comentários, pedidos e conversas com dados estruturados.
-                    </p>
-                  </div>
-                  <Button className="h-11 w-fit rounded-2xl bg-[#18733a] text-white hover:bg-[#219447] active:border-[#d8ff72]" onClick={() => navigate("/app")}>
-                    Entrar no painel
-                    <ArrowRight />
-                  </Button>
-                </div>
-              )}
+                    {item.etiqueta ? <b>{item.etiqueta}</b> : null}
+                    <i aria-hidden />
+                    <span><Icone size={21} /></span>
+                    <h3>{item.titulo}</h3>
+                    <p>{item.texto}</p>
+                  </button>
+                );
+              })}
+            </div>
+            <div className="bizy-wizard-actions">
+              <Button className="bizy-btn bizy-btn-outline" type="button" variant="outline" onClick={() => navigate("/app")}>
+                Decidir depois
+              </Button>
+              <Button className="bizy-btn bizy-btn-primary" type="button" onClick={() => setPasso("negocio")}>
+                Continuar
+                <ArrowRight size={16} />
+              </Button>
             </div>
           </div>
-        </section>
-      </div>
+        ) : passo === "negocio" ? (
+          <form onSubmit={salvarNegocio} className="bizy-form-layout">
+            <div className="bizy-form-stack">
+              <section className="bizy-form-section">
+                <HeaderSecao icone={<Store size={15} />} titulo="Identidade" tom="verde" />
+                <div className="bizy-form-grid">
+                  <Campo label="Nome comercial" id="nomeComercial">
+                    <Input id="nomeComercial" className={CLASSE_CAMPO_PUBLICO} value={negocio.nomeComercial} onChange={(e) => setNegocio({ ...negocio, nomeComercial: e.target.value })} required />
+                  </Campo>
+                  <Campo label="Segmento" id="segmento">
+                    <Input id="segmento" className={CLASSE_CAMPO_PUBLICO} value={negocio.segmento} onChange={(e) => setNegocio({ ...negocio, segmento: e.target.value })} placeholder="Moda, eletrônicos, cosméticos..." required />
+                  </Campo>
+                </div>
+              </section>
+
+              <section className="bizy-form-section">
+                <HeaderSecao icone={<MapPin size={15} />} titulo="Contacto & localização" tom="azul" />
+                <div className="bizy-form-grid">
+                  <Campo label="WhatsApp oficial" id="whatsapp">
+                    <Input id="whatsapp" className={CLASSE_CAMPO_PUBLICO} value={negocio.whatsapp} onChange={(e) => setNegocio({ ...negocio, whatsapp: e.target.value })} inputMode="tel" />
+                  </Campo>
+                  <Campo label="Email" id="emailNegocio">
+                    <Input id="emailNegocio" className={CLASSE_CAMPO_PUBLICO} type="email" value={negocio.email} onChange={(e) => setNegocio({ ...negocio, email: e.target.value })} />
+                  </Campo>
+                  <Campo label="Província" id="provincia">
+                    <Input id="provincia" className={CLASSE_CAMPO_PUBLICO} value={negocio.provincia} onChange={(e) => setNegocio({ ...negocio, provincia: e.target.value })} />
+                  </Campo>
+                  <Campo label="Município" id="municipio">
+                    <Input id="municipio" className={CLASSE_CAMPO_PUBLICO} value={negocio.municipio} onChange={(e) => setNegocio({ ...negocio, municipio: e.target.value })} />
+                  </Campo>
+                </div>
+              </section>
+
+              <section className="bizy-form-section">
+                <HeaderSecao icone={<Flag size={15} />} titulo="Canais & pagamento" tom="violeta" detalhe="podes mudar depois" />
+                <SelecaoCompacta titulo="Canais de venda" itens={canaisDisponiveis} ativos={negocio.canaisVenda} onToggle={(valor) => alternarLista("canaisVenda", valor)} />
+                <SelecaoCompacta titulo="Métodos de pagamento" itens={pagamentosDisponiveis} ativos={negocio.metodosPagamento} onToggle={(valor) => alternarLista("metodosPagamento", valor)} />
+              </section>
+
+              <div className="bizy-wizard-actions">
+                <Button className="bizy-btn bizy-btn-outline" type="button" variant="outline" onClick={() => setPasso("objetivo")}>
+                  <ArrowLeft size={16} />
+                  Voltar
+                </Button>
+                <Button className="bizy-btn bizy-btn-primary" disabled={salvando || !negocio.nomeComercial || !negocio.segmento}>
+                  {salvando ? <Loader2 className="animate-spin" /> : <Store size={16} />}
+                  Guardar e continuar
+                </Button>
+              </div>
+            </div>
+
+            <PreviewLoja negocio={negocio} />
+          </form>
+        ) : passo === "produto" ? (
+          <form onSubmit={criarProduto} className="bizy-form-layout">
+            <div className="bizy-form-stack">
+              <section className="bizy-form-section">
+                <HeaderSecao icone={<ImageIcon size={15} />} titulo="Foto do produto" tom="verde" detalhe="recomendado" />
+                <div className="bizy-upload-card">
+                  <Upload size={22} />
+                  <strong>Arraste uma foto ou toque para escolher</strong>
+                  <span>Produtos com foto vendem mais. PNG ou JPG até 5 MB.</span>
+                </div>
+              </section>
+
+              <section className="bizy-form-section">
+                <HeaderSecao icone={<Tag size={15} />} titulo="Detalhes" tom="azul" />
+                <div className="bizy-form-grid">
+                  <Campo label="Código da peça" id="codigoProduto">
+                    <Input id="codigoProduto" className={CLASSE_CAMPO_PUBLICO} value={produto.codigo} onChange={(e) => setProduto({ ...produto, codigo: e.target.value })} required />
+                  </Campo>
+                  <Campo label="Nome do produto" id="nomeProduto">
+                    <Input id="nomeProduto" className={CLASSE_CAMPO_PUBLICO} value={produto.nome} onChange={(e) => setProduto({ ...produto, nome: e.target.value })} required />
+                  </Campo>
+                  <Campo label="Categoria" id="categoriaProduto">
+                    <Input id="categoriaProduto" className={CLASSE_CAMPO_PUBLICO} value={produto.categoria} onChange={(e) => setProduto({ ...produto, categoria: e.target.value })} />
+                  </Campo>
+                  <Campo label="Preço em Kz" id="precoProduto">
+                    <Input id="precoProduto" className={CLASSE_CAMPO_PUBLICO} type="number" min={0} value={produto.precoEmKwanza} onChange={(e) => setProduto({ ...produto, precoEmKwanza: Number(e.target.value) })} required />
+                  </Campo>
+                  <Campo label="Stock" id="stockProduto">
+                    <Input id="stockProduto" className={CLASSE_CAMPO_PUBLICO} type="number" min={0} value={produto.quantidade} onChange={(e) => setProduto({ ...produto, quantidade: Number(e.target.value) })} required />
+                  </Campo>
+                </div>
+                <Campo label="Descrição" id="descricaoProduto">
+                  <Textarea id="descricaoProduto" className={CLASSE_TEXTAREA_PUBLICO} value={produto.descricao} onChange={(e) => setProduto({ ...produto, descricao: e.target.value })} rows={4} />
+                </Campo>
+              </section>
+
+              <div className="bizy-wizard-actions">
+                <Button className="bizy-btn bizy-btn-outline" type="button" variant="outline" onClick={() => setPasso("negocio")}>
+                  <ArrowLeft size={16} />
+                  Voltar
+                </Button>
+                <Button className="bizy-btn bizy-btn-outline" type="button" variant="outline" onClick={() => navigate("/app")}>
+                  Fazer depois
+                </Button>
+                <Button className="bizy-btn bizy-btn-primary" disabled={salvando || !produto.codigo || !produto.nome}>
+                  {salvando ? <Loader2 className="animate-spin" /> : <PackagePlus size={16} />}
+                  Criar produto
+                </Button>
+              </div>
+            </div>
+
+            <PreviewProduto produto={produto} />
+          </form>
+        ) : (
+          <div className="bizy-done-wrap">
+            <div className="bizy-done-ring"><span><CheckCircle2 size={30} /></span></div>
+            <h2>{(estado?.negocio?.nomeComercial ?? negocio.nomeComercial) || "A tua loja"} está pronta!</h2>
+            <p>Loja criada em rascunho com o primeiro produto. Partilha o link ou entra no painel para começar a vender.</p>
+            <div className="bizy-sharebox">
+              <Link2 size={15} />
+              <span>bizy.store/{((estado?.negocio?.nomeComercial ?? negocio.nomeComercial) || "minha-loja").toLowerCase().replace(/\s+/g, "-")}</span>
+              <b>Copiar link</b>
+            </div>
+            <div className="bizy-checklist">
+              <ChecklistItem icone={<Store size={16} />} titulo="Loja digital" texto="perfil + link público" estado="Criada" />
+              <ChecklistItem icone={<Tag size={16} />} titulo="Primeiro produto" texto={produto.nome || "produto inicial"} estado="Criado" />
+              <ChecklistItem icone={<MessageCircle size={16} />} titulo="WhatsApp ligado" texto={negocio.whatsapp || "contacto configurado"} estado="Ativo" />
+              <ChecklistItem icone={<Rocket size={16} />} titulo="Publicar a loja" texto="torna o link visível a todos" estado="A seguir" pendente />
+            </div>
+            <div className="bizy-done-actions">
+              <Button className="bizy-btn bizy-btn-outline" type="button" variant="outline">
+                <Eye size={16} />
+                Ver a loja
+              </Button>
+              <Button className="bizy-btn bizy-btn-primary" type="button" onClick={() => navigate("/app")}>
+                Entrar no painel
+                <ArrowRight size={16} />
+              </Button>
+            </div>
+          </div>
+        )}
+      </section>
     </main>
+  );
+}
+
+function HeaderSecao({ icone, titulo, tom, detalhe }: { icone: ReactNode; titulo: string; tom: string; detalhe?: string }) {
+  return (
+    <div className="bizy-section-mini-head" data-tone={tom}>
+      <span>{icone}</span>
+      <strong>{titulo}</strong>
+      {detalhe ? <small>{detalhe}</small> : null}
+    </div>
   );
 }
 
 function Campo({ label, id, children }: { label: string; id: string; children: ReactNode }) {
   return (
-    <div className="grid gap-2">
-      <Label htmlFor={id} className="text-white/82">{label}</Label>
+    <div className="bizy-field">
+      <Label htmlFor={id}>{label}</Label>
       {children}
     </div>
   );
@@ -393,32 +557,85 @@ function SelecaoCompacta({
   onToggle: (valor: string) => void;
 }) {
   return (
-    <div className="grid gap-2">
-      <Label className="text-white/82">{titulo}</Label>
-      <div className="flex flex-wrap gap-2">
-        {itens.map((item) => (
-          <Button
-            key={item}
-            type="button"
-            variant="ghost"
-            style={
-              ativos.includes(item)
-                ? { backgroundColor: "#d8ff72", border: "1px solid transparent", color: "#050706" }
-                : { backgroundColor: "rgb(0 0 0 / 0.2)", border: "1px solid rgb(255 255 255 / 0.12)", color: "rgb(255 255 255 / 0.64)" }
-            }
-            className={cn(
-              "h-9 rounded-full border px-4 text-sm font-semibold capitalize transition-all active:border-[#d8ff72]",
-              ativos.includes(item)
-                ? "border-transparent bg-[#d8ff72] text-[#050706]"
-                : "border-white/12 bg-black/20 text-white/64 hover:border-white/24 hover:text-white"
-            )}
-            onClick={() => onToggle(item)}
-            aria-pressed={ativos.includes(item)}
-          >
-            {item}
-          </Button>
-        ))}
+    <div className="bizy-chip-group">
+      <Label>{titulo}</Label>
+      <div>
+        {itens.map((item) => {
+          const ativo = ativos.includes(item);
+          return (
+            <button
+              key={item}
+              type="button"
+              className={cn("bizy-chip", ativo ? "is-active" : "")}
+              onClick={() => onToggle(item)}
+              aria-pressed={ativo}
+            >
+              {ativo ? <CheckCircle2 size={13} /> : null}
+              {item}
+            </button>
+          );
+        })}
       </div>
+    </div>
+  );
+}
+
+function PreviewLoja({ negocio }: { negocio: { nomeComercial: string; segmento: string; provincia: string; canaisVenda: string[]; metodosPagamento: string[] } }) {
+  const nome = negocio.nomeComercial || "Sapataria Verde";
+  const inicial = nome.trim()[0]?.toUpperCase() ?? "S";
+  const slug = nome.toLowerCase().trim().replace(/\s+/g, "-") || "sapataria-verde";
+
+  return (
+    <aside className="bizy-live-preview">
+      <span><i />Pré-visualização ao vivo</span>
+      <div className="bizy-store-preview-card">
+        <div className="bizy-store-preview-hero" />
+        <div className="bizy-store-preview-logo">{inicial}</div>
+        <div>
+          <strong>{nome}</strong>
+          <small>{negocio.segmento || "Calçado"} · {negocio.provincia || "Luanda"}</small>
+          <p><Link2 size={12} />bizy.store/{slug}</p>
+          <div>
+            {negocio.canaisVenda.slice(0, 2).map((item) => <span key={item}>{item}</span>)}
+            {negocio.metodosPagamento.slice(0, 2).map((item) => <span key={item}>{item}</span>)}
+          </div>
+        </div>
+      </div>
+      <p>É assim que os teus clientes vão ver a loja. Atualiza enquanto preenches.</p>
+    </aside>
+  );
+}
+
+function PreviewProduto({ produto }: { produto: { nome: string; categoria: string; precoEmKwanza: number; quantidade: number } }) {
+  return (
+    <aside className="bizy-live-preview">
+      <span><i />Como o cliente vê</span>
+      <div className="bizy-product-preview-card">
+        <div>
+          <b>Novo</b>
+          <ImageIcon size={34} />
+        </div>
+        <section>
+          <strong>{produto.nome || "Sandália dourada salto bloco"}</strong>
+          <small>{produto.categoria || "Calçado feminino"}</small>
+          <p>{Number(produto.precoEmKwanza || 23500).toLocaleString("pt-AO")} Kz</p>
+          <span><Box size={11} />{produto.quantidade || 1} em stock</span>
+        </section>
+      </div>
+      <p>Este cartão entra direto no catálogo e na loja pública.</p>
+    </aside>
+  );
+}
+
+function ChecklistItem({ icone, titulo, texto, estado, pendente = false }: { icone: ReactNode; titulo: string; texto: string; estado: string; pendente?: boolean }) {
+  return (
+    <div className="bizy-check-item">
+      <span>{icone}</span>
+      <div>
+        <strong>{titulo}</strong>
+        <small>{texto}</small>
+      </div>
+      <b className={pendente ? "is-pending" : ""}>{estado}</b>
     </div>
   );
 }
