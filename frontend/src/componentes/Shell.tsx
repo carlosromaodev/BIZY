@@ -1,30 +1,35 @@
 import {
-  Folder,
+  BarChart3,
+  Bell,
+  Bolt,
+  ChevronDown,
   Home,
-  LayoutDashboard,
-  ListChecks,
   Loader2,
   Menu,
   MessageCircle,
+  MessageSquare,
   Package,
   Plus,
   ReceiptText,
   Search,
   Settings,
+  ShoppingBag,
+  Store,
   Users,
+  Video,
 } from "lucide-react";
-import { type ReactNode, useEffect, useMemo, useState } from "react";
+import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
 import { obterUsuario, removerToken, removerUsuario, requisitarApi } from "../api";
 import { CORES_LOGO_BIZY_ESCURA, LogoBizy, NOME_PRODUTO } from "../marca/bizy";
 import {
   filtrarRotasPorModulos,
+  rotasCrmV3Principais,
   rotasAdminSistema,
   rotasComerciais,
   secoesComerciais,
   usuarioPodeVerAdminSistema,
-  type SecaoNavegacao,
 } from "../rotasApp";
 import type { Peca, Reserva, RespostaConversas } from "../tipos";
 import { formatarKwanza } from "../utilidades";
@@ -41,37 +46,9 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import { NativeBottomNav, type NativeBottomNavItem } from "@/components/ui/native-bottom-nav";
 import { cn } from "@/lib/utils";
 
-const caminhosMobilePrincipais = ["/app", "/app/reservas", "/app/clientes", "/app/conversas"];
-
-const rotasMobilePrincipais = rotasComerciais.filter((rota) =>
-  ["/app", "/app/reservas", "/app/clientes", "/app/conversas"].includes(rota.caminho)
-);
-
-const rotasMaisMobile = rotasComerciais.filter((rota) =>
-  !caminhosMobilePrincipais.includes(rota.caminho)
-);
-// Live, recuperação, produtos, relatórios e administração ficam em Mais no telemóvel.
-
-const descricaoSecaoDesktop: Record<SecaoNavegacao, string> = {
-  Hoje: "Comando, live e prioridades imediatas.",
-  Vendas: "Pedidos, atendimento e clientes em movimento.",
-  CRM: "Funil, agenda, respostas e cadências.",
-  Vitrine: "Produtos, loja digital e crescimento por canais.",
-  Gestão: "Relatórios, equipa, pagamentos e administração.",
-  "Admin/Sistema": "Monitorização técnica e auditoria.",
-};
-
-function iconeSecaoDesktop(secao: SecaoNavegacao) {
-  if (secao === "Hoje") return <LayoutDashboard size={22} />;
-  if (secao === "Vendas") return <ReceiptText size={22} />;
-  if (secao === "CRM") return <MessageCircle size={22} />;
-  if (secao === "Vitrine") return <Package size={22} />;
-  if (secao === "Gestão") return <Users size={22} />;
-  return <Settings size={22} />;
-}
+// CRM v3 mobile: primary tabs in the header, secondary pages accessed via sheet menu.
 
 export function Shell({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
@@ -79,7 +56,6 @@ export function Shell({ children }: { children: ReactNode }) {
   const usuario = obterUsuario();
   const [menuMobileAberto, setMenuMobileAberto] = useState(false);
   const [modulosAtivos, setModulosAtivos] = useState<string[]>([]);
-  const [secaoDesktopFocada, setSecaoDesktopFocada] = useState<SecaoNavegacao | null>(null);
   const podeVerAdminSistema = usuarioPodeVerAdminSistema(usuario?.papel);
 
   useEffect(() => {
@@ -100,26 +76,59 @@ export function Shell({ children }: { children: ReactNode }) {
     [podeVerAdminSistema, rotasComerciaisFiltradas]
   );
 
-  const secaoAtual = useMemo<SecaoNavegacao>(() => {
-    const rotaAtual = rotasDesktopVisiveis.find((rota) =>
-      rota.fim ? location.pathname === rota.caminho : location.pathname.startsWith(rota.caminho)
-    );
-    return rotaAtual?.secao ?? "Hoje";
-  }, [location.pathname, rotasDesktopVisiveis]);
+  const rotasPrimariasCrmV3 = useMemo(() => {
+    const caminhosVisiveis = new Set(rotasDesktopVisiveis.map((rota) => rota.caminho));
+    return rotasCrmV3Principais.filter((rota) => caminhosVisiveis.has(rota.caminho));
+  }, [rotasDesktopVisiveis]);
 
-  const secaoDesktopAtiva = secaoDesktopFocada && secoesVisiveis.includes(secaoDesktopFocada)
-    ? secaoDesktopFocada
-    : secoesVisiveis.includes(secaoAtual)
-      ? secaoAtual
-      : secoesVisiveis[0] ?? "Hoje";
+  // CRM v3 design uses specific icons per tab (different from sidebar)
+  const iconesCrmV3: Record<string, ReactNode> = {
+    "/app": <Home size={15} />,
+    "/app/reservas": <ShoppingBag size={15} />,
+    "/app/conversas": <MessageSquare size={15} />,
+    "/app/clientes": <Users size={15} />,
+    "/app/live": <Video size={15} />,
+    "/app/loja": <Store size={15} />,
+    "/app/relatorios": <BarChart3 size={15} />,
+  };
 
-  const rotasSecaoDesktop = secaoDesktopAtiva === "Admin/Sistema"
-    ? rotasAdminSistema
-    : rotasComerciaisFiltradas.filter((rota) => rota.secao === secaoDesktopAtiva);
+  // ── Módulos drawer (expands inside the tab bar) ──
+  const [modulosAberto, setModulosAberto] = useState(false);
+  const modulosTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const rotasModulos = useMemo(() => {
+    const primarios = new Set(rotasPrimariasCrmV3.map((r) => r.caminho));
+    return rotasDesktopVisiveis.filter((r) => !primarios.has(r.caminho));
+  }, [rotasPrimariasCrmV3, rotasDesktopVisiveis]);
+
+  const secoesModulos = useMemo(() => {
+    const secoes = new Map<string, typeof rotasModulos>();
+    for (const rota of rotasModulos) {
+      const grupo = secoes.get(rota.secao) ?? [];
+      grupo.push(rota);
+      secoes.set(rota.secao, grupo);
+    }
+    return secoes;
+  }, [rotasModulos]);
+
+  const abrirModulos = useCallback(() => {
+    if (modulosTimeoutRef.current) clearTimeout(modulosTimeoutRef.current);
+    setModulosAberto(true);
+  }, []);
+
+  const fecharModulosComDelay = useCallback(() => {
+    modulosTimeoutRef.current = setTimeout(() => setModulosAberto(false), 280);
+  }, []);
+
+  const fecharModulos = useCallback(() => {
+    if (modulosTimeoutRef.current) clearTimeout(modulosTimeoutRef.current);
+    setModulosAberto(false);
+  }, []);
 
   useEffect(() => {
     setMenuMobileAberto(false);
-  }, [location.pathname]);
+    fecharModulos();
+  }, [location.pathname, fecharModulos]);
 
   async function sair() {
     await requisitarApi("/auth/sessao", { method: "DELETE" }).catch(() => undefined);
@@ -128,27 +137,42 @@ export function Shell({ children }: { children: ReactNode }) {
     navigate("/login", { replace: true });
   }
 
-  const rotaAtualEhPrincipal = rotasMobilePrincipais.some((rota) =>
-    rota.fim ? location.pathname === rota.caminho : location.pathname.startsWith(rota.caminho)
-  );
-
   return (
     <div className="app-commerce-shell min-h-dvh bg-background text-foreground">
-      {/* ── Mobile header ── */}
-      <header className="app-mobile-chrome app-mobile-chrome-transparente sticky top-0 z-40 flex items-center justify-between px-3 lg:hidden">
-        <Link className="app-mobile-brand-pill flex items-center gap-2 font-semibold" to="/app" aria-label={`Painel ${NOME_PRODUTO}`}>
-          <LogoBizy className="crm-brand-wordmark" aria-hidden="true" />
-        </Link>
-        <Button
-          type="button"
-          variant="outline"
-          size="icon-lg"
-          className="app-mobile-menu-button"
-          onClick={() => setMenuMobileAberto(true)}
-          aria-label="Abrir menu"
-        >
-          <Menu size={20} />
-        </Button>
+      {/* ── CRM v3 Mobile header (emerald gradient + tabs) ── */}
+      <header className="crm-v3-mob-head sticky top-0 lg:hidden">
+        <div className="crm-v3-mob-head-r1">
+          <Link to="/app" aria-label={`Painel ${NOME_PRODUTO}`}>
+            <LogoBizy className="crm-brand-wordmark" cores={CORES_LOGO_BIZY_ESCURA} aria-hidden="true" />
+          </Link>
+          <span className="crm-v3-mob-tag">CRM</span>
+          <div className="crm-v3-mob-head-actions">
+            <button type="button" className="crm-v3-mob-head-icon" aria-label="Buscar" onClick={() => navigate("/app")}>
+              <Search size={18} />
+            </button>
+            <button type="button" className="crm-v3-mob-head-icon" aria-label="Notificações" onClick={() => setMenuMobileAberto(true)}>
+              <Bell size={18} />
+              <span className="crm-v3-mob-badge">4</span>
+            </button>
+          </div>
+        </div>
+        <nav className="crm-v3-mob-tabs" aria-label="Navegação mobile">
+          {rotasPrimariasCrmV3.slice(0, 4).map((item) => {
+            const ativo = item.fim ? location.pathname === item.caminho : location.pathname.startsWith(item.caminho);
+            return (
+              <NavLink
+                key={item.caminho}
+                to={item.caminho}
+                end={item.fim}
+                aria-current={ativo ? "page" : undefined}
+                className="crm-v3-mob-tab"
+              >
+                {iconesCrmV3[item.caminho]}
+                {item.rotulo}
+              </NavLink>
+            );
+          })}
+        </nav>
       </header>
 
       {/* ── Mobile sheet menu ── */}
@@ -203,127 +227,137 @@ export function Shell({ children }: { children: ReactNode }) {
         </SheetContent>
       </Sheet>
 
-      {/* ── Desktop navigation inspired by the reference video ── */}
-      <aside className="desktop-nav-system fixed inset-y-4 left-4 z-30 hidden lg:flex">
-        <nav
-          className="desktop-nav-rail"
-          aria-label="Secções principais"
-          onMouseLeave={() => setSecaoDesktopFocada(null)}
-        >
-          <Link to="/app" className="desktop-nav-brand-link" aria-label={`Painel ${NOME_PRODUTO}`}>
-            <LogoBizy cores={CORES_LOGO_BIZY_ESCURA} className="crm-brand-wordmark desktop-nav-brand" aria-hidden="true" />
+      {/* ── Desktop CRM v3 header (Market identity) ── */}
+      <header className="crm-v3-shell hidden lg:block">
+        <div className="crm-v3-util">
+          <span className="crm-v3-util-live">
+            <Bolt size={13} />
+            Live pronta · pedidos, clientes e loja no mesmo comando
+          </span>
+          <span className="crm-v3-util-right">
+            <Link to="/app/loja">Ver loja pública</Link>
+            <span>Ajuda</span>
+            <span>{usuario?.nome ?? "Vendedor"} · {NOME_PRODUTO}</span>
+          </span>
+        </div>
+
+        <div className="crm-v3-head">
+          <Link to="/app" className="crm-v3-brand" aria-label={`Painel ${NOME_PRODUTO}`}>
+            <LogoBizy className="crm-brand-wordmark crm-v3-brand-wordmark" aria-hidden="true" />
+            <span>CRM</span>
           </Link>
 
-          <div className="desktop-nav-rail-items">
-            {secoesVisiveis.map((secao) => {
-              const rotasSecao = secao === "Admin/Sistema"
-                ? rotasAdminSistema
-                : rotasComerciaisFiltradas.filter((rota) => rota.secao === secao);
-              const primeiraRota = rotasSecao[0];
-              const ativa = secaoDesktopAtiva === secao;
-              const atual = secaoAtual === secao;
-
-              return (
-                <button
-                  key={secao}
-                  type="button"
-                  className="desktop-nav-rail-item"
-                  data-active={ativa || undefined}
-                  data-current={atual || undefined}
-                  aria-label={secao}
-                  aria-current={atual ? "page" : undefined}
-                  onMouseEnter={() => setSecaoDesktopFocada(secao)}
-                  onFocus={() => setSecaoDesktopFocada(secao)}
-                  onClick={() => primeiraRota && navigate(primeiraRota.caminho)}
-                >
-                  {ativa && (
-                    <motion.span
-                      layoutId="desktop-nav-rail-active"
-                      className="desktop-nav-rail-active"
-                      transition={{ type: "spring", stiffness: 520, damping: 34, mass: 0.75 }}
-                    />
-                  )}
-                  <span className="desktop-nav-rail-icon" aria-hidden="true">
-                    {iconeSecaoDesktop(secao)}
-                  </span>
-                  {atual && <span className="desktop-nav-current-dot" aria-hidden="true" />}
-                </button>
-              );
-            })}
-          </div>
-
-          <button
-            type="button"
-            className="desktop-nav-rail-item desktop-nav-rail-utility"
-            aria-label="Definições"
-            onClick={() => navigate("/app/administracao")}
-          >
-            <Settings size={22} />
-          </button>
-        </nav>
-
-        <div className="desktop-nav-panel" onMouseEnter={() => setSecaoDesktopFocada(secaoDesktopAtiva)}>
-          <div className="desktop-nav-panel-head">
-            <div className="min-w-0">
-              <p>{secaoDesktopAtiva}</p>
-              <h2>{secaoDesktopAtiva === "Hoje" ? "Comando" : secaoDesktopAtiva}</h2>
-            </div>
-            <span>{rotasSecaoDesktop.length}</span>
-          </div>
-          <p className="desktop-nav-panel-desc">{descricaoSecaoDesktop[secaoDesktopAtiva]}</p>
-
-          <div className="desktop-nav-search" role="button" tabIndex={0} aria-label="Buscar">
-            <Search size={16} />
-            <span>Buscar</span>
-            <small>⌘K</small>
-          </div>
-
-          <ScrollArea className="desktop-nav-scroll">
-            <nav className="desktop-nav-list" aria-label={`Páginas de ${secaoDesktopAtiva}`}>
-              {rotasSecaoDesktop.map((item) => {
-                const ativo = item.fim ? location.pathname === item.caminho : location.pathname.startsWith(item.caminho);
-
-                return (
-                  <NavLink
-                    key={item.caminho}
-                    to={item.caminho}
-                    end={item.fim}
-                    aria-current={ativo ? "page" : undefined}
-                    className="desktop-nav-panel-item"
-                  >
-                    {ativo && (
-                      <motion.span
-                        layoutId="desktop-nav-panel-active"
-                        className="desktop-nav-panel-active"
-                        transition={{ type: "spring", stiffness: 480, damping: 36, mass: 0.8 }}
-                      />
-                    )}
-                    <span className="desktop-nav-panel-icon" aria-hidden="true">{item.icone}</span>
-                    <span className="desktop-nav-panel-label">{item.rotulo}</span>
-                    {ativo && <span className="desktop-nav-panel-live" aria-hidden="true" />}
-                  </NavLink>
-                );
-              })}
-            </nav>
-          </ScrollArea>
-
-          <div className="desktop-nav-user">
-            <div className="side-who-avatar">
-              {(usuario?.nome ?? "V")[0].toUpperCase()}
-            </div>
-            <div className="min-w-0">
-              <div className="side-who-name">{usuario?.nome ?? "Vendedor"}</div>
-              <div className="side-who-phone">{usuario?.telefone ?? "sem sessão"}</div>
-            </div>
-            <button type="button" onClick={() => void sair()} aria-label="Sair">
-              Sair
+          <div className="crm-v3-search-wrap">
+            <span className="crm-v3-search-scope">
+              Em tudo
+              <ChevronDown size={13} />
+            </span>
+            <BuscaGlobalComercial className="crm-v3-searchbar" placeholder="Buscar pedidos, clientes, produtos…" />
+            <button type="button" className="crm-v3-search-go" aria-label="Buscar">
+              <Search size={15} />
+              Buscar
             </button>
           </div>
+
+          <button type="button" className="crm-v3-action" onClick={() => navigate("/app/relatorios")}>
+            <Bell size={20} />
+            <span className="crm-v3-badge">4</span>
+            Avisos
+          </button>
+          <button type="button" className="crm-v3-action" onClick={() => navigate("/app/reservas")}>
+            <Plus size={20} />
+            Criar
+          </button>
+          <button type="button" className="crm-v3-account" onClick={() => navigate("/app/administracao")}>
+            <span>{(usuario?.nome ?? "V").slice(0, 2).toUpperCase()}</span>
+            Conta
+          </button>
         </div>
-      </aside>
+
+        <nav
+          className="crm-v3-tabs"
+          aria-label="Navegação principal do CRM"
+          onMouseLeave={fecharModulosComDelay}
+        >
+          <button
+            type="button"
+            className="crm-v3-menu-trigger"
+            onClick={() => setModulosAberto((v) => !v)}
+            onMouseEnter={abrirModulos}
+          >
+            <Menu size={15} />
+            Módulos
+          </button>
+
+          <AnimatePresence mode="wait" initial={false}>
+            {modulosAberto ? (
+              <motion.div
+                key="modulos"
+                className="crm-v3-modulos-drawer"
+                initial={{ opacity: 0, x: -12 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -12 }}
+                transition={{ type: "spring", stiffness: 400, damping: 30, mass: 0.6 }}
+                onMouseEnter={abrirModulos}
+              >
+                {[...secoesModulos.entries()].map(([secao, rotas]) => (
+                  <div key={secao} className="crm-v3-modulos-grupo">
+                    <span className="crm-v3-modulos-secao">{secao}</span>
+                    {rotas.map((rota) => {
+                      const ativo = rota.fim ? location.pathname === rota.caminho : location.pathname.startsWith(rota.caminho);
+                      return (
+                        <NavLink
+                          key={rota.caminho}
+                          to={rota.caminho}
+                          end={rota.fim}
+                          aria-current={ativo ? "page" : undefined}
+                          className="crm-v3-modulos-item"
+                          onClick={fecharModulos}
+                        >
+                          <span aria-hidden="true">{rota.icone}</span>
+                          {rota.rotulo}
+                        </NavLink>
+                      );
+                    })}
+                  </div>
+                ))}
+              </motion.div>
+            ) : (
+              <motion.div
+                key="tabs"
+                className="crm-v3-tabs-inner"
+                initial={{ opacity: 0, x: 12 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 12 }}
+                transition={{ type: "spring", stiffness: 400, damping: 30, mass: 0.6 }}
+              >
+                {rotasPrimariasCrmV3.map((item) => {
+                  const ativo = item.fim ? location.pathname === item.caminho : location.pathname.startsWith(item.caminho);
+                  return (
+                    <NavLink
+                      key={item.caminho}
+                      to={item.caminho}
+                      end={item.fim}
+                      aria-current={ativo ? "page" : undefined}
+                      className="crm-v3-tab"
+                    >
+                      <span aria-hidden="true">{iconesCrmV3[item.caminho] ?? item.icone}</span>
+                      {item.rotulo}
+                    </NavLink>
+                  );
+                })}
+                <span className="crm-v3-live-pill">
+                  <i />
+                  AO VIVO 00:42
+                </span>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </nav>
+      </header>
 
       {/* ── Main content ── */}
-      <main className="app-route-surface sidebar-v2-content min-h-dvh lg:ml-[404px]">
+      <main className="app-route-surface crm-v3-route-surface min-h-dvh">
         <div className="lg:hidden">
           <BuscaGlobalComercial />
         </div>
@@ -341,71 +375,67 @@ export function Shell({ children }: { children: ReactNode }) {
         </AnimatePresence>
       </main>
 
-      <MobileMenuDock
+      <CrmV3MobileBottomNav
         location={location}
         navigate={navigate}
         onAbrirMenu={() => setMenuMobileAberto(true)}
-        menuAberto={menuMobileAberto}
-        rotaAtualEhPrincipal={rotaAtualEhPrincipal}
       />
     </div>
   );
 }
 
-const mobileMenuItems: NativeBottomNavItem[] = [
-  { id: "painel", label: "Painel", icon: Home, path: "/app" },
-  { id: "pedidos", label: "Pedidos", icon: ListChecks, path: "/app/reservas" },
-  { id: "clientes", label: "Clientes", icon: Folder, path: "/app/clientes" },
-  { id: "chat", label: "Chat", icon: MessageCircle, path: "/app/conversas" },
-  { id: "mais", label: "Mais", icon: Plus, ariaLabel: "Abrir mais opções", variant: "cta" },
+/* CRM v3 mobile bottom nav: dark bar, lime active, emerald FAB */
+const crmV3BottomNavItems: Array<{ id: string; label: string; icon: typeof Home; path: string }> = [
+  { id: "inicio", label: "Início", icon: Home, path: "/app" },
+  { id: "pedidos", label: "Pedidos", icon: ShoppingBag, path: "/app/reservas" },
+];
+const crmV3BottomNavItemsAfterFab: Array<{ id: string; label: string; icon: typeof Home; path: string }> = [
+  { id: "chat", label: "Chat", icon: MessageSquare, path: "/app/conversas" },
+  { id: "clientes", label: "Clientes", icon: Users, path: "/app/clientes" },
 ];
 
-function MobileMenuDock({
+function CrmV3MobileBottomNav({
   location,
   navigate,
   onAbrirMenu,
-  menuAberto,
-  rotaAtualEhPrincipal
 }: {
   location: { pathname: string };
   navigate: (path: string) => void;
   onAbrirMenu: () => void;
-  menuAberto: boolean;
-  rotaAtualEhPrincipal: boolean;
 }) {
-  const activeIndex = useMemo(() => {
-    const path = location.pathname;
-    if (path === "/app") return 0;
-    if (path.startsWith("/app/reservas")) return 1;
-    if (path.startsWith("/app/clientes")) return 2;
-    if (path.startsWith("/app/conversas")) return 3;
-    // If on a non-primary route, highlight "Mais"
-    if (!rotaAtualEhPrincipal || menuAberto) return 4;
-    return 0;
-  }, [location.pathname, rotaAtualEhPrincipal, menuAberto]);
-
-  const items = useMemo(
-    () => mobileMenuItems.map((item, index) => (
-      index === 4 ? { ...item, ariaExpanded: menuAberto } : item
-    )),
-    [menuAberto]
-  );
+  const renderItem = (item: { id: string; label: string; icon: typeof Home; path: string }) => {
+    const ativo = item.path === "/app"
+      ? location.pathname === item.path
+      : location.pathname.startsWith(item.path);
+    const Icon = item.icon;
+    return (
+      <button
+        key={item.id}
+        type="button"
+        className="crm-v3-mob-bottom-item"
+        data-active={ativo || undefined}
+        aria-current={ativo ? "page" : undefined}
+        onClick={() => navigate(item.path)}
+      >
+        <Icon size={24} />
+        {item.label}
+      </button>
+    );
+  };
 
   return (
-    <NativeBottomNav
-      activeIndex={activeIndex}
-      activePillId="crm-mobile-nav"
-      className="app-mobile-menu-dock lg:hidden"
-      items={items}
-      label="Navegação principal"
-      onItemClick={(index, item) => {
-        if (index === 4) {
-          onAbrirMenu();
-        } else if (item.path) {
-          navigate(item.path);
-        }
-      }}
-    />
+    <nav className="crm-v3-mob-bottom lg:hidden" aria-label="Navegação principal">
+      {crmV3BottomNavItems.map(renderItem)}
+      <button
+        type="button"
+        className="crm-v3-mob-fab"
+        aria-label="Criar novo"
+        onClick={onAbrirMenu}
+      >
+        <Plus size={24} />
+      </button>
+      {crmV3BottomNavItemsAfterFab.map(renderItem)}
+    </nav>
   );
 }
 
@@ -488,7 +518,7 @@ function IconeResultadoBusca({ tipo }: { tipo: TipoResultadoBusca }) {
   return <Users className={className} />;
 }
 
-function BuscaGlobalComercial() {
+function BuscaGlobalComercial({ className, placeholder = "Buscar cliente, telefone, produto, pedido..." }: { className?: string; placeholder?: string } = {}) {
   const navigate = useNavigate();
   const [termo, setTermo] = useState("");
   const [resultados, setResultados] = useState<ResultadoBuscaGlobal[]>([]);
@@ -547,13 +577,13 @@ function BuscaGlobalComercial() {
   const mostrarPainel = termo.trim().length >= 2;
 
   return (
-    <section className="app-global-search grid gap-2" aria-label="Pesquisa global comercial">
+    <section className={cn("app-global-search grid gap-2", className)} aria-label="Pesquisa global comercial">
       <div className="relative">
         <Search className="pointer-events-none absolute left-3 top-1/2 z-10 -translate-y-1/2 text-muted-foreground" size={16} />
         <Input
           aria-label="Buscar cliente, telefone, produto, pedido ou conversa"
           className="h-10 rounded-lg border-border/50 bg-card pl-9 pr-10 shadow-none text-sm"
-          placeholder="Buscar cliente, telefone, produto, pedido..."
+          placeholder={placeholder}
           style={{ paddingLeft: "2.25rem", paddingRight: "2.5rem" }}
           value={termo}
           onChange={(evento) => setTermo(evento.target.value)}
