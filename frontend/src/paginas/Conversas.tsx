@@ -158,7 +158,7 @@ export function PaginaConversas() {
   const telefoneUrl = searchParams.get("telefone");
   const conversaIdUrl = searchParams.get("conversaId");
 
-  async function carregar() {
+  const carregar = useCallback(async () => {
     try {
       const [resposta, listaPecas, listaReservas] = await Promise.all([
         requisitarApi<RespostaConversas>("/atendimento/conversas"),
@@ -172,9 +172,9 @@ export function PaginaConversas() {
     } catch (erro) {
       setMensagem(erro instanceof Error ? erro.message : "Não foi possível carregar conversas.");
     }
-  }
+  }, []);
 
-  async function carregarDadosApoio() {
+  const carregarDadosApoio = useCallback(async () => {
     const [rr, cl, lb] = await Promise.allSettled([
       requisitarApi<RespostaRespostasRapidas>("/respostas-rapidas?limite=100"),
       requisitarApi<RespostaClientes360>("/clientes?limite=500"),
@@ -183,12 +183,38 @@ export function PaginaConversas() {
     if (rr.status === "fulfilled") setRespostasRapidas(rr.value.respostas ?? []);
     if (cl.status === "fulfilled") setClientes(cl.value.clientes ?? []);
     if (lb.status === "fulfilled") setLembretes(lb.value.lembretes ?? []);
-  }
+  }, []);
 
   useEffect(() => {
     void Promise.all([carregar(), carregarDadosApoio()]).finally(() => setCarregandoInicial(false));
     const eventos = criarFonteEventosAutenticada();
-    const atualizar = () => void carregar();
+    let debounceAtualizacao: number | null = null;
+    let intervaloFallback: number | null = null;
+    const pararFallback = () => {
+      if (intervaloFallback === null) return;
+      window.clearInterval(intervaloFallback);
+      intervaloFallback = null;
+    };
+    const atualizar = () => {
+      if (debounceAtualizacao !== null) window.clearTimeout(debounceAtualizacao);
+      debounceAtualizacao = window.setTimeout(() => {
+        void carregar();
+      }, 140);
+    };
+    const iniciarFallback = () => {
+      if (intervaloFallback !== null) return;
+      setMensagem("Ligação em tempo real instável. A atualizar atendimento automaticamente.");
+      intervaloFallback = window.setInterval(() => {
+        void carregar();
+      }, 5_000);
+    };
+    eventos.onopen = () => {
+      pararFallback();
+    };
+    eventos.onerror = () => {
+      iniciarFallback();
+      atualizar();
+    };
     [
       "COMMENT_RECEIVED",
       "COMMENT_PARSED",
@@ -200,8 +226,12 @@ export function PaginaConversas() {
       "WHATSAPP_MESSAGE_FAILED",
       "WHATSAPP_MESSAGE_STATUS"
     ].forEach((evento) => eventos.addEventListener(evento, atualizar));
-    return () => eventos.close();
-  }, []);
+    return () => {
+      eventos.close();
+      if (debounceAtualizacao !== null) window.clearTimeout(debounceAtualizacao);
+      pararFallback();
+    };
+  }, [carregar, carregarDadosApoio]);
 
   useEffect(() => {
     if (!clienteIdUrl && !telefoneUrl && !conversaIdUrl) return;
@@ -1009,7 +1039,7 @@ export function PaginaConversas() {
                 onCriado={() => void carregarDadosApoio()}
               />
 
-              {mensagem && <footer className="market-feedback rounded-lg border bg-card px-4 py-3 text-sm text-muted-foreground" aria-live="polite">{mensagem}</footer>}
+              {mensagem && <footer className="market-feedback rounded-lg border bg-card px-4 py-3 text-sm text-muted-foreground" role="status" aria-live="polite" aria-atomic="true">{mensagem}</footer>}
             </motion.div>
           ) : (
             <motion.div
@@ -1079,6 +1109,12 @@ export function PaginaConversas() {
                             {conversa.ultimaMensagem || "Sem mensagens"}
                           </p>
                           <div className="mt-1.5 flex flex-wrap gap-1">
+                            {conversa.origemPrincipal && (
+                              <Badge variant="outline" className="h-4 gap-0.5 px-1.5 text-[0.6rem]">
+                                <IconeOrigem origem={conversa.origemPrincipal} />
+                                {conversa.origemPrincipal === "tiktok" ? "TikTok" : conversa.origemPrincipal === "whatsapp" ? "WhatsApp" : conversa.origemPrincipal}
+                              </Badge>
+                            )}
                             <Badge variant={obterVarianteEstadoCrm(conversa.estadoCrm)} className="h-4 px-1.5 text-[0.6rem]">{traduzirEstadoCrm(conversa.estadoCrm)}</Badge>
                             {["ALTA", "URGENTE"].includes(conversa.prioridade) && (
                               <Badge variant={obterVariantePrioridade(conversa.prioridade)} className="h-4 px-1.5 text-[0.6rem]">{traduzirPrioridade(conversa.prioridade)}</Badge>
@@ -1095,7 +1131,7 @@ export function PaginaConversas() {
                   </div>
                 )}
               </div>
-              {mensagem && <footer className="market-feedback rounded-lg border bg-card px-4 py-3 text-sm text-muted-foreground" aria-live="polite">{mensagem}</footer>}
+              {mensagem && <footer className="market-feedback rounded-lg border bg-card px-4 py-3 text-sm text-muted-foreground" role="status" aria-live="polite" aria-atomic="true">{mensagem}</footer>}
             </motion.div>
           )}
         </AnimatePresence>
@@ -1105,16 +1141,18 @@ export function PaginaConversas() {
           DESKTOP — Inbox v2 (≥ lg)
           ═══════════════════════════════════════════════════════════════ */}
       <div className="hidden lg:grid gap-5">
-        <div className="bz-page-head">
+        <div className="crm-v3-pghead">
           <div>
-            <p className="bz-eyebrow"><span className="bz-pip" />Atendimento · {conversasFiltradas.length} conversa{conversasFiltradas.length === 1 ? "" : "s"}</p>
-            <h1 className="bz-title bz-title-sm">Conversas</h1>
+            <h1>Atendimento</h1>
+            <div className="crm-v3-sub">
+              {conversasFiltradas.length} conversa{conversasFiltradas.length === 1 ? "" : "s"} por responder
+            </div>
           </div>
-          <div className="bz-head-aside">
-            <button type="button" className="bz-btn bz-btn-ghost" onClick={() => void carregar()} disabled={carregando}>
-              <RefreshCcw size={16} />
-              Atualizar
-            </button>
+          <div className="crm-v3-pghead-right">
+            <span className="crm-v3-bdg" data-tone="green">
+              <span className="crm-v3-bdg-dot" />
+              WhatsApp ligado
+            </span>
           </div>
         </div>
 
@@ -1758,6 +1796,7 @@ function normalizarConversaAtendimento(conversa: ConversaParcial): Conversa {
     tags: Array.isArray(conversa.tags) ? conversa.tags.filter((tag): tag is string => typeof tag === "string") : [],
     politicaAutomacao: conversa.politicaAutomacao ?? "AUTOMATICO",
     pecaRelacionada: conversa.pecaRelacionada ?? null,
+    origemPrincipal: conversa.origemPrincipal ?? null,
     reservaAtual: conversa.reservaAtual ?? null,
     mensagens: Array.isArray(conversa.mensagens)
       ? conversa.mensagens.map((mensagem, indice) => normalizarMensagemAtendimento(mensagem, indice, agora))
@@ -1791,6 +1830,24 @@ function normalizarTelefoneLocal(telefone?: string | null) {
   const digitos = (telefone ?? "").replace(/\D/g, "");
   if (digitos.length === 9 && digitos.startsWith("9")) return `244${digitos}`;
   return digitos;
+}
+
+function IconeOrigem({ origem }: { origem: string }) {
+  if (origem === "tiktok") {
+    return (
+      <svg viewBox="0 0 24 24" fill="currentColor" className="size-2.5">
+        <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-2.88 2.5 2.89 2.89 0 0 1 0-5.78 2.92 2.92 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 3 15.57 6.34 6.34 0 0 0 9.37 22a6.33 6.33 0 0 0 6.33-6.33V9.18a8.16 8.16 0 0 0 3.89.98V6.69Z" />
+      </svg>
+    );
+  }
+  if (origem === "whatsapp") {
+    return (
+      <svg viewBox="0 0 24 24" fill="currentColor" className="size-2.5 text-green-600">
+        <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413Z" />
+      </svg>
+    );
+  }
+  return <MessageCircle className="size-2.5" />;
 }
 
 function formatarHora(data: string) {

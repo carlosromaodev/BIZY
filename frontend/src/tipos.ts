@@ -159,6 +159,7 @@ export interface Conversa {
   tags: string[];
   politicaAutomacao: PoliticaAutomacaoAtendimento;
   pecaRelacionada: string | null;
+  origemPrincipal: string | null;
   reservaAtual: Reserva | null;
   mensagens: Mensagem[];
 }

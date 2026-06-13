@@ -174,6 +174,7 @@ export class ConsultaAtendimentoOperacionalUseCase {
       (comentario) => comentario.estado === "REVISAO_MANUAL" || comentario.interpretacao?.requiresManualReview
     ).length;
     const tagsCrm = grupo.conversaCrm?.tags ?? [];
+    const origemPrincipal = this.resolverOrigemPrincipal(grupo.comentarios, grupo.mensagensCrm);
 
     return {
       id: grupo.telefone,
@@ -192,6 +193,7 @@ export class ConsultaAtendimentoOperacionalUseCase {
         grupo.clienteCrm?.avatarUrl ??
         comentarioComPerfil?.comentario.avatarUrl ??
         null,
+      origemPrincipal,
       ultimaMensagem: ultimaMensagem?.conteudo ?? "Sem atividade recente",
       ultimaAtualizacao: ultimaMensagem?.enviadaEm ?? reservaAtual?.criadaEm.toISOString() ?? new Date().toISOString(),
       mensagensNaoLidas: revisaoManual,
@@ -257,6 +259,18 @@ export class ConsultaAtendimentoOperacionalUseCase {
     ];
 
     return mensagens.sort((a, b) => new Date(a.enviadaEm).getTime() - new Date(b.enviadaEm).getTime());
+  }
+
+  private resolverOrigemPrincipal(
+    comentarios: RegistroComentario[],
+    mensagensCrm: MensagemAtendimento[]
+  ): string | null {
+    if (comentarios.length > 0) return "tiktok";
+    for (const msg of mensagensCrm) {
+      if (msg.origem === "whatsapp" || msg.provider === "evolution") return "whatsapp";
+      if (msg.origem === "comentario_live") return "tiktok";
+    }
+    return null;
   }
 
   private resolverEstadoConversa(reserva: Reserva | null) {

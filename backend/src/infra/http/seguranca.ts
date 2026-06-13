@@ -104,7 +104,15 @@ export function extrairTokenCookie(cookie?: string | string[] | null, nome = obt
 }
 
 export function extrairTokenAutenticacao(request: FastifyRequest): string | null {
-  return extrairTokenBearer(request.headers.authorization) ?? obterCookieSessaoRequest(request);
+  return extrairTokenBearer(request.headers.authorization)
+    ?? obterCookieSessaoRequest(request)
+    ?? extrairTokenQueryParam(request);
+}
+
+function extrairTokenQueryParam(request: FastifyRequest): string | null {
+  const query = request.query as Record<string, unknown>;
+  const token = typeof query?.token === "string" ? query.token.trim() : null;
+  return token || null;
 }
 
 export async function resolverSessaoJwt(request: FastifyRequest): Promise<IdentificadorSessaoAutenticada | null> {
