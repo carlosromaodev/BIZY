@@ -6,14 +6,16 @@ import {
   Download,
   Eye,
   Heart,
+  Instagram,
   Mail,
   MessageCircle,
   Phone,
   Plus,
   RefreshCcw,
+  Smartphone,
   Users,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { type ReactNode, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { motion, AnimatePresence } from "motion/react";
 import { requisitarApi } from "../api";
@@ -100,6 +102,25 @@ const COR_ORIGEM: Record<string, string> = {
   "tiktok_live": "var(--ink)",
   "loja_digital": "var(--green)",
   "whatsapp": "var(--blue)",
+  "instagram": "#E1306C",
+  "sms": "var(--amber)",
+  "manual": "var(--ink-3)",
+};
+
+const ICONE_ORIGEM: Record<string, ReactNode> = {
+  whatsapp: <Smartphone size={12} style={{ color: "var(--blue)" }} />,
+  instagram: <Instagram size={12} style={{ color: "#E1306C" }} />,
+  sms: <Phone size={12} style={{ color: "var(--amber)" }} />,
+};
+
+const NOME_ORIGEM: Record<string, string> = {
+  tiktok: "TikTok",
+  tiktok_live: "TikTok Live",
+  whatsapp: "WhatsApp",
+  instagram: "Instagram",
+  sms: "SMS",
+  loja_digital: "Loja digital",
+  manual: "Manual",
 };
 
 /* ── Helpers ────────────────────────────────────────────────────── */
@@ -421,12 +442,14 @@ export function PaginaClientes() {
                         </Td>
                         <Td>
                           {cliente.origem ? (
-                            <span className="bz-src">
-                              <span
-                                className="bz-src-led"
-                                style={{ background: COR_ORIGEM[cliente.origem.toLowerCase()] ?? "var(--ink-4)" }}
-                              />
-                              {cliente.origem}
+                            <span className="bz-src" style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
+                              {ICONE_ORIGEM[cliente.origem.toLowerCase()] ?? (
+                                <span
+                                  className="bz-src-led"
+                                  style={{ background: COR_ORIGEM[cliente.origem.toLowerCase()] ?? "var(--ink-4)" }}
+                                />
+                              )}
+                              {NOME_ORIGEM[cliente.origem.toLowerCase()] ?? cliente.origem}
                             </span>
                           ) : (
                             <span style={{ fontSize: "12.5px", color: "var(--ink-3)" }}>—</span>
@@ -501,7 +524,7 @@ export function PaginaClientes() {
               <SheetHeader>
                 <SheetTitle>Perfil do cliente</SheetTitle>
                 <SheetDescription>
-                  Dados recolhidos automaticamente via TikTok, WhatsApp e interações na loja.
+                  Dados recolhidos via WhatsApp, Instagram, TikTok, SMS e interações na loja.
                 </SheetDescription>
               </SheetHeader>
               <PainelDetalheCliente cliente={clienteDetalhe} onAcao={acaoRapida} />
@@ -568,7 +591,24 @@ function PainelDetalheCliente({
             <span>{cliente.email}</span>
           </div>
         )}
+        {cliente.username && (
+          <div className="bz-detail-row">
+            <Instagram size={13} style={{ color: "#E1306C" }} />
+            <span>@{cliente.username}</span>
+          </div>
+        )}
       </div>
+
+      {/* Origin / channels */}
+      {cliente.origem && (
+        <div className="bz-detail-section">
+          <h4 className="bz-detail-label">Canal de origem</h4>
+          <div className="bz-detail-row" style={{ gap: 6 }}>
+            {ICONE_ORIGEM[cliente.origem.toLowerCase()] ?? <MessageCircle size={13} />}
+            <span style={{ fontWeight: 600 }}>{NOME_ORIGEM[cliente.origem.toLowerCase()] ?? cliente.origem}</span>
+          </div>
+        </div>
+      )}
 
       {/* Metrics grid */}
       <div className="bz-detail-section">

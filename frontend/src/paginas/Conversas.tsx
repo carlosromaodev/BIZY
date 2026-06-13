@@ -110,6 +110,7 @@ type ContextoComercialDados = {
 };
 
 type FiltroRapido = "todas" | "abertas" | "aguardando" | "resolvidas";
+type FiltroCanal = "todos" | "whatsapp" | "instagram" | "tiktok" | "sms" | "outro";
 
 const FILTROS_RAPIDOS: Array<{ valor: FiltroRapido; rotulo: string }> = [
   { valor: "todas",     rotulo: "Todas" },
@@ -118,6 +119,16 @@ const FILTROS_RAPIDOS: Array<{ valor: FiltroRapido; rotulo: string }> = [
   { valor: "resolvidas", rotulo: "Resolvidas" },
 ];
 
+const NOME_CANAL: Record<string, string> = {
+  whatsapp: "WhatsApp",
+  instagram: "Instagram",
+  tiktok: "TikTok",
+  tiktok_live: "TikTok Live",
+  sms: "SMS",
+  loja_digital: "Loja digital",
+  manual: "Manual",
+};
+
 export function PaginaConversas() {
   const [searchParams] = useSearchParams();
   const [conversas, setConversas] = useState<Conversa[]>([]);
@@ -125,6 +136,7 @@ export function PaginaConversas() {
   const [chatAberto, setChatAberto] = useState(false);
   const [busca, setBusca] = useState("");
   const [filtroResponsavel, setFiltroResponsavel] = useState("todos");
+  const [filtroCanal, setFiltroCanal] = useState<FiltroCanal>("todos");
   const [filtroRapido, setFiltroRapido] = useState<FiltroRapido>("todas");
   const [pecas, setPecas] = useState<Peca[]>([]);
   const [reservas, setReservas] = useState<Reserva[]>([]);
@@ -296,10 +308,16 @@ export function PaginaConversas() {
       })
       : conversas;
 
-    if (filtroResponsavel === "todos") return porBusca;
-    if (filtroResponsavel === "sem-responsavel") return porBusca.filter((conversa) => !conversa.responsavelId);
-    return porBusca.filter((conversa) => conversa.responsavelId === filtroResponsavel);
-  }, [busca, conversas, filtroResponsavel]);
+    const porResponsavel = filtroResponsavel === "todos"
+      ? porBusca
+      : filtroResponsavel === "sem-responsavel"
+        ? porBusca.filter((conversa) => !conversa.responsavelId)
+        : porBusca.filter((conversa) => conversa.responsavelId === filtroResponsavel);
+
+    if (filtroCanal === "todos") return porResponsavel;
+    if (filtroCanal === "outro") return porResponsavel.filter((c) => c.origemPrincipal && !["whatsapp", "instagram", "tiktok", "sms"].includes(c.origemPrincipal));
+    return porResponsavel.filter((c) => c.origemPrincipal === filtroCanal);
+  }, [busca, conversas, filtroResponsavel, filtroCanal]);
 
   const conversasDesktop = useMemo(() => {
     switch (filtroRapido) {
@@ -1077,6 +1095,22 @@ export function PaginaConversas() {
                     </SelectContent>
                   </Select>
                 </div>
+                <div className="flex items-center gap-2">
+                  <Zap className="size-4 shrink-0 text-muted-foreground" />
+                  <Select value={filtroCanal} onValueChange={(v) => setFiltroCanal(v as FiltroCanal)}>
+                    <SelectTrigger className="flex-1 max-w-xs">
+                      <SelectValue placeholder="Canal" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="todos">Todos os canais</SelectItem>
+                      <SelectItem value="whatsapp">WhatsApp</SelectItem>
+                      <SelectItem value="instagram">Instagram</SelectItem>
+                      <SelectItem value="tiktok">TikTok</SelectItem>
+                      <SelectItem value="sms">SMS</SelectItem>
+                      <SelectItem value="outro">Outros</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
 
               <div className="rounded-xl border bg-card overflow-hidden shadow-xs">
@@ -1114,7 +1148,7 @@ export function PaginaConversas() {
                             {conversa.origemPrincipal && (
                               <Badge variant="outline" className="h-4 gap-0.5 px-1.5 text-[0.6rem]">
                                 <IconeOrigem origem={conversa.origemPrincipal} />
-                                {conversa.origemPrincipal === "tiktok" ? "TikTok" : conversa.origemPrincipal === "whatsapp" ? "WhatsApp" : conversa.origemPrincipal === "instagram" ? "Instagram" : conversa.origemPrincipal}
+                                {NOME_CANAL[conversa.origemPrincipal] ?? conversa.origemPrincipal}
                               </Badge>
                             )}
                             <Badge variant={obterVarianteEstadoCrm(conversa.estadoCrm)} className="h-4 px-1.5 text-[0.6rem]">{traduzirEstadoCrm(conversa.estadoCrm)}</Badge>
@@ -1177,7 +1211,7 @@ export function PaginaConversas() {
             ))}
           </div>
 
-          {/* Search */}
+          {/* Search + Channel filter */}
           <div className="bz-conv-search">
             <Search size={14} />
             <input
@@ -1187,6 +1221,15 @@ export function PaginaConversas() {
               onChange={(e) => setBusca(e.target.value)}
             />
           </div>
+          {filtroCanal !== "todos" && (
+            <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "0 12px 8px", fontSize: 12, color: "var(--ink-3)" }}>
+              <IconeOrigem origem={filtroCanal} />
+              <span>{NOME_CANAL[filtroCanal] ?? filtroCanal}</span>
+              <button type="button" onClick={() => setFiltroCanal("todos")} style={{ marginLeft: "auto", cursor: "pointer", opacity: 0.6 }}>
+                <X size={12} />
+              </button>
+            </div>
+          )}
 
           {/* Conversation list */}
           <div className="bz-conv-list">
@@ -1215,6 +1258,12 @@ export function PaginaConversas() {
                     </div>
                     <div className="msg">{conversa.ultimaMensagem || "Sem mensagens"}</div>
                     <div className="meta">
+                      {conversa.origemPrincipal && (
+                        <span className="tagm" style={{ display: "inline-flex", alignItems: "center", gap: 3 }}>
+                          <IconeOrigem origem={conversa.origemPrincipal} />
+                          {NOME_CANAL[conversa.origemPrincipal] ?? conversa.origemPrincipal}
+                        </span>
+                      )}
                       <span className={`tagm ${corEstadoCrmTag(conversa.estadoCrm)}`}>{traduzirEstadoCrm(conversa.estadoCrm)}</span>
                       {["ALTA", "URGENTE"].includes(conversa.prioridade) && (
                         <span className="tagm b-rose">{traduzirPrioridade(conversa.prioridade)}</span>
@@ -1248,6 +1297,9 @@ export function PaginaConversas() {
                 <div className="nm">{conversaAtual.nomeCliente}</div>
                 <div className="sub">
                   <StatusBadge cor={corEstadoCrmSemantica(conversaAtual.estadoCrm)}>{traduzirEstadoCrm(conversaAtual.estadoCrm)}</StatusBadge>
+                  {conversaAtual.origemPrincipal && (
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 3 }}> · <IconeOrigem origem={conversaAtual.origemPrincipal} /> {NOME_CANAL[conversaAtual.origemPrincipal] ?? conversaAtual.origemPrincipal}</span>
+                  )}
                   <span> · {conversaAtual.telefone}</span>
                   {conversaAtual.pecaRelacionada && <span> · {conversaAtual.pecaRelacionada}</span>}
                 </div>
@@ -1568,8 +1620,9 @@ function MensagemLinha({
   onUsarSugestao?: (mensagem: Mensagem) => void;
 }) {
   const status = traduzirStatusMensagem(mensagem);
-  const permiteReenvio = mensagem.origem === "whatsapp" && mensagem.remetente !== "cliente" && mensagem.status === "FAILED";
-  const erroTecnicoEvolution = permiteReenvio && ehErroTecnicoEvolution(mensagem.erro);
+  const canalComReenvio = mensagem.origem === "whatsapp" || mensagem.origem === "instagram" || mensagem.origem === "sms";
+  const permiteReenvio = canalComReenvio && mensagem.remetente !== "cliente" && mensagem.status === "FAILED";
+  const erroTecnicoEvolution = permiteReenvio && mensagem.origem === "whatsapp" && ehErroTecnicoEvolution(mensagem.erro);
   const permiteUsarSugestao = mensagem.origem === "ia_sugestao" && mensagem.status === "QUEUED";
   const enviadaPelaLoja = mensagem.remetente !== "cliente";
   const mensagemFalhou = enviadaPelaLoja && mensagem.status === "FAILED";
@@ -1856,6 +1909,16 @@ function IconeOrigem({ origem }: { origem: string }) {
       </svg>
     );
   }
+  if (origem === "sms") {
+    return <Phone className="size-2.5 text-amber-500" />;
+  }
+  if (origem === "loja_digital") {
+    return (
+      <svg viewBox="0 0 24 24" fill="currentColor" className="size-2.5 text-emerald-600">
+        <path d="M4 7h16l-1.5 9H5.5L4 7zm0 0L3 4H1m15 14a2 2 0 11-4 0 2 2 0 014 0zm-8 0a2 2 0 11-4 0 2 2 0 014 0z" strokeWidth="2" stroke="currentColor" fill="none" />
+      </svg>
+    );
+  }
   return <MessageCircle className="size-2.5" />;
 }
 
@@ -1903,7 +1966,8 @@ function traduzirRemetenteMensagem(mensagem: Mensagem) {
 }
 
 function traduzirStatusMensagem(mensagem: Mensagem) {
-  if ((mensagem.origem !== "whatsapp" && mensagem.origem !== "ia_sugestao") || mensagem.remetente === "cliente") return null;
+  const origensComStatus = ["whatsapp", "instagram", "sms", "ia_sugestao"];
+  if (!origensComStatus.includes(mensagem.origem ?? "") || mensagem.remetente === "cliente") return null;
   const traducoes: Record<NonNullable<Mensagem["status"]>, string> = {
     RECEIVED: "recebida",
     QUEUED: "pendente",
@@ -1973,7 +2037,7 @@ function MensagemBizy({
 }) {
   const enviadaPelaLoja = mensagem.remetente !== "cliente";
   const falhou = enviadaPelaLoja && mensagem.status === "FAILED";
-  const permiteReenvio = falhou && mensagem.origem === "whatsapp";
+  const permiteReenvio = falhou && (mensagem.origem === "whatsapp" || mensagem.origem === "instagram" || mensagem.origem === "sms");
   const permiteUsarSugestao = mensagem.origem === "ia_sugestao" && mensagem.status === "QUEUED";
   const classe = falhou ? "bz-msg msg-fail" : enviadaPelaLoja ? "bz-msg msg-out" : "bz-msg msg-in";
 
