@@ -13,6 +13,7 @@ import type {
   RepositorioComentarios,
   RepositorioEventosOperacionais,
   RepositorioFunilComercial,
+  RepositorioInstanciasInstagram,
   RepositorioInstanciasWhatsApp,
   RepositorioJobsOperacionais,
   RepositorioMembrosNegocio,
@@ -63,6 +64,7 @@ import { MonitorReservasUseCase } from "../../use-case/MonitorReservasUseCase.js
 import { OnboardingBizyUseCase } from "../../use-case/OnboardingBizyUseCase.js";
 import { MotorReservas } from "../../use-case/MotorReservas.js";
 import { ProcessadorComentarios } from "../../use-case/ProcessadorComentarios.js";
+import { ReceberMensagemInstagramUseCase } from "../../use-case/ReceberMensagemInstagramUseCase.js";
 import { ReceberMensagemWhatsAppUseCase } from "../../use-case/ReceberMensagemWhatsAppUseCase.js";
 import { RecuperacaoMensagensWhatsAppUseCase } from "../../use-case/RecuperacaoMensagensWhatsAppUseCase.js";
 import { RelatoriosComerciaisUseCase } from "../../use-case/RelatoriosComerciaisUseCase.js";
@@ -78,6 +80,7 @@ import {
   RepositorioComentariosMemoria,
   RepositorioEventosOperacionaisMemoria,
   RepositorioFunilComercialMemoria,
+  RepositorioInstanciasInstagramMemoria,
   RepositorioInstanciasWhatsAppMemoria,
   RepositorioJobsOperacionaisMemoria,
   RepositorioMembrosNegocioMemoria,
@@ -103,6 +106,7 @@ import {
   RepositorioComentariosPrisma,
   RepositorioEventosOperacionaisPrisma,
   RepositorioFunilComercialPrisma,
+  RepositorioInstanciasInstagramPrisma,
   RepositorioInstanciasWhatsAppPrisma,
   RepositorioJobsOperacionaisPrisma,
   RepositorioMembrosNegocioPrisma,
@@ -121,6 +125,7 @@ import { criarPrismaCliente } from "../banco/prismaCliente.js";
 import { PublicadorEventosN8n } from "../n8n/PublicadorEventosN8n.js";
 import { FutureInstagramProvider } from "../provedores/FutureInstagramProvider.js";
 import { ManualProvider } from "../provedores/ManualProvider.js";
+import { ProvedorInstagramInstagrapi } from "../provedores/ProvedorInstagramInstagrapi.js";
 import { ProvedorSmsOmbala } from "../provedores/ProvedorSmsOmbala.js";
 import { ProvedorWhatsAppCloudApi } from "../provedores/ProvedorWhatsAppCloudApi.js";
 import { ProvedorWhatsAppComControleEnvio } from "../provedores/ProvedorWhatsAppComControleEnvio.js";
@@ -147,6 +152,7 @@ export interface RepositoriosAplicacao {
   jobsOperacionais: RepositorioJobsOperacionais;
   membrosNegocio: RepositorioMembrosNegocio;
   instanciasWhatsApp: RepositorioInstanciasWhatsApp;
+  instanciasInstagram: RepositorioInstanciasInstagram;
   sessoesLive: RepositorioSessoesLive;
   auditoria: RepositorioAuditoria;
   trackingComercial: RepositorioTrackingComercial;
@@ -217,6 +223,8 @@ export interface ContextoAplicacao {
   consultaAtendimentoOperacional: ConsultaAtendimentoOperacionalUseCase;
   atendimentoCrm: AtendimentoCrmUseCase;
   receberMensagemWhatsApp: ReceberMensagemWhatsAppUseCase;
+  receberMensagemInstagram: ReceberMensagemInstagramUseCase;
+  provedorInstagram: ProvedorInstagramInstagrapi;
   processadorComentarios: ProcessadorComentarios;
   revisaoComentarios: RevisaoComentariosUseCase;
   gerarReciboReserva: GerarReciboReservaUseCase;
@@ -415,6 +423,11 @@ export function criarContextoAplicacao(logger: FastifyBaseLogger): ContextoAplic
     }
   );
   const receberMensagemWhatsApp = new ReceberMensagemWhatsAppUseCase(eventos);
+  const receberMensagemInstagram = new ReceberMensagemInstagramUseCase(eventos);
+  const provedorInstagram = new ProvedorInstagramInstagrapi({
+    bridgeUrl: process.env.INSTAGRAM_BRIDGE_URL ?? "http://instagrapi-bridge:8686",
+    bridgeToken: process.env.INSTAGRAM_BRIDGE_TOKEN ?? ""
+  });
   const processadorComentarios = new ProcessadorComentarios(
     interpretadorComentario,
     motorReservas,
@@ -496,6 +509,8 @@ export function criarContextoAplicacao(logger: FastifyBaseLogger): ContextoAplic
     consultaAtendimentoOperacional,
     atendimentoCrm,
     receberMensagemWhatsApp,
+    receberMensagemInstagram,
+    provedorInstagram,
     processadorComentarios,
     revisaoComentarios,
     gerarReciboReserva,
@@ -537,6 +552,7 @@ function criarRepositorios(): RepositoriosAplicacao {
       jobsOperacionais: new RepositorioJobsOperacionaisMemoria(),
       membrosNegocio: new RepositorioMembrosNegocioMemoria(),
       instanciasWhatsApp: new RepositorioInstanciasWhatsAppMemoria(),
+      instanciasInstagram: new RepositorioInstanciasInstagramMemoria(),
       sessoesLive: new RepositorioSessoesLiveMemoria(),
       auditoria: new RepositorioAuditoriaMemoria(),
       trackingComercial: new RepositorioTrackingComercialMemoria(),
@@ -567,6 +583,7 @@ function criarRepositorios(): RepositoriosAplicacao {
     jobsOperacionais: new RepositorioJobsOperacionaisPrisma(prisma),
     membrosNegocio: new RepositorioMembrosNegocioPrisma(prisma),
     instanciasWhatsApp: new RepositorioInstanciasWhatsAppPrisma(prisma),
+    instanciasInstagram: new RepositorioInstanciasInstagramPrisma(prisma),
     sessoesLive: new RepositorioSessoesLivePrisma(prisma),
     auditoria: new RepositorioAuditoriaPrisma(prisma),
     trackingComercial: new RepositorioTrackingComercialPrisma(prisma),

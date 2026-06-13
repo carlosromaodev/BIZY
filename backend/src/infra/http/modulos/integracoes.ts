@@ -139,6 +139,55 @@ export const moduloIntegracoes: ModuloHttp = {
       return contexto.gestaoWhatsAppEvolution.remover(id, contextoComercial.negocio.id);
     });
 
+    app.post("/webhooks/instagram", async (request, reply) => {
+      const tokenConfigurado = process.env.INSTAGRAM_WEBHOOK_TOKEN;
+      const tokenRecebido = request.headers["x-instagram-webhook-token"];
+      const tokenQuery = (request.query as { token?: string }).token;
+
+      if (tokenConfigurado && tokenRecebido !== tokenConfigurado && tokenQuery !== tokenConfigurado) {
+        return reply.code(401).send({ erro: "NAO_AUTORIZADO", mensagem: "Token do Instagram inválido." });
+      }
+
+      const payloadRecebido = request.body as Record<string, unknown>;
+      const dados = obterObjeto(payloadRecebido.data ?? payloadRecebido);
+      const negocioId = obterString(dados.negocioId) ?? await resolverNegocioWebhookInstagram(contexto, dados);
+      const payload = negocioId ? { ...payloadRecebido, data: { ...dados, negocioId } } : payloadRecebido;
+      const idempotencyKey = contexto.receberMensagemInstagram.gerarChaveIdempotencia(payload);
+
+      if (idempotencyKey && negocioId) {
+        const registro = await contexto.repositorios.eventosOperacionais.registrar({
+          negocioId,
+          topico: "webhook:instagram",
+          tipo: "WEBHOOK_INSTAGRAM_RECEIVED",
+          entidadeTipo: "instagram_dm",
+          entidadeId: obterString(dados.messageId),
+          idempotencyKey,
+          payloadVersion: "v1",
+          payload,
+          estado: "PROCESSADO"
+        });
+
+        if (registro.duplicado) {
+          return reply.code(202).send({ ok: true, duplicado: true, idempotencyKey, mensagem: null });
+        }
+      }
+
+      const mensagem = contexto.receberMensagemInstagram.processarWebhook(payload);
+      return reply.code(202).send({ ok: true, duplicado: mensagem.duplicado, idempotencyKey, mensagem });
+    });
+
+    app.get("/instagram/status", async (request, reply) => {
+      const usuario = await exigirUsuarioAutenticado(contexto, request, reply);
+      if (!usuario) return;
+
+      try {
+        const status = await contexto.provedorInstagram.consultarStatus();
+        return status;
+      } catch {
+        return { instancias: [], erro: "Instagram Bridge indisponível." };
+      }
+    });
+
     app.post("/webhooks/evolution", async (request, reply) => {
       const tokenConfigurado = process.env.EVOLUTION_WEBHOOK_TOKEN;
       const tokenRecebido = request.headers["x-emeu-evolution-token"];
@@ -243,4 +292,25 @@ function obterObjeto(valor: unknown): Record<string, unknown> {
 
 function obterString(valor: unknown): string | null {
   return typeof valor === "string" && valor.trim().length > 0 ? valor.trim() : null;
+}
+
+async function resolverNegocioWebhookInstagram(
+  contexto: ContextoAplicacao,
+  dados: Record<string, unknown>
+): Promise<string | null> {
+  const negocioDireto = obterString(dados.negocioId);
+  if (negocioDireto) return negocioDireto;
+
+  const nomeInstancia = obterString(dados.instancia);
+  if (!nomeInstancia) return null;
+
+  try {
+    const instancias = await contexto.repositorios.instanciasInstagram?.listarAtivas();
+    const instancia = instancias?.find(
+      (item: { nome: string }) => item.nome.toLowerCase() === nomeInstancia.toLowerCase()
+    );
+    return instancia?.negocioId ?? null;
+  } catch {
+    return null;
+  }
 }

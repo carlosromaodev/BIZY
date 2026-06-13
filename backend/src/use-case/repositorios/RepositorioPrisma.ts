@@ -8,6 +8,7 @@ import type {
   RepositorioCampanhas,
   RepositorioClientes,
   RepositorioCompartilhamentoClientes,
+  RepositorioInstanciasInstagram,
   RepositorioInstanciasWhatsApp,
   RepositorioEventosOperacionais,
   RepositorioPecas,
@@ -77,6 +78,7 @@ import type {
   FiltrosPlaybookRecuperacao,
   FiltrosSocialInbox,
   HistoricoComissaoParceiro,
+  InstanciaInstagram,
   InstanciaWhatsApp,
   ItemCampanhaCrm,
   JobOperacional,
@@ -2531,6 +2533,8 @@ export class RepositorioPedidosPrisma implements RepositorioPedidos {
             descontoEmKwanza: dados.descontoEmKwanza,
             taxaEntregaEmKwanza: dados.taxaEntregaEmKwanza,
             totalEmKwanza: dados.totalEmKwanza,
+            ivaPercentual: dados.ivaPercentual ?? 14,
+            ivaEmKwanza: dados.ivaEmKwanza ?? 0,
             motivoDesconto: dados.motivoDesconto ?? null,
             enderecoEntrega: dados.enderecoEntrega ?? null,
             comprovativoPagamentoUrl: dados.comprovativoPagamentoUrl ?? null,
@@ -3506,6 +3510,60 @@ export class RepositorioInstanciasWhatsAppPrisma implements RepositorioInstancia
     const instancia = await this.buscarPorId(id, negocioId);
     if (!instancia) throw new Error(`Instância ${id} não encontrada.`);
     return instancia;
+  }
+}
+
+export class RepositorioInstanciasInstagramPrisma implements RepositorioInstanciasInstagram {
+  constructor(private readonly prisma: PrismaClient) {}
+
+  async criar(dados: {
+    negocioId?: string | null;
+    nome: string;
+    username: string;
+    padrao?: boolean;
+  }): Promise<InstanciaInstagram> {
+    return this.prisma.instanciaInstagram.create({
+      data: {
+        negocioId: dados.negocioId ?? null,
+        nome: dados.nome,
+        username: dados.username,
+        padrao: dados.padrao ?? false,
+        status: "CRIADA"
+      }
+    });
+  }
+
+  async listarAtivas(negocioId?: string | null): Promise<InstanciaInstagram[]> {
+    return this.prisma.instanciaInstagram.findMany({
+      where: { ativa: true, ...(negocioId !== undefined ? { negocioId } : {}) },
+      orderBy: [{ padrao: "desc" }, { atualizadaEm: "desc" }]
+    });
+  }
+
+  async buscarPorId(id: string, negocioId?: string | null): Promise<InstanciaInstagram | null> {
+    return this.prisma.instanciaInstagram.findFirst({
+      where: { id, ...(negocioId !== undefined ? { negocioId } : {}) }
+    });
+  }
+
+  async buscarPorNome(nome: string): Promise<InstanciaInstagram | null> {
+    return this.prisma.instanciaInstagram.findFirst({
+      where: { nome: nome.toLowerCase(), ativa: true }
+    });
+  }
+
+  async atualizar(id: string, dados: Partial<Pick<
+    InstanciaInstagram,
+    "username" | "status" | "padrao" | "ativa" | "ultimoErro" | "ultimaConexaoEm" | "ultimaPollEm"
+  >>): Promise<InstanciaInstagram> {
+    return this.prisma.instanciaInstagram.update({ where: { id }, data: dados });
+  }
+
+  async desativar(id: string): Promise<InstanciaInstagram> {
+    return this.prisma.instanciaInstagram.update({
+      where: { id },
+      data: { ativa: false, padrao: false }
+    });
   }
 }
 

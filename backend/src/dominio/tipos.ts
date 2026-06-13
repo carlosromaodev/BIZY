@@ -98,6 +98,9 @@ export const tiposEventoSistema = [
   "WHATSAPP_MESSAGE_SENT",
   "WHATSAPP_MESSAGE_FAILED",
   "WHATSAPP_MESSAGE_STATUS",
+  "INSTAGRAM_DM_RECEIVED",
+  "INSTAGRAM_DM_SENT",
+  "INSTAGRAM_DM_FAILED",
   "STOCK_UPDATED"
 ] as const;
 export type TipoEventoSistema = (typeof tiposEventoSistema)[number];
@@ -1533,6 +1536,8 @@ export interface Pedido {
   descontoEmKwanza: number;
   taxaEntregaEmKwanza: number;
   totalEmKwanza: number;
+  ivaPercentual: number;
+  ivaEmKwanza: number;
   motivoDesconto: string | null;
   enderecoEntrega: string | null;
   comprovativoPagamentoUrl: string | null;
@@ -1581,6 +1586,8 @@ export interface DadosPedidoResolvido extends Omit<NovoPedido, "itens"> {
   descontoEmKwanza: number;
   taxaEntregaEmKwanza: number;
   totalEmKwanza: number;
+  ivaPercentual?: number;
+  ivaEmKwanza?: number;
   itens: Array<{
     pecaId: string;
     codigoPeca: string;
@@ -2391,6 +2398,21 @@ export interface InstanciaWhatsApp {
   ultimoErro: string | null;
   ultimaConexaoEm: Date | null;
   ultimaConsultaEm: Date | null;
+  criadaEm: Date;
+  atualizadaEm: Date;
+}
+
+export interface InstanciaInstagram {
+  id: string;
+  negocioId: string | null;
+  nome: string;
+  username: string;
+  status: string;
+  padrao: boolean;
+  ativa: boolean;
+  ultimoErro: string | null;
+  ultimaConexaoEm: Date | null;
+  ultimaPollEm: Date | null;
   criadaEm: Date;
   atualizadaEm: Date;
 }

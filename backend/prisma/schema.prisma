@@ -129,6 +129,8 @@ model Pedido {
   descontoEmKwanza        Int             @default(0)
   taxaEntregaEmKwanza     Int             @default(0)
   totalEmKwanza           Int
+  ivaPercentual           Float           @default(14)
+  ivaEmKwanza             Int             @default(0)
   motivoDesconto          String?
   enderecoEntrega         String?
   comprovativoPagamentoUrl String?
@@ -148,6 +150,7 @@ model Pedido {
   @@index([negocioId, estadoEntrega, criadoEm])
   @@index([clienteNegocioId, criadoEm])
   @@index([reservaId])
+  @@index([negocioId, pagoEm(sort: Desc)])
 }
 
 model ItemPedido {
@@ -510,6 +513,7 @@ model Negocio {
   itensCampanhaCrm      ItemCampanhaCrm[]
   eventosOperacionais   EventoOperacional[]
   jobsOperacionais      JobOperacional[]
+  instanciasInstagram   InstanciaInstagram[]
 
   @@index([nomeComercial])
   @@index([slugPublico])
@@ -1174,6 +1178,26 @@ model InstanciaWhatsApp {
   ultimoErro      String?
   ultimaConexaoEm DateTime?
   ultimaConsultaEm DateTime?
+  criadaEm        DateTime @default(now())
+  atualizadaEm    DateTime @updatedAt
+
+  @@unique([negocioId, nome])
+  @@index([ativa, padrao])
+  @@index([negocioId, ativa, padrao])
+}
+
+model InstanciaInstagram {
+  id              String   @id @default(uuid())
+  negocioId       String?
+  negocio         Negocio? @relation(fields: [negocioId], references: [id])
+  nome            String
+  username        String
+  status          String   @default("CRIADA")
+  padrao          Boolean  @default(false)
+  ativa           Boolean  @default(true)
+  ultimoErro      String?
+  ultimaConexaoEm DateTime?
+  ultimaPollEm    DateTime?
   criadaEm        DateTime @default(now())
   atualizadaEm    DateTime @updatedAt
 

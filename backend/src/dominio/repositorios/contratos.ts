@@ -78,6 +78,7 @@ import type {
   DadosPublicacaoLoja,
   JobOperacional,
   CodigoLoginSms,
+  InstanciaInstagram,
   InstanciaWhatsApp,
   NovoOutboxMensagemWhatsApp,
   NovoRegistroSessaoLive,
@@ -472,6 +473,23 @@ export interface RepositorioInstanciasWhatsApp {
   >>, negocioId?: string | null): Promise<InstanciaWhatsApp>;
   definirPadrao(id: string, negocioId?: string | null): Promise<InstanciaWhatsApp>;
   desativar(id: string, negocioId?: string | null): Promise<InstanciaWhatsApp>;
+}
+
+export interface RepositorioInstanciasInstagram {
+  criar(dados: {
+    negocioId?: string | null;
+    nome: string;
+    username: string;
+    padrao?: boolean;
+  }): Promise<InstanciaInstagram>;
+  listarAtivas(negocioId?: string | null): Promise<InstanciaInstagram[]>;
+  buscarPorId(id: string, negocioId?: string | null): Promise<InstanciaInstagram | null>;
+  buscarPorNome(nome: string): Promise<InstanciaInstagram | null>;
+  atualizar(id: string, dados: Partial<Pick<
+    InstanciaInstagram,
+    "username" | "status" | "padrao" | "ativa" | "ultimoErro" | "ultimaConexaoEm" | "ultimaPollEm"
+  >>): Promise<InstanciaInstagram>;
+  desativar(id: string): Promise<InstanciaInstagram>;
 }
 
 export interface RepositorioSessoesLive {

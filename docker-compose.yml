@@ -59,6 +59,9 @@ services:
       FRONTEND_URL: ${FRONTEND_URL:-${ORIGEM_FRONTEND:-http://localhost:5173}}
       API_PUBLIC_URL: ${API_PUBLIC_URL:-http://localhost:3333}
       BACKEND_PUBLIC_URL: ${BACKEND_PUBLIC_URL:-${API_PUBLIC_URL:-http://localhost:3333}}
+      MARKET_DOMAIN: ${MARKET_DOMAIN:-}
+      PUBLIC_MARKET_DOMAIN: ${PUBLIC_MARKET_DOMAIN:-${MARKET_DOMAIN:-}}
+      PUBLIC_MARKET_URL: ${PUBLIC_MARKET_URL:-}
       PUBLIC_STORE_DOMAIN: ${PUBLIC_STORE_DOMAIN:-}
       PUBLIC_STORE_BASE_URL: ${PUBLIC_STORE_BASE_URL:-${FRONTEND_URL:-${ORIGEM_FRONTEND:-http://localhost:5173}}}
       INICIAR_AGENDADOR_EXPIRACAO: ${INICIAR_AGENDADOR_EXPIRACAO:-true}
@@ -116,6 +119,9 @@ services:
       OMBALA_API_BASE_URL: ${OMBALA_API_BASE_URL:-https://api.ombala.ao}
       OMBALA_API_TOKEN: ${OMBALA_API_TOKEN:-}
       OMBALA_SMS_DEFAULT_SENDER: ${OMBALA_SMS_DEFAULT_SENDER:-BIZY}
+      INSTAGRAM_BRIDGE_URL: ${INSTAGRAM_BRIDGE_URL:-http://instagrapi-bridge:8686}
+      INSTAGRAM_BRIDGE_TOKEN: ${INSTAGRAM_BRIDGE_TOKEN:-}
+      INSTAGRAM_WEBHOOK_TOKEN: ${INSTAGRAM_WEBHOOK_TOKEN:-trocar_token_webhook_instagram}
     ports:
       - "${BACKEND_PORT:-3333}:3333"
     volumes:
@@ -135,6 +141,7 @@ services:
       args:
         VITE_API_URL: ${VITE_API_URL:-http://localhost:3333}
         VITE_N8N_URL: ${VITE_N8N_URL:-http://localhost:5678}
+        VITE_PUBLIC_MARKET_URL: ${VITE_PUBLIC_MARKET_URL:-${PUBLIC_MARKET_URL:-}}
         VITE_PUBLIC_STORE_DOMAIN: ${PUBLIC_STORE_DOMAIN:-}
         VITE_TIKTOK_LIVE_USERNAME_PADRAO: ${TIKTOK_LIVE_USERNAME:-@mattbtw}
     container_name: emeu_frontend
@@ -260,12 +267,32 @@ services:
     networks:
       - emeu_net
 
+  instagrapi-bridge:
+    build:
+      context: ./docker/instagrapi-bridge
+      dockerfile: Dockerfile
+    container_name: emeu_instagrapi_bridge
+    restart: unless-stopped
+    environment:
+      INSTAGRAM_WEBHOOK_URL: http://backend:3333/webhooks/instagram
+      INSTAGRAM_WEBHOOK_TOKEN: ${INSTAGRAM_WEBHOOK_TOKEN:-trocar_token_webhook_instagram}
+      INSTAGRAM_BRIDGE_TOKEN: ${INSTAGRAM_BRIDGE_TOKEN:-}
+      INSTAGRAM_POLL_INTERVAL_SECONDS: ${INSTAGRAM_POLL_INTERVAL_SECONDS:-30}
+      INSTAGRAM_DM_FETCH_LIMIT: ${INSTAGRAM_DM_FETCH_LIMIT:-20}
+    volumes:
+      - instagrapi_sessions:/app/sessions
+    ports:
+      - "${INSTAGRAPI_BRIDGE_PORT:-8686}:8686"
+    networks:
+      - emeu_net
+
 volumes:
   postgres_data:
   redis_data:
   n8n_data:
   evolution_instances:
   backend_storage:
+  instagrapi_sessions:
 
 networks:
   emeu_net:

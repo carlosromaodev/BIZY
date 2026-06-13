@@ -10,6 +10,7 @@ import type {
   RepositorioComentarios,
   RepositorioEventosOperacionais,
   RepositorioFunilComercial,
+  RepositorioInstanciasInstagram,
   RepositorioInstanciasWhatsApp,
   RepositorioJobsOperacionais,
   RepositorioMembrosNegocio,
@@ -72,6 +73,7 @@ import type {
   AtualizacaoTarefaOperacional,
   EventoSistema,
   HistoricoComissaoParceiro,
+  InstanciaInstagram,
   InstanciaWhatsApp,
   ItemCampanhaCrm,
   JobOperacional,
@@ -2125,6 +2127,49 @@ export class RepositorioInstanciasWhatsAppMemoria implements RepositorioInstanci
   }
 }
 
+export class RepositorioInstanciasInstagramMemoria implements RepositorioInstanciasInstagram {
+  private readonly instancias = new Map<string, InstanciaInstagram>();
+
+  async criar(dados: { negocioId?: string | null; nome: string; username: string; padrao?: boolean }): Promise<InstanciaInstagram> {
+    const agora = new Date();
+    const instancia: InstanciaInstagram = {
+      id: randomUUID(), negocioId: dados.negocioId ?? null, nome: dados.nome, username: dados.username,
+      status: "CRIADA", padrao: dados.padrao ?? false, ativa: true, ultimoErro: null,
+      ultimaConexaoEm: null, ultimaPollEm: null, criadaEm: agora, atualizadaEm: agora
+    };
+    this.instancias.set(instancia.id, instancia);
+    return instancia;
+  }
+
+  async listarAtivas(negocioId?: string | null): Promise<InstanciaInstagram[]> {
+    return [...this.instancias.values()].filter((i) =>
+      i.ativa && (negocioId === undefined || i.negocioId === (negocioId ?? null))
+    );
+  }
+
+  async buscarPorId(id: string, negocioId?: string | null): Promise<InstanciaInstagram | null> {
+    const inst = this.instancias.get(id) ?? null;
+    if (!inst) return null;
+    return negocioId === undefined || inst.negocioId === (negocioId ?? null) ? inst : null;
+  }
+
+  async buscarPorNome(nome: string): Promise<InstanciaInstagram | null> {
+    return [...this.instancias.values()].find((i) => i.nome.toLowerCase() === nome.toLowerCase() && i.ativa) ?? null;
+  }
+
+  async atualizar(id: string, dados: Partial<Pick<InstanciaInstagram, "username" | "status" | "padrao" | "ativa" | "ultimoErro" | "ultimaConexaoEm" | "ultimaPollEm">>): Promise<InstanciaInstagram> {
+    const inst = this.instancias.get(id);
+    if (!inst) throw new Error(`Instância Instagram ${id} não encontrada.`);
+    const atualizada = { ...inst, ...dados, atualizadaEm: new Date() };
+    this.instancias.set(id, atualizada);
+    return atualizada;
+  }
+
+  async desativar(id: string): Promise<InstanciaInstagram> {
+    return this.atualizar(id, { ativa: false, padrao: false });
+  }
+}
+
 export class RepositorioSessoesLiveMemoria implements RepositorioSessoesLive {
   private readonly sessoes = new Map<string, RegistroSessaoLive>();
 
@@ -2714,6 +2759,8 @@ export class RepositorioPedidosMemoria implements RepositorioPedidos {
       descontoEmKwanza: dados.descontoEmKwanza,
       taxaEntregaEmKwanza: dados.taxaEntregaEmKwanza,
       totalEmKwanza: dados.totalEmKwanza,
+      ivaPercentual: dados.ivaPercentual ?? 14,
+      ivaEmKwanza: dados.ivaEmKwanza ?? 0,
       motivoDesconto: dados.motivoDesconto ?? null,
       enderecoEntrega: dados.enderecoEntrega ?? null,
       comprovativoPagamentoUrl: dados.comprovativoPagamentoUrl ?? null,

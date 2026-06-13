@@ -267,6 +267,7 @@ export class ConsultaAtendimentoOperacionalUseCase {
   ): string | null {
     if (comentarios.length > 0) return "tiktok";
     for (const msg of mensagensCrm) {
+      if (msg.origem === "instagram" || msg.provider === "instagrapi") return "instagram";
       if (msg.origem === "whatsapp" || msg.provider === "evolution") return "whatsapp";
       if (msg.origem === "comentario_live") return "tiktok";
     }
