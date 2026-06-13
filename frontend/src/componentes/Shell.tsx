@@ -3,6 +3,7 @@ import {
   Bell,
   Bolt,
   ChevronDown,
+  Grid2X2,
   Home,
   Loader2,
   Menu,
@@ -18,11 +19,11 @@ import {
   Users,
   Video,
 } from "lucide-react";
-import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
 import { obterUsuario, removerToken, removerUsuario, requisitarApi } from "../api";
-import { CORES_LOGO_BIZY_ESCURA, LogoBizy, NOME_PRODUTO } from "../marca/bizy";
+import { CORES_BIZY_PADRAO, CORES_LOGO_BIZY_ESCURA, LogoBizy, NOME_PRODUTO } from "../marca/bizy";
 import {
   filtrarRotasPorModulos,
   rotasCrmV3Principais,
@@ -55,6 +56,7 @@ export function Shell({ children }: { children: ReactNode }) {
   const location = useLocation();
   const usuario = obterUsuario();
   const [menuMobileAberto, setMenuMobileAberto] = useState(false);
+  const [notificacoesAberto, setNotificacoesAberto] = useState(false);
   const [modulosAtivos, setModulosAtivos] = useState<string[]>([]);
   const podeVerAdminSistema = usuarioPodeVerAdminSistema(usuario?.papel);
 
@@ -82,6 +84,7 @@ export function Shell({ children }: { children: ReactNode }) {
   }, [rotasDesktopVisiveis]);
 
   // CRM v3 design uses specific icons per tab (different from sidebar)
+  // CSS controls the rendered size (15px mobile, 15px desktop)
   const iconesCrmV3: Record<string, ReactNode> = {
     "/app": <Home size={15} />,
     "/app/reservas": <ShoppingBag size={15} />,
@@ -92,24 +95,19 @@ export function Shell({ children }: { children: ReactNode }) {
     "/app/relatorios": <BarChart3 size={15} />,
   };
 
-  // ── Módulos drawer (expands inside the tab bar) ──
+  // ── Módulos drawer (expands inside the tab bar — shows ALL routes) ──
   const [modulosAberto, setModulosAberto] = useState(false);
   const modulosTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const rotasModulos = useMemo(() => {
-    const primarios = new Set(rotasPrimariasCrmV3.map((r) => r.caminho));
-    return rotasDesktopVisiveis.filter((r) => !primarios.has(r.caminho));
-  }, [rotasPrimariasCrmV3, rotasDesktopVisiveis]);
-
   const secoesModulos = useMemo(() => {
-    const secoes = new Map<string, typeof rotasModulos>();
-    for (const rota of rotasModulos) {
+    const secoes = new Map<string, typeof rotasDesktopVisiveis>();
+    for (const rota of rotasDesktopVisiveis) {
       const grupo = secoes.get(rota.secao) ?? [];
       grupo.push(rota);
       secoes.set(rota.secao, grupo);
     }
     return secoes;
-  }, [rotasModulos]);
+  }, [rotasDesktopVisiveis]);
 
   const abrirModulos = useCallback(() => {
     if (modulosTimeoutRef.current) clearTimeout(modulosTimeoutRef.current);
@@ -139,61 +137,73 @@ export function Shell({ children }: { children: ReactNode }) {
 
   return (
     <div className="app-commerce-shell min-h-dvh bg-background text-foreground">
-      {/* ── CRM v3 Mobile header (emerald gradient + tabs) ── */}
+      {/* ── CRM v3 Mobile header — same visual identity as desktop ── */}
       <header className="crm-v3-mob-head sticky top-0 lg:hidden">
         <div className="crm-v3-mob-head-r1">
           <Link to="/app" aria-label={`Painel ${NOME_PRODUTO}`}>
-            <LogoBizy className="crm-brand-wordmark" cores={CORES_LOGO_BIZY_ESCURA} aria-hidden="true" />
+            <LogoBizy className="crm-brand-wordmark" cores={CORES_BIZY_PADRAO} aria-hidden="true" />
           </Link>
           <span className="crm-v3-mob-tag">CRM</span>
           <div className="crm-v3-mob-head-actions">
             <button type="button" className="crm-v3-mob-head-icon" aria-label="Buscar" onClick={() => navigate("/app")}>
-              <Search size={18} />
+              <Search size={16} />
             </button>
-            <button type="button" className="crm-v3-mob-head-icon" aria-label="Notificações" onClick={() => setMenuMobileAberto(true)}>
-              <Bell size={18} />
+            <button type="button" className="crm-v3-mob-head-icon" aria-label="Notificações" onClick={() => setNotificacoesAberto(true)}>
+              <Bell size={16} />
               <span className="crm-v3-mob-badge">4</span>
             </button>
           </div>
         </div>
-        <nav className="crm-v3-mob-tabs" aria-label="Navegação mobile">
-          {rotasPrimariasCrmV3.slice(0, 4).map((item) => {
-            const ativo = item.fim ? location.pathname === item.caminho : location.pathname.startsWith(item.caminho);
-            return (
-              <NavLink
-                key={item.caminho}
-                to={item.caminho}
-                end={item.fim}
-                aria-current={ativo ? "page" : undefined}
-                className="crm-v3-mob-tab"
-              >
-                {iconesCrmV3[item.caminho]}
-                {item.rotulo}
-              </NavLink>
-            );
-          })}
+        {/* Tab bar — reuses desktop .crm-v3-tabs / .crm-v3-tab classes */}
+        <nav className="crm-v3-tabs crm-v3-mob-tabbar" aria-label="Navegação principal">
+          <button
+            type="button"
+            className="crm-v3-menu-trigger"
+            onClick={() => setMenuMobileAberto(true)}
+          >
+            <Menu size={15} />
+            Módulos
+          </button>
+          <div className="crm-v3-tabs-inner">
+            {rotasPrimariasCrmV3.map((item) => {
+              const ativo = item.fim ? location.pathname === item.caminho : location.pathname.startsWith(item.caminho);
+              return (
+                <NavLink
+                  key={item.caminho}
+                  to={item.caminho}
+                  end={item.fim}
+                  aria-current={ativo ? "page" : undefined}
+                  className="crm-v3-tab"
+                >
+                  <span aria-hidden="true">{iconesCrmV3[item.caminho] ?? item.icone}</span>
+                  {item.rotulo}
+                </NavLink>
+              );
+            })}
+          </div>
         </nav>
       </header>
 
-      {/* ── Mobile sheet menu ── */}
+      {/* ── Mobile modules sheet (replaces old sidebar) ── */}
       <Sheet open={menuMobileAberto} onOpenChange={setMenuMobileAberto}>
-        <SheetContent side="left" className="w-[86vw] max-w-sm border-r p-0" style={{ borderColor: "var(--line)", background: "var(--surface)" }}>
-          <SheetHeader className="border-b p-4 text-left" style={{ borderColor: "var(--line)" }}>
-            <SheetTitle className="flex items-center gap-2" style={{ color: "var(--ink)" }}>
-              <LogoBizy className="crm-brand-wordmark" aria-hidden="true" />
+        <SheetContent side="bottom" className="crm-v3-mob-modulos-sheet rounded-t-2xl max-h-[80dvh]" style={{ background: "var(--surface)", borderColor: "var(--line)" }}>
+          <SheetHeader className="border-b px-4 py-3 text-left" style={{ borderColor: "var(--line-2)" }}>
+            <SheetTitle className="flex items-center gap-2 text-sm" style={{ color: "var(--ink)" }}>
+              <Grid2X2 size={16} />
+              Módulos
             </SheetTitle>
-            <SheetDescription style={{ color: "var(--ink-3)" }}>Operação comercial da loja.</SheetDescription>
+            <SheetDescription className="text-xs" style={{ color: "var(--ink-3)" }}>Todos os módulos do CRM</SheetDescription>
           </SheetHeader>
-          <ScrollArea className="h-[calc(100dvh-88px)]">
-            <nav className="app-mobile-sheet-nav p-2">
+          <ScrollArea className="h-[calc(80dvh-72px)]">
+            <nav className="crm-v3-mob-modulos-grid">
               {secoesVisiveis.map((secao) => {
                 const rotasSecao = secao === "Admin/Sistema"
                   ? rotasAdminSistema
                   : rotasComerciaisFiltradas.filter((r) => r.secao === secao);
                 if (!rotasSecao.length) return null;
                 return (
-                  <div key={secao} className="side-nav-group">
-                    <div className="side-nav-label">{secao}</div>
+                  <Fragment key={secao}>
+                    <span className="crm-v3-mob-modulos-secao">{secao}</span>
                     {rotasSecao.map((item) => {
                       const ativo = item.fim ? location.pathname === item.caminho : location.pathname.startsWith(item.caminho);
                       return (
@@ -202,27 +212,70 @@ export function Shell({ children }: { children: ReactNode }) {
                           to={item.caminho}
                           end={item.fim}
                           aria-current={ativo ? "page" : undefined}
-                          className="side-nav-item"
+                          className="crm-v3-mob-modulos-item"
                         >
                           <span aria-hidden="true">{item.icone}</span>
                           {item.rotulo}
                         </NavLink>
                       );
                     })}
-                  </div>
+                  </Fragment>
                 );
               })}
-              <Separator className="my-2" style={{ background: "var(--line)" }} />
+              <Separator className="my-2 col-span-2" style={{ background: "var(--line)" }} />
               <button
                 type="button"
-                className="side-nav-item w-full"
+                className="crm-v3-mob-modulos-item col-span-2"
                 style={{ color: "var(--ink-3)" }}
                 onClick={() => void sair()}
               >
-                <Settings size={17} />
+                <Settings size={18} />
                 Sair
               </button>
             </nav>
+          </ScrollArea>
+        </SheetContent>
+      </Sheet>
+
+      {/* ── Mobile notifications sheet ── */}
+      <Sheet open={notificacoesAberto} onOpenChange={setNotificacoesAberto}>
+        <SheetContent side="bottom" className="crm-v3-mob-modulos-sheet rounded-t-2xl max-h-[70dvh]" style={{ background: "var(--surface)", borderColor: "var(--line)" }}>
+          <SheetHeader className="border-b px-4 py-3 text-left" style={{ borderColor: "var(--line-2)" }}>
+            <SheetTitle className="flex items-center gap-2 text-sm" style={{ color: "var(--ink)" }}>
+              <Bell size={16} />
+              Notificações
+            </SheetTitle>
+            <SheetDescription className="text-xs" style={{ color: "var(--ink-3)" }}>Avisos e alertas recentes</SheetDescription>
+          </SheetHeader>
+          <ScrollArea className="h-[calc(70dvh-72px)]">
+            <div className="grid gap-1 p-2">
+              {[
+                { titulo: "Novo pedido recebido", detalhe: "Cliente solicitou reserva de produto", tempo: "Agora", icone: <ShoppingBag size={16} /> },
+                { titulo: "Mensagem não lida", detalhe: "2 conversas aguardam resposta", tempo: "5 min", icone: <MessageSquare size={16} /> },
+                { titulo: "Stock baixo", detalhe: "3 produtos abaixo do mínimo", tempo: "1h", icone: <Package size={16} /> },
+                { titulo: "Live programada", detalhe: "Próxima live em 2 horas", tempo: "2h", icone: <Video size={16} /> },
+              ].map((item) => (
+                <button
+                  key={item.titulo}
+                  type="button"
+                  className="flex items-start gap-3 rounded-lg px-3 py-3 text-left transition-colors hover:bg-black/[0.03] active:bg-black/[0.05]"
+                  style={{ color: "var(--ink)" }}
+                  onClick={() => {
+                    setNotificacoesAberto(false);
+                    navigate("/app/relatorios");
+                  }}
+                >
+                  <span className="mt-0.5 flex-shrink-0 rounded-lg p-2" style={{ background: "var(--em-tint)", color: "var(--em-ink)" }}>
+                    {item.icone}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold" style={{ color: "var(--ink)" }}>{item.titulo}</p>
+                    <p className="text-xs" style={{ color: "var(--ink-3)" }}>{item.detalhe}</p>
+                  </div>
+                  <span className="flex-shrink-0 text-[11px] font-medium" style={{ color: "var(--ink-4)" }}>{item.tempo}</span>
+                </button>
+              ))}
+            </div>
           </ScrollArea>
         </SheetContent>
       </Sheet>
@@ -358,7 +411,7 @@ export function Shell({ children }: { children: ReactNode }) {
 
       {/* ── Main content ── */}
       <main className="app-route-surface crm-v3-route-surface min-h-dvh">
-        <div className="lg:hidden">
+        <div className="crm-v3-mob-search-wrap lg:hidden">
           <BuscaGlobalComercial />
         </div>
         <AnimatePresence mode="wait">
@@ -375,11 +428,14 @@ export function Shell({ children }: { children: ReactNode }) {
         </AnimatePresence>
       </main>
 
-      <CrmV3MobileBottomNav
-        location={location}
-        navigate={navigate}
-        onAbrirMenu={() => setMenuMobileAberto(true)}
-      />
+      {/* Bottom nav hidden inside chat/atendimento */}
+      {!location.pathname.startsWith("/app/conversas") && (
+        <CrmV3MobileBottomNav
+          location={location}
+          navigate={navigate}
+          onAbrirMenu={() => setMenuMobileAberto(true)}
+        />
+      )}
     </div>
   );
 }
@@ -417,7 +473,7 @@ function CrmV3MobileBottomNav({
         aria-current={ativo ? "page" : undefined}
         onClick={() => navigate(item.path)}
       >
-        <Icon size={24} />
+        <Icon size={15} />
         {item.label}
       </button>
     );
@@ -429,10 +485,10 @@ function CrmV3MobileBottomNav({
       <button
         type="button"
         className="crm-v3-mob-fab"
-        aria-label="Criar novo"
+        aria-label="Módulos"
         onClick={onAbrirMenu}
       >
-        <Plus size={24} />
+        <Menu size={15} />
       </button>
       {crmV3BottomNavItemsAfterFab.map(renderItem)}
     </nav>

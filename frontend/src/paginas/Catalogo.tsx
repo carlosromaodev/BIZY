@@ -1,5 +1,5 @@
 import { AlertTriangle, ArrowUpRight, BadgeCheck, Coins, ImagePlus, Layers3, Package, PencilLine, Plus, Tag, Trash2, X } from "lucide-react";
-import { type FormEvent, useEffect, useState } from "react";
+import { type FormEvent, useEffect, useRef, useState } from "react";
 import { requisitarApi, resolverUrlMedia } from "../api";
 import { ConfirmarAcao } from "../componentes/ConfirmarAcao";
 import { CrmPageMotion } from "../componentes/CrmInterno21st";
@@ -76,6 +76,7 @@ export function PaginaCatalogo() {
   const [formPeca, setFormPeca] = useState(formularioInicial);
   const [enviandoFotos, setEnviandoFotos] = useState(false);
   const [pecaParaDesativar, setPecaParaDesativar] = useState<Peca | null>(null);
+  const inputFotosRef = useRef<HTMLInputElement>(null);
 
   async function carregar() {
     try {
@@ -526,22 +527,28 @@ export function PaginaCatalogo() {
                     <span className="bz-form-section-icon"><ImagePlus size={16} /></span>
                     <h3>Fotos do produto</h3>
                   </div>
-                  <label htmlFor="fotosProduto" className="bz-upload-trigger inline-flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2 text-sm font-medium transition">
+                  <input
+                    ref={inputFotosRef}
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp"
+                    multiple
+                    className="sr-only"
+                    disabled={enviandoFotos}
+                    onChange={(e) => {
+                      void enviarFotosProduto(e.currentTarget.files);
+                      e.currentTarget.value = "";
+                    }}
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={enviandoFotos}
+                    onClick={() => inputFotosRef.current?.click()}
+                  >
                     <ImagePlus size={16} />
                     {enviandoFotos ? "A enviar..." : "Escolher fotos"}
-                    <Input
-                      id="fotosProduto"
-                      type="file"
-                      accept="image/png,image/jpeg,image/webp"
-                      multiple
-                      className="sr-only"
-                      disabled={enviandoFotos}
-                      onChange={(e) => {
-                        void enviarFotosProduto(e.currentTarget.files);
-                        e.currentTarget.value = "";
-                      }}
-                    />
-                  </label>
+                  </Button>
                 </div>
 
                 {formPeca.fotos.length ? (
