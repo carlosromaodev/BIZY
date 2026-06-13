@@ -264,6 +264,26 @@ describe("Bizy Market público HTTP", () => {
         expect.objectContaining({ codigo: "VESTIDO-SIMILAR" })
       ]);
 
+      const similaresDaLoja = await app.inject({
+        method: "GET",
+        url: "/publico/lojas/loja-market-studio-a/produtos/VESTIDO-DETALHE/similares?limite=5"
+      });
+      expect(similaresDaLoja.statusCode).toBe(200);
+      expect(similaresDaLoja.json()).toEqual(
+        expect.objectContaining({
+          produtoOrigem: expect.objectContaining({
+            codigo: "VESTIDO-DETALHE",
+            loja: expect.objectContaining({ slug: "loja-market-studio-a" })
+          }),
+          produtos: [
+            expect.objectContaining({
+              codigo: "VESTIDO-SIMILAR",
+              loja: expect.objectContaining({ slug: "loja-market-studio-b" })
+            })
+          ]
+        })
+      );
+
       const resumo = await app.inject({
         method: "GET",
         url: "/crm/loja/market/resumo",

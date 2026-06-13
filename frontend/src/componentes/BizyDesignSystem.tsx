@@ -5,7 +5,7 @@
  * Hierarquia de cor: green (marca), amber (pendente), blue (em curso),
  *                    rose (urgente), violet (VIP)
  */
-import { type ReactNode } from "react";
+import { type ReactNode, useState } from "react";
 import { Link } from "react-router-dom";
 import { type LucideIcon, ArrowUpRight, Search, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -156,13 +156,16 @@ export function AvatarBizy({
   alt?: string;
   className?: string;
 }) {
+  const [imgErro, setImgErro] = useState(false);
+  const mostrarImg = Boolean(src) && !imgErro;
+
   return (
     <span
       className={cn("bz-avatar", `av-${cor}`, className)}
       style={{ width: tamanho, height: tamanho, fontSize: tamanho * 0.36 }}
     >
-      {src ? (
-        <img className="bz-avatar-img" src={src} alt={alt ?? iniciais} loading="lazy" referrerPolicy="no-referrer" />
+      {mostrarImg ? (
+        <img className="bz-avatar-img" src={src!} alt={alt ?? iniciais} loading="lazy" referrerPolicy="no-referrer" onError={() => setImgErro(true)} />
       ) : (
         iniciais.slice(0, 2).toUpperCase()
       )}

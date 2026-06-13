@@ -1,12 +1,14 @@
 import {
-  Radio,
-  Coins,
-  ShoppingBag,
-  Clock,
   AlertTriangle,
+  Clock,
+  Coins,
+  Eye,
   MessageSquare,
   Plus,
-  CheckCircle2,
+  ShoppingBag,
+  Tag,
+  Truck,
+  Video,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
@@ -21,39 +23,9 @@ import {
   estadosReservaAtiva,
 } from "../tipos";
 import {
-  formatarDataCurta,
   formatarKwanza,
-  formatarTempoRestante,
   obterPrecoDaPeca,
 } from "../utilidades";
-import {
-  PageHead,
-  KpiGrid,
-  KpiCard,
-  TwoUp,
-  PanelCard,
-  GaugeBar,
-  AttentionRow,
-  BotaoBizy,
-  PillBizy,
-  StatusBadge,
-  Money,
-} from "../componentes/BizyDesignSystem";
-
-/* ── Types ──────────────────────────────────────────────────────── */
-
-interface TarefaPainel {
-  id: string;
-  titulo: string;
-  descricao: string;
-  prioridade: "BAIXA" | "NORMAL" | "ALTA" | "URGENTE";
-  estado: "ABERTA" | "EM_ANDAMENTO" | "CONCLUIDA" | "CANCELADA";
-  prazoEm: string | null;
-}
-
-interface RespostaTarefasPainel {
-  tarefas: TarefaPainel[];
-}
 
 /* ── Helpers ────────────────────────────────────────────────────── */
 
@@ -75,14 +47,21 @@ function dataEhHoje(valor: string | null | undefined): boolean {
   );
 }
 
-function tarefaEstaAtrasada(tarefa: TarefaPainel): boolean {
-  if (!tarefa.prazoEm || !["ABERTA", "EM_ANDAMENTO"].includes(tarefa.estado)) return false;
-  return Number(new Date(tarefa.prazoEm)) < Date.now();
+function formatarDataLocal(): string {
+  const agora = new Date();
+  const diasSemana = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
+  const meses = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
+  return `${diasSemana[agora.getDay()]}, ${String(agora.getDate()).padStart(2, "0")} ${meses[agora.getMonth()]}`;
 }
 
-function traduzirPrioridadeTarefa(prioridade: TarefaPainel["prioridade"]): string {
-  const mapa = { BAIXA: "Baixa", NORMAL: "Normal", ALTA: "Alta", URGENTE: "Urgente" };
-  return mapa[prioridade];
+function formatarTempoRelativo(iso: string): string {
+  const ms = Date.now() - Number(new Date(iso));
+  const min = Math.floor(ms / 60000);
+  if (min < 1) return "agora";
+  if (min < 60) return `há ${min} min`;
+  const h = Math.floor(min / 60);
+  if (h < 24) return `há ${h} h`;
+  return `há ${Math.floor(h / 24)} d`;
 }
 
 const DIAS_SEMANA = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
@@ -103,16 +82,10 @@ export function PaginaPainel() {
   const [resumo, setResumo] = useState<ResumoPainel>(resumoInicial);
   const [mensagem, setMensagem] = useState("");
   const [conversas, setConversas] = useState<RespostaConversas["conversas"]>([]);
-  const [tarefas, setTarefas] = useState<TarefaPainel[]>([]);
   const [carregandoInicial, setCarregandoInicial] = useState(true);
   const usuario = obterUsuario();
 
   /* ── Derived data ──────────────────────────────────────────── */
-
-  const reservasAtivas = useMemo(
-    () => resumo.reservas.filter((r) => estadosReservaAtiva.includes(r.estado)),
-    [resumo.reservas],
-  );
 
   const receitaReservada = useMemo(
     () =>
@@ -122,12 +95,6 @@ export function PaginaPainel() {
     [resumo.pecas, resumo.reservas],
   );
 
-  const filaTotal = useMemo(
-    () => Object.values(resumo.filaEspera).reduce((t, q) => t + q, 0),
-    [resumo.filaEspera],
-  );
-
-  const pecasDisponiveis = resumo.pecas.filter((p) => p.estado === "DISPONIVEL").length;
   const aguardandoPagamento = resumo.reservas.filter((r) => r.estado === "WAITING_PAYMENT").length;
 
   const pedidosNovosHoje = useMemo(
@@ -155,40 +122,16 @@ export function PaginaPainel() {
     [resumo.reservas],
   );
 
-  const faturacaoDia = useMemo(
-    () =>
-      resumo.reservas
-        .filter((r) => r.estado === "PAID" && dataEhHoje(r.criadaEm))
-        .reduce((total, r) => total + obterPrecoDaPeca(resumo.pecas, r.codigoPeca), 0),
-    [resumo.pecas, resumo.reservas],
-  );
-
-  const tarefasAtrasadas = useMemo(() => tarefas.filter(tarefaEstaAtrasada).length, [tarefas]);
-
-  const tarefasAbertas = useMemo(
-    () => tarefas.filter((t) => t.estado === "ABERTA" || t.estado === "EM_ANDAMENTO").slice(0, 5),
-    [tarefas],
-  );
-
   const liveAtual = useMemo(
     () => resumo.lives.find((live) => live.status !== "ENCERRADA") ?? null,
     [resumo.lives],
   );
 
-  const taxaPagamento = resumo.reservasCriadas
-    ? Math.round((resumo.reservasPagas / resumo.reservasCriadas) * 100)
-    : 0;
-
-  const proximaExpirar = useMemo(
-    () =>
-      reservasAtivas
-        .filter((r) => r.expiraEm)
-        .sort((a, b) => Number(new Date(a.expiraEm ?? 0)) - Number(new Date(b.expiraEm ?? 0)))[0] ??
-      null,
-    [reservasAtivas],
+  const reservasLive = useMemo(
+    () => (liveAtual ? resumo.reservas.filter((r) => dataEhHoje(r.criadaEm)).length : 0),
+    [liveAtual, resumo.reservas],
   );
 
-  // Weekly billing for the bar chart
   const faturacaoSemanal = useMemo(() => {
     const dias: number[] = [];
     const hoje = new Date();
@@ -215,20 +158,26 @@ export function PaginaPainel() {
   const maxFat = Math.max(...faturacaoSemanal, 1);
   const diasLabels = obterDiasSemana();
 
+  const pedidosRecentes = useMemo(
+    () =>
+      [...resumo.reservas]
+        .sort((a, b) => Number(new Date(b.criadaEm ?? 0)) - Number(new Date(a.criadaEm ?? 0)))
+        .slice(0, 3),
+    [resumo.reservas],
+  );
+
   /* ── Data fetching ─────────────────────────────────────────── */
 
   async function carregarResumo() {
-    const [respostaResumo, respostaConversas, respostaTarefas] = await Promise.allSettled([
+    const [respostaResumo, respostaConversas] = await Promise.allSettled([
       requisitarApi<ResumoPainel>("/painel/resumo"),
       requisitarApi<RespostaConversas>("/atendimento/conversas"),
-      requisitarApi<RespostaTarefasPainel>("/tarefas?estado=ABERTA&limite=8"),
     ]);
 
     if (respostaResumo.status === "rejected") throw respostaResumo.reason;
 
     setResumo(respostaResumo.value);
     setConversas(respostaConversas.status === "fulfilled" ? respostaConversas.value.conversas : []);
-    setTarefas(respostaTarefas.status === "fulfilled" ? respostaTarefas.value.tarefas : []);
   }
 
   useEffect(() => {
@@ -255,225 +204,213 @@ export function PaginaPainel() {
 
   if (carregandoInicial) return <CrmPageMotion><SkeletonPagina /></CrmPageMotion>;
 
+  const colTemplate = "108px 1.5fr 1.6fr 110px 150px";
+
   return (
     <CrmPageMotion>
-      {/* ── Page Header ────────────────────────────────────────── */}
-      <PageHead
-        eyebrow={`${formatarDataCurta(new Date())} · Visão geral`}
-        titulo={`${obterSaudacao()}, ${usuario?.nome ?? "Vendedor"}`}
-      >
-        <Link to="/app/live">
-          <PillBizy>
-            {liveAtual ? (
-              <>
-                <span className="bz-live-dot" />
-                Live ativa · <strong>{liveAtual.username}</strong>
-              </>
-            ) : (
-              <>
-                <Radio size={13} style={{ color: "var(--ink-4)" }} />
-                Sem live
-              </>
-            )}
-          </PillBizy>
-        </Link>
-        <Link to="/app/reservas">
-          <BotaoBizy icone={Plus}>Novo pedido</BotaoBizy>
-        </Link>
-      </PageHead>
-
-      {/* ── KPI Grid ───────────────────────────────────────────── */}
-      <KpiGrid>
-        <KpiCard
-          icone={Coins}
-          hero
-          rotulo="Receita reservada"
-          valor={formatarKwanza(receitaReservada)}
-          deltaPositivo={true}
-          delta={`${resumo.reservasPagas} de ${resumo.reservasCriadas || 0} reservas pagas`}
-          rodape={`${resumo.reservasPagas} de ${resumo.reservasCriadas || 0} reservas já pagas`}
-        />
-        <KpiCard
-          icone={ShoppingBag}
-          cor="blue"
-          rotulo="Pedidos hoje"
-          valor={pedidosNovosHoje}
-          delta={`${aguardandoPagamento} aguarda pagamento`}
-        />
-        <KpiCard
-          icone={Clock}
-          cor="amber"
-          rotulo="A confirmar"
-          valor={aguardandoPagamento}
-          delta="comprovativo pendente"
-          deltaPositivo={aguardandoPagamento > 0 ? false : undefined}
-        />
-        <KpiCard
-          icone={AlertTriangle}
-          cor="rose"
-          rotulo="Stock em risco"
-          valor={produtosStockBaixo}
-          delta={`quantidade ≤ 2`}
-        />
-      </KpiGrid>
-
-      {/* ── Row 1: Chart + Gauge ───────────────────────────────── */}
-      <TwoUp ratio="1.4fr 1fr">
-        {/* Bar chart — Faturação 7 dias */}
-        <PanelCard titulo="Faturação · últimos 7 dias" linkTexto="Ver relatório" linkRota="/app/relatorios">
-          <div className="bz-chart">
-            {faturacaoSemanal.map((val, i) => (
-              <div key={i} className={`bz-bar-col${i === 6 ? " today" : ""}`}>
-                <motion.div
-                  className={`bz-bar${i === 6 ? " active" : ""}`}
-                  initial={{ height: 0 }}
-                  animate={{ height: `${Math.max(4, (val / maxFat) * 100)}%` }}
-                  transition={{ duration: 0.6, delay: i * 0.05, ease: "easeOut" }}
-                />
-                <span className="bz-bar-label">{diasLabels[i]}</span>
-              </div>
-            ))}
-          </div>
-          <div className="bz-chart-foot">
-            <div>
-              <div className="bz-chart-big">{formatarKwanza(totalSemana)}</div>
-              <div className="bz-chart-label">total da semana</div>
+      <div className="crm-v3-pgwrap">
+        {/* ── Page Head ─────────────────────────────────────── */}
+        <div className="crm-v3-pghead">
+          <div>
+            <h1>{obterSaudacao()}, {usuario?.nome?.split(" ")[0] ?? "Vendedor"} 👋</h1>
+            <div className="crm-v3-sub">
+              {formatarDataLocal()}
+              {liveAtual && " · a tua live está a converter bem"}
             </div>
           </div>
-        </PanelCard>
-
-        {/* Gauge — Taxa de pagamento */}
-        <PanelCard titulo="Taxa de pagamento">
-          <GaugeBar
-            titulo="Reservas liquidadas"
-            valor={<>{taxaPagamento}%</>}
-            percentagem={taxaPagamento}
-            rodapeEsq={`${resumo.reservasPagas} pagos`}
-            rodapeDir={`${resumo.reservasCriadas} criados`}
-          />
-          <div style={{ marginTop: 20, display: "flex", flexDirection: "column", gap: 0 }}>
-            <AttentionRow
-              icone={Clock}
-              cor="amber"
-              titulo="Pagamentos pendentes"
-              detalhe="a aguardar comprovativo"
-              valor={aguardandoPagamento}
-            />
-            <AttentionRow
-              icone={MessageSquare}
-              cor="blue"
-              titulo="Conversas abertas"
-              detalhe="WhatsApp e comentários"
-              valor={conversasSemResposta}
-            />
+          <div className="crm-v3-pghead-right">
+            <Link to="/app/loja" className="crm-v3-btn crm-v3-btn-ghost">
+              <Eye size={13} />
+              Ver loja
+            </Link>
+            <Link to="/app/reservas" className="crm-v3-btn crm-v3-btn-primary">
+              <Plus size={13} />
+              Novo pedido
+            </Link>
           </div>
-        </PanelCard>
-      </TwoUp>
+        </div>
 
-      {/* ── Row 2: Tasks + Pulse ───────────────────────────────── */}
-      <TwoUp ratio="1fr 1.4fr">
-        {/* Próximas acções */}
-        <PanelCard titulo="Próximas acções" linkTexto="Todas" linkRota="/app/tarefas">
-          <div className="bz-tasks">
-            {tarefasAbertas.length ? (
-              tarefasAbertas.map((tarefa) => (
-                <div key={tarefa.id} className="bz-task">
-                  <span
-                    className={`bz-task-box${tarefaEstaAtrasada(tarefa) || tarefa.prioridade === "URGENTE" ? " urgent" : ""}`}
-                  />
-                  <div className="bz-task-body">
-                    <div className="bz-task-h">{tarefa.titulo}</div>
-                    <div className="bz-task-p">{tarefa.descricao}</div>
-                  </div>
-                  <span
-                    className={`bz-task-tg${
-                      tarefa.prioridade === "URGENTE" || tarefaEstaAtrasada(tarefa)
-                        ? " urgent"
-                        : tarefa.prioridade === "ALTA"
-                          ? " soon"
-                          : ""
-                    }`}
-                  >
-                    {traduzirPrioridadeTarefa(tarefa.prioridade)}
+        {/* ── KPI Strip ─────────────────────────────────────── */}
+        <div className="crm-v3-kstrip">
+          <div className="crm-v3-kbig">
+            <div className="crm-v3-kbig-label">Receita reservada hoje</div>
+            <div className="crm-v3-kbig-value">
+              {formatarKwanza(receitaReservada).replace(" Kz", "")}
+              <span className="crm-v3-kbig-unit">Kz</span>
+            </div>
+            <span className="crm-v3-kbig-delta">
+              ↑ {resumo.reservasPagas}/{resumo.reservasCriadas || 0} pagas
+            </span>
+          </div>
+          <div className="crm-v3-kcard">
+            <div className="crm-v3-kcard-label">
+              <ShoppingBag size={14} />
+              Pedidos hoje
+            </div>
+            <div className="crm-v3-kcard-value">{pedidosNovosHoje}</div>
+            <div className="crm-v3-kcard-delta">
+              {pedidosNovosHoje > 0 ? `${pedidosNovosHoje} desde hoje` : "nenhum ainda"}
+            </div>
+          </div>
+          <div className="crm-v3-kcard">
+            <div className="crm-v3-kcard-label">
+              <Clock size={14} />
+              A confirmar
+            </div>
+            <div className="crm-v3-kcard-value">{aguardandoPagamento}</div>
+            <div className="crm-v3-kcard-delta" data-warn="true">
+              comprovativos pendentes
+            </div>
+          </div>
+          <div className="crm-v3-kcard">
+            <div className="crm-v3-kcard-label">
+              <AlertTriangle size={14} />
+              Stock em risco
+            </div>
+            <div className="crm-v3-kcard-value">{produtosStockBaixo}</div>
+            <div className="crm-v3-kcard-delta" data-bad="true">
+              ≤ 2 unidades
+            </div>
+          </div>
+        </div>
+
+        {/* ── Filter Tiles (quick actions) ──────────────────── */}
+        <div className="crm-v3-ftiles">
+          <Link to="/app/reservas?filtro=a-cobrar" className="crm-v3-ftile" data-active="true">
+            <span className="crm-v3-ftile-icon" style={{ background: "var(--em-tint)", color: "var(--em)" }}>
+              <Coins size={17} />
+            </span>
+            <div>
+              <div className="crm-v3-ftile-title">Cobranças</div>
+              <div className="crm-v3-ftile-desc">a aguardar</div>
+            </div>
+            <span className="crm-v3-ftile-count">{aguardandoPagamento}</span>
+          </Link>
+          <Link to="/app/reservas?filtro=enviados" className="crm-v3-ftile">
+            <span className="crm-v3-ftile-icon" style={{ background: "var(--blue-tint)", color: "var(--blue)" }}>
+              <Truck size={17} />
+            </span>
+            <div>
+              <div className="crm-v3-ftile-title">Envios</div>
+              <div className="crm-v3-ftile-desc">para preparar</div>
+            </div>
+            <span className="crm-v3-ftile-count">{entregasPendentes}</span>
+          </Link>
+          <Link to="/app/conversas" className="crm-v3-ftile">
+            <span className="crm-v3-ftile-icon" style={{ background: "var(--violet-tint)", color: "var(--violet)" }}>
+              <MessageSquare size={17} />
+            </span>
+            <div>
+              <div className="crm-v3-ftile-title">Mensagens</div>
+              <div className="crm-v3-ftile-desc">sem resposta</div>
+            </div>
+            <span className="crm-v3-ftile-count">{conversasSemResposta}</span>
+          </Link>
+          <Link to="/app/catalogo" className="crm-v3-ftile">
+            <span className="crm-v3-ftile-icon" style={{ background: "var(--amber-tint)", color: "var(--amber)" }}>
+              <Tag size={17} />
+            </span>
+            <div>
+              <div className="crm-v3-ftile-title">Produtos</div>
+              <div className="crm-v3-ftile-desc">stock baixo</div>
+            </div>
+            <span className="crm-v3-ftile-count">{produtosStockBaixo}</span>
+          </Link>
+          <Link to="/app/live" className="crm-v3-ftile">
+            <span className="crm-v3-ftile-icon" style={{ background: "var(--rose-tint)", color: "var(--rose)" }}>
+              <Video size={17} />
+            </span>
+            <div>
+              <div className="crm-v3-ftile-title">Live agora</div>
+              <div className="crm-v3-ftile-desc">{liveAtual ? liveAtual.username : "sem live"}</div>
+            </div>
+            <span className="crm-v3-ftile-count">{reservasLive}</span>
+          </Link>
+        </div>
+
+        {/* ── 2-column: Orders mini-table + Bar chart ───────── */}
+        <div style={{ display: "grid", gridTemplateColumns: "1.5fr 1fr", gap: 12 }}>
+          {/* Orders mini-table */}
+          <div className="crm-v3-otbl">
+            <div className="crm-v3-otbl-head" style={{ gridTemplateColumns: colTemplate }}>
+              <span>Pedido</span>
+              <span>Cliente</span>
+              <span>Itens</span>
+              <span>Total</span>
+              <span>Estado</span>
+            </div>
+            {pedidosRecentes.map((r) => {
+              const peca = resumo.pecas.find((p) => p.codigo === r.codigoPeca);
+              const preco = obterPrecoDaPeca(resumo.pecas, r.codigoPeca);
+              const iniciais = (r.nomeCliente ?? "??").split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase();
+              const hue = r.estado === "PAID" ? "green" : r.estado === "WAITING_PAYMENT" ? "amber" : "violet";
+              const estadoLabel = r.estado === "PAID" ? "Pago" : r.estado === "WAITING_PAYMENT" ? "Aguarda pagamento" : r.estado === "EXPIRED" ? "Expirado" : r.estado;
+              const badgeTone = r.estado === "PAID" ? "green" : r.estado === "WAITING_PAYMENT" ? "amber" : r.estado === "EXPIRED" ? "rose" : "blue";
+
+              return (
+                <div key={r.id} className="crm-v3-otbl-row" style={{ gridTemplateColumns: colTemplate }}>
+                  <span className="crm-v3-otbl-oid">
+                    #{r.id.toString().slice(-4)}
+                    <small>{r.criadaEm ? formatarTempoRelativo(r.criadaEm) : ""}</small>
+                  </span>
+                  <span className="crm-v3-otbl-cli">
+                    <span className="crm-v3-av crm-v3-av-32" data-hue={hue}>{iniciais}</span>
+                    <span>
+                      <span className="crm-v3-otbl-cli-name">{r.nomeCliente ?? "—"}</span>
+                    </span>
+                  </span>
+                  <span className="crm-v3-otbl-item">
+                    <b>{peca?.nome ?? r.codigoPeca}</b>
+                  </span>
+                  <span className="crm-v3-otbl-price">{formatarKwanza(preco).replace(" Kz", "")}</span>
+                  <span>
+                    <span className="crm-v3-bdg" data-tone={badgeTone}>
+                      <span className="crm-v3-bdg-dot" />
+                      {estadoLabel}
+                    </span>
                   </span>
                 </div>
-              ))
-            ) : (
-              <p className="bz-empty-msg">Sem tarefas abertas.</p>
+              );
+            })}
+            {pedidosRecentes.length === 0 && (
+              <div style={{ padding: "24px 18px", textAlign: "center", color: "var(--ink-3)", fontSize: "12px" }}>
+                Sem pedidos recentes
+              </div>
             )}
           </div>
-        </PanelCard>
 
-        {/* Pulso comercial */}
-        <PanelCard titulo="Pulso comercial">
-          <div className="bz-pulse-grid">
-            <PulseItem label="Pedidos hoje" value={pedidosNovosHoje} />
-            <PulseItem label="Ticket médio" value={pedidosNovosHoje > 0 ? formatarKwanza(Math.round(faturacaoDia / Math.max(pedidosNovosHoje, 1))) : "—"} />
-            <PulseItem label="Stock vendável" value={pecasDisponiveis} />
-            <PulseItem label="Fila de espera" value={filaTotal} />
-            <PulseItem label="Entregas pend." value={entregasPendentes} />
-            <PulseItem
-              label="Tarefas atrasadas"
-              value={tarefasAtrasadas}
-              accent={tarefasAtrasadas > 0}
-            />
+          {/* Bar chart — Reservas esta semana */}
+          <div className="crm-v3-chartcard">
+            <div className="crm-v3-chartcard-head">
+              <span className="crm-v3-chartcard-title">Reservas · esta semana</span>
+              <span className="crm-v3-chartcard-sub">total {formatarKwanza(totalSemana)}</span>
+            </div>
+            <div className="crm-v3-bars">
+              {faturacaoSemanal.map((val, i) => (
+                <div key={i} className="crm-v3-bar" data-hot={i === 6 ? "true" : undefined}>
+                  <motion.i
+                    style={{ height: `${Math.max(4, (val / maxFat) * 100)}%` }}
+                    initial={{ height: 0 }}
+                    animate={{ height: `${Math.max(4, (val / maxFat) * 100)}%` }}
+                    transition={{ duration: 0.6, delay: i * 0.05, ease: "easeOut" }}
+                  />
+                  <span className="crm-v3-bar-label">{diasLabels[i]}</span>
+                </div>
+              ))}
+            </div>
           </div>
-        </PanelCard>
-      </TwoUp>
-
-      {/* ── Expiration alert ───────────────────────────────────── */}
-      {proximaExpirar && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.5 }}
-          className="bz-alert"
-        >
-          <StatusBadge cor="amber">
-            Próxima reserva a expirar: <strong>#{proximaExpirar.codigoPeca}</strong> —{" "}
-            {formatarTempoRestante(proximaExpirar.expiraEm)}
-          </StatusBadge>
-          <Link
-            to="/app/reservas"
-            style={{
-              marginLeft: "auto",
-              fontSize: "13px",
-              fontWeight: 600,
-              color: "var(--ink)",
-            }}
-          >
-            Ver pedidos →
-          </Link>
-        </motion.div>
-      )}
+        </div>
+      </div>
 
       {mensagem && (
         <footer
           className="rounded-lg border bg-card px-4 py-3 text-sm text-muted-foreground"
+          style={{ margin: "16px 26px" }}
           aria-live="polite"
         >
           {mensagem}
         </footer>
       )}
     </CrmPageMotion>
-  );
-}
-
-/* ── Sub-components ───────────────────────────────────────────────── */
-
-function PulseItem({
-  label,
-  value,
-  accent,
-}: {
-  label: string;
-  value: string | number;
-  accent?: boolean;
-}) {
-  return (
-    <div className="bz-pulse-item">
-      <div className="bz-pulse-label">{label}</div>
-      <div className={`bz-pulse-value${accent ? " accent" : ""}`}>{value}</div>
-    </div>
   );
 }

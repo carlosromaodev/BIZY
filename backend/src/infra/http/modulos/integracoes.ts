@@ -188,6 +188,152 @@ export const moduloIntegracoes: ModuloHttp = {
       }
     });
 
+    app.get("/instagram/instancias", async (request, reply) => {
+      const contextoComercial = await exigirAcessoComercial(contexto, request, reply, {
+        permissao: "conversas:ler",
+        modulo: "instagram",
+        mensagemPermissao: "Sem permissão para consultar Instagram.",
+        mensagemModulo: "Instagram desativado para este negócio."
+      });
+      if (!contextoComercial) return;
+
+      const instanciasDb = await contexto.repositorios.instanciasInstagram.listarAtivas();
+      const instanciasNegocio = instanciasDb.filter((i) => i.negocioId === contextoComercial.negocio.id);
+
+      let statusBridge: Record<string, { status: string; ultimoErro: string | null; ultimaPollEm: string | null }> = {};
+      try {
+        const bridgeStatus = await contexto.provedorInstagram.consultarStatus();
+        for (const inst of bridgeStatus.instancias ?? []) {
+          statusBridge[inst.instancia] = { status: inst.status, ultimoErro: inst.ultimoErro, ultimaPollEm: inst.ultimaPollEm };
+        }
+      } catch {
+        /* bridge offline */
+      }
+
+      const instancias = instanciasNegocio.map((inst) => {
+        const bridge = statusBridge[inst.nome];
+        return {
+          ...inst,
+          statusBridge: bridge?.status ?? null,
+          ultimoErroBridge: bridge?.ultimoErro ?? null,
+          ultimaPollEmBridge: bridge?.ultimaPollEm ?? null
+        };
+      });
+
+      return { instancias };
+    });
+
+    app.post("/instagram/login", async (request, reply) => {
+      const contextoComercial = await exigirAcessoComercial(contexto, request, reply, {
+        permissao: "configuracoes:gerir",
+        modulo: "instagram",
+        mensagemPermissao: "Sem permissão para configurar Instagram.",
+        mensagemModulo: "Instagram desativado para este negócio."
+      });
+      if (!contextoComercial) return;
+
+      const body = request.body as {
+        instancia?: string;
+        username?: string;
+        password?: string;
+        verificationCode?: string;
+      };
+
+      const instancia = body.instancia?.trim();
+      const username = body.username?.trim();
+      const password = body.password;
+
+      if (!instancia || !username || !password) {
+        return reply.code(400).send({ erro: "DADOS_INVALIDOS", mensagem: "Forneça instancia, username e password." });
+      }
+
+      try {
+        const resultado = await contexto.provedorInstagram.login({
+          instancia,
+          username,
+          password,
+          negocioId: contextoComercial.negocio.id,
+          verificationCode: body.verificationCode ?? null
+        });
+
+        const existente = await contexto.repositorios.instanciasInstagram.buscarPorNome(
+          contextoComercial.negocio.id,
+          instancia
+        );
+
+        if (existente) {
+          await contexto.repositorios.instanciasInstagram.atualizar(existente.id, {
+            username,
+            status: resultado.status,
+            ultimoErro: null,
+            ultimaConexaoEm: new Date()
+          });
+        } else {
+          await contexto.repositorios.instanciasInstagram.criar({
+            negocioId: contextoComercial.negocio.id,
+            nome: instancia,
+            username,
+            status: resultado.status,
+            padrao: true,
+            ativa: true
+          });
+        }
+
+        return reply.code(200).send(resultado);
+      } catch (erro) {
+        const statusCode = (erro as { statusCode?: number }).statusCode;
+        const mensagem = erro instanceof Error ? erro.message : "Erro de login no Instagram.";
+
+        if (statusCode === 428) {
+          const existente = await contexto.repositorios.instanciasInstagram.buscarPorNome(
+            contextoComercial.negocio.id,
+            instancia
+          );
+          if (existente) {
+            await contexto.repositorios.instanciasInstagram.atualizar(existente.id, { status: "AGUARDANDO_2FA", ultimoErro: mensagem });
+          } else {
+            await contexto.repositorios.instanciasInstagram.criar({
+              negocioId: contextoComercial.negocio.id,
+              nome: instancia,
+              username,
+              status: "AGUARDANDO_2FA",
+              padrao: true,
+              ativa: true
+            });
+          }
+          return reply.code(428).send({ erro: "2FA_NECESSARIO", mensagem });
+        }
+
+        return reply.code(statusCode ?? 500).send({ erro: "FALHA_LOGIN", mensagem });
+      }
+    });
+
+    app.post("/instagram/instancias/:id/desconectar", async (request, reply) => {
+      const contextoComercial = await exigirAcessoComercial(contexto, request, reply, {
+        permissao: "configuracoes:gerir",
+        modulo: "instagram",
+        mensagemPermissao: "Sem permissão para configurar Instagram.",
+        mensagemModulo: "Instagram desativado para este negócio."
+      });
+      if (!contextoComercial) return;
+
+      const { id } = request.params as { id: string };
+      const instancia = await contexto.repositorios.instanciasInstagram.buscarPorId(id);
+
+      if (!instancia || instancia.negocioId !== contextoComercial.negocio.id) {
+        return reply.code(404).send({ erro: "NAO_ENCONTRADA", mensagem: "Instância não encontrada." });
+      }
+
+      try {
+        await contexto.provedorInstagram.logout(instancia.nome);
+      } catch {
+        /* bridge offline, continue to deactivate in DB */
+      }
+
+      await contexto.repositorios.instanciasInstagram.desativar(id);
+      return { ok: true, instancia: instancia.nome };
+    });
+
     app.post("/webhooks/evolution", async (request, reply) => {
       const tokenConfigurado = process.env.EVOLUTION_WEBHOOK_TOKEN;
       const tokenRecebido = request.headers["x-emeu-evolution-token"];

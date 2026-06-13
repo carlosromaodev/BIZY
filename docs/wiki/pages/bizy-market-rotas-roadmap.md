@@ -9,13 +9,13 @@ tags:
   - bizy/backend
   - bizy/frontend
 status: rascunho
-updated: 2026-06-07
+updated: 2026-06-11
 ---
 
 # Bizy Market Rotas e Roadmap
 
 Status: rascunho
-Ultima atualizacao: 2026-06-07
+Ultima atualizacao: 2026-06-11
 Fontes principais: [[bizy-market-lojas-digitais]], `docs/RF-RNF-RN-BIZY-MARKET-LOJA-DIGITAL.md`
 
 > [!abstract] Decisao
@@ -29,24 +29,27 @@ Fontes principais: [[bizy-market-lojas-digitais]], `docs/RF-RNF-RN-BIZY-MARKET-L
 - Rotas Admin Bizy exigem papel interno e auditoria.
 - O perfil da loja e o Market devem apontar um para o outro sem apagar a identidade do fornecedor.
 - URLs antigas da loja publica devem continuar funcionando durante a migracao.
+- O dominio canonico do shopping center e `market.usebizy.space`; `/market` continua como fallback local e rota de compatibilidade no app principal.
 
 ## Rotas Publicas do Comprador
 
 Estas rotas representam telas navegaveis no frontend publico.
 
 ```txt
-/market
-/market/categorias
-/market/categorias/:categoria
-/market/busca
-/market/produtos/:codigo
-/market/produtos/:codigo/similares
-/market/lojas
-/market/lojas/:slug
-/market/promocoes
-/market/novidades
-/market/destaques
+https://market.usebizy.space/
+https://market.usebizy.space/categorias
+https://market.usebizy.space/categorias/:categoria
+https://market.usebizy.space/busca
+https://market.usebizy.space/produtos/:codigo
+https://market.usebizy.space/produtos/:codigo/similares
+https://market.usebizy.space/lojas
+https://market.usebizy.space/lojas/:slug
+https://market.usebizy.space/promocoes
+https://market.usebizy.space/novidades
+https://market.usebizy.space/destaques
 ```
+
+Fallback de compatibilidade/local: `/market`, `/market/categorias/:categoria`, `/market/produtos/:codigo` e `/market/lojas`.
 
 ## Perfil Publico da Loja
 
@@ -67,7 +70,7 @@ Estas rotas preservam a autonomia do cliente Bizy.
 Estas rotas representam a experiencia unica do comprador.
 
 ```txt
-/checkout
+/checkout                                  # implementado como entrada progressiva frontend
 /checkout/carrinho
 /checkout/identificacao
 /checkout/entrega
@@ -213,7 +216,7 @@ POST /admin/market/repasses/:id/conciliar
 
 - [x] `GET /publico/market/produtos/:codigo`.
 - [x] `GET /publico/market/produtos/:codigo/similares`.
-- [ ] `GET /publico/lojas/:slug/produtos/:codigo/similares`.
+- [x] `GET /publico/lojas/:slug/produtos/:codigo/similares`.
 - [ ] `GET /publico/market/lojas`.
 - [ ] `GET /publico/market/lojas/:slug`.
 - [ ] `POST /publico/recomendacoes/eventos`.
@@ -229,6 +232,7 @@ POST /admin/market/repasses/:id/conciliar
 
 ### Fase 4 - Checkout Unificado
 
+- [x] `/checkout` frontend progressivo com carrinho local, fornecedor por item e finalizacao por endpoint atual quando houver uma loja.
 - [ ] `POST /publico/checkout/carrinho`.
 - [ ] `POST /publico/checkout/entrega/calcular`.
 - [ ] `POST /publico/checkout/iniciar`.

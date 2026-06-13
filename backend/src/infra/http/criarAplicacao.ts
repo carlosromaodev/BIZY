@@ -10,12 +10,7 @@ import { modulosHttp } from "./modulos/manifestoModulosHttp.js";
 import { criarRateLimit } from "./rateLimit.js";
 import { exigirUsuarioAutenticado } from "./seguranca.js";
 import { isPrivateStoredMediaUrl } from "../media/MediaStorage.js";
-
-type OrigemCorsPermitida = boolean | string | RegExp | Array<boolean | string | RegExp>;
-type ResolverOrigemCors = OrigemCorsPermitida | ((
-  origin: string | undefined,
-  callback: (erro: Error | null, origin: OrigemCorsPermitida) => void
-) => void);
+import { resolverOrigemCors } from "./corsOrigens.js";
 
 export async function criarAplicacao(): Promise<FastifyInstance> {
   const app = Fastify({
@@ -264,101 +259,5 @@ function validarConfiguracaoSegura() {
 
   if (erros.length) {
     throw new Error(`Configuração insegura para produção: ${erros.join(", ")}.`);
-  }
-}
-
-function resolverOrigemCors(): ResolverOrigemCors {
-  const origem = process.env.ORIGEM_FRONTEND?.trim();
-  const dominioPublicoLoja = normalizarDominioPublicoLoja(process.env.PUBLIC_STORE_DOMAIN);
-
-  if (origem) {
-    const origens = origem
-      .split(",")
-      .map((item) => item.trim())
-      .filter(Boolean);
-
-    if (process.env.NODE_ENV !== "production" || dominioPublicoLoja) {
-      return (origin, callback) => {
-        if (!origin) {
-          callback(null, true);
-          return;
-        }
-
-        const permitido =
-          origens.includes(origin) ||
-          origemLocalDevPermitida(origin) ||
-          origemSubdominioLojaPermitida(origin, dominioPublicoLoja);
-
-        callback(null, permitido ? origin : false);
-      };
-    }
-
-    return origens.length === 1 ? origens[0] : origens;
-  }
-
-  return process.env.NODE_ENV === "production" ? false : true;
-}
-
-const SUBDOMINIOS_RESERVADOS_LOJA = new Set([
-  "admin",
-  "api",
-  "app",
-  "assets",
-  "auth",
-  "dashboard",
-  "evolution",
-  "evolution-manager",
-  "n8n",
-  "painel",
-  "static",
-  "wa",
-  "www"
-]);
-
-function origemSubdominioLojaPermitida(origin: string, dominioPublicoLoja: string | null): boolean {
-  if (!dominioPublicoLoja) return false;
-
-  try {
-    const url = new URL(origin);
-    const protocoloPermitido = process.env.NODE_ENV === "production" ? url.protocol === "https:" : ["http:", "https:"].includes(url.protocol);
-    if (!protocoloPermitido) return false;
-
-    const host = normalizarDominioPublicoLoja(url.hostname);
-    if (!host) return false;
-
-    if (host === dominioPublicoLoja) return true;
-
-    if (!host.endsWith(`.${dominioPublicoLoja}`)) return false;
-
-    const subdominio = host.slice(0, -(dominioPublicoLoja.length + 1));
-    return Boolean(subdominio && !subdominio.includes(".") && !SUBDOMINIOS_RESERVADOS_LOJA.has(subdominio));
-  } catch {
-    return false;
-  }
-}
-
-function normalizarDominioPublicoLoja(valor?: string | null): string | null {
-  if (!valor) return null;
-  const dominio = valor
-    .trim()
-    .toLowerCase()
-    .replace(/^https?:\/\//, "")
-    .split("/")[0]
-    ?.split(":")[0]
-    ?.replace(/\.$/, "") ?? "";
-
-  return dominio || null;
-}
-
-function origemLocalDevPermitida(origin: string): boolean {
-  try {
-    const url = new URL(origin);
-    const porta = Number(url.port || "80");
-    const hostLocal = ["localhost", "127.0.0.1", "[::1]", "::1"].includes(url.hostname);
-    const portaVite = porta === 4173 || (porta >= 5173 && porta <= 5199);
-
-    return ["http:", "https:"].includes(url.protocol) && hostLocal && portaVite;
-  } catch {
-    return false;
   }
 }

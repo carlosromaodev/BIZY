@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { createReadStream } from "node:fs";
-import { access, mkdir, readFile, writeFile } from "node:fs/promises";
+import { access, mkdir, readFile, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import sharp from "sharp";
 
@@ -93,7 +93,7 @@ export async function resolverFicheiroMedia(url: string) {
   const root = mediaRoot();
   const filePath = path.resolve(root, relativo);
   assertInsideRoot(root, filePath);
-  await access(filePath);
+  const fileStats = await stat(filePath);
 
   const metadataPath = filePath.replace(/\.thumb\.webp$/i, ".json").replace(/\.(webp|pdf|bin)$/i, ".json");
   const metadata = await readFile(metadataPath, "utf8")
@@ -104,7 +104,7 @@ export async function resolverFicheiroMedia(url: string) {
     filePath,
     stream: createReadStream(filePath),
     mimeType: metadata?.mimeType ?? inferirMimeType(filePath),
-    size: metadata?.size ?? null
+    size: fileStats.size
   };
 }
 

@@ -19,9 +19,9 @@ import {
   Upload,
   UserRound
 } from "lucide-react";
-import { type FormEvent, type ReactNode, useEffect, useMemo, useState } from "react";
+import { type FormEvent, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { obterUsuario, requisitarApi, type NegocioSessao } from "../api";
+import { obterUsuario, requisitarApi, resolverUrlMedia, type NegocioSessao } from "../api";
 import { CORES_LOGO_BIZY_ESCURA, LogoBizy } from "../marca/bizy";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -156,6 +156,35 @@ export function PaginaOnboarding() {
     quantidade: 1,
     fotos: [] as string[]
   });
+  const [enviandoFoto, setEnviandoFoto] = useState(false);
+  const inputFotoRef = useRef<HTMLInputElement>(null);
+
+  const tratarFotoProduto = useCallback(async (ficheiros: FileList | null) => {
+    if (!ficheiros?.length) return;
+    setEnviandoFoto(true);
+    try {
+      const novasUrls: string[] = [];
+      for (const ficheiro of Array.from(ficheiros).slice(0, 4)) {
+        const dataUrl = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = reject;
+          reader.readAsDataURL(ficheiro);
+        });
+        const resultado = await requisitarApi<{ url: string }>("/media/upload", {
+          method: "POST",
+          body: { dataUrl, purpose: "catalogo", maxImageDimension: 1200 }
+        });
+        novasUrls.push(resultado.url);
+      }
+      setProduto((atual) => ({ ...atual, fotos: [...atual.fotos, ...novasUrls] }));
+    } catch (erro) {
+      setMensagem(erro instanceof Error ? erro.message : "Não foi possível enviar a foto.");
+    } finally {
+      setEnviandoFoto(false);
+      if (inputFotoRef.current) inputFotoRef.current.value = "";
+    }
+  }, []);
 
   const indicePassoAtual = passosOnboarding.findIndex((item) => item.id === passo);
   const progresso = `${((indicePassoAtual + 1) / passosOnboarding.length) * 100}%`;
@@ -445,11 +474,35 @@ export function PaginaOnboarding() {
             <div className="bizy-form-stack">
               <section className="bizy-form-section">
                 <HeaderSecao icone={<ImageIcon size={15} />} titulo="Foto do produto" tom="verde" detalhe="recomendado" />
-                <div className="bizy-upload-card">
-                  <Upload size={22} />
-                  <strong>Arraste uma foto ou toque para escolher</strong>
-                  <span>Produtos com foto vendem mais. PNG ou JPG até 5 MB.</span>
-                </div>
+                <input
+                  ref={inputFotoRef}
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp"
+                  multiple
+                  className="sr-only"
+                  onChange={(e) => tratarFotoProduto(e.target.files)}
+                />
+                {produto.fotos.length > 0 ? (
+                  <div className="bizy-upload-preview">
+                    {produto.fotos.map((foto, i) => (
+                      <div key={i} className="bizy-upload-thumb">
+                        <img src={resolverUrlMedia(foto)} alt={`Foto ${i + 1}`} />
+                        <button type="button" aria-label="Remover" onClick={() => setProduto((a) => ({ ...a, fotos: a.fotos.filter((_, j) => j !== i) }))}>×</button>
+                      </div>
+                    ))}
+                    {produto.fotos.length < 4 && (
+                      <button type="button" className="bizy-upload-add" onClick={() => inputFotoRef.current?.click()} disabled={enviandoFoto}>
+                        {enviandoFoto ? <Loader2 size={18} className="animate-spin" /> : <Upload size={18} />}
+                      </button>
+                    )}
+                  </div>
+                ) : (
+                  <button type="button" className="bizy-upload-card" onClick={() => inputFotoRef.current?.click()} disabled={enviandoFoto}>
+                    {enviandoFoto ? <Loader2 size={22} className="animate-spin" /> : <Upload size={22} />}
+                    <strong>{enviandoFoto ? "A enviar..." : "Toca para escolher uma foto"}</strong>
+                    <span>Produtos com foto vendem mais. PNG ou JPG até 5 MB.</span>
+                  </button>
+                )}
               </section>
 
               <section className="bizy-form-section">

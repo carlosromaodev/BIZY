@@ -158,7 +158,7 @@ Inclui:
 
 - [x] **RF-001**: O sistema deve expor um modulo/servico chamado Bizy Market para descoberta de produtos entre lojas.
 - [x] **RF-002**: O sistema deve manter a Loja Digital individual de cada negocio como perfil publico autonomo.
-- [ ] **RF-003**: O sistema deve permitir subdominio unico por loja no formato `slug.bizy.space` ou `slug.usebizy.space`, conforme dominio configurado.
+- [x] **RF-003**: O sistema deve permitir subdominio unico por loja no formato `slug.bizy.space` ou `slug.usebizy.space`, conforme dominio configurado, reservando `market.usebizy.space` para o shopping center.
 - [x] **RF-004**: O sistema deve reservar slugs sensiveis como `api`, `www`, `app`, `admin`, `market`, `shop`, `checkout`, `n8n`, `wa`, `suporte` e similares.
 - [ ] **RF-005**: O sistema deve permitir que uma loja esteja ativa no perfil publico sem estar publicada no Bizy Market.
 - [x] **RF-006**: O sistema deve permitir que uma loja participe no Bizy Market apenas quando cumprir criterios minimos de publicacao.
@@ -222,15 +222,15 @@ Inclui:
 
 ### 5.7 Checkout Unificado Bizy
 
-- [ ] **RF-049**: O Bizy deve oferecer checkout unificado para produtos comprados no perfil da loja ou no Bizy Market.
-- [ ] **RF-050**: O comprador deve conseguir adicionar produtos ao carrinho a partir de varias origens.
-- [ ] **RF-051**: O checkout deve identificar a loja fornecedora de cada item.
-- [ ] **RF-052**: Quando o carrinho tiver produtos de uma unica loja, o sistema deve criar um pedido principal para essa loja.
+- [x] **RF-049**: O Bizy deve oferecer checkout unificado para produtos comprados no perfil da loja ou no Bizy Market. MVP progressivo implementado em `/checkout`; multi-loja completo continua em RF-053.
+- [x] **RF-050**: O comprador deve conseguir adicionar produtos ao carrinho a partir de varias origens.
+- [x] **RF-051**: O checkout deve identificar a loja fornecedora de cada item.
+- [x] **RF-052**: Quando o carrinho tiver produtos de uma unica loja, o sistema deve criar um pedido principal para essa loja.
 - [ ] **RF-053**: Quando o carrinho tiver produtos de varias lojas, o sistema deve criar uma compra unificada para o comprador e pedidos filhos separados por fornecedor.
 - [ ] **RF-054**: O comprador deve ver uma experiencia unica de pagamento, mesmo quando internamente existirem varios fornecedores.
 - [ ] **RF-055**: O sistema deve calcular entrega por loja, por zona ou por politica configurada.
-- [ ] **RF-056**: O checkout deve suportar retirada, entrega ao domicilio, entrega por orcamento e entrega a combinar, conforme a loja.
-- [ ] **RF-057**: O checkout deve recolher consentimento minimo de dados antes de criar pedido.
+- [x] **RF-056**: O checkout deve suportar retirada, entrega ao domicilio, entrega por orcamento e entrega a combinar, conforme a loja.
+- [x] **RF-057**: O checkout deve recolher consentimento minimo de dados antes de criar pedido.
 - [ ] **RF-058**: O checkout deve suportar pagamento por transferencia/comprovativo, dinheiro na entrega, pagamento personalizado e providers futuros.
 - [ ] **RF-059**: O checkout deve permitir comprovativo de pagamento quando o metodo exigir.
 - [ ] **RF-060**: O checkout deve criar cliente/lead no CRM das lojas envolvidas, respeitando minimizacao de dados.
@@ -438,7 +438,7 @@ Inclui:
 ### 7.11 Migracao da Loja Atual
 
 - [x] **RN-063**: A loja publica atual deve evoluir para perfil de loja sem quebrar links existentes.
-- [ ] **RN-064**: O checkout atual deve ser migrado para o checkout unificado de forma progressiva.
+- [x] **RN-064**: O checkout atual deve ser migrado para o checkout unificado de forma progressiva.
 - [ ] **RN-065**: Produtos, categorias, colecoes, tracking e pedidos existentes devem ser preservados.
 - [ ] **RN-066**: A area atual "Minha loja" deve virar Bizy Studio dentro do CRM.
 - [ ] **RN-067**: O Market deve ser introduzido como camada adicional de descoberta, nao como substituto da loja do cliente.
@@ -507,15 +507,17 @@ Mapa detalhado: `docs/wiki/pages/bizy-market-rotas-roadmap.md`.
 
 - [x] Base tecnica `frontend/src/lojas`: tipos, rotas, helpers API e normalizadores para consumir loja publica, Market e Studio.
 - [x] Teste de contrato frontend `frontend/testes/lojas-api.test.ts`.
-- [ ] `/market`: home de descoberta com busca, categorias e destaques.
-- [ ] `/market/categorias/:categoria`: navegação por categoria global.
-- [ ] `/lojas/:slug`: perfil publico mobile-first da loja.
-- [ ] `/lojas/:slug/produtos/:codigo`: detalhe de produto da loja.
-- [ ] `/checkout`: entrada do checkout unificado.
-- [ ] `/crm/loja/market`: controlo de participacao no Market dentro do CRM.
+- [x] `/market`: home de descoberta com busca, categorias e destaques.
+- [x] `/market/categorias/:categoria`: navegação por categoria global.
+- [x] `market.usebizy.space`: dominio proprio do Bizy Market com raiz `/`, `/categorias/:categoria`, `/produtos/:codigo` e `/lojas`.
+- [x] `/lojas/:slug`: perfil publico mobile-first da loja.
+- [x] `/lojas/:slug/produtos/:codigo`: detalhe de produto da loja.
+- [x] `/checkout`: entrada do checkout unificado.
+- [x] `/app/loja`: controlo de participacao no Market dentro do CRM.
 
 #### Sequencia posterior
 
+- [x] Entrada progressiva do checkout com carrinho local, fornecedor por item, origens loja/Market, consentimento e finalizacao segura para carrinho de uma loja.
 - [ ] Checkout unificado com carrinho, entrega, pagamento, comprovativo e acompanhamento.
 - [ ] Pedidos filhos por fornecedor no CRM.
 - [ ] Seguidores, similares avancados, ranking e tracking de recomendacao.
@@ -523,7 +525,7 @@ Mapa detalhado: `docs/wiki/pages/bizy-market-rotas-roadmap.md`.
 
 ## 9. Decisoes em Aberto
 
-- Qual dominio principal sera usado para o Market: `bizy.space/market`, `shop.bizy.space`, `market.bizy.space` ou outro?
+- [x] Dominio principal do Market definido como `market.usebizy.space`, mantendo `/market` como fallback local e compatibilidade.
 - A compra multi-loja entra no MVP do checkout unificado ou primeiro entra apenas checkout unificado para uma loja por vez?
 - O Bizy centralizara pagamento desde o primeiro MVP ou comecara com comprovativo/transferencia e conciliacao manual?
 - O Market tera avaliacao publica de compradores no MVP ou apenas selos operacionais internos?

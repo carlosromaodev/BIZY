@@ -2,24 +2,31 @@ import {
   AlertTriangle,
   Ban,
   Bell,
+  Camera,
   CheckCircle2,
   Clock,
   Database,
   ExternalLink,
+  Eye,
   GitBranch,
   HeartHandshake,
+  Image,
+  Instagram,
   KeyRound,
+  LogOut,
   MessageCircle,
   Play,
   QrCode,
   ReceiptText,
   RefreshCcw,
+  Send,
   Settings,
   Shield,
   ShieldCheck,
   SlidersHorizontal,
   Smartphone,
   Store,
+  User,
   Users,
   Wifi,
   Workflow,
@@ -46,6 +53,7 @@ import type {
   AgenteAutomacao,
   ConfiguracaoOperacional,
   InstanciaEvolution,
+  InstanciaInstagram,
   ResumoAutomacoes,
   ResumoEvolution,
   WorkflowN8n
@@ -100,12 +108,14 @@ export function PaginaAdministracao() {
       <AnimatedTabs defaultValue="whatsapp">
         <TabsList style={{ gridTemplateColumns: "repeat(auto-fit, minmax(5rem, 1fr))" }}>
           <TabsTrigger value="whatsapp"><Smartphone size={16} /> WhatsApp</TabsTrigger>
+          <TabsTrigger value="instagram"><Instagram size={16} /> Instagram</TabsTrigger>
           <TabsTrigger value="automacoes"><SlidersHorizontal size={16} /> Automações</TabsTrigger>
           <TabsTrigger value="n8n"><GitBranch size={16} /> n8n</TabsTrigger>
           <TabsTrigger value="configuracoes"><Settings size={16} /> Config.</TabsTrigger>
         </TabsList>
         <TabsContents>
           <TabsContent value="whatsapp"><ConteudoWhatsApp /></TabsContent>
+          <TabsContent value="instagram"><ConteudoInstagram /></TabsContent>
           <TabsContent value="automacoes"><ConteudoAutomacoes resumo={resumoAutomacoes} /></TabsContent>
           <TabsContent value="n8n"><ConteudoN8n resumo={resumoAutomacoes} /></TabsContent>
           <TabsContent value="configuracoes"><ConteudoConfiguracoes resumo={resumoAutomacoes} /></TabsContent>
@@ -243,6 +253,264 @@ function ConteudoWhatsApp() {
       </div>
 
       {mensagem && <p className="rounded-lg border bg-card px-4 py-3 text-sm text-muted-foreground" aria-live="polite">{mensagem}</p>}
+    </div>
+  );
+}
+
+/* ── Instagram Tab ──────────────────────────────────────── */
+
+const STATUS_INSTAGRAM_LABELS: Record<string, { label: string; variant: "success" | "warning" | "destructive" | "secondary" }> = {
+  CONECTADA: { label: "Conectada", variant: "success" },
+  CRIADA: { label: "Criada", variant: "secondary" },
+  AGUARDANDO_2FA: { label: "Aguardando 2FA", variant: "warning" },
+  CHALLENGE: { label: "Challenge", variant: "warning" },
+  SESSAO_EXPIRADA: { label: "Sessão expirada", variant: "destructive" },
+  ERRO: { label: "Erro", variant: "destructive" },
+};
+
+function ConteudoInstagram() {
+  const [instancias, setInstancias] = useState<InstanciaInstagram[]>([]);
+  const [mensagem, setMensagem] = useState("");
+  const [carregando, setCarregando] = useState(false);
+  const [etapa2fa, setEtapa2fa] = useState(false);
+  const [form, setForm] = useState({
+    instancia: "instagram-principal",
+    username: "",
+    password: "",
+    verificationCode: ""
+  });
+
+  async function carregar() {
+    try {
+      const dados = await requisitarApi<{ instancias: InstanciaInstagram[] }>("/instagram/instancias");
+      setInstancias(dados.instancias ?? []);
+    } catch (e) {
+      setMensagem(e instanceof Error ? e.message : "Erro ao carregar Instagram.");
+    }
+  }
+
+  useEffect(() => {
+    void carregar();
+  }, []);
+
+  async function fazerLogin(e: FormEvent) {
+    e.preventDefault();
+    setCarregando(true);
+    setMensagem("A conectar ao Instagram...");
+
+    try {
+      await requisitarApi("/instagram/login", {
+        method: "POST",
+        body: {
+          instancia: form.instancia,
+          username: form.username,
+          password: form.password,
+          ...(etapa2fa && form.verificationCode ? { verificationCode: form.verificationCode } : {})
+        }
+      });
+      setMensagem("Login bem-sucedido! A conta está conectada.");
+      setEtapa2fa(false);
+      setForm((f) => ({ ...f, password: "", verificationCode: "" }));
+      await carregar();
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Falha no login.";
+      if (msg.includes("2FA") || msg.includes("dois fatores") || msg.includes("verification_code")) {
+        setEtapa2fa(true);
+        setMensagem("Autenticação de dois fatores necessária. Insira o código abaixo.");
+      } else {
+        setMensagem(msg);
+      }
+    } finally {
+      setCarregando(false);
+    }
+  }
+
+  async function desconectar(id: string) {
+    setCarregando(true);
+    setMensagem("A desconectar...");
+    try {
+      await requisitarApi(`/instagram/instancias/${id}/desconectar`, { method: "POST" });
+      setMensagem("Instagram desconectado.");
+      await carregar();
+    } catch (e) {
+      setMensagem(e instanceof Error ? e.message : "Erro ao desconectar.");
+    } finally {
+      setCarregando(false);
+    }
+  }
+
+  const conectadas = instancias.filter((i) => (i.statusBridge ?? i.status) === "CONECTADA").length;
+
+  return (
+    <div className="grid gap-4">
+      {/* KPI strip */}
+      <div className="dash-kpi-grid">
+        {([
+          { rotulo: "Instagrapi Bridge", valor: instancias.length > 0 || conectadas > 0 ? "Activo" : "Pendente", icone: <Instagram size={18} />, cor: conectadas > 0 ? "var(--success)" : "var(--warning)" },
+          { rotulo: "Instâncias", valor: String(instancias.length), icone: <User size={18} />, cor: "var(--primary)" },
+          { rotulo: "Conectadas", valor: String(conectadas), icone: <CheckCircle2 size={18} />, cor: conectadas > 0 ? "var(--success)" : "var(--muted-foreground)" },
+          { rotulo: "Polling DMs", valor: conectadas > 0 ? "Activo" : "Inactivo", icone: <MessageCircle size={18} />, cor: conectadas > 0 ? "var(--success)" : "var(--muted-foreground)" },
+        ] as const).map((kpi, i) => (
+          <motion.div key={kpi.rotulo} className="dash-kpi-card" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35, delay: 0.08 * i }}>
+            <div className="dash-kpi-icon" style={{ background: `color-mix(in srgb, ${kpi.cor} 10%, transparent)`, color: kpi.cor }}>{kpi.icone}</div>
+            <div className="dash-kpi-body">
+              <span className="dash-kpi-label">{kpi.rotulo}</span>
+              <strong className="dash-kpi-value">{kpi.valor}</strong>
+            </div>
+          </motion.div>
+        ))}
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        {/* Login form */}
+        <div className="dash-section-card">
+          <div className="dash-section-header">
+            <Instagram size={16} className="text-muted-foreground" />
+            <span className="dash-section-title">Conectar conta Instagram</span>
+          </div>
+          <form onSubmit={fazerLogin} className="grid gap-4 p-4">
+            <div className="grid gap-2">
+              <label className="text-sm font-medium" htmlFor="ig-instancia">Nome da instância</label>
+              <Input id="ig-instancia" placeholder="instagram-principal" value={form.instancia} onChange={(e) => setForm({ ...form, instancia: e.target.value })} />
+              <p className="text-xs text-muted-foreground">Identificador interno. Exemplo: instagram-vendas</p>
+            </div>
+            <div className="grid gap-2">
+              <label className="text-sm font-medium" htmlFor="ig-username">Username Instagram</label>
+              <Input id="ig-username" placeholder="@suaconta" value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} />
+            </div>
+            <div className="grid gap-2">
+              <label className="text-sm font-medium" htmlFor="ig-password">Password</label>
+              <Input id="ig-password" type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
+            </div>
+            {etapa2fa && (
+              <div className="grid gap-2">
+                <label className="text-sm font-medium" htmlFor="ig-2fa">Código 2FA</label>
+                <Input id="ig-2fa" inputMode="numeric" placeholder="123456" value={form.verificationCode} onChange={(e) => setForm({ ...form, verificationCode: e.target.value })} />
+                <p className="text-xs text-muted-foreground">Insira o código do autenticador ou SMS.</p>
+              </div>
+            )}
+            <Button size="lg" disabled={carregando || !form.username || !form.password}>
+              <Instagram size={16} />
+              {etapa2fa ? "Verificar 2FA" : "Conectar Instagram"}
+            </Button>
+          </form>
+        </div>
+
+        {/* Instances list */}
+        <div className="dash-section-card">
+          <div className="dash-section-header">
+            <User size={16} className="text-muted-foreground" />
+            <span className="dash-section-title">Contas conectadas</span>
+            <Button variant="ghost" size="sm" className="ml-auto" onClick={() => void carregar()}>
+              <RefreshCcw size={14} />
+            </Button>
+          </div>
+          <div className="divide-y divide-border/50">
+            {instancias.length ? (
+              instancias.map((inst) => (
+                <InstanciaInstagramCard key={inst.id} instancia={inst} carregando={carregando} onDesconectar={desconectar} />
+              ))
+            ) : (
+              <div className="p-6">
+                <EstadoVazio icone={<Instagram />} titulo="Sem contas" detalhe="Conecte uma conta Instagram usando o formulário ao lado." />
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Capabilities */}
+      <div className="dash-section-card">
+        <div className="dash-section-header">
+          <ShieldCheck size={16} className="text-muted-foreground" />
+          <span className="dash-section-title">Funcionalidades disponíveis</span>
+        </div>
+        <div className="grid gap-2 p-4 sm:grid-cols-2 lg:grid-cols-3">
+          {([
+            { icone: <MessageCircle size={16} />, titulo: "Receber DMs", detalhe: "Polling automático de mensagens directas novas" },
+            { icone: <Send size={16} />, titulo: "Enviar DMs", detalhe: "Responder mensagens directas (texto e imagens)" },
+            { icone: <Eye size={16} />, titulo: "Consultar perfis", detalhe: "Ver informações públicas de qualquer utilizador" },
+            { icone: <Camera size={16} />, titulo: "Media recebida", detalhe: "Processar fotos, vídeos e stories partilhados" },
+            { icone: <Users size={16} />, titulo: "Multi-conta", detalhe: "Conectar múltiplas contas Instagram em simultâneo" },
+            { icone: <Image size={16} />, titulo: "Enviar fotos", detalhe: "Enviar imagens nas mensagens directas" },
+          ] as const).map((cap) => (
+            <div key={cap.titulo} className="flex items-start gap-3 rounded-lg border bg-background p-3">
+              <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-pink-500/10 text-pink-500">{cap.icone}</div>
+              <div className="min-w-0">
+                <p className="text-sm font-medium">{cap.titulo}</p>
+                <p className="text-xs text-muted-foreground">{cap.detalhe}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="px-4 pb-4">
+          <p className="rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-xs text-amber-600 dark:text-amber-400">
+            Fase de testes: utiliza a API privada do Instagram (instagrapi). Para produção comercial, migrar para a API oficial do Instagram (Graph API).
+          </p>
+        </div>
+      </div>
+
+      {mensagem && <p className="rounded-lg border bg-card px-4 py-3 text-sm text-muted-foreground" aria-live="polite">{mensagem}</p>}
+    </div>
+  );
+}
+
+function InstanciaInstagramCard({
+  instancia,
+  carregando,
+  onDesconectar
+}: {
+  instancia: InstanciaInstagram;
+  carregando: boolean;
+  onDesconectar: (id: string) => void;
+}) {
+  const [confirmarRemover, setConfirmarRemover] = useState(false);
+  const statusReal = instancia.statusBridge ?? instancia.status;
+  const statusInfo = STATUS_INSTAGRAM_LABELS[statusReal] ?? { label: statusReal, variant: "secondary" as const };
+  const ultimaPoll = instancia.ultimaPollEmBridge ?? instancia.ultimaPollEm;
+
+  return (
+    <div className="grid gap-3 p-4">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <strong className="block truncate text-sm">@{instancia.username}</strong>
+          <span className="block truncate text-xs text-muted-foreground">{instancia.nome}</span>
+        </div>
+        <Badge variant={statusInfo.variant} className="text-[0.6rem]">
+          {statusInfo.label}
+        </Badge>
+      </div>
+
+      {ultimaPoll && (
+        <p className="text-xs text-muted-foreground">
+          Último poll: {new Date(ultimaPoll).toLocaleString("pt-AO", { dateStyle: "short", timeStyle: "short" })}
+        </p>
+      )}
+
+      {(instancia.ultimoErroBridge ?? instancia.ultimoErro) && (
+        <p className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-xs text-destructive">
+          {instancia.ultimoErroBridge ?? instancia.ultimoErro}
+        </p>
+      )}
+
+      <div className="flex flex-wrap gap-1.5">
+        <Button variant="destructive" size="sm" disabled={carregando} onClick={() => setConfirmarRemover(true)}>
+          <LogOut size={14} /> Desconectar
+        </Button>
+      </div>
+
+      <ConfirmarAcao
+        aberto={confirmarRemover}
+        titulo="Desconectar Instagram"
+        descricao={`Desconectar a conta @${instancia.username}? O polling de DMs será interrompido.`}
+        textoBotao="Desconectar"
+        variante="destructive"
+        onConfirmar={() => {
+          setConfirmarRemover(false);
+          onDesconectar(instancia.id);
+        }}
+        onCancelar={() => setConfirmarRemover(false)}
+      />
     </div>
   );
 }

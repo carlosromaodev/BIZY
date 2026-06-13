@@ -136,6 +136,16 @@ export const moduloLojaPublica: ModuloHttp = {
       });
     });
 
+    app.get("/publico/lojas/:slug/produtos/:codigo/similares", async (request, reply) => {
+      const { slug, codigo } = request.params as { slug: string; codigo: string };
+      const query = request.query as Record<string, string | undefined>;
+      aplicarCacheCatalogoPublico(reply);
+      await contexto.lojaPublica.obterProduto(slug, codigo);
+      return contexto.bizyMarket.listarProdutosSimilares(codigo, {
+        limite: normalizarLimiteProdutosPublicos(query.limite)
+      });
+    });
+
     app.post("/publico/lojas/:slug/entrega/calcular", async (request, reply) => {
       const { slug } = request.params as { slug: string };
       aplicarNoStore(reply);
@@ -680,6 +690,13 @@ function extrairFiltrosProdutosPublicos(query: Record<string, string | undefined
     estadoStock: textoQuery(query.estadoStock),
     limite: Number.isFinite(limite) ? Math.trunc(limite) : undefined
   };
+}
+
+function normalizarLimiteProdutosPublicos(valor?: string): number | undefined {
+  if (!valor) return undefined;
+  const limite = Number(valor);
+  if (!Number.isFinite(limite)) return undefined;
+  return Math.min(24, Math.max(1, Math.trunc(limite)));
 }
 
 function textoQuery(valor?: string): string | undefined {

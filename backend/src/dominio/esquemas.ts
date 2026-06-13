@@ -861,6 +861,10 @@ export const RejeitarPagamentoSchema = z.object({
   motivo: z.string().trim().min(3).max(500)
 });
 
+export const ReembolsarPedidoSchema = z.object({
+  motivo: z.string().trim().min(3).max(500)
+});
+
 const UrlOuDataUrlSchema = z
   .string()
   .trim()

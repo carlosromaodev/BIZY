@@ -279,62 +279,59 @@ export function PaginaLive() {
   return (
     <CrmPageMotion>
       {/* ── Header ── */}
-      <PageHead
-        eyebrow={liveAtual ? `Ao vivo · ${tempoFormatado}` : "Vendas ao vivo · Captação e reservas em tempo real"}
-        titulo="Central de live"
-        tamanhoTitulo="sm"
-      >
-        {liveAtual && (
-          <PillBizy>
-            <span className="bz-live-dot" />
-            {liveAtual.username} · {liveAtual.providerNome}
-          </PillBizy>
-        )}
-        {liveAtual && (
-          <BotaoBizy variante="ghost" icone={X} onClick={() => void encerrarLive()} className="bz-btn-rose">
-            Terminar live
-          </BotaoBizy>
-        )}
-        <Sheet open={sheetAberto} onOpenChange={setSheetAberto}>
-          <SheetTrigger asChild>
-            <button type="button" className="bz-btn bz-btn-ghost">
-              <Zap size={16} />
-              Teste rápido
-            </button>
-          </SheetTrigger>
-          <SheetContent>
-            <SheetHeader>
-              <SheetTitle>Comentário manual</SheetTitle>
-              <SheetDescription>Simule um comentário de live para testar o parser de reservas.</SheetDescription>
-            </SheetHeader>
-            <form
-              onSubmit={(e) => {
-                const endpoint = liveAtual
-                  ? `/lives/${encodeURIComponent(liveAtual.id)}/comentarios/manual`
-                  : "/comentarios/manual";
-                const body = liveAtual
-                  ? { username: "cliente_live", displayName: "Cliente Live", commentText: comentarioManual }
-                  : { liveId: "manual_local", username: "cliente_live", displayName: "Cliente Live", commentText: comentarioManual };
-                void enviar(e, () => requisitarApi(endpoint, { method: "POST", body }), "Comentário enviado.");
-                setSheetAberto(false);
-              }}
-              className="grid gap-4 px-1 pt-4"
-            >
-              <div className="grid gap-2">
-                <label className="text-sm font-medium" htmlFor="comManual">Texto do comentário</label>
-                <Input id="comManual" value={comentarioManual} onChange={(e) => setComentarioManual(e.target.value)} placeholder="eu quero 923456789 peça 4" />
-              </div>
-              <Button size="lg" disabled={carregando}>
-                <Send size={18} />
-                Enviar para parser
-              </Button>
-            </form>
-          </SheetContent>
-        </Sheet>
-        <button type="button" className="bz-iconbtn" onClick={() => void carregar()} disabled={carregando} title="Atualizar">
-          <RefreshCcw size={16} />
-        </button>
-      </PageHead>
+      <div className="crm-v3-pghead">
+        <div>
+          <h1>Central de live</h1>
+          <div className="crm-v3-sub">
+            {liveAtual
+              ? `${liveAtual.providerNome} · @${liveAtual.username} · começou às ${new Date(liveAtual.iniciadaEm ?? Date.now()).toLocaleTimeString("pt", { hour: "2-digit", minute: "2-digit" })}`
+              : "Nenhuma live ativa"}
+          </div>
+        </div>
+        <div className="crm-v3-pghead-right">
+          {liveAtual && (
+            <BotaoBizy variante="ghost" icone={X} onClick={() => void encerrarLive()} className="bz-btn-rose">
+              Terminar live
+            </BotaoBizy>
+          )}
+          <Sheet open={sheetAberto} onOpenChange={setSheetAberto}>
+            <SheetTrigger asChild>
+              <button type="button" className="crm-v3-btn crm-v3-btn-ghost">
+                <Zap size={13} />
+                Teste rápido
+              </button>
+            </SheetTrigger>
+            <SheetContent>
+              <SheetHeader>
+                <SheetTitle>Comentário manual</SheetTitle>
+                <SheetDescription>Simule um comentário de live para testar o parser de reservas.</SheetDescription>
+              </SheetHeader>
+              <form
+                onSubmit={(e) => {
+                  const endpoint = liveAtual
+                    ? `/lives/${encodeURIComponent(liveAtual.id)}/comentarios/manual`
+                    : "/comentarios/manual";
+                  const body = liveAtual
+                    ? { username: "cliente_live", displayName: "Cliente Live", commentText: comentarioManual }
+                    : { liveId: "manual_local", username: "cliente_live", displayName: "Cliente Live", commentText: comentarioManual };
+                  void enviar(e, () => requisitarApi(endpoint, { method: "POST", body }), "Comentário enviado.");
+                  setSheetAberto(false);
+                }}
+                className="grid gap-4 px-1 pt-4"
+              >
+                <div className="grid gap-2">
+                  <label className="text-sm font-medium" htmlFor="comManual">Texto do comentário</label>
+                  <Input id="comManual" value={comentarioManual} onChange={(e) => setComentarioManual(e.target.value)} placeholder="eu quero 923456789 peça 4" />
+                </div>
+                <Button size="lg" disabled={carregando}>
+                  <Send size={18} />
+                  Enviar para parser
+                </Button>
+              </form>
+            </SheetContent>
+          </Sheet>
+        </div>
+      </div>
 
       {/* ── Live Grid (Stage + Feed) ── */}
       <div className="bz-live-grid">

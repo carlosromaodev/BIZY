@@ -14,6 +14,8 @@ coverage
 .DS_Store
 tmp/
 .agents/
+.claude/
 .codex/
 .superpowers/
-docs/wiki/.obsidian/workspace*.json
+*.rar
+*.docx

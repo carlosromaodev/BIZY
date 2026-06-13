@@ -2,6 +2,7 @@ import {
   ArrowLeft,
   ArrowRight,
   Check,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
   Clock,
@@ -29,8 +30,8 @@ import {
   X
 } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { NativeBottomNav } from "@/components/ui/native-bottom-nav";
@@ -52,7 +53,7 @@ import {
 } from "@/components/ui/sheet";
 import { obterBaseApiUrl, resolverUrlMedia } from "../api";
 import { resolverSlugLojaPublica } from "../lojaSubdominio";
-import { obterLojaPublica, registrarEventoTrackingPublico, ROTAS_LOJAS } from "../lojas";
+import { adicionarItemCheckoutBizy, obterLojaPublica, registrarEventoTrackingPublico, ROTAS_LOJAS } from "../lojas";
 import { LogoBizy } from "../marca/bizy";
 import { formatarKwanza } from "../utilidades";
 
@@ -309,8 +310,10 @@ const entregaInicial: EntregaCheckout = {
 };
 
 export function PaginaLojaDigitalPublica() {
-  const { slug: slugRota = "" } = useParams();
+  const { slug: slugRota = "", codigo: codigoRota = "" } = useParams();
+  const navigate = useNavigate();
   const slug = resolverSlugLojaPublica(slugRota);
+  const codigoProdutoRota = useMemo(() => normalizarCodigoProdutoRota(codigoRota), [codigoRota]);
   const trackingId = useMemo(() => obterTrackingIdLoja(slug), [slug]);
   const reduzirMovimento = useReducedMotion();
   const [dados, setDados] = useState<LojaPublicaResposta | null>(null);
@@ -343,6 +346,7 @@ export function PaginaLojaDigitalPublica() {
   const [abaAtiva, setAbaAtiva] = useState(0);
   const [direcaoAba, setDirecaoAba] = useState<"esquerda" | "direita">("direita");
   const touchAbaRef = useRef<{ x: number; t: number } | null>(null);
+  const produtoUrlAplicadoRef = useRef<string | null>(null);
 
   const registrarEvento = useCallback(
     (tipo: TipoEventoTracking, dadosEvento: {
@@ -422,6 +426,23 @@ export function PaginaLojaDigitalPublica() {
   }, [dados?.produtos, slug]);
 
   useEffect(() => {
+    if (!codigoProdutoRota || !dados?.produtos.length) return;
+
+    const chave = `${slug}:${codigoProdutoRota}`;
+    if (produtoUrlAplicadoRef.current === chave) return;
+
+    const produtoDaRota = dados.produtos.find((produto) => normalizarCodigoProdutoRota(produto.codigo) === codigoProdutoRota);
+    produtoUrlAplicadoRef.current = chave;
+
+    if (produtoDaRota) {
+      abrirProduto(produtoDaRota);
+      return;
+    }
+
+    setErro("Produto não está disponível nesta loja.");
+  }, [codigoProdutoRota, dados?.produtos, slug]);
+
+  useEffect(() => {
     if (!checkoutAberto || !checkoutProduto) return;
     const temporizador = window.setTimeout(() => {
       void calcularEntregaCheckout();
@@ -482,7 +503,7 @@ export function PaginaLojaDigitalPublica() {
 
   function rolarParaGrelhaProdutos() {
     window.requestAnimationFrame(() => {
-      document.getElementById("loja-produtos")?.scrollIntoView({
+      document.getElementById("loja-tabpanel-loja")?.scrollIntoView({
         behavior: reduzirMovimento ? "auto" : "smooth",
         block: "start"
       });
@@ -593,6 +614,35 @@ export function PaginaLojaDigitalPublica() {
         temPerfil: Boolean(perfilCliente.telefone)
       }
     });
+  }
+
+  function adicionarProdutoAoCheckoutBizy(produto: ProdutoPublico, qtd = 1, variantes = selecoesVariantes) {
+    const selecoes = Object.keys(variantes).length ? variantes : criarSelecoesIniciaisProduto(produto);
+    adicionarItemCheckoutBizy({
+      slugLoja: slug,
+      codigoProduto: produto.codigo,
+      nomeProduto: produto.nome,
+      nomeFornecedor: dados?.loja.nomeComercial ?? "Loja Bizy",
+      quantidade: qtd,
+      precoUnitarioEmKwanza: precoProduto(produto),
+      fotoUrl: produto.fotos[0] ? resolverUrlMedia(produto.fotos[0]) : null,
+      urlProduto: ROTAS_LOJAS.produtoLoja(slug, produto.codigo),
+      urlLoja: ROTAS_LOJAS.loja(slug),
+      variantes: selecoes,
+      origem: "loja-produto"
+    });
+    registrarEvento("CHECKOUT_INICIADO", {
+      produto,
+      entidadeTipo: "PRODUTO",
+      entidadeId: produto.codigo,
+      metadata: {
+        quantidade: qtd,
+        variantes: selecoes,
+        origem: "checkout_bizy_unificado"
+      }
+    });
+    setProdutoAberto(null);
+    navigate(ROTAS_LOJAS.checkout);
   }
 
   async function calcularEntregaCheckout(): Promise<ResumoEntregaCheckout | null> {
@@ -871,6 +921,61 @@ export function PaginaLojaDigitalPublica() {
         onSelecionarColecao={selecionarCatalogoPublico}
       />
 
+      <section className="loja-profile-commerce-tools" aria-label="Ferramentas da loja">
+        <label className="loja-profile-search">
+          <Search size={16} aria-hidden="true" />
+          <Input
+            value={busca}
+            onChange={(e) => {
+              setBusca(e.target.value);
+              registrarEvento("CATALOGO_VISTO", { metadata: { acao: "pesquisa_perfil" } });
+            }}
+            placeholder={`Pesquisar em ${dados.loja.nomeComercial}`}
+          />
+          {busca && (
+            <button type="button" onClick={() => setBusca("")} aria-label="Limpar pesquisa">
+              <X size={14} />
+            </button>
+          )}
+        </label>
+
+        {categorias.length > 0 && (
+          <div className="loja-profile-filter-chips" aria-label="Catálogos rápidos por categoria">
+            <button
+              type="button"
+              className={!catalogoAtivo ? "is-active" : ""}
+              onClick={limparCatalogoAtivo}
+              aria-pressed={!catalogoAtivo}
+            >
+              Todos
+            </button>
+            {categorias.slice(0, 8).map((cat) => {
+              const ativa = catalogoAtivo?.criterio === "categoria" && catalogoAtivo.valor === cat;
+              return (
+                <button
+                  key={cat}
+                  type="button"
+                  className={ativa ? "is-active" : ""}
+                  onClick={() => {
+                    selecionarCatalogoAtivo({
+                      id: `categoria-${cat}`,
+                      nome: cat,
+                      criterio: "categoria",
+                      valor: cat,
+                      totalProdutos: dados.produtos.filter((produto) => produto.categoria === cat).length,
+                      origem: "categoria"
+                    });
+                  }}
+                  aria-pressed={ativa}
+                >
+                  {cat}
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </section>
+
       {/* ── Barra de abas ── */}
       <BarraAbas abaAtiva={abaAtiva} corPrimaria={corPrimaria} onChange={mudarAba} />
 
@@ -884,7 +989,7 @@ export function PaginaLojaDigitalPublica() {
 
           {/* ── ABA 0: Loja ── */}
           {abaAtiva === 0 && (
-            <div id="loja-produtos" className="scroll-mt-32 mx-auto max-w-[1280px] px-4 pb-20 pt-5 sm:px-10 sm:pt-7">
+            <div id="loja-tabpanel-loja" role="tabpanel" aria-labelledby="loja-tab-loja" className="scroll-mt-32 mx-auto max-w-[1280px] px-4 pb-20 pt-5 sm:px-10 sm:pt-7">
               {catalogoAtivo && (
                 <motion.div
                   className="loja-catalogo-ativo"
@@ -964,7 +1069,7 @@ export function PaginaLojaDigitalPublica() {
 
           {/* ── ABA 1: Destaques ── */}
           {abaAtiva === 1 && (
-            <div className="mx-auto max-w-[1280px] px-4 pb-20 pt-5 sm:px-10 sm:pt-7">
+            <div id="loja-tabpanel-vitrines" role="tabpanel" aria-labelledby="loja-tab-vitrines" className="mx-auto max-w-[1280px] px-4 pb-20 pt-5 sm:px-10 sm:pt-7">
               {produtosPromocao.length > 0 && (
                 <section className="mb-8">
                   <BannerPromocional produtos={produtosPromocao} corPrimaria={corPrimaria} onVerProduto={abrirProduto} />
@@ -997,7 +1102,7 @@ export function PaginaLojaDigitalPublica() {
 
           {/* ── ABA 2: Sobre ── */}
           {abaAtiva === 2 && (
-            <div className="mx-auto max-w-[1280px] px-4 pb-20 pt-5 sm:px-10 sm:pt-7">
+            <div id="loja-tabpanel-sobre" role="tabpanel" aria-labelledby="loja-tab-sobre" className="mx-auto max-w-[1280px] px-4 pb-20 pt-5 sm:px-10 sm:pt-7">
               <SecaoSobreLoja loja={dados.loja} localizacao={localizacao} corPrimaria={corPrimaria} paleta={paletaLoja} />
             </div>
           )}
@@ -1024,8 +1129,9 @@ export function PaginaLojaDigitalPublica() {
       <Sheet open={!!produtoAberto} onOpenChange={(aberto) => { if (!aberto) setProdutoAberto(null); }}>
         <SheetContent
           side="bottom"
-          className="loja-modal-responsivo h-[96dvh] overflow-hidden rounded-t-[1.75rem] border-0 p-0 data-[side=bottom]:!border-0 sm:mx-auto sm:h-[90dvh] sm:max-w-5xl sm:rounded-t-[2rem] lg:h-[88dvh]"
+          className="loja-stitch loja-modal-responsivo loja-product-sheet h-[96dvh] overflow-hidden rounded-t-[1.75rem] border-0 p-0 data-[side=bottom]:!border-0 sm:mx-auto sm:h-[92dvh] sm:max-w-[1180px] sm:rounded-t-[2rem] lg:h-[94dvh]"
           showCloseButton={false}
+          onOpenAutoFocus={(evento) => evento.preventDefault()}
         >
           <SheetHeader className="sr-only">
             <SheetTitle>{produtoAberto?.nome ?? "Produto"}</SheetTitle>
@@ -1040,6 +1146,7 @@ export function PaginaLojaDigitalPublica() {
               quantidade={quantidade}
               fotoAtiva={fotoAtiva}
               experiencia={dados.loja.experiencia}
+              loja={dados.loja}
               modoNegocio={modoNegocio}
               selecoesVariantes={selecoesVariantes}
               setFotoAtiva={setFotoAtiva}
@@ -1047,6 +1154,7 @@ export function PaginaLojaDigitalPublica() {
               onSelecionarVariante={(nome, valor) => setSelecoesVariantes((atual) => ({ ...atual, [nome]: valor }))}
               onFavorito={() => alternarFavorito(produtoAberto)}
               onComprar={() => abrirCheckout(produtoAberto, quantidade, selecoesVariantes)}
+              onAdicionarCheckout={() => adicionarProdutoAoCheckoutBizy(produtoAberto, quantidade, selecoesVariantes)}
               onFechar={() => setProdutoAberto(null)}
             />
           )}
@@ -1364,13 +1472,17 @@ function BarraAbas({
   return (
     <nav className="loja-stitch-tabs sticky top-14 z-30 bg-white/95 py-2 shadow-[0_10px_28px_rgba(15,23,42,0.06)] backdrop-blur-xl sm:top-16">
       <div className="mx-auto max-w-[1280px] px-4 sm:px-10">
-        <div className="inline-flex w-full rounded-full border border-neutral-200 bg-neutral-100 p-1 shadow-sm sm:w-auto">
+        <div className="inline-flex w-full rounded-full border border-neutral-200 bg-neutral-100 p-1 shadow-sm sm:w-auto" role="tablist" aria-label="Secções da loja">
           {ABAS_LOJA.map((aba, i) => {
             const ativa = i === abaAtiva;
             return (
               <button
                 key={aba.id}
                 type="button"
+                id={`loja-tab-${aba.id}`}
+                role="tab"
+                aria-selected={ativa}
+                aria-controls={`loja-tabpanel-${aba.id}`}
                 onClick={() => onChange(i)}
                 className={`min-h-10 flex-1 rounded-full px-4 text-xs font-semibold uppercase tracking-[0.08em] transition-all sm:min-w-28 sm:flex-none sm:text-[0.8rem] ${
                   ativa ? "bg-neutral-950 text-white shadow-sm" : "text-neutral-500 hover:bg-white hover:text-neutral-900"
@@ -1987,6 +2099,7 @@ function DetalheProduto({
   quantidade,
   fotoAtiva,
   experiencia,
+  loja,
   modoNegocio,
   selecoesVariantes,
   setFotoAtiva,
@@ -1994,6 +2107,7 @@ function DetalheProduto({
   onSelecionarVariante,
   onFavorito,
   onComprar,
+  onAdicionarCheckout,
   onFechar
 }: {
   produto: ProdutoPublico;
@@ -2002,6 +2116,7 @@ function DetalheProduto({
   quantidade: number;
   fotoAtiva: number;
   experiencia?: ExperienciaLojaPublica;
+  loja: LojaPublicaResposta["loja"];
   modoNegocio: ModoNegocio;
   selecoesVariantes: Record<string, string>;
   setFotoAtiva: (indice: number) => void;
@@ -2009,6 +2124,7 @@ function DetalheProduto({
   onSelecionarVariante: (nome: string, valor: string) => void;
   onFavorito: () => void;
   onComprar: () => void;
+  onAdicionarCheckout: () => void;
   onFechar: () => void;
 }) {
   const temPromocao = Boolean(produto.precoPromocionalEmKwanza && produto.precoPromocionalEmKwanza < produto.precoEmKwanza);
@@ -2016,16 +2132,36 @@ function DetalheProduto({
   const semStock = produto.quantidade <= 0 || produto.estadoStock === "ESGOTADO" || produto.disponivel === false;
   const fotos = produto.fotos.length > 0 ? produto.fotos : [null];
   const ehNovidade = produto.vitrine?.selos?.some((s) => /novo|new|novidade/i.test(s));
+  const reduzirMovimento = useReducedMotion();
+  const fotosGaleria = fotos.slice(0, Math.max(1, Math.min(fotos.length, 6)));
+  const resumoVariante = montarResumoVariantes(selecoesVariantes);
+  const categoria = produto.categoria || produto.colecao || "Produto";
+  const tituloSelo = semStock ? "Indisponível" : temPromocao ? "Oferta limitada" : ehNovidade ? "Nova chegada" : "Produto verificado";
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+  const voltarRef = useRef<HTMLButtonElement | null>(null);
+  const [accordionAberto, setAccordionAberto] = useState("descricao");
+  const localizacaoLoja = [loja.municipio, loja.provincia].filter(Boolean).join(", ");
+  const urlMarketProduto = ROTAS_LOJAS.produtoMarket(produto.codigo);
+
+  useEffect(() => {
+    const node = scrollRef.current;
+    if (!node) return;
+    node.scrollTo({ top: 0 });
+    const temporizador = window.setTimeout(() => {
+      node.scrollTo({ top: 0 });
+      voltarRef.current?.focus({ preventScroll: true });
+    }, 80);
+    return () => window.clearTimeout(temporizador);
+  }, [produto.codigo]);
 
   return (
-    <div className="loja-product-detail flex h-full flex-col">
-      {/* ── Top bar: back + heart + share ── */}
-      <div className="loja-product-detail-bar flex items-center justify-between px-4 py-3">
-        <button type="button" onClick={onFechar} className="grid size-10 place-items-center rounded-xl text-neutral-600 transition-colors hover:bg-neutral-100">
+    <section className="loja-product-detail" aria-labelledby="loja-product-title">
+      <div className="loja-product-detail-bar">
+        <button ref={voltarRef} type="button" onClick={onFechar} className="loja-pdp-icon-button" aria-label="Voltar ao catálogo">
           <ChevronLeft size={20} />
         </button>
-        <div className="flex items-center gap-1">
-          <button type="button" onClick={onFavorito} className="grid size-10 place-items-center rounded-xl text-neutral-600 transition-colors hover:bg-neutral-100">
+        <div className="loja-pdp-toolbar-actions">
+          <button type="button" onClick={onFavorito} className="loja-pdp-icon-button" aria-label={favorito ? "Remover dos favoritos" : "Adicionar aos favoritos"} aria-pressed={favorito}>
             <Heart size={18} className={favorito ? "fill-red-500 text-red-500" : ""} />
           </button>
           <button
@@ -2035,108 +2171,219 @@ function DetalheProduto({
                 void navigator.clipboard.writeText(window.location.href);
               });
             }}
-            className="grid size-10 place-items-center rounded-xl text-neutral-600 transition-colors hover:bg-neutral-100"
+            className="loja-pdp-icon-button"
+            aria-label="Partilhar produto"
           >
             <Share2 size={18} />
           </button>
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto">
-        {/* ── Photo gallery ── */}
-        <div className="loja-product-hero relative h-72 w-full overflow-hidden bg-neutral-50 sm:h-80 lg:h-96">
-          {fotos[fotoAtiva] ? (
-            <img src={resolverUrlMedia(fotos[fotoAtiva])} alt={produto.nome} className="size-full object-cover" />
-          ) : (
-            <div className="grid size-full place-items-center">
-              <Package className="text-neutral-300" size={56} />
+      <div className="loja-pdp-scroll" ref={scrollRef}>
+        <div className="loja-pdp-shell">
+          <motion.div
+            className="loja-pdp-gallery"
+            initial={reduzirMovimento ? false : { opacity: 0, y: 18 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.34, ease: [0.22, 1, 0.36, 1] }}
+            aria-label={`Galeria de ${produto.nome}`}
+          >
+            <div className="loja-product-hero">
+              {fotos[fotoAtiva] ? (
+                <img src={resolverUrlMedia(fotos[fotoAtiva])} alt={produto.nome} className="size-full object-cover" />
+              ) : (
+                <div className="grid size-full place-items-center">
+                  <Package className="text-neutral-300" size={56} />
+                </div>
+              )}
+
+              <div className="loja-pdp-badges">
+                {temPromocao && <span className="lp-tag promo">-{desconto}%</span>}
+                {!temPromocao && ehNovidade && <span className="lp-tag novo">Novo</span>}
+                <span className="loja-pdp-shot-count">{fotoAtiva + 1}/{fotos.length}</span>
+              </div>
+
+              {fotos.length > 1 && (
+                <>
+                  <button type="button" onClick={() => setFotoAtiva(fotoAtiva > 0 ? fotoAtiva - 1 : fotos.length - 1)} className="loja-pdp-gallery-arrow is-left" aria-label="Ver foto anterior">
+                    <ChevronLeft size={19} />
+                  </button>
+                  <button type="button" onClick={() => setFotoAtiva(fotoAtiva < fotos.length - 1 ? fotoAtiva + 1 : 0)} className="loja-pdp-gallery-arrow is-right" aria-label="Ver próxima foto">
+                    <ChevronRight size={19} />
+                  </button>
+                </>
+              )}
             </div>
-          )}
 
-          {fotos.length > 1 && (
-            <>
-              <button type="button" onClick={() => setFotoAtiva(fotoAtiva > 0 ? fotoAtiva - 1 : fotos.length - 1)} className="absolute left-3 top-1/2 grid size-9 -translate-y-1/2 place-items-center rounded-full bg-white/80 text-neutral-700 shadow-sm backdrop-blur-sm hover:bg-white">
-                <ChevronLeft size={18} />
+            {fotosGaleria.length > 1 && (
+              <div className="loja-product-thumbs" aria-label="Selecionar imagem do produto">
+                {fotosGaleria.map((foto, indice) => (
+                  <button
+                    key={indice}
+                    type="button"
+                    onClick={() => setFotoAtiva(indice)}
+                    className={indice === fotoAtiva ? "is-active" : ""}
+                    aria-label={`Ver imagem ${indice + 1}`}
+                    aria-current={indice === fotoAtiva ? "true" : undefined}
+                  >
+                    {foto ? <img src={resolverUrlMedia(foto)} alt="" className="size-full object-cover" /> : <Package size={14} className="mx-auto text-neutral-400" />}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            <div className="loja-pdp-mosaic" aria-hidden="true">
+              {fotosGaleria.slice(1, 5).map((foto, indice) => (
+                <button key={`${foto ?? "foto"}-${indice}`} type="button" onClick={() => setFotoAtiva(indice + 1)}>
+                  {foto ? <img src={resolverUrlMedia(foto)} alt="" /> : <Package size={28} />}
+                </button>
+              ))}
+            </div>
+          </motion.div>
+
+          <motion.aside
+            className="loja-pdp-buy-panel"
+            initial={reduzirMovimento ? false : { opacity: 0, y: 24 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.38, delay: 0.04, ease: [0.22, 1, 0.36, 1] }}
+          >
+            <nav className="loja-pdp-breadcrumb" aria-label="Caminho do produto">
+              <button type="button" onClick={onFechar}>Loja</button>
+              <span aria-hidden="true">/</span>
+              <span>{categoria}</span>
+            </nav>
+
+            <div className="loja-pdp-proof-row">
+              <span className="loja-pdp-proof">
+                <ShieldCheck size={15} />
+                {tituloSelo}
+              </span>
+              <span className="lp-stars" aria-label="Produto com validação da loja">
+                {Array.from({ length: 5 }).map((_, i) => <Star key={i} size={13} />)}
+              </span>
+            </div>
+
+            <div className="loja-product-info">
+              <Link to={ROTAS_LOJAS.loja(loja.slug)} className="loja-pdp-store-badge">
+                <span>
+                  {loja.logoUrl ? <img src={resolverUrlMedia(loja.logoUrl)} alt="" /> : <Store size={16} />}
+                </span>
+                <span>
+                  <small>Vendido por</small>
+                  <strong>{loja.nomeComercial}</strong>
+                </span>
+                <ArrowRight size={14} />
+              </Link>
+
+              <h2 id="loja-product-title">{produto.nome}</h2>
+              <p className="loja-pdp-subtitle">{produto.vitrine?.descricao || produto.colecao || produto.categoria || "Selecionado pela loja"}</p>
+
+              <div className="loja-product-price-row">
+                <span>{formatarKwanza(precoProduto(produto))}</span>
+                {temPromocao && <span>{formatarKwanza(produto.precoEmKwanza)}</span>}
+              </div>
+
+              <StatusStock produto={produto} />
+
+              {produto.descricao && (
+                <p className="loja-pdp-description">{produto.descricao}</p>
+              )}
+
+              <SeletoresVariantes produto={produto} selecoesVariantes={selecoesVariantes} onSelecionar={onSelecionarVariante} corPrimaria={corPrimaria} />
+
+              {!semStock && (
+                <QuantidadeSelector quantidade={quantidade} maximo={produto.quantidade} onChange={setQuantidade} />
+              )}
+
+              <div className="loja-pdp-actions">
+                <button type="button" className="loja-pdp-primary-cta" disabled={semStock} onClick={() => onComprar()}>
+                  <span>{semStock ? "Indisponível" : "Comprar agora"}</span>
+                  <ArrowRight size={20} />
+                </button>
+                <button type="button" className="loja-pdp-wishlist" onClick={onFavorito} aria-label={favorito ? "Remover dos favoritos" : "Adicionar aos favoritos"} aria-pressed={favorito}>
+                  <Heart size={19} className={favorito ? "fill-current" : ""} />
+                </button>
+              </div>
+
+              <button type="button" className="loja-pdp-unified-cta" disabled={semStock} onClick={() => onAdicionarCheckout()}>
+                <span>Adicionar ao checkout Bizy</span>
+                <ShoppingBag size={18} />
               </button>
-              <button type="button" onClick={() => setFotoAtiva(fotoAtiva < fotos.length - 1 ? fotoAtiva + 1 : 0)} className="absolute right-3 top-1/2 grid size-9 -translate-y-1/2 place-items-center rounded-full bg-white/80 text-neutral-700 shadow-sm backdrop-blur-sm hover:bg-white">
-                <ChevronRight size={18} />
-              </button>
-            </>
-          )}
 
-          {temPromocao && <span className="lp-tag promo" style={{ left: 12, top: 12 }}>-{desconto}%</span>}
-          {!temPromocao && ehNovidade && <span className="lp-tag novo" style={{ left: 12, top: 12 }}>Novo</span>}
-        </div>
+              <div className="loja-pdp-selection" aria-live="polite">
+                <ShoppingBag size={16} />
+                <span>
+                  Total {formatarKwanza(precoProduto(produto) * quantidade)}
+                  {resumoVariante ? ` · ${resumoVariante}` : ""}
+                </span>
+              </div>
 
-        {/* ── Photo thumbnails ── */}
-        {fotos.length > 1 && (
-          <div className="loja-product-thumbs flex justify-center gap-2 px-5 py-3">
-            {fotos.map((foto, indice) => (
-              <button
-                key={indice}
-                type="button"
-                onClick={() => setFotoAtiva(indice)}
-                className={`size-12 shrink-0 overflow-hidden rounded-xl border-2 transition-all ${
-                  indice === fotoAtiva ? "border-neutral-900 opacity-100" : "border-transparent opacity-50 hover:opacity-80"
-                }`}
-              >
-                {foto ? <img src={resolverUrlMedia(foto)} alt="" className="size-full object-cover" /> : <Package size={14} className="mx-auto text-neutral-400" />}
-              </button>
-            ))}
-          </div>
-        )}
+              <div className="loja-pdp-service-grid">
+                <div>
+                  <Truck size={18} />
+                  <span>Entrega</span>
+                  <strong>{experiencia?.politicaEntrega || "24-48h ou retirada combinada"}</strong>
+                </div>
+                <div>
+                  <ShieldCheck size={18} />
+                  <span>Compra assistida</span>
+                  <strong>Pedido confirmado no WhatsApp</strong>
+                </div>
+                <div>
+                  <MessageCircle size={18} />
+                  <span>Atendimento</span>
+                  <strong>Vendedor recebe produto, quantidade e variantes</strong>
+                </div>
+              </div>
 
-        <div className="loja-product-info space-y-5 px-5 pb-6 pt-4">
-          {/* ── Product info ── */}
-          <h2 className="text-xl font-bold leading-tight tracking-tight text-neutral-900 sm:text-2xl">{produto.nome}</h2>
+              <div className="loja-pdp-accordions">
+                <PdpAccordion
+                  id="descricao"
+                  titulo="Descrição"
+                  aberto={accordionAberto === "descricao"}
+                  onToggle={() => setAccordionAberto(accordionAberto === "descricao" ? "" : "descricao")}
+                >
+                  {produto.descricao || "Produto selecionado pela loja. Confirme disponibilidade, medidas e detalhes antes de finalizar."}
+                </PdpAccordion>
+                <PdpAccordion
+                  id="entrega"
+                  titulo="Entrega e retirada"
+                  aberto={accordionAberto === "entrega"}
+                  onToggle={() => setAccordionAberto(accordionAberto === "entrega" ? "" : "entrega")}
+                >
+                  {experiencia?.politicaEntrega || `Entrega combinada com ${loja.nomeComercial}${localizacaoLoja ? ` em ${localizacaoLoja}` : ""}. A taxa aparece antes do WhatsApp.`}
+                </PdpAccordion>
+                <PdpAccordion
+                  id="politicas"
+                  titulo="Trocas e privacidade"
+                  aberto={accordionAberto === "politicas"}
+                  onToggle={() => setAccordionAberto(accordionAberto === "politicas" ? "" : "politicas")}
+                >
+                  {experiencia?.politicaTroca || experiencia?.politicaPrivacidade || "A loja recebe apenas os dados necessários para confirmar o pedido, entrega e atendimento."}
+                </PdpAccordion>
+              </div>
 
-          <div className="flex items-center gap-2">
-            <span className="lp-stars">
-              {Array.from({ length: 5 }).map((_, i) => <Star key={i} size={14} />)}
-            </span>
-            <span className="lp-stars-text">Produto verificado</span>
-          </div>
+              <Link to={urlMarketProduto} className="loja-pdp-similar-link">
+                <Compass size={16} />
+                Ver similares no Bizy Market
+                <ArrowRight size={15} />
+              </Link>
 
-          <div className="loja-product-price-row flex items-baseline gap-3">
-            <span className="text-2xl font-bold tabular-nums text-neutral-900 sm:text-3xl">{formatarKwanza(precoProduto(produto))}</span>
-            {temPromocao && <span className="text-base text-neutral-400 line-through">{formatarKwanza(produto.precoEmKwanza)}</span>}
-          </div>
-
-          <StatusStock produto={produto} />
-
-          {produto.descricao && (
-            <p className="text-sm leading-relaxed text-neutral-600">{produto.descricao}</p>
-          )}
-
-          {/* ── Variant selectors ── */}
-          <SeletoresVariantes produto={produto} selecoesVariantes={selecoesVariantes} onSelecionar={onSelecionarVariante} corPrimaria={corPrimaria} />
-
-          <TabelaMedidas produto={produto} modoNegocio={modoNegocio} experiencia={experiencia} />
-
-          {!semStock && (
-            <QuantidadeSelector quantidade={quantidade} maximo={produto.quantidade} onChange={setQuantidade} />
-          )}
-
-          {/* ── Delivery info bar ── */}
-          <div className="lp-deliv">
-            <Truck />
-            <span className="lp-deliv-text">
-              {experiencia?.politicaEntrega || "Entrega em 24–48h na sua zona · taxa calculada no checkout"}
-            </span>
-          </div>
+              <TabelaMedidas produto={produto} modoNegocio={modoNegocio} experiencia={experiencia} />
+            </div>
+          </motion.aside>
         </div>
       </div>
 
-      {/* ── Sticky footer: total + add + whatsapp ── */}
-      <div className="loja-product-sticky-buy border-t border-neutral-100 bg-white px-5 pb-[max(1rem,env(safe-area-inset-bottom))] pt-4">
-        <div className="mb-3 flex items-center justify-between">
-          <span className="text-xs text-neutral-500">Total</span>
-          <span className="text-lg font-bold tabular-nums text-neutral-900">{formatarKwanza(precoProduto(produto) * quantidade)}</span>
+      <div className="loja-product-sticky-buy">
+        <div>
+          <span>Total</span>
+          <strong>{formatarKwanza(precoProduto(produto) * quantidade)}</strong>
         </div>
         <div className="lp-foot-actions">
           <button type="button" className="lp-foot-add" disabled={semStock} onClick={() => onComprar()}>
-            <ShoppingBag size={18} />
-            {semStock ? "Esgotado" : "Adicionar"}
+            <span>{semStock ? "Esgotado" : "Comprar"}</span>
+            <ArrowRight size={18} />
           </button>
           <button
             type="button"
@@ -2148,6 +2395,40 @@ function DetalheProduto({
           </button>
         </div>
       </div>
+    </section>
+  );
+}
+
+function PdpAccordion({
+  aberto,
+  children,
+  id,
+  onToggle,
+  titulo
+}: {
+  aberto: boolean;
+  children: ReactNode;
+  id: string;
+  onToggle: () => void;
+  titulo: string;
+}) {
+  return (
+    <div className="loja-pdp-accordion-item">
+      <button
+        type="button"
+        className="loja-pdp-accordion-trigger"
+        aria-expanded={aberto}
+        aria-controls={`loja-pdp-accordion-${id}`}
+        onClick={onToggle}
+      >
+        <span>{titulo}</span>
+        <ChevronDown size={16} aria-hidden="true" />
+      </button>
+      {aberto && (
+        <div id={`loja-pdp-accordion-${id}`} className="loja-pdp-accordion-panel">
+          {children}
+        </div>
+      )}
     </div>
   );
 }
@@ -2617,11 +2898,17 @@ function SeletoresVariantes({
   if (!variantes.length) return null;
 
   return (
-    <div className="space-y-4">
-      {variantes.map(([nome, opcoes]) => (
-        <div key={nome} className="space-y-2">
-          <h4 className="text-sm font-semibold capitalize text-neutral-900">{nome}</h4>
-          <div className="flex flex-wrap gap-2">
+    <div className="loja-pdp-variants">
+      {variantes.map(([nome, opcoes]) => {
+        const tipoTamanho = /tamanho|tam|size|numero|número|calce/i.test(nome);
+        const tipoCor = /cor|color|tom/i.test(nome);
+        return (
+        <fieldset key={nome} className="loja-pdp-variant-group">
+          <legend>
+            <span>{nome}</span>
+            {selecoesVariantes[nome] && <strong>{selecoesVariantes[nome]}</strong>}
+          </legend>
+          <div className={`loja-pdp-variant-options ${tipoTamanho ? "is-size-grid" : ""} ${tipoCor ? "is-color-rail" : ""}`}>
             {opcoes.map((opcao) => {
               const ativo = selecoesVariantes[nome] === opcao;
               return (
@@ -2629,16 +2916,20 @@ function SeletoresVariantes({
                   key={opcao}
                   type="button"
                   onClick={() => onSelecionar(nome, opcao)}
-                  className={`rounded-xl border px-3 py-2 text-sm font-semibold transition-colors ${ativo ? "text-white" : "border-neutral-200 bg-white text-neutral-700 hover:bg-neutral-50"}`}
-                  style={ativo ? { backgroundColor: corPrimaria, borderColor: corPrimaria, color: "#fff" } : undefined}
+                  className={ativo ? "is-active" : ""}
+                  style={ativo ? { borderColor: corPrimaria } : undefined}
+                  aria-pressed={ativo}
+                  aria-label={`Selecionar ${nome}: ${opcao}`}
                 >
+                  {tipoCor && <span className="loja-pdp-color-dot" aria-hidden="true" style={{ background: resolverCorVisual(opcao, corPrimaria) }} />}
                   {opcao}
                 </button>
               );
             })}
           </div>
-        </div>
-      ))}
+        </fieldset>
+      );
+      })}
     </div>
   );
 }
@@ -2983,6 +3274,15 @@ function precoProduto(produto: ProdutoPublico): number {
     : produto.precoEmKwanza;
 }
 
+function normalizarCodigoProdutoRota(codigo?: string | null): string {
+  if (!codigo) return "";
+  try {
+    return decodeURIComponent(codigo).trim().toUpperCase();
+  } catch {
+    return codigo.trim().toUpperCase();
+  }
+}
+
 function temVariantesProduto(produto: ProdutoPublico): boolean {
   return Object.values(produto.variantes ?? {}).some((opcoes) => opcoes.length > 0);
 }
@@ -2997,6 +3297,20 @@ function criarSelecoesIniciaisProduto(produto: ProdutoPublico): Record<string, s
 
 function montarResumoVariantes(variantes: Record<string, string>): string {
   return Object.entries(variantes).map(([nome, valor]) => `${nome}: ${valor}`).join(", ");
+}
+
+function resolverCorVisual(valor: string, corFallback: string): string {
+  const texto = valor.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  if (/(preto|black|grafite|graphite)/.test(texto)) return "#111312";
+  if (/(branco|white|off|neve)/.test(texto)) return "#f8f9fa";
+  if (/(verde|green|menta|mint)/.test(texto)) return "#1f8b4c";
+  if (/(azul|blue|indigo|marinho)/.test(texto)) return "#1d4ed8";
+  if (/(vermelho|red|scarlet|vinho)/.test(texto)) return "#dc3545";
+  if (/(rosa|pink)/.test(texto)) return "#e83e8c";
+  if (/(amarelo|yellow|gold|dourado)/.test(texto)) return "#f4b400";
+  if (/(castanho|brown|cafe|coffee|camel)/.test(texto)) return "#7c4a2d";
+  if (/(cinza|grey|gray|prata|silver)/.test(texto)) return "#9ca3af";
+  return corFallback;
 }
 
 function formatarNumeroCurto(valor: number): string {

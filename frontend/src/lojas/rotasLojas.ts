@@ -1,13 +1,22 @@
+import {
+  montarUrlCategoriaMarketPublico,
+  montarUrlLojasMarketPublico,
+  montarUrlMarketPublico,
+  montarUrlProdutoMarketPublico
+} from "../marketDominio";
+
 function segmento(valor: string): string {
   return encodeURIComponent(valor.trim());
 }
 
 export const ROTAS_LOJAS = {
-  categoriaMarket: (categoria: string) => `/market/categorias/${segmento(categoria)}`,
+  categoriaMarket: (categoria: string) => montarUrlCategoriaMarketPublico(categoria),
+  checkout: "/checkout",
   loja: (slug: string) => `/lojas/${segmento(slug)}`,
-  market: "/market",
+  lojasMarket: montarUrlLojasMarketPublico(),
+  market: montarUrlMarketPublico(),
   produtoLoja: (slug: string, codigo: string) => `/lojas/${segmento(slug)}/produtos/${segmento(codigo)}`,
-  produtoMarket: (codigo: string) => `/market/produtos/${segmento(codigo)}`,
+  produtoMarket: (codigo: string) => montarUrlProdutoMarketPublico(codigo),
   studio: "/app/loja",
   studioLegado: "/app/loja-publica"
 } as const;
@@ -19,6 +28,8 @@ export const ROTAS_API_LOJAS = {
   entregaLoja: (slug: string) => `/publico/lojas/${segmento(slug)}/entrega/calcular`,
   lojaPublica: (slug: string) => `/publico/lojas/${segmento(slug)}`,
   produtoLoja: (slug: string, codigo: string) => `/publico/lojas/${segmento(slug)}/produtos/${segmento(codigo)}`,
+  produtosSimilaresLoja: (slug: string, codigo: string) =>
+    `/publico/lojas/${segmento(slug)}/produtos/${segmento(codigo)}/similares`,
   produtoLojaWhatsApp: (slug: string, codigo: string) =>
     `/publico/lojas/${segmento(slug)}/produtos/${segmento(codigo)}/whatsapp`,
   produtosMarket: "/publico/market/produtos",

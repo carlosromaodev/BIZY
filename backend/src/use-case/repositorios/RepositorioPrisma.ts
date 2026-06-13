@@ -3520,7 +3520,9 @@ export class RepositorioInstanciasInstagramPrisma implements RepositorioInstanci
     negocioId?: string | null;
     nome: string;
     username: string;
+    status?: string;
     padrao?: boolean;
+    ativa?: boolean;
   }): Promise<InstanciaInstagram> {
     return this.prisma.instanciaInstagram.create({
       data: {
@@ -3528,7 +3530,8 @@ export class RepositorioInstanciasInstagramPrisma implements RepositorioInstanci
         nome: dados.nome,
         username: dados.username,
         padrao: dados.padrao ?? false,
-        status: "CRIADA"
+        ativa: dados.ativa ?? true,
+        status: dados.status ?? "CRIADA"
       }
     });
   }
@@ -3546,9 +3549,9 @@ export class RepositorioInstanciasInstagramPrisma implements RepositorioInstanci
     });
   }
 
-  async buscarPorNome(nome: string): Promise<InstanciaInstagram | null> {
+  async buscarPorNome(negocioId: string, nome: string): Promise<InstanciaInstagram | null> {
     return this.prisma.instanciaInstagram.findFirst({
-      where: { nome: nome.toLowerCase(), ativa: true }
+      where: { negocioId, nome, ativa: true }
     });
   }
 

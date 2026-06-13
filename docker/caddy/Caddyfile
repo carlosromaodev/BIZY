@@ -9,6 +9,10 @@
 	reverse_proxy frontend:80
 }
 
+{$MARKET_DOMAIN} {
+	reverse_proxy frontend:80
+}
+
 www.{$FRONTEND_DOMAIN} {
 	redir https://{$FRONTEND_DOMAIN}{uri} permanent
 }

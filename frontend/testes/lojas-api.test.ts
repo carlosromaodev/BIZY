@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   atualizarPublicacaoProdutoMarket,
+  listarProdutosSimilaresLojaPublica,
   listarProdutosMarket,
   normalizarProdutoMarket,
   obterLojaPublica,
@@ -34,7 +35,8 @@ describe("API frontend das lojas e Bizy Market", () => {
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce(jsonResponse({ loja: { slug: "minha-loja" }, produtos: [] }))
-      .mockResolvedValueOnce(jsonResponse({ produto: { codigo: "ABC 1" } }));
+      .mockResolvedValueOnce(jsonResponse({ produto: { codigo: "ABC 1" } }))
+      .mockResolvedValueOnce(jsonResponse({ produtoOrigem: { codigo: "ABC 1" }, produtos: [] }));
     vi.stubGlobal("fetch", fetchMock);
 
     await obterLojaPublica("minha-loja", {
@@ -45,6 +47,7 @@ describe("API frontend das lojas e Bizy Market", () => {
       utm: { campaign: "lancamento" }
     });
     await obterProdutoLojaPublica("minha-loja", "ABC 1", { origem: "market" });
+    await listarProdutosSimilaresLojaPublica("minha-loja", "ABC 1", 6);
 
     expect(fetchMock).toHaveBeenNthCalledWith(
       1,
@@ -57,6 +60,14 @@ describe("API frontend das lojas e Bizy Market", () => {
     expect(fetchMock).toHaveBeenNthCalledWith(
       2,
       "/publico/lojas/minha-loja/produtos/ABC%201?origem=market",
+      expect.objectContaining({
+        credentials: "include",
+        headers: {}
+      })
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      3,
+      "/publico/lojas/minha-loja/produtos/ABC%201/similares?limite=6",
       expect.objectContaining({
         credentials: "include",
         headers: {}

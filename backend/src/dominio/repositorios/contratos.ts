@@ -480,11 +480,13 @@ export interface RepositorioInstanciasInstagram {
     negocioId?: string | null;
     nome: string;
     username: string;
+    status?: string;
     padrao?: boolean;
+    ativa?: boolean;
   }): Promise<InstanciaInstagram>;
   listarAtivas(negocioId?: string | null): Promise<InstanciaInstagram[]>;
   buscarPorId(id: string, negocioId?: string | null): Promise<InstanciaInstagram | null>;
-  buscarPorNome(nome: string): Promise<InstanciaInstagram | null>;
+  buscarPorNome(negocioId: string, nome: string): Promise<InstanciaInstagram | null>;
   atualizar(id: string, dados: Partial<Pick<
     InstanciaInstagram,
     "username" | "status" | "padrao" | "ativa" | "ultimoErro" | "ultimaConexaoEm" | "ultimaPollEm"

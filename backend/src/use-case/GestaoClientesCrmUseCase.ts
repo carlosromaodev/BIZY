@@ -411,6 +411,80 @@ export class GestaoClientesCrmUseCase {
     };
   }
 
+  async segmentarClientesRFM(negocioId: string) {
+    const { clientes } = await this.listarClientes(negocioId, { limite: 100_000 });
+    const agora = Date.now();
+
+    const clientesComRfm = clientes
+      .filter((c) => c.metricas.totalComprasPagas > 0)
+      .map((cliente) => {
+        const recenciaDias = cliente.metricas.ultimaCompraEm
+          ? (agora - cliente.metricas.ultimaCompraEm.getTime()) / 86_400_000
+          : 365;
+        return {
+          id: cliente.id,
+          nome: cliente.nome,
+          telefone: cliente.telefone,
+          email: cliente.email,
+          tags: cliente.tags,
+          estadoRelacionamento: cliente.estadoRelacionamento,
+          recenciaDias: Math.round(recenciaDias),
+          frequencia: cliente.metricas.totalComprasPagas,
+          monetario: cliente.metricas.totalCompradoEmKwanza,
+          scoreR: 0,
+          scoreF: 0,
+          scoreM: 0,
+          scoreRFM: 0,
+          segmento: "" as string
+        };
+      });
+
+    if (!clientesComRfm.length) {
+      return { segmentos: [], clientes: [], resumo: { total: 0 } };
+    }
+
+    const quintil = (valores: number[], valor: number) => {
+      const ordenados = [...valores].sort((a, b) => a - b);
+      const posicao = ordenados.indexOf(valor);
+      return Math.min(5, Math.floor((posicao / ordenados.length) * 5) + 1);
+    };
+
+    const recencias = clientesComRfm.map((c) => c.recenciaDias);
+    const frequencias = clientesComRfm.map((c) => c.frequencia);
+    const monetarios = clientesComRfm.map((c) => c.monetario);
+
+    for (const cliente of clientesComRfm) {
+      cliente.scoreR = 6 - quintil(recencias, cliente.recenciaDias);
+      cliente.scoreF = quintil(frequencias, cliente.frequencia);
+      cliente.scoreM = quintil(monetarios, cliente.monetario);
+      cliente.scoreRFM = cliente.scoreR + cliente.scoreF + cliente.scoreM;
+      cliente.segmento = this.classificarSegmentoRFM(cliente.scoreR, cliente.scoreF, cliente.scoreM);
+    }
+
+    const segmentosCounts = new Map<string, number>();
+    for (const c of clientesComRfm) {
+      segmentosCounts.set(c.segmento, (segmentosCounts.get(c.segmento) ?? 0) + 1);
+    }
+
+    return {
+      clientes: clientesComRfm,
+      segmentos: [...segmentosCounts.entries()].map(([nome, total]) => ({ nome, total })),
+      resumo: { total: clientesComRfm.length }
+    };
+  }
+
+  private classificarSegmentoRFM(r: number, f: number, m: number): string {
+    if (r >= 4 && f >= 4 && m >= 4) return "Campeão";
+    if (r >= 3 && f >= 3 && m >= 3) return "Leal";
+    if (r >= 4 && f <= 2) return "Novo promissor";
+    if (r >= 3 && f >= 2 && m >= 2) return "Potencial leal";
+    if (r <= 2 && f >= 3 && m >= 3) return "Em risco";
+    if (r <= 2 && f >= 4) return "Não pode perder";
+    if (r <= 2 && f <= 2) return "Perdido";
+    if (r === 3 && f <= 2) return "Precisa de atenção";
+    return "Hibernando";
+  }
+
   private calcularMetricas(
     cliente: Cliente360,
     reservas: Reserva[],

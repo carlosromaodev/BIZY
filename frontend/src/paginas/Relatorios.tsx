@@ -4,7 +4,7 @@ import {
   ArrowUpRight,
   CheckCircle2,
   Clock3,
-  LineChart,
+  LineChart as LineChartIcon,
   PackageCheck,
   RefreshCcw,
   TrendingUp,
@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { motion } from "motion/react";
+import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { requisitarApi } from "../api";
 import { EstadoVazio } from "../componentes/Shell";
 import { SkeletonPagina } from "../componentes/SkeletonBlocks";
@@ -62,6 +63,13 @@ interface RelatorioEntregas {
   entregas: EntregaRelatorio[];
 }
 
+interface PontoSerieReceita {
+  dia: string;
+  receita: number;
+  pedidos: number;
+  iva: number;
+}
+
 function formatarTempoResposta(segundos: number | null): string {
   if (segundos === null || Number.isNaN(segundos)) return "Sem base";
   if (segundos < 60) return `${Math.round(segundos)}s`;
@@ -73,18 +81,21 @@ function formatarTempoResposta(segundos: number | null): string {
 export function PaginaRelatorios() {
   const [crm, setCrm] = useState<RelatorioCrm | null>(null);
   const [entregas, setEntregas] = useState<EntregaRelatorio[]>([]);
+  const [serieReceita, setSerieReceita] = useState<PontoSerieReceita[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [mensagem, setMensagem] = useState("");
 
   async function carregar() {
     setCarregando(true);
     try {
-      const [relatorioCrm, relatorioEntregas] = await Promise.all([
+      const [relatorioCrm, relatorioEntregas, serie] = await Promise.all([
         requisitarApi<RelatorioCrm>("/relatorios/crm-pos-live"),
-        requisitarApi<RelatorioEntregas>("/relatorios/entregas")
+        requisitarApi<RelatorioEntregas>("/relatorios/entregas"),
+        requisitarApi<{ serie: PontoSerieReceita[] }>("/relatorios/serie-receita").catch(() => ({ serie: [] }))
       ]);
       setCrm(relatorioCrm);
       setEntregas(relatorioEntregas.entregas);
+      setSerieReceita(serie.serie);
       setMensagem("");
     } catch (erro) {
       setMensagem(erro instanceof Error ? erro.message : "Erro ao carregar relatórios.");
@@ -111,15 +122,18 @@ export function PaginaRelatorios() {
   return (
     <CrmPageMotion>
       {/* ── Header ── */}
-      <div className="flex flex-wrap items-end justify-between gap-3">
+      <div className="crm-v3-pghead">
         <div>
-          <h1 className="dash-titulo">Relatórios</h1>
-          <p className="mt-0.5 text-sm text-muted-foreground">Resultados comerciais e operacionais</p>
+          <h1>Relatórios</h1>
+          <div className="crm-v3-sub">
+            {new Date().toLocaleDateString("pt", { month: "long", year: "numeric" })} · comparado com o mês anterior
+          </div>
         </div>
-        <Button variant="outline" size="lg" onClick={() => void carregar()} disabled={carregando}>
-          <RefreshCcw size={16} />
-          Atualizar
-        </Button>
+        <div className="crm-v3-pghead-right">
+          <button type="button" className="crm-v3-btn crm-v3-btn-ghost" onClick={() => void carregar()} disabled={carregando}>
+            Exportar PDF
+          </button>
+        </div>
       </div>
 
       {/* ── KPI Grid ── */}
@@ -168,6 +182,71 @@ export function PaginaRelatorios() {
             <span>{metricas?.clientesAtendidos ?? 0} atendidos</span>
           </div>
         </div>
+      )}
+
+      {/* ── Revenue Time Series ── */}
+      {serieReceita.length > 0 && (
+        <motion.div
+          className="dash-section-card"
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: 0.2 }}
+        >
+          <div className="dash-section-header">
+            <TrendingUp size={16} className="text-muted-foreground" />
+            <span className="dash-section-title">Receita dos últimos 30 dias</span>
+          </div>
+          <div className="p-4" style={{ height: 280 }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={serieReceita} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="gradienteReceita" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="var(--primary)" stopOpacity={0.25} />
+                    <stop offset="95%" stopColor="var(--primary)" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" opacity={0.4} />
+                <XAxis
+                  dataKey="dia"
+                  tickFormatter={(v: string) => v.slice(5)}
+                  tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
+                  axisLine={false}
+                  tickLine={false}
+                />
+                <YAxis
+                  tickFormatter={(v: number) => v >= 1000 ? `${(v / 1000).toFixed(0)}k` : String(v)}
+                  tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
+                  axisLine={false}
+                  tickLine={false}
+                  width={48}
+                />
+                <Tooltip
+                  contentStyle={{
+                    background: "var(--popover)",
+                    border: "1px solid var(--border)",
+                    borderRadius: 8,
+                    fontSize: 12
+                  }}
+                  formatter={(value, name) => [
+                    `${Number(value).toLocaleString("pt-AO")} Kz`,
+                    name === "receita" ? "Receita" : name === "iva" ? "IVA" : String(name)
+                  ]}
+                  labelFormatter={(label) => {
+                    const d = new Date(String(label) + "T00:00:00");
+                    return d.toLocaleDateString("pt-AO", { day: "numeric", month: "short" });
+                  }}
+                />
+                <Area
+                  type="monotone"
+                  dataKey="receita"
+                  stroke="var(--primary)"
+                  strokeWidth={2}
+                  fill="url(#gradienteReceita)"
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        </motion.div>
       )}
 
       {/* ── Two-column: Clients + Deliveries ── */}
@@ -242,7 +321,7 @@ export function PaginaRelatorios() {
       {/* ── Funnel losses ── */}
       <div className="dash-section-card">
         <div className="dash-section-header">
-          <LineChart size={16} className="text-muted-foreground" />
+          <LineChartIcon size={16} className="text-muted-foreground" />
           <span className="dash-section-title">Onde a loja perdeu venda</span>
         </div>
         <div className="grid gap-4 p-4">

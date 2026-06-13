@@ -9,6 +9,7 @@ import {
 import type { DicionarioParserComentario } from "../../../dominio/servicos/InterpretadorComentario.js";
 import type { ComentarioLive, NegocioBizy } from "../../../dominio/tipos.js";
 import { criarProviderLive, type ContextoAplicacao, type SessaoLive } from "../ContextoAplicacao.js";
+import { resolverOrigemPermitida } from "../corsOrigens.js";
 import { exigirAcessoComercial } from "../contextoComercial.js";
 import { atualizarMetricasSessaoLive } from "../liveMetricas.js";
 import { exigirUsuarioAutenticado } from "../seguranca.js";
@@ -18,8 +19,14 @@ export const moduloLives: ModuloHttp = {
   nome: "lives",
   descricao: "Captura de comentários, sessões de live e entrada manual de contingência.",
   registrar(app, contexto) {
-    app.get("/eventos", async (_request, reply) => {
-      contexto.hubTempoReal.adicionarCliente(reply);
+    app.get("/eventos", async (request, reply) => {
+      const origem = Array.isArray(request.headers.origin) ? request.headers.origin[0] : request.headers.origin;
+      const origemPermitida = resolverOrigemPermitida(origem);
+      if (origemPermitida === false) {
+        return reply.code(403).send({ erro: "ORIGEM_NAO_PERMITIDA", mensagem: "Origem não autorizada para eventos em tempo real." });
+      }
+
+      contexto.hubTempoReal.adicionarCliente(reply, origemPermitida === true ? origem : origemPermitida);
     });
 
     app.post("/lives/iniciar", async (request, reply) => {

@@ -35,6 +35,7 @@ const estadosQueConsomemStock = new Set<Pedido["estado"]>([
   "ENTREGUE"
 ]);
 const chaveEnderecosEntrega = "enderecosEntrega";
+const IVA_ANGOLA_PERCENTUAL = 14;
 
 export class GestaoPedidosUseCase {
   constructor(
@@ -63,7 +64,9 @@ export class GestaoPedidosUseCase {
       dados.limiteDescontoSemAprovacaoPercentual
     );
     const taxaEntregaEmKwanza = dados.taxaEntregaEmKwanza ?? 0;
-    const totalEmKwanza = subtotalEmKwanza - descontoEmKwanza + taxaEntregaEmKwanza;
+    const baseParaIva = subtotalEmKwanza - descontoEmKwanza;
+    const ivaEmKwanza = Math.round(baseParaIva * IVA_ANGOLA_PERCENTUAL / 100);
+    const totalEmKwanza = baseParaIva + taxaEntregaEmKwanza + ivaEmKwanza;
 
     if (totalEmKwanza < 0) {
       throw new Error("Desconto não pode deixar o total do pedido negativo.");
@@ -84,6 +87,8 @@ export class GestaoPedidosUseCase {
       descontoEmKwanza,
       taxaEntregaEmKwanza,
       totalEmKwanza,
+      ivaPercentual: IVA_ANGOLA_PERCENTUAL,
+      ivaEmKwanza,
       motivoDesconto: dados.motivoDesconto ?? null,
       enderecoEntrega,
       comprovativoPagamentoUrl: dados.comprovativoPagamentoUrl ?? null,
@@ -201,7 +206,9 @@ export class GestaoPedidosUseCase {
       pedidoAtual.id
     );
     const subtotalEmKwanza = itens.reduce((total, item) => total + item.subtotalEmKwanza, 0);
-    const totalEmKwanza = subtotalEmKwanza - pedidoAtual.descontoEmKwanza + pedidoAtual.taxaEntregaEmKwanza;
+    const baseParaIva = subtotalEmKwanza - pedidoAtual.descontoEmKwanza;
+    const ivaEmKwanza = Math.round(baseParaIva * IVA_ANGOLA_PERCENTUAL / 100);
+    const totalEmKwanza = baseParaIva + pedidoAtual.taxaEntregaEmKwanza + ivaEmKwanza;
     if (totalEmKwanza < 0) {
       throw new Error("A alteração de itens deixa o total do pedido negativo por causa do desconto aplicado.");
     }
@@ -284,6 +291,34 @@ export class GestaoPedidosUseCase {
       pedidoId: pedido.id,
       clienteNegocioId: pedido.clienteNegocioId,
       motivo: dados.motivo
+    });
+
+    return pedido;
+  }
+
+  async reembolsar(id: string, negocioId: string, motivo: string): Promise<Pedido> {
+    const pedidoAtual = await this.pedidos.buscarPorId(id, negocioId);
+    if (!pedidoAtual) throw new Error(`Pedido ${id} não encontrado.`);
+    if (pedidoAtual.estadoPagamento !== "CONFIRMADO" && pedidoAtual.estado !== "PAGO" && pedidoAtual.estado !== "ENTREGUE") {
+      throw new Error("Reembolso só pode ser aplicado a pedidos com pagamento confirmado.");
+    }
+    if (pedidoAtual.estadoPagamento === "REEMBOLSADO") {
+      throw new Error("Pedido já foi reembolsado.");
+    }
+
+    const pedido = await this.pedidos.atualizarEstado(id, negocioId, {
+      estado: "DEVOLVIDO",
+      estadoPagamento: "REEMBOLSADO",
+      observacao: motivo
+    });
+    if (!pedido) throw new Error(`Pedido ${id} não encontrado.`);
+
+    this.eventos.emitir("ORDER_REFUNDED", {
+      negocioId,
+      pedidoId: pedido.id,
+      clienteNegocioId: pedido.clienteNegocioId,
+      totalEmKwanza: pedido.totalEmKwanza,
+      motivo
     });
 
     return pedido;

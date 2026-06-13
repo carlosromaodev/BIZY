@@ -8,13 +8,13 @@ tags:
   - bizy/design
   - bizy/frontend
 status: ativo
-updated: 2026-06-07
+updated: 2026-06-12
 ---
 
 # Identidade Visual Bizy v2
 
 Status: ativo
-Ultima atualizacao: 2026-06-07
+Ultima atualizacao: 2026-06-12
 Fontes principais: `/home/carlos/Musicas/export/Bizy - Direcao Visual v2.html`, `Bizy - Logotipo Final.html`, `frontend/testes/Bizy — Direcao Visual v2.html`, `frontend/src/estilos.css`, `frontend/src/componentes/BizyDesignSystem.tsx`
 
 ## Intencao
@@ -23,11 +23,18 @@ Bizy v2 e um CRM organico, amigavel e comercial. A interface deve parecer operac
 
 ## Tokens Base
 
-- Tipografia: `Plus Jakarta Sans` para interface inteira; `IBM Plex Mono` apenas para microcopy tecnico, etiquetas, atalhos e numeros auxiliares.
-- Neutros: `--ink`, `--ink-2`, `--ink-3`, `--ink-4`, `--line`, `--line-2`, `--bg`, `--surface`.
-- Marca: verde esmeralda como primaria unica (`--green`, `--green-600`, `--green-deep`, `--green-ink`, `--green-tint`, `--green-tint2`).
+- Tipografia: `Geist` + `Geist Mono` para o CRM; `Plus Jakarta Sans` para interface publica.
+- Neutros: tom **warm/creme** (nao cool/azulado). Os valores hex de referencia do design sao:
+  - `--ink: #17211c` · `--ink-2: #46514b` · `--ink-3: #6e7873` · `--ink-4: #9aa39e`
+  - `--line: #e7e4dc` · `--line-2: #f0ede6`
+  - `--bg / --paper: #faf8f4` (creme off-white quente)
+  - `--cream: #f4f1ea` (campo/input background)
+  - `--surface: #ffffff` (cards, paineis)
+  - ATENCAO: os tokens oklch anteriores usavam hue 250 (azul-frio) que estava errado. Corrigido em 2026-06-12 para os hex warm acima.
+- Marca: verde esmeralda como primaria unica (`--green / --em: #0e8c68`, `--green-600`, `--green-deep`, `--green-ink: #085440`, `--green-tint: #e7f4ee`, `--green-tint2`).
 - Semantica: amber para pendente/atencao, blue para em curso/informacao, rose para erro/urgencia, violet para destaque/VIP.
-- Raios: controles 10-12px, cards 16px, sheets/modais 22px.
+- Cor lime destaque: `--lime: #c9f25e` (usada em badges, ativo no drawer de modulos).
+- Raios: controles 10-12px, cards 16-18px, sheets/modais 22px.
 - Sombras: subtis, com borda fina; usar `--shadow-hairline`, `--shadow-panel` e `--shadow-floating`.
 
 ## Marca e Logotipo
@@ -60,9 +67,22 @@ Dialogos de confirmacao usam icone grande em chip semantico e duas acoes claras.
 
 ## Navegacao
 
-A sidebar desktop e um painel unico de 248px: marca, busca, grupos, links e utilizador. Links ativos usam `--green-tint`, texto `--green-ink` e icone `--green`. No mobile, quatro atalhos ficam no dock e todas as outras paginas aparecem no sheet "Mais".
+### CRM v3 — Shell Market (desktop)
 
-Atualizacao de direcao desktop: o CRM usa uma navegacao inspirada no video de referencia `IMG_0331.MOV`, com rail preto estreito, cantos grandes, icones brancos em coluna, item ativo em capsule cinza escura animada e painel secundario claro para as paginas da seccao. A animacao usa transicao tipo spring por `layoutId`, mantendo a leitura operacional sem expandir a barra principal.
+O CRM desktop usa um header horizontal de 3 camadas (identidade Market, Jun 2026):
+
+1. **Barra utilitaria** (`.crm-v3-util`): fundo escuro `var(--ink)`, links rapidos, nome do utilizador.
+2. **Cabecalho** (`.crm-v3-head`): fundo branco com wordmark `bizy. CRM`, barra de busca global, acoes (avisos, criar, conta).
+3. **Barra de tabs** (`.crm-v3-tabs`): tabs principais (Inicio, Pedidos, Atendimento, Clientes, Live, Studio, Relatorios) + botao Modulos + pill AO VIVO.
+
+O botao **Modulos** expande inline na propria barra de tabs: ao hover ou click, o fundo escuro (`var(--ink)`) preenche a barra e mostra todas as rotas secundarias agrupadas por seccao (Vendas, CRM, Vitrine, Gestao). A transicao usa spring animation via framer-motion. Items activos ficam em `--lime`. Ao clicar num item ou afastar o rato, o drawer fecha e as tabs principais reaparecem.
+
+Icones das tabs principais sao diferentes dos da sidebar legada:
+- Inicio → Home, Pedidos → ShoppingBag, Atendimento → MessageSquare, Clientes → Users, Live → Video, Studio → Store, Relatorios → BarChart3.
+
+### Mobile
+
+No mobile, quatro atalhos ficam no dock nativo (Painel, Pedidos, Clientes, Chat) e todas as outras paginas aparecem no sheet "Mais".
 
 O menu nao deve esconder paginas por falha temporaria do endpoint de modulos. Enquanto o estado de modulos nao estiver conhecido, a navegacao deve mostrar a superficie completa do produto.
 

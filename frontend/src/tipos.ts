@@ -130,6 +130,23 @@ export interface ResumoEvolution {
   instancias: InstanciaEvolution[];
 }
 
+export interface InstanciaInstagram {
+  id: string;
+  nome: string;
+  username: string;
+  status: string;
+  padrao: boolean;
+  ativa: boolean;
+  ultimoErro: string | null;
+  ultimaConexaoEm: string | null;
+  ultimaPollEm: string | null;
+  criadaEm: string;
+  atualizadaEm: string;
+  statusBridge: string | null;
+  ultimoErroBridge: string | null;
+  ultimaPollEmBridge: string | null;
+}
+
 export type EstadoConversa = "ativo" | "automacao" | "encerrado" | "fila" | "historico";
 export type EstadoConversaCrm =
   | "NOVA"

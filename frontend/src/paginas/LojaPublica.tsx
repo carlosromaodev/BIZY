@@ -5,6 +5,7 @@ import {
   ClipboardCheck,
   Copy,
   ExternalLink,
+  Eye,
   Globe2,
   LayoutGrid,
   Link2,
@@ -67,10 +68,17 @@ import {
 } from "@/components/ui/sheet";
 import { Textarea } from "@/components/ui/textarea";
 import { montarUrlPublicaLoja, obterDominioPublicoLojaConfigurado } from "../lojaSubdominio";
+import {
+  atualizarPublicacaoProdutoMarket,
+  atualizarPublicacaoProdutosMarketEmMassa,
+  obterResumoMarketLoja
+} from "../lojas";
+import type { ItemPublicacaoMarketLoja, ResumoMarketLoja } from "../lojas";
 import type { Peca, ResumoTrackingComercial } from "../tipos";
 import { formatarKwanza } from "../utilidades";
 
 type PassoAssistente = "identidade" | "produtos" | "experiencia" | "entrega" | "pagamentos" | "operacao" | "publicar";
+type SubpastaStudio = "visao" | "identidade" | "catalogos" | "produtos" | "entrega-pagamentos" | "links" | "market";
 type ModoExperienciaLoja = "auto" | "moda" | "comida" | "servicos" | "geral";
 type CriterioCatalogoPersonalizado = "categoria" | "colecao" | "busca" | "todos";
 type AcessoLojaDigital = "aberto" | "telefone" | "login" | "membros";
@@ -352,6 +360,8 @@ interface FormLoja {
   operacao: OperacaoLojaDigital;
 }
 
+type AtualizarSecaoLoja = <Secao extends keyof FormLoja>(secao: Secao, valores: Partial<FormLoja[Secao]>) => void;
+
 const passosAssistente: Array<{
   id: PassoAssistente;
   titulo: string;
@@ -365,6 +375,31 @@ const passosAssistente: Array<{
   { id: "pagamentos", titulo: "Pagamentos", detalhe: "Métodos e mensagens", icone: <WalletCards size={16} /> },
   { id: "operacao", titulo: "Operação", detalhe: "CRM e automações", icone: <Settings2 size={16} /> },
   { id: "publicar", titulo: "Publicar", detalhe: "Checklist e link", icone: <Globe2 size={16} /> }
+];
+
+const subpastaPorPasso: Record<PassoAssistente, SubpastaStudio> = {
+  identidade: "identidade",
+  produtos: "produtos",
+  experiencia: "catalogos",
+  entrega: "entrega-pagamentos",
+  pagamentos: "entrega-pagamentos",
+  operacao: "links",
+  publicar: "links"
+};
+
+const studioSubpastas: Array<{
+  id: SubpastaStudio;
+  titulo: string;
+  detalhe: string;
+  icone: ReactNode;
+}> = [
+  { id: "visao", titulo: "Visão geral", detalhe: "Saúde, funil e próximos passos", icone: <LayoutGrid size={16} /> },
+  { id: "identidade", titulo: "Identidade", detalhe: "Marca, link e contacto", icone: <Store size={16} /> },
+  { id: "catalogos", titulo: "Catálogos", detalhe: "Vitrines, confiança e medidas", icone: <LayoutGrid size={16} /> },
+  { id: "produtos", titulo: "Produtos", detalhe: "Stock e itens vendáveis", icone: <PackageSearch size={16} /> },
+  { id: "entrega-pagamentos", titulo: "Entrega & pagamentos", detalhe: "Modalidades, taxas e cobrança", icone: <WalletCards size={16} /> },
+  { id: "links", titulo: "Links & partilha", detalhe: "Publicação, domínio e canais", icone: <Link2 size={16} /> },
+  { id: "market", titulo: "Market", detalhe: "Produtos no shopping center", icone: <Store size={16} /> }
 ];
 
 const vitrinesEditaveis = [
@@ -562,14 +597,14 @@ const automacoesLojaDigital: Array<{ id: keyof OperacaoLojaDigital["automacoes"]
 ];
 
 const canaisLojaDigital: Array<{ id: keyof OperacaoLojaDigital["canais"]; titulo: string; detalhe: string; destino: string }> = [
-  { id: "site", titulo: "Site", detalhe: "Loja pública e tracking.", destino: "/app/loja-publica" },
+  { id: "site", titulo: "Site", detalhe: "Loja pública e tracking.", destino: "/app/loja" },
   { id: "whatsapp", titulo: "WhatsApp", detalhe: "Atendimento e checkout.", destino: "/app/conversas" },
   { id: "instagram", titulo: "Instagram", detalhe: "Origem social e catálogo.", destino: "/app/clientes" },
   { id: "google", titulo: "Google", detalhe: "Origem por pesquisa.", destino: "/app/relatorios" },
   { id: "pos", titulo: "POS", detalhe: "Vendas presenciais ligadas.", destino: "/app/reservas" },
   { id: "transmissoes", titulo: "Live commerce", detalhe: "Comentários e pedidos em live.", destino: "/app/live" },
   { id: "chatbot", titulo: "Chatbot", detalhe: "Respostas rápidas e triagem.", destino: "/app/respostas-rapidas" },
-  { id: "appMovelQr", titulo: "App móvel com QR code", detalhe: "Compra rápida presencial ou em embalagem.", destino: "/app/loja-publica" },
+  { id: "appMovelQr", titulo: "App móvel com QR code", detalhe: "Compra rápida presencial ou em embalagem.", destino: "/app/loja" },
   { id: "caixaEntradaUnificada", titulo: "Caixa de entrada unificada", detalhe: "Junta loja, WhatsApp e social inbox.", destino: "/app/conversas" },
   { id: "broadcasts", titulo: "Transmissões/broadcasts", detalhe: "Campanhas para segmentos de clientes.", destino: "/app/clientes" }
 ];
@@ -611,9 +646,11 @@ const relatoriosProntosLoja = [
 export function PaginaLojaPublica() {
   const [configuracao, setConfiguracao] = useState<ConfiguracaoLojaDigital | null>(null);
   const [tracking, setTracking] = useState<ResumoTrackingComercial | null>(null);
+  const [marketStudio, setMarketStudio] = useState<ResumoMarketLoja | null>(null);
   const [pecas, setPecas] = useState<Peca[]>([]);
   const [form, setForm] = useState<FormLoja>(() => criarFormVazio());
   const [passo, setPasso] = useState<PassoAssistente>("identidade");
+  const [subpastaStudio, setSubpastaStudio] = useState<SubpastaStudio>("visao");
   const [assistenteAberto, setAssistenteAberto] = useState(false);
   const [modalCriacaoAberto, setModalCriacaoAberto] = useState(false);
   const [modalCriacaoInicialExibido, setModalCriacaoInicialExibido] = useState(false);
@@ -621,19 +658,22 @@ export function PaginaLojaPublica() {
   const [mensagem, setMensagem] = useState("");
   const [carregando, setCarregando] = useState(true);
   const [salvando, setSalvando] = useState(false);
+  const [publicandoMarket, setPublicandoMarket] = useState(false);
 
   async function carregar() {
     setCarregando(true);
     try {
-      const [dadosConfiguracao, dadosTracking, dadosPecas] = await Promise.all([
+      const [dadosConfiguracao, dadosTracking, dadosPecas, dadosMarket] = await Promise.all([
         requisitarApi<ConfiguracaoLojaDigital>("/loja-publica/configuracao"),
         requisitarApi<ResumoTrackingComercial>("/loja-publica/tracking/resumo").catch(() => null),
-        requisitarApi<Peca[]>("/pecas").catch(() => [])
+        requisitarApi<Peca[]>("/pecas").catch(() => []),
+        obterResumoMarketLoja().catch(() => null)
       ]);
 
       setConfiguracao(dadosConfiguracao);
       setTracking(dadosTracking);
       setPecas(dadosPecas);
+      setMarketStudio(dadosMarket);
       setForm(criarFormAPartirConfiguracao(dadosConfiguracao));
       setMensagem("");
     } catch (erro) {
@@ -670,7 +710,6 @@ export function PaginaLojaPublica() {
     if (!configuracao) return;
     setProdutosConfirmados(false);
     if (!lojaConfigurada && !modalCriacaoInicialExibido) {
-      setModalCriacaoAberto(true);
       setModalCriacaoInicialExibido(true);
     }
   }, [configuracao, lojaConfigurada, modalCriacaoInicialExibido]);
@@ -687,6 +726,7 @@ export function PaginaLojaPublica() {
 
   function abrirAssistente(novoPasso: PassoAssistente = "identidade") {
     setPasso(novoPasso);
+    setSubpastaStudio(subpastaPorPasso[novoPasso]);
     setAssistenteAberto(true);
   }
 
@@ -702,7 +742,9 @@ export function PaginaLojaPublica() {
     }));
     setProdutosConfirmados(catalogo.produtosVendaveis > 0);
     setModalCriacaoAberto(false);
-    setPasso(catalogo.produtosVendaveis > 0 ? "produtos" : "identidade");
+    const passoInicial = catalogo.produtosVendaveis > 0 ? "produtos" : "identidade";
+    setPasso(passoInicial);
+    setSubpastaStudio(subpastaPorPasso[passoInicial]);
     setAssistenteAberto(true);
   }
 
@@ -711,6 +753,7 @@ export function PaginaLojaPublica() {
     if (publicar && !slugNormalizado) {
       setMensagem("Define um link público antes de publicar.");
       setPasso("identidade");
+      setSubpastaStudio("identidade");
       setAssistenteAberto(true);
       return;
     }
@@ -740,6 +783,48 @@ export function PaginaLojaPublica() {
     }
   }
 
+  async function alternarPublicacaoMarket(item: ItemPublicacaoMarketLoja) {
+    if (!item.elegivel && !item.publicado) {
+      setMensagem("Corrige as pendências antes de publicar este produto no Market.");
+      return;
+    }
+
+    setPublicandoMarket(true);
+    setMensagem(item.publicado ? "A remover produto do Market..." : "A publicar produto no Market...");
+    try {
+      await atualizarPublicacaoProdutoMarket(item.codigo, !item.publicado);
+      await carregar();
+      setMensagem(item.publicado ? "Produto removido do Market." : "Produto publicado no Market.");
+    } catch (erro) {
+      setMensagem(erro instanceof Error ? erro.message : "Não foi possível atualizar a publicação no Market.");
+    } finally {
+      setPublicandoMarket(false);
+    }
+  }
+
+  async function publicarElegiveisMarket() {
+    const codigos = (marketStudio?.itens ?? [])
+      .filter((item) => item.elegivel && !item.publicado)
+      .map((item) => item.codigo);
+
+    if (!codigos.length) {
+      setMensagem("Não há produtos elegíveis pendentes para publicar.");
+      return;
+    }
+
+    setPublicandoMarket(true);
+    setMensagem("A publicar produtos elegíveis no Market...");
+    try {
+      const resposta = await atualizarPublicacaoProdutosMarketEmMassa(codigos, true);
+      await carregar();
+      setMensagem(`${resposta.atualizados} produto${resposta.atualizados === 1 ? "" : "s"} publicado${resposta.atualizados === 1 ? "" : "s"} no Market. Não publica automaticamente produtos com pendências.`);
+    } catch (erro) {
+      setMensagem(erro instanceof Error ? erro.message : "Não foi possível publicar os produtos elegíveis.");
+    } finally {
+      setPublicandoMarket(false);
+    }
+  }
+
   async function copiarLink() {
     if (!urlPublica) return;
     try {
@@ -764,34 +849,71 @@ export function PaginaLojaPublica() {
 
   return (
     <CrmPageMotion className="loja-admin-shell">
-      <PageHead eyebrow="A sua vitrine 24/7" titulo="Loja Digital" tamanhoTitulo="sm">
-        {lojaConfigurada && urlPublica && (
-          <a href={urlPublica} target="_blank" rel="noreferrer" className="bz-btn bz-btn-ghost">
-            <ExternalLink size={16} />
-            Ver loja
-          </a>
-        )}
-        {lojaConfigurada ? (
-          <>
-            <button type="button" className="bz-btn bz-btn-ghost" onClick={() => abrirAssistente("identidade")}>
-              <Settings2 size={16} />
-              Configurar
-            </button>
-            <BotaoBizy icone={salvando ? Loader2 : Globe2} onClick={() => void guardarConfiguracao(true)}>
-              Publicar
+      <div className="crm-v3-pghead">
+        <div>
+          <h1>Studio</h1>
+          <div className="crm-v3-sub">A tua loja digital · configuração e vitrine</div>
+        </div>
+        <div className="crm-v3-pghead-right">
+          {lojaConfigurada && urlPublica && (
+            <a href={urlPublica} target="_blank" rel="noreferrer" className="crm-v3-btn crm-v3-btn-ghost">
+              <Eye size={13} />
+              Ver loja
+            </a>
+          )}
+          {lojaConfigurada || assistenteAberto ? (
+            <>
+              <button type="button" className="crm-v3-btn crm-v3-btn-ghost" onClick={() => abrirAssistente("identidade")}>
+                <Settings2 size={13} />
+                Configurar
+              </button>
+              <BotaoBizy icone={salvando ? Loader2 : Globe2} onClick={() => void guardarConfiguracao(true)}>
+                Publicar
+              </BotaoBizy>
+            </>
+          ) : (
+            <BotaoBizy icone={PlusCircle} onClick={iniciarCriacaoLoja}>
+              Criar loja online
             </BotaoBizy>
-          </>
-        ) : (
-          <BotaoBizy icone={PlusCircle} onClick={() => setModalCriacaoAberto(true)}>
-            Criar loja online
-          </BotaoBizy>
-        )}
-        <button type="button" className="bz-iconbtn" onClick={() => void carregar()} disabled={carregando || salvando} title="Atualizar">
-          <RefreshCcw size={16} />
-        </button>
-      </PageHead>
+          )}
+        </div>
+      </div>
 
-      {lojaConfigurada ? (
+      {lojaConfigurada || assistenteAberto ? (
+        <StudioWorkspace
+          carregando={carregando || publicandoMarket}
+          catalogo={catalogo}
+          copiarLink={copiarLink}
+          dominioPublicoLoja={dominioPublicoLoja}
+          form={form}
+          funil={funil}
+          guardarConfiguracao={guardarConfiguracao}
+          lojaPublicada={lojaPublicada || form.publicacao.publicada}
+          marketStudio={marketStudio}
+          mensagem={mensagem}
+          onAlternarPublicacao={(item) => void alternarPublicacaoMarket(item)}
+          onPublicarElegiveis={() => void publicarElegiveisMarket()}
+          produtosCriticos={produtosCriticos}
+          produtosDestaque={produtosDestaque}
+          prontidao={prontidao}
+          salvando={salvando}
+          setSubpasta={setSubpastaStudio}
+          subpasta={subpastaStudio}
+          temTracking={temTracking}
+          tracking={tracking}
+          atualizarSecao={atualizarSecao}
+          urlPublica={urlPublica}
+        />
+      ) : (
+        <TelaInicioCriacaoLoja
+          abrirModal={iniciarCriacaoLoja}
+          carregando={carregando}
+          catalogo={catalogo}
+          produtosDestaque={produtosDestaque}
+        />
+      )}
+
+      {false && (lojaConfigurada ? (
         <>
           {/* ── Store grid: info panel + browser mockup ── */}
           <div className="bz-store-grid">
@@ -975,6 +1097,13 @@ export function PaginaLojaPublica() {
         </div>
       </CrmCommandPanel>
 
+      <StudioMarketPanel
+        carregando={carregando || publicandoMarket}
+        marketStudio={marketStudio}
+        onAlternarPublicacao={(item) => void alternarPublicacaoMarket(item)}
+        onPublicarElegiveis={() => void publicarElegiveisMarket()}
+      />
+
       <div className="grid gap-3 sm:gap-4 lg:grid-cols-[1fr_.92fr]">
         <CrmSection
           icon={<PackageSearch size={18} className="sm:size-5" />}
@@ -1067,8 +1196,8 @@ export function PaginaLojaPublica() {
           description="Canal, origem e campanha ajudam a perceber onde o link público está a vender melhor."
         >
           <CrmList columns="three">
-            {tracking && Object.entries(tracking.porCanal).length ? (
-              Object.entries(tracking.porCanal).map(([canal, total]) => (
+            {Object.entries(tracking?.porCanal ?? {}).length ? (
+              Object.entries(tracking?.porCanal ?? {}).map(([canal, total]) => (
                 <CrmListItem key={canal} media={<Send size={18} />} title={canal} description="Eventos por canal." tone="principal" meta={total} />
               ))
             ) : (
@@ -1085,10 +1214,10 @@ export function PaginaLojaPublica() {
           catalogo={catalogo}
           produtosDestaque={produtosDestaque}
         />
-      )}
+      ))}
 
       <ModalInicioCriacao
-        aberto={modalCriacaoAberto}
+        aberto={false}
         catalogo={catalogo}
         produtosConfirmados={produtosConfirmados}
         produtosDestaque={produtosDestaque}
@@ -1097,7 +1226,7 @@ export function PaginaLojaPublica() {
         iniciarCriacao={iniciarCriacaoLoja}
       />
 
-      <Sheet open={assistenteAberto} onOpenChange={setAssistenteAberto}>
+      <Sheet open={false} onOpenChange={setAssistenteAberto}>
         <SheetContent side="right" className="loja-assistente-sheet w-full max-w-full overflow-hidden p-0 data-[side=right]:!w-full data-[side=right]:!max-w-full data-[side=right]:sm:!max-w-6xl">
           <SheetHeader className="border-b border-border/60 px-4 py-4 text-left sm:px-6">
             <div className="flex flex-wrap items-start justify-between gap-3 pr-8">
@@ -1208,7 +1337,7 @@ export function PaginaLojaPublica() {
         </SheetContent>
       </Sheet>
 
-      {mensagem && (
+      {false && mensagem && (
         <footer className="rounded-lg border bg-card px-4 py-3 text-sm text-muted-foreground" aria-live="polite">
           {mensagem}
         </footer>
@@ -1267,6 +1396,503 @@ function TelaInicioCriacaoLoja({
         </div>
       </div>
     </section>
+  );
+}
+
+function StudioMarketPanel({
+  carregando,
+  marketStudio,
+  onAlternarPublicacao,
+  onPublicarElegiveis
+}: {
+  carregando: boolean;
+  marketStudio: ResumoMarketLoja | null;
+  onAlternarPublicacao: (item: ItemPublicacaoMarketLoja) => void;
+  onPublicarElegiveis: () => void;
+}) {
+  const produtos = marketStudio?.produtos;
+  const itens = marketStudio?.itens ?? [];
+  const pendentesElegiveis = itens.filter((item) => item.elegivel && !item.publicado).length;
+
+  return (
+    <CrmSection
+      icon={<Store size={20} />}
+      title="Bizy Market"
+      description="Controle quais produtos entram no shopping center. Não publica automaticamente produtos com pendências."
+      actions={
+        <div className="flex flex-wrap gap-2">
+          <Button type="button" variant="outline" onClick={onPublicarElegiveis} disabled={carregando || pendentesElegiveis === 0}>
+            <PackageCheck size={16} />
+            Publicar elegíveis
+          </Button>
+          {marketStudio?.loja.urlLoja && (
+            <Button asChild variant="outline">
+              <a href={marketStudio.loja.urlLoja} target="_blank" rel="noreferrer">
+                <ExternalLink size={16} />
+                Abrir loja
+              </a>
+            </Button>
+          )}
+        </div>
+      }
+    >
+      <div className="bz-market-studio-panel">
+        <div className="grid gap-3 sm:grid-cols-4">
+          <ResumoCompacto titulo="No Market" valor={produtos?.publicados ?? 0} detalhe="publicados" tom={(produtos?.publicados ?? 0) ? "sucesso" : "neutro"} />
+          <ResumoCompacto titulo="Elegíveis" valor={produtos?.elegiveis ?? 0} detalhe="podem publicar" tom={(produtos?.elegiveis ?? 0) ? "principal" : "neutro"} />
+          <ResumoCompacto titulo="Pendências" valor={produtos?.comPendencias ?? 0} detalhe="bloqueios" tom={(produtos?.comPendencias ?? 0) ? "atencao" : "sucesso"} />
+          <ResumoCompacto titulo="Categorias" valor={marketStudio?.categorias.length ?? 0} detalhe="globais" tom="neutro" />
+        </div>
+
+        <div className="bz-market-studio-table mt-4 overflow-hidden rounded-xl border border-border/60 bg-background">
+          {itens.length ? (
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[720px] text-sm">
+                <thead>
+                  <tr className="border-b border-border/60 bg-muted/40 text-left text-xs uppercase tracking-[0.08em] text-muted-foreground">
+                    <th className="px-3 py-3">Produto</th>
+                    <th className="px-3 py-3">Categoria</th>
+                    <th className="px-3 py-3">Estado</th>
+                    <th className="px-3 py-3">Pendências</th>
+                    <th className="px-3 py-3 text-right">Ação</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {itens.map((item) => (
+                    <tr key={item.codigo} className="border-b border-border/40 last:border-0">
+                      <td className="px-3 py-3">
+                        <strong className="block text-foreground">{item.nome}</strong>
+                        <span className="text-xs text-muted-foreground">#{item.codigo}</span>
+                      </td>
+                      <td className="px-3 py-3 text-muted-foreground">{item.categoria || item.colecao || "Sem categoria"}</td>
+                      <td className="px-3 py-3">
+                        <Badge variant={item.publicado ? "success" : item.elegivel ? "info" : "warning"}>
+                          {item.publicado ? "Publicado" : item.elegivel ? "Elegível" : "Pendente"}
+                        </Badge>
+                      </td>
+                      <td className="px-3 py-3">
+                        {item.pendencias.length ? (
+                          <span className="text-xs text-muted-foreground">{item.pendencias.join(", ")}</span>
+                        ) : (
+                          <span className="text-xs text-emerald-700">Sem pendências</span>
+                        )}
+                      </td>
+                      <td className="px-3 py-3 text-right">
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant={item.publicado ? "outline" : "default"}
+                          onClick={() => onAlternarPublicacao(item)}
+                          disabled={carregando || (!item.elegivel && !item.publicado)}
+                        >
+                          {item.publicado ? "Despublicar" : "Publicar"}
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <EstadoVazio
+              icone={<PackageSearch />}
+              titulo={carregando ? "A carregar publicação" : "Sem produtos para o Market"}
+              detalhe="Quando o catálogo tiver produtos elegíveis, a publicação aparece aqui."
+            />
+          )}
+        </div>
+      </div>
+    </CrmSection>
+  );
+}
+
+function StudioWorkspace({
+  atualizarSecao,
+  carregando,
+  catalogo,
+  copiarLink,
+  dominioPublicoLoja,
+  form,
+  funil,
+  guardarConfiguracao,
+  lojaPublicada,
+  marketStudio,
+  mensagem,
+  onAlternarPublicacao,
+  onPublicarElegiveis,
+  produtosCriticos,
+  produtosDestaque,
+  prontidao,
+  salvando,
+  setSubpasta,
+  subpasta,
+  temTracking,
+  tracking,
+  urlPublica
+}: {
+  atualizarSecao: AtualizarSecaoLoja;
+  carregando: boolean;
+  catalogo: ConfiguracaoLojaDigital["catalogo"];
+  copiarLink: () => void;
+  dominioPublicoLoja: string | null;
+  form: FormLoja;
+  funil: ResumoTrackingComercial["funil"] | undefined;
+  guardarConfiguracao: (publicar?: boolean) => Promise<void>;
+  lojaPublicada: boolean;
+  marketStudio: ResumoMarketLoja | null;
+  mensagem: string;
+  onAlternarPublicacao: (item: ItemPublicacaoMarketLoja) => void;
+  onPublicarElegiveis: () => void;
+  produtosCriticos: Peca[];
+  produtosDestaque: Peca[];
+  prontidao: ConfiguracaoLojaDigital["prontidao"];
+  salvando: boolean;
+  setSubpasta: (subpasta: SubpastaStudio) => void;
+  subpasta: SubpastaStudio;
+  temTracking: boolean;
+  tracking: ResumoTrackingComercial | null;
+  urlPublica: string;
+}) {
+  const subpastaAtual = studioSubpastas.find((item) => item.id === subpasta) ?? studioSubpastas[0];
+  const progresso = Math.min(100, Math.max(0, prontidao.progresso));
+  const estadoLoja = lojaPublicada ? "Publicada" : "Rascunho";
+
+  return (
+    <section className="studio-v3 stwrap" aria-label="Bizy Studio">
+      <aside className="strail" aria-label="Subpastas do Studio">
+        <div className="stlogo">
+          <span className="cap">Studio</span>
+          <strong>{form.identidade.nomeComercial || "A tua loja"}</strong>
+          <small>{estadoLoja} · {catalogo.produtosVendaveis} produtos prontos</small>
+        </div>
+
+        <nav className="stnav">
+          {studioSubpastas.map((item) => (
+            <StudioSubpastaItem
+              key={item.id}
+              item={item}
+              ativo={item.id === subpasta}
+              detalhe={calcularDetalheSubpasta(item.id, {
+                catalogo,
+                marketStudio,
+                prontidao,
+                urlPublica
+              })}
+              onClick={() => setSubpasta(item.id)}
+            />
+          ))}
+        </nav>
+
+        <div className="health">
+          <div className="health-head">
+            <span>Saúde da loja</span>
+            <strong>{progresso}%</strong>
+          </div>
+          <div className="healthbar" aria-hidden="true">
+            <span style={{ width: `${progresso}%` }} />
+          </div>
+          <p>{prontidao.prontaParaPublicar ? "Pronta para tráfego." : `${prontidao.pendencias.length || 1} ponto por fechar antes de publicar.`}</p>
+        </div>
+      </aside>
+
+      <main className="stmain">
+        <div className="stcrumb">
+          <span>CRM</span>
+          <span>Studio</span>
+          <b>{subpastaAtual.titulo}</b>
+        </div>
+
+        <header className="sthead">
+          <div>
+            <span>{subpastaAtual.detalhe}</span>
+            <h2>{subpastaAtual.titulo}</h2>
+          </div>
+          <div className="sthead-actions">
+            {urlPublica && (
+              <a href={urlPublica} target="_blank" rel="noreferrer" className="btn3 ghost">
+                <ExternalLink size={15} />
+                Abrir loja
+              </a>
+            )}
+            <button type="button" className="btn3 ghost" onClick={() => void guardarConfiguracao(false)} disabled={salvando}>
+              {salvando ? <Loader2 className="animate-spin" size={15} /> : <ClipboardCheck size={15} />}
+              Guardar
+            </button>
+            <button type="button" className="btn3" onClick={() => { setSubpasta("links"); void guardarConfiguracao(true); }} disabled={salvando}>
+              {salvando ? <Loader2 className="animate-spin" size={15} /> : <Globe2 size={15} />}
+              Publicar
+            </button>
+          </div>
+        </header>
+
+        {subpasta === "visao" && (
+          <StudioVisaoGeral
+            catalogo={catalogo}
+            copiarLink={copiarLink}
+            form={form}
+            funil={funil}
+            produtosCriticos={produtosCriticos}
+            produtosDestaque={produtosDestaque}
+            prontidao={prontidao}
+            setSubpasta={setSubpasta}
+            temTracking={temTracking}
+            tracking={tracking}
+            urlPublica={urlPublica}
+          />
+        )}
+
+        {subpasta === "identidade" && (
+          <PassoIdentidade
+            form={form}
+            atualizarSecao={atualizarSecao}
+            urlPublica={urlPublica}
+            dominioPublicoLoja={dominioPublicoLoja}
+            copiarLink={copiarLink}
+          />
+        )}
+
+        {subpasta === "catalogos" && (
+          <PassoExperienciaLoja form={form} atualizarSecao={atualizarSecao} />
+        )}
+
+        {subpasta === "produtos" && (
+          <PassoProdutos
+            catalogo={catalogo}
+            produtosCriticos={produtosCriticos}
+            produtosDestaque={produtosDestaque}
+          />
+        )}
+
+        {subpasta === "entrega-pagamentos" && (
+          <div className="grid gap-5">
+            <PassoEntrega form={form} atualizarSecao={atualizarSecao} />
+            <PassoPagamentos form={form} atualizarSecao={atualizarSecao} />
+          </div>
+        )}
+
+        {subpasta === "links" && (
+          <div className="grid gap-5">
+            <PassoPublicar
+              prontidao={prontidao}
+              urlPublica={urlPublica}
+              publicada={form.publicacao.publicada}
+              salvando={salvando}
+              copiarLink={copiarLink}
+              guardarConfiguracao={guardarConfiguracao}
+              atualizarSecao={atualizarSecao}
+            />
+            <PassoOperacaoLoja form={form} atualizarSecao={atualizarSecao} />
+          </div>
+        )}
+
+        {subpasta === "market" && (
+          <StudioMarketPanel
+            carregando={carregando}
+            marketStudio={marketStudio}
+            onAlternarPublicacao={onAlternarPublicacao}
+            onPublicarElegiveis={onPublicarElegiveis}
+          />
+        )}
+
+        <footer className="savebar" aria-live="polite">
+          <span className={`studio-save-dot${salvando || carregando ? " is-busy" : ""}`} />
+          <span>{salvando ? "A guardar alterações..." : mensagem || "Alterações ficam como rascunho até publicar."}</span>
+        </footer>
+      </main>
+    </section>
+  );
+}
+
+function calcularDetalheSubpasta(
+  id: SubpastaStudio,
+  contexto: {
+    catalogo: ConfiguracaoLojaDigital["catalogo"];
+    marketStudio: ResumoMarketLoja | null;
+    prontidao: ConfiguracaoLojaDigital["prontidao"];
+    urlPublica: string;
+  }
+) {
+  if (id === "visao") return `${contexto.prontidao.progresso}% pronta`;
+  if (id === "produtos") return `${contexto.catalogo.produtosVendaveis} vendáveis`;
+  if (id === "links") return contexto.urlPublica ? "link definido" : "sem link";
+  if (id === "market") return `${contexto.marketStudio?.produtos.publicados ?? 0} publicados`;
+  return "editar";
+}
+
+function StudioSubpastaItem({
+  ativo,
+  detalhe,
+  item,
+  onClick
+}: {
+  ativo: boolean;
+  detalhe: string;
+  item: (typeof studioSubpastas)[number];
+  onClick: () => void;
+}) {
+  return (
+    <button type="button" className={`stit${ativo ? " on" : ""}`} onClick={onClick} aria-current={ativo ? "page" : undefined}>
+      <span>{item.icone}</span>
+      <span>
+        <strong>{item.titulo}</strong>
+        <small>{detalhe}</small>
+      </span>
+    </button>
+  );
+}
+
+function StudioVisaoGeral({
+  catalogo,
+  copiarLink,
+  form,
+  funil,
+  produtosCriticos,
+  produtosDestaque,
+  prontidao,
+  setSubpasta,
+  temTracking,
+  tracking,
+  urlPublica
+}: {
+  catalogo: ConfiguracaoLojaDigital["catalogo"];
+  copiarLink: () => void;
+  form: FormLoja;
+  funil: ResumoTrackingComercial["funil"] | undefined;
+  produtosCriticos: Peca[];
+  produtosDestaque: Peca[];
+  prontidao: ConfiguracaoLojaDigital["prontidao"];
+  setSubpasta: (subpasta: SubpastaStudio) => void;
+  temTracking: boolean;
+  tracking: ResumoTrackingComercial | null;
+  urlPublica: string;
+}) {
+  const ticketMedio = Math.round((funil?.receitaAtribuidaEmKwanza ?? 0) / Math.max(1, funil?.pedidosCriados ?? 1));
+  const origemPrincipal = tracking && Object.entries(tracking.porCanal).length
+    ? Object.entries(tracking.porCanal).sort((a, b) => b[1] - a[1])[0]
+    : null;
+
+  return (
+    <section className="grid gap-5">
+      <div className="stkpis">
+        <StudioMetrica titulo="Visitas" valor={funil?.visitas ?? 0} detalhe={temTracking ? "últimos eventos" : "aguarda tráfego"} />
+        <StudioMetrica titulo="Produtos vistos" valor={funil?.produtosVistos ?? 0} detalhe={`${catalogo.produtosVendaveis} vendáveis`} />
+        <StudioMetrica titulo="WhatsApp" valor={funil?.cliquesWhatsApp ?? 0} detalhe={form.identidade.whatsapp ? "canal ativo" : "por configurar"} />
+        <StudioMetrica titulo="Ticket médio" valor={formatarKwanza(ticketMedio)} detalhe="pedidos da loja" />
+      </div>
+
+      <div className="ggrid">
+        <div className="edcard">
+          <div className="edcard-head">
+            <span className="studio-dot ok" />
+            <div>
+              <h3>Próximas decisões</h3>
+              <p>O Studio prioriza o que desbloqueia venda antes de mostrar detalhes avançados.</p>
+            </div>
+          </div>
+          <div className="qact">
+            <button type="button" className="qa" onClick={() => setSubpasta("identidade")}>
+              <Store size={17} />
+              <span>
+                <strong>Definir marca e link</strong>
+                <small>{urlPublica ? urlPublica.replace(/^https?:\/\//, "") : "Escolher endereço público"}</small>
+              </span>
+            </button>
+            <button type="button" className="qa" onClick={() => setSubpasta("produtos")}>
+              <PackageSearch size={17} />
+              <span>
+                <strong>Rever catálogo</strong>
+                <small>{produtosCriticos.length ? `${produtosCriticos.length} produto(s) pedem atenção` : "Catálogo sem alertas críticos"}</small>
+              </span>
+            </button>
+            <button type="button" className="qa" onClick={() => setSubpasta("entrega-pagamentos")}>
+              <Truck size={17} />
+              <span>
+                <strong>Fechar checkout</strong>
+                <small>{form.pagamentos.metodosPagamento.length} método(s) de pagamento ativo(s)</small>
+              </span>
+            </button>
+          </div>
+        </div>
+
+        <div className="edcard">
+          <div className="edcard-head">
+            <span className={`studio-dot${prontidao.prontaParaPublicar ? " ok" : " warn"}`} />
+            <div>
+              <h3>Checklist de publicação</h3>
+              <p>{prontidao.prontaParaPublicar ? "A loja está pronta para tráfego." : "Pontos mínimos para vender com menos atrito."}</p>
+            </div>
+          </div>
+          <div className="grid gap-2">
+            {prontidao.pendencias.length ? (
+              prontidao.pendencias.slice(0, 4).map((pendencia) => <StatusLinha key={pendencia} pronto={false} texto={pendencia} />)
+            ) : (
+              <>
+                <StatusLinha pronto texto="Link público definido." />
+                <StatusLinha pronto texto="Produtos vendáveis disponíveis." />
+                <StatusLinha pronto texto="Canal de compra configurado." />
+              </>
+            )}
+          </div>
+        </div>
+
+        <div className="edcard">
+          <div className="edcard-head">
+            <span className="studio-dot info" />
+            <div>
+              <h3>Origem comercial</h3>
+              <p>{origemPrincipal ? `${origemPrincipal[0]} lidera com ${origemPrincipal[1]} eventos.` : "Sem origem suficiente para leitura."}</p>
+            </div>
+          </div>
+          <div className="origin-list">
+            {tracking && Object.entries(tracking.porCanal).length ? (
+              Object.entries(tracking.porCanal).slice(0, 4).map(([canal, total]) => (
+                <span key={canal}>
+                  <b>{canal}</b>
+                  <i style={{ width: `${Math.min(100, Math.max(12, total * 8))}%` }} />
+                  <em>{total}</em>
+                </span>
+              ))
+            ) : (
+              <EstadoVazio icone={<MousePointerClick />} titulo={temTracking ? "Sem canal registado" : "Sem tracking"} detalhe="Partilhe o link para medir canal, origem e campanha." />
+            )}
+          </div>
+        </div>
+
+        <div className="edcard preview-card">
+          <PreviewLojaMobile form={form} produtos={produtosDestaque} urlPublica={urlPublica} />
+          <div className="preview-actions">
+            {urlPublica && (
+              <button type="button" className="btn3 ghost" onClick={copiarLink}>
+                <Copy size={15} />
+                Copiar link
+              </button>
+            )}
+            <button type="button" className="btn3 ghost" onClick={() => setSubpasta("links")}>
+              <Link2 size={15} />
+              Partilhar
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function StudioMetrica({
+  detalhe,
+  titulo,
+  valor
+}: {
+  detalhe: string;
+  titulo: string;
+  valor: ReactNode;
+}) {
+  return (
+    <div className="mstat">
+      <span>{titulo}</span>
+      <strong>{valor}</strong>
+      <small>{detalhe}</small>
+    </div>
   );
 }
 

@@ -50,6 +50,22 @@ export const moduloPainel: ModuloHttp = {
       return contexto.relatoriosComerciais.gerarResumoDiario(contextoComercial.negocio.id, filtros);
     });
 
+    app.get("/relatorios/serie-receita", async (request, reply) => {
+      const contextoComercial = await exigirAcessoComercial(contexto, request, reply, {
+        permissao: "relatorios:ver",
+        modulo: "crm",
+        mensagemPermissao: "Sem permissão para consultar série temporal.",
+        mensagemModulo: "CRM desativado para este negócio."
+      });
+      if (!contextoComercial) return;
+
+      const { dias } = (request.query ?? {}) as { dias?: string };
+      return contexto.relatoriosComerciais.gerarSerieTemporalReceita(
+        contextoComercial.negocio.id,
+        dias ? Math.min(Number(dias), 90) : 30
+      );
+    });
+
     app.get("/relatorios/social-receita", async (request, reply) => {
       const contextoComercial = await exigirAcessoComercial(contexto, request, reply, {
         permissao: "relatorios:ver",

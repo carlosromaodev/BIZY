@@ -1,9 +1,13 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { criarAplicacao } from "../infra/http/criarAplicacao.js";
+import { resolverOrigemPermitida } from "../infra/http/corsOrigens.js";
 
 const ambienteOriginal = {
   NODE_ENV: process.env.NODE_ENV,
+  MARKET_DOMAIN: process.env.MARKET_DOMAIN,
   ORIGEM_FRONTEND: process.env.ORIGEM_FRONTEND,
+  PUBLIC_MARKET_DOMAIN: process.env.PUBLIC_MARKET_DOMAIN,
+  PUBLIC_MARKET_URL: process.env.PUBLIC_MARKET_URL,
   PUBLIC_STORE_DOMAIN: process.env.PUBLIC_STORE_DOMAIN,
   INICIAR_AGENDADOR_EXPIRACAO: process.env.INICIAR_AGENDADOR_EXPIRACAO,
   RESTAURAR_LIVES_ATIVAS: process.env.RESTAURAR_LIVES_ATIVAS,
@@ -15,16 +19,13 @@ const ambienteOriginal = {
 };
 
 afterEach(() => {
-  process.env.NODE_ENV = ambienteOriginal.NODE_ENV;
-  process.env.ORIGEM_FRONTEND = ambienteOriginal.ORIGEM_FRONTEND;
-  process.env.PUBLIC_STORE_DOMAIN = ambienteOriginal.PUBLIC_STORE_DOMAIN;
-  process.env.INICIAR_AGENDADOR_EXPIRACAO = ambienteOriginal.INICIAR_AGENDADOR_EXPIRACAO;
-  process.env.RESTAURAR_LIVES_ATIVAS = ambienteOriginal.RESTAURAR_LIVES_ATIVAS;
-  process.env.AUTH_SECRET = ambienteOriginal.AUTH_SECRET;
-  process.env.N8N_EVENTOS_ATIVOS = ambienteOriginal.N8N_EVENTOS_ATIVOS;
-  process.env.EVOLUTION_WEBHOOK_TOKEN = ambienteOriginal.EVOLUTION_WEBHOOK_TOKEN;
-  process.env.LOGIN_SMS_DEV_MODE = ambienteOriginal.LOGIN_SMS_DEV_MODE;
-  process.env.LOGIN_SMS_EXPOR_CODIGO_DEV = ambienteOriginal.LOGIN_SMS_EXPOR_CODIGO_DEV;
+  for (const [chave, valor] of Object.entries(ambienteOriginal)) {
+    if (valor === undefined) {
+      delete process.env[chave];
+    } else {
+      process.env[chave] = valor;
+    }
+  }
 });
 
 describe("CORS em desenvolvimento", () => {
@@ -54,9 +55,12 @@ describe("CORS em desenvolvimento", () => {
     }
   });
 
-  it("aceita subdomínios públicos da loja em produção sem abrir outros domínios", async () => {
+  it("aceita domínio próprio do Market e subdomínios públicos da loja em produção sem abrir outros domínios", async () => {
     process.env.NODE_ENV = "production";
+    process.env.MARKET_DOMAIN = "market.usebizy.space";
     process.env.ORIGEM_FRONTEND = "https://usebizy.space,https://www.usebizy.space";
+    process.env.PUBLIC_MARKET_DOMAIN = "market.usebizy.space";
+    process.env.PUBLIC_MARKET_URL = "https://market.usebizy.space";
     process.env.PUBLIC_STORE_DOMAIN = "usebizy.space";
     process.env.INICIAR_AGENDADOR_EXPIRACAO = "false";
     process.env.RESTAURAR_LIVES_ATIVAS = "false";
@@ -89,6 +93,7 @@ describe("CORS em desenvolvimento", () => {
 
       expect(respostaLoja.statusCode).toBe(204);
       expect(respostaLoja.headers["access-control-allow-origin"]).toBe("https://uorconnect.usebizy.space");
+      expect(resolverOrigemPermitida("https://market.usebizy.space")).toBe("https://market.usebizy.space");
       expect(respostaEstranha.headers["access-control-allow-origin"]).toBeUndefined();
     } finally {
       await app.close();

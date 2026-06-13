@@ -10,6 +10,7 @@ import {
   FiltrosPedidosQuerySchema,
   RegistrarComprovativoPagamentoSchema,
   RecuperarPedidosParadosSchema,
+  ReembolsarPedidoSchema,
   RejeitarPagamentoSchema,
   SolicitarDescontoPedidoSchema
 } from "../../../dominio/esquemas.js";
@@ -477,6 +478,34 @@ export const moduloPedidos: ModuloHttp = {
           "estadoPagamento",
           "comprovativoPagamentoUrl",
           "pagoEm",
+          "observacao"
+        ])
+      });
+      return pedido;
+    });
+
+    app.post("/pedidos/:id/reembolsar", async (request, reply) => {
+      const contextoComercial = await exigirAcessoComercial(contexto, request, reply, {
+        permissao: "pagamentos:gerir",
+        modulo: "pedidos",
+        mensagemPermissao: "Sem permissão para reembolsar pedidos.",
+        mensagemModulo: "Pedidos desativados para este negócio."
+      });
+      if (!contextoComercial) return;
+
+      const { id } = request.params as { id: string };
+      const dados = ReembolsarPedidoSchema.parse(request.body ?? {});
+      const pedidoAntes = (await contexto.gestaoPedidos.obterPedido(id, contextoComercial.negocio.id))?.pedido ?? null;
+      const pedido = await contexto.gestaoPedidos.reembolsar(id, contextoComercial.negocio.id, dados.motivo);
+      await registrarAuditoriaCritica(contexto, contextoComercial, {
+        topico: "pedidos",
+        tipo: "PEDIDO_REEMBOLSADO",
+        entidadeTipo: "pedido",
+        entidadeId: id,
+        motivo: dados.motivo,
+        alteracoes: montarAlteracoes(dadosPedidoAuditoria(pedidoAntes), dadosPedidoAuditoria(pedido), [
+          "estado",
+          "estadoPagamento",
           "observacao"
         ])
       });

@@ -13,6 +13,30 @@ export interface ResultadoEnvioInstagram {
   enviadoEm: Date;
 }
 
+export interface LoginInstagramRequest {
+  instancia: string;
+  username: string;
+  password: string;
+  negocioId?: string | null;
+  verificationCode?: string | null;
+}
+
+export interface LoginInstagramResult {
+  ok: boolean;
+  instancia: string;
+  username: string;
+  userId?: string;
+  status: string;
+}
+
+export interface StatusInstanciaInstagram {
+  instancia: string;
+  username: string;
+  status: string;
+  ultimoErro: string | null;
+  ultimaPollEm: string | null;
+}
+
 interface OpcoesProvedorInstagram {
   bridgeUrl: string;
   bridgeToken: string;
@@ -88,12 +112,60 @@ export class ProvedorInstagramInstagrapi {
     return response.json() as Promise<Record<string, unknown>>;
   }
 
-  async consultarStatus(): Promise<Record<string, unknown>> {
+  async consultarStatus(): Promise<{ instancias: StatusInstanciaInstagram[] }> {
     const response = await fetch(`${this.bridgeUrl}/status`, {
       headers: this.bridgeToken ? { "X-Bridge-Token": this.bridgeToken } : {}
     });
 
-    return response.json() as Promise<Record<string, unknown>>;
+    return response.json() as Promise<{ instancias: StatusInstanciaInstagram[] }>;
+  }
+
+  async login(dados: LoginInstagramRequest): Promise<LoginInstagramResult> {
+    const body = {
+      instancia: dados.instancia,
+      username: dados.username,
+      password: dados.password,
+      negocio_id: dados.negocioId ?? null,
+      verification_code: dados.verificationCode ?? null
+    };
+
+    const response = await fetch(`${this.bridgeUrl}/login`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(this.bridgeToken ? { "X-Bridge-Token": this.bridgeToken } : {})
+      },
+      body: JSON.stringify(body)
+    });
+
+    const payload = await response.json().catch(() => ({})) as Record<string, unknown>;
+
+    if (!response.ok) {
+      const detalhe = typeof payload.detail === "string" ? payload.detail : "Erro de login no Instagram.";
+      const erro = new Error(detalhe) as Error & { statusCode: number };
+      erro.statusCode = response.status;
+      throw erro;
+    }
+
+    return {
+      ok: true,
+      instancia: dados.instancia,
+      username: dados.username,
+      userId: typeof payload.user_id === "string" ? payload.user_id : undefined,
+      status: typeof payload.status === "string" ? payload.status : "CONECTADA"
+    };
+  }
+
+  async logout(instancia: string): Promise<void> {
+    const response = await fetch(`${this.bridgeUrl}/logout?instancia=${encodeURIComponent(instancia)}`, {
+      method: "POST",
+      headers: this.bridgeToken ? { "X-Bridge-Token": this.bridgeToken } : {}
+    });
+
+    if (!response.ok && response.status !== 404) {
+      const payload = await response.json().catch(() => ({})) as Record<string, unknown>;
+      throw new Error(typeof payload.detail === "string" ? payload.detail : "Erro ao desconectar Instagram.");
+    }
   }
 
   private async enviarComRetry<T extends { ok: boolean }>(operacao: () => Promise<T>): Promise<T> {

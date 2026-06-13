@@ -34,7 +34,45 @@ export interface FiltrosRelatorioComercial {
 
 export type RenderizadorRelatorioPdf = (html: string, options?: OpcoesRenderPdf) => Promise<Buffer>;
 
+const CACHE_TTL_MS = 5 * 60 * 1000;
+const CACHE_MAX_ENTRADAS = 50;
+
+interface EntradaCache<T = unknown> {
+  dados: T;
+  expiraEm: number;
+}
+
+class CacheRelatorios {
+  private entradas = new Map<string, EntradaCache>();
+
+  obter<T>(chave: string): T | undefined {
+    const entrada = this.entradas.get(chave);
+    if (!entrada) return undefined;
+    if (Date.now() > entrada.expiraEm) {
+      this.entradas.delete(chave);
+      return undefined;
+    }
+    return entrada.dados as T;
+  }
+
+  definir<T>(chave: string, dados: T): void {
+    if (this.entradas.size >= CACHE_MAX_ENTRADAS) {
+      const primeiraChave = this.entradas.keys().next().value;
+      if (primeiraChave) this.entradas.delete(primeiraChave);
+    }
+    this.entradas.set(chave, { dados, expiraEm: Date.now() + CACHE_TTL_MS });
+  }
+
+  invalidar(prefixo: string): void {
+    for (const chave of this.entradas.keys()) {
+      if (chave.startsWith(prefixo)) this.entradas.delete(chave);
+    }
+  }
+}
+
 export class RelatoriosComerciaisUseCase {
+  private readonly cache = new CacheRelatorios();
+
   constructor(
     private readonly pedidos: RepositorioPedidos,
     private readonly clientes: RepositorioClientes,
@@ -49,6 +87,16 @@ export class RelatoriosComerciaisUseCase {
   ) {}
 
   async gerarRelatorio(negocioId: string, filtros: FiltrosRelatorioComercial = {}) {
+    const chaveCache = `relatorio:${negocioId}:${JSON.stringify(filtros)}`;
+    const emCache = this.cache.obter<Awaited<ReturnType<typeof this.gerarRelatorioInterno>>>(chaveCache);
+    if (emCache) return emCache;
+
+    const resultado = await this.gerarRelatorioInterno(negocioId, filtros);
+    this.cache.definir(chaveCache, resultado);
+    return resultado;
+  }
+
+  private async gerarRelatorioInterno(negocioId: string, filtros: FiltrosRelatorioComercial = {}) {
     const filtrosPedidos: FiltrosPedidos = {
       estado: filtros.estado,
       canal: filtros.canal,
@@ -77,6 +125,7 @@ export class RelatoriosComerciaisUseCase {
     const receitaBrutaEmKwanza = pedidosDoRelatorio.reduce((total, pedido) => total + pedido.subtotalEmKwanza, 0);
     const descontosEmKwanza = pedidosDoRelatorio.reduce((total, pedido) => total + pedido.descontoEmKwanza, 0);
     const entregaEmKwanza = pedidosDoRelatorio.reduce((total, pedido) => total + pedido.taxaEntregaEmKwanza, 0);
+    const ivaEmKwanza = pedidosDoRelatorio.reduce((total, pedido) => total + (pedido.ivaEmKwanza ?? 0), 0);
     const receitaLiquidaEstimadaEmKwanza = receitaBrutaEmKwanza - descontosEmKwanza + entregaEmKwanza;
     const reservasComIntencao = reservasDoRelatorio.filter((reserva) => !filtros.dataInicio || reserva.criadaEm >= filtros.dataInicio);
     const reservasPagas = reservasComIntencao.filter((reserva) => reserva.estado === "PAID");
@@ -107,6 +156,7 @@ export class RelatoriosComerciaisUseCase {
         receitaBrutaEmKwanza,
         descontosEmKwanza,
         entregaEmKwanza,
+        ivaEmKwanza,
         receitaLiquidaEstimadaEmKwanza
       },
       rankings: {
@@ -146,6 +196,53 @@ export class RelatoriosComerciaisUseCase {
       ].filter((item) => item.quantidade > 0),
       rankings: relatorio.rankings
     };
+  }
+
+  async gerarSerieTemporalReceita(negocioId: string, dias = 30) {
+    const chaveCache = `serie:${negocioId}:${dias}`;
+    const emCache = this.cache.obter<{ serie: Array<{ dia: string; receita: number; pedidos: number; iva: number }> }>(chaveCache);
+    if (emCache) return emCache;
+
+    const dataInicio = new Date();
+    dataInicio.setDate(dataInicio.getDate() - dias);
+    dataInicio.setHours(0, 0, 0, 0);
+
+    const pedidos = await this.pedidos.listar(negocioId, {
+      dataInicio,
+      dataFim: new Date()
+    });
+
+    const pedidosPagos = pedidos.filter(
+      (p) => p.estadoPagamento === "CONFIRMADO" || p.estado === "PAGO" || p.estado === "ENTREGUE"
+    );
+
+    const porDia = new Map<string, { receita: number; pedidos: number; iva: number }>();
+
+    for (let d = 0; d < dias; d++) {
+      const data = new Date(dataInicio);
+      data.setDate(data.getDate() + d);
+      const chave = data.toISOString().slice(0, 10);
+      porDia.set(chave, { receita: 0, pedidos: 0, iva: 0 });
+    }
+
+    for (const pedido of pedidosPagos) {
+      const dataPagamento = pedido.pagoEm ?? pedido.criadoEm;
+      const chave = dataPagamento.toISOString().slice(0, 10);
+      const entrada = porDia.get(chave);
+      if (entrada) {
+        entrada.receita += pedido.totalEmKwanza;
+        entrada.pedidos += 1;
+        entrada.iva += pedido.ivaEmKwanza ?? 0;
+      }
+    }
+
+    const serie = [...porDia.entries()]
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([dia, dados]) => ({ dia, ...dados }));
+
+    const resultado = { serie };
+    this.cache.definir(chaveCache, resultado);
+    return resultado;
   }
 
   async exportarPdf(
@@ -525,7 +622,19 @@ export class RelatoriosComerciaisUseCase {
   }
 
   private mediaArredondada(valores: number[]) {
-    return valores.length ? Math.round(valores.reduce((total, valor) => total + valor, 0) / valores.length) : 0;
+    const finitos = valores.filter((v) => Number.isFinite(v));
+    if (!finitos.length) return 0;
+    const ordenados = [...finitos].sort((a, b) => a - b);
+    const q1 = ordenados[Math.floor(ordenados.length * 0.25)];
+    const q3 = ordenados[Math.floor(ordenados.length * 0.75)];
+    const iqr = q3 - q1;
+    const limiteInferior = q1 - 1.5 * iqr;
+    const limiteSuperior = q3 + 1.5 * iqr;
+    const semOutliers = ordenados.length >= 10
+      ? finitos.filter((v) => v >= limiteInferior && v <= limiteSuperior)
+      : finitos;
+    const valoresParaMedia = semOutliers.length ? semOutliers : finitos;
+    return Math.round(valoresParaMedia.reduce((total, v) => total + v, 0) / valoresParaMedia.length);
   }
 
   private calcularTempoPrimeiraRespostaMinutos(conversa: ConversaAtendimentoComMensagens): number | null {

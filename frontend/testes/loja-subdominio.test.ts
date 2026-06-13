@@ -15,6 +15,7 @@ describe("subdomínio público da loja", () => {
     expect(extrairSlugLojaDoHostname("usebizy.space", "usebizy.space")).toBeNull();
     expect(extrairSlugLojaDoHostname("www.usebizy.space", "usebizy.space")).toBeNull();
     expect(extrairSlugLojaDoHostname("api.usebizy.space", "usebizy.space")).toBeNull();
+    expect(extrairSlugLojaDoHostname("market.usebizy.space", "usebizy.space")).toBeNull();
   });
 
   it("prioriza o subdomínio e mantém o fallback /lojas/:slug", () => {

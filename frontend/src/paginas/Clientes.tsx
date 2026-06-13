@@ -1,5 +1,7 @@
 import {
+  Bolt,
   CheckCircle2,
+  Clock,
   Coins,
   Download,
   Eye,
@@ -238,63 +240,114 @@ export function PaginaClientes() {
     }
   }
 
+  const novosEsteMes = useMemo(() => {
+    const agora = new Date();
+    return clientes.filter((c) => {
+      const d = new Date(c.primeiraInteracaoEm);
+      return d.getMonth() === agora.getMonth() && d.getFullYear() === agora.getFullYear();
+    }).length;
+  }, [clientes]);
+
+  const ativos30dias = useMemo(() => {
+    const limite = Date.now() - 30 * 24 * 60 * 60 * 1000;
+    return clientes.filter((c) => c.metricas.ultimaInteracaoEm && Number(new Date(c.metricas.ultimaInteracaoEm)) > limite).length;
+  }, [clientes]);
+
+  const aRecuperar = useMemo(() => {
+    const limite = Date.now() - 60 * 24 * 60 * 60 * 1000;
+    return clientes.filter((c) => {
+      if (!c.metricas.ultimaInteracaoEm) return false;
+      return Number(new Date(c.metricas.ultimaInteracaoEm)) < limite;
+    }).length;
+  }, [clientes]);
+
   if (carregando && !clientes.length) return <CrmPageMotion><SkeletonPagina /></CrmPageMotion>;
 
   return (
     <CrmPageMotion>
-      {/* ── Header ─────────────────────────────────────────────── */}
-      <PageHead
-        eyebrow={`CRM 360 · ${clientes.length} perfil${clientes.length !== 1 ? "s" : ""}`}
-        titulo="Clientes"
-        tamanhoTitulo="sm"
-      >
-        <BotaoBizy variante="ghost" icone={Download} onClick={exportar}>
-          Exportar
-        </BotaoBizy>
-        <BotaoBizy icone={Plus}>Novo cliente</BotaoBizy>
-      </PageHead>
+      <div className="crm-v3-pgwrap">
+        {/* ── Page Head ─────────────────────────────────────── */}
+        <div className="crm-v3-pghead">
+          <div>
+            <h1>Clientes</h1>
+            <div className="crm-v3-sub">
+              {clientes.length} clientes · {novosEsteMes} novos este mês
+            </div>
+          </div>
+          <div className="crm-v3-pghead-right">
+            <button type="button" className="crm-v3-btn crm-v3-btn-ghost" onClick={exportar}>
+              Importar contactos
+            </button>
+            <Link to="/app/clientes" className="crm-v3-btn crm-v3-btn-primary">
+              <Plus size={13} />
+              Novo cliente
+            </Link>
+          </div>
+        </div>
 
-      {/* ── KPIs ───────────────────────────────────────────────── */}
-      <KpiGrid>
-        <KpiCard
-          icone={Coins}
-          hero
-          rotulo="Receita acumulada"
-          valor={formatarKwanza(valorTotal)}
-          deltaPositivo={true}
-          delta="vida útil dos clientes"
-          rodape={`ticket médio · ${formatarKwanza(ticketMedio)}`}
-        />
-        <KpiCard
-          icone={Users}
-          cor="violet"
-          rotulo="Compradores"
-          valor={compradores}
-          delta="com pedido fechado"
-        />
-        <KpiCard
-          icone={Heart}
-          cor="blue"
-          rotulo="VIP"
-          valor={totalVip}
-          delta={`acima de 150k Kz`}
-        />
-        <KpiCard
-          icone={CheckCircle2}
-          cor="green"
-          rotulo="Consentimento"
-          valor={<>{taxaConsent}<span className="bz-kpi-unit">%</span></>}
-          delta={taxaConsent >= 80 ? "opt-in completo" : `${comConsent} de ${clientes.length}`}
-          deltaPositivo={taxaConsent >= 80 ? true : undefined}
-        />
-      </KpiGrid>
-
-      {/* ── Filter Chips ───────────────────────────────────────── */}
-      <FilterChips
-        opcoes={filtrosComContagem}
-        activo={filtro}
-        onChange={(id) => setFiltro(id as Filtro)}
-      />
+        {/* ── Segment Filter Tiles ────────────────────────────── */}
+        <div className="crm-v3-ftiles" style={{ gridTemplateColumns: "repeat(4, 1fr)" }}>
+          <button
+            type="button"
+            className="crm-v3-ftile"
+            data-active={filtro === "todos" ? "true" : undefined}
+            onClick={() => setFiltro("todos")}
+          >
+            <span className="crm-v3-ftile-icon" style={{ background: "var(--em-tint)", color: "var(--em)" }}>
+              <Users size={17} />
+            </span>
+            <div>
+              <div className="crm-v3-ftile-title">Todos</div>
+              <div className="crm-v3-ftile-desc">base completa</div>
+            </div>
+            <span className="crm-v3-ftile-count">{clientes.length}</span>
+          </button>
+          <button
+            type="button"
+            className="crm-v3-ftile"
+            data-active={filtro === "VIP" ? "true" : undefined}
+            onClick={() => setFiltro("VIP")}
+          >
+            <span className="crm-v3-ftile-icon" style={{ background: "var(--violet-tint)", color: "var(--violet)" }}>
+              <CheckCircle2 size={17} />
+            </span>
+            <div>
+              <div className="crm-v3-ftile-title">VIP</div>
+              <div className="crm-v3-ftile-desc">+5 compras</div>
+            </div>
+            <span className="crm-v3-ftile-count">{totalVip}</span>
+          </button>
+          <button
+            type="button"
+            className="crm-v3-ftile"
+            data-active={filtro === "ATIVO" ? "true" : undefined}
+            onClick={() => setFiltro("ATIVO")}
+          >
+            <span className="crm-v3-ftile-icon" style={{ background: "var(--blue-tint)", color: "var(--blue)" }}>
+              <Bolt size={17} />
+            </span>
+            <div>
+              <div className="crm-v3-ftile-title">Ativos 30 dias</div>
+              <div className="crm-v3-ftile-desc">compraram há pouco</div>
+            </div>
+            <span className="crm-v3-ftile-count">{ativos30dias}</span>
+          </button>
+          <button
+            type="button"
+            className="crm-v3-ftile"
+            data-active={filtro === "INATIVO" ? "true" : undefined}
+            onClick={() => setFiltro("INATIVO")}
+          >
+            <span className="crm-v3-ftile-icon" style={{ background: "var(--amber-tint)", color: "var(--amber)" }}>
+              <Clock size={17} />
+            </span>
+            <div>
+              <div className="crm-v3-ftile-title">A recuperar</div>
+              <div className="crm-v3-ftile-desc">+60 dias sem comprar</div>
+            </div>
+            <span className="crm-v3-ftile-count">{aRecuperar}</span>
+          </button>
+        </div>
 
       {/* ── Data Table ─────────────────────────────────────────── */}
       <AnimatePresence mode="wait" initial={false}>
@@ -462,6 +515,7 @@ export function PaginaClientes() {
           {mensagem}
         </footer>
       )}
+      </div>
     </CrmPageMotion>
   );
 }

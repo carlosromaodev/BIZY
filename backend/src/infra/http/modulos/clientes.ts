@@ -199,6 +199,18 @@ export const moduloClientes: ModuloHttp = {
       return contexto.gestaoClientesCrm.segmentarClientes(contextoComercial.negocio.id);
     });
 
+    app.get("/clientes/segmentos/rfm", async (request, reply) => {
+      const contextoComercial = await exigirAcessoComercial(contexto, request, reply, {
+        permissao: "clientes:ler",
+        modulo: "crm",
+        mensagemPermissao: "Sem permissão para consultar segmentação RFM.",
+        mensagemModulo: "CRM desativado para este negócio."
+      });
+      if (!contextoComercial) return;
+
+      return contexto.gestaoClientesCrm.segmentarClientesRFM(contextoComercial.negocio.id);
+    });
+
     app.post("/clientes/mesclar/preview", async (request, reply) => {
       const contextoComercial = await exigirAcessoComercial(contexto, request, reply, {
         permissao: "clientes:gerir",

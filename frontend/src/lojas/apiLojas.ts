@@ -134,6 +134,18 @@ export function obterProdutoLojaPublica(
   );
 }
 
+export function listarProdutosSimilaresLojaPublica(
+  slug: string,
+  codigo: string,
+  limite?: number | null
+): Promise<RespostaSimilaresMarket> {
+  return requisitarApi<RespostaSimilaresMarket>(
+    comQuery(ROTAS_API_LOJAS.produtosSimilaresLoja(slug, codigo), { limite }),
+    {},
+    false
+  );
+}
+
 export function calcularEntregaLojaPublica(
   slug: string,
   payload: PayloadCalculoEntregaLojaPublica

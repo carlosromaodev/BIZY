@@ -3601,12 +3601,15 @@ body.mobile-chat-imersivo {
   overflow: hidden;
 }
 
-/* 1 — Esconde toda a chrome do shell */
+/* 1 — Esconde toda a chrome do shell (incluindo CRM v3) */
 body.mobile-chat-imersivo .app-mobile-chrome,
 body.mobile-chat-imersivo .app-mobile-dock,
 body.mobile-chat-imersivo .app-commerce-nav,
 body.mobile-chat-imersivo .app-global-search,
-body.mobile-chat-imersivo .app-mobile-menu-dock {
+body.mobile-chat-imersivo .app-mobile-menu-dock,
+body.mobile-chat-imersivo .crm-v3-mob-head,
+body.mobile-chat-imersivo .crm-v3-mob-bottom,
+body.mobile-chat-imersivo .crm-v3-mob-search-wrap {
   display: none !important;
 }
 
@@ -3650,30 +3653,87 @@ body.mobile-chat-imersivo .chat-social-panel {
   background: var(--background);
 }
 
-/* 7 — Compositor ocupa o mesmo espaço que o dock ocupava */
+/* 7 — Compositor estilo SMS moderno */
 body.mobile-chat-imersivo .chat-commerce-composer {
   border-radius: 0;
   border-left: 0;
   border-right: 0;
   border-bottom: 0;
-  background: var(--card);
-  border-top: 1px solid var(--border);
+  background: var(--surface, #fff);
+  border-top: 1px solid var(--line-2, #f0ede6);
+  box-shadow: 0 -1px 4px rgba(0, 0, 0, 0.04);
+  padding: 8px 10px;
 }
 
-/* 8 — Área de mensagens preenche o restante */
+/* 8 — Área de mensagens — fundo tipo WhatsApp suave */
 body.mobile-chat-imersivo .chat-commerce-messages {
-  background: var(--background);
+  background: var(--paper, #faf8f4);
 }
 
-/* 9 — Safe area para dispositivos com entalhe (notch/home bar) */
+/* 9 — Header do chat — estilo app de mensagens */
+body.mobile-chat-imersivo .chat-social-header {
+  background: var(--surface, #fff);
+  border-bottom: 1px solid var(--line-2, #f0ede6);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  padding: 8px 10px;
+  min-height: 56px;
+}
+
+/* 10 — Textarea arredondado estilo iMessage/WhatsApp */
+body.mobile-chat-imersivo .chat-commerce-textarea {
+  border-radius: 22px !important;
+  background: var(--paper, #faf8f4) !important;
+  border: 1px solid var(--line, #e7e4dc) !important;
+  padding: 8px 16px !important;
+  min-height: 40px !important;
+  font-size: 15px !important;
+  line-height: 1.4 !important;
+}
+body.mobile-chat-imersivo .chat-commerce-textarea:focus {
+  border-color: var(--em, #0e8c68) !important;
+  box-shadow: 0 0 0 2px rgba(14, 140, 104, 0.1) !important;
+}
+
+/* 11 — Botão de enviar circular estilo mensageiro */
+body.mobile-chat-imersivo .chat-commerce-row > button:last-child {
+  width: 40px !important;
+  height: 40px !important;
+  border-radius: 50% !important;
+  background: var(--em, #0e8c68) !important;
+  border: none !important;
+  color: #fff !important;
+  flex-shrink: 0;
+}
+body.mobile-chat-imersivo .chat-commerce-row > button:last-child:disabled {
+  background: var(--ink-4, #9aa39e) !important;
+  opacity: 0.5;
+}
+
+/* 12 — Botão "+" FAB à esquerda mais discreto */
+body.mobile-chat-imersivo .atendimento-fab-mobile {
+  width: 36px !important;
+  height: 36px !important;
+  border-radius: 50% !important;
+  border: 1px solid var(--line, #e7e4dc) !important;
+  background: var(--surface, #fff) !important;
+  flex-shrink: 0;
+}
+
+/* 13 — Safe area para dispositivos com entalhe (notch/home bar) */
 @supports (padding-bottom: env(safe-area-inset-bottom)) {
   body.mobile-chat-imersivo .chat-commerce-composer {
-    padding-bottom: calc(0.625rem + env(safe-area-inset-bottom));
+    padding-bottom: calc(8px + env(safe-area-inset-bottom));
   }
 
   body.mobile-chat-imersivo .chat-social-header {
-    padding-top: max(0.75rem, env(safe-area-inset-top));
+    padding-top: max(8px, env(safe-area-inset-top));
   }
+}
+
+/* 14 — Bolhas de mensagem mais refinadas no mobile */
+body.mobile-chat-imersivo .atendimento-message-bubble {
+  max-width: 80% !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
 }
 
 /* ================================================================
@@ -15598,8 +15658,10 @@ body.mobile-chat-imersivo .chat-commerce-messages {
   text-transform: capitalize;
 }
 
+button.bizy-upload-card,
 .bizy-upload-card {
   display: flex;
+  width: 100%;
   min-height: 154px;
   flex-direction: column;
   align-items: center;
@@ -15611,6 +15673,19 @@ body.mobile-chat-imersivo .chat-commerce-messages {
   color: var(--bizy-ink-2);
   padding: 1.6rem;
   text-align: center;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+  font-family: inherit;
+}
+
+button.bizy-upload-card:hover {
+  border-color: var(--bizy-em);
+  background: color-mix(in srgb, var(--bizy-em) 6%, var(--bizy-cream));
+}
+
+button.bizy-upload-card:disabled {
+  opacity: 0.6;
+  cursor: wait;
 }
 
 .bizy-upload-card svg {
@@ -15625,6 +15700,67 @@ body.mobile-chat-imersivo .chat-commerce-messages {
 .bizy-upload-card span {
   color: var(--bizy-ink-3);
   font-size: 0.76rem;
+}
+
+.bizy-upload-preview {
+  display: flex;
+  gap: 0.65rem;
+  flex-wrap: wrap;
+}
+
+.bizy-upload-thumb {
+  position: relative;
+  width: 90px;
+  height: 90px;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1.5px solid var(--bizy-line);
+}
+
+.bizy-upload-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.bizy-upload-thumb button {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+}
+
+.bizy-upload-add {
+  width: 90px;
+  height: 90px;
+  border-radius: 12px;
+  border: 1.5px dashed var(--bizy-line);
+  background: var(--bizy-cream);
+  color: var(--bizy-ink-3);
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  transition: border-color 0.2s;
+}
+
+.bizy-upload-add:hover {
+  border-color: var(--bizy-em);
+  color: var(--bizy-em);
+}
+
+.bizy-upload-add:disabled {
+  opacity: 0.6;
+  cursor: wait;
 }
 
 .bizy-product-preview-card > div:first-child {
@@ -20772,15 +20908,42 @@ body.mobile-chat-imersivo .chat-commerce-messages {
   .crm-v3-kbig-unit { font-size: 15px; }
   .crm-v3-kbig-delta { font-size: 11px; padding: 4px 10px; }
 
-  /* Secondary KPI cards → 2-col grid */
+  /* Secondary KPI cards → compact 3-col horizontal strip */
   .crm-v3-kstrip .crm-v3-kcard {
-    border-radius: 15px;
-    padding: 14px 15px;
+    border-radius: 0;
+    border: none;
+    border-bottom: 1px solid var(--line-2, #f0ede6);
+    padding: 10px 14px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: var(--surface, #fff);
   }
-  .crm-v3-kstrip .crm-v3-kcard-value { font-size: 22px; }
-
-  /* Wrap secondary kcards in implicit 2-col via CSS — handled by a wrapper div in JSX
-     or use display:contents trick. For now, the existing responsive rules stack them. */
+  .crm-v3-kstrip .crm-v3-kcard:first-of-type {
+    margin-top: 12px;
+    border-top: 1px solid var(--line-2, #f0ede6);
+  }
+  .crm-v3-kstrip .crm-v3-kcard:last-child { border-bottom: 1px solid var(--line-2, #f0ede6); }
+  .crm-v3-kstrip .crm-v3-kcard-label {
+    font-size: 13px;
+    flex: 1;
+    min-width: 0;
+    gap: 7px;
+  }
+  .crm-v3-kstrip .crm-v3-kcard-label svg { width: 15px; height: 15px; }
+  .crm-v3-kstrip .crm-v3-kcard-value {
+    font-size: 20px;
+    font-weight: 700;
+    margin-top: 0;
+    line-height: 1;
+    flex-shrink: 0;
+  }
+  .crm-v3-kstrip .crm-v3-kcard-delta {
+    font-size: 11px;
+    margin-top: 0;
+    flex-shrink: 0;
+    white-space: nowrap;
+  }
 
   /* Filter tiles → horizontal scroll */
   .crm-v3-ftiles {
@@ -20807,21 +20970,47 @@ body.mobile-chat-imersivo .chat-commerce-messages {
   .crm-v3-ftile-count { font-size: 12px; }
 
   /* Orders table → card list on mobile */
-  .crm-v3-otbl { border-radius: 16px; margin: 12px 16px 0; }
-  .crm-v3-otbl-head { display: none; }
+  .crm-v3-otbl { border-radius: 14px; margin: 10px 16px 0; overflow: hidden; }
+  .crm-v3-otbl-head { display: none !important; }
   .crm-v3-otbl-row {
-    display: flex;
+    display: flex !important;
+    flex-wrap: wrap !important;
     align-items: center;
-    gap: 12px;
-    padding: 13px 16px;
-    grid-template-columns: none !important;
+    gap: 0;
+    padding: 12px 14px;
   }
-  .crm-v3-otbl-oid { display: none; }
-  .crm-v3-otbl-cli { flex: 1; min-width: 0; }
-  .crm-v3-otbl-cli .crm-v3-av { width: 40px; height: 40px; border-radius: 12px; font-size: 12px; }
-  .crm-v3-otbl-item { display: none; }
-  .crm-v3-otbl-price { font-size: 15px; }
-  .crm-v3-otbl-actions { display: none; }
+  .crm-v3-otbl-oid { display: none !important; }
+  .crm-v3-otbl-item { display: none !important; }
+  .crm-v3-otbl-actions { display: none !important; }
+
+  /* Line 1: avatar + name/channel + price */
+  .crm-v3-otbl-cli {
+    display: flex !important;
+    align-items: center;
+    gap: 10px;
+    flex: 1 1 0%;
+    min-width: 0;
+  }
+  .crm-v3-otbl-cli .crm-v3-av {
+    width: 38px; height: 38px; border-radius: 10px; font-size: 11px; flex-shrink: 0;
+  }
+  .crm-v3-otbl-cli > span { min-width: 0; overflow: hidden; }
+  .crm-v3-otbl-cli-name {
+    font-size: 14px !important; font-weight: 600;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block;
+  }
+  .crm-v3-otbl-cli-channel { font-size: 11px !important; color: var(--ink-4) !important; }
+
+  .crm-v3-otbl-price {
+    flex-shrink: 0; font-size: 14px !important; font-weight: 700;
+    text-align: right; white-space: nowrap; margin-left: auto; padding-left: 8px;
+  }
+
+  /* Line 2: badge drops below, full width */
+  .crm-v3-otbl-row > span:nth-child(5) {
+    flex-basis: 100%; margin-top: 6px; padding-left: 48px;
+  }
+  .crm-v3-otbl-row .crm-v3-bdg { font-size: 11px; padding: 2px 8px; }
 
   /* 2-column layout → stack */
   .crm-v3-pgwrap > div[style*="grid-template-columns: 1.5fr 1fr"] {
@@ -20908,12 +21097,12 @@ body.mobile-chat-imersivo .chat-commerce-messages {
 .crm-v3-mob-head-r1 {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 6px;
   padding-bottom: 8px;
   position: relative;
   z-index: 1;
 }
-.crm-v3-mob-head .crm-brand-wordmark { color: var(--ink, #17211c); font-size: 19px; }
+.crm-v3-mob-head .crm-brand-wordmark { color: var(--ink, #17211c); width: 3.75rem; height: 1.25rem; }
 
 .crm-v3-mob-tag {
   font-family: var(--font-mono, monospace);

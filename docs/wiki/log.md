@@ -6,10 +6,27 @@ tags:
   - bizy/wiki
   - bizy/log
 status: ativo
-updated: 2026-06-07
+updated: 2026-06-12
 ---
 
 # Log da Wiki
+
+## [2026-06-12] auditoria | Parecer triplo: contabilista, estatistico, engenheiro de dados
+
+- Criada pagina [[auditoria-tripla-bizy]] com parecer profissional de 3 especialistas.
+- **Contabilista (6/10)**: auditoria bem implementada mas falta IVA angolano (14%), valores em Int perdem centavos, reembolsos nao implementados, sem recibos fiscais, sem retencao na fonte de comissoes.
+- **Estatistico (4/10)**: metricas basicas OK (receita, ticket, conversao, cohort basico), mas falta RFM, churn prediction, CLV, decomposicao sazonal, testes A/B, intervalos de confianca, analise de funil, market basket. Nenhuma biblioteca de graficos instalada. `mediaArredondada()` nao protege contra NaN/Infinity.
+- **Engenheiro de dados (5/10)**: 146 indices bem colocados, FK corretas, unique constraints OK. Problema critico: relatorios computam tudo in-memory (ate 600k objectos). Sem cache (Redis), sem tabelas de agregacao, 58 campos JSON nao-indexaveis, workers de background sem consumer, soft deletes inconsistentes.
+- Matriz de prioridades unificada: 15 itens em 3 faixas (critico/importante/medio prazo).
+
+## [2026-06-12] frontend | CRM v3 tokens warm e modulos drawer
+
+- Corrigidos tokens base do `:root` em `estilos.css`: os neutrals usavam oklch hue 250 (cool blue-gray) mas o design de referencia mostra tom **warm/creme**. Substituidos por hex do design: `--bg/#faf8f4`, `--ink/#17211c`, `--line/#e7e4dc`, etc. Adicionado `--cream: #f4f1ea` no `:root`.
+- Botao "Modulos" no shell CRM v3 deixou de abrir o sheet mobile. Agora **expande inline** na barra de tabs: hover ou click preenche a tab bar com fundo escuro (`var(--ink)`) e mostra todas as rotas secundarias agrupadas por seccao (Vendas, CRM, Vitrine, Gestao). Animacao spring via framer-motion. Items activos usam `--lime`. Ao clicar ou afastar, fecha e restaura tabs principais.
+- CSS adicionado: `.crm-v3-modulos-drawer`, `.crm-v3-modulos-grupo`, `.crm-v3-modulos-secao`, `.crm-v3-modulos-item`, `.crm-v3-tabs-inner`.
+- Ajustes de conforto visual completados em todas as seccoes CRM v3: chat, client cards, live console, reports, studio layout + responsive breakpoints 640px.
+- Wiki `identidade-visual-bizy-v2.md` atualizada com tokens warm correctos e documentacao do shell Market.
+- Build verificado: `tsc --noEmit` 0 erros, `vite build` OK.
 
 ## [2026-06-07] backend | WhatsApp com cadencia e webhook CRM corrigido
 
@@ -169,6 +186,13 @@ updated: 2026-06-07
 - Backend libera CORS para subdominios publicados, expõe `/publico/lojas/dominios/autorizar` para TLS sob demanda no Caddy e bloqueia subdominios reservados como `api`, `www`, `app`, `n8n` e `wa`.
 - Docker/Caddy recebeu `PUBLIC_STORE_DOMAIN`, build arg `VITE_PUBLIC_STORE_DOMAIN` e rota catch-all com `on_demand_tls` autorizado pelo backend.
 - Verificacoes associadas: `frontend/testes/loja-subdominio.test.ts`, `backend/src/testes/cors.test.ts`, `backend/src/testes/loja-publica-tracking-http.test.ts`, typecheck, build e validacao do Caddy.
+
+## [2026-06-11] bizy-market | Dominio proprio do shopping center
+
+- Bizy Market passa a ter dominio canonico `market.usebizy.space`, separado dos subdominios das lojas.
+- Frontend reconhece `market.usebizy.space/` como entrada do Market e usa caminhos limpos `/produtos/:codigo`, `/categorias/:categoria` e `/lojas`, preservando `/market` como fallback local/compatibilidade.
+- `market` foi reservado como subdominio de loja no frontend e no CORS do backend.
+- Docker/Caddy recebeu `MARKET_DOMAIN`; frontend recebeu `VITE_PUBLIC_MARKET_URL`; backend aceita `PUBLIC_MARKET_DOMAIN`, `MARKET_DOMAIN` ou `PUBLIC_MARKET_URL` para CORS do Market.
 
 ## [2026-05-31] loja-digital | Polimento visual da loja publica
 

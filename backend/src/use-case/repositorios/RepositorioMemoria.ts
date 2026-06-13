@@ -2130,11 +2130,11 @@ export class RepositorioInstanciasWhatsAppMemoria implements RepositorioInstanci
 export class RepositorioInstanciasInstagramMemoria implements RepositorioInstanciasInstagram {
   private readonly instancias = new Map<string, InstanciaInstagram>();
 
-  async criar(dados: { negocioId?: string | null; nome: string; username: string; padrao?: boolean }): Promise<InstanciaInstagram> {
+  async criar(dados: { negocioId?: string | null; nome: string; username: string; status?: string; padrao?: boolean; ativa?: boolean }): Promise<InstanciaInstagram> {
     const agora = new Date();
     const instancia: InstanciaInstagram = {
       id: randomUUID(), negocioId: dados.negocioId ?? null, nome: dados.nome, username: dados.username,
-      status: "CRIADA", padrao: dados.padrao ?? false, ativa: true, ultimoErro: null,
+      status: dados.status ?? "CRIADA", padrao: dados.padrao ?? false, ativa: dados.ativa ?? true, ultimoErro: null,
       ultimaConexaoEm: null, ultimaPollEm: null, criadaEm: agora, atualizadaEm: agora
     };
     this.instancias.set(instancia.id, instancia);
@@ -2153,8 +2153,8 @@ export class RepositorioInstanciasInstagramMemoria implements RepositorioInstanc
     return negocioId === undefined || inst.negocioId === (negocioId ?? null) ? inst : null;
   }
 
-  async buscarPorNome(nome: string): Promise<InstanciaInstagram | null> {
-    return [...this.instancias.values()].find((i) => i.nome.toLowerCase() === nome.toLowerCase() && i.ativa) ?? null;
+  async buscarPorNome(negocioId: string, nome: string): Promise<InstanciaInstagram | null> {
+    return [...this.instancias.values()].find((i) => i.negocioId === negocioId && i.nome.toLowerCase() === nome.toLowerCase() && i.ativa) ?? null;
   }
 
   async atualizar(id: string, dados: Partial<Pick<InstanciaInstagram, "username" | "status" | "padrao" | "ativa" | "ultimoErro" | "ultimaConexaoEm" | "ultimaPollEm">>): Promise<InstanciaInstagram> {

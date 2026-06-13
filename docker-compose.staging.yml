@@ -14,6 +14,7 @@ services:
     environment:
       ACME_EMAIL: ${ACME_EMAIL:?configure ACME_EMAIL para staging}
       FRONTEND_DOMAIN: ${FRONTEND_DOMAIN:?configure FRONTEND_DOMAIN para staging}
+      MARKET_DOMAIN: ${MARKET_DOMAIN:?configure MARKET_DOMAIN para Market}
       API_DOMAIN: ${API_DOMAIN:?configure API_DOMAIN para staging}
       PUBLIC_STORE_DOMAIN: ${PUBLIC_STORE_DOMAIN:?configure PUBLIC_STORE_DOMAIN para lojas}
       N8N_DOMAIN: ${N8N_DOMAIN:?configure N8N_DOMAIN para staging}

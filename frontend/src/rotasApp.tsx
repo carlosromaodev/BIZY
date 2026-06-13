@@ -36,16 +36,19 @@ import { PaginaClientes } from "./paginas/Clientes";
 import { PaginaComentarios } from "./paginas/Comentarios";
 import { PaginaConversas } from "./paginas/Conversas";
 import { PaginaCotacoes } from "./paginas/Cotacoes";
+import { PaginaCheckoutBizy } from "./paginas/CheckoutBizy";
 import { PaginaFormularios } from "./paginas/Formularios";
 import { PaginaHome } from "./paginas/Home";
 import { PaginaLive } from "./paginas/Live";
 import { PaginaLogin } from "./paginas/Login";
 import { PaginaLojaDigitalPublica } from "./paginas/LojaDigitalPublica";
 import { PaginaLojaPublica } from "./paginas/LojaPublica";
+import { PaginaDiretorioLojasMarket, PaginaMarket } from "./paginas/Market";
 import { PaginaMetas } from "./paginas/Metas";
 import { PaginaOnboarding } from "./paginas/Onboarding";
 import { PaginaPainel } from "./paginas/Painel";
 import { PaginaPipeline } from "./paginas/Pipeline";
+import { PaginaProdutoMarket } from "./paginas/ProdutoMarket";
 import { PaginaRecuperacao } from "./paginas/Recuperacao";
 import { PaginaRelatorios } from "./paginas/Relatorios";
 import { PaginaRespostasRapidas } from "./paginas/RespostasRapidas";
@@ -59,6 +62,7 @@ import { PaginaDiagnosticos } from "./paginas/Diagnosticos";
 import { PaginaAuditoria } from "./paginas/Auditoria";
 import { PaginaPagamentos } from "./paginas/Pagamentos";
 import { temSubdominioLojaPublica } from "./lojaSubdominio";
+import { temDominioMarketPublico } from "./marketDominio";
 
 export type SecaoNavegacao = "Hoje" | "Vendas" | "CRM" | "Vitrine" | "Gestão" | "Admin/Sistema";
 
@@ -79,12 +83,22 @@ export interface RotaPrivada {
 }
 
 function PaginaEntradaPublica() {
+  if (temDominioMarketPublico()) return <PaginaMarket />;
   return temSubdominioLojaPublica() ? <PaginaLojaDigitalPublica /> : <PaginaHome />;
 }
 
 export const rotasPublicas: RotaPublica[] = [
   { caminho: "/", elemento: <PaginaEntradaPublica /> },
   { caminho: "/login", elemento: <PaginaLogin /> },
+  { caminho: "/checkout", elemento: <PaginaCheckoutBizy /> },
+  { caminho: "/produtos/:codigo", elemento: <PaginaProdutoMarket /> },
+  { caminho: "/lojas", elemento: <PaginaDiretorioLojasMarket /> },
+  { caminho: "/categorias/:categoria", elemento: <PaginaMarket /> },
+  { caminho: "/market/produtos/:codigo", elemento: <PaginaProdutoMarket /> },
+  { caminho: "/market/lojas", elemento: <PaginaDiretorioLojasMarket /> },
+  { caminho: "/market/categorias/:categoria", elemento: <PaginaMarket /> },
+  { caminho: "/market", elemento: <PaginaMarket /> },
+  { caminho: "/lojas/:slug/produtos/:codigo", elemento: <PaginaLojaDigitalPublica /> },
   { caminho: "/lojas/:slug", elemento: <PaginaLojaDigitalPublica /> }
 ];
 
@@ -114,7 +128,7 @@ export const rotasComerciais: RotaPrivada[] = [
 
   // ── Vitrine (Camada 1 parcial + Camada 2) ──
   { caminho: "/app/catalogo", icone: <Package size={20} />, rotulo: "Produtos", secao: "Vitrine", elemento: <PaginaCatalogo /> },
-  { caminho: "/app/loja-publica", icone: <Store size={20} />, rotulo: "Loja Digital", secao: "Vitrine", elemento: <PaginaLojaPublica />, modulo: "loja-publica" },
+  { caminho: "/app/loja", icone: <Store size={20} />, rotulo: "Bizy Studio", secao: "Vitrine", elemento: <PaginaLojaPublica />, modulo: "loja-publica" },
   { caminho: "/app/afiliados", icone: <BadgeDollarSign size={20} />, rotulo: "Afiliados", secao: "Vitrine", elemento: <PaginaAfiliados />, modulo: "afiliados" },
 
   // ── Gestão ──
@@ -130,10 +144,20 @@ export const rotasAdminSistema: RotaPrivada[] = [
   { caminho: "/app/auditoria", icone: <Shield size={20} />, rotulo: "Auditoria", secao: "Admin/Sistema", elemento: <PaginaAuditoria />, requerAdminSistema: true },
 ];
 
+export const caminhosCrmV3Principais = ["/app", "/app/reservas", "/app/conversas", "/app/clientes", "/app/live", "/app/loja", "/app/relatorios"] as const;
+export const rotulosCrmV3Principais = ["Início", "Pedidos", "Atendimento", "Clientes", "Live", "Studio", "Relatórios"] as const;
+
+export const rotasCrmV3Principais: RotaPrivada[] = caminhosCrmV3Principais.reduce<RotaPrivada[]>((rotas, caminho, indice) => {
+  const rota = rotasComerciais.find((item) => item.caminho === caminho);
+  if (rota) rotas.push({ ...rota, rotulo: rotulosCrmV3Principais[indice] });
+  return rotas;
+}, []);
+
 export const rotasPrivadas: RotaPrivada[] = [...rotasComerciais, ...rotasAdminSistema];
 
 export const rotasPrivadasOcultas: RotaPublica[] = [
-  { caminho: "/onboarding", elemento: <PaginaOnboarding /> }
+  { caminho: "/onboarding", elemento: <PaginaOnboarding /> },
+  { caminho: "/app/loja-publica", elemento: <PaginaLojaPublica /> }
 ];
 
 export const secoesNavegacao: SecaoNavegacao[] = ["Hoje", "Vendas", "CRM", "Vitrine", "Gestão", "Admin/Sistema"];

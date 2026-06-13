@@ -140,6 +140,7 @@ Impactos principais:
 - [x] Slugs reservados como `market`, `shop`, `checkout`, `api`, `www`, `n8n`, `wa` e `suporte` ficam bloqueados no backend.
 - [x] Perfil publico ganhou CTA para explorar similares no Bizy Market sem substituir a loja atual.
 - [x] Mapa de rotas e sequencia tecnica documentados em [[bizy-market-rotas-roadmap]].
+- [x] Dominio proprio do Market definido como `market.usebizy.space`, separado dos subdominios das lojas e com `/market` mantido como fallback.
 - [x] Categorias globais do Market expostas em `GET /publico/market/categorias`.
 - [x] Detalhe publico de produto do Market exposto em `GET /publico/market/produtos/:codigo`.
 - [x] Produtos similares de outros fornecedores expostos em `GET /publico/market/produtos/:codigo/similares`.
@@ -149,8 +150,9 @@ Impactos principais:
 - [x] Nota de memoria frontend criada em [[bizy-market-frontend-lojas]].
 - [x] Camada frontend `frontend/src/lojas` criada com tipos, rotas, helpers API e normalizadores.
 - [x] Teste de contrato frontend criado em `frontend/testes/lojas-api.test.ts`.
-- [ ] Bizy Studio completo dentro do CRM.
-- [ ] Checkout unificado e compra multi-loja.
+- [x] Bizy Studio completo dentro do CRM no escopo de configuracao, tracking e publicacao no Market.
+- [x] Entrada `/checkout` criada com carrinho unificado local, fornecedor por item, origem loja/Market, consentimento e finalizacao real para compras de uma loja.
+- [ ] Checkout multi-loja com compra mae, pedidos filhos, pagamento, comprovativo e acompanhamento.
 - [ ] Repasses, taxas, cancelamentos parciais e conciliacao financeira.
 - [ ] Ranking avancado, boost e recomendacoes comportamentais.
 
