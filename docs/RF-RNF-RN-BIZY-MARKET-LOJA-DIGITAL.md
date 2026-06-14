@@ -160,7 +160,7 @@ Inclui:
 - [x] **RF-002**: O sistema deve manter a Loja Digital individual de cada negocio como perfil publico autonomo.
 - [x] **RF-003**: O sistema deve permitir subdominio unico por loja no formato `slug.bizy.space` ou `slug.usebizy.space`, conforme dominio configurado, reservando `market.usebizy.space` para o shopping center.
 - [x] **RF-004**: O sistema deve reservar slugs sensiveis como `api`, `www`, `app`, `admin`, `market`, `shop`, `checkout`, `n8n`, `wa`, `suporte` e similares.
-- [ ] **RF-005**: O sistema deve permitir que uma loja esteja ativa no perfil publico sem estar publicada no Bizy Market.
+- [x] **RF-005**: O sistema deve permitir que uma loja esteja ativa no perfil publico sem estar publicada no Bizy Market.
 - [x] **RF-006**: O sistema deve permitir que uma loja participe no Bizy Market apenas quando cumprir criterios minimos de publicacao.
 - [x] **RF-007**: O sistema deve permitir que o dono da loja configure a identidade publica dentro do CRM, sem dashboard externo separado.
 
@@ -168,32 +168,32 @@ Inclui:
 
 - [x] **RF-008**: O perfil publico da loja deve exibir capa/hero, avatar/logo, nome comercial, descricao, localizacao e canais de contacto.
 - [ ] **RF-009**: O perfil publico deve exibir contadores sociais, incluindo seguidores e seguindo, quando a funcionalidade estiver ativa.
-- [ ] **RF-010**: O perfil publico deve exibir selos de confianca, como verificada, entrega ativa, pagamento confirmado pelo Bizy ou bom tempo de resposta, quando aplicavel.
+- [x] **RF-010**: O perfil publico deve exibir selos de confianca, como verificada, entrega ativa, pagamento confirmado pelo Bizy ou bom tempo de resposta, quando aplicavel.
 - [ ] **RF-011**: O perfil publico deve permitir que compradores sigam a loja.
 - [x] **RF-012**: O perfil publico deve permitir que o comprador veja produtos por colecoes/categorias clicaveis.
 - [x] **RF-013**: O perfil publico deve permitir que colecoes mudem a grelha de produtos sem obrigar a navegacao para outra pagina.
-- [ ] **RF-014**: O perfil publico deve ter uma experiencia mobile-first, com cabecalho semelhante a perfil social e grelha de produtos clara.
+- [x] **RF-014**: O perfil publico deve ter uma experiencia mobile-first, com cabecalho semelhante a perfil social e grelha de produtos clara.
 - [x] **RF-015**: O perfil publico deve expor uma chamada para explorar produtos similares no Bizy Market quando o comprador quiser sair da loja atual.
 - [x] **RF-016**: O perfil publico deve mostrar que cada produto e vendido por aquela loja, preservando identidade e confianca.
 
 ### 5.3 Personalizacao da Loja
 
-- [ ] **RF-017**: O dono da loja deve poder editar capa, avatar, descricao, cor/acento visual, links, localizacao e informacoes publicas no CRM.
-- [ ] **RF-018**: O dono da loja deve poder criar, editar, ordenar e ocultar colecoes.
-- [ ] **RF-019**: O dono da loja deve poder escolher produtos destacados no perfil.
+- [x] **RF-017**: O dono da loja deve poder editar capa, avatar, descricao, cor/acento visual, links, localizacao e informacoes publicas no CRM.
+- [x] **RF-018**: O dono da loja deve poder criar, editar, ordenar e ocultar colecoes.
+- [x] **RF-019**: O dono da loja deve poder escolher produtos destacados no perfil.
 - [ ] **RF-020**: O dono da loja deve poder escolher se determinados produtos aparecem apenas na loja, apenas em campanhas, ou tambem no Bizy Market.
-- [ ] **RF-021**: O dono da loja deve poder configurar mensagens curtas de apresentacao por colecao.
-- [ ] **RF-022**: O sistema deve impedir personalizacoes que quebrem legibilidade, acessibilidade ou seguranca visual.
-- [ ] **RF-023**: O sistema deve usar tokens e limites de design para permitir autonomia sem destruir a consistencia Bizy.
+- [x] **RF-021**: O dono da loja deve poder configurar mensagens curtas de apresentacao por colecao.
+- [x] **RF-022**: O sistema deve impedir personalizacoes que quebrem legibilidade, acessibilidade ou seguranca visual.
+- [x] **RF-023**: O sistema deve usar tokens e limites de design para permitir autonomia sem destruir a consistencia Bizy.
 
 ### 5.4 Catalogos, Colecoes e Produtos
 
 - [x] **RF-024**: O sistema deve manter categorias globais do Bizy Market separadas das colecoes internas de cada loja.
-- [ ] **RF-025**: Cada produto deve poder pertencer a uma categoria global e a uma ou mais colecoes da loja.
+- [x] **RF-025**: Cada produto deve poder pertencer a uma categoria global e a uma ou mais colecoes da loja.
 - [ ] **RF-026**: O sistema deve suportar colecoes manuais criadas pelo dono da loja.
-- [ ] **RF-027**: O sistema deve suportar colecoes automaticas, como novidades, promocoes, mais vendidos, reposicoes, kits e pronta entrega.
+- [x] **RF-027**: O sistema deve suportar colecoes automaticas, como novidades, promocoes, mais vendidos, reposicoes, kits e pronta entrega.
 - [ ] **RF-028**: O sistema deve permitir ordenacao manual dos produtos dentro de uma colecao.
-- [ ] **RF-029**: O sistema deve suportar destaque visual para preco promocional, disponibilidade, stock baixo e ultima unidade.
+- [x] **RF-029**: O sistema deve suportar destaque visual para preco promocional, disponibilidade, stock baixo e ultima unidade.
 - [ ] **RF-030**: O sistema deve permitir produtos fisicos, servicos e produtos digitais quando as politicas do Bizy permitirem.
 - [x] **RF-031**: O sistema deve bloquear publicacao no Market de produtos sem imagem, preco, categoria, fornecedor ativo ou disponibilidade definida.
 - [ ] **RF-032**: O sistema deve manter historico de alteracoes relevantes de produto para auditoria operacional.
@@ -209,13 +209,13 @@ Inclui:
 - [x] **RF-039**: O Bizy Market deve sugerir produtos similares de outros fornecedores quando o comprador pedir alternativas.
 - [ ] **RF-040**: O Bizy Market deve permitir lojas em destaque e produtos patrocinados, com identificacao clara quando houver impulsionamento pago.
 - [ ] **RF-041**: O Bizy Market deve ter ranking por relevancia, disponibilidade, qualidade de dados, confianca, desempenho e proximidade, nao apenas por patrocinio.
-- [ ] **RF-042**: O Bizy Market deve permitir que o comprador continue descobrindo produtos sem perder o carrinho.
+- [x] **RF-042**: O Bizy Market deve permitir que o comprador continue descobrindo produtos sem perder o carrinho.
 
 ### 5.6 Produto Publico e Produtos Similares
 
-- [ ] **RF-043**: A pagina ou sheet de produto deve mostrar fotos, nome, preco, loja, disponibilidade, variantes, descricao, entrega e acoes de compra.
-- [ ] **RF-044**: O produto deve mostrar contexto comercial util, como "em stock", "pronta entrega", "popular esta semana" ou "ultima unidade", quando os dados existirem.
-- [ ] **RF-045**: O produto deve permitir ver mais produtos da mesma loja.
+- [x] **RF-043**: A pagina ou sheet de produto deve mostrar fotos, nome, preco, loja, disponibilidade, variantes, descricao, entrega e acoes de compra.
+- [x] **RF-044**: O produto deve mostrar contexto comercial util, como "em stock", "pronta entrega", "popular esta semana" ou "ultima unidade", quando os dados existirem.
+- [x] **RF-045**: O produto deve permitir ver mais produtos da mesma loja.
 - [x] **RF-046**: O produto deve permitir ver produtos similares de outras lojas no Bizy Market.
 - [ ] **RF-047**: Produtos similares devem respeitar categoria, preco aproximado, tags, disponibilidade e localizacao quando possivel.
 - [x] **RF-048**: Produtos similares nao devem esconder a loja dona do produto original nem confundir o comprador sobre o fornecedor.
@@ -252,8 +252,8 @@ Inclui:
 
 ### 5.9 Central de Controlo no CRM
 
-- [ ] **RF-073**: Toda configuracao da loja deve existir dentro do CRM Bizy.
-- [ ] **RF-074**: O CRM deve ter uma area para "Minha Loja" ou "Bizy Studio" com identidade, colecoes, produtos, publicacao, checkout, entrega e SEO.
+- [x] **RF-073**: Toda configuracao da loja deve existir dentro do CRM Bizy.
+- [x] **RF-074**: O CRM deve ter uma area para "Minha Loja" ou "Bizy Studio" com identidade, colecoes, produtos, publicacao, checkout, entrega e SEO.
 - [ ] **RF-075**: O CRM deve ter uma area operacional para pedidos do Market e da loja propria.
 - [ ] **RF-076**: O CRM deve mostrar metricas de perfil, produtos, seguidores, carrinhos, pedidos, receita e conversao.
 - [x] **RF-077**: O CRM deve permitir publicar/despublicar produtos no Market em massa.

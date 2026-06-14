@@ -134,6 +134,7 @@ interface LojaPublicaResposta {
     tipo: "colecao" | "categoria" | string;
     totalProdutos: number;
     imagem?: string | null;
+    mensagem?: string | null;
     url: string;
   }>;
   market?: {
@@ -1000,6 +1001,9 @@ export function PaginaLojaDigitalPublica() {
                   <span>
                     <small>Catálogo ativo</small>
                     <strong>{catalogoAtivo.nome}</strong>
+                    {colecoesPerfil.find((c) => c.id === catalogoAtivo.id)?.mensagem && (
+                      <small className="block mt-1 text-xs text-muted-foreground font-normal">{colecoesPerfil.find((c) => c.id === catalogoAtivo.id)?.mensagem}</small>
+                    )}
                   </span>
                   <button type="button" className="loja-catalogo-limpar border" onClick={limparCatalogoAtivo}>
                     Limpar catálogo
@@ -2055,6 +2059,7 @@ function CartaoProduto({
         )}
 
         {semStock && <span className="lp-tag esgotado">Esgotado</span>}
+        {!semStock && produto.quantidade === 1 && <span className="lp-tag ultima-unidade">Última unidade</span>}
         {!semStock && temPromocao && <span className="lp-tag promo">-{desconto}%</span>}
         {!semStock && !temPromocao && ehNovidade && <span className="lp-tag novo">Novo</span>}
 
@@ -2198,6 +2203,7 @@ function DetalheProduto({
               )}
 
               <div className="loja-pdp-badges">
+                {!semStock && produto.quantidade === 1 && <span className="lp-tag ultima-unidade">Última unidade</span>}
                 {temPromocao && <span className="lp-tag promo">-{desconto}%</span>}
                 {!temPromocao && ehNovidade && <span className="lp-tag novo">Novo</span>}
                 <span className="loja-pdp-shot-count">{fotoAtiva + 1}/{fotos.length}</span>

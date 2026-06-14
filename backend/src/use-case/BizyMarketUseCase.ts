@@ -101,6 +101,7 @@ export class BizyMarketUseCase {
         slug: negocio.slugPublico,
         nomeComercial: negocio.nomeComercial,
         publicada: Boolean(negocio.slugPublico && negocio.lojaPublicadaEm),
+        participaNoMarket: this.lojaParticipaNoMarket(negocio),
         urlLoja: negocio.slugPublico ? `/lojas/${negocio.slugPublico}` : null
       },
       produtos: {
@@ -153,8 +154,15 @@ export class BizyMarketUseCase {
     };
   }
 
+  private lojaParticipaNoMarket(loja: NegocioBizy): boolean {
+    const entrega = loja.entrega && typeof loja.entrega === "object" ? loja.entrega as Record<string, unknown> : {};
+    const lojaDigital = entrega.lojaDigital && typeof entrega.lojaDigital === "object" ? entrega.lojaDigital as Record<string, unknown> : {};
+    return lojaDigital.participaNoMarket !== false;
+  }
+
   private async listarItensMarket(): Promise<ItemMarket[]> {
-    const lojasPublicadas = await this.autenticacao.listarNegociosPublicados();
+    const lojasPublicadas = (await this.autenticacao.listarNegociosPublicados())
+      .filter((loja) => this.lojaParticipaNoMarket(loja));
     const lojasPorId = new Map(lojasPublicadas.map((loja) => [loja.id, loja]));
 
     return (await this.pecas.listar())

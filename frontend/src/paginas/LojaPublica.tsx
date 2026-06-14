@@ -2,11 +2,15 @@ import {
   ArrowRight,
   ArrowUpRight,
   CheckCircle2,
+  ChevronDown,
+  ChevronUp,
   ClipboardCheck,
   Copy,
   ExternalLink,
   Eye,
+  EyeOff,
   Globe2,
+  Layers3,
   LayoutGrid,
   Link2,
   Loader2,
@@ -31,6 +35,7 @@ import {
 import { type ReactNode, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { obterBaseApiUrl, requisitarApi, resolverUrlMedia } from "../api";
+import { CampoUploadFoto } from "../componentes/CampoUploadFoto";
 import { EstadoVazio } from "../componentes/Shell";
 import {
   CrmCommandMetric,
@@ -188,6 +193,7 @@ interface OperacaoLojaDigital {
     categoriasVisiveis: string[];
     categoriasOcultas: string[];
     sequenciaCategorias: string[];
+    mensagensColecao: Record<string, string>;
     descontosAtivos: boolean;
     produtosPorColecao: boolean;
     produtosComEstatisticas: boolean;
@@ -257,6 +263,7 @@ interface ConfiguracaoLojaDigital {
       slug: string | null;
       descricaoPublica: string | null;
       publicada: boolean;
+      participaNoMarket?: boolean;
       publicadaEm: string | null;
       urlPublica: string | null;
     };
@@ -322,6 +329,7 @@ interface FormLoja {
     slug: string;
     descricaoPublica: string;
     publicada: boolean;
+    participaNoMarket: boolean;
   };
   tema: {
     corPrimaria: string;
@@ -524,6 +532,7 @@ const operacaoLojaDigital: OperacaoLojaDigital = {
     categoriasVisiveis: [],
     categoriasOcultas: [],
     sequenciaCategorias: [],
+    mensagensColecao: {},
     descontosAtivos: true,
     produtosPorColecao: true,
     produtosComEstatisticas: true
@@ -893,6 +902,7 @@ export function PaginaLojaPublica() {
           mensagem={mensagem}
           onAlternarPublicacao={(item) => void alternarPublicacaoMarket(item)}
           onPublicarElegiveis={() => void publicarElegiveisMarket()}
+          pecas={pecas}
           produtosCriticos={produtosCriticos}
           produtosDestaque={produtosDestaque}
           prontidao={prontidao}
@@ -1282,7 +1292,7 @@ export function PaginaLojaPublica() {
               )}
 
               {passo === "experiencia" && (
-                <PassoExperienciaLoja form={form} atualizarSecao={atualizarSecao} />
+                <PassoExperienciaLoja form={form} atualizarSecao={atualizarSecao} pecas={pecas} />
               )}
 
               {passo === "entrega" && (
@@ -1302,6 +1312,7 @@ export function PaginaLojaPublica() {
                   prontidao={prontidao}
                   urlPublica={urlPublica}
                   publicada={form.publicacao.publicada}
+                  participaNoMarket={form.publicacao.participaNoMarket}
                   salvando={salvando}
                   copiarLink={copiarLink}
                   guardarConfiguracao={guardarConfiguracao}
@@ -1520,6 +1531,7 @@ function StudioWorkspace({
   mensagem,
   onAlternarPublicacao,
   onPublicarElegiveis,
+  pecas,
   produtosCriticos,
   produtosDestaque,
   prontidao,
@@ -1543,6 +1555,7 @@ function StudioWorkspace({
   mensagem: string;
   onAlternarPublicacao: (item: ItemPublicacaoMarketLoja) => void;
   onPublicarElegiveis: () => void;
+  pecas: Peca[];
   produtosCriticos: Peca[];
   produtosDestaque: Peca[];
   prontidao: ConfiguracaoLojaDigital["prontidao"];
@@ -1652,7 +1665,7 @@ function StudioWorkspace({
         )}
 
         {subpasta === "catalogos" && (
-          <PassoExperienciaLoja form={form} atualizarSecao={atualizarSecao} />
+          <PassoExperienciaLoja form={form} atualizarSecao={atualizarSecao} pecas={pecas} />
         )}
 
         {subpasta === "produtos" && (
@@ -1676,6 +1689,7 @@ function StudioWorkspace({
               prontidao={prontidao}
               urlPublica={urlPublica}
               publicada={form.publicacao.publicada}
+              participaNoMarket={form.publicacao.participaNoMarket}
               salvando={salvando}
               copiarLink={copiarLink}
               guardarConfiguracao={guardarConfiguracao}
@@ -2189,8 +2203,8 @@ function PassoIdentidade({
         detail="A foto de perfil identifica a loja; a capa cria contexto visual sem precisar de textos longos."
       >
         <div className="grid gap-3 md:grid-cols-2">
-          <CampoTexto id="logoUrl" label="Foto de perfil ou logo" value={form.tema.logoUrl} onChange={(valor) => atualizarSecao("tema", { logoUrl: valor })} />
-          <CampoTexto id="capaUrl" label="Imagem de capa" value={form.tema.capaUrl} onChange={(valor) => atualizarSecao("tema", { capaUrl: valor })} />
+          <CampoUploadFoto id="logoUrl" label="Foto de perfil ou logo" value={form.tema.logoUrl} onChange={(valor) => atualizarSecao("tema", { logoUrl: valor })} purpose="lojas" aspecto="quadrado" />
+          <CampoUploadFoto id="capaUrl" label="Imagem de capa" value={form.tema.capaUrl} onChange={(valor) => atualizarSecao("tema", { capaUrl: valor })} purpose="lojas" aspecto="paisagem" />
         </div>
         {urlPublica && (
           <div className="flex flex-wrap items-center gap-2 rounded-lg border border-border/60 bg-muted/40 p-3">
@@ -2274,25 +2288,56 @@ function PassoProdutos({
 
 function PassoExperienciaLoja({
   atualizarSecao,
-  form
+  form,
+  pecas = []
 }: {
   form: FormLoja;
   atualizarSecao: <Secao extends keyof FormLoja>(secao: Secao, valores: Partial<FormLoja[Secao]>) => void;
+  pecas?: Peca[];
 }) {
-  return <EditorExperienciaLoja form={form} atualizarSecao={atualizarSecao} />;
+  return <EditorExperienciaLoja form={form} atualizarSecao={atualizarSecao} pecas={pecas} />;
 }
 
 function EditorExperienciaLoja({
   atualizarSecao,
-  form
+  form,
+  pecas = []
 }: {
   form: FormLoja;
   atualizarSecao: <Secao extends keyof FormLoja>(secao: Secao, valores: Partial<FormLoja[Secao]>) => void;
+  pecas?: Peca[];
 }) {
   const linhasMedidas = parseTabelaMedidasTexto(form.experiencia.tabelaMedidasTexto);
 
   function atualizarExperiencia(valores: Partial<FormLoja["experiencia"]>) {
     atualizarSecao("experiencia", valores);
+  }
+
+  const categoriasExistentes = useMemo(() => {
+    const nomes = pecas.map((p) => p.categoria?.trim()).filter((c): c is string => Boolean(c));
+    return Array.from(new Set(nomes)).sort((a, b) => a.localeCompare(b, "pt-AO"));
+  }, [pecas]);
+
+  const ocultas = form.operacao.catalogo.categoriasOcultas;
+  const sequencia = form.operacao.catalogo.sequenciaCategorias;
+
+  function atualizarCatalogo(valores: Partial<OperacaoLojaDigital["catalogo"]>) {
+    atualizarSecao("operacao", { ...form.operacao, catalogo: { ...form.operacao.catalogo, ...valores } });
+  }
+
+  function alternarOculta(nome: string, ocultar: boolean) {
+    const novas = ocultar ? [...ocultas, nome] : ocultas.filter((c) => c !== nome);
+    atualizarCatalogo({ categoriasOcultas: [...new Set(novas)] });
+  }
+
+  function moverCategoria(nome: string, direcao: -1 | 1) {
+    const lista = sequencia.length ? [...sequencia] : [...categoriasExistentes];
+    const idx = lista.indexOf(nome);
+    if (idx < 0) return;
+    const novoIdx = idx + direcao;
+    if (novoIdx < 0 || novoIdx >= lista.length) return;
+    [lista[idx], lista[novoIdx]] = [lista[novoIdx], lista[idx]];
+    atualizarCatalogo({ sequenciaCategorias: lista });
   }
 
   function alternarVitrine(id: string, checked: boolean) {
@@ -2348,6 +2393,56 @@ function EditorExperienciaLoja({
           onChange={(valor) => atualizarExperiencia({ catalogosPersonalizadosTexto: valor })}
         />
       </BlocoFormulario>
+
+      {categoriasExistentes.length > 0 && (
+        <BlocoFormulario icon={<Layers3 size={18} />} title="Colecções e categorias" detail="Ordene, oculte ou destaque as categorias que o cliente vê na loja.">
+          <div className="grid gap-2">
+            {(sequencia.length ? sequencia : categoriasExistentes)
+              .filter((c) => categoriasExistentes.includes(c))
+              .map((nome, idx, lista) => {
+                const estaOculta = ocultas.includes(nome);
+                const totalProdutos = pecas.filter((p) => p.categoria?.trim() === nome).length;
+                return (
+                  <div key={nome} className={`border border-border/60 text-sm ${estaOculta ? "bg-muted/40 opacity-60" : "bg-background"}`}>
+                    <div className="flex items-center gap-3 px-3 py-2">
+                      <div className="flex gap-1">
+                        <button type="button" disabled={idx === 0} onClick={() => moverCategoria(nome, -1)} className="text-muted-foreground hover:text-foreground disabled:opacity-30">
+                          <ChevronUp size={14} />
+                        </button>
+                        <button type="button" disabled={idx === lista.length - 1} onClick={() => moverCategoria(nome, 1)} className="text-muted-foreground hover:text-foreground disabled:opacity-30">
+                          <ChevronDown size={14} />
+                        </button>
+                      </div>
+                      <span className="min-w-0 flex-1 truncate font-medium">{nome}</span>
+                      <span className="text-xs text-muted-foreground">{totalProdutos} prod.</span>
+                      <button
+                        type="button"
+                        onClick={() => alternarOculta(nome, !estaOculta)}
+                        className={`flex items-center gap-1 text-xs ${estaOculta ? "text-warning-foreground" : "text-muted-foreground hover:text-foreground"}`}
+                      >
+                        {estaOculta ? <><EyeOff size={13} /> Oculta</> : <><Eye size={13} /> Visível</>}
+                      </button>
+                    </div>
+                    {!estaOculta && (
+                      <div className="border-t border-border/40 px-3 py-2">
+                        <input
+                          type="text"
+                          placeholder="Mensagem curta para esta colecção…"
+                          maxLength={200}
+                          value={form.operacao.catalogo.mensagensColecao[nome] ?? ""}
+                          onChange={(e) => atualizarCatalogo({
+                            mensagensColecao: { ...form.operacao.catalogo.mensagensColecao, [nome]: e.target.value }
+                          })}
+                          className="w-full bg-transparent text-xs text-muted-foreground placeholder:text-muted-foreground/50 outline-none"
+                        />
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+          </div>
+        </BlocoFormulario>
+      )}
 
       <BlocoFormulario icon={<MousePointerClick size={18} />} title="Captura progressiva" detail="Peça dados no momento certo, sem travar a navegação.">
         <div className="grid gap-3 md:grid-cols-[.8fr_1.2fr]">
@@ -3040,6 +3135,7 @@ function PassoPublicar({
   prontaParaPublicar,
   prontidao,
   publicada,
+  participaNoMarket,
   salvando,
   atualizarSecao,
   urlPublica
@@ -3049,6 +3145,7 @@ function PassoPublicar({
   prontaParaPublicar?: boolean;
   prontidao: ConfiguracaoLojaDigital["prontidao"];
   publicada: boolean;
+  participaNoMarket: boolean;
   salvando: boolean;
   atualizarSecao: <Secao extends keyof FormLoja>(secao: Secao, valores: Partial<FormLoja[Secao]>) => void;
   urlPublica: string;
@@ -3078,6 +3175,12 @@ function PassoPublicar({
           title="Loja online"
           detail={publicada ? "Clientes conseguem aceder ao link." : "Configuração guardada sem abrir a loja."}
           onChange={(checked) => atualizarSecao("publicacao", { publicada: checked })}
+        />
+        <OpcaoMarcavel
+          checked={participaNoMarket}
+          title="Participar no Bizy Market"
+          detail={participaNoMarket ? "Produtos elegíveis aparecem no shopping center." : "Loja ativa apenas no link próprio, sem aparecer no Market."}
+          onChange={(checked) => atualizarSecao("publicacao", { participaNoMarket: checked })}
         />
 
         {urlPublica ? (
@@ -3130,13 +3233,13 @@ function PreviewLojaMobile({
         <div className="overflow-hidden rounded-[1.5rem] bg-white text-neutral-950">
           <div className="relative h-28 bg-neutral-100">
             {form.tema.capaUrl ? (
-              <img src={form.tema.capaUrl} alt="" className="h-full w-full object-cover" />
+              <img src={resolverUrlMedia(form.tema.capaUrl)} alt="" className="h-full w-full object-cover" />
             ) : (
               <div className="h-full w-full" style={{ background: `linear-gradient(135deg, ${cor}, #f4f4f5)` }} />
             )}
             <div className="absolute bottom-3 left-3 flex items-center gap-2">
               <div className="grid size-12 place-items-center overflow-hidden rounded-xl border border-white/70 bg-white shadow-sm">
-                {form.tema.logoUrl ? <img src={form.tema.logoUrl} alt="" className="h-full w-full object-cover" /> : <Store size={20} />}
+                {form.tema.logoUrl ? <img src={resolverUrlMedia(form.tema.logoUrl)} alt="" className="h-full w-full object-cover" /> : <Store size={20} />}
               </div>
               <div className="min-w-0">
                 <strong className="block truncate text-sm">{form.identidade.nomeComercial || "A tua loja"}</strong>
@@ -3395,7 +3498,8 @@ function criarFormVazio(): FormLoja {
     publicacao: {
       slug: "",
       descricaoPublica: "",
-      publicada: false
+      publicada: false,
+      participaNoMarket: true
     },
     tema: {
       corPrimaria: "#111111",
@@ -3450,7 +3554,8 @@ function criarFormAPartirConfiguracao(dados: ConfiguracaoLojaDigital): FormLoja 
     publicacao: {
       slug: dados.configuracao.publicacao.slug ?? "",
       descricaoPublica: dados.configuracao.publicacao.descricaoPublica ?? dados.configuracao.identidade.descricaoPublica ?? "",
-      publicada: dados.configuracao.publicacao.publicada
+      publicada: dados.configuracao.publicacao.publicada,
+      participaNoMarket: dados.configuracao.publicacao.participaNoMarket ?? true
     },
     tema: {
       corPrimaria: dados.configuracao.tema.corPrimaria || "#111111",
@@ -3513,7 +3618,8 @@ function criarPayloadConfiguracao(form: FormLoja) {
     publicacao: {
       slug: form.publicacao.slug || undefined,
       descricaoPublica: textoOuNull(form.publicacao.descricaoPublica || form.identidade.descricaoPublica),
-      publicada: form.publicacao.publicada
+      publicada: form.publicacao.publicada,
+      participaNoMarket: form.publicacao.participaNoMarket
     },
     tema: {
       corPrimaria: form.tema.corPrimaria,
@@ -3603,6 +3709,7 @@ function criarPayloadOperacaoLoja(operacao: OperacaoLojaDigital): OperacaoLojaDi
       categoriasVisiveis: [...new Set(operacao.catalogo.categoriasVisiveis)].slice(0, 60),
       categoriasOcultas: [...new Set(operacao.catalogo.categoriasOcultas)].slice(0, 60),
       sequenciaCategorias: [...new Set(operacao.catalogo.sequenciaCategorias)].slice(0, 60),
+      mensagensColecao: { ...operacao.catalogo.mensagensColecao },
       descontosAtivos: operacao.catalogo.descontosAtivos,
       produtosPorColecao: operacao.catalogo.produtosPorColecao,
       produtosComEstatisticas: operacao.catalogo.produtosComEstatisticas
@@ -3781,6 +3888,7 @@ function normalizarOperacaoLoja(valor: unknown): OperacaoLojaDigital {
       categoriasVisiveis: listaTextosFormulario(catalogo.categoriasVisiveis, base.catalogo.categoriasVisiveis).slice(0, 60),
       categoriasOcultas: listaTextosFormulario(catalogo.categoriasOcultas, base.catalogo.categoriasOcultas).slice(0, 60),
       sequenciaCategorias: listaTextosFormulario(catalogo.sequenciaCategorias, base.catalogo.sequenciaCategorias).slice(0, 60),
+      mensagensColecao: normalizarMensagensColecao(catalogo.mensagensColecao),
       descontosAtivos: booleanoFormulario(catalogo.descontosAtivos, base.catalogo.descontosAtivos),
       produtosPorColecao: booleanoFormulario(catalogo.produtosPorColecao, base.catalogo.produtosPorColecao),
       produtosComEstatisticas: booleanoFormulario(catalogo.produtosComEstatisticas, base.catalogo.produtosComEstatisticas)
@@ -3836,6 +3944,15 @@ function normalizarZonasEntregaFormulario(valor: unknown, padrao: ZonaEntregaOpe
 
 function objetoFormulario(valor: unknown): Record<string, unknown> {
   return valor && typeof valor === "object" && !Array.isArray(valor) ? valor as Record<string, unknown> : {};
+}
+
+function normalizarMensagensColecao(valor: unknown): Record<string, string> {
+  if (!valor || typeof valor !== "object" || Array.isArray(valor)) return {};
+  const resultado: Record<string, string> = {};
+  for (const [chave, v] of Object.entries(valor as Record<string, unknown>)) {
+    if (typeof v === "string" && v.trim()) resultado[chave] = v.trim().slice(0, 200);
+  }
+  return resultado;
 }
 
 function textoFormulario(valor: unknown): string | null {

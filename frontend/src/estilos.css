@@ -100,7 +100,7 @@
   --border: #e7e4dc;
   --input: #e7e4dc;
   --ring: oklch(0.58 0.115 159);
-  --radius: 1rem;
+  --radius: 0;
 
   /* BRAND — emerald (primary in the hierarchy) */
   --green: oklch(0.58 0.115 159);
@@ -192,9 +192,10 @@
   --space-8: 32px;
   --space-10: 40px;
 
-  --radius-control: 10px;
-  --radius-panel: 16px;
-  --radius-sheet: 22px;
+  --radius-control: 0;
+  --radius-panel: 0;
+  --radius-sheet: 0;
+  --radius-card: 0;
   --radius-pill: 9999px;
   --r-sm: var(--radius-control);
   --r: var(--radius-panel);
@@ -274,11 +275,11 @@
   --sombra-xl: var(--shadow-floating);
   --sombra-2xl: var(--shadow-floating);
 
-  --raio-sm: 10px;
-  --raio: var(--radius-control);
-  --raio-md: var(--radius-panel);
-  --raio-lg: var(--radius-sheet);
-  --raio-xl: 22px;
+  --raio-sm: 0;
+  --raio: 0;
+  --raio-md: 0;
+  --raio-lg: 0;
+  --raio-xl: 0;
   --raio-full: var(--radius-pill);
 
   /* Tipografia */
@@ -9470,6 +9471,7 @@ body.mobile-chat-imersivo .atendimento-message-bubble {
 .lp-tag.novo { background: oklch(0.55 0.18 12); }
 .lp-tag.promo { background: oklch(0.65 0.14 80); }
 .lp-tag.esgotado { background: oklch(0.45 0 0); }
+.lp-tag.ultima-unidade { background: oklch(0.55 0.15 30); }
 
 /* ── Product card v2 heart ─────────────────────────────────── */
 .lp-fav { position: absolute; right: 8px; top: 8px; width: 32px; height: 32px; border-radius: 99px; background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(6px); display: grid; place-items: center; cursor: pointer; border: none; z-index: 2; transition: background 0.15s, transform 0.15s; color: oklch(0.50 0 0); }
@@ -12087,6 +12089,10 @@ body.mobile-chat-imersivo .atendimento-message-bubble {
 
 .lp-tag.esgotado {
   background: var(--rose) !important;
+}
+
+.lp-tag.ultima-unidade {
+  background: var(--orange, oklch(0.55 0.15 30)) !important;
 }
 
 .lp-fav {
@@ -22036,4 +22042,20 @@ button.bizy-upload-card:disabled {
   .btn3 {
     width: 100%;
   }
+}
+
+/* ============================================
+   Override global — cantos retos em tudo
+   Exclui: avatares, dots, indicadores circulares
+   ============================================ */
+*:where(:not([data-slot^="avatar"]):not(.bz-badge-dot):not(.bz-chip-led):not(.avatar-circulo)) {
+  border-radius: 0 !important;
+}
+/* Preservar círculos explícitos */
+[data-slot^="avatar"],
+[data-slot^="avatar"] *,
+.bz-badge-dot,
+.bz-chip-led,
+.avatar-circulo {
+  border-radius: 50% !important;
 }

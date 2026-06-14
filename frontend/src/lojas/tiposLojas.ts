@@ -214,6 +214,7 @@ export interface ColecaoLojaPublica {
   tipo: "colecao" | "categoria" | string;
   totalProdutos: number;
   imagem?: string | null;
+  mensagem?: string | null;
   url: string;
 }
 

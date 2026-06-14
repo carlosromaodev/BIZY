@@ -21,6 +21,11 @@ export interface Peca {
   variantes?: Record<string, string[]>;
   estado: EstadoPeca;
   estadoStock?: "DISPONIVEL" | "BAIXO_STOCK" | "ESGOTADO" | "ARQUIVADO";
+  vitrine?: {
+    selos?: string[];
+    prioridade?: number;
+    precoPromocionalEmKwanza?: number | null;
+  };
 }
 
 export interface Reserva {

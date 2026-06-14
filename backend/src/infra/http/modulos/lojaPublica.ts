@@ -8,6 +8,7 @@ import {
   SalvarConfiguracaoLojaPublicaSchema
 } from "../../../dominio/esquemas.js";
 import type { DadosNegocioBizy, NegocioBizy, Peca } from "../../../dominio/tipos.js";
+import { persistirValorMedia } from "../../media/MediaStorage.js";
 import { exigirAcessoComercial } from "../contextoComercial.js";
 import type { ModuloHttp } from "./ModuloHttp.js";
 
@@ -65,7 +66,7 @@ export const moduloLojaPublica: ModuloHttp = {
 
       const negocio = await contexto.onboardingBizy.salvarNegocio(
         contextoComercial.usuario.id,
-        montarDadosNegocioComConfiguracaoLoja(atual, payloadDetalhado, descricaoPublica)
+        await montarDadosNegocioComConfiguracaoLoja(atual, payloadDetalhado, descricaoPublica)
       );
 
       if (!slug) return negocio;
@@ -197,11 +198,11 @@ export const moduloLojaPublica: ModuloHttp = {
 
 type ConfiguracaoLojaPayload = ReturnType<typeof SalvarConfiguracaoLojaPublicaSchema.parse>;
 
-function montarDadosNegocioComConfiguracaoLoja(
+async function montarDadosNegocioComConfiguracaoLoja(
   atual: NegocioBizy,
   dados: ConfiguracaoLojaPayload,
   descricaoPublica: string | null | undefined
-): DadosNegocioBizy {
+): Promise<DadosNegocioBizy> {
   const entregaAtual = objeto(atual.entrega);
   const entregaPayload = dados.entrega;
   const temaAtual = objeto(entregaAtual.temaLoja);
@@ -238,8 +239,8 @@ function montarDadosNegocioComConfiguracaoLoja(
       temaLoja: {
         ...temaAtual,
         corPrimaria: dados.tema.corPrimaria ?? texto(temaAtual.corPrimaria) ?? "#111111",
-        logoUrl: dados.tema.logoUrl ?? texto(temaAtual.logoUrl),
-        capaUrl: dados.tema.capaUrl ?? texto(temaAtual.capaUrl)
+        logoUrl: (await persistirValorMedia(dados.tema.logoUrl, { purpose: "lojas" })) ?? texto(temaAtual.logoUrl),
+        capaUrl: (await persistirValorMedia(dados.tema.capaUrl, { purpose: "lojas" })) ?? texto(temaAtual.capaUrl)
       },
       entregaAtiva: entregaPayload.entregaAtiva ?? booleano(entregaAtual.entregaAtiva, true),
       taxaPadraoEmKwanza: entregaPayload.taxaPadraoEmKwanza ?? numero(entregaAtual.taxaPadraoEmKwanza) ?? 0,
@@ -268,7 +269,8 @@ function montarDadosNegocioComConfiguracaoLoja(
         ...lojaDigitalAtual,
         criacaoConfirmadaEm,
         origemCriacao: criacaoConfirmadaEm ? texto(lojaDigitalAtual.origemCriacao) ?? "assistente-loja-digital" : null,
-        experiencia: experienciaLoja
+        experiencia: experienciaLoja,
+        participaNoMarket: dados.publicacao.participaNoMarket ?? booleano(lojaDigitalAtual.participaNoMarket, true)
       }
     },
     minutosReservaPadrao: atual.minutosReservaPadrao,
@@ -307,6 +309,7 @@ function mapearConfiguracaoLojaDigital(negocio: NegocioBizy, produtos: Peca[]) {
         slug: negocio.slugPublico,
         descricaoPublica: negocio.descricaoPublica,
         publicada,
+        participaNoMarket: booleano(lojaDigital.participaNoMarket, true),
         publicadaEm: negocio.lojaPublicadaEm?.toISOString() ?? null,
         urlPublica
       },
@@ -535,6 +538,7 @@ function normalizarOperacaoLoja(valor: unknown) {
       categoriasVisiveis: listaTextos(catalogo.categoriasVisiveis).slice(0, 60),
       categoriasOcultas: listaTextos(catalogo.categoriasOcultas).slice(0, 60),
       sequenciaCategorias: listaTextos(catalogo.sequenciaCategorias).slice(0, 60),
+      mensagensColecao: normalizarMensagensColecao(catalogo.mensagensColecao),
       descontosAtivos: booleano(catalogo.descontosAtivos, false),
       produtosPorColecao: booleano(catalogo.produtosPorColecao, true),
       produtosComEstatisticas: booleano(catalogo.produtosComEstatisticas, true)
@@ -659,6 +663,16 @@ function listaTextos(valor: unknown): string[] {
   return Array.isArray(valor)
     ? valor.map((item) => texto(item)).filter((item): item is string => Boolean(item))
     : [];
+}
+
+function normalizarMensagensColecao(valor: unknown): Record<string, string> {
+  if (!valor || typeof valor !== "object" || Array.isArray(valor)) return {};
+  const resultado: Record<string, string> = {};
+  for (const [chave, v] of Object.entries(valor as Record<string, unknown>)) {
+    const t = texto(v);
+    if (t) resultado[chave] = t.slice(0, 200);
+  }
+  return resultado;
 }
 
 function booleano(valor: unknown, padrao: boolean): boolean {

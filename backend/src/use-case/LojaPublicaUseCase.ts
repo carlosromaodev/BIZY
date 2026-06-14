@@ -670,6 +670,9 @@ export class LojaPublicaUseCase {
   }
 
   private mapearProdutoPublico(peca: Peca) {
+    const selosAutomaticos = this.gerarSelosAutomaticos(peca);
+    const selosCombinados = [...new Set([...peca.vitrine.selos, ...selosAutomaticos])];
+
     return {
       codigo: peca.codigo,
       sku: peca.sku,
@@ -682,10 +685,18 @@ export class LojaPublicaUseCase {
       quantidade: peca.quantidade,
       fotos: peca.fotos,
       variantes: peca.variantes,
-      vitrine: peca.vitrine,
+      vitrine: { ...peca.vitrine, selos: selosCombinados },
       estadoStock: peca.estadoStock,
       disponivel: this.pecaVendavel(peca)
     };
+  }
+
+  private gerarSelosAutomaticos(peca: Peca): Peca["vitrine"]["selos"] {
+    const selos: Peca["vitrine"]["selos"] = [];
+    if (peca.vitrine.precoPromocionalEmKwanza && peca.vitrine.precoPromocionalEmKwanza < peca.precoEmKwanza) {
+      if (!peca.vitrine.selos.includes("PROMOCAO")) selos.push("PROMOCAO");
+    }
+    return selos;
   }
 
   private mapearPerfilPublico(
@@ -727,9 +738,15 @@ export class LojaPublicaUseCase {
 
   private montarColecoesPublicas(negocio: NegocioBizy, produtos: Peca[]) {
     const slug = negocio.slugPublico ?? "";
+    const entrega = this.objeto(negocio.entrega);
+    const lojaDigital = this.objeto(entrega.lojaDigital);
+    const experiencia = this.objeto(lojaDigital.experiencia);
+    const operacao = this.objeto(experiencia.operacao);
+    const catalogo = this.objeto(operacao.catalogo);
+    const mensagens = this.normalizarMensagensColecao(catalogo.mensagensColecao);
     return [
-      ...this.montarColecoesPorCampo(slug, produtos, "colecao", "colecao"),
-      ...this.montarColecoesPorCampo(slug, produtos, "categoria", "categoria")
+      ...this.montarColecoesPorCampo(slug, produtos, "colecao", "colecao", mensagens),
+      ...this.montarColecoesPorCampo(slug, produtos, "categoria", "categoria", mensagens)
     ];
   }
 
@@ -737,7 +754,8 @@ export class LojaPublicaUseCase {
     slug: string,
     produtos: Peca[],
     campo: "colecao" | "categoria",
-    tipo: "colecao" | "categoria"
+    tipo: "colecao" | "categoria",
+    mensagens: Record<string, string> = {}
   ) {
     const grupos = new Map<string, Peca[]>();
     for (const produto of produtos) {
@@ -753,6 +771,7 @@ export class LojaPublicaUseCase {
         tipo,
         totalProdutos: itens.length,
         imagem: itens.find((item) => item.fotos.length > 0)?.fotos[0] ?? null,
+        mensagem: mensagens[nome] ?? null,
         url: `/lojas/${slug}?${tipo}=${encodeURIComponent(nome)}`
       }))
       .sort((a, b) => b.totalProdutos - a.totalProdutos || a.nome.localeCompare(b.nome, "pt-AO", { sensitivity: "base" }))
@@ -1793,6 +1812,7 @@ export class LojaPublicaUseCase {
         categoriasVisiveis: this.listaTextos(catalogo.categoriasVisiveis).slice(0, 60),
         categoriasOcultas: this.listaTextos(catalogo.categoriasOcultas).slice(0, 60),
         sequenciaCategorias: this.listaTextos(catalogo.sequenciaCategorias).slice(0, 60),
+        mensagensColecao: this.normalizarMensagensColecao(catalogo.mensagensColecao),
         descontosAtivos: this.booleanoComPadrao(catalogo.descontosAtivos, false),
         produtosPorColecao: this.booleanoComPadrao(catalogo.produtosPorColecao, true),
         produtosComEstatisticas: this.booleanoComPadrao(catalogo.produtosComEstatisticas, true)
@@ -1865,6 +1885,16 @@ export class LojaPublicaUseCase {
     return valor
       .map((item) => this.texto(item))
       .filter((item): item is string => Boolean(item));
+  }
+
+  private normalizarMensagensColecao(valor: unknown): Record<string, string> {
+    if (!valor || typeof valor !== "object" || Array.isArray(valor)) return {};
+    const resultado: Record<string, string> = {};
+    for (const [chave, v] of Object.entries(valor as Record<string, unknown>)) {
+      const t = this.texto(v);
+      if (t) resultado[chave] = t.slice(0, 200);
+    }
+    return resultado;
   }
 
   private booleanoComPadrao(valor: unknown, padrao: boolean): boolean {

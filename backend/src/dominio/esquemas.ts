@@ -60,10 +60,16 @@ const TextoLongoLojaOpcionalSchema = z.preprocess(
   z.string().trim().min(1).max(1000).nullable().optional()
 ).transform((valor) => valor ?? null);
 
-const UrlLojaOpcionalSchema = z.preprocess(
+const UrlOuDataUrlLojaSchema = z.preprocess(
   (valor) => (typeof valor === "string" && valor.trim() === "" ? null : valor),
-  z.string().trim().url().max(2048).nullable().optional()
+  z.string().trim().max(12_000_000).nullable().optional()
+    .refine(
+      (v) => !v || v.startsWith("data:") || v.startsWith("/media/files/") || /^https?:\/\//.test(v),
+      "URL ou imagem inválida"
+    )
 ).transform((valor) => valor ?? null);
+
+const UrlLojaOpcionalSchema = UrlOuDataUrlLojaSchema;
 
 const OrdemVitrineLojaSchema = z.enum(["destaques", "promocoes", "novidades", "reposicoes", "maisVendidos", "kits"]);
 const ModoNegocioLojaPublicaSchema = z.enum(["auto", "moda", "comida", "servicos", "geral"]);
@@ -156,6 +162,7 @@ const CatalogoOperacaoLojaSchema = z
     categoriasVisiveis: z.array(z.string().trim().min(1).max(80)).max(60).default([]),
     categoriasOcultas: z.array(z.string().trim().min(1).max(80)).max(60).default([]),
     sequenciaCategorias: z.array(z.string().trim().min(1).max(80)).max(60).default([]),
+    mensagensColecao: z.record(z.string().trim().max(200)).default({}),
     descontosAtivos: z.boolean().default(false),
     produtosPorColecao: z.boolean().default(true),
     produtosComEstatisticas: z.boolean().default(true)
@@ -540,7 +547,8 @@ export const SalvarConfiguracaoLojaPublicaSchema = z.object({
     .object({
       slug: SlugLojaPublicaSchema.optional(),
       descricaoPublica: TextoLongoLojaOpcionalSchema,
-      publicada: z.boolean().optional()
+      publicada: z.boolean().optional(),
+      participaNoMarket: z.boolean().optional()
     })
     .default({}),
   tema: z

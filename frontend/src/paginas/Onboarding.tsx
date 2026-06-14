@@ -22,6 +22,7 @@ import {
 import { type FormEvent, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { obterUsuario, requisitarApi, resolverUrlMedia, type NegocioSessao } from "../api";
+import { enviarMedia } from "../media";
 import { CORES_LOGO_BIZY_ESCURA, LogoBizy } from "../marca/bizy";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -165,16 +166,7 @@ export function PaginaOnboarding() {
     try {
       const novasUrls: string[] = [];
       for (const ficheiro of Array.from(ficheiros).slice(0, 4)) {
-        const dataUrl = await new Promise<string>((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = () => resolve(reader.result as string);
-          reader.onerror = reject;
-          reader.readAsDataURL(ficheiro);
-        });
-        const resultado = await requisitarApi<{ url: string }>("/media/upload", {
-          method: "POST",
-          body: { dataUrl, purpose: "catalogo", maxImageDimension: 1200 }
-        });
+        const resultado = await enviarMedia(ficheiro, "catalogo", 1200);
         novasUrls.push(resultado.url);
       }
       setProduto((atual) => ({ ...atual, fotos: [...atual.fotos, ...novasUrls] }));

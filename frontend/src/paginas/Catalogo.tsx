@@ -33,6 +33,17 @@ import { Textarea } from "@/components/ui/textarea";
 import type { EstadoPeca, Peca } from "../tipos";
 import { formatarKwanza, traduzirEstadoPeca } from "../utilidades";
 
+type SeloProduto = "DESTAQUE" | "PROMOCAO" | "NOVIDADE" | "MAIS_VENDIDO" | "REPOSICAO" | "KIT";
+
+const selosDisponiveis: Array<{ id: SeloProduto; titulo: string; detalhe: string }> = [
+  { id: "DESTAQUE", titulo: "Destaque", detalhe: "Aparece primeiro na loja" },
+  { id: "PROMOCAO", titulo: "Promoção", detalhe: "Em oferta ou com desconto" },
+  { id: "NOVIDADE", titulo: "Novidade", detalhe: "Recém-chegado ao catálogo" },
+  { id: "MAIS_VENDIDO", titulo: "Mais vendido", detalhe: "Prova social para o cliente" },
+  { id: "REPOSICAO", titulo: "Reposição", detalhe: "Voltou ao stock" },
+  { id: "KIT", titulo: "Kit", detalhe: "Combinação de produtos" }
+];
+
 const formularioInicial = {
   codigo: "",
   sku: "",
@@ -47,15 +58,14 @@ const formularioInicial = {
   stockMinimo: 1,
   variantesTexto: "",
   fotos: [] as string[],
-  estado: "DISPONIVEL" as EstadoPeca
+  estado: "DISPONIVEL" as EstadoPeca,
+  selos: [] as SeloProduto[],
+  prioridade: 100
 };
 
 const estadosPeca: EstadoPeca[] = ["DISPONIVEL", "RESERVADA", "VENDIDA", "ESGOTADA"];
 
-interface MediaUploadResposta {
-  url: string;
-  thumbnailUrl?: string | null;
-}
+import { enviarMedia } from "../media";
 
 function corEstadoPeca(estado: EstadoPeca): CorSemantica {
   if (estado === "DISPONIVEL") return "green";
@@ -110,7 +120,11 @@ export function PaginaCatalogo() {
         quantidade: formPeca.quantidade,
         stockMinimo: formPeca.stockMinimo,
         variantes: extrairVariantes(formPeca.variantesTexto),
-        fotos: formPeca.fotos
+        fotos: formPeca.fotos,
+        vitrine: {
+          selos: formPeca.selos,
+          prioridade: formPeca.prioridade
+        }
       };
 
       if (codigoEditando) {
@@ -163,7 +177,9 @@ export function PaginaCatalogo() {
       stockMinimo: peca.stockMinimo ?? 1,
       variantesTexto: formatarVariantes(peca.variantes),
       fotos: peca.fotos,
-      estado: peca.estado
+      estado: peca.estado,
+      selos: (peca.vitrine?.selos ?? []) as SeloProduto[],
+      prioridade: peca.vitrine?.prioridade ?? 100
     });
     setModalProdutoAberto(true);
   }
@@ -205,15 +221,7 @@ export function PaginaCatalogo() {
     try {
       const urls = await Promise.all(
         selecionados.map(async (arquivo) => {
-          const dataUrl = await lerArquivoComoDataUrl(arquivo);
-          const media = await requisitarApi<MediaUploadResposta>("/media/upload", {
-            method: "POST",
-            body: {
-              dataUrl,
-              purpose: "catalogo",
-              maxImageDimension: 1800
-            }
-          });
+          const media = await enviarMedia(arquivo, "catalogo", 1800);
           return media.url;
         })
       );
@@ -522,6 +530,48 @@ export function PaginaCatalogo() {
               </section>
 
               <section className="bz-form-section grid gap-3">
+                <div className="bz-form-section-head">
+                  <span className="bz-form-section-icon"><BadgeCheck size={16} /></span>
+                  <h3>Vitrine e selos</h3>
+                </div>
+                <div className="grid gap-2 sm:grid-cols-3">
+                  {selosDisponiveis.map((selo) => {
+                    const ativo = formPeca.selos.includes(selo.id);
+                    return (
+                      <label
+                        key={selo.id}
+                        className={`flex cursor-pointer items-center gap-2 border px-3 py-2 text-sm transition-colors ${
+                          ativo ? "border-foreground bg-foreground text-background" : "border-border/70 bg-background hover:bg-muted/60"
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={ativo}
+                          onChange={(e) => {
+                            const novos = e.target.checked
+                              ? [...formPeca.selos, selo.id]
+                              : formPeca.selos.filter((s) => s !== selo.id);
+                            setFormPeca({ ...formPeca, selos: novos });
+                          }}
+                          className="sr-only"
+                        />
+                        <div>
+                          <strong className="block text-xs">{selo.titulo}</strong>
+                          <span className={`text-xs ${ativo ? "opacity-70" : "text-muted-foreground"}`}>{selo.detalhe}</span>
+                        </div>
+                      </label>
+                    );
+                  })}
+                </div>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <div className="grid gap-1">
+                    <label className="text-xs font-medium text-muted-foreground" htmlFor="prioridadePeca">Prioridade (0 = topo, 9999 = fundo)</label>
+                    <Input id="prioridadePeca" type="number" min="0" max="9999" value={formPeca.prioridade} onChange={(e) => setFormPeca({ ...formPeca, prioridade: Number(e.target.value) })} />
+                  </div>
+                </div>
+              </section>
+
+              <section className="bz-form-section grid gap-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="bz-form-section-head">
                     <span className="bz-form-section-icon"><ImagePlus size={16} /></span>
@@ -610,14 +660,6 @@ function ordenarUnicos(valores: Array<string | null | undefined>): string[] {
     .sort((a, b) => a.localeCompare(b, "pt-AO"));
 }
 
-function lerArquivoComoDataUrl(arquivo: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const leitor = new FileReader();
-    leitor.onload = () => resolve(String(leitor.result ?? ""));
-    leitor.onerror = () => reject(new Error("Não foi possível ler a imagem selecionada."));
-    leitor.readAsDataURL(arquivo);
-  });
-}
 
 function extrairVariantes(valor: string): Record<string, string[]> {
   return Object.fromEntries(
