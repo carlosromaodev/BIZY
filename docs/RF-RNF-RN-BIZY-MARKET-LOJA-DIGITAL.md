@@ -181,7 +181,7 @@ Inclui:
 - [x] **RF-017**: O dono da loja deve poder editar capa, avatar, descricao, cor/acento visual, links, localizacao e informacoes publicas no CRM.
 - [x] **RF-018**: O dono da loja deve poder criar, editar, ordenar e ocultar colecoes.
 - [x] **RF-019**: O dono da loja deve poder escolher produtos destacados no perfil.
-- [ ] **RF-020**: O dono da loja deve poder escolher se determinados produtos aparecem apenas na loja, apenas em campanhas, ou tambem no Bizy Market.
+- [x] **RF-020**: O dono da loja deve poder escolher se determinados produtos aparecem apenas na loja, apenas em campanhas, ou tambem no Bizy Market.
 - [x] **RF-021**: O dono da loja deve poder configurar mensagens curtas de apresentacao por colecao.
 - [x] **RF-022**: O sistema deve impedir personalizacoes que quebrem legibilidade, acessibilidade ou seguranca visual.
 - [x] **RF-023**: O sistema deve usar tokens e limites de design para permitir autonomia sem destruir a consistencia Bizy.
@@ -190,9 +190,9 @@ Inclui:
 
 - [x] **RF-024**: O sistema deve manter categorias globais do Bizy Market separadas das colecoes internas de cada loja.
 - [x] **RF-025**: Cada produto deve poder pertencer a uma categoria global e a uma ou mais colecoes da loja.
-- [ ] **RF-026**: O sistema deve suportar colecoes manuais criadas pelo dono da loja.
+- [x] **RF-026**: O sistema deve suportar colecoes manuais criadas pelo dono da loja.
 - [x] **RF-027**: O sistema deve suportar colecoes automaticas, como novidades, promocoes, mais vendidos, reposicoes, kits e pronta entrega.
-- [ ] **RF-028**: O sistema deve permitir ordenacao manual dos produtos dentro de uma colecao.
+- [x] **RF-028**: O sistema deve permitir ordenacao manual dos produtos dentro de uma colecao.
 - [x] **RF-029**: O sistema deve suportar destaque visual para preco promocional, disponibilidade, stock baixo e ultima unidade.
 - [ ] **RF-030**: O sistema deve permitir produtos fisicos, servicos e produtos digitais quando as politicas do Bizy permitirem.
 - [x] **RF-031**: O sistema deve bloquear publicacao no Market de produtos sem imagem, preco, categoria, fornecedor ativo ou disponibilidade definida.
@@ -200,10 +200,10 @@ Inclui:
 
 ### 5.5 Bizy Market - Shopping Center
 
-- [ ] **RF-033**: O Bizy Market deve ter uma pagina inicial com busca, categorias, destaques, novidades, promocoes e lojas em evidencia.
+- [x] **RF-033**: O Bizy Market deve ter uma pagina inicial com busca, categorias, destaques, novidades, promocoes e lojas em evidencia.
 - [x] **RF-034**: O Bizy Market deve permitir navegar por categoria global.
-- [ ] **RF-035**: O Bizy Market deve permitir buscar produtos por nome, categoria, loja, descricao, tags e localizacao.
-- [ ] **RF-036**: O Bizy Market deve permitir filtros por preco, disponibilidade, entrega, provincia/municipio, loja e promocao.
+- [x] **RF-035**: O Bizy Market deve permitir buscar produtos por nome, categoria, loja, descricao, tags e localizacao.
+- [x] **RF-036**: O Bizy Market deve permitir filtros por preco, disponibilidade, entrega, provincia/municipio, loja e promocao.
 - [x] **RF-037**: O Bizy Market deve exibir a loja fornecedora em cada card de produto.
 - [x] **RF-038**: O Bizy Market deve permitir abrir o perfil da loja a partir de qualquer produto.
 - [x] **RF-039**: O Bizy Market deve sugerir produtos similares de outros fornecedores quando o comprador pedir alternativas.
@@ -217,7 +217,7 @@ Inclui:
 - [x] **RF-044**: O produto deve mostrar contexto comercial util, como "em stock", "pronta entrega", "popular esta semana" ou "ultima unidade", quando os dados existirem.
 - [x] **RF-045**: O produto deve permitir ver mais produtos da mesma loja.
 - [x] **RF-046**: O produto deve permitir ver produtos similares de outras lojas no Bizy Market.
-- [ ] **RF-047**: Produtos similares devem respeitar categoria, preco aproximado, tags, disponibilidade e localizacao quando possivel.
+- [x] **RF-047**: Produtos similares devem respeitar categoria, preco aproximado, tags, disponibilidade e localizacao quando possivel.
 - [x] **RF-048**: Produtos similares nao devem esconder a loja dona do produto original nem confundir o comprador sobre o fornecedor.
 
 ### 5.7 Checkout Unificado Bizy
@@ -231,10 +231,10 @@ Inclui:
 - [ ] **RF-055**: O sistema deve calcular entrega por loja, por zona ou por politica configurada.
 - [x] **RF-056**: O checkout deve suportar retirada, entrega ao domicilio, entrega por orcamento e entrega a combinar, conforme a loja.
 - [x] **RF-057**: O checkout deve recolher consentimento minimo de dados antes de criar pedido.
-- [ ] **RF-058**: O checkout deve suportar pagamento por transferencia/comprovativo, dinheiro na entrega, pagamento personalizado e providers futuros.
-- [ ] **RF-059**: O checkout deve permitir comprovativo de pagamento quando o metodo exigir.
-- [ ] **RF-060**: O checkout deve criar cliente/lead no CRM das lojas envolvidas, respeitando minimizacao de dados.
-- [ ] **RF-061**: O checkout deve gerar numero de compra unificado para o comprador e numeros internos por fornecedor.
+- [x] **RF-058**: O checkout deve suportar pagamento por transferencia/comprovativo, dinheiro na entrega, pagamento personalizado e providers futuros.
+- [x] **RF-059**: O checkout deve permitir comprovativo de pagamento quando o metodo exigir.
+- [x] **RF-060**: O checkout deve criar cliente/lead no CRM das lojas envolvidas, respeitando minimizacao de dados.
+- [x] **RF-061**: O checkout deve gerar numero de compra unificado para o comprador e numeros internos por fornecedor.
 - [ ] **RF-062**: O checkout deve permitir acompanhamento do estado da compra pelo comprador.
 
 ### 5.8 Pedidos, Pagamentos e Repasses
@@ -283,7 +283,7 @@ Inclui:
 
 - [x] **RF-093**: Cada perfil de loja deve ter URL canonica e metadata SEO.
 - [x] **RF-094**: Cada produto publico deve ter metadata SEO e preview social.
-- [ ] **RF-095**: O Bizy Market deve ter URLs por categoria, busca e produto quando aplicavel.
+- [x] **RF-095**: O Bizy Market deve ter URLs por categoria, busca e produto quando aplicavel.
 - [ ] **RF-096**: O sistema deve gerar preview adequado para WhatsApp, Instagram, TikTok, Facebook e navegador.
 - [ ] **RF-097**: O sistema deve evitar indexar paginas privadas, rascunhos, carrinhos e checkout com dados pessoais.
 

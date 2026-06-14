@@ -92,6 +92,10 @@ export function listarProdutosMarket(filtros: FiltrosMarketProdutos = {}): Promi
       provincia: filtros.provincia,
       municipio: filtros.municipio,
       loja: filtros.loja,
+      precoMinimo: filtros.precoMinimo,
+      precoMaximo: filtros.precoMaximo,
+      apenasDisponivel: filtros.apenasDisponivel,
+      apenasPromocao: filtros.apenasPromocao,
       limite: filtros.limite
     }),
     {},

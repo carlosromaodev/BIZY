@@ -28,7 +28,7 @@ import { listarCategoriasMarket, listarProdutosMarket, normalizarProdutoMarket, 
 import type { CategoriaMarket, ProdutoMarketNormalizado } from "../lojas";
 import { formatarKwanza } from "../utilidades";
 
-type FiltroTexto = "busca" | "provincia" | "municipio" | "loja";
+type FiltroTexto = "busca" | "provincia" | "municipio" | "loja" | "precoMinimo" | "precoMaximo";
 
 const DEPARTAMENTOS_MARKET = ["Moda", "Beleza", "Casa", "Tecnologia", "Comida", "Serviços"];
 const CATEGORIAS_EDITORIAIS = [
@@ -65,6 +65,10 @@ export function PaginaMarket() {
   const provincia = searchParams.get("provincia") ?? "";
   const municipio = searchParams.get("municipio") ?? "";
   const loja = searchParams.get("loja") ?? "";
+  const precoMinimo = searchParams.get("precoMinimo") ?? "";
+  const precoMaximo = searchParams.get("precoMaximo") ?? "";
+  const apenasDisponivel = searchParams.get("apenasDisponivel") === "true";
+  const apenasPromocao = searchParams.get("apenasPromocao") === "true";
 
   const fornecedores = useMemo(() => {
     const mapa = new Map<string, ProdutoMarketNormalizado["fornecedor"] & { total: number }>();
@@ -79,11 +83,7 @@ export function PaginaMarket() {
     return Array.from(mapa.values()).slice(0, 6);
   }, [produtos]);
 
-  const filtrosAtivos = [categoriaSelecionada, busca, provincia, municipio, loja].filter(Boolean).length;
-  const produtosEmPromocao = useMemo(
-    () => produtos.filter((produto) => produto.emPromocao || produto.descontoPercentual).slice(0, 6),
-    [produtos]
-  );
+  const filtrosAtivos = [categoriaSelecionada, busca, provincia, municipio, loja, precoMinimo, precoMaximo, apenasDisponivel, apenasPromocao].filter(Boolean).length;
   const produtosDestaque = useMemo(() => produtos.slice(0, 10), [produtos]);
   const totalLojas = fornecedores.length;
 
@@ -93,6 +93,16 @@ export function PaginaMarket() {
       const texto = valor.trim();
       if (texto) proximos.set(chave, texto);
       else proximos.delete(chave);
+      setSearchParams(proximos, { replace: true });
+    },
+    [searchParams, setSearchParams]
+  );
+
+  const alternarFiltroBooleano = useCallback(
+    (chave: "apenasDisponivel" | "apenasPromocao") => {
+      const proximos = new URLSearchParams(searchParams);
+      if (proximos.get(chave) === "true") proximos.delete(chave);
+      else proximos.set(chave, "true");
       setSearchParams(proximos, { replace: true });
     },
     [searchParams, setSearchParams]
@@ -113,6 +123,10 @@ export function PaginaMarket() {
             provincia,
             municipio,
             loja,
+            precoMinimo: precoMinimo ? Number(precoMinimo) : undefined,
+            precoMaximo: precoMaximo ? Number(precoMaximo) : undefined,
+            apenasDisponivel: apenasDisponivel || undefined,
+            apenasPromocao: apenasPromocao || undefined,
             limite: 48
           })
         ]);
@@ -136,7 +150,7 @@ export function PaginaMarket() {
     return () => {
       ativo = false;
     };
-  }, [busca, categoriaSelecionada, loja, municipio, provincia]);
+  }, [busca, categoriaSelecionada, loja, municipio, provincia, precoMinimo, precoMaximo, apenasDisponivel, apenasPromocao]);
 
   function abrirCategoria(categoria: string) {
     const query = new URLSearchParams(searchParams);
@@ -258,26 +272,59 @@ export function PaginaMarket() {
         <aside className="market-discovery-panel">
           <div className="market-panel-heading">
             <SlidersHorizontal size={18} />
-            <span>Filtros ativos</span>
+            <span>Filtros {filtrosAtivos > 0 && `(${filtrosAtivos})`}</span>
           </div>
-          {filtrosAtivos ? (
+          {filtrosAtivos > 0 && (
             <div className="market-active-filter-list">
               {categoriaSelecionada && <span><Tags size={13} />{categoriaSelecionada}</span>}
               {busca && <span><Search size={13} />{busca}</span>}
               {provincia && <span><MapPin size={13} />{provincia}</span>}
               {municipio && <span><MapPin size={13} />{municipio}</span>}
               {loja && <span><Store size={13} />{loja}</span>}
+              {precoMinimo && <span>Min: {formatarKwanza(Number(precoMinimo))}</span>}
+              {precoMaximo && <span>Max: {formatarKwanza(Number(precoMaximo))}</span>}
+              {apenasDisponivel && <span><Package size={13} />Em stock</span>}
+              {apenasPromocao && <span><Tags size={13} />Promoção</span>}
             </div>
-          ) : (
-            <p>Use busca, categoria e localização para refinar a descoberta.</p>
           )}
           <button type="button" onClick={limparFiltros} disabled={!filtrosAtivos}>
             Limpar filtros
           </button>
-          <div className="market-filter-row">
-            <FiltroCampo label="Província" value={provincia} onChange={(valor) => atualizarFiltro("provincia", valor)} />
-            <FiltroCampo label="Município" value={municipio} onChange={(valor) => atualizarFiltro("municipio", valor)} />
-            <FiltroCampo label="Loja" value={loja} onChange={(valor) => atualizarFiltro("loja", valor)} />
+
+          <div className="market-filter-group">
+            <strong>Localização</strong>
+            <div className="market-filter-row">
+              <FiltroCampo label="Província" value={provincia} onChange={(valor) => atualizarFiltro("provincia", valor)} />
+              <FiltroCampo label="Município" value={municipio} onChange={(valor) => atualizarFiltro("municipio", valor)} />
+            </div>
+          </div>
+
+          <div className="market-filter-group">
+            <strong>Loja</strong>
+            <div className="market-filter-row">
+              <FiltroCampo label="Nome da loja" value={loja} onChange={(valor) => atualizarFiltro("loja", valor)} />
+            </div>
+          </div>
+
+          <div className="market-filter-group">
+            <strong>Faixa de preço</strong>
+            <div className="market-filter-row market-filter-price-row">
+              <FiltroCampo label="Mínimo (Kz)" value={precoMinimo} onChange={(valor) => atualizarFiltro("precoMinimo", valor)} tipo="number" />
+              <span className="market-filter-dash">—</span>
+              <FiltroCampo label="Máximo (Kz)" value={precoMaximo} onChange={(valor) => atualizarFiltro("precoMaximo", valor)} tipo="number" />
+            </div>
+          </div>
+
+          <div className="market-filter-group">
+            <strong>Disponibilidade</strong>
+            <label className="market-filter-toggle">
+              <input type="checkbox" checked={apenasDisponivel} onChange={() => alternarFiltroBooleano("apenasDisponivel")} />
+              <span>Apenas produtos em stock</span>
+            </label>
+            <label className="market-filter-toggle">
+              <input type="checkbox" checked={apenasPromocao} onChange={() => alternarFiltroBooleano("apenasPromocao")} />
+              <span>Apenas com promoção</span>
+            </label>
           </div>
         </aside>
 
@@ -689,11 +736,11 @@ function RodapeMarket() {
   );
 }
 
-function FiltroCampo({ label, onChange, value }: { label: string; onChange: (valor: string) => void; value: string }) {
+function FiltroCampo({ label, onChange, value, tipo = "text" }: { label: string; onChange: (valor: string) => void; value: string; tipo?: "text" | "number" }) {
   return (
     <label className="market-filter-input">
       <span>{label}</span>
-      <input value={value} onChange={(evento) => onChange(evento.target.value)} placeholder={label} />
+      <input type={tipo} value={value} onChange={(evento) => onChange(evento.target.value)} placeholder={label} min={tipo === "number" ? 0 : undefined} />
     </label>
   );
 }

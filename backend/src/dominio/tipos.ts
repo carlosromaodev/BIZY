@@ -248,6 +248,8 @@ export interface PublicacaoMarketProduto {
   origem: string | null;
 }
 
+export type VisibilidadeProduto = "market" | "loja" | "campanhas";
+
 export interface ConfiguracaoVitrineProduto {
   selos: SeloProdutoPublico[];
   prioridade: number;
@@ -257,6 +259,7 @@ export interface ConfiguracaoVitrineProduto {
   ativaAte: Date | null;
   componentesKit: ComponenteKitProduto[];
   publicacaoMarket?: PublicacaoMarketProduto;
+  visibilidade?: VisibilidadeProduto;
 }
 
 export interface NovaPeca {

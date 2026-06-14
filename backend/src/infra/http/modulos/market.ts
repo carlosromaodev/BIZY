@@ -28,6 +28,10 @@ export const moduloMarket: ModuloHttp = {
         provincia: query.provincia,
         municipio: query.municipio,
         loja: query.loja,
+        precoMinimo: normalizarLimiteQuery(query.precoMinimo),
+        precoMaximo: normalizarLimiteQuery(query.precoMaximo),
+        apenasDisponivel: query.apenasDisponivel === "true" || undefined,
+        apenasPromocao: query.apenasPromocao === "true" || undefined,
         limite: normalizarLimiteQuery(query.limite)
       });
     });

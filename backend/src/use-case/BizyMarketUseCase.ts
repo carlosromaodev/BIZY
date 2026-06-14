@@ -10,6 +10,10 @@ export interface FiltrosBizyMarket {
   loja?: string | null;
   municipio?: string | null;
   provincia?: string | null;
+  precoMinimo?: number | null;
+  precoMaximo?: number | null;
+  apenasDisponivel?: boolean | null;
+  apenasPromocao?: boolean | null;
   limite?: number | null;
 }
 
@@ -223,6 +227,12 @@ export class BizyMarketUseCase {
       if (!nomeLoja.includes(loja) && !slugLoja.includes(loja)) return false;
     }
 
+    const precoFinal = item.peca.vitrine.precoPromocionalEmKwanza ?? item.peca.precoEmKwanza;
+    if (filtros.precoMinimo != null && precoFinal < filtros.precoMinimo) return false;
+    if (filtros.precoMaximo != null && precoFinal > filtros.precoMaximo) return false;
+    if (filtros.apenasDisponivel && item.peca.quantidade <= 0) return false;
+    if (filtros.apenasPromocao && !item.peca.vitrine.precoPromocionalEmKwanza) return false;
+
     return true;
   }
 
@@ -324,7 +334,7 @@ export class BizyMarketUseCase {
       peca.fotos.length === 0 ? "Adicionar pelo menos uma imagem." : null,
       peca.precoEmKwanza <= 0 ? "Definir preço público." : null,
       !peca.categoria?.trim() ? "Definir categoria global." : null,
-      !this.produtoPublicadoMarket(peca) ? "Produto despublicado do Bizy Market." : null
+      !this.produtoPublicadoMarket(peca) ? (peca.vitrine.visibilidade === "loja" ? "Produto visível apenas na loja própria." : peca.vitrine.visibilidade === "campanhas" ? "Produto reservado para campanhas." : "Produto despublicado do Bizy Market.") : null
     ].filter((item): item is string => Boolean(item));
   }
 
@@ -352,6 +362,7 @@ export class BizyMarketUseCase {
   }
 
   private produtoPublicadoMarket(peca: Peca): boolean {
+    if (peca.vitrine.visibilidade === "loja" || peca.vitrine.visibilidade === "campanhas") return false;
     return peca.vitrine.publicacaoMarket?.publicado !== false;
   }
 
@@ -362,6 +373,10 @@ export class BizyMarketUseCase {
       ...(filtros.provincia ? { provincia: filtros.provincia } : {}),
       ...(filtros.municipio ? { municipio: filtros.municipio } : {}),
       ...(filtros.loja ? { loja: filtros.loja } : {}),
+      ...(filtros.precoMinimo != null ? { precoMinimo: filtros.precoMinimo } : {}),
+      ...(filtros.precoMaximo != null ? { precoMaximo: filtros.precoMaximo } : {}),
+      ...(filtros.apenasDisponivel ? { apenasDisponivel: true } : {}),
+      ...(filtros.apenasPromocao ? { apenasPromocao: true } : {}),
       limite
     };
   }

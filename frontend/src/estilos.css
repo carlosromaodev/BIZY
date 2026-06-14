@@ -10597,6 +10597,68 @@ body.mobile-chat-imersivo .atendimento-message-bubble {
   color: var(--green-700);
 }
 
+.checkout-payment-options {
+  display: grid;
+  gap: .45rem;
+}
+
+.checkout-payment-option {
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr);
+  gap: .6rem;
+  align-items: center;
+  border: 1px solid var(--checkout-line, #e5e5e5);
+  border-radius: .85rem;
+  background: #fff;
+  padding: .7rem .85rem;
+  cursor: pointer;
+  transition: border-color .15s, background .15s;
+}
+
+.checkout-payment-option input[type="radio"] {
+  accent-color: var(--green, #16a07a);
+}
+
+.checkout-payment-option div {
+  display: grid;
+  gap: .1rem;
+}
+
+.checkout-payment-option strong {
+  font-size: .82rem;
+  font-weight: 750;
+  color: var(--checkout-ink, #1a1a1a);
+}
+
+.checkout-payment-option small {
+  font-size: .72rem;
+  color: var(--checkout-muted, #888);
+}
+
+.checkout-payment-option.is-active {
+  border-color: var(--green, #16a07a);
+  background: rgba(22, 160, 122, .08);
+}
+
+.checkout-comprovativo-notice {
+  display: flex;
+  gap: .55rem;
+  align-items: flex-start;
+  border: 1px solid rgba(22, 160, 122, .25);
+  border-radius: .75rem;
+  background: rgba(22, 160, 122, .06);
+  padding: .65rem .85rem;
+  font-size: .76rem;
+  line-height: 1.45;
+  color: var(--checkout-muted, #666);
+}
+
+.checkout-comprovativo-notice svg {
+  flex-shrink: 0;
+  margin-top: .1rem;
+  color: var(--green, #16a07a);
+}
+
 .checkout-address-field {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
@@ -11307,6 +11369,49 @@ body.mobile-chat-imersivo .atendimento-message-bubble {
 
 .market-discovery-panel button:disabled {
   opacity: .5;
+}
+
+.market-filter-group {
+  display: grid;
+  gap: .5rem;
+}
+
+.market-filter-group > strong {
+  font-size: .72rem;
+  font-weight: 780;
+  text-transform: uppercase;
+  letter-spacing: .03em;
+  color: var(--market-ink, #1a1a1a);
+}
+
+.market-filter-price-row {
+  grid-template-columns: 1fr auto 1fr !important;
+  align-items: end;
+}
+
+.market-filter-dash {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 2.2rem;
+  color: var(--market-muted, #888);
+  font-size: .85rem;
+}
+
+.market-filter-toggle {
+  display: flex;
+  align-items: center;
+  gap: .55rem;
+  cursor: pointer;
+  font-size: .78rem;
+  color: var(--market-ink, #1a1a1a);
+}
+
+.market-filter-toggle input[type="checkbox"] {
+  width: 1rem;
+  height: 1rem;
+  accent-color: var(--market-emerald, #0e8c68);
+  cursor: pointer;
 }
 
 .market-filter-input {

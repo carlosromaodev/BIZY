@@ -674,7 +674,9 @@ export const CriarCheckoutSitePublicoSchema = CalcularEntregaPublicaSchema.exten
     .default({}),
   origem: z.string().trim().min(1).max(80).default("loja-publica"),
   canal: z.string().trim().min(1).max(80).default("site"),
-  observacao: z.string().trim().max(1000).nullable().optional().transform((valor) => valor ?? null)
+  observacao: z.string().trim().max(1000).nullable().optional().transform((valor) => valor ?? null),
+  metodoPagamento: z.string().trim().min(1).max(80).nullable().optional().transform((valor) => valor ?? null),
+  comprovativoPagamentoUrl: z.string().trim().min(1).max(500).nullable().optional().transform((valor) => valor ?? null)
 });
 
 export const AjustarAtribuicaoManualSchema = z.object({

@@ -90,6 +90,8 @@ interface DadosCheckoutSitePublico extends DadosCalculoEntregaPublica {
   origem: string;
   canal: string;
   observacao?: string | null;
+  metodoPagamento?: string | null;
+  comprovativoPagamentoUrl?: string | null;
 }
 
 interface DadosCheckoutAbandonadoPublico extends DadosCalculoEntregaPublica {
@@ -398,6 +400,7 @@ export class LojaPublicaUseCase {
       canal: canalEfetivo,
       taxaEntregaEmKwanza: resumo.taxaEntregaEmKwanza,
       enderecoEntrega: resumo.entrega.endereco,
+      comprovativoPagamentoUrl: dados.comprovativoPagamentoUrl ?? null,
       observacao: this.montarObservacaoCheckout(dados, resumo, atribuicao)
     });
 
@@ -605,7 +608,7 @@ export class LojaPublicaUseCase {
   }
 
   private pecaVendavel(peca: Peca): boolean {
-    return !peca.arquivadaEm && peca.quantidade > 0 && peca.estado !== "ESGOTADA" && peca.estado !== "VENDIDA";
+    return !peca.arquivadaEm && peca.quantidade > 0 && peca.estado !== "ESGOTADA" && peca.estado !== "VENDIDA" && peca.vitrine.visibilidade !== "campanhas";
   }
 
   private produtoAtendeFiltrosPublicos(peca: Peca, filtros: FiltrosProdutosPublicos): boolean {
@@ -665,6 +668,7 @@ export class LojaPublicaUseCase {
       logoUrl: this.texto(tema.logoUrl),
       capaUrl: this.texto(tema.capaUrl),
       whatsapp: negocio.whatsapp ?? negocio.telefone,
+      metodosPagamento: negocio.metodosPagamento ?? [],
       experiencia: this.normalizarExperienciaLoja(lojaDigital.experiencia)
     };
   }
@@ -1115,6 +1119,8 @@ export class LojaPublicaUseCase {
     const contexto = [
       dados.observacao,
       `Checkout público. Origem: ${dados.origem}. Tracking: ${dados.trackingId ?? "sem_tracking"}.`,
+      dados.metodoPagamento ? `Método de pagamento: ${dados.metodoPagamento}.` : null,
+      dados.comprovativoPagamentoUrl ? `Comprovativo: ${dados.comprovativoPagamentoUrl}` : null,
       atribuicao ? `Atribuição: ${atribuicao.parceiro.codigo} via link ${atribuicao.link.codigo}.` : null,
       `Entrega: ${resumo.entrega.descricao}`
     ].filter(Boolean);

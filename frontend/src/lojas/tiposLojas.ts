@@ -113,6 +113,10 @@ export interface FiltrosMarketProdutos {
   provincia?: string | null;
   municipio?: string | null;
   loja?: string | null;
+  precoMinimo?: number | null;
+  precoMaximo?: number | null;
+  apenasDisponivel?: boolean | null;
+  apenasPromocao?: boolean | null;
   limite?: number | null;
 }
 
@@ -429,6 +433,8 @@ export interface PayloadCheckoutLojaPublica extends PayloadCalculoEntregaLojaPub
   origem?: string;
   canal?: string;
   observacao?: string | null;
+  metodoPagamento?: string | null;
+  comprovativoPagamentoUrl?: string | null;
 }
 
 export type PayloadCheckoutAbandonadoLojaPublica = Omit<PayloadCheckoutLojaPublica, "atribuicao" | "referenciasAssistidas">;

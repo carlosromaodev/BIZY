@@ -25,6 +25,8 @@ export interface Peca {
     selos?: string[];
     prioridade?: number;
     precoPromocionalEmKwanza?: number | null;
+    publicacaoMarket?: { publicado?: boolean };
+    visibilidade?: "market" | "loja" | "campanhas";
   };
 }
 

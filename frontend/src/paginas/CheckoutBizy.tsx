@@ -1,6 +1,8 @@
 import {
   ArrowLeft,
+  Banknote,
   CheckCircle2,
+  CreditCard,
   Home,
   Loader2,
   Lock,
@@ -10,7 +12,8 @@ import {
   ShoppingBag,
   Store,
   Trash2,
-  Truck
+  Truck,
+  Upload
 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
@@ -55,12 +58,21 @@ const entregaInicial: EntregaCheckoutPublico = {
   endereco: ""
 };
 
+type MetodoPagamentoCheckout = "transferencia" | "cash" | "personalizado";
+
+const METODOS_PAGAMENTO: Array<{ id: MetodoPagamentoCheckout; titulo: string; detalhe: string; icone: typeof Banknote }> = [
+  { id: "transferencia", titulo: "Transferência bancária", detalhe: "Paga por transferência e envia o comprovativo", icone: CreditCard },
+  { id: "cash", titulo: "Dinheiro na entrega", detalhe: "Paga em cash quando receber o produto", icone: Banknote },
+  { id: "personalizado", titulo: "Combinar com a loja", detalhe: "A loja contacta-te para acordar o pagamento", icone: Store }
+];
+
 export function PaginaCheckoutBizy() {
   const navigate = useNavigate();
   const [itens, setItens] = useState<ItemCarrinhoCheckoutBizy[]>(() => carregarCarrinhoCheckoutBizy());
   const [cliente, setCliente] = useState<ClienteCheckoutBizy>(clienteInicial);
   const [entrega, setEntrega] = useState<EntregaCheckoutPublico>(entregaInicial);
   const [observacao, setObservacao] = useState("");
+  const [metodoPagamento, setMetodoPagamento] = useState<MetodoPagamentoCheckout>("transferencia");
   const [mensagem, setMensagem] = useState("");
   const [finalizando, setFinalizando] = useState(false);
   const [pedidoCriado, setPedidoCriado] = useState<RespostaCheckoutLojaPublica | null>(null);
@@ -132,7 +144,8 @@ export function PaginaCheckoutBizy() {
         },
         origem: "checkout-bizy",
         canal: "site",
-        observacao: montarObservacaoCheckoutBizy(grupoUnico.nomeFornecedor, observacao, grupoUnico.itens)
+        observacao: montarObservacaoCheckoutBizy(grupoUnico.nomeFornecedor, observacao, grupoUnico.itens),
+        metodoPagamento
       });
 
       setPedidoCriado(resposta);
@@ -290,6 +303,36 @@ export function PaginaCheckoutBizy() {
                     placeholder="Endereço ou referência"
                   />
                 </label>
+              </div>
+            )}
+
+            <div className="checkout-section-head">
+              <span><CreditCard size={16} /> Pagamento</span>
+            </div>
+
+            <div className="checkout-payment-options" aria-label="Método de pagamento">
+              {METODOS_PAGAMENTO.map(({ id, titulo, detalhe, icone: Icone }) => (
+                <label key={id} className={`checkout-payment-option${metodoPagamento === id ? " is-active" : ""}`}>
+                  <input
+                    type="radio"
+                    name="metodoPagamento"
+                    value={id}
+                    checked={metodoPagamento === id}
+                    onChange={() => setMetodoPagamento(id)}
+                  />
+                  <Icone size={18} />
+                  <div>
+                    <strong>{titulo}</strong>
+                    <small>{detalhe}</small>
+                  </div>
+                </label>
+              ))}
+            </div>
+
+            {metodoPagamento === "transferencia" && (
+              <div className="checkout-comprovativo-notice">
+                <Upload size={15} />
+                <span>Após confirmar, a loja enviará os dados bancários. Envia o comprovativo por WhatsApp para validar o pagamento.</span>
               </div>
             )}
 

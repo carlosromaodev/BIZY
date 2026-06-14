@@ -44,6 +44,13 @@ const selosDisponiveis: Array<{ id: SeloProduto; titulo: string; detalhe: string
   { id: "KIT", titulo: "Kit", detalhe: "Combinação de produtos" }
 ];
 
+type VisibilidadeProduto = "market" | "loja" | "campanhas";
+const opcoesVisibilidade: Array<{ id: VisibilidadeProduto; titulo: string; detalhe: string }> = [
+  { id: "market", titulo: "Loja + Market", detalhe: "Aparece no perfil da loja e no shopping center" },
+  { id: "loja", titulo: "Apenas loja", detalhe: "Visível só no link próprio da loja" },
+  { id: "campanhas", titulo: "Apenas campanhas", detalhe: "Oculto na loja, usado em campanhas e links directos" }
+];
+
 const formularioInicial = {
   codigo: "",
   sku: "",
@@ -60,7 +67,8 @@ const formularioInicial = {
   fotos: [] as string[],
   estado: "DISPONIVEL" as EstadoPeca,
   selos: [] as SeloProduto[],
-  prioridade: 100
+  prioridade: 100,
+  visibilidade: "market" as VisibilidadeProduto
 };
 
 const estadosPeca: EstadoPeca[] = ["DISPONIVEL", "RESERVADA", "VENDIDA", "ESGOTADA"];
@@ -123,7 +131,12 @@ export function PaginaCatalogo() {
         fotos: formPeca.fotos,
         vitrine: {
           selos: formPeca.selos,
-          prioridade: formPeca.prioridade
+          prioridade: formPeca.prioridade,
+          publicacaoMarket: {
+            publicado: formPeca.visibilidade === "market",
+            origem: "crm"
+          },
+          visibilidade: formPeca.visibilidade
         }
       };
 
@@ -179,7 +192,8 @@ export function PaginaCatalogo() {
       fotos: peca.fotos,
       estado: peca.estado,
       selos: (peca.vitrine?.selos ?? []) as SeloProduto[],
-      prioridade: peca.vitrine?.prioridade ?? 100
+      prioridade: peca.vitrine?.prioridade ?? 100,
+      visibilidade: ((peca.vitrine as Record<string, unknown>)?.visibilidade as VisibilidadeProduto) ?? (peca.vitrine?.publicacaoMarket?.publicado === false ? "loja" : "market")
     });
     setModalProdutoAberto(true);
   }
@@ -567,6 +581,35 @@ export function PaginaCatalogo() {
                   <div className="grid gap-1">
                     <label className="text-xs font-medium text-muted-foreground" htmlFor="prioridadePeca">Prioridade (0 = topo, 9999 = fundo)</label>
                     <Input id="prioridadePeca" type="number" min="0" max="9999" value={formPeca.prioridade} onChange={(e) => setFormPeca({ ...formPeca, prioridade: Number(e.target.value) })} />
+                  </div>
+                </div>
+
+                <div className="grid gap-1">
+                  <span className="text-xs font-medium text-muted-foreground">Visibilidade do produto</span>
+                  <div className="grid gap-2 sm:grid-cols-3">
+                    {opcoesVisibilidade.map((opcao) => {
+                      const ativo = formPeca.visibilidade === opcao.id;
+                      return (
+                        <label
+                          key={opcao.id}
+                          className={`flex cursor-pointer items-center gap-2 border px-3 py-2 text-sm transition-colors ${
+                            ativo ? "border-foreground bg-foreground text-background" : "border-border/70 bg-background hover:bg-muted/60"
+                          }`}
+                        >
+                          <input
+                            type="radio"
+                            name="visibilidadeProduto"
+                            checked={ativo}
+                            onChange={() => setFormPeca({ ...formPeca, visibilidade: opcao.id })}
+                            className="sr-only"
+                          />
+                          <div>
+                            <strong className="block text-xs">{opcao.titulo}</strong>
+                            <span className={`text-xs ${ativo ? "opacity-70" : "text-muted-foreground"}`}>{opcao.detalhe}</span>
+                          </div>
+                        </label>
+                      );
+                    })}
                   </div>
                 </div>
               </section>
