@@ -1,4 +1,4 @@
-import { AlertTriangle, ArrowUpRight, BadgeCheck, Coins, ImagePlus, Layers3, Package, PencilLine, Plus, Tag, Trash2, X } from "lucide-react";
+import { AlertTriangle, ArrowUpRight, BadgeCheck, ChevronDown, Coins, FolderOpen, ImagePlus, Layers3, Package, PencilLine, Plus, Tag, Trash2, X } from "lucide-react";
 import { type FormEvent, useEffect, useRef, useState } from "react";
 import { requisitarApi, resolverUrlMedia } from "../api";
 import { ConfirmarAcao } from "../componentes/ConfirmarAcao";
@@ -33,7 +33,7 @@ import { Textarea } from "@/components/ui/textarea";
 import type { EstadoPeca, Peca } from "../tipos";
 import { formatarKwanza, traduzirEstadoPeca } from "../utilidades";
 
-type SeloProduto = "DESTAQUE" | "PROMOCAO" | "NOVIDADE" | "MAIS_VENDIDO" | "REPOSICAO" | "KIT";
+type SeloProduto = "DESTAQUE" | "PROMOCAO" | "NOVIDADE" | "MAIS_VENDIDO" | "REPOSICAO" | "KIT" | "PATROCINADO";
 
 const selosDisponiveis: Array<{ id: SeloProduto; titulo: string; detalhe: string }> = [
   { id: "DESTAQUE", titulo: "Destaque", detalhe: "Aparece primeiro na loja" },
@@ -41,7 +41,8 @@ const selosDisponiveis: Array<{ id: SeloProduto; titulo: string; detalhe: string
   { id: "NOVIDADE", titulo: "Novidade", detalhe: "Recém-chegado ao catálogo" },
   { id: "MAIS_VENDIDO", titulo: "Mais vendido", detalhe: "Prova social para o cliente" },
   { id: "REPOSICAO", titulo: "Reposição", detalhe: "Voltou ao stock" },
-  { id: "KIT", titulo: "Kit", detalhe: "Combinação de produtos" }
+  { id: "KIT", titulo: "Kit", detalhe: "Combinação de produtos" },
+  { id: "PATROCINADO", titulo: "Patrocinado", detalhe: "Produto com impulsionamento pago" }
 ];
 
 type VisibilidadeProduto = "market" | "loja" | "campanhas";
@@ -266,7 +267,8 @@ export function PaginaCatalogo() {
   const totalStock = pecas.reduce((t, p) => t + p.quantidade, 0);
   const valorInventario = pecas.reduce((t, p) => t + (p.precoEmKwanza * p.quantidade), 0);
   const esgotados = pecas.filter((p) => p.estado === "ESGOTADA").length;
-  const catalogos = ordenarUnicos(pecas.map((peca) => peca.categoria).concat(formPeca.categoria));
+  const catalogos = ordenarUnicos(pecas.map((peca) => peca.categoria));
+  const catalogosComForm = ordenarUnicos(pecas.map((peca) => peca.categoria).concat(formPeca.categoria));
   const colecoes = ordenarUnicos(pecas.map((peca) => peca.colecao).concat(formPeca.colecao));
 
   /* ── Mais vendido (pelo código, simplificado) ── */
@@ -331,6 +333,25 @@ export function PaginaCatalogo() {
         selectValor={categoriaFiltro}
         onSelectChange={setCategoriaFiltro}
       />
+
+      {/* ── Coleções ── */}
+      {colecoes.length > 0 && (
+        <PainelColecoes
+          colecoes={colecoes}
+          contagens={pecas.reduce<Record<string, number>>((acc, p) => {
+            if (p.colecao) acc[p.colecao] = (acc[p.colecao] ?? 0) + 1;
+            return acc;
+          }, {})}
+          onRenomear={async (de, para) => {
+            await requisitarApi("/pecas/colecoes/renomear", { method: "POST", body: { de, para } });
+            await carregar();
+          }}
+          onLimpar={async (colecao) => {
+            await requisitarApi("/pecas/colecoes/limpar", { method: "POST", body: { colecao } });
+            await carregar();
+          }}
+        />
+      )}
 
       {/* ── Product Grid ── */}
       {pecasFiltradas.length > 0 ? (
@@ -415,13 +436,13 @@ export function PaginaCatalogo() {
                 <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
                   <div className="grid gap-2">
                     <label className="text-sm font-medium" htmlFor="catalogoPeca">Catálogo</label>
-                    {catalogos.length ? (
+                    {catalogosComForm.length ? (
                       <Select value={formPeca.categoria} onValueChange={(categoria) => setFormPeca({ ...formPeca, categoria })}>
                         <SelectTrigger id="catalogoPeca">
                           <SelectValue placeholder="Escolha onde este produto entra" />
                         </SelectTrigger>
                         <SelectContent>
-                          {catalogos.map((catalogo) => (
+                          {catalogosComForm.map((catalogo) => (
                             <SelectItem key={catalogo} value={catalogo}>{catalogo}</SelectItem>
                           ))}
                         </SelectContent>
@@ -458,7 +479,7 @@ export function PaginaCatalogo() {
                     <Input id="codPeca" value={formPeca.codigo} disabled={codigoEditando !== null} onChange={(e) => setFormPeca({ ...formPeca, codigo: e.target.value })} placeholder="Ex: A01" />
                   </div>
                   <div className="grid gap-2">
-                    <label className="text-sm font-medium" htmlFor="skuPeca">SKU interno</label>
+                    <label className="text-sm font-medium" htmlFor="skuPeca">Referência interna</label>
                     <Input id="skuPeca" value={formPeca.sku} onChange={(e) => setFormPeca({ ...formPeca, sku: e.target.value })} placeholder="Ex: BIZY-VEST-001" />
                   </div>
                 </div>
@@ -695,6 +716,124 @@ export function PaginaCatalogo() {
         onCancelar={() => setPecaParaDesativar(null)}
       />
     </CrmPageMotion>
+  );
+}
+
+function PainelColecoes({
+  colecoes,
+  contagens,
+  onRenomear,
+  onLimpar,
+}: {
+  colecoes: string[];
+  contagens: Record<string, number>;
+  onRenomear: (de: string, para: string) => Promise<void>;
+  onLimpar: (colecao: string) => Promise<void>;
+}) {
+  const [aberto, setAberto] = useState(false);
+  const [editando, setEditando] = useState<string | null>(null);
+  const [novoNome, setNovoNome] = useState("");
+  const [aProcessar, setAProcessar] = useState(false);
+  const [mensagem, setMensagem] = useState("");
+
+  async function confirmarRenomear(de: string) {
+    const destino = novoNome.trim();
+    if (!destino || destino === de) { setEditando(null); return; }
+    setAProcessar(true);
+    setMensagem("");
+    try {
+      await onRenomear(de, destino);
+      setMensagem(`"${de}" renomeada para "${destino}".`);
+      setEditando(null);
+    } catch (e) {
+      setMensagem(e instanceof Error ? e.message : "Erro ao renomear.");
+    } finally {
+      setAProcessar(false);
+    }
+  }
+
+  async function confirmarLimpar(colecao: string) {
+    setAProcessar(true);
+    setMensagem("");
+    try {
+      await onLimpar(colecao);
+      setMensagem(`Coleção "${colecao}" removida dos produtos.`);
+    } catch (e) {
+      setMensagem(e instanceof Error ? e.message : "Erro ao limpar.");
+    } finally {
+      setAProcessar(false);
+    }
+  }
+
+  return (
+    <div className="bz-colecoes-panel">
+      <button
+        type="button"
+        className="bz-colecoes-toggle"
+        onClick={() => setAberto(!aberto)}
+      >
+        <FolderOpen size={15} />
+        <span>Coleções ({colecoes.length})</span>
+        <ChevronDown size={14} className={`bz-colecoes-chevron ${aberto ? "bz-colecoes-chevron--open" : ""}`} />
+      </button>
+
+      {aberto && (
+        <div className="bz-colecoes-body">
+          {colecoes.map((col) => (
+            <div key={col} className="bz-colecoes-item">
+              {editando === col ? (
+                <form
+                  className="bz-colecoes-edit"
+                  onSubmit={(e) => { e.preventDefault(); void confirmarRenomear(col); }}
+                >
+                  <Input
+                    value={novoNome}
+                    onChange={(e) => setNovoNome(e.target.value)}
+                    className="h-8 text-sm"
+                    autoFocus
+                    disabled={aProcessar}
+                  />
+                  <Button type="submit" size="sm" variant="outline" disabled={aProcessar || !novoNome.trim()}>
+                    Guardar
+                  </Button>
+                  <Button type="button" size="sm" variant="ghost" onClick={() => setEditando(null)} disabled={aProcessar}>
+                    <X size={13} />
+                  </Button>
+                </form>
+              ) : (
+                <>
+                  <div className="bz-colecoes-info">
+                    <strong>{col}</strong>
+                    <span>{contagens[col] ?? 0} produto{(contagens[col] ?? 0) !== 1 ? "s" : ""}</span>
+                  </div>
+                  <div className="bz-colecoes-actions">
+                    <button
+                      type="button"
+                      className="bz-iconbtn"
+                      title="Renomear"
+                      disabled={aProcessar}
+                      onClick={() => { setEditando(col); setNovoNome(col); }}
+                    >
+                      <PencilLine size={13} />
+                    </button>
+                    <button
+                      type="button"
+                      className="bz-iconbtn"
+                      title="Remover coleção"
+                      disabled={aProcessar}
+                      onClick={() => void confirmarLimpar(col)}
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          ))}
+          {mensagem && <p className="bz-colecoes-msg">{mensagem}</p>}
+        </div>
+      )}
+    </div>
   );
 }
 

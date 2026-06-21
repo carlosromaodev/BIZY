@@ -142,4 +142,91 @@ describe("InterpretadorComentario", () => {
 
     expect(resultado.productCodes).toEqual(["LV-01"]);
   });
+
+  /* ── Formato invertido (código antes do telefone) ── */
+  it("aceita código antes do telefone como formato direto", () => {
+    const resultado = interpretador.interpretar("01 923456789");
+
+    expect(resultado.intent).toBe("BUY");
+    expect(resultado.phone).toBe("923456789");
+    expect(resultado.productCode).toBe("01");
+    expect(resultado.requiresManualReview).toBe(false);
+    expect(resultado.confidence).toBeGreaterThanOrEqual(0.85);
+  });
+
+  it("aceita código alfanumérico antes do telefone", () => {
+    const resultado = interpretador.interpretar("A5 923456789");
+
+    expect(resultado.intent).toBe("BUY");
+    expect(resultado.phone).toBe("923456789");
+    expect(resultado.productCode).toBe("A5");
+    expect(resultado.requiresManualReview).toBe(false);
+  });
+
+  /* ── Novos padrões de intenção de compra ── */
+  it("reconhece 'leva' como intenção de compra", () => {
+    const resultado = interpretador.interpretar("leva 923456789 peça 3");
+
+    expect(resultado.intent).toBe("BUY");
+    expect(resultado.phone).toBe("923456789");
+    expect(resultado.productCode).toBe("3");
+    expect(resultado.requiresManualReview).toBe(false);
+  });
+
+  it("reconhece 'separa' como intenção de compra", () => {
+    const resultado = interpretador.interpretar("separa peça 7 923456789");
+
+    expect(resultado.intent).toBe("BUY");
+    expect(resultado.productCode).toBe("7");
+    expect(resultado.requiresManualReview).toBe(false);
+  });
+
+  it("reconhece 'fico com' como intenção de compra", () => {
+    const resultado = interpretador.interpretar("fico com 923456789 peça 2");
+
+    expect(resultado.intent).toBe("BUY");
+    expect(resultado.productCode).toBe("2");
+    expect(resultado.requiresManualReview).toBe(false);
+  });
+
+  it("reconhece 'compro' como intenção de compra", () => {
+    const resultado = interpretador.interpretar("compro 923456789 01");
+
+    expect(resultado.intent).toBe("BUY");
+    expect(resultado.productCode).toBe("01");
+    expect(resultado.requiresManualReview).toBe(false);
+  });
+
+  it("reconhece 'me guarda' como intenção de compra", () => {
+    const resultado = interpretador.interpretar("me guarda peça 4 923456789");
+
+    expect(resultado.intent).toBe("BUY");
+    expect(resultado.productCode).toBe("4");
+    expect(resultado.requiresManualReview).toBe(false);
+  });
+
+  it("reconhece 'vou levar' como intenção de compra", () => {
+    const resultado = interpretador.interpretar("vou levar 923456789 peça 10");
+
+    expect(resultado.intent).toBe("BUY");
+    expect(resultado.productCode).toBe("10");
+    expect(resultado.requiresManualReview).toBe(false);
+  });
+
+  /* ── Formatos flexíveis do dia-a-dia ── */
+  it("aceita formato natural com código rotulado e telefone no meio", () => {
+    const resultado = interpretador.interpretar("quero a peça 3 meu número 923456789");
+
+    expect(resultado.intent).toBe("BUY");
+    expect(resultado.phone).toBe("923456789");
+    expect(resultado.productCode).toBe("3");
+    expect(resultado.requiresManualReview).toBe(false);
+  });
+
+  it("aceita múltiplos códigos livres no mesmo comentário", () => {
+    const resultado = interpretador.interpretar("923456789 01 02 03");
+
+    expect(resultado.phone).toBe("923456789");
+    expect(resultado.productCodes).toEqual(["01", "02", "03"]);
+  });
 });

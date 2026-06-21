@@ -80,7 +80,8 @@ export class ProvedorInstagramInstagrapi {
           "Content-Type": "application/json",
           ...(this.bridgeToken ? { "X-Bridge-Token": this.bridgeToken } : {})
         },
-        body: JSON.stringify(body)
+        body: JSON.stringify(body),
+        signal: AbortSignal.timeout(30_000)
       });
 
       const payload = await response.json().catch(() => ({})) as Record<string, unknown>;
@@ -100,22 +101,47 @@ export class ProvedorInstagramInstagrapi {
   }
 
   async consultarPerfil(instancia: string, username: string): Promise<Record<string, unknown>> {
-    const response = await fetch(`${this.bridgeUrl}/profile`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...(this.bridgeToken ? { "X-Bridge-Token": this.bridgeToken } : {})
-      },
-      body: JSON.stringify({ instancia, username })
-    });
+    let response: Response;
+    try {
+      response = await fetch(`${this.bridgeUrl}/profile`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(this.bridgeToken ? { "X-Bridge-Token": this.bridgeToken } : {})
+        },
+        body: JSON.stringify({ instancia, username }),
+        signal: AbortSignal.timeout(15_000)
+      });
+    } catch (erro) {
+      throw new Error(
+        `Instagram Bridge inacessível (${erro instanceof Error ? erro.message : "fetch failed"}). Verifique se o serviço está em execução.`
+      );
+    }
+
+    if (!response.ok) {
+      const payload = await response.json().catch(() => ({})) as Record<string, unknown>;
+      throw new Error(typeof payload.detail === "string" ? payload.detail : `Erro ao consultar perfil (${response.status}).`);
+    }
 
     return response.json() as Promise<Record<string, unknown>>;
   }
 
   async consultarStatus(): Promise<{ instancias: StatusInstanciaInstagram[] }> {
-    const response = await fetch(`${this.bridgeUrl}/status`, {
-      headers: this.bridgeToken ? { "X-Bridge-Token": this.bridgeToken } : {}
-    });
+    let response: Response;
+    try {
+      response = await fetch(`${this.bridgeUrl}/status`, {
+        headers: this.bridgeToken ? { "X-Bridge-Token": this.bridgeToken } : {},
+        signal: AbortSignal.timeout(10_000)
+      });
+    } catch (erro) {
+      throw new Error(
+        `Instagram Bridge inacessível (${erro instanceof Error ? erro.message : "fetch failed"}). Verifique se o serviço está em execução.`
+      );
+    }
+
+    if (!response.ok) {
+      throw new Error(`Instagram Bridge respondeu com erro ${response.status}.`);
+    }
 
     return response.json() as Promise<{ instancias: StatusInstanciaInstagram[] }>;
   }
@@ -129,14 +155,22 @@ export class ProvedorInstagramInstagrapi {
       verification_code: dados.verificationCode ?? null
     };
 
-    const response = await fetch(`${this.bridgeUrl}/login`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...(this.bridgeToken ? { "X-Bridge-Token": this.bridgeToken } : {})
-      },
-      body: JSON.stringify(body)
-    });
+    let response: Response;
+    try {
+      response = await fetch(`${this.bridgeUrl}/login`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(this.bridgeToken ? { "X-Bridge-Token": this.bridgeToken } : {})
+        },
+        body: JSON.stringify(body),
+        signal: AbortSignal.timeout(30_000)
+      });
+    } catch (erro) {
+      throw new Error(
+        `Instagram Bridge inacessível (${erro instanceof Error ? erro.message : "fetch failed"}). Verifique se o serviço instagrapi-bridge está em execução.`
+      );
+    }
 
     const payload = await response.json().catch(() => ({})) as Record<string, unknown>;
 
@@ -157,10 +191,18 @@ export class ProvedorInstagramInstagrapi {
   }
 
   async logout(instancia: string): Promise<void> {
-    const response = await fetch(`${this.bridgeUrl}/logout?instancia=${encodeURIComponent(instancia)}`, {
-      method: "POST",
-      headers: this.bridgeToken ? { "X-Bridge-Token": this.bridgeToken } : {}
-    });
+    let response: Response;
+    try {
+      response = await fetch(`${this.bridgeUrl}/logout?instancia=${encodeURIComponent(instancia)}`, {
+        method: "POST",
+        headers: this.bridgeToken ? { "X-Bridge-Token": this.bridgeToken } : {},
+        signal: AbortSignal.timeout(15_000)
+      });
+    } catch (erro) {
+      throw new Error(
+        `Instagram Bridge inacessível ao desconectar (${erro instanceof Error ? erro.message : "fetch failed"}).`
+      );
+    }
 
     if (!response.ok && response.status !== 404) {
       const payload = await response.json().catch(() => ({})) as Record<string, unknown>;
@@ -168,12 +210,15 @@ export class ProvedorInstagramInstagrapi {
     }
   }
 
-  private async enviarComRetry<T extends { ok: boolean }>(operacao: () => Promise<T>): Promise<T> {
+  private async enviarComRetry<T extends { ok: boolean; status: number }>(operacao: () => Promise<T>): Promise<T> {
     let ultimoResultado: T | null = null;
 
     for (let tentativa = 0; tentativa < this.tentativas; tentativa += 1) {
       ultimoResultado = await operacao();
-      if (ultimoResultado.ok || tentativa === this.tentativas - 1) return ultimoResultado;
+      // Sucesso ou erro de cliente (4xx) — não vale a pena repetir
+      if (ultimoResultado.ok || ultimoResultado.status < 500 || tentativa === this.tentativas - 1) {
+        return ultimoResultado;
+      }
       await aguardar(this.intervaloRetryMs * 2 ** tentativa);
     }
 

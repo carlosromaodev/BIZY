@@ -41,9 +41,10 @@ import { PaginaFormularios } from "./paginas/Formularios";
 import { PaginaHome } from "./paginas/Home";
 import { PaginaLive } from "./paginas/Live";
 import { PaginaLogin } from "./paginas/Login";
+import { PaginaCatalogoPublico } from "./paginas/CatalogoPublico";
 import { PaginaLojaDigitalPublica } from "./paginas/LojaDigitalPublica";
 import { PaginaLojaPublica } from "./paginas/LojaPublica";
-import { PaginaDiretorioLojasMarket, PaginaMarket } from "./paginas/Market";
+import { PaginaDiretorioLojasMarket, PaginaLojaMarket, PaginaMarket } from "./paginas/Market";
 import { PaginaMetas } from "./paginas/Metas";
 import { PaginaOnboarding } from "./paginas/Onboarding";
 import { PaginaPainel } from "./paginas/Painel";
@@ -95,9 +96,12 @@ export const rotasPublicas: RotaPublica[] = [
   { caminho: "/lojas", elemento: <PaginaDiretorioLojasMarket /> },
   { caminho: "/categorias/:categoria", elemento: <PaginaMarket /> },
   { caminho: "/market/produtos/:codigo", elemento: <PaginaProdutoMarket /> },
+  { caminho: "/market/lojas/:slug", elemento: <PaginaLojaMarket /> },
   { caminho: "/market/lojas", elemento: <PaginaDiretorioLojasMarket /> },
+  { caminho: "/lojas-market/:slug", elemento: <PaginaLojaMarket /> },
   { caminho: "/market/categorias/:categoria", elemento: <PaginaMarket /> },
   { caminho: "/market", elemento: <PaginaMarket /> },
+  { caminho: "/lojas/:slug/catalogos/:catalogo", elemento: <PaginaCatalogoPublico /> },
   { caminho: "/lojas/:slug/produtos/:codigo", elemento: <PaginaLojaDigitalPublica /> },
   { caminho: "/lojas/:slug", elemento: <PaginaLojaDigitalPublica /> }
 ];
@@ -114,10 +118,10 @@ export const rotasComerciais: RotaPrivada[] = [
   { caminho: "/app/clientes", icone: <Users size={20} />, rotulo: "Clientes", secao: "Vendas", elemento: <PaginaClientes /> },
   { caminho: "/app/recuperacao", icone: <Repeat2 size={20} />, rotulo: "Recuperação", secao: "Vendas", elemento: <PaginaRecuperacao />, modulo: "automacoes" },
   { caminho: "/app/campanhas", icone: <Megaphone size={20} />, rotulo: "Campanhas", secao: "Vendas", elemento: <PaginaCampanhas />, modulo: "automacoes" },
-  { caminho: "/app/social-inbox", icone: <Inbox size={20} />, rotulo: "Social Inbox", secao: "Vendas", elemento: <PaginaSocialInbox /> },
+  { caminho: "/app/social-inbox", icone: <Inbox size={20} />, rotulo: "Social Inbox", secao: "Vendas", elemento: <PaginaSocialInbox />, modulo: "social-inbox" },
 
   // ── CRM (Camada 2 — requer módulo activo) ──
-  { caminho: "/app/pipeline", icone: <Kanban size={20} />, rotulo: "Pipeline", secao: "CRM", elemento: <PaginaPipeline />, modulo: "funil" },
+  { caminho: "/app/pipeline", icone: <Kanban size={20} />, rotulo: "Fluxo", secao: "CRM", elemento: <PaginaPipeline />, modulo: "funil" },
   { caminho: "/app/cotacoes", icone: <FileText size={20} />, rotulo: "Cotações", secao: "CRM", elemento: <PaginaCotacoes />, modulo: "funil" },
   { caminho: "/app/agenda", icone: <Calendar size={20} />, rotulo: "Agenda", secao: "CRM", elemento: <PaginaAgenda />, modulo: "funil" },
   { caminho: "/app/metas", icone: <Target size={20} />, rotulo: "Metas", secao: "CRM", elemento: <PaginaMetas />, modulo: "funil" },

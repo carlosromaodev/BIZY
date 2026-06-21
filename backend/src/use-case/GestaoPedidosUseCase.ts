@@ -137,6 +137,35 @@ export class GestaoPedidosUseCase {
     return { pedidos: await this.pedidos.listar(negocioId, filtros) };
   }
 
+  async obterPedidoPublico(numero: number, negocioId: string): Promise<{
+    numero: number;
+    estado: string;
+    estadoPagamento: string;
+    estadoEntrega: string;
+    totalEmKwanza: number;
+    itens: Array<{ nomeProduto: string; quantidade: number; subtotalEmKwanza: number }>;
+    criadoEm: Date;
+    atualizadoEm: Date;
+  } | null> {
+    const pedido = await this.pedidos.buscarPorNumeroPublico(numero, negocioId);
+    if (!pedido) return null;
+
+    return {
+      numero: pedido.numero,
+      estado: pedido.estado,
+      estadoPagamento: pedido.estadoPagamento,
+      estadoEntrega: pedido.estadoEntrega,
+      totalEmKwanza: pedido.totalEmKwanza,
+      itens: pedido.itens.map((item) => ({
+        nomeProduto: item.nomeProduto,
+        quantidade: item.quantidade,
+        subtotalEmKwanza: item.subtotalEmKwanza
+      })),
+      criadoEm: pedido.criadoEm,
+      atualizadoEm: pedido.atualizadoEm
+    };
+  }
+
   async obterPedido(id: string, negocioId: string): Promise<{
     pedido: Pedido;
     cliente: Cliente360 | null;

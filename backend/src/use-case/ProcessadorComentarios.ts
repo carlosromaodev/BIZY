@@ -49,9 +49,25 @@ export class ProcessadorComentarios {
 
     this.eventos.emitir("COMMENT_RECEIVED", { comentario, negocioId });
 
-    const interpretacao = this.interpretadorComentario.interpretar(comentario.commentText, {
+    let interpretacao = this.interpretadorComentario.interpretar(comentario.commentText, {
       dicionario: opcoes.dicionarioParser
     });
+
+    // Cliente que regressa: se não temos telefone no comentário mas temos username,
+    // procuramos o telefone do cliente em reservas/interações anteriores
+    if (!interpretacao.phone && comentario.username && negocioId && this.repositorioClientes) {
+      const clienteExistente = await this.repositorioClientes.buscarPorUsername(comentario.username, negocioId);
+      if (clienteExistente?.telefone) {
+        interpretacao = {
+          ...interpretacao,
+          phone: clienteExistente.telefone,
+          confidence: Math.max(interpretacao.confidence, 0.8),
+          requiresManualReview: interpretacao.intent !== "BUY" || !interpretacao.productCode,
+          reasons: interpretacao.reasons.filter((r) => !r.includes("Telefone"))
+        };
+      }
+    }
+
     this.eventos.emitir("COMMENT_PARSED", { comentario, interpretacao, negocioId });
 
     const registroInicial = await this.repositorioComentarios.criar({

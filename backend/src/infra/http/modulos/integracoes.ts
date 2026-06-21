@@ -1,4 +1,4 @@
-import { CriarInstanciaWhatsAppSchema, EnviarMensagemWhatsAppManualSchema } from "../../../dominio/esquemas.js";
+import { CriarInstanciaWhatsAppSchema, EnviarMensagemWhatsAppManualSchema, QueryTokenSchema } from "../../../dominio/esquemas.js";
 import type { FiltrosTemplatesWhatsApp } from "../../../dominio/servicos/AutomacaoWhatsApp.js";
 import type { TemplateWhatsAppNegocio } from "../../../dominio/tipos.js";
 import type { ContextoAplicacao } from "../ContextoAplicacao.js";
@@ -12,7 +12,16 @@ export const moduloIntegracoes: ModuloHttp = {
   nome: "integracoes",
   descricao: "Status operacional, Evolution API, QR Code e webhooks WhatsApp.",
   registrar(app, contexto) {
-    app.get("/integracoes/status", async () => contexto.consultaIntegracoes.listarStatus());
+    app.get("/integracoes/status", async (request, reply) => {
+      const ctx = await exigirAcessoComercial(contexto, request, reply, {
+        permissao: "configuracoes:gerir",
+        modulo: "whatsapp",
+        mensagemPermissao: "Sem permissão para consultar integrações.",
+        mensagemModulo: "Integrações desativadas para este negócio."
+      });
+      if (!ctx) return;
+      return contexto.consultaIntegracoes.listarStatus();
+    });
 
     app.get("/evolution/resumo", async (request, reply) => {
       const contextoComercial = await exigirAcessoComercial(contexto, request, reply, {
@@ -142,7 +151,7 @@ export const moduloIntegracoes: ModuloHttp = {
     app.post("/webhooks/instagram", async (request, reply) => {
       const tokenConfigurado = process.env.INSTAGRAM_WEBHOOK_TOKEN;
       const tokenRecebido = request.headers["x-instagram-webhook-token"];
-      const tokenQuery = (request.query as { token?: string }).token;
+      const { token: tokenQuery } = QueryTokenSchema.parse(request.query ?? {});
 
       if (tokenConfigurado && tokenRecebido !== tokenConfigurado && tokenQuery !== tokenConfigurado) {
         return reply.code(401).send({ erro: "NAO_AUTORIZADO", mensagem: "Token do Instagram inválido." });
@@ -183,8 +192,10 @@ export const moduloIntegracoes: ModuloHttp = {
       try {
         const status = await contexto.provedorInstagram.consultarStatus();
         return status;
-      } catch {
-        return { instancias: [], erro: "Instagram Bridge indisponível." };
+      } catch (erro) {
+        const mensagem = erro instanceof Error ? erro.message : "Instagram Bridge indisponível.";
+        app.log.warn({ err: erro }, "Instagram Bridge status falhou: %s", mensagem);
+        return { instancias: [], erro: mensagem };
       }
     });
 
@@ -201,13 +212,15 @@ export const moduloIntegracoes: ModuloHttp = {
       const instanciasNegocio = instanciasDb.filter((i) => i.negocioId === contextoComercial.negocio.id);
 
       let statusBridge: Record<string, { status: string; ultimoErro: string | null; ultimaPollEm: string | null }> = {};
+      let bridgeOffline = false;
       try {
         const bridgeStatus = await contexto.provedorInstagram.consultarStatus();
         for (const inst of bridgeStatus.instancias ?? []) {
           statusBridge[inst.instancia] = { status: inst.status, ultimoErro: inst.ultimoErro, ultimaPollEm: inst.ultimaPollEm };
         }
-      } catch {
-        /* bridge offline */
+      } catch (erro) {
+        bridgeOffline = true;
+        app.log.warn({ err: erro }, "Instagram Bridge offline ao listar instâncias");
       }
 
       const instancias = instanciasNegocio.map((inst) => {
@@ -220,7 +233,7 @@ export const moduloIntegracoes: ModuloHttp = {
         };
       });
 
-      return { instancias };
+      return { instancias, bridgeOffline };
     });
 
     app.post("/instagram/login", async (request, reply) => {
@@ -245,6 +258,10 @@ export const moduloIntegracoes: ModuloHttp = {
 
       if (!instancia || !username || !password) {
         return reply.code(400).send({ erro: "DADOS_INVALIDOS", mensagem: "Forneça instancia, username e password." });
+      }
+
+      if (!/^[a-zA-Z0-9_-]{1,50}$/.test(instancia)) {
+        return reply.code(400).send({ erro: "DADOS_INVALIDOS", mensagem: "Nome da instância inválido. Apenas letras, números, _ e - (máx 50 chars)." });
       }
 
       try {
@@ -283,25 +300,36 @@ export const moduloIntegracoes: ModuloHttp = {
       } catch (erro) {
         const statusCode = (erro as { statusCode?: number }).statusCode;
         const mensagem = erro instanceof Error ? erro.message : "Erro de login no Instagram.";
+        const isBridgeInacessivel = mensagem.includes("inacessível") || mensagem.includes("fetch failed");
+
+        app.log.warn({ err: erro, instancia, username }, "Instagram login falhou: %s", mensagem);
 
         if (statusCode === 428) {
+          const isChallenge = mensagem.includes("segurança") || mensagem.includes("challenge") || mensagem.includes("Cooldown");
+          const statusDb = isChallenge ? "CHALLENGE" : "AGUARDANDO_2FA";
+          const codigoErro = isChallenge ? "CHALLENGE_NECESSARIO" : "2FA_NECESSARIO";
+
           const existente = await contexto.repositorios.instanciasInstagram.buscarPorNome(
             contextoComercial.negocio.id,
             instancia
           );
           if (existente) {
-            await contexto.repositorios.instanciasInstagram.atualizar(existente.id, { status: "AGUARDANDO_2FA", ultimoErro: mensagem });
+            await contexto.repositorios.instanciasInstagram.atualizar(existente.id, { status: statusDb, ultimoErro: mensagem });
           } else {
             await contexto.repositorios.instanciasInstagram.criar({
               negocioId: contextoComercial.negocio.id,
               nome: instancia,
               username,
-              status: "AGUARDANDO_2FA",
+              status: statusDb,
               padrao: true,
               ativa: true
             });
           }
-          return reply.code(428).send({ erro: "2FA_NECESSARIO", mensagem });
+          return reply.code(428).send({ erro: codigoErro, mensagem });
+        }
+
+        if (isBridgeInacessivel) {
+          return reply.code(502).send({ erro: "BRIDGE_OFFLINE", mensagem: "O serviço Instagram Bridge não está a responder. Verifique se o container instagrapi-bridge está em execução." });
         }
 
         return reply.code(statusCode ?? 500).send({ erro: "FALHA_LOGIN", mensagem });
@@ -326,8 +354,8 @@ export const moduloIntegracoes: ModuloHttp = {
 
       try {
         await contexto.provedorInstagram.logout(instancia.nome);
-      } catch {
-        /* bridge offline, continue to deactivate in DB */
+      } catch (erro) {
+        app.log.warn({ err: erro, instancia: instancia.nome }, "Instagram logout no bridge falhou, a desativar apenas no BD");
       }
 
       await contexto.repositorios.instanciasInstagram.desativar(id);
@@ -337,7 +365,7 @@ export const moduloIntegracoes: ModuloHttp = {
     app.post("/webhooks/evolution", async (request, reply) => {
       const tokenConfigurado = process.env.EVOLUTION_WEBHOOK_TOKEN;
       const tokenRecebido = request.headers["x-emeu-evolution-token"];
-      const tokenQuery = (request.query as { token?: string }).token;
+      const { token: tokenQuery } = QueryTokenSchema.parse(request.query ?? {});
 
       if (tokenConfigurado && tokenRecebido !== tokenConfigurado && tokenQuery !== tokenConfigurado) {
         return reply.code(401).send({ erro: "NAO_AUTORIZADO", mensagem: "Token da Evolution inválido." });

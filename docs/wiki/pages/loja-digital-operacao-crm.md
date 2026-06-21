@@ -8,7 +8,7 @@ tags:
   - bizy/crm
   - bizy/operacao
 status: ativo
-updated: 2026-06-07
+updated: 2026-06-17
 ---
 
 # Loja Digital com Operacao CRM
@@ -180,6 +180,10 @@ Correcao aplicada:
 
 ## Ligacoes
 
+- [[bizy-market-lojas-digitais|Bizy Market e Lojas Digitais]]
+- [[bizy-market-rotas-roadmap|Rotas e Roadmap do Market]]
+- [[bizy-market-frontend-lojas|Frontend das Lojas e Market]]
+- [[requisitos-bizy-market|Requisitos do Market e Lojas]]
 - [[fluxos-operacionais-bizy|Fluxos Operacionais]]
 - [[inventario-backend-api|Inventario Backend e API HTTP]]
 - [[inventario-frontend|Inventario Frontend e UX]]

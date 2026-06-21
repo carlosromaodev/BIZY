@@ -10,13 +10,13 @@ tags:
   - bizy/loja-digital
   - bizy/ux
 status: implementado
-updated: 2026-06-10
+updated: 2026-06-19
 ---
 
 # Frontend das Lojas e Bizy Market
 
 Status: implementado
-Ultima atualizacao: 2026-06-10
+Ultima atualizacao: 2026-06-19
 Fontes principais: `docs/superpowers/specs/2026-06-07-bizy-market-frontend-lojas-design.md`, `docs/superpowers/plans/2026-06-07-bizy-market-frontend-lojas.md`, referencia visual colada, [[bizy-market-lojas-digitais]], [[bizy-market-rotas-roadmap]]
 
 > [!abstract] Decisao
@@ -96,6 +96,9 @@ Adaptacoes obrigatorias:
 - `GET /publico/market/produtos`
 - `GET /publico/market/produtos/:codigo`
 - `GET /publico/market/produtos/:codigo/similares`
+- `GET /publico/market/lojas`
+- `GET /publico/market/lojas/:slug`
+- `POST /publico/recomendacoes/eventos`
 
 ### CRM
 
@@ -105,6 +108,12 @@ Adaptacoes obrigatorias:
 - `GET /crm/loja/market/resumo`
 - `PUT /crm/loja/produtos/:codigo/publicacao`
 - `PUT /crm/loja/produtos/publicacao-em-massa`
+- `GET /crm/loja/catalogos`
+- `POST /crm/loja/catalogos`
+- `PUT /crm/loja/catalogos/:id`
+- `DELETE /crm/loja/catalogos/:id`
+- `GET /crm/loja/seguidores`
+- `GET /crm/loja/metricas`
 
 ## Principios de UX
 
@@ -172,11 +181,16 @@ Adaptacoes obrigatorias:
 - `npm run typecheck` no frontend passou em 2026-06-10.
 - `npx vitest run testes/lojas-market-frontend.test.ts` passou em 2026-06-10 cobrindo Market, PDP do Market, Studio, PDP da loja e ausencia de mock data nas paginas conectadas.
 - `npx vitest run testes/checkout-unificado.test.ts` passou em 2026-06-10 cobrindo rota `/checkout`, carrinho unificado, guardrail multi-loja e integracao dos produtos.
+- Diretorio de lojas do Market (`PaginaDiretorioLojasMarket`) corrigido para usar `listarLojasMarket` API em vez de derivar lojas de produtos.
+- Perfil de loja no Market (`PaginaLojaMarket`) criado em `/market/lojas/:slug` consumindo `obterLojaMarket`.
+- Bizy Studio estendido com `StudioSeguidoresPanel` (seguidores via `listarSeguidoresCrm`) e `StudioMetricasPanel` (metricas via `obterMetricasLojaCrm`).
+- Teste de contrato backend Fase 2+3 criado em `backend/src/testes/bizy-market-fase2-3.test.ts` (5 testes, todos passando em 2026-06-19).
 
 ## Ligacoes
 
 - [[bizy-market-lojas-digitais]]
 - [[bizy-market-rotas-roadmap]]
+- [[requisitos-bizy-market]]
 - [[loja-digital-operacao-crm]]
 - [[inventario-frontend]]
 - [[identidade-visual-bizy-v2]]

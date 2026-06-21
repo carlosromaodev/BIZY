@@ -9,14 +9,14 @@ tags:
   - bizy/loja-digital
   - bizy/produto
   - bizy/crm
-status: rascunho
-updated: 2026-06-07
+status: ativo
+updated: 2026-06-19
 ---
 
 # Bizy Market e Lojas Digitais
 
-Status: rascunho
-Ultima atualizacao: 2026-06-07
+Status: ativo
+Ultima atualizacao: 2026-06-19
 Fontes principais: `docs/RF-RNF-RN-BIZY-MARKET-LOJA-DIGITAL.md`, conversa de produto de 2026-06-07, [[loja-digital-operacao-crm]], [[visao-produto-bizy]], [[bizy-market-rotas-roadmap]]
 
 > [!abstract] Decisao
@@ -152,21 +152,38 @@ Impactos principais:
 - [x] Teste de contrato frontend criado em `frontend/testes/lojas-api.test.ts`.
 - [x] Bizy Studio completo dentro do CRM no escopo de configuracao, tracking e publicacao no Market.
 - [x] Entrada `/checkout` criada com carrinho unificado local, fornecedor por item, origem loja/Market, consentimento e finalizacao real para compras de uma loja.
-- [ ] Checkout multi-loja com compra mae, pedidos filhos, pagamento, comprovativo e acompanhamento.
-- [ ] Repasses, taxas, cancelamentos parciais e conciliacao financeira.
+- [x] Wiki de requisitos completa: [[requisitos-bizy-market]], [[requisitos-funcionais-bizy]], [[requisitos-nao-funcionais-bizy]] e [[regras-de-negocio-bizy]] criadas com cobertura total dos documentos fonte.
+- [x] Indice da wiki atualizado com seccao de Requisitos e Fontes Principais.
+- [x] Fase 2 concluida: `GET /publico/market/lojas`, `GET /publico/market/lojas/:slug` e `POST /publico/recomendacoes/eventos` implementados com backend, frontend e testes de contrato.
+- [x] Fase 3 concluida: CRUD de catalogos (`GET/POST/PUT/DELETE /crm/loja/catalogos`), seguidores (`GET /crm/loja/seguidores`) e metricas (`GET /crm/loja/metricas`) implementados no backend e no frontend (Bizy Studio).
+- [x] Diretorio de lojas do Market (`/market/lojas`) e perfil de loja no Market (`/market/lojas/:slug`) implementados no frontend.
+- [x] Bizy Studio estendido com paineis de Seguidores e Metricas consumindo endpoints reais.
+- [x] Bug corrigido em `salvarCatalogosNegocio`: passava apenas `entrega` para `salvarNegocio`, causando erro no `normalizarNegocio`.
+- [x] Teste de contrato Fase 2+3 criado em `backend/src/testes/bizy-market-fase2-3.test.ts` cobrindo lojas Market, tracking, catalogos CRUD, seguidores e metricas.
+- [x] Checkout multi-loja com compra unificada, pedidos filhos por fornecedor, pagamento centralizado e acompanhamento.
+- [x] Pedidos no CRM por loja com origem Market (`GET /crm/loja/pedidos-market`).
+- [ ] Seguidores, social graph e perfil de comprador.
+- [x] Repasses financeiros com taxas Bizy, cancelamentos parciais, reembolsos e conciliacao (`GET /crm/loja/repasses`).
 - [ ] Ranking avancado, boost e recomendacoes comportamentais.
+- [x] Admin Bizy para categorias, suspensoes, patrocinados, denuncias, repasses e relatorios.
+- [x] Catalogo digital partilhavel: `GET /publico/lojas/:slug/catalogos/:catalogo` com filtro por criterio (categoria, colecao, busca, todos) e pagina frontend em `/lojas/:slug/catalogos/:catalogo`.
+- [x] Experiencia mobile sem scroll horizontal: `overflow-x: hidden` nas superficies CRM+, loja publica, Market e checkout.
 
 ## Decisoes em Aberto
 
-- Dominio principal do Market.
-- Se o MVP tera carrinho multi-loja ou checkout unificado por uma loja de cada vez.
-- Se o pagamento centralizado entra no MVP ou comeca com comprovativo/conciliacao manual.
+- [x] Dominio principal do Market definido como `market.usebizy.space`, com `/market` como fallback local.
+- [x] MVP do checkout comeca com checkout unificado para uma loja por vez; carrinho multi-loja fica para fase seguinte.
+- [x] Pagamento comeca com comprovativo/transferencia e conciliacao manual; provider online entra depois.
 - Como sera a autenticacao do comprador que segue lojas.
 - Categorias globais iniciais.
 - Politica de destaque patrocinado e comissao por venda.
 
 ## Ligacoes
 
+- [[requisitos-bizy-market]] — RF/RNF/RN completos do Market e Lojas
+- [[requisitos-funcionais-bizy]] — RFs do CRM base
+- [[requisitos-nao-funcionais-bizy]] — RNFs do CRM base
+- [[regras-de-negocio-bizy]] — RNs do CRM base
 - [[loja-digital-operacao-crm]]
 - [[bizy-market-rotas-roadmap]]
 - [[bizy-market-frontend-lojas]]

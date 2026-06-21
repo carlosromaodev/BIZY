@@ -2,6 +2,7 @@
 
 import React from "react";
 import { ChevronLeftIcon, Grid2x2PlusIcon } from "lucide-react";
+import { motion, useReducedMotion } from "motion/react";
 import { Button } from "./button";
 import { cn } from "@/lib/utils";
 
@@ -19,6 +20,8 @@ type AuthPageProps = {
   visualImageAlt?: string;
 };
 
+const EASE = [0.22, 1, 0.36, 1] as const;
+
 export function AuthPage({
   brand,
   brandName = "Bizy",
@@ -32,6 +35,8 @@ export function AuthPage({
   visualImage = "/bizy-live-commerce-hero.png",
   visualImageAlt = "Vendedora em live commerce apresentando roupa no estúdio da loja"
 }: AuthPageProps) {
+  const rm = useReducedMotion();
+
   return (
     <main
       className={cn(
@@ -40,32 +45,59 @@ export function AuthPage({
       )}
     >
       <aside className="bizy-auth-photo">
-        <img
+        <motion.img
           alt={visualImageAlt}
           className="bizy-auth-photo-img"
           src={visualImage}
+          initial={rm ? false : { scale: 1.06, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ duration: 1.2, ease: EASE }}
         />
         <div className="bizy-auth-photo-scrim" />
+        <div className="bizy-auth-photo-grain" />
 
-        <div className="bizy-auth-photo-brand">
+        <motion.div
+          className="bizy-auth-photo-brand"
+          initial={rm ? false : { opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.2, ease: EASE }}
+        >
           {brand ?? <Grid2x2PlusIcon className="size-6" />}
           {!brand ? <p className="text-xl font-semibold">{brandName}</p> : null}
-        </div>
+        </motion.div>
 
-        <span className="bizy-auth-live"><span />Ao vivo agora</span>
+        <motion.span
+          className="bizy-auth-live"
+          initial={rm ? false : { opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.4, delay: 0.5, ease: EASE }}
+        >
+          <span />Ao vivo agora
+        </motion.span>
 
-        <div className="bizy-auth-proof">
-          <h2>Reservas no comentário, pagamento confirmado em segundos.</h2>
+        <motion.div
+          className="bizy-auth-proof"
+          initial={rm ? false : { opacity: 0, y: 24 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.65, delay: 0.35, ease: EASE }}
+        >
+          <h2>O teu comércio social começa aqui.</h2>
+          <p className="bizy-auth-proof-sub">Lives, loja digital, conversas e pagamentos — tudo ligado num único painel.</p>
           <div className="bizy-auth-stats">
-            <div><strong>+2 400</strong><span>lojas ativas</span></div>
+            <div><strong>+2 400</strong><span>negócios ativos</span></div>
             <div><strong>98%</strong><span>pedidos sem perda</span></div>
-            <div><strong>24h</strong><span>para lançar</span></div>
+            <div><strong>5 canais</strong><span>num só inbox</span></div>
           </div>
-        </div>
+        </motion.div>
       </aside>
 
       <section className="bizy-auth-form">
-        <div className="bizy-auth-form-top">
+        <motion.div
+          className="bizy-auth-form-top"
+          initial={rm ? false : { opacity: 0, y: -8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: 0.1, ease: EASE }}
+        >
           <span className="bizy-auth-mobile-wordmark">bizy<span>.</span></span>
           <div className="bizy-auth-top-actions">
             {homeAction ?? (
@@ -78,15 +110,31 @@ export function AuthPage({
             )}
           </div>
           <span className="bizy-auth-help">Precisas de ajuda?</span>
-        </div>
+        </motion.div>
 
         <div className="bizy-auth-body">
-          <h1>
+          <motion.h1
+            initial={rm ? false : { opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.15, ease: EASE }}
+          >
             {title.replace("Bizy", "bizy")}
             <span>.</span>
-          </h1>
-          <p>{description}</p>
-          {children}
+          </motion.h1>
+          <motion.p
+            initial={rm ? false : { opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.22, ease: EASE }}
+          >
+            {description}
+          </motion.p>
+          <motion.div
+            initial={rm ? false : { opacity: 0, y: 14 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.55, delay: 0.3, ease: EASE }}
+          >
+            {children}
+          </motion.div>
         </div>
       </section>
     </main>
@@ -101,12 +149,10 @@ export const GoogleIcon = (props: React.ComponentProps<"svg">) => (
 
 export function AuthSeparator({ label = "ou" }: { label?: string }) {
   return (
-    <div className="flex w-full items-center justify-center">
-      <div className="h-px w-full bg-border" />
-      <span className="px-3 text-xs font-bold uppercase tracking-widest text-muted-foreground">
-        {label}
-      </span>
-      <div className="h-px w-full bg-border" />
+    <div className="bizy-auth-separator">
+      <div />
+      <span>{label}</span>
+      <div />
     </div>
   );
 }

@@ -8,6 +8,7 @@ import type {
   RepositorioClientes,
   RepositorioCompartilhamentoClientes,
   RepositorioComentarios,
+  RepositorioDenuncias,
   RepositorioEventosOperacionais,
   RepositorioFunilComercial,
   RepositorioInstanciasInstagram,
@@ -19,9 +20,14 @@ import type {
   RepositorioPedidos,
   RepositorioPlaybooksRecuperacao,
   RepositorioReservas,
+  RepositorioReservasStockCheckout,
+  RepositorioComprasUnificadas,
+  RepositorioRepassesFinanceiros,
+  RepositorioReembolsos,
   RepositorioSessoesLive,
   RepositorioSocialInbox,
   RepositorioTarefasOperacionais,
+  RepositorioSeguidoresLoja,
   RepositorioTemplatesWhatsApp,
   RepositorioTrackingComercial
 } from "../../dominio/repositorios/contratos.js";
@@ -134,7 +140,20 @@ import type {
   TarefaOperacional,
   SocialInboxItem,
   TemplateWhatsAppNegocio,
-  TipoHistoricoComissaoParceiro
+  TipoHistoricoComissaoParceiro,
+  EstadoParceiroComercial,
+  DenunciaMarket,
+  NovaDenunciaMarket,
+  ResolucaoDenuncia,
+  ReservaStockCheckout,
+  NovaReservaStockCheckout,
+  CompraUnificada,
+  NovaCompraUnificada,
+  PedidoFilho,
+  RepasseFinanceiro,
+  NovoRepasseFinanceiro,
+  ReembolsoPedido,
+  NovoReembolsoPedido
 } from "../../dominio/tipos.js";
 import { normalizarEmail, normalizarTelefone } from "../../dominio/servicos/normalizarContato.js";
 import type {
@@ -187,6 +206,7 @@ export class RepositorioPecasMemoria implements RepositorioPecas {
       descricao: dados.descricao,
       categoria: dados.categoria ?? null,
       colecao: dados.colecao ?? null,
+      tipoProduto: dados.tipoProduto ?? "FISICO",
       precoEmKwanza: dados.precoEmKwanza,
       custoEmKwanza: dados.custoEmKwanza ?? null,
       margemEstimadaEmKwanza: this.calcularMargem(dados.precoEmKwanza, dados.custoEmKwanza ?? null),
@@ -275,6 +295,28 @@ export class RepositorioPecasMemoria implements RepositorioPecas {
 
   async decrementarStockVariante(_pecaId: string, _combinacao: string, _quantidade: number): Promise<{ quantidade: number }> {
     return { quantidade: 0 };
+  }
+
+  async renomearColecao(negocioId: string, de: string, para: string): Promise<number> {
+    let count = 0;
+    for (const peca of this.pecas.values()) {
+      if (peca.negocioId === negocioId && peca.colecao === de) {
+        peca.colecao = para;
+        count++;
+      }
+    }
+    return count;
+  }
+
+  async limparColecao(negocioId: string, colecao: string): Promise<number> {
+    let count = 0;
+    for (const peca of this.pecas.values()) {
+      if (peca.negocioId === negocioId && peca.colecao === colecao) {
+        peca.colecao = null;
+        count++;
+      }
+    }
+    return count;
   }
 
   private async exigirPeca(codigo: string, negocioId?: string | null): Promise<Peca> {
@@ -833,6 +875,14 @@ export class RepositorioAfiliadosMemoria implements RepositorioAfiliados {
   async buscarParceiroPorId(id: string, negocioId: string): Promise<ParceiroComercial | null> {
     const parceiro = this.parceiros.get(id) ?? null;
     return parceiro?.negocioId === negocioId ? parceiro : null;
+  }
+
+  async atualizarEstadoParceiro(id: string, negocioId: string, estado: EstadoParceiroComercial): Promise<ParceiroComercial | null> {
+    const parceiro = this.parceiros.get(id);
+    if (!parceiro || parceiro.negocioId !== negocioId) return null;
+    parceiro.estado = estado;
+    parceiro.atualizadoEm = new Date();
+    return parceiro;
   }
 
   async criarLink(dados: NovoLinkAfiliado): Promise<LinkAfiliado> {
@@ -2341,12 +2391,23 @@ export class RepositorioClientesMemoria implements RepositorioClientes {
         ].some((valor) => valor?.toLowerCase().includes(busca));
       })
       .sort((a, b) => b.ultimaInteracaoEm.getTime() - a.ultimaInteracaoEm.getTime())
-      .slice(0, limite);
+      .slice(filtros.offset ?? 0, (filtros.offset ?? 0) + limite);
   }
 
   async buscarPorId(id: string, negocioId: string): Promise<Cliente360 | null> {
     const cliente = this.clientesNegocio.get(id) ?? null;
     return cliente?.negocioId === negocioId ? cliente : null;
+  }
+
+  async buscarPorUsername(username: string, negocioId: string): Promise<Cliente360 | null> {
+    const normalizado = username.trim().toLowerCase();
+    if (!normalizado) return null;
+    for (const cliente of this.clientesNegocio.values()) {
+      if (cliente.negocioId === negocioId && cliente.username?.trim().toLowerCase() === normalizado) {
+        return cliente;
+      }
+    }
+    return null;
   }
 
   async atualizar(id: string, negocioId: string, dados: AtualizacaoCliente360): Promise<Cliente360 | null> {
@@ -2793,6 +2854,7 @@ export class RepositorioPedidosMemoria implements RepositorioPedidos {
       .filter((pedido) => !filtros.estadoEntrega || pedido.estadoEntrega === filtros.estadoEntrega)
       .filter((pedido) => !filtros.clienteId || pedido.clienteNegocioId === filtros.clienteId)
       .filter((pedido) => !filtros.canal || pedido.canal.toLowerCase() === filtros.canal.toLowerCase())
+      .filter((pedido) => !filtros.origem || pedido.origem === filtros.origem)
       .filter((pedido) => !filtros.dataInicio || pedido.criadoEm >= filtros.dataInicio)
       .filter((pedido) => !filtros.dataFim || pedido.criadoEm <= filtros.dataFim)
       .filter((pedido) => {
@@ -2813,12 +2875,16 @@ export class RepositorioPedidosMemoria implements RepositorioPedidos {
         ].some((valor) => valor?.toLowerCase().includes(busca));
       })
       .sort((a, b) => b.criadoEm.getTime() - a.criadoEm.getTime())
-      .slice(0, filtros.limite ?? 100);
+      .slice(filtros.offset ?? 0, (filtros.offset ?? 0) + (filtros.limite ?? 100));
   }
 
   async buscarPorId(id: string, negocioId: string): Promise<Pedido | null> {
     const pedido = this.pedidos.get(id) ?? null;
     return pedido?.negocioId === negocioId ? pedido : null;
+  }
+
+  async buscarPorNumeroPublico(numero: number, negocioId: string): Promise<Pedido | null> {
+    return [...this.pedidos.values()].find((pedido) => pedido.negocioId === negocioId && pedido.numero === numero) ?? null;
   }
 
   async buscarPorReservaId(reservaId: string, negocioId: string): Promise<Pedido | null> {
@@ -3833,5 +3899,383 @@ export class RepositorioAuditoriaMemoria implements RepositorioAuditoria {
 
   private pertenceAoNegocio(registroNegocioId: string | null, negocioId?: string | null) {
     return negocioId === undefined ? true : registroNegocioId === (negocioId ?? null);
+  }
+}
+
+export class RepositorioSeguidoresLojaMemoria implements RepositorioSeguidoresLoja {
+  private seguidores = new Map<string, { id: string; negocioId: string; identificador: string; tipo: string; origem: string; criadoEm: Date }>();
+
+  private chave(negocioId: string, identificador: string) {
+    return `${negocioId}:${identificador}`;
+  }
+
+  async seguir(negocioId: string, identificador: string, tipo: string, origem: string) {
+    const chave = this.chave(negocioId, identificador);
+    const existente = this.seguidores.get(chave);
+    if (existente) return existente;
+    const registro = { id: randomUUID(), negocioId, identificador, tipo, origem, criadoEm: new Date() };
+    this.seguidores.set(chave, registro);
+    return registro;
+  }
+
+  async deixarDeSeguir(negocioId: string, identificador: string) {
+    return this.seguidores.delete(this.chave(negocioId, identificador));
+  }
+
+  async estaSeguindo(negocioId: string, identificador: string) {
+    return this.seguidores.has(this.chave(negocioId, identificador));
+  }
+
+  async contarSeguidores(negocioId: string) {
+    let count = 0;
+    for (const s of this.seguidores.values()) {
+      if (s.negocioId === negocioId) count++;
+    }
+    return count;
+  }
+
+  async listarSeguidores(negocioId: string, filtros?: { limite?: number; offset?: number; origem?: string }) {
+    const todos = [...this.seguidores.values()]
+      .filter((s) => s.negocioId === negocioId)
+      .filter((s) => !filtros?.origem || s.origem === filtros.origem)
+      .sort((a, b) => b.criadoEm.getTime() - a.criadoEm.getTime());
+    const offset = filtros?.offset ?? 0;
+    const limite = filtros?.limite ?? 50;
+    return { seguidores: todos.slice(offset, offset + limite), total: todos.length };
+  }
+}
+
+export class RepositorioDenunciasMemoria implements RepositorioDenuncias {
+  private denuncias: DenunciaMarket[] = [];
+
+  async criar(dados: NovaDenunciaMarket): Promise<DenunciaMarket> {
+    const denuncia: DenunciaMarket = {
+      id: randomUUID(),
+      tipo: dados.tipo,
+      entidadeTipo: dados.entidadeTipo,
+      entidadeId: dados.entidadeId,
+      negocioAlvoId: dados.negocioAlvoId ?? null,
+      denuncianteId: dados.denuncianteId ?? null,
+      motivo: dados.motivo,
+      descricao: dados.descricao ?? null,
+      estado: "PENDENTE",
+      resolvidoPorId: null,
+      resolucao: null,
+      criadoEm: new Date(),
+      atualizadoEm: new Date()
+    };
+    this.denuncias.push(denuncia);
+    return denuncia;
+  }
+
+  async listar(filtros?: {
+    estado?: DenunciaMarket["estado"];
+    entidadeTipo?: DenunciaMarket["entidadeTipo"];
+    negocioAlvoId?: string;
+    limite?: number;
+  }): Promise<DenunciaMarket[]> {
+    let resultado = [...this.denuncias];
+    if (filtros?.estado) resultado = resultado.filter((d) => d.estado === filtros.estado);
+    if (filtros?.entidadeTipo) resultado = resultado.filter((d) => d.entidadeTipo === filtros.entidadeTipo);
+    if (filtros?.negocioAlvoId) resultado = resultado.filter((d) => d.negocioAlvoId === filtros.negocioAlvoId);
+    if (filtros?.limite) resultado = resultado.slice(0, filtros.limite);
+    return resultado;
+  }
+
+  async buscarPorId(id: string): Promise<DenunciaMarket | null> {
+    return this.denuncias.find((d) => d.id === id) ?? null;
+  }
+
+  async resolver(id: string, dados: ResolucaoDenuncia): Promise<DenunciaMarket | null> {
+    const denuncia = this.denuncias.find((d) => d.id === id);
+    if (!denuncia) return null;
+    denuncia.estado = dados.estado;
+    denuncia.resolvidoPorId = dados.resolvidoPorId;
+    denuncia.resolucao = dados.resolucao;
+    denuncia.atualizadoEm = new Date();
+    return denuncia;
+  }
+}
+
+export class RepositorioReservasStockCheckoutMemoria implements RepositorioReservasStockCheckout {
+  private reservas: ReservaStockCheckout[] = [];
+
+  async reservar(dados: NovaReservaStockCheckout): Promise<ReservaStockCheckout> {
+    const reserva: ReservaStockCheckout = {
+      id: randomUUID(),
+      negocioId: dados.negocioId,
+      pecaId: dados.pecaId,
+      codigoPeca: dados.codigoPeca,
+      quantidade: dados.quantidade,
+      sessaoId: dados.sessaoId,
+      estado: "ATIVA",
+      expiraEm: dados.expiraEm,
+      liberadaEm: null,
+      criadoEm: new Date(),
+      atualizadoEm: new Date()
+    };
+    this.reservas.push(reserva);
+    return reserva;
+  }
+
+  async listarAtivasPorPeca(pecaId: string, negocioId: string): Promise<ReservaStockCheckout[]> {
+    return this.reservas.filter(
+      (r) => r.pecaId === pecaId && r.negocioId === negocioId && r.estado === "ATIVA"
+    );
+  }
+
+  async confirmar(id: string): Promise<ReservaStockCheckout | null> {
+    const reserva = this.reservas.find((r) => r.id === id);
+    if (!reserva) return null;
+    reserva.estado = "CONFIRMADA";
+    reserva.atualizadoEm = new Date();
+    return reserva;
+  }
+
+  async liberar(id: string): Promise<ReservaStockCheckout | null> {
+    const reserva = this.reservas.find((r) => r.id === id);
+    if (!reserva) return null;
+    reserva.estado = "LIBERADA";
+    reserva.liberadaEm = new Date();
+    reserva.atualizadoEm = new Date();
+    return reserva;
+  }
+
+  async liberarPorSessao(sessaoId: string): Promise<number> {
+    let count = 0;
+    for (const r of this.reservas) {
+      if (r.sessaoId === sessaoId && r.estado === "ATIVA") {
+        r.estado = "LIBERADA";
+        r.liberadaEm = new Date();
+        r.atualizadoEm = new Date();
+        count++;
+      }
+    }
+    return count;
+  }
+
+  async listarExpiradas(agora: Date): Promise<ReservaStockCheckout[]> {
+    return this.reservas.filter((r) => r.estado === "ATIVA" && r.expiraEm <= agora);
+  }
+
+  async liberarExpiradas(agora: Date): Promise<number> {
+    let count = 0;
+    for (const r of this.reservas) {
+      if (r.estado === "ATIVA" && r.expiraEm <= agora) {
+        r.estado = "EXPIRADA";
+        r.liberadaEm = agora;
+        r.atualizadoEm = agora;
+        count++;
+      }
+    }
+    return count;
+  }
+}
+
+export class RepositorioComprasUnificadasMemoria implements RepositorioComprasUnificadas {
+  private compras: CompraUnificada[] = [];
+  private pedidosFilho: PedidoFilho[] = [];
+  private contadorNumero = 1;
+
+  async criar(dados: NovaCompraUnificada, filhos: PedidoFilho[]): Promise<CompraUnificada> {
+    const agora = new Date();
+    const compra: CompraUnificada = {
+      id: randomUUID(),
+      numero: this.contadorNumero++,
+      compradorTelefone: dados.compradorTelefone,
+      compradorNome: dados.compradorNome ?? null,
+      compradorEmail: dados.compradorEmail ?? null,
+      estado: "ABERTA",
+      estadoPagamento: "PENDENTE",
+      subtotalEmKwanza: filhos.reduce((s, f) => s + f.subtotalEmKwanza, 0),
+      descontoEmKwanza: 0,
+      taxaEntregaTotalEmKwanza: filhos.reduce((s, f) => s + f.taxaEntregaEmKwanza, 0),
+      totalEmKwanza: filhos.reduce((s, f) => s + f.totalEmKwanza, 0),
+      metodoPagamento: dados.metodoPagamento ?? null,
+      comprovativoPagamentoUrl: dados.comprovativoPagamentoUrl ?? null,
+      enderecoEntrega: dados.enderecoEntrega ?? null,
+      observacao: dados.observacao ?? null,
+      origem: dados.origem ?? "MARKET",
+      pedidosFilhoIds: filhos.map((f) => f.id),
+      criadoEm: agora,
+      atualizadoEm: agora
+    };
+    this.compras.push(compra);
+    for (const filho of filhos) {
+      this.pedidosFilho.push({ ...filho, compraUnificadaId: compra.id });
+    }
+    return compra;
+  }
+
+  async buscarPorId(id: string): Promise<CompraUnificada | null> {
+    return this.compras.find((c) => c.id === id) ?? null;
+  }
+
+  async buscarPorNumero(numero: number): Promise<CompraUnificada | null> {
+    return this.compras.find((c) => c.numero === numero) ?? null;
+  }
+
+  async listarPedidosFilho(compraUnificadaId: string): Promise<PedidoFilho[]> {
+    return this.pedidosFilho.filter((f) => f.compraUnificadaId === compraUnificadaId);
+  }
+
+  async atualizarEstado(id: string, estado: CompraUnificada["estado"]): Promise<CompraUnificada | null> {
+    const compra = this.compras.find((c) => c.id === id);
+    if (!compra) return null;
+    compra.estado = estado;
+    compra.atualizadoEm = new Date();
+    return compra;
+  }
+
+  async atualizarEstadoPagamento(id: string, estadoPagamento: CompraUnificada["estadoPagamento"]): Promise<CompraUnificada | null> {
+    const compra = this.compras.find((c) => c.id === id);
+    if (!compra) return null;
+    compra.estadoPagamento = estadoPagamento;
+    compra.atualizadoEm = new Date();
+    return compra;
+  }
+}
+
+export class RepositorioRepassesFinanceirosMemoria implements RepositorioRepassesFinanceiros {
+  private repasses: RepasseFinanceiro[] = [];
+
+  async criar(dados: NovoRepasseFinanceiro): Promise<RepasseFinanceiro> {
+    const agora = new Date();
+    const taxaBizy = dados.taxaBizyEmKwanza ?? 0;
+    const comissao = dados.comissaoEmKwanza ?? 0;
+    const desconto = dados.descontoEmKwanza ?? 0;
+    const repasse: RepasseFinanceiro = {
+      id: randomUUID(),
+      negocioId: dados.negocioId,
+      compraUnificadaId: dados.compraUnificadaId ?? null,
+      pedidoId: dados.pedidoId,
+      valorBrutoEmKwanza: dados.valorBrutoEmKwanza,
+      taxaBizyEmKwanza: taxaBizy,
+      comissaoEmKwanza: comissao,
+      descontoEmKwanza: desconto,
+      valorLiquidoEmKwanza: dados.valorBrutoEmKwanza - taxaBizy - comissao - desconto,
+      estado: "PENDENTE",
+      motivo: dados.motivo ?? null,
+      conciliadoEm: null,
+      aprovadoEm: null,
+      pagoEm: null,
+      referenciaPagamento: null,
+      criadoEm: agora,
+      atualizadoEm: agora
+    };
+    this.repasses.push(repasse);
+    return repasse;
+  }
+
+  async listar(negocioId: string, filtros?: { estado?: RepasseFinanceiro["estado"]; pedidoId?: string; limite?: number }): Promise<RepasseFinanceiro[]> {
+    let resultado = this.repasses.filter((r) => r.negocioId === negocioId);
+    if (filtros?.estado) resultado = resultado.filter((r) => r.estado === filtros.estado);
+    if (filtros?.pedidoId) resultado = resultado.filter((r) => r.pedidoId === filtros.pedidoId);
+    if (filtros?.limite) resultado = resultado.slice(0, filtros.limite);
+    return resultado;
+  }
+
+  async buscarPorId(id: string, negocioId: string): Promise<RepasseFinanceiro | null> {
+    return this.repasses.find((r) => r.id === id && r.negocioId === negocioId) ?? null;
+  }
+
+  async conciliar(id: string, negocioId: string): Promise<RepasseFinanceiro | null> {
+    const r = this.repasses.find((r) => r.id === id && r.negocioId === negocioId);
+    if (!r || r.estado !== "PENDENTE") return null;
+    r.estado = "CONCILIADO";
+    r.conciliadoEm = new Date();
+    r.atualizadoEm = new Date();
+    return r;
+  }
+
+  async aprovar(id: string, negocioId: string): Promise<RepasseFinanceiro | null> {
+    const r = this.repasses.find((r) => r.id === id && r.negocioId === negocioId);
+    if (!r || r.estado !== "CONCILIADO") return null;
+    r.estado = "APROVADO";
+    r.aprovadoEm = new Date();
+    r.atualizadoEm = new Date();
+    return r;
+  }
+
+  async pagar(id: string, negocioId: string, referencia: string): Promise<RepasseFinanceiro | null> {
+    const r = this.repasses.find((r) => r.id === id && r.negocioId === negocioId);
+    if (!r || r.estado !== "APROVADO") return null;
+    r.estado = "PAGO";
+    r.pagoEm = new Date();
+    r.referenciaPagamento = referencia;
+    r.atualizadoEm = new Date();
+    return r;
+  }
+
+  async cancelar(id: string, negocioId: string, motivo: string): Promise<RepasseFinanceiro | null> {
+    const r = this.repasses.find((r) => r.id === id && r.negocioId === negocioId);
+    if (!r || r.estado === "PAGO" || r.estado === "CANCELADO") return null;
+    r.estado = "CANCELADO";
+    r.motivo = motivo;
+    r.atualizadoEm = new Date();
+    return r;
+  }
+}
+
+export class RepositorioReembolsosMemoria implements RepositorioReembolsos {
+  private reembolsos: ReembolsoPedido[] = [];
+
+  async criar(dados: NovoReembolsoPedido): Promise<ReembolsoPedido> {
+    const agora = new Date();
+    const reembolso: ReembolsoPedido = {
+      id: randomUUID(),
+      negocioId: dados.negocioId,
+      pedidoId: dados.pedidoId,
+      compraUnificadaId: dados.compraUnificadaId ?? null,
+      tipo: dados.tipo,
+      valorEmKwanza: dados.valorEmKwanza,
+      motivo: dados.motivo,
+      itensAfetados: dados.itensAfetados ?? [],
+      estado: "PENDENTE",
+      aprovadoPorId: null,
+      processadoEm: null,
+      criadoEm: agora,
+      atualizadoEm: agora
+    };
+    this.reembolsos.push(reembolso);
+    return reembolso;
+  }
+
+  async listar(negocioId: string, filtros?: { pedidoId?: string; estado?: ReembolsoPedido["estado"]; limite?: number }): Promise<ReembolsoPedido[]> {
+    let resultado = this.reembolsos.filter((r) => r.negocioId === negocioId);
+    if (filtros?.pedidoId) resultado = resultado.filter((r) => r.pedidoId === filtros.pedidoId);
+    if (filtros?.estado) resultado = resultado.filter((r) => r.estado === filtros.estado);
+    if (filtros?.limite) resultado = resultado.slice(0, filtros.limite);
+    return resultado;
+  }
+
+  async buscarPorId(id: string, negocioId: string): Promise<ReembolsoPedido | null> {
+    return this.reembolsos.find((r) => r.id === id && r.negocioId === negocioId) ?? null;
+  }
+
+  async aprovar(id: string, negocioId: string, aprovadoPorId: string): Promise<ReembolsoPedido | null> {
+    const r = this.reembolsos.find((r) => r.id === id && r.negocioId === negocioId);
+    if (!r || r.estado !== "PENDENTE") return null;
+    r.estado = "APROVADO";
+    r.aprovadoPorId = aprovadoPorId;
+    r.atualizadoEm = new Date();
+    return r;
+  }
+
+  async processar(id: string, negocioId: string): Promise<ReembolsoPedido | null> {
+    const r = this.reembolsos.find((r) => r.id === id && r.negocioId === negocioId);
+    if (!r || r.estado !== "APROVADO") return null;
+    r.estado = "PROCESSADO";
+    r.processadoEm = new Date();
+    r.atualizadoEm = new Date();
+    return r;
+  }
+
+  async rejeitar(id: string, negocioId: string): Promise<ReembolsoPedido | null> {
+    const r = this.reembolsos.find((r) => r.id === id && r.negocioId === negocioId);
+    if (!r || r.estado !== "PENDENTE") return null;
+    r.estado = "REJEITADO";
+    r.atualizadoEm = new Date();
+    return r;
   }
 }

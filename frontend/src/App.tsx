@@ -24,6 +24,21 @@ function RotaPrivada({ children, requerAdminSistema = false }: { children: React
     };
   }, []);
 
+  useEffect(() => {
+    let meta = document.querySelector('meta[name="robots"]') as HTMLMetaElement | null;
+    const jaExistia = Boolean(meta);
+    if (!meta) {
+      meta = document.createElement("meta");
+      meta.setAttribute("name", "robots");
+      document.head.appendChild(meta);
+    }
+    meta.setAttribute("content", "noindex, nofollow");
+    return () => {
+      if (!jaExistia && meta) meta.remove();
+      else if (meta) meta.setAttribute("content", "index, follow");
+    };
+  }, []);
+
   if (!autenticado) return <Navigate to="/login" replace />;
   if (requerAdminSistema && !usuarioPodeVerAdminSistema(usuario?.papel)) return <Navigate to="/app" replace />;
 

@@ -76,14 +76,24 @@ import { montarUrlPublicaLoja, obterDominioPublicoLojaConfigurado } from "../loj
 import {
   atualizarPublicacaoProdutoMarket,
   atualizarPublicacaoProdutosMarketEmMassa,
-  obterResumoMarketLoja
+  criarCatalogoCrm,
+  listarCatalogosCrm,
+  listarSeguidoresCrm,
+  obterMetricasLojaCrm,
+  obterResumoMarketLoja,
+  removerCatalogoCrm
 } from "../lojas";
-import type { ItemPublicacaoMarketLoja, ResumoMarketLoja } from "../lojas";
+import type {
+  ItemPublicacaoMarketLoja,
+  MetricasLojaCrm,
+  ResumoMarketLoja,
+  SeguidorLoja as SeguidorLojaFrontend
+} from "../lojas";
 import type { Peca, ResumoTrackingComercial } from "../tipos";
 import { formatarKwanza } from "../utilidades";
 
 type PassoAssistente = "identidade" | "produtos" | "experiencia" | "entrega" | "pagamentos" | "operacao" | "publicar";
-type SubpastaStudio = "visao" | "identidade" | "catalogos" | "produtos" | "entrega-pagamentos" | "links" | "market";
+type SubpastaStudio = "visao" | "identidade" | "catalogos" | "produtos" | "entrega-pagamentos" | "links" | "market" | "seguidores" | "metricas";
 type ModoExperienciaLoja = "auto" | "moda" | "comida" | "servicos" | "geral";
 type CriterioCatalogoPersonalizado = "categoria" | "colecao" | "busca" | "todos";
 type AcessoLojaDigital = "aberto" | "telefone" | "login" | "membros";
@@ -407,7 +417,9 @@ const studioSubpastas: Array<{
   { id: "produtos", titulo: "Produtos", detalhe: "Stock e itens vendáveis", icone: <PackageSearch size={16} /> },
   { id: "entrega-pagamentos", titulo: "Entrega & pagamentos", detalhe: "Modalidades, taxas e cobrança", icone: <WalletCards size={16} /> },
   { id: "links", titulo: "Links & partilha", detalhe: "Publicação, domínio e canais", icone: <Link2 size={16} /> },
-  { id: "market", titulo: "Market", detalhe: "Produtos no shopping center", icone: <Store size={16} /> }
+  { id: "market", titulo: "Market", detalhe: "Produtos no shopping center", icone: <Store size={16} /> },
+  { id: "seguidores", titulo: "Seguidores", detalhe: "Quem segue a tua loja", icone: <Eye size={16} /> },
+  { id: "metricas", titulo: "Métricas", detalhe: "Desempenho e vendas", icone: <MousePointerClick size={16} /> }
 ];
 
 const vitrinesEditaveis = [
@@ -607,7 +619,7 @@ const automacoesLojaDigital: Array<{ id: keyof OperacaoLojaDigital["automacoes"]
 
 const canaisLojaDigital: Array<{ id: keyof OperacaoLojaDigital["canais"]; titulo: string; detalhe: string; destino: string }> = [
   { id: "site", titulo: "Site", detalhe: "Loja pública e tracking.", destino: "/app/loja" },
-  { id: "whatsapp", titulo: "WhatsApp", detalhe: "Atendimento e checkout.", destino: "/app/conversas" },
+  { id: "whatsapp", titulo: "WhatsApp", detalhe: "Atendimento e compra.", destino: "/app/conversas" },
   { id: "instagram", titulo: "Instagram", detalhe: "Origem social e catálogo.", destino: "/app/clientes" },
   { id: "google", titulo: "Google", detalhe: "Origem por pesquisa.", destino: "/app/relatorios" },
   { id: "pos", titulo: "POS", detalhe: "Vendas presenciais ligadas.", destino: "/app/reservas" },
@@ -1173,7 +1185,7 @@ export function PaginaLojaPublica() {
         >
           <div className="grid gap-2">
             <AtalhoOperacional to="/app/conversas" icon={<MessageCircle size={16} />} title="Abrir atendimento" detail="Responder clientes vindos da loja." />
-            <AtalhoOperacional to="/app/reservas" icon={<ShoppingCart size={16} />} title="Pedidos do site" detail="Acompanhar checkout e pagamento." />
+            <AtalhoOperacional to="/app/reservas" icon={<ShoppingCart size={16} />} title="Pedidos do site" detail="Acompanhar compra e pagamento." />
             <AtalhoOperacional to="/app/agenda" icon={<Truck size={16} />} title="Agenda de entregas" detail="Organizar entregas, recolhas e follow-up." />
             <AtalhoOperacional to="/app/afiliados" icon={<Send size={16} />} title="Links de afiliados" detail="Medir criadores e campanhas." />
           </div>
@@ -1191,7 +1203,7 @@ export function PaginaLojaPublica() {
               <CrmListItem media={<Store size={16} className="sm:size-4.5" />} title="Visitas" description="Entradas na loja." tone="principal" meta={funil?.visitas ?? 0} />
               <CrmListItem media={<PackageSearch size={16} className="sm:size-4.5" />} title="Produto visto" description="Visualizações de produto." tone="info" meta={funil?.produtosVistos ?? 0} />
               <CrmListItem media={<Send size={16} className="sm:size-4.5" />} title="WhatsApp" description="Cliques para comprar ou tirar dúvida." tone="sucesso" meta={funil?.cliquesWhatsApp ?? 0} />
-              <CrmListItem media={<ShoppingCart size={16} className="sm:size-4.5" />} title="Checkout" description="Checkouts iniciados." tone="atencao" meta={funil?.checkoutsIniciados ?? 0} />
+              <CrmListItem media={<ShoppingCart size={16} className="sm:size-4.5" />} title="Finalizar compra" description="Compras iniciadas." tone="atencao" meta={funil?.checkoutsIniciados ?? 0} />
               <CrmListItem media={<CheckCircle2 size={16} className="sm:size-4.5" />} title="Pagamento" description="Pagamentos confirmados." tone="sucesso" meta={funil?.pagamentosConfirmados ?? 0} />
               <CrmListItem media={<Truck size={16} className="sm:size-4.5" />} title="Entregues" description="Compras entregues." tone="sucesso" meta={funil?.comprasEntregues ?? 0} />
             </CrmList>
@@ -1517,6 +1529,158 @@ function StudioMarketPanel({
   );
 }
 
+function StudioSeguidoresPanel() {
+  const [seguidores, setSeguidores] = useState<SeguidorLojaFrontend[]>([]);
+  const [total, setTotal] = useState(0);
+  const [carregando, setCarregando] = useState(true);
+  const [erro, setErro] = useState("");
+
+  useEffect(() => {
+    let ativo = true;
+    async function carregar() {
+      setCarregando(true);
+      try {
+        const resposta = await listarSeguidoresCrm({ limite: 50 });
+        if (!ativo) return;
+        setSeguidores(resposta.seguidores ?? []);
+        setTotal(resposta.total ?? 0);
+      } catch (falha) {
+        if (ativo) setErro(falha instanceof Error ? falha.message : "Não foi possível carregar seguidores.");
+      } finally {
+        if (ativo) setCarregando(false);
+      }
+    }
+    void carregar();
+    return () => { ativo = false; };
+  }, []);
+
+  return (
+    <CrmSection
+      icon={<Eye size={20} />}
+      title="Seguidores"
+      description="Pessoas que seguem a tua loja. Seguidores podem receber novidades e campanhas."
+    >
+      <div className="grid gap-3 sm:grid-cols-3 mb-4">
+        <ResumoCompacto titulo="Total" valor={total} detalhe="seguidores" tom={total > 0 ? "sucesso" : "neutro"} />
+        <ResumoCompacto titulo="Perfil" valor={seguidores.filter((s) => s.origem === "perfil").length} detalhe="do perfil" tom="principal" />
+        <ResumoCompacto titulo="Market" valor={seguidores.filter((s) => s.origem === "market").length} detalhe="do Market" tom="neutro" />
+      </div>
+
+      {erro && <div className="text-sm text-red-600 mb-3">{erro}</div>}
+
+      <div className="overflow-hidden rounded-xl border border-border/60 bg-background">
+        {carregando ? (
+          <div className="flex items-center justify-center py-12 text-muted-foreground text-sm">A carregar seguidores...</div>
+        ) : seguidores.length > 0 ? (
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[520px] text-sm">
+              <thead>
+                <tr className="border-b border-border/60 bg-muted/40 text-left text-xs uppercase tracking-[0.08em] text-muted-foreground">
+                  <th className="px-3 py-3">Identificador</th>
+                  <th className="px-3 py-3">Tipo</th>
+                  <th className="px-3 py-3">Origem</th>
+                  <th className="px-3 py-3">Desde</th>
+                </tr>
+              </thead>
+              <tbody>
+                {seguidores.map((seguidor) => (
+                  <tr key={seguidor.id} className="border-b border-border/40 last:border-0">
+                    <td className="px-3 py-3 font-medium text-foreground">{seguidor.identificador}</td>
+                    <td className="px-3 py-3 text-muted-foreground">{seguidor.tipo}</td>
+                    <td className="px-3 py-3">
+                      <Badge variant="outline">{seguidor.origem}</Badge>
+                    </td>
+                    <td className="px-3 py-3 text-muted-foreground text-xs">
+                      {new Date(seguidor.criadoEm).toLocaleDateString("pt-AO", { day: "2-digit", month: "short", year: "numeric" })}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <EstadoVazio
+            icone={<Eye />}
+            titulo="Sem seguidores"
+            detalhe="Quando alguém seguir a tua loja, aparece aqui."
+          />
+        )}
+      </div>
+    </CrmSection>
+  );
+}
+
+function StudioMetricasPanel() {
+  const [metricas, setMetricas] = useState<MetricasLojaCrm | null>(null);
+  const [carregando, setCarregando] = useState(true);
+  const [erro, setErro] = useState("");
+
+  useEffect(() => {
+    let ativo = true;
+    async function carregar() {
+      setCarregando(true);
+      try {
+        const resposta = await obterMetricasLojaCrm();
+        if (!ativo) return;
+        setMetricas(resposta);
+      } catch (falha) {
+        if (ativo) setErro(falha instanceof Error ? falha.message : "Não foi possível carregar métricas.");
+      } finally {
+        if (ativo) setCarregando(false);
+      }
+    }
+    void carregar();
+    return () => { ativo = false; };
+  }, []);
+
+  if (carregando) {
+    return (
+      <CrmSection icon={<MousePointerClick size={20} />} title="Métricas" description="A carregar dados de desempenho...">
+        <div className="flex items-center justify-center py-12 text-muted-foreground text-sm">A carregar métricas...</div>
+      </CrmSection>
+    );
+  }
+
+  if (erro) {
+    return (
+      <CrmSection icon={<MousePointerClick size={20} />} title="Métricas" description={erro}>
+        <div className="text-sm text-red-600">{erro}</div>
+      </CrmSection>
+    );
+  }
+
+  return (
+    <CrmSection
+      icon={<MousePointerClick size={20} />}
+      title="Métricas da loja"
+      description="Desempenho do perfil, Market e vendas."
+    >
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 mb-4">
+        <ResumoCompacto titulo="Seguidores" valor={metricas?.perfil.seguidores ?? 0} detalhe="total" tom={(metricas?.perfil.seguidores ?? 0) > 0 ? "sucesso" : "neutro"} />
+        <ResumoCompacto titulo="Produtos ativos" valor={metricas?.perfil.totalProdutos ?? 0} detalhe="no perfil" tom="principal" />
+        <ResumoCompacto titulo="No Market" valor={metricas?.market.publicados ?? 0} detalhe="publicados" tom={(metricas?.market.publicados ?? 0) > 0 ? "sucesso" : "neutro"} />
+        <ResumoCompacto titulo="Pendências" valor={metricas?.market.comPendencias ?? 0} detalhe="bloqueios" tom={(metricas?.market.comPendencias ?? 0) > 0 ? "atencao" : "sucesso"} />
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 mb-4">
+        <ResumoCompacto titulo="Pedidos" valor={metricas?.vendas.totalPedidos ?? 0} detalhe="total" tom="neutro" />
+        <ResumoCompacto titulo="Pagos" valor={metricas?.vendas.pedidosPagos ?? 0} detalhe="confirmados" tom={(metricas?.vendas.pedidosPagos ?? 0) > 0 ? "sucesso" : "neutro"} />
+        <ResumoCompacto titulo="Receita" valor={formatarKwanza(metricas?.vendas.receitaTotalEmKwanza ?? 0)} detalhe="total" tom={(metricas?.vendas.receitaTotalEmKwanza ?? 0) > 0 ? "sucesso" : "neutro"} />
+        <ResumoCompacto titulo="Ticket médio" valor={formatarKwanza(metricas?.vendas.ticketMedioEmKwanza ?? 0)} detalhe="por pedido" tom="neutro" />
+      </div>
+
+      {metricas?.tracking && (
+        <div className="rounded-xl border border-border/60 bg-background p-4">
+          <h3 className="text-sm font-semibold text-foreground mb-2">Tracking público</h3>
+          <p className="text-xs text-muted-foreground">
+            Dados de visitação e interação com a loja pública. Os eventos são registados automaticamente quando visitantes navegam no perfil e nos produtos.
+          </p>
+        </div>
+      )}
+    </CrmSection>
+  );
+}
+
 function StudioWorkspace({
   atualizarSecao,
   carregando,
@@ -1708,6 +1872,9 @@ function StudioWorkspace({
           />
         )}
 
+        {subpasta === "seguidores" && <StudioSeguidoresPanel />}
+        {subpasta === "metricas" && <StudioMetricasPanel />}
+
         <footer className="savebar" aria-live="polite">
           <span className={`studio-save-dot${salvando || carregando ? " is-busy" : ""}`} />
           <span>{salvando ? "A guardar alterações..." : mensagem || "Alterações ficam como rascunho até publicar."}</span>
@@ -1730,6 +1897,8 @@ function calcularDetalheSubpasta(
   if (id === "produtos") return `${contexto.catalogo.produtosVendaveis} vendáveis`;
   if (id === "links") return contexto.urlPublica ? "link definido" : "sem link";
   if (id === "market") return `${contexto.marketStudio?.produtos.publicados ?? 0} publicados`;
+  if (id === "seguidores") return "ver lista";
+  if (id === "metricas") return "ver dados";
   return "editar";
 }
 
@@ -2705,7 +2874,7 @@ function PassoOperacaoLoja({
       >
         <div className="grid gap-3 md:grid-cols-4">
           <ResumoCompacto
-            titulo="Checkout"
+            titulo="Finalizar compra"
             valor={form.operacao.checkout.exigirTelefoneCheckout ? "Com contacto" : "Livre"}
             detalhe={form.operacao.checkout.manterRascunhoAtePago ? "rascunho até pagamento" : "gera pedido direto"}
             tom="principal"
@@ -2765,7 +2934,7 @@ function PassoOperacaoLoja({
         </div>
       </BlocoFormulario>
 
-      <BlocoFormulario icon={<ShoppingCart size={18} />} title="Checkout inteligente" detail="Regras que organizam o pedido antes de abrir o WhatsApp ou criar tarefa para a equipa.">
+      <BlocoFormulario icon={<ShoppingCart size={18} />} title="Regras de compra" detail="Regras que organizam o pedido antes de abrir o WhatsApp ou criar tarefa para a equipa.">
         <div className="grid gap-3 md:grid-cols-2">
           <OpcaoMarcavel
             checked={form.operacao.checkout.manterRascunhoAtePago}

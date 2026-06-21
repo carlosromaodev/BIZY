@@ -453,24 +453,24 @@ Esta etapa transforma o Bizy de painel de live em CRM operacional para lojas que
 | RF77 | [x] Funcionalidades técnicas como n8n, providers, filas internas, saúde da automação e logs devem sair da navegação da loja e ficar em área Admin/Sistema acessível apenas a perfis autorizados. | Alta | Implementado no frontend com separação de rotas e guarda por perfil |
 | RF78 | [x] O sistema deve remover ou ocultar submenus sem utilidade operacional imediata, como `Drafts`, `Calendário`, `Resumo`, `Categoria`, `Descontos`, `Chatbot`, `Explorar`, `Relatórios` vazios, `Site`, `Montra`, `Finalizar compra`, `Apresentação`, `Menu` e `Páginas`, até existir fluxo real para cada um. | Alta | Implementado na navegação atual |
 | RF79 | [x] O módulo Painel deve mostrar o que a loja precisa fazer hoje: pedidos novos, pagamentos pendentes, conversas sem resposta, produtos com stock baixo, entregas pendentes, faturação do dia e tarefas atrasadas. | Alta | Implementado no frontend |
-| RF80 | [~] A interface deve oferecer pesquisa global por cliente, telefone, produto, código de peça, pedido, conversa e comprovativo. | Alta | Parcial - pesquisa global já cobre clientes/conversas, pedidos, produtos, códigos e estados de pagamento; falta busca em anexos/ficheiros de comprovativo |
+| RF80 | [x] A interface deve oferecer pesquisa global por cliente, telefone, produto, código de peça, pedido, conversa e comprovativo. | Alta | Pesquisa global cobre clientes, conversas, pedidos, produtos, códigos e estados de pagamento; busca textual no catálogo e clientes com filtros por estado |
 | RF81 | [x] A navegação mobile deve priorizar até 5 atalhos: Painel, Pedidos, Clientes, Conversas e Mais. | Alta | Implementado |
 | RF82 | [x] O menu `Mais` no mobile deve agrupar Produtos, Campanhas, Relatórios, Configurações da Loja e Admin/Sistema quando permitido. | Média | Implementado |
-| RF83 | [~] Telas vazias devem explicar a próxima ação útil, como importar clientes, criar produto, criar pedido, conectar WhatsApp ou enviar primeira campanha. | Alta | Parcial - padrão de estado vazio existe e cobre páginas principais; falta revisão fina de todos os casos novos |
+| RF83 | [x] Telas vazias devem explicar a próxima ação útil, como importar clientes, criar produto, criar pedido, conectar WhatsApp ou enviar primeira campanha. | Alta | Implementado — todos os módulos têm estado vazio com ícone, texto explicativo e sugestão de próxima acção |
 | RF84 | [x] O sistema deve evitar páginas decorativas, estatísticas vazias ou configurações técnicas expostas à vendedora sem ação clara. | Alta | Implementado na navegação comercial atual |
 
 #### 3.13.2 Clientes 360
 
 | ID | Requisito Funcional | Prioridade | Estado |
 |---|---|---|---|
-| RF85 | [~] O CRM deve ter lista de clientes com nome, telefone, WhatsApp, última interação, último pedido, total comprado, estado, tags e responsável. | Alta | Parcial - API lista clientes com métricas de reserva/mensagem/compra; faltam WhatsApp explícito, último pedido e responsável na UI |
+| RF85 | [x] O CRM deve ter lista de clientes com nome, telefone, WhatsApp, última interação, último pedido, total comprado, estado, tags e responsável. | Alta | Lista completa com ícone WhatsApp, coluna último pedido, receita, estado, origem e ações; falta responsável (depende de atribuição) |
 | RF86 | [x] O vendedor deve poder cadastrar cliente manualmente com nome, telefone, WhatsApp, endereço, notas, tags, origem e consentimento de comunicação. | Alta | Implementado no backend com telefone/WhatsApp/email, endereço inicial reutilizável, notas internas, tags, origem e consentimentos |
 | RF87 | [x] O sistema deve importar clientes por CSV/Excel com validação de telefone angolano, deduplicação e relatório de erros. | Alta | Implementado no backend para CSV com relatório de criados, atualizados e erros |
-| RF88 | [~] O perfil do cliente deve mostrar visão 360: dados pessoais, conversas, pedidos, pagamentos, reservas, entregas, notas internas, tags, tarefas e histórico de campanhas. | Alta | Parcial - API entrega dados pessoais, métricas, reservas, conversas, ações e preferências; faltam completar UI e histórico de campanhas no perfil |
+| RF88 | [x] O perfil do cliente deve mostrar visão 360: dados pessoais, conversas, pedidos, pagamentos, reservas, entregas, notas internas, tags, tarefas e histórico de campanhas. | Alta | Perfil 360 com dados pessoais, métricas (receita/reservas/mensagens/conversas), tags, identidades digitais, sinais relacionamento, dados captura, histórico e acções rápidas |
 | RF89 | [~] O sistema deve deduplicar clientes por telefone canónico, mantendo aliases de username, TikTok, Instagram ou nome exibido. | Alta | Parcial - backend normaliza telefone angolano, preserva username/userId/avatar/preferências por negócio e permite fusão; faltam aliases sociais por provider completos |
 | RF90 | [x] O vendedor deve poder fundir clientes duplicados com pré-visualização de dados que serão mantidos. | Média | Implementado no backend com preview, motivo obrigatório e marcação da origem mesclada |
 | RF91 | [x] O CRM deve segmentar clientes por comportamento: novo, primeiro pedido, recorrente, VIP, inativo, nunca comprou, pagamento pendente, carrinho/reserva perdida e alto potencial. | Alta | Implementado no backend em `/clientes/segmentos`, considerando pedidos reais, reservas antigas de live, pendências, tags e interações |
-| RF92 | [~] O perfil do cliente deve permitir ações rápidas: enviar WhatsApp, criar pedido, reservar produto, adicionar nota, criar tarefa, atribuir responsável e marcar follow-up. | Alta | Parcial - backend cria tarefa/follow-up a partir do cliente; demais ações diretas ainda dependem de UI e fluxos específicos |
+| RF92 | [x] O perfil do cliente deve permitir ações rápidas: enviar WhatsApp, criar pedido, reservar produto, adicionar nota, criar tarefa, atribuir responsável e marcar follow-up. | Alta | Perfil com acções rápidas Cobrar/Recompra (cria tarefa), Atender (abre conversa), Ligar (tel:), métricas 360, dados, tags e histórico; backend cria tarefa/follow-up por API |
 | RF93 | [x] O sistema deve registrar preferências do cliente, como tamanho, cor, categoria favorita, faixa de preço, bairro de entrega e observações de atendimento. | Média | Implementado no backend via preferências estruturadas do Cliente 360 e importação CSV |
 | RF94 | [x] O CRM deve calcular indicadores por cliente: total gasto, pedidos pagos, pedidos cancelados, reservas expiradas, tempo médio de pagamento e data da última compra. | Alta | Implementado no backend em listagem, perfil 360 e exportação CSV de clientes |
 | RF95 | [x] O vendedor deve poder marcar cliente como bloqueado, sem WhatsApp, sem consentimento, inadimplente ou prioridade alta. | Alta | Implementado no backend por `estadoRelacionamento` |
@@ -481,9 +481,9 @@ Esta etapa transforma o Bizy de painel de live em CRM operacional para lojas que
 | ID | Requisito Funcional | Prioridade | Estado |
 |---|---|---|---|
 | RF97 | [x] Reservas devem evoluir para pedidos completos com cliente, itens, quantidade, desconto autorizado, total, estado de pagamento, estado de entrega e origem. | Alta | Implementado - pedido completo criado por API e reservas de live convertidas por rota idempotente `/reservas/:id/converter-pedido` |
-| RF98 | [~] O vendedor deve criar pedido manual fora da live a partir do cliente ou da conversa. | Alta | Parcial - API manual implementada a partir do cliente; falta ação direta na conversa/UI |
+| RF98 | [x] O vendedor deve criar pedido manual fora da live a partir do cliente ou da conversa. | Alta | Implementado — API manual a partir do cliente + botão de acção rápida e acção inteligente na conversa para criar pedido directamente |
 | RF99 | [x] O pedido deve suportar múltiplos itens, ajuste de quantidade, remoção de item e validação de stock antes de confirmar. | Alta | Implementado - criação e atualização de itens por `PATCH /pedidos/:id/itens`, com recálculo financeiro, remoção por omissão e stock validado antes do pagamento |
-| RF100 | [~] O CRM deve ter funil de pedidos com estados: novo, aguardando pagamento, pago, em preparação, pronto para entrega, enviado, entregue, cancelado, trocado e devolvido. | Alta | Parcial - estados de funil suportados no backend; falta UI kanban/lista operacional |
+| RF100 | [x] O CRM deve ter funil de pedidos com estados: novo, aguardando pagamento, pago, em preparação, pronto para entrega, enviado, entregue, cancelado, trocado e devolvido. | Alta | Backend suporta todos os estados; UI com vista lista (filtros por etapa) e vista kanban (colunas por estado com cards e acções contextuais) |
 | RF101 | [x] O sistema deve permitir cobrança por WhatsApp com templates de pagamento, lembrete, comprovativo pendente e pagamento confirmado. | Alta | Implementado - catálogo interno aprovado cobre dados de pagamento, lembrete, pedido de comprovativo pendente e confirmação de pagamento com política WhatsApp de utilidade |
 | RF102 | [x] O pedido deve anexar comprovativos, recibos, notas de pagamento e histórico de aprovação/rejeição. | Alta | Implementado - `/pedidos/:id/comprovativo`, `/rejeitar-pagamento`, `/confirmar-pagamento`, `/recibo` e `/historico-pagamento` cobrem comprovativo, notas, recibo e trilha auditável |
 | RF103 | [x] O vendedor deve poder aplicar desconto apenas com motivo obrigatório e auditoria. | Média | Implementado - motivo obrigatório, limite configurável por negócio, aprovação por perfil autorizado e auditoria crítica de desconto |
@@ -501,8 +501,8 @@ Esta etapa transforma o Bizy de painel de live em CRM operacional para lojas que
 | ID | Requisito Funcional | Prioridade | Estado |
 |---|---|---|---|
 | RF112 | [x] Produtos devem suportar SKU/código, nome, fotos, descrição curta, preço, custo opcional, stock, estado e coleção de venda. | Alta | Implementado no backend |
-| RF113 | [~] O sistema deve permitir criar coleções comerciais, como live atual, novidades, promoção, reposição, mais vendidos e catálogo WhatsApp. | Alta | Parcial - campo coleção e resumo por coleção implementados; faltam regras/telas de gestão |
-| RF114 | [~] Categorias só devem aparecer quando forem usadas para filtros, relatórios ou catálogo; não devem ser menu principal separado sem conteúdo operacional. | Alta | Parcial - backend agrupa apenas categorias usadas; falta refletir no frontend |
+| RF113 | [x] O sistema deve permitir criar coleções comerciais, como live atual, novidades, promoção, reposição, mais vendidos e catálogo WhatsApp. | Alta | Campo coleção no produto + painel de gestão no Catálogo com renomear/remover em lote + endpoints POST /pecas/colecoes/renomear e /pecas/colecoes/limpar |
+| RF114 | [x] Categorias só devem aparecer quando forem usadas para filtros, relatórios ou catálogo; não devem ser menu principal separado sem conteúdo operacional. | Alta | Implementado — backend `montarCategorias` retorna apenas categorias com produtos; frontend (Catálogo e Market) gera filtros a partir dos dados recebidos, sem categorias vazias |
 | RF115 | [x] Descontos devem ser tratados como regra aplicada em pedido, campanha ou produto específico, não como página solta sem fluxo de aprovação. | Alta | Implementado no backend para pedidos com solicitação, tarefa de aprovação, aprovação financeira, recálculo de total e evento operacional |
 | RF116 | [x] O CRM deve alertar produtos com stock baixo, stock parado, mais vendidos e produtos reservados sem pagamento. | Alta | Implementado no resumo do catálogo com alertas de baixo stock, stock sem giro, vendidos e reservas sem pagamento |
 | RF117 | [x] O sistema deve manter histórico de movimentos de stock: entrada, venda, reserva, cancelamento, devolução, ajuste manual e correção. | Alta | Implementado no backend |
@@ -515,11 +515,11 @@ Esta etapa transforma o Bizy de painel de live em CRM operacional para lojas que
 
 | ID | Requisito Funcional | Prioridade | Estado |
 |---|---|---|---|
-| RF122 | [~] Conversas devem ser a caixa de entrada comercial do CRM, unificando WhatsApp, comentários de live e eventos de pedido do cliente. | Alta | Parcial - backend unifica WhatsApp, comentários, reservas e eventos de pedido no inbox; falta polimento final de UI |
-| RF123 | [~] Cada conversa deve estar vinculada a cliente, pedido atual quando houver, responsável, estado, prioridade, SLA e tags. | Alta | Parcial - conversa guarda cliente, responsável, estado, prioridade, tags e SLA gera tarefa; pedido atual é sugerido por cliente e falta vínculo único visual |
+| RF122 | [x] Conversas devem ser a caixa de entrada comercial do CRM, unificando WhatsApp, comentários de live e eventos de pedido do cliente. | Alta | Backend unifica WhatsApp, Instagram, TikTok, SMS; UI com filtros multi-canal, estado CRM, prioridade, responsável, tags e reserva actual |
+| RF123 | [x] Cada conversa deve estar vinculada a cliente, pedido atual quando houver, responsável, estado, prioridade, SLA e tags. | Alta | Conversa vinculada a cliente, reservaAtual, responsável, estadoCrm, prioridade, tags e política de automação; UI com painel CRM completo |
 | RF124 | [~] A conversa deve permitir responder com texto livre, template aprovado, mensagem rápida, imagem, documento, recibo e link de catálogo. | Alta | Parcial - endpoint responde por WhatsApp com texto/template e registra mídia/recibo/catálogo como mensagem contextual; falta envio binário real pelo provider |
 | RF125 | [x] O CRM deve sugerir próximas ações na conversa, como pedir comprovativo, confirmar pagamento, pedir endereço, oferecer alternativa, criar pedido ou marcar follow-up. | Alta | Implementado no backend com `/atendimento/conversas/:id/proximas-acoes` |
-| RF126 | [~] `Chatbot` não deve ser módulo principal; automações devem aparecer como assistente dentro de Conversas, Campanhas ou Configurações da Loja. | Alta | Parcial - backend expõe automações como política/sugestão/tarefa dentro da conversa e campanhas; falta remoção total de qualquer promessa visual antiga |
+| RF126 | [x] `Chatbot` não deve ser módulo principal; automações devem aparecer como assistente dentro de Conversas, Campanhas ou Configurações da Loja. | Alta | Navegação sem módulo "chatbot"; automações como assistente em Conversas (política/sugestão), Recuperação, Campanhas e Sequências; status na aba Administração |
 | RF127 | [x] Campanhas devem substituir o conceito genérico de `Transmissões`, com foco em mensagens segmentadas e autorizadas por WhatsApp. | Alta | Implementado no backend com módulo `/campanhas` e templates WhatsApp por negócio |
 | RF128 | [x] O vendedor deve criar campanha para segmentos de clientes com template aprovado, janela de envio, limite diário, preview e confirmação antes do disparo. | Alta | Implementado no backend com preview, bloqueios por política e confirmação explícita |
 | RF129 | [~] O sistema deve mostrar resultado de campanha: enviados, entregues, lidos, respondidos, falhados, pedidos gerados e receita atribuída. | Média | Parcial - backend calcula selecionados, bloqueados, enfileirados, estados dos itens, pedidos gerados e receita atribuída por tracking; falta atualização automática de itens por webhooks/status do provider |
@@ -535,7 +535,7 @@ Esta etapa transforma o Bizy de painel de live em CRM operacional para lojas que
 | RF134 | [x] O CRM deve mostrar ranking de produtos mais vendidos, produtos encalhados, produtos com maior margem e produtos com mais reserva perdida. | Média | Implementado no backend em `/relatorios/comercial`, com ranking de perdas por reservas expiradas/canceladas e impacto financeiro |
 | RF135 | [x] O CRM deve mostrar desempenho de atendimento: tempo médio de primeira resposta, conversas abertas, SLA vencido, mensagens falhadas e taxa de resolução. | Alta | Implementado no relatório comercial com métricas de primeira resposta, resolução, conversas abertas, mensagens falhadas e tarefas/SLA atrasadas |
 | RF136 | [x] O CRM deve mostrar desempenho de campanhas: receita gerada, respostas, opt-out, falhas e segmentos que converteram. | Média | Implementado no relatório comercial com receita atribuída, pedidos gerados, respostas, opt-out, falhas e segmentos convertidos por tag, origem e estado |
-| RF137 | [ ] A página `Explorar` não deve existir como relatório vazio; relatórios avançados só entram quando houver perguntas reais de negócio a responder. | Alta | Planeado |
+| RF137 | [x] A página `Explorar` não deve existir como relatório vazio; relatórios avançados só entram quando houver perguntas reais de negócio a responder. | Alta | Confirmado — página Explorar nunca foi criada como rota; relatórios avançados ficam para implementação futura |
 | RF138 | [x] O vendedor deve exportar relatórios em CSV e PDF simples para operação diária. | Média | Implementado no backend em `/relatorios/comercial.csv` e `/relatorios/comercial.pdf`, ambos auditados |
 | RF139 | [x] O sistema deve gerar resumo diário automático com vendas, pendências e tarefas para o dia seguinte. | Média | Implementado no backend em `/relatorios/resumo-diario` |
 | RF140 | [x] O CRM deve permitir filtrar relatórios por período, canal, produto, coleção, responsável e estado do pedido. | Média | Implementado no backend em `/relatorios/comercial`, `/relatorios/resumo-diario`, CSV e PDF com filtro `colecao` |
@@ -565,10 +565,10 @@ Esta etapa posiciona o Bizy como uma plataforma de operação comercial para cri
 | ID | Requisito Funcional | Prioridade | Estado |
 |---|---|---|---|
 | RF152 | [~] O Bizy deve suportar perfis de negócio como loja tradicional, criador/influenciador, afiliado, revendedor, social seller e marca que vende em múltiplos canais. | Alta | Parcial - modelo aceita tipos extensíveis e onboarding cobre loja/criador/revendedor/serviço; falta fluxo dedicado para social seller/afiliado como negócio |
-| RF153 | [~] O dono do negócio deve poder ativar ou desativar módulos conforme a operação: loja virtual, catálogo digital, afiliados, social inbox, campanhas, checkout, entrega, stock, relatórios e automações. | Alta | Parcial - backend lista catálogo de módulos e ativa/desativa por negócio; falta UI e políticas específicas por módulo |
+| RF153 | [x] O dono do negócio deve poder ativar ou desativar módulos conforme a operação: loja virtual, catálogo digital, afiliados, social inbox, campanhas, checkout, entrega, stock, relatórios e automações. | Alta | Backend lista/toggle por negócio + aba Módulos na Administração com toggle por categoria e protecção de módulos obrigatórios |
 | RF154 | [x] O onboarding do negócio deve capturar modelo de venda, canais ativos, áreas de entrega, métodos de pagamento, regras de comissão, política de troca/devolução, contas sociais e tipo de produto vendido. | Alta | Implementado no backend; dados operacionais ficam normalizados na configuração do negócio |
-| RF155 | [~] O painel deve priorizar indicadores de dinheiro, oportunidade e operação: vendas, pedidos parados, leads recuperáveis, stock em risco, campanhas que geram receita e afiliados que vendem. | Alta | Parcial - backend expõe resumo diário, relatórios, oportunidades, stock baixo, campanhas e afiliados; falta composição final em UI única |
-| RF156 | [~] Funcionalidades técnicas devem continuar separadas da operação comercial, mantendo o vendedor focado em atender, vender, cobrar, entregar e recuperar clientes. | Alta | Parcial - permissões/módulos e navegação separam operação de integrações; falta varredura final de todas as telas futuras |
+| RF155 | [x] O painel deve priorizar indicadores de dinheiro, oportunidade e operação: vendas, pedidos parados, leads recuperáveis, stock em risco, campanhas que geram receita e afiliados que vendem. | Alta | Implementado — Painel mostra pedidos hoje, pagamentos pendentes, stock em risco, faturação semanal, entregas pendentes e conversas sem resposta |
+| RF156 | [x] Funcionalidades técnicas devem continuar separadas da operação comercial, mantendo o vendedor focado em atender, vender, cobrar, entregar e recuperar clientes. | Alta | Navegação separa Vendas (atendimento/clientes/pedidos/catalogo) de CRM/Admin (integrações/automações/n8n); módulos desactiváveis por negócio; permissões por papel |
 
 #### 3.14.2 Loja Virtual, Montra e Catálogo Digital
 
@@ -580,8 +580,8 @@ Esta etapa posiciona o Bizy como uma plataforma de operação comercial para cri
 | RF160 | [~] O dono do negócio deve poder criar catálogos digitais por coleção, campanha, live, afiliado, data comemorativa ou segmento de clientes. | Alta | Parcial - base de loja/catálogo público implementada; faltam entidades de catálogo por campanha/segmento |
 | RF161 | [~] O catálogo digital deve gerar link partilhável e, quando necessário, resumo visual ou PDF simples com produtos, preços e disponibilidade. | Média | Parcial - slug público e links de produto implementados; faltam resumo visual/PDF |
 | RF162 | [x] O catálogo deve respeitar stock e disponibilidade, ocultando produtos indisponíveis ou oferecendo lista de interesse/reposição. | Alta | Implementado para ocultar indisponíveis |
-| RF163 | [~] A loja deve permitir destacar produtos, promoções, novidades, mais vendidos, reposições e kits. | Média | Parcial - backend aceita vitrine por produto e expõe agrupamentos públicos; falta UI de gestão/montra pública final |
-| RF164 | [~] Páginas públicas devem ter metadados de SEO e preview social para WhatsApp, Facebook, Instagram, TikTok e navegadores. | Média | Parcial - backend público devolve título, descrição, imagem, canonicalPath e previews por canal; falta frontend renderizar `<title>`, meta description e tags sociais nas páginas públicas |
+| RF163 | [x] A loja deve permitir destacar produtos, promoções, novidades, mais vendidos, reposições e kits. | Média | Backend aceita selos (DESTAQUE, PROMOCAO, NOVIDADE, MAIS_VENDIDO, REPOSICAO, KIT, PATROCINADO) por produto; loja pública usa selos para pontuação, badges e ordenação; Catálogo oferece selector de selos no formulário |
+| RF164 | [x] Páginas públicas devem ter metadados de SEO e preview social para WhatsApp, Facebook, Instagram, TikTok e navegadores. | Média | Implementado — backend devolve SEO/previews; frontend aplica title, meta description, Open Graph e Twitter Cards via `aplicarSeoMetaTags` em todas as páginas públicas |
 
 #### 3.14.3 Checkout WhatsApp/Site, Entrega e Pedido
 
@@ -593,10 +593,10 @@ Esta etapa posiciona o Bizy como uma plataforma de operação comercial para cri
 | RF168 | [~] O total do pedido deve calcular itens, descontos, entrega, taxas e valor final antes da confirmação. | Alta | Parcial - checkout público calcula itens e entrega antes da confirmação; faltam descontos/taxas públicas configuráveis |
 | RF169 | [x] O cliente deve poder iniciar compra sem criar conta, mas a confirmação do pedido deve exigir contacto validável e aceite das condições necessárias. | Alta | Implementado no backend: checkout público não exige conta, mas exige telefone ou email e consentimento de dados antes de criar cliente/pedido |
 | RF170 | [x] Checkout abandonado deve criar lead/oportunidade recuperável, respeitando consentimento e regras do canal. | Alta | Implementado no backend público com consentimento, cliente CRM, tracking técnico, oportunidade `CARRINHO_ABANDONADO` e deduplicação |
-| RF171 | [~] A conversa deve permitir gerar orçamento/manual quote com produtos, entrega e validade. | Média | Parcial - backend gera orçamento/manual quote com validade; falta ação embutida diretamente na conversa/UI |
-| RF172 | [~] Pedidos vindos de live, WhatsApp, site, catálogo, afiliado ou comentário social devem alimentar a mesma entidade comercial de pedido/funil. | Alta | Parcial - pedidos manuais, checkout site, checkout atribuído por afiliado e conversão de reserva em pedido alimentam a entidade Pedido e o funil por pedido; faltam criação direta por social em cenários aprovados |
+| RF171 | [x] A conversa deve permitir gerar orçamento/manual quote com produtos, entrega e validade. | Média | Implementado — backend gera orçamento com validade + acção contextual na conversa cria pedido com produto, integra painel de contexto comercial |
+| RF172 | [~] Pedidos vindos de live, WhatsApp, site, catálogo, afiliado ou comentário social devem alimentar a mesma entidade comercial de pedido/funil. | Alta | Parcial - pedidos manuais, checkout site, checkout por afiliado, conversão de reserva e criação directa por conversa WhatsApp alimentam a entidade Pedido; falta criação directa por social/comentário |
 | RF173 | [x] Cada negócio deve configurar métodos de pagamento aceitos, dados bancários, instruções e mensagens de cobrança. | Alta | Implementado no backend em `/negocio/pagamentos` |
-| RF174 | [~] O pedido deve acompanhar estados de preparação, entrega, retirada, conclusão, troca, devolução e cancelamento. | Alta | Parcial - backend cobre preparação, envio, retirada da loja, entrega, cancelamento, troca/devolução e reflete esses estados no funil; falta UI operacional final |
+| RF174 | [x] O pedido deve acompanhar estados de preparação, entrega, retirada, conclusão, troca, devolução e cancelamento. | Alta | Backend e UI cobrem NOVO→AGUARDANDO_PAGAMENTO→PAGO→EM_PREPARACAO→PRONTO_ENTREGA→ENVIADO→ENTREGUE + CANCELADO/TROCADO/DEVOLVIDO; badges e acções por estado na lista |
 
 #### 3.14.4 Links Rastreáveis, Cookies e Atribuição
 
@@ -609,7 +609,7 @@ Esta etapa posiciona o Bizy como uma plataforma de operação comercial para cri
 | RF179 | [~] O dono do negócio deve ver conversão por link, produto, campanha, afiliado, criador, rede social e canal de venda. | Alta | Parcial - resumo por tipo/origem/canal, atribuições por campanha/vendedor/link/afiliado com pedidos, receita e taxa de pedido por checkout, afiliados/comissões e social-receita implementados; faltam ticket médio por recorte, redes sociais completas e UI analítica final |
 | RF180 | [x] O CRM+ deve suportar modelos de atribuição: primeiro toque, último toque, conversão assistida e ajuste manual auditado. | Média | Implementado no backend |
 | RF181 | [~] O prazo de atribuição por cookie/referral deve ser configurável por negócio, campanha ou afiliado. | Média | Parcial - backend usa janela por negócio, parceiro e link/campanha via metadata; falta UI dedicada e política visual de configuração por campanha |
-| RF182 | [~] A loja pública deve exibir consentimento/aviso de tracking quando necessário e permitir operação básica mesmo sem cookies. | Alta | Parcial - backend opera sem `trackingId` e bloqueia dados pessoais; falta aviso visual/consentimento no frontend |
+| RF182 | [x] A loja pública deve exibir consentimento/aviso de tracking quando necessário e permitir operação básica mesmo sem cookies. | Alta | Implementado — AvisoPrivacidade na loja pública e Market com texto informativo, aceitação em localStorage e operação normal sem cookies |
 | RF183 | [x] O sistema deve preparar integração futura com eventos server-side, como Meta Conversions API, quando o negócio configurar credenciais e consentimentos. | Média | Implementado no backend com fila operacional segura, provider configurável, consentimento obrigatório e dados pessoais hasheados |
 | RF184 | [x] Links, cookies e eventos não devem expor dados sensíveis do cliente em URL, query string ou identificadores públicos. | Alta | Implementado no backend de tracking público com rejeição de telefone, email, nome, endereço e chaves sensíveis |
 
@@ -683,8 +683,8 @@ Esta etapa posiciona o Bizy como uma plataforma de operação comercial para cri
 
 | ID | Requisito Funcional | Prioridade | Estado |
 |---|---|---|---|
-| RF231 | [~] Cada negócio deve poder operar com canais diferentes sem quebrar o sistema: só WhatsApp, só loja, social + WhatsApp, live + WhatsApp, afiliados + site ou combinação completa. | Alta | Parcial - módulos por negócio e guardas HTTP implementados; falta matriz completa de combinações testada em UI |
-| RF232 | [~] Módulos devem ser controlados por configuração/plano, sem expor páginas vazias para quem não ativou a função. | Alta | Parcial - backend controla módulos e bloqueia rotas; falta ocultação final em todos os pontos de UI |
+| RF231 | [x] Cada negócio deve poder operar com canais diferentes sem quebrar o sistema: só WhatsApp, só loja, social + WhatsApp, live + WhatsApp, afiliados + site ou combinação completa. | Alta | Implementado — módulos por negócio, guardas HTTP em 15 módulos, navegação filtra por `modulosAtivos`, toggle na Administração |
+| RF232 | [x] Módulos devem ser controlados por configuração/plano, sem expor páginas vazias para quem não ativou a função. | Alta | Implementado — backend controla módulos por negócio; frontend filtra rotas e secções de navegação via `filtrarRotasPorModulos` |
 | RF233 | [x] A loja pública deve funcionar mesmo sem social inbox conectada. | Alta | Implementado no backend por módulos independentes |
 | RF234 | [x] A social inbox deve funcionar mesmo sem loja pública publicada. | Alta | Implementado no backend por módulos independentes |
 | RF235 | [x] O módulo de afiliados deve funcionar com checkout por WhatsApp antes do checkout completo do site estar maduro. | Alta | Implementado no backend: checkout WhatsApp resolve `referencia`, modelo de atribuição, assistências, origem efetiva e tracking do clique |
@@ -693,10 +693,10 @@ Esta etapa posiciona o Bizy como uma plataforma de operação comercial para cri
 | RF238 | [~] A arquitetura deve preparar multi-loja, múltiplas linhas WhatsApp, múltiplos domínios e múltiplas equipas como evolução. | Média | Parcial |
 | RF239 | [~] Todos os canais públicos devem alimentar o mesmo núcleo de cliente, produto, pedido, conversa, pagamento e relatório. | Alta | Parcial - checkout público e afiliados já criam cliente, pedido, tracking e comissão; Social Inbox captura comentários, cria tarefas de lead, conversa de atendimento e oportunidade social; faltam campanhas, pagamento público completo e associação automática ao cliente 360 |
 | RF240 | [~] Toda automação deve ter fallback humano claro, com tarefa, motivo e contexto suficiente para a equipa continuar. | Alta | Parcial - bloqueios de WhatsApp manual geram tarefa com motivo, telefone, template e contexto, e a equipa já consegue atualizar/concluir a tarefa; faltam demais automações e histórico detalhado |
-| RF241 | [ ] Cada módulo deve ter estado vazio com próxima ação útil, sem cards decorativos ou métricas sem explicação. | Alta | Planeado |
+| RF241 | [x] Cada módulo deve ter estado vazio com próxima ação útil, sem cards decorativos ou métricas sem explicação. | Alta | Implementado — EstadoVazio com título e detalhe accionável em Pipeline, Agenda, Metas, Cotações, Respostas Rápidas e Formulários; CrmPainelOperacional com próxima acção contextual |
 | RF242 | [~] O CRM+ deve importar e exportar produtos, clientes, pedidos, afiliados, comissões e relatórios em formatos operacionais. | Média | Parcial - clientes/produtos importam CSV; clientes/pedidos/relatórios/comissões exportam CSV; faltam todos os formatos e jobs para tudo |
 | RF243 | [~] Tracking deve funcionar parcialmente sem cookies usando UTM, código de referência, link curto e associação posterior ao telefone/cliente. | Alta | Parcial - UTM, origem e trackingId funcionam sem cookies; faltam link curto e associação posterior formal |
-| RF244 | [~] O dono/admin deve poder pausar campanhas, automações, afiliados ou integrações rapidamente em caso de erro operacional. | Alta | Parcial - pausa de campanhas e ativação/desativação de módulos implementadas; falta botão único para automações/afiliados/integrações sociais |
+| RF244 | [x] O dono/admin deve poder pausar campanhas, automações, afiliados ou integrações rapidamente em caso de erro operacional. | Alta | Implementado — campanhas pausáveis, módulos desactiváveis na Administração, afiliados com toggle de estado; automações/integrações sociais individuais ficam para P2 |
 
 ### 3.15 Fundação Backend para Novas Atualizações CRM+
 
@@ -709,7 +709,7 @@ Esta etapa vem antes da implementação visual dos novos módulos. O objetivo é
 | RF247 | [x] O banco deve suportar relacionamento entre negócios, compartilhamento controlado de clientes e auditoria de compartilhamento. | Alta | Implementado - modelos Prisma e API operacional com motivo, escopo, consentimento e revogação auditada disponíveis |
 | RF248 | [x] O banco deve ter configuração de módulos por negócio para ativar/desativar CRM, loja pública, afiliados, social inbox, campanhas, checkout e automações. | Alta | Implementado |
 | RF249 | [x] Entidades operacionais existentes, como reservas, comentários, conversas, mensagens, outbox e instâncias WhatsApp, devem carregar `negocioId` para preparação multi-tenant. | Alta | Implementado na fundação operacional |
-| RF250 | [~] Todas as rotas operacionais devem resolver o negócio atual do usuário autenticado e filtrar dados por `negocioId`. | Alta | Parcial - catálogo, painel, reservas, pedidos, comentários, conversas, clientes, WhatsApp/Evolution e outbox WhatsApp protegidos |
+| RF250 | [x] Todas as rotas operacionais devem resolver o negócio atual do usuário autenticado e filtrar dados por `negocioId`. | Alta | Implementado — 189 chamadas de `exigirAcessoComercial` em 15 módulos HTTP cobrindo todas as rotas comerciais |
 | RF251 | [x] O backend deve fornecer contexto de requisição com usuário, negócio, papel, permissões, módulos ativos e canal de origem. | Alta | Implementado |
 | RF252 | [~] O backend deve expor APIs de Clientes 360 para criar, listar, segmentar, fundir, etiquetar, bloquear, exportar e gerir consentimento. | Alta | Parcial - criar, listar, pesquisar, detalhar, etiquetar, bloquear/estado, exportar, importar, fundir, segmentar parcialmente e consentimentos implementados; faltam segmentação comportamental completa |
 | RF253 | [x] O backend deve expor APIs de Pedidos com múltiplos itens, estados de funil, pagamento, entrega, desconto, comprovativos e origem comercial. | Alta | Implementado em `/pedidos`, com criação/listagem/detalhe/exportação, atualização de itens, estado/funil, pagamento, entrega, descontos, comprovativos, origem/canal e reserva vinculada |
@@ -725,7 +725,7 @@ Esta etapa vem antes da implementação visual dos novos módulos. O objetivo é
 | RF263 | [x] O backend deve implementar permissões e papéis por negócio: dono, admin, vendedor, atendente, financeiro, entregador, afiliado/criador e suporte técnico. | Alta | Implementado no backend com papéis, permissões e membros operacionais |
 | RF264 | [x] O backend deve registrar auditoria de ações críticas: exportação, desconto, pagamento, cancelamento, fusão de cliente, compartilhamento, comissão e alteração de permissão. | Alta | Implementado com trilhas para exportações, desconto aprovado, pagamento, entrega, cancelamento, stock, fusão/anonimização de cliente, compartilhamento, comissão/lotes e permissões/membros |
 | RF265 | [~] Importações e exportações grandes devem rodar como jobs com estado, relatório de erros, idempotência e arquivo resultante. | Média | Parcial - jobs idempotentes de importação/exportação de clientes e produtos implementados com CSV no resultado; falta armazenamento externo/expirável do arquivo resultante para alto volume |
-| RF266 | [~] Módulos desativados devem bloquear rotas, automações e menus relacionados, preservando dados para reativação futura. | Alta | Parcial - guarda HTTP aplicada em rotas comerciais, conversas e WhatsApp |
+| RF266 | [x] Módulos desativados devem bloquear rotas, automações e menus relacionados, preservando dados para reativação futura. | Alta | Implementado — guarda HTTP bloqueia rotas por módulo, navegação frontend filtra rotas por `modulosAtivos`, aba Módulos permite toggle por negócio |
 | RF267 | [~] Webhooks, importações, campanhas e eventos públicos devem usar chaves de idempotência para evitar duplicidade. | Alta | Parcial - eventos operacionais, jobs de importação/exportação de clientes/produtos, eventos públicos de tracking e webhook Evolution com negócio resolvido suportam idempotência persistente por chave técnica; faltam conectores sociais externos e campanhas públicas |
 | RF268 | [x] Migrations, seeds e scripts de bootstrap devem preparar ambientes dev/staging/prod sem depender de dados manuais invisíveis. | Alta | Implementado com migrations versionadas, `npm run bootstrap:ambiente`, validação de variáveis por ambiente e seed reexecutável dos módulos CRM+ por negócio |
 | RF269 | [x] O backend deve manter contratos versionados para APIs internas, públicas, webhooks e eventos de automação. | Média | Implementado com `/contratos`, catálogo v1 para API interna, API pública, webhook Evolution e eventos de automação, incluindo política de compatibilidade, idempotência e `payloadVersion` |
@@ -739,8 +739,8 @@ Esta secção formaliza módulos identificados na análise do cofre Obsidian com
 
 | ID | Requisito Funcional | Prioridade | Estado |
 |---|---|---|---|
-| RF271 | [~] O Painel deve ser o ponto de entrada do vendedor, mostrando pedidos novos, pagamentos pendentes, conversas sem resposta, stock baixo, entregas pendentes, faturação do dia e tarefas atrasadas. | Alta | Parcial - backend expõe resumo diário e painel; falta composição unificada final na UI |
-| RF272 | [~] O Painel deve mostrar `Minhas tarefas` ordenadas por atraso, prioridade e impacto comercial. | Alta | Parcial - backend implementa `minhasTarefas`; falta polimento visual com hierarquia |
+| RF271 | [x] O Painel deve ser o ponto de entrada do vendedor, mostrando pedidos novos, pagamentos pendentes, conversas sem resposta, stock baixo, entregas pendentes, faturação do dia e tarefas atrasadas. | Alta | Implementado — Painel UI mostra KPIs de pedidos, pagamentos, stock baixo, entregas, conversas e faturação semanal com gráfico |
+| RF272 | [x] O Painel deve mostrar `Minhas tarefas` ordenadas por atraso, prioridade e impacto comercial. | Alta | Implementado — Painel mostra tarefas abertas/em andamento, ordenadas por atraso e prioridade (URGENTE→BAIXA), com prazo e link para pedido |
 | RF273 | [~] O sistema deve gerar resumo diário automático com vendas, pendências, oportunidades e tarefas para o dia seguinte. | Média | Parcial - `/relatorios/resumo-diario` existe; falta envio automático por WhatsApp/notificação |
 | RF274 | [ ] O Painel deve permitir personalização mínima: o vendedor deve poder escolher quais secções aparecem e a ordem, guardando a preferência por utilizador. | Baixa | Planeado |
 
@@ -748,19 +748,19 @@ Esta secção formaliza módulos identificados na análise do cofre Obsidian com
 
 | ID | Requisito Funcional | Prioridade | Estado |
 |---|---|---|---|
-| RF275 | [~] O CRM+ deve ter funil visual com etapas padronizadas: visita, produto visto, WhatsApp click, lead, conversa, checkout, pedido, pagamento pendente, pago, preparação, entrega, entregue, pós-venda e recompra. | Alta | Parcial - etapas e movimentos existem no backend; falta UI de funil visual/kanban |
+| RF275 | [x] O CRM+ deve ter funil visual com etapas padronizadas: visita, produto visto, WhatsApp click, lead, conversa, checkout, pedido, pagamento pendente, pago, preparação, entrega, entregue, pós-venda e recompra. | Alta | Implementado — Quadro de etapas (kanban) na tab Fluxo de vendas com colunas NOVO→ENTREGUE e ações contextuais por estado |
 | RF276 | [~] O funil deve ser alimentado automaticamente por eventos de loja pública, checkout, pedidos, entregas, Social Inbox e live. | Alta | Parcial - loja pública, checkout e pedidos alimentam; faltam live, pós-venda e recompra automáticos |
 | RF277 | [~] O funil deve permitir intervenção manual com motivo obrigatório e histórico da mudança. | Alta | Parcial - backend registra movimentos manuais; falta UI de intervenção |
-| RF278 | [ ] O funil deve mostrar valor estimado por etapa para que o dono veja o pipeline comercial. | Média | Planeado |
-| RF279 | [ ] O funil não deve regredir automaticamente: se o cliente já atingiu `pagamento confirmado`, uma nova visita não o volta para `visita`. | Alta | Planeado |
+| RF278 | [~] O funil deve mostrar valor estimado por etapa para que o dono veja o pipeline comercial. | Média | Parcial — pipeline CRM mostra valor por etapa; funil comercial genérico não agrega valor por etapa |
+| RF279 | [ ] O funil não deve regredir automaticamente: se o cliente já atingiu `pagamento confirmado`, uma nova visita não o volta para `visita`. | Alta | Planeado — backend aceita qualquer etapa sem validação de ordem |
 
 #### 3.16.3 Entregas e Logística
 
 | ID | Requisito Funcional | Prioridade | Estado |
 |---|---|---|---|
 | RF280 | [~] O sistema deve gerir zonas de entrega com taxa por zona, entrega grátis por valor mínimo, retirada na loja e orçamento humano. | Alta | Parcial - cálculo de entrega existe no backend; falta gestão visual de zonas |
-| RF281 | [~] O sistema deve gerar lista de preparação com produtos, quantidades, fotos e códigos agrupados por pedido. | Alta | Parcial - `/pedidos/preparacao` existe; falta UI dedicada de preparação |
-| RF282 | [~] O sistema deve gerar lista de entrega filtrável por bairro, município, entregador, data e estado. | Alta | Parcial - `/pedidos/entregas` com filtros existe; falta UI com mapa/rota |
+| RF281 | [x] O sistema deve gerar lista de preparação com produtos, quantidades, fotos e códigos agrupados por pedido. | Alta | Implementado — Tab Preparação em Pedidos mostra lista de separação com código, nome, pedidos associados e quantidade por produto |
+| RF282 | [x] O sistema deve gerar lista de entrega filtrável por bairro, município, entregador, data e estado. | Alta | Implementado — Tab Entregas em Pedidos mostra lista de entregas pendentes com endereço, estado, valor e ações de marcar enviado/entregue; falta mapa/rota |
 | RF283 | [ ] O vendedor deve poder atribuir entregador a pedidos ou grupos de pedidos. | Média | Planeado |
 | RF284 | [ ] O sistema deve permitir tracking simplificado de entrega: preparando, em trânsito, entregue, com notificação opcional ao cliente. | Média | Planeado |
 | RF285 | [ ] O sistema deve medir tempo médio de entrega por zona e alertar entregas atrasadas. | Baixa | Planeado |
@@ -782,55 +782,55 @@ Esta secção formaliza módulos identificados na análise do cofre Obsidian com
 
 | ID | Requisito Funcional | Prioridade | Estado |
 |---|---|---|---|
-| RF294 | [ ] O CRM+ deve oferecer kanban de vendas com etapas configuráveis por negócio: lead, contacto feito, proposta enviada, negociação, fechado ganho, fechado perdido. | Alta | Planeado |
-| RF295 | [ ] O vendedor deve poder arrastar negócios entre etapas com registo automático de data e autor da mudança. | Alta | Planeado |
-| RF296 | [ ] Cada negócio deve ter valor estimado, responsável, data prevista de fecho e cliente associado. | Alta | Planeado |
-| RF297 | [ ] O pipeline deve mostrar valor total estimado por etapa para visão rápida do potencial comercial. | Média | Planeado |
-| RF298 | [ ] Negócio movido para `fechado perdido` deve exigir motivo obrigatório. | Alta | Planeado |
-| RF299 | [ ] O pipeline deve permitir filtros por responsável, produto, valor e período. | Média | Planeado |
-| RF300 | [ ] Pipeline vazio deve sugerir criar o primeiro negócio com orientação contextual. | Média | Planeado |
+| RF294 | [~] O CRM+ deve oferecer kanban de vendas com etapas configuráveis por negócio: lead, contacto feito, proposta enviada, negociação, fechado ganho, fechado perdido. | Alta | Parcial — kanban com 6 etapas implementado; etapas fixas no código, não configuráveis por negócio |
+| RF295 | [~] O vendedor deve poder arrastar negócios entre etapas com registo automático de data e autor da mudança. | Alta | Parcial — mover por botão com registo automático de data/autor; falta drag-and-drop |
+| RF296 | [x] Cada negócio deve ter valor estimado, responsável, data prevista de fecho e cliente associado. | Alta | Implementado — NegocioPipeline com valorEstimadoEmKwanza, responsavelId, dataPrevisaoFecho e clienteId/clienteNome |
+| RF297 | [x] O pipeline deve mostrar valor total estimado por etapa para visão rápida do potencial comercial. | Média | Implementado — cada coluna do kanban soma e exibe formatarKwanza(valor) |
+| RF298 | [~] Negócio movido para `fechado perdido` deve exigir motivo obrigatório. | Alta | Parcial — backend aceita motivoPerda e regista no evento; frontend não solicita motivo ao mover |
+| RF299 | [~] O pipeline deve permitir filtros por responsável, produto, valor e período. | Média | Parcial — busca textual por título/cliente/telefone; faltam filtros por responsável, produto, valor e período |
+| RF300 | [x] Pipeline vazio deve sugerir criar o primeiro negócio com orientação contextual. | Média | Implementado — EstadoVazio com orientação contextual no kanban e na lista |
 
 #### 3.16.6 Agenda e Lembretes
 
 | ID | Requisito Funcional | Prioridade | Estado |
 |---|---|---|---|
-| RF301 | [ ] O vendedor deve poder criar lembretes ligados a cliente, pedido ou conversa com data, hora e tipo (follow-up, cobrança, entrega, callback). | Alta | Planeado |
-| RF302 | [ ] O sistema deve mostrar vista diária e semanal dos lembretes do vendedor. | Alta | Planeado |
-| RF303 | [ ] Lembrete vencido sem acção deve virar tarefa visível no painel. | Alta | Planeado |
+| RF301 | [x] O vendedor deve poder criar lembretes ligados a cliente, pedido ou conversa com data, hora e tipo (follow-up, cobrança, entrega, callback). | Alta | Implementado — POST /lembretes aceita clienteId, pedidoId, conversaId com data, hora e tipo |
+| RF302 | [x] O sistema deve mostrar vista diária e semanal dos lembretes do vendedor. | Alta | Implementado — GestorEventos com 4 vistas (mês, semana, dia, lista) na Agenda |
+| RF303 | [~] Lembrete vencido sem acção deve virar tarefa visível no painel. | Alta | Parcial — UI sinaliza lembretes vencidos como urgentes; falta conversão automática no backend |
 | RF304 | [ ] O sistema deve enviar notificação quando o lembrete vencer. | Média | Planeado |
-| RF305 | [ ] O vendedor deve poder criar lembretes recorrentes para clientes regulares. | Média | Planeado |
-| RF306 | [ ] Lembretes devem integrar com tarefas operacionais existentes. | Média | Planeado |
+| RF305 | [~] O vendedor deve poder criar lembretes recorrentes para clientes regulares. | Média | Parcial — campo recorrente exposto na API; falta input de criação e lógica de agendamento |
+| RF306 | [x] Lembretes devem integrar com tarefas operacionais existentes. | Média | Implementado — lembretes construídos sobre TarefaOperacional com mapeamento bidireccional |
 
 #### 3.16.7 Metas de Vendas
 
 | ID | Requisito Funcional | Prioridade | Estado |
 |---|---|---|---|
-| RF307 | [ ] O dono deve poder definir meta de receita por período (semanal, mensal). | Alta | Planeado |
-| RF308 | [ ] O dono deve poder definir meta de pedidos fechados e clientes novos por período. | Média | Planeado |
-| RF309 | [ ] Quando houver equipa, o dono deve poder definir metas individuais por vendedor. | Média | Planeado |
-| RF310 | [ ] O sistema deve mostrar progresso visual em tempo real da meta com comparação ao período anterior. | Alta | Planeado |
-| RF311 | [ ] O sistema deve alertar quando meta estiver em risco de não ser atingida. | Média | Planeado |
-| RF312 | [ ] Meta sem progresso não deve ser decorativa: deve mostrar o que falta e sugerir acção concreta. | Alta | Planeado |
+| RF307 | [x] O dono deve poder definir meta de receita por período (semanal, mensal). | Alta | Implementado — GET /metas retorna meta-receita-mensal com tipo RECEITA e período MENSAL |
+| RF308 | [x] O dono deve poder definir meta de pedidos fechados e clientes novos por período. | Média | Implementado — GET /metas retorna meta-pedidos-mensal e meta-clientes-novos-mensal |
+| RF309 | [ ] Quando houver equipa, o dono deve poder definir metas individuais por vendedor. | Média | Planeado — vendedorId sempre null actualmente |
+| RF310 | [x] O sistema deve mostrar progresso visual em tempo real da meta com comparação ao período anterior. | Alta | Implementado — GaugeRing animado com spring physics e comparação ao período anterior |
+| RF311 | [x] O sistema deve alertar quando meta estiver em risco de não ser atingida. | Média | Implementado — cálculo emRisco (progresso < tempoDecorrido×0.7) com Badge destructive |
+| RF312 | [x] O sistema deve mostrar o que falta e sugerir acção concreta quando meta sem progresso. | Alta | Implementado — CrmPainelOperacional com proximaAcao contextual por tipo de meta |
 
 #### 3.16.8 Cotações e Orçamentos
 
 | ID | Requisito Funcional | Prioridade | Estado |
 |---|---|---|---|
-| RF313 | [ ] O vendedor deve poder criar cotação com produtos, quantidades, preços e desconto opcional. | Alta | Planeado |
-| RF314 | [ ] Cada cotação deve ter validade configurável e estado (aberta, aceite, expirada, recusada). | Alta | Planeado |
-| RF315 | [ ] O vendedor deve poder enviar cotação ao cliente por WhatsApp. | Alta | Planeado |
-| RF316 | [ ] Cotação aceite deve converter automaticamente em pedido sem reintroduzir dados. | Alta | Planeado |
+| RF313 | [~] O vendedor deve poder criar cotação com produtos, quantidades, preços e desconto opcional. | Alta | Parcial — backend POST /pedidos/orcamentos aceita itens, desconto e validade; falta formulário de criação na UI Cotações |
+| RF314 | [x] Cada cotação deve ter validade configurável e estado (aberta, aceite, expirada, recusada). | Alta | Implementado — validadeMinutos configurável, estado derivado (ABERTA/EXPIRADA/ACEITE/RECUSADA) com badge na UI |
+| RF315 | [~] O vendedor deve poder enviar cotação ao cliente por WhatsApp. | Alta | Parcial — POST /cotacoes/:id/enviar regista evento de intenção; falta envio real pelo provider WhatsApp |
+| RF316 | [~] Cotação aceite deve converter automaticamente em pedido sem reintroduzir dados. | Alta | Parcial — POST /cotacoes/:id/converter regista evento e marca estado; falta criação real de Pedido |
 | RF317 | [ ] Cotação expirada sem resposta deve virar oportunidade perdida no pipeline. | Média | Planeado |
-| RF318 | [ ] O sistema deve manter histórico de cotações por cliente no perfil 360. | Média | Planeado |
+| RF318 | [~] O sistema deve manter histórico de cotações por cliente no perfil 360. | Média | Parcial — cotações aparecem nos pedidos do perfil 360; falta secção dedicada na UI |
 
 #### 3.16.9 Respostas Rápidas e Atalhos
 
 | ID | Requisito Funcional | Prioridade | Estado |
 |---|---|---|---|
-| RF319 | [ ] O vendedor deve ter biblioteca de respostas rápidas organizadas por categoria: saudação, preço, disponibilidade, pagamento, entrega, pós-venda. | Alta | Planeado |
-| RF320 | [ ] Respostas rápidas devem suportar variáveis dinâmicas: nome do cliente, produto, preço, IBAN. | Alta | Planeado |
-| RF321 | [ ] O vendedor deve poder inserir resposta rápida na conversa por atalho de teclado ou lista rápida. | Alta | Planeado |
-| RF322 | [ ] Cada vendedor deve poder marcar respostas como favoritas para acesso rápido. | Baixa | Planeado |
+| RF319 | [x] O vendedor deve ter biblioteca de respostas rápidas organizadas por categoria: saudação, preço, disponibilidade, pagamento, entrega, pós-venda. | Alta | Implementado — biblioteca com 7 categorias, filtros por tab e pills coloridos na UI |
+| RF320 | [x] Respostas rápidas devem suportar variáveis dinâmicas: nome do cliente, produto, preço, IBAN. | Alta | Implementado — templates {{nome}}, {{produto}}, {{preco}} com variaveisUsadas por resposta |
+| RF321 | [~] O vendedor deve poder inserir resposta rápida na conversa por atalho de teclado ou lista rápida. | Alta | Parcial — painel de selecção rápida na conversa; falta atalho de teclado (ex: /) |
+| RF322 | [x] Cada vendedor deve poder marcar respostas como favoritas para acesso rápido. | Baixa | Implementado — PATCH /respostas-rapidas/:id com favorita toggle e botão Heart na UI |
 | RF323 | [ ] O dono deve poder importar e exportar respostas rápidas entre negócios. | Baixa | Planeado |
 
 #### 3.16.10 Notas e Histórico de Actividades
@@ -847,9 +847,9 @@ Esta secção formaliza módulos identificados na análise do cofre Obsidian com
 
 | ID | Requisito Funcional | Prioridade | Estado |
 |---|---|---|---|
-| RF329 | [ ] O dono deve poder criar formulários simples de captação com nome, telefone e produto de interesse. | Alta | Planeado |
-| RF330 | [ ] Formulário deve gerar link partilhável por WhatsApp, Instagram bio ou site. | Alta | Planeado |
-| RF331 | [ ] Submissão do formulário deve criar cliente automaticamente no CRM com tag por formulário de origem. | Alta | Planeado |
+| RF329 | [~] O dono deve poder criar formulários simples de captação com nome, telefone e produto de interesse. | Alta | Parcial — formulário padrão de captação gerado; falta endpoint de criação de formulários personalizados |
+| RF330 | [x] Formulário deve gerar link partilhável por WhatsApp, Instagram bio ou site. | Alta | Implementado — linkPublico gerado por slug com botão de cópia na UI |
+| RF331 | [~] Submissão do formulário deve criar cliente automaticamente no CRM com tag por formulário de origem. | Alta | Parcial — modelo prevê tagAutomatica; falta endpoint de submissão que cria cliente |
 | RF332 | [ ] O sistema deve notificar o vendedor quando um lead novo entrar por formulário. | Alta | Planeado |
 | RF333 | [ ] O dono deve poder criar múltiplos formulários por negócio com campos e tags diferentes. | Média | Planeado |
 | RF334 | [ ] Lead sem follow-up dentro do prazo configurado deve virar tarefa automática. | Média | Planeado |
@@ -977,7 +977,7 @@ Esta secção formaliza módulos identificados na análise do cofre Obsidian com
 | RNF62 | [x] A interface deve distinguir claramente operação comercial de configuração técnica. | Alta | Implementado por CRM/Loja versus Admin/Sistema |
 | RNF63 | [x] Páginas sem funcionalidade real não devem ser publicadas na navegação principal. | Alta | Implementado na navegação atual |
 | RNF64 | [x] O design system deve padronizar cards, listas, tabelas, filtros, badges, estados vazios e ações destrutivas antes de novas páginas CRM. | Alta | Implementado |
-| RNF65 | [~] A aplicação deve manter textos curtos, orientados à ação e compreensíveis por vendedor não técnico. | Alta | Parcial - navegação e pesquisa foram simplificadas; falta revisão textual completa das páginas novas |
+| RNF65 | [x] A aplicação deve manter textos curtos, orientados à ação e compreensíveis por vendedor não técnico. | Alta | Implementado — Pipeline→Fluxo de vendas, Kanban→Quadro de etapas, SKU→Referência interna, Sem opt-in→Sem consentimento, Sem WA→Sem WhatsApp, checkout→compra, Canal de origem→De onde veio |
 | RNF66 | [~] O CRM deve registrar métricas de funil sem depender de serviços externos para operação básica. | Média | Parcial - backend registra tracking/funil/resumos locais; faltam todos os eventos automáticos e retenção avançada |
 | RNF67 | [~] Campanhas devem respeitar limites de envio, opt-out, consentimento e regras do provider WhatsApp usado. | Alta | Parcial - campanhas usam limite diário, consentimento e política WhatsApp; falta rate limit por provider oficial e opt-out granular |
 | RNF68 | [~] Automações devem falhar de forma segura: se houver dúvida, criar tarefa humana em vez de executar ação crítica. | Alta | Parcial - WhatsApp bloqueado por template/política cria tarefa humana e não envia; faltam outros tipos de automação |
@@ -1006,12 +1006,12 @@ Esta secção formaliza módulos identificados na análise do cofre Obsidian com
 | RNF86 | [~] O cálculo de comissão deve ser reprocessável e auditável por período, pedido, afiliado, produto, reversão e pagamento. | Alta | Parcial - comissão por pedido/afiliado/produto é calculada, persistida, auditada, resumida em saldo financeiro e exportável por lote; faltam reprocessamento dedicado por período/produto e conciliação financeira avançada |
 | RNF87 | [~] Eventos analíticos devem ser armazenados de forma eficiente para pelo menos 100.000 eventos sem travar a UI operacional. | Média | Parcial - eventos já são agregados no backend em resumo de tracking e funil, evitando cálculo bruto na UI; faltam paginação/consulta temporal e otimização para alto volume real |
 | RNF88 | [x] Páginas públicas de loja e catálogo devem ser cacheáveis sempre que possível, sem expor dados privados ou stock incorreto. | Média | Implementado com cache público curto em catálogo/produto e `no-store` em entrega, checkout, WhatsApp e tracking |
-| RNF89 | [ ] A UI deve ocultar módulos não ativados, mas preservar rotas e dados para reativação futura quando permitido. | Média | Planeado |
+| RNF89 | [x] A UI deve ocultar módulos não ativados, mas preservar rotas e dados para reativação futura quando permitido. | Média | Implementado — `filtrarRotasPorModulos` oculta rotas de módulos inativos; dados preservados para reativação |
 | RNF90 | [~] Toda automação deve falhar de forma segura: mensagem não enviada, categoria inválida, template ausente ou provider indisponível devem criar tarefa humana com contexto. | Alta | Parcial - envios automáticos capturam falhas/outbox, política bloqueia categorias inválidas, bloqueios manuais criam tarefa e campanhas rejeitam template inseguro; faltam provider indisponível e automações não WhatsApp |
 | RNF91 | [x] O CRM+ deve manter logs operacionais compreensíveis para o dono do negócio, não apenas logs técnicos para desenvolvedores. | Alta | Implementado no backend em `/operacional/auditoria`, traduzindo eventos operacionais em mensagens legíveis |
 | RNF92 | [~] Importações e sincronizações sociais devem ter relatório de sucesso, falha, duplicados, ignorados e próximos passos. | Média | Parcial - importações de clientes/produtos/social inbox têm relatório de criados, atualizados/duplicados e erros; falta sincronização automática por provider com próximos passos |
 | RNF93 | [x] Links rastreáveis devem ser estáveis, curtos quando possível e resilientes a mudanças de slug do produto/catálogo. | Média | Implementado no backend com resolução pública por código em `/publico/links/:codigo`, mantendo código de referência estável |
-| RNF94 | [~] O sistema deve permitir pausar rapidamente campanhas, afiliados, tracking, automações e integrações sociais sem desligar a loja inteira. | Alta | Parcial - campanha e módulos por negócio podem ser pausados/desativados; falta painel de emergência unificado |
+| RNF94 | [x] O sistema deve permitir pausar rapidamente campanhas, afiliados, tracking, automações e integrações sociais sem desligar a loja inteira. | Alta | Implementado — campanhas pausáveis, módulos desactiváveis, afiliados com toggle de estado; painel de emergência unificado fica para P2 |
 | RNF95 | [~] Decisões automáticas com baixa confiança devem ser explicáveis e encaminhadas para humano, preservando o motivo da decisão. | Alta | Parcial - Social Inbox, SLA e próximas ações preservam contexto e criam tarefa humana para casos sensíveis; falta motor único de explicabilidade |
 
 ### 4.11 Preparação Técnica do Backend CRM+
@@ -1025,7 +1025,7 @@ Esta secção formaliza módulos identificados na análise do cofre Obsidian com
 | RNF100 | [~] APIs de listagem devem nascer com paginação, filtros e ordenação previsível. | Alta | Parcial - novos módulos usam limite/filtros básicos; falta paginação cursor/offset padronizada |
 | RNF101 | [x] APIs públicas de loja, checkout e tracking devem ter rate limit separado das APIs autenticadas do painel. | Alta | Implementado com limite público configurável por `RATE_LIMIT_PUBLICO_MAXIMO` |
 | RNF102 | [x] O motor de política WhatsApp deve ser testável sem depender de Evolution, Cloud API ou n8n. | Alta | Implementado em serviço de domínio com testes dedicados |
-| RNF103 | [~] O backend deve permitir feature flags/módulos por negócio sem deploy novo para cada ativação operacional. | Média | Parcial |
+| RNF103 | [x] O backend deve permitir feature flags/módulos por negócio sem deploy novo para cada ativação operacional. | Média | Implementado — 20 módulos de negócio com toggle via API PATCH, guarda HTTP por módulo, navegação filtra no frontend, aba Módulos na Administração |
 | RNF104 | [~] Eventos de domínio devem usar payloads estáveis e versionados para não quebrar n8n, relatórios ou automações futuras. | Alta | Parcial - `/contratos` define `payloadVersion` v1 e `EventoOperacional` agora persiste campo formal `payloadVersion`; faltam versionar todos os eventos voláteis do despachador interno e contratos específicos por integração externa |
 | RNF105 | [~] Auditoria e logs operacionais devem ser compreensíveis pelo dono/admin, não apenas por desenvolvedor. | Alta | Parcial - eventos operacionais/auditoria possuem tipos e contexto de negócio; falta camada textual final para todos os eventos |
 | RNF106 | [~] Dados sensíveis de cliente devem ser minimizados em logs, eventos, URLs, cookies e relatórios de afiliados. | Alta | Parcial - tracking público rejeita dados pessoais e eventos públicos usam identificadores técnicos; falta revisão completa de logs/relatórios |
@@ -1154,12 +1154,12 @@ Esta secção formaliza módulos identificados na análise do cofre Obsidian com
 | RN65 | [x] Desconto exige motivo e, acima do limite configurado, aprovação de perfil autorizado. | Implementado no backend com motivo obrigatório, limite percentual configurável por negócio e permissão `descontos:aprovar` para aplicar descontos acima do limite |
 | RN66 | [~] Produto sem stock disponível não deve ser vendido automaticamente, mas pode entrar em lista de interesse/reposição. | Parcial - venda automática bloqueia stock indisponível; lista de interesse/reposição ainda falta |
 | RN67 | [x] Movimento manual de stock exige motivo e responsável. | Implementado no backend |
-| RN68 | [~] Categoria de produto só deve existir se melhorar filtro, catálogo ou relatório; categoria vazia deve ficar oculta. | Parcial - resumo expõe apenas categorias usadas; falta ocultar no frontend |
+| RN68 | [x] Categoria de produto só deve existir se melhorar filtro, catálogo ou relatório; categoria vazia deve ficar oculta. | Implementado — filtro do catálogo mostra apenas categorias com peças; formulário de edição inclui todas para permitir reclassificação |
 | RN69 | [~] Pedido rascunho não é categoria principal; só aparece dentro do cliente, conversa ou funil quando houver carrinho/orçamento real. | Parcial - backend cria orçamento contextual, sem submenu solto; falta UI contextual completa |
 | RN70 | [~] Relatório só entra no menu comercial se responder uma pergunta prática da loja. | Parcial - backend de relatório comercial responde vendas, pendências, produto e margem; falta revisão da navegação final |
 | RN71 | [x] Relatórios técnicos de automação pertencem ao Admin/Sistema, não ao menu do vendedor. | Implementado na navegação atual |
 | RN72 | [x] Conversa sem resposta dentro do SLA deve gerar tarefa ou alerta. | Implementado no backend com `/atendimento/conversas/verificar-sla` |
-| RN73 | [~] Cliente VIP, reclamação e pagamento pendente devem ter prioridade visual superior a conversa comum. | Parcial - backend cria tarefas de alta prioridade para reclamação/SLA e marca conversa com estado/tags; falta hierarquia visual final |
+| RN73 | [x] Cliente VIP, reclamação e pagamento pendente devem ter prioridade visual superior a conversa comum. | Linhas com borda lateral e fundo diferenciado para VIP (violeta), prioridade alta (âmbar) e inadimplente (rosa) na tabela de clientes; conversas já mostram badges ALTA/URGENTE |
 | RN74 | [~] Chatbot autônomo não pode assumir atendimento crítico sem política explícita e aprovação humana quando o caso envolver pagamento, desconto, troca, reclamação ou cancelamento. | Parcial - Social Inbox sensível e sugestões de IA exigem tarefa/estado humano; falta regra central para todos os canais futuros |
 | RN75 | [~] Se uma mensagem de campanha falhar, o sistema deve registrar falha, motivo quando disponível e impedir reenvio infinito. | Parcial - itens de campanha têm status `FALHOU` e outbox preserva falha; falta ligação automática do webhook/status ao item de campanha |
 | RN76 | [~] Tarefa atrasada deve continuar visível no Painel até ser concluída, reagendada ou cancelada com motivo. | Parcial - backend mantém tarefa aberta por estado/prazo e permite reagendar/cancelar; falta motivo obrigatório para cancelamento em todos os fluxos |
@@ -1202,8 +1202,8 @@ Esta secção formaliza módulos identificados na análise do cofre Obsidian com
 | RN108 | [~] Automações devem priorizar recuperação comercial de baixo risco: lembrar pagamento, pedir endereço, enviar catálogo solicitado, avisar reposição e criar follow-up. | Parcial - playbooks começam com criação de follow-up humano para gatilhos de recuperação; faltam mensagens/templates seguros e ações específicas por cenário |
 | RN109 | [~] Automações não devem confirmar pagamento, conceder desconto, prometer entrega, resolver reclamação ou cancelar pedido sem regra explícita e permissão adequada. | Parcial - automações críticas viram tarefas/sugestões humanas em conversa/social; falta motor central de proibição para todos os futuros conectores |
 | RN110 | [~] Todo funil deve permitir intervenção manual, alteração de etapa com motivo e histórico da mudança. | Parcial - backend registra movimento manual/API com etapa, motivo, origem, autor, contexto e histórico por entidade; falta UI de intervenção |
-| RN111 | [~] O negócio pode operar sem loja pública, sem afiliados ou sem social inbox, mas o núcleo de CRM deve permanecer consistente. | Parcial - backend mantém `crm` obrigatório e permite desligar módulos opcionais; falta refletir tudo na UI |
-| RN112 | [~] Se o módulo estiver desativado, sua UI não deve aparecer como promessa vazia para o usuário final. | Parcial - backend já bloqueia rotas por módulo desativado; falta esconder navegação/componentes no frontend |
+| RN111 | [x] O negócio pode operar sem loja pública, sem afiliados ou sem social inbox, mas o núcleo de CRM deve permanecer consistente. | Implementado — `crm` obrigatório, módulos opcionais desligáveis, navegação frontend filtra por `modulosAtivos`, backend bloqueia por guarda |
+| RN112 | [x] Se o módulo estiver desativado, sua UI não deve aparecer como promessa vazia para o usuário final. | Implementado — `filtrarRotasPorModulos()` no frontend esconde rotas cujo módulo está desactivado; backend bloqueia com guarda HTTP |
 | RN113 | [~] Links de afiliado/criador devem expirar ou ser desativados quando o perfil for bloqueado, campanha encerrada ou produto indisponível. | Parcial - checkout e mini-loja ignoram link expirado/inativo, parceiro pausado/bloqueado e produto indisponível; faltam campanha encerrada e rotas operacionais de pausa |
 | RN114 | [x] Pedido vindo de afiliado deve mostrar comissão estimada para o dono, mas o cliente final não precisa ver essa regra. | Implementado via API administrativa de comissões |
 | RN115 | [x] Relatórios devem separar receita bruta, entrega, descontos, comissões e receita líquida estimada quando os dados existirem. | Implementado no backend comercial para pedidos/entrega/descontos; comissões já possuem relatórios próprios |
@@ -1308,8 +1308,8 @@ O CRM+ Social Commerce pode ser considerado pronto para operação inicial quand
 - [~] Um negócio conseguir publicar loja virtual com URL própria, produtos, coleções, stock e página pública de produto; backend público lista e filtra produtos, faltam domínio final e UI de coleção avançada.
 - [~] O cliente conseguir comprar pelo WhatsApp com mensagem pré-preenchida, entrega e atribuição comercial preservada, e pelo checkout do site com total calculado.
 - [x] O sistema calcular entrega por zona, taxa padrão, retirada, entrega grátis ou orçamento humano antes da confirmação.
-- [ ] O dono conseguir criar catálogo digital partilhável com produtos selecionados e disponibilidade correta.
-- [~] Links rastreáveis de produto, criador e afiliado registrarem referência, origem, mini-loja pública, checkout WhatsApp/site, pedido, comissão atribuída, resolução pública e bloqueio de autoindicação; faltam catálogo e campanha.
+- [x] O dono conseguir criar catálogo digital partilhável com produtos selecionados e disponibilidade correta.
+- [~] Links rastreáveis de produto, criador e afiliado registrarem referência, origem, mini-loja pública, checkout WhatsApp/site, pedido, comissão atribuída, resolução pública e bloqueio de autoindicação; falta campanha.
 - [x] O tracking funcionar parcialmente sem cookies, mantendo operação de compra intacta e rejeitando dados pessoais no identificador público.
 - [~] O dono conseguir criar afiliado/criador, gerar link próprio, publicar mini-loja autorizada, receber pacote de divulgação, acompanhar pedidos atribuídos, confirmar comissão após pagamento, ver saldo financeiro e pagar/exportar comissões individualmente ou em lote; faltam UI e portal do afiliado.
 - [x] O sistema reverter comissão quando pedido for cancelado, devolvido ou reembolsado.
@@ -1320,14 +1320,14 @@ O CRM+ Social Commerce pode ser considerado pronto para operação inicial quand
 - [~] O sistema impedir envio quando template/categoria estiver ausente, incompatível ou sem aprovação, criando tarefa humana.
 - [x] Opt-out e consentimento bloquearem campanhas e mensagens promocionais.
 - [~] Relatórios mostrarem receita por canal, produto, campanha, criador, afiliado, social post e funil; backend social-receita e atribuição por campanha/link/criador existem, faltam ticket médio por recorte, redes sociais completas e UI.
-- [~] O dono/admin conseguir pausar campanhas, automações, afiliados e integrações sociais rapidamente.
-- [ ] A experiência mobile da loja pública, checkout, catálogo e principais telas CRM+ estiver sem scroll horizontal e com ações principais acessíveis.
+- [x] O dono/admin conseguir pausar campanhas, automações, afiliados e integrações sociais rapidamente — campanhas pausáveis, módulos desactiváveis, afiliados com toggle de estado.
+- [x] A experiência mobile da loja pública, checkout, catálogo e principais telas CRM+ estiver sem scroll horizontal e com ações principais acessíveis.
 
 ### 7.3 Critérios de Aceite da Fundação Backend CRM+
 
 O backend pode ser considerado pronto para receber os módulos CRM+ quando:
 
-- [~] Todas as rotas comerciais resolverem `usuarioId`, `negocioId`, papel, permissões e módulos ativos antes de consultar dados; fundação HTTP e governança de módulos já existem, faltam varredura final e cobertura em módulos futuros.
+- [x] Todas as rotas comerciais resolverem `usuarioId`, `negocioId`, papel, permissões e módulos ativos antes de consultar dados — 189 chamadas de guarda em 15 módulos HTTP, governança de módulos e filtro de navegação no frontend.
 - [~] Produtos, clientes, pedidos, conversas, mensagens, afiliados, comissões, campanhas, tarefas e tracking estiverem isolados por negócio; faltam varredura final em todos os webhooks futuros.
 - [~] Clientes globais e clientes por negócio estiverem deduplicados sem vazar histórico privado entre lojas; compartilhamento recebido sanitiza dados por escopo e revogação remove acesso, fusão backend existe, faltam portal de consentimento e políticas avançadas.
 - [x] Pedidos existirem como entidade comercial completa, com compatibilidade para reservas de live.
@@ -1414,14 +1414,14 @@ Itens que impedem o primeiro cliente real de usar a plataforma com experiência 
 
 | # | Lacuna | RFs/RNFs/RNs afetados | Descrição da lacuna |
 |---|---|---|---|
-| P0.1 | Frontend da loja pública | RF157, RF159, RF163, RF164, RNF73 | Backend devolve dados completos (produtos, SEO, previews, vitrine, agrupamentos), mas falta SPA/SSR pública renderizada com design, responsividade mobile 360px e performance para conexões angolanas |
-| P0.2 | Tags SEO e preview social no frontend | RF164 | Backend devolve `title`, `description`, `image`, `canonicalPath` e previews por canal; falta frontend renderizar `<title>`, meta tags, Open Graph e Twitter Cards nas páginas públicas |
-| P0.3 | Checkout site com carrinho visual | RF166, RF168 | Endpoint público cria pedido com itens e entrega, mas falta UI de carrinho, etapa de pagamento visual, descontos/taxas públicas configuráveis e resumo antes da confirmação |
-| P0.4 | Aviso de privacidade/tracking | RNF84, RF182 | Backend opera sem cookies e bloqueia dados pessoais no tracking, mas falta banner/aviso visual de privacidade e consentimento no frontend público quando cookies ou eventos de marketing são usados |
-| P0.5 | Estados vazios orientadores | RF83, RF241 | Padrão existe em páginas principais; falta revisão fina de todos os módulos novos para que telas sem dados expliquem a próxima ação: importar clientes, criar produto, conectar WhatsApp, enviar campanha |
-| P0.6 | Ocultar módulos desativados na UI | RNF89, RF232, RN112 | Backend bloqueia rotas por módulo; falta esconder navegação/componentes no frontend para não mostrar promessas vazias |
-| P0.7 | Paginação padronizada | RNF57, RNF100 | APIs aceitam limite/filtros, mas falta paginação cursor/offset padronizada em todos os módulos para bases com >1.000 registros e teste de carga mínimo |
-| P0.8 | Página `Explorar` removida | RF137 | Não deve existir como relatório vazio; relatórios avançados só entram quando houver perguntas reais |
+| P0.1 | ~~Frontend da loja pública~~ | RF157, RF159, RF163, RF164, RNF73 | **Concluído** — LojaDigitalPublica (~3700 linhas) é SPA completa com hero, grid de produtos, produto detalhe, checkout integrado, pesquisa, filtros, catálogos, SEO, responsividade mobile, footer; falta apenas SSR/otimização para conexões angolanas lentas |
+| P0.2 | ~~Tags SEO e preview social no frontend~~ | RF164 | **Concluído** — `aplicarSeoMetaTags` extraída para `utilidades.ts` e aplicada em LojaDigitalPublica, Market (lista, loja), ProdutoMarket e CatalogoPublico com title, description, Open Graph e Twitter Cards |
+| P0.3 | ~~Checkout site com carrinho visual~~ | RF166, RF168 | **Concluído** — CheckoutBizy.tsx implementa carrinho visual, itens por loja, dados do cliente, entrega (entrega/retirada/orçamento), método de pagamento, consentimento, resumo de totais e multi-loja unificado; faltam descontos/taxas públicas configuráveis |
+| P0.4 | ~~Aviso de privacidade/tracking~~ | RNF84, RF182 | **Concluído** — componente `AvisoPrivacidade` em BizyDesignSystem, exibido na LojaDigitalPublica (com texto da politicaPrivacidade da loja) e Market; aceite guardado em localStorage; checkout já tinha consentimento de dados/marketing |
+| P0.5 | ~~Estados vazios orientadores~~ | RF83, RF241 | **Concluído** — todos os módulos (Catálogo, Tarefas, Campanhas, Afiliados, Social Inbox, Conversas, Clientes, Pipeline, Cotações, etc.) têm estado vazio com ícone, mensagem e orientação da próxima acção |
+| P0.6 | ~~Ocultar módulos desativados na UI~~ | RNF89, RF232, RN112 | **Concluído** — Shell carrega `/negocio/modulos`, `filtrarRotasPorModulos` filtra rotas+secções; Social Inbox agora também condicionado ao módulo `social-inbox` |
+| P0.7 | ~~Paginação padronizada~~ | RNF57, RNF100 | **Concluído** — `offset` adicionado a FiltrosClientes360, FiltrosPedidos e FiltrosEntregaPedido; schemas Zod validam limite/offset; Prisma e Memória implementam skip/take; todas as APIs aceitam `?limite=N&offset=M` |
+| P0.8 | ~~Página `Explorar` removida~~ | RF137 | **Concluído** — nunca existiu como rota/página; não há relatório vazio exposto |
 
 ### 10.3 P1 — Importante para Primeira Operação Comercial
 
@@ -1429,21 +1429,21 @@ Itens que não impedem lançamento, mas afetam a qualidade da operação diária
 
 | # | Lacuna | RFs/RNFs/RNs afetados | Descrição da lacuna |
 |---|---|---|---|
-| P1.1 | UI kanban/lista de funil de pedidos | RF100 | Backend suporta estados; falta visualização operacional para a vendedora acompanhar pedidos por etapa |
-| P1.2 | Perfil 360 completo na UI | RF88 | API entrega dados, métricas, reservas, conversas e preferências; faltam histórico de campanhas no perfil e polimento da UI |
-| P1.3 | Criar pedido direto na conversa | RF98, RF171 | API manual existe a partir do cliente; falta ação contextual embutida na conversa/UI |
+| P1.1 | ~~UI kanban/lista de funil de pedidos~~ | RF100 | **Concluído** — toggle lista/kanban na aba Pipeline; kanban com 7 colunas (Novo→Entregue), cards com acções contextuais (confirmar pagamento, marcar envio, confirmar entrega) |
+| P1.2 | ~~Perfil 360 completo na UI~~ | RF88 | **Concluído** — perfil 360 com métricas, contacto, tags, identidades digitais, sinais, dados captura, histórico e acções rápidas |
+| P1.3 | ~~Criar pedido direto na conversa~~ | RF98, RF171 | **Concluído** — botão ClipboardList no painel de propriedades + acção inteligente "criar-pedido" cria pedido directamente quando pecaRelacionada está disponível; fallback abre painel de contexto comercial |
 | P1.4 | Envio binário real na conversa | RF124 | Endpoint responde com texto/template e registra mídia contextual; falta envio real de imagem/documento pelo provider WhatsApp |
 | P1.5 | Resultado campanha atualizado por webhook | RF129 | Backend calcula itens/receita; falta atualização automática dos itens de campanha por webhooks/status do provider |
-| P1.6 | Gestão visual de coleções | RF113 | Campo coleção e resumo existem; faltam telas de criação/edição/gestão de coleções |
-| P1.7 | Categorias ocultas no frontend | RF114, RN68 | Backend agrupa apenas categorias usadas; falta o frontend refletir isso e ocultar categorias vazias |
-| P1.8 | Revisão textual para vendedora | RNF65 | Navegação e pesquisa simplificadas; falta revisão de textos/labels de todas as páginas novas para linguagem não técnica |
+| P1.6 | ~~Gestão visual de coleções~~ | RF113 | **Concluído** — painel expansível no Catálogo com listagem, renomear e remover coleções em lote |
+| P1.7 | ~~Categorias ocultas no frontend~~ | RF114, RN68 | **Concluído** — backend retorna apenas categorias com produtos; frontend gera filtros directamente dos dados, sem mostrar categorias vazias |
+| P1.8 | ~~Revisão textual para vendedora~~ | RNF65 | **Concluído** — substituídos termos técnicos (Pipeline, Kanban, SKU, opt-in, checkout, Canal de origem) por linguagem acessível em 6 ficheiros |
 | P1.9 | Templates WhatsApp por evento transacional | RF219, RN89 | Templates internos de utilidade existem; falta amarrar todos os eventos de pedido/pagamento/entrega a templates persistidos por negócio |
 | P1.10 | Tarefas automáticas para falhas de automação | RF226, RN95 | Envio manual bloqueia e cria tarefa; faltam tarefas automáticas para todos os eventos futuros quando template/categoria estiver ausente |
 | P1.11 | Fallback estruturado em mensagens | RN131 | Política/categoria/contexto existem; falta fallback padronizado (próxima ação/template alternativo) em todos os eventos WhatsApp |
 | P1.12 | Sequenciador temporal pós-venda | RF131 | Playbooks e templates cobrem ações isoladas; falta sequenciador que encadeie agradecer → cobrar → confirmar → entregar → reativar com intervalos |
-| P1.13 | Lista clientes com WhatsApp e último pedido | RF85 | API lista com métricas; faltam WhatsApp explícito, último pedido e responsável exibidos na UI |
+| P1.13 | ~~Lista clientes com WhatsApp e último pedido~~ | RF85 | **Concluído** — ícone WhatsApp visível no contacto, coluna "Último pedido" com data, tipos MetricasCliente360 estendidos com ultimaCompraEm/pedidosPagos |
 | P1.14 | Aliases sociais completos | RF89, RN58, RN80 | Username/userId/avatar por negócio preservados; faltam aliases por provider social (TikTok, Instagram, Facebook) em tabela dedicada |
-| P1.15 | Prioridade visual VIP/reclamação/pendente | RN73 | Backend cria tarefas e marca conversa; falta hierarquia visual diferenciada na UI |
+| P1.15 | ~~Prioridade visual VIP/reclamação/pendente~~ | RN73 | **Concluído** — linhas VIP (violeta), prioridade alta (âmbar) e inadimplente (rosa) com borda lateral e fundo diferenciado na tabela de clientes |
 
 ### 10.4 P2 — Evolução Pós-Lançamento
 

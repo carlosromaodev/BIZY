@@ -4,6 +4,7 @@ import {
   ComentarioManualSessaoSchema,
   IniciarLiveSchema,
   LimparDadosOperacionaisSchema,
+  QueryIncluirIgnoradosSchema,
   RejeitarComentarioManualSchema
 } from "../../../dominio/esquemas.js";
 import type { DicionarioParserComentario } from "../../../dominio/servicos/InterpretadorComentario.js";
@@ -216,10 +217,10 @@ export const moduloLives: ModuloHttp = {
       });
       if (!contextoComercial) return;
 
-      const incluirIgnorados = (request.query as { incluirIgnorados?: string | boolean } | undefined)?.incluirIgnorados;
+      const { incluirIgnorados } = QueryIncluirIgnoradosSchema.parse(request.query ?? {});
 
       return contexto.consultaPainel.listarComentarios({
-        incluirIgnorados: incluirIgnorados === true || incluirIgnorados === "true",
+        incluirIgnorados: incluirIgnorados ?? false,
         negocioId: contextoComercial.negocio.id
       });
     });

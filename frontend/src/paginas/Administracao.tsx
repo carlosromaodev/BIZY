@@ -1,50 +1,28 @@
 import {
   AlertTriangle,
   Ban,
-  Bell,
-  Camera,
+  Blocks,
   CheckCircle2,
   Clock,
-  Database,
   ExternalLink,
-  Eye,
   GitBranch,
-  HeartHandshake,
-  Image,
   Instagram,
   KeyRound,
+  Lock,
   LogOut,
   MessageCircle,
-  Play,
   QrCode,
-  ReceiptText,
   RefreshCcw,
-  Send,
   Settings,
-  Shield,
   ShieldCheck,
-  SlidersHorizontal,
   Smartphone,
-  Store,
-  User,
-  Users,
   Wifi,
-  Workflow,
-  Zap
+  Workflow
 } from "lucide-react";
 import { type FormEvent, type ReactNode, useEffect, useMemo, useState } from "react";
-import { motion } from "motion/react";
 import { criarFonteEventosAutenticada, requisitarApi } from "../api";
 import { EstadoVazio } from "../componentes/Shell";
 import { ConfirmarAcao } from "../componentes/ConfirmarAcao";
-import { CrmPageMotion } from "../componentes/CrmInterno21st";
-import {
-  Component as AnimatedTabs,
-  TabsContent,
-  TabsContents,
-  TabsList,
-  TabsTrigger
-} from "@/components/ui/animated-tabs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -60,18 +38,23 @@ import type {
 } from "../tipos";
 import { traduzirEstadoIntegracao } from "../utilidades";
 
-const iconesAgente: Record<string, ReactNode> = {
-  "parser-reservas": <ReceiptText size={18} />,
-  "expiracao-fila": <Bell size={18} />,
-  "whatsapp-reservas": <MessageCircle size={18} />,
-  "atendimento-ia": <SlidersHorizontal size={18} />,
-  comprovativos: <Users size={18} />,
-  "pos-venda": <HeartHandshake size={18} />
-};
+/* ── Aba activa ────────────────────────────────────────── */
+
+type Aba = "whatsapp" | "instagram" | "automacoes" | "n8n" | "modulos" | "configuracoes";
+
+const ABAS: { id: Aba; rotulo: string; icone: ReactNode }[] = [
+  { id: "whatsapp", rotulo: "WhatsApp", icone: <Smartphone size={15} /> },
+  { id: "instagram", rotulo: "Instagram", icone: <Instagram size={15} /> },
+  { id: "automacoes", rotulo: "Automações", icone: <Settings size={15} /> },
+  { id: "n8n", rotulo: "n8n", icone: <GitBranch size={15} /> },
+  { id: "modulos", rotulo: "Módulos", icone: <Blocks size={15} /> },
+  { id: "configuracoes", rotulo: "Configurações", icone: <Settings size={15} /> },
+];
 
 export function PaginaAdministracao() {
   const [resumoAutomacoes, setResumoAutomacoes] = useState<ResumoAutomacoes | null>(null);
   const [mensagem, setMensagem] = useState("");
+  const [aba, setAba] = useState<Aba>("whatsapp");
 
   async function carregarAutomacoes() {
     try {
@@ -92,53 +75,54 @@ export function PaginaAdministracao() {
   }, []);
 
   return (
-    <CrmPageMotion>
-      {/* ── Header ── */}
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="dash-titulo">Administração</h1>
-          <p className="mt-0.5 text-sm text-muted-foreground">Sistema · WhatsApp, automações, n8n e configurações</p>
-        </div>
-        <Button variant="outline" size="lg" onClick={() => void carregarAutomacoes()}>
-          <RefreshCcw size={16} />
-          Atualizar
-        </Button>
+    <div className="adm-page">
+      {/* Header */}
+      <header className="adm-header">
+        <h1 className="adm-title">Administração</h1>
+        <button className="adm-refresh" onClick={() => void carregarAutomacoes()} type="button" title="Atualizar">
+          <RefreshCcw size={15} />
+        </button>
+      </header>
+
+      {/* Tab bar */}
+      <nav className="adm-tabs" role="tablist">
+        {ABAS.map((t) => (
+          <button
+            key={t.id}
+            role="tab"
+            aria-selected={aba === t.id}
+            className={`adm-tab ${aba === t.id ? "adm-tab--active" : ""}`}
+            onClick={() => setAba(t.id)}
+            type="button"
+          >
+            {t.icone}
+            <span>{t.rotulo}</span>
+          </button>
+        ))}
+      </nav>
+
+      {/* Content */}
+      <div className="adm-content">
+        {aba === "whatsapp" && <ConteudoWhatsApp />}
+        {aba === "instagram" && <ConteudoInstagram />}
+        {aba === "automacoes" && <ConteudoAutomacoes resumo={resumoAutomacoes} />}
+        {aba === "n8n" && <ConteudoN8n resumo={resumoAutomacoes} />}
+        {aba === "modulos" && <ConteudoModulos />}
+        {aba === "configuracoes" && <ConteudoConfiguracoes resumo={resumoAutomacoes} />}
       </div>
 
-      <AnimatedTabs defaultValue="whatsapp">
-        <TabsList style={{ gridTemplateColumns: "repeat(auto-fit, minmax(5rem, 1fr))" }}>
-          <TabsTrigger value="whatsapp"><Smartphone size={16} /> WhatsApp</TabsTrigger>
-          <TabsTrigger value="instagram"><Instagram size={16} /> Instagram</TabsTrigger>
-          <TabsTrigger value="automacoes"><SlidersHorizontal size={16} /> Automações</TabsTrigger>
-          <TabsTrigger value="n8n"><GitBranch size={16} /> n8n</TabsTrigger>
-          <TabsTrigger value="configuracoes"><Settings size={16} /> Config.</TabsTrigger>
-        </TabsList>
-        <TabsContents>
-          <TabsContent value="whatsapp"><ConteudoWhatsApp /></TabsContent>
-          <TabsContent value="instagram"><ConteudoInstagram /></TabsContent>
-          <TabsContent value="automacoes"><ConteudoAutomacoes resumo={resumoAutomacoes} /></TabsContent>
-          <TabsContent value="n8n"><ConteudoN8n resumo={resumoAutomacoes} /></TabsContent>
-          <TabsContent value="configuracoes"><ConteudoConfiguracoes resumo={resumoAutomacoes} /></TabsContent>
-        </TabsContents>
-      </AnimatedTabs>
-
-      {mensagem && <footer className="rounded-lg border bg-card px-4 py-3 text-sm text-muted-foreground" aria-live="polite">{mensagem}</footer>}
-    </CrmPageMotion>
+      {mensagem && <p className="adm-toast" aria-live="polite">{mensagem}</p>}
+    </div>
   );
 }
 
-/* ── WhatsApp Tab ────────────────────────────────────────── */
+/* ── WhatsApp ──────────────────────────────────────────── */
 
 function ConteudoWhatsApp() {
   const [resumo, setResumo] = useState<ResumoEvolution | null>(null);
   const [mensagem, setMensagem] = useState("");
   const [carregando, setCarregando] = useState(false);
-  const [form, setForm] = useState({
-    nome: "emeu-vendas",
-    etiqueta: "Linha de vendas",
-    telefone: "244923456789",
-    padrao: true
-  });
+  const [form, setForm] = useState({ nome: "emeu-vendas", etiqueta: "Linha de vendas", telefone: "244923456789", padrao: true });
 
   async function carregar() {
     setResumo(await requisitarApi<ResumoEvolution>("/evolution/resumo"));
@@ -164,140 +148,103 @@ function ConteudoWhatsApp() {
 
   async function criarInstancia(e: FormEvent) {
     e.preventDefault();
-    await executar(
-      () => requisitarApi("/evolution/instancias", { method: "POST", body: form }),
-      "Instância criada."
-    );
+    await executar(() => requisitarApi("/evolution/instancias", { method: "POST", body: form }), "Instância criada.");
   }
 
   const conectadas = resumo?.instancias.filter((i) => ["open", "connected", "online"].includes(i.status.toLowerCase())).length ?? 0;
 
   return (
-    <div className="grid gap-4">
-      {/* KPI strip */}
-      <div className="dash-kpi-grid">
-        {([
-          { rotulo: "Evolution API", valor: resumo?.integracao.configurada ? "Configurada" : "Pendente", icone: <Wifi size={18} />, cor: resumo?.integracao.configurada ? "var(--success)" : "var(--warning)" },
-          { rotulo: "Instâncias", valor: String(resumo?.instancias.length ?? 0), icone: <Smartphone size={18} />, cor: "var(--primary)" },
-          { rotulo: "Conectadas", valor: String(conectadas), icone: <CheckCircle2 size={18} />, cor: "var(--success)" },
-          { rotulo: "Linha padrão", valor: resumo?.instanciaPadraoId ? "Definida" : "Nenhuma", icone: <QrCode size={18} />, cor: resumo?.instanciaPadraoId ? "var(--success)" : "var(--warning)" },
-        ] as const).map((kpi, i) => (
-          <motion.div key={kpi.rotulo} className="dash-kpi-card" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35, delay: 0.08 * i }}>
-            <div className="dash-kpi-icon" style={{ background: `color-mix(in srgb, ${kpi.cor} 10%, transparent)`, color: kpi.cor }}>{kpi.icone}</div>
-            <div className="dash-kpi-body">
-              <span className="dash-kpi-label">{kpi.rotulo}</span>
-              <strong className="dash-kpi-value">{kpi.valor}</strong>
-            </div>
-          </motion.div>
-        ))}
+    <div className="adm-section-grid">
+      {/* Status bar */}
+      <div className="adm-status-bar">
+        <StatusPill icone={<Wifi size={13} />} rotulo="Evolution" valor={resumo?.integracao.configurada ? "Configurada" : "Pendente"} ok={resumo?.integracao.configurada} />
+        <StatusPill icone={<Smartphone size={13} />} rotulo="Instâncias" valor={String(resumo?.instancias.length ?? 0)} />
+        <StatusPill icone={<CheckCircle2 size={13} />} rotulo="Conectadas" valor={String(conectadas)} ok={conectadas > 0} />
       </div>
 
       {resumo?.integracao.managerUrl && (
-        <Button asChild variant="outline" size="lg" className="w-fit">
-          <a href={resumo.integracao.managerUrl} target="_blank" rel="noreferrer">
-            <QrCode size={16} />
-            Evolution Manager
-          </a>
-        </Button>
+        <a href={resumo.integracao.managerUrl} target="_blank" rel="noreferrer" className="adm-link-externo">
+          <QrCode size={14} /> Evolution Manager <ExternalLink size={12} />
+        </a>
       )}
 
-      <div className="grid gap-4 lg:grid-cols-2">
-        {/* Create instance */}
-        <div className="dash-section-card">
-          <div className="dash-section-header">
-            <Smartphone size={16} className="text-muted-foreground" />
-            <span className="dash-section-title">Criar instância</span>
+      <div className="adm-two-col">
+        {/* Formulário */}
+        <div className="adm-card">
+          <div className="adm-card-head">
+            <Smartphone size={15} />
+            <span>Criar instância</span>
           </div>
-          <form onSubmit={criarInstancia} className="grid gap-4 p-4">
-            <div className="grid gap-2">
-              <label className="text-sm font-medium" htmlFor="adm-nomeInst">Nome técnico</label>
-              <Input id="adm-nomeInst" value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} />
-            </div>
-            <div className="grid gap-2">
-              <label className="text-sm font-medium" htmlFor="adm-etiqInst">Etiqueta</label>
-              <Input id="adm-etiqInst" value={form.etiqueta} onChange={(e) => setForm({ ...form, etiqueta: e.target.value })} />
-            </div>
-            <div className="grid gap-2">
-              <label className="text-sm font-medium" htmlFor="adm-telInst">Telefone</label>
-              <Input id="adm-telInst" inputMode="tel" value={form.telefone} onChange={(e) => setForm({ ...form, telefone: e.target.value })} />
-            </div>
-            <label className="flex items-center gap-2 text-sm">
-              <Checkbox checked={form.padrao} onCheckedChange={(checked) => setForm({ ...form, padrao: checked === true })} />
+          <form onSubmit={criarInstancia} className="adm-card-body">
+            <Campo id="adm-nomeInst" label="Nome técnico" value={form.nome} onChange={(v) => setForm({ ...form, nome: v })} />
+            <Campo id="adm-etiqInst" label="Etiqueta" value={form.etiqueta} onChange={(v) => setForm({ ...form, etiqueta: v })} />
+            <Campo id="adm-telInst" label="Telefone" value={form.telefone} onChange={(v) => setForm({ ...form, telefone: v })} inputMode="tel" />
+            <label className="adm-check">
+              <Checkbox checked={form.padrao} onCheckedChange={(c) => setForm({ ...form, padrao: c === true })} />
               Tornar linha padrão
             </label>
-            <Button size="lg" disabled={carregando}>
-              <Wifi size={16} />
-              Criar instância
-            </Button>
+            <Button size="lg" disabled={carregando} className="w-full">Criar instância</Button>
           </form>
         </div>
 
-        {/* Instances list */}
-        <div className="dash-section-card">
-          <div className="dash-section-header">
-            <QrCode size={16} className="text-muted-foreground" />
-            <span className="dash-section-title">QR Code e estado</span>
+        {/* Lista */}
+        <div className="adm-card">
+          <div className="adm-card-head">
+            <QrCode size={15} />
+            <span>QR Code e estado</span>
           </div>
-          <div className="divide-y divide-border/50">
+          <div className="adm-card-list">
             {resumo?.instancias.length ? (
-              resumo.instancias.map((inst) => (
-                <InstanciaCard key={inst.id} instancia={inst} carregando={carregando} onExecutar={executar} />
-              ))
+              resumo.instancias.map((inst) => <InstanciaCard key={inst.id} instancia={inst} carregando={carregando} onExecutar={executar} />)
             ) : (
-              <div className="p-6">
-                <EstadoVazio icone={<Smartphone />} titulo="Sem instâncias" detalhe="Crie uma linha para gerar o QR Code." />
-              </div>
+              <div className="adm-empty"><Smartphone size={20} /><span>Sem instâncias</span></div>
             )}
           </div>
         </div>
       </div>
 
-      {mensagem && <p className="rounded-lg border bg-card px-4 py-3 text-sm text-muted-foreground" aria-live="polite">{mensagem}</p>}
+      {mensagem && <p className="adm-toast" aria-live="polite">{mensagem}</p>}
     </div>
   );
 }
 
-/* ── Instagram Tab ──────────────────────────────────────── */
+/* ── Instagram ─────────────────────────────────────────── */
 
-const STATUS_INSTAGRAM_LABELS: Record<string, { label: string; variant: "success" | "warning" | "destructive" | "secondary" }> = {
+const STATUS_IG: Record<string, { label: string; variant: "success" | "warning" | "destructive" | "secondary" }> = {
   CONECTADA: { label: "Conectada", variant: "success" },
   CRIADA: { label: "Criada", variant: "secondary" },
-  AGUARDANDO_2FA: { label: "Aguardando 2FA", variant: "warning" },
+  AGUARDANDO_2FA: { label: "2FA", variant: "warning" },
   CHALLENGE: { label: "Challenge", variant: "warning" },
-  SESSAO_EXPIRADA: { label: "Sessão expirada", variant: "destructive" },
+  SESSAO_EXPIRADA: { label: "Expirada", variant: "destructive" },
   ERRO: { label: "Erro", variant: "destructive" },
 };
 
 function ConteudoInstagram() {
   const [instancias, setInstancias] = useState<InstanciaInstagram[]>([]);
-  const [mensagem, setMensagem] = useState("");
   const [carregando, setCarregando] = useState(false);
   const [etapa2fa, setEtapa2fa] = useState(false);
-  const [form, setForm] = useState({
-    instancia: "instagram-principal",
-    username: "",
-    password: "",
-    verificationCode: ""
-  });
+  const [erroForm, setErroForm] = useState("");
+  const [sucessoForm, setSucessoForm] = useState("");
+  const [erroLista, setErroLista] = useState("");
+  const [form, setForm] = useState({ instancia: "instagram-principal", username: "", password: "", verificationCode: "" });
 
   async function carregar() {
     try {
       const dados = await requisitarApi<{ instancias: InstanciaInstagram[] }>("/instagram/instancias");
       setInstancias(dados.instancias ?? []);
+      setErroLista("");
     } catch (e) {
-      setMensagem(e instanceof Error ? e.message : "Erro ao carregar Instagram.");
+      setErroLista(e instanceof Error ? e.message : "Erro ao carregar Instagram.");
     }
   }
 
-  useEffect(() => {
-    void carregar();
-  }, []);
+  useEffect(() => { void carregar(); }, []);
 
   async function fazerLogin(e: FormEvent) {
     e.preventDefault();
     setCarregando(true);
-    setMensagem("A conectar ao Instagram...");
-
+    setErroForm("");
+    setSucessoForm("");
     try {
       await requisitarApi("/instagram/login", {
         method: "POST",
@@ -308,7 +255,7 @@ function ConteudoInstagram() {
           ...(etapa2fa && form.verificationCode ? { verificationCode: form.verificationCode } : {})
         }
       });
-      setMensagem("Login bem-sucedido! A conta está conectada.");
+      setSucessoForm("Conectado com sucesso!");
       setEtapa2fa(false);
       setForm((f) => ({ ...f, password: "", verificationCode: "" }));
       await carregar();
@@ -316,9 +263,11 @@ function ConteudoInstagram() {
       const msg = e instanceof Error ? e.message : "Falha no login.";
       if (msg.includes("2FA") || msg.includes("dois fatores") || msg.includes("verification_code")) {
         setEtapa2fa(true);
-        setMensagem("Autenticação de dois fatores necessária. Insira o código abaixo.");
+        setErroForm("Código 2FA necessário. Insira o código do authenticator.");
+      } else if (msg.includes("Cooldown") || msg.includes("Aguarde")) {
+        setErroForm(msg);
       } else {
-        setMensagem(msg);
+        setErroForm(msg);
       }
     } finally {
       setCarregando(false);
@@ -327,13 +276,12 @@ function ConteudoInstagram() {
 
   async function desconectar(id: string) {
     setCarregando(true);
-    setMensagem("A desconectar...");
+    setErroLista("");
     try {
       await requisitarApi(`/instagram/instancias/${id}/desconectar`, { method: "POST" });
-      setMensagem("Instagram desconectado.");
       await carregar();
     } catch (e) {
-      setMensagem(e instanceof Error ? e.message : "Erro ao desconectar.");
+      setErroLista(e instanceof Error ? e.message : "Erro ao desconectar.");
     } finally {
       setCarregando(false);
     }
@@ -342,371 +290,167 @@ function ConteudoInstagram() {
   const conectadas = instancias.filter((i) => (i.statusBridge ?? i.status) === "CONECTADA").length;
 
   return (
-    <div className="grid gap-4">
-      {/* KPI strip */}
-      <div className="dash-kpi-grid">
-        {([
-          { rotulo: "Instagrapi Bridge", valor: instancias.length > 0 || conectadas > 0 ? "Activo" : "Pendente", icone: <Instagram size={18} />, cor: conectadas > 0 ? "var(--success)" : "var(--warning)" },
-          { rotulo: "Instâncias", valor: String(instancias.length), icone: <User size={18} />, cor: "var(--primary)" },
-          { rotulo: "Conectadas", valor: String(conectadas), icone: <CheckCircle2 size={18} />, cor: conectadas > 0 ? "var(--success)" : "var(--muted-foreground)" },
-          { rotulo: "Polling DMs", valor: conectadas > 0 ? "Activo" : "Inactivo", icone: <MessageCircle size={18} />, cor: conectadas > 0 ? "var(--success)" : "var(--muted-foreground)" },
-        ] as const).map((kpi, i) => (
-          <motion.div key={kpi.rotulo} className="dash-kpi-card" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35, delay: 0.08 * i }}>
-            <div className="dash-kpi-icon" style={{ background: `color-mix(in srgb, ${kpi.cor} 10%, transparent)`, color: kpi.cor }}>{kpi.icone}</div>
-            <div className="dash-kpi-body">
-              <span className="dash-kpi-label">{kpi.rotulo}</span>
-              <strong className="dash-kpi-value">{kpi.valor}</strong>
-            </div>
-          </motion.div>
-        ))}
+    <div className="adm-section-grid">
+      <div className="adm-status-bar">
+        <StatusPill icone={<Instagram size={13} />} rotulo="Bridge" valor={conectadas > 0 ? "Activo" : "Pendente"} ok={conectadas > 0} />
+        <StatusPill icone={<CheckCircle2 size={13} />} rotulo="Conectadas" valor={String(conectadas)} ok={conectadas > 0} />
+        <StatusPill icone={<MessageCircle size={13} />} rotulo="DM Polling" valor={conectadas > 0 ? "Activo" : "Inactivo"} ok={conectadas > 0} />
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-2">
-        {/* Login form */}
-        <div className="dash-section-card">
-          <div className="dash-section-header">
-            <Instagram size={16} className="text-muted-foreground" />
-            <span className="dash-section-title">Conectar conta Instagram</span>
+      <div className="adm-two-col">
+        {/* Login */}
+        <div className="adm-card">
+          <div className="adm-card-head">
+            <Instagram size={15} />
+            <span>Conectar conta</span>
           </div>
-          <form onSubmit={fazerLogin} className="grid gap-4 p-4">
-            <div className="grid gap-2">
-              <label className="text-sm font-medium" htmlFor="ig-instancia">Nome da instância</label>
-              <Input id="ig-instancia" placeholder="instagram-principal" value={form.instancia} onChange={(e) => setForm({ ...form, instancia: e.target.value })} />
-              <p className="text-xs text-muted-foreground">Identificador interno. Exemplo: instagram-vendas</p>
-            </div>
-            <div className="grid gap-2">
-              <label className="text-sm font-medium" htmlFor="ig-username">Username Instagram</label>
-              <Input id="ig-username" placeholder="@suaconta" value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} />
-            </div>
-            <div className="grid gap-2">
-              <label className="text-sm font-medium" htmlFor="ig-password">Password</label>
-              <Input id="ig-password" type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
-            </div>
+          <form onSubmit={fazerLogin} className="adm-card-body">
+            <Campo id="ig-inst" label="Identificador da instância" value={form.instancia} onChange={(v) => setForm({ ...form, instancia: v })} />
+            <Campo id="ig-user" label="Utilizador Instagram" value={form.username} onChange={(v) => setForm({ ...form, username: v })} placeholder="nome_de_utilizador" />
+            <Campo id="ig-pass" label="Palavra-passe" value={form.password} onChange={(v) => setForm({ ...form, password: v })} type="password" />
             {etapa2fa && (
-              <div className="grid gap-2">
-                <label className="text-sm font-medium" htmlFor="ig-2fa">Código 2FA</label>
-                <Input id="ig-2fa" inputMode="numeric" placeholder="123456" value={form.verificationCode} onChange={(e) => setForm({ ...form, verificationCode: e.target.value })} />
-                <p className="text-xs text-muted-foreground">Insira o código do autenticador ou SMS.</p>
-              </div>
+              <Campo id="ig-2fa" label="Código 2FA" value={form.verificationCode} onChange={(v) => setForm({ ...form, verificationCode: v })} inputMode="numeric" placeholder="123456" />
             )}
-            <Button size="lg" disabled={carregando || !form.username || !form.password}>
-              <Instagram size={16} />
-              {etapa2fa ? "Verificar 2FA" : "Conectar Instagram"}
+            <Button size="lg" disabled={carregando || !form.username || !form.password} className="w-full">
+              {carregando ? "A conectar..." : etapa2fa ? "Verificar 2FA" : "Conectar"}
             </Button>
+            {erroForm && <p className="adm-form-erro" role="alert">{erroForm}</p>}
+            {sucessoForm && <p className="adm-form-sucesso" role="status">{sucessoForm}</p>}
+            <p className="adm-form-nota">
+              Credenciais utilizadas apenas para autenticação via API privada. Não são armazenadas no servidor.
+            </p>
           </form>
         </div>
 
-        {/* Instances list */}
-        <div className="dash-section-card">
-          <div className="dash-section-header">
-            <User size={16} className="text-muted-foreground" />
-            <span className="dash-section-title">Contas conectadas</span>
-            <Button variant="ghost" size="sm" className="ml-auto" onClick={() => void carregar()}>
-              <RefreshCcw size={14} />
-            </Button>
+        {/* Lista */}
+        <div className="adm-card">
+          <div className="adm-card-head">
+            <CheckCircle2 size={15} />
+            <span>Contas conectadas</span>
+            <button className="adm-card-action" onClick={() => void carregar()} type="button"><RefreshCcw size={13} /></button>
           </div>
-          <div className="divide-y divide-border/50">
-            {instancias.length ? (
-              instancias.map((inst) => (
-                <InstanciaInstagramCard key={inst.id} instancia={inst} carregando={carregando} onDesconectar={desconectar} />
-              ))
-            ) : (
-              <div className="p-6">
-                <EstadoVazio icone={<Instagram />} titulo="Sem contas" detalhe="Conecte uma conta Instagram usando o formulário ao lado." />
-              </div>
+          <div className="adm-card-list">
+            {instancias.length ? instancias.map((inst) => (
+              <IgCard key={inst.id} instancia={inst} carregando={carregando} onDesconectar={desconectar} />
+            )) : (
+              <div className="adm-empty"><Instagram size={20} /><span>Sem contas conectadas</span></div>
             )}
           </div>
+          {erroLista && <p className="adm-form-erro" style={{ margin: "0.75rem 1rem" }}>{erroLista}</p>}
         </div>
       </div>
 
-      {/* Capabilities */}
-      <div className="dash-section-card">
-        <div className="dash-section-header">
-          <ShieldCheck size={16} className="text-muted-foreground" />
-          <span className="dash-section-title">Funcionalidades disponíveis</span>
-        </div>
-        <div className="grid gap-2 p-4 sm:grid-cols-2 lg:grid-cols-3">
-          {([
-            { icone: <MessageCircle size={16} />, titulo: "Receber DMs", detalhe: "Polling automático de mensagens directas novas" },
-            { icone: <Send size={16} />, titulo: "Enviar DMs", detalhe: "Responder mensagens directas (texto e imagens)" },
-            { icone: <Eye size={16} />, titulo: "Consultar perfis", detalhe: "Ver informações públicas de qualquer utilizador" },
-            { icone: <Camera size={16} />, titulo: "Media recebida", detalhe: "Processar fotos, vídeos e stories partilhados" },
-            { icone: <Users size={16} />, titulo: "Multi-conta", detalhe: "Conectar múltiplas contas Instagram em simultâneo" },
-            { icone: <Image size={16} />, titulo: "Enviar fotos", detalhe: "Enviar imagens nas mensagens directas" },
-          ] as const).map((cap) => (
-            <div key={cap.titulo} className="flex items-start gap-3 rounded-lg border bg-background p-3">
-              <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-pink-500/10 text-pink-500">{cap.icone}</div>
-              <div className="min-w-0">
-                <p className="text-sm font-medium">{cap.titulo}</p>
-                <p className="text-xs text-muted-foreground">{cap.detalhe}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-        <div className="px-4 pb-4">
-          <p className="rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-xs text-amber-600 dark:text-amber-400">
-            Fase de testes: utiliza a API privada do Instagram (instagrapi). Para produção comercial, migrar para a API oficial do Instagram (Graph API).
-          </p>
-        </div>
+      <div className="adm-aviso">
+        <AlertTriangle size={13} />
+        Fase de testes — API privada do Instagram (instagrapi). Para produção, migrar para Graph API.
       </div>
-
-      {mensagem && <p className="rounded-lg border bg-card px-4 py-3 text-sm text-muted-foreground" aria-live="polite">{mensagem}</p>}
     </div>
   );
 }
 
-function InstanciaInstagramCard({
-  instancia,
-  carregando,
-  onDesconectar
-}: {
-  instancia: InstanciaInstagram;
-  carregando: boolean;
-  onDesconectar: (id: string) => void;
-}) {
-  const [confirmarRemover, setConfirmarRemover] = useState(false);
-  const statusReal = instancia.statusBridge ?? instancia.status;
-  const statusInfo = STATUS_INSTAGRAM_LABELS[statusReal] ?? { label: statusReal, variant: "secondary" as const };
-  const ultimaPoll = instancia.ultimaPollEmBridge ?? instancia.ultimaPollEm;
-
-  return (
-    <div className="grid gap-3 p-4">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <strong className="block truncate text-sm">@{instancia.username}</strong>
-          <span className="block truncate text-xs text-muted-foreground">{instancia.nome}</span>
-        </div>
-        <Badge variant={statusInfo.variant} className="text-[0.6rem]">
-          {statusInfo.label}
-        </Badge>
-      </div>
-
-      {ultimaPoll && (
-        <p className="text-xs text-muted-foreground">
-          Último poll: {new Date(ultimaPoll).toLocaleString("pt-AO", { dateStyle: "short", timeStyle: "short" })}
-        </p>
-      )}
-
-      {(instancia.ultimoErroBridge ?? instancia.ultimoErro) && (
-        <p className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-xs text-destructive">
-          {instancia.ultimoErroBridge ?? instancia.ultimoErro}
-        </p>
-      )}
-
-      <div className="flex flex-wrap gap-1.5">
-        <Button variant="destructive" size="sm" disabled={carregando} onClick={() => setConfirmarRemover(true)}>
-          <LogOut size={14} /> Desconectar
-        </Button>
-      </div>
-
-      <ConfirmarAcao
-        aberto={confirmarRemover}
-        titulo="Desconectar Instagram"
-        descricao={`Desconectar a conta @${instancia.username}? O polling de DMs será interrompido.`}
-        textoBotao="Desconectar"
-        variante="destructive"
-        onConfirmar={() => {
-          setConfirmarRemover(false);
-          onDesconectar(instancia.id);
-        }}
-        onCancelar={() => setConfirmarRemover(false)}
-      />
-    </div>
-  );
-}
-
-/* ── Automações Tab ──────────────────────────────────────── */
+/* ── Automações ────────────────────────────────────────── */
 
 function ConteudoAutomacoes({ resumo }: { resumo: ResumoAutomacoes | null }) {
   const agentes = resumo?.agentes ?? [];
   const ativos = agentes.filter((a) => a.estado === "ATIVA").length;
-  const pendentes = agentes.filter((a) => a.estado === "PENDENTE").length;
 
   return (
-    <div className="grid gap-4">
-      <div className="dash-kpi-grid">
-        {([
-          { rotulo: "Agentes ativos", valor: String(ativos), icone: <SlidersHorizontal size={18} />, cor: "var(--success)" },
-          { rotulo: "Pendências", valor: String(pendentes), icone: <Clock size={18} />, cor: pendentes ? "var(--warning)" : "var(--muted-foreground)" },
-          { rotulo: "Comentários", valor: String(resumo?.metricas.comentarios ?? 0), icone: <Zap size={18} />, cor: "var(--primary)" },
-          { rotulo: "Reservas", valor: String(resumo?.metricas.reservas ?? 0), icone: <ReceiptText size={18} />, cor: "var(--info)" },
-        ] as const).map((kpi, i) => (
-          <motion.div key={kpi.rotulo} className="dash-kpi-card" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35, delay: 0.08 * i }}>
-            <div className="dash-kpi-icon" style={{ background: `color-mix(in srgb, ${kpi.cor} 10%, transparent)`, color: kpi.cor }}>{kpi.icone}</div>
-            <div className="dash-kpi-body">
-              <span className="dash-kpi-label">{kpi.rotulo}</span>
-              <strong className="dash-kpi-value">{kpi.valor}</strong>
-            </div>
-          </motion.div>
-        ))}
+    <div className="adm-section-grid">
+      <div className="adm-status-bar">
+        <StatusPill icone={<CheckCircle2 size={13} />} rotulo="Activos" valor={`${ativos}/${agentes.length}`} ok={ativos > 0} />
+        <StatusPill icone={<Clock size={13} />} rotulo="Comentários" valor={String(resumo?.metricas.comentarios ?? 0)} />
+        <StatusPill icone={<KeyRound size={13} />} rotulo="Reservas" valor={String(resumo?.metricas.reservas ?? 0)} />
       </div>
 
       {agentes.length ? (
-        <div className="grid gap-3 lg:grid-cols-2 xl:grid-cols-3">
-          {agentes.map((agente) => <AgenteCard key={agente.id} agente={agente} />)}
+        <div className="adm-agentes-grid">
+          {agentes.map((a) => {
+            const ativo = a.estado === "ATIVA";
+            return (
+              <div key={a.id} className={`adm-agente ${ativo ? "adm-agente--on" : ""}`}>
+                <div className="adm-agente-top">
+                  <span className={`adm-agente-dot ${ativo ? "adm-agente-dot--on" : ""}`} />
+                  <strong>{a.nome}</strong>
+                </div>
+                <p className="adm-agente-desc">{a.descricao}</p>
+                <div className="adm-agente-meta">
+                  <span>{a.gatilho}</span>
+                  <span>{a.canal}</span>
+                </div>
+              </div>
+            );
+          })}
         </div>
       ) : (
-        <EstadoVazio icone={<SlidersHorizontal />} titulo="Sem leitura operacional" detalhe="O backend ainda não retornou os agentes." />
+        <div className="adm-card"><div className="adm-empty"><Settings size={20} /><span>Sem leitura operacional</span></div></div>
       )}
     </div>
   );
 }
 
-/* ── n8n Tab ─────────────────────────────────────────────── */
+/* ── n8n ───────────────────────────────────────────────── */
 
 function ConteudoN8n({ resumo }: { resumo: ResumoAutomacoes | null }) {
   const workflows = resumo?.workflows ?? [];
   const prontos = workflows.filter((w) => w.estado === "PRONTO_PARA_IMPORTAR").length;
-  const eventosCobertos = new Set(workflows.flatMap((w) => w.eventos)).size;
-  const endpointsCobertos = new Set(workflows.flatMap((w) => w.endpointsBackend)).size;
   const n8nUrl = import.meta.env.VITE_N8N_URL ?? (import.meta.env.DEV ? "http://localhost:5678" : "");
 
   return (
-    <div className="grid gap-4">
-      <div className="dash-kpi-grid">
-        {([
-          { rotulo: "Workflows prontos", valor: `${prontos}/${workflows.length}`, icone: <GitBranch size={18} />, cor: prontos === workflows.length && workflows.length ? "var(--success)" : "var(--warning)" },
-          { rotulo: "Eventos cobertos", valor: String(eventosCobertos), icone: <Play size={18} />, cor: "var(--primary)" },
-          { rotulo: "Endpoints", valor: String(endpointsCobertos), icone: <KeyRound size={18} />, cor: "var(--info)" },
-          { rotulo: "Guardrails", valor: "Ativos", icone: <ShieldCheck size={18} />, cor: "var(--success)" },
-        ] as const).map((kpi, i) => (
-          <motion.div key={kpi.rotulo} className="dash-kpi-card" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35, delay: 0.08 * i }}>
-            <div className="dash-kpi-icon" style={{ background: `color-mix(in srgb, ${kpi.cor} 10%, transparent)`, color: kpi.cor }}>{kpi.icone}</div>
-            <div className="dash-kpi-body">
-              <span className="dash-kpi-label">{kpi.rotulo}</span>
-              <strong className="dash-kpi-value">{kpi.valor}</strong>
-            </div>
-          </motion.div>
-        ))}
+    <div className="adm-section-grid">
+      <div className="adm-status-bar">
+        <StatusPill icone={<GitBranch size={13} />} rotulo="Workflows" valor={`${prontos}/${workflows.length}`} ok={prontos === workflows.length && workflows.length > 0} />
+        <StatusPill icone={<ShieldCheck size={13} />} rotulo="Guardrails" valor="Activos" ok />
       </div>
 
       {n8nUrl && (
-        <Button asChild size="lg" className="w-fit">
-          <a href={n8nUrl} target="_blank" rel="noreferrer">
-            <ExternalLink size={16} />
-            Abrir n8n
-          </a>
-        </Button>
+        <a href={n8nUrl} target="_blank" rel="noreferrer" className="adm-link-externo">
+          <GitBranch size={14} /> Abrir n8n <ExternalLink size={12} />
+        </a>
       )}
 
-      <div className="grid gap-4 lg:grid-cols-2">
-        {/* Workflows */}
-        <div className="dash-section-card">
-          <div className="dash-section-header">
-            <GitBranch size={16} className="text-muted-foreground" />
-            <span className="dash-section-title">Workflows importáveis</span>
-          </div>
-          {workflows.length ? (
-            <div className="divide-y divide-border/50">
-              {workflows.map((workflow) => (
-                <div key={workflow.id} className="flex items-center gap-4 px-4 py-3">
-                  <div className={`grid h-9 w-9 shrink-0 place-items-center rounded-lg ${
-                    workflow.estado === "PRONTO_PARA_IMPORTAR" ? "bg-success/10 text-success" : "bg-warning/10 text-warning"
-                  }`}>
-                    {workflow.estado === "PRONTO_PARA_IMPORTAR" ? <CheckCircle2 size={16} /> : <AlertTriangle size={16} />}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium">{workflow.nome}</p>
-                    <p className="truncate text-xs text-muted-foreground">{workflow.arquivo}</p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="hidden sm:block text-xs tabular-nums text-muted-foreground">{workflow.endpointsBackend.length} ep</span>
-                    <Badge variant={workflow.estado === "PRONTO_PARA_IMPORTAR" ? "success" : "warning"} className="text-[0.6rem]">
-                      {workflow.estado === "PRONTO_PARA_IMPORTAR" ? "Pronto" : "Pendente"}
-                    </Badge>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="p-6">
-              <EstadoVazio icone={<GitBranch />} titulo="Sem workflows" detalhe="O backend ainda não retornou o contrato n8n." />
-            </div>
-          )}
-        </div>
-
-        {/* Contract */}
-        <div className="dash-section-card">
-          <div className="dash-section-header">
-            <KeyRound size={16} className="text-muted-foreground" />
-            <span className="dash-section-title">Contrato de automação</span>
-          </div>
-          <div className="grid gap-3 p-4">
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-muted-foreground">Webhook backend</span>
-              <code className="rounded bg-muted px-2 py-0.5 text-xs">
-                {resumo?.configuracoes.find((c) => c.nome === "Webhook de eventos")?.valor ?? "—"}
-              </code>
-            </div>
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-muted-foreground">Endpoints n8n</span>
-              <strong className="tabular-nums">{endpointsCobertos}</strong>
-            </div>
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-muted-foreground">Arquivos</span>
-              <code className="rounded bg-muted px-2 py-0.5 text-xs">n8n/workflows</code>
-            </div>
-          </div>
-          <div className="flex flex-wrap gap-1.5 px-4 pb-4">
-            {Array.from(new Set(workflows.flatMap((w) => w.guardrails))).map((guardrail) => (
-              <Badge key={guardrail} variant="secondary" className="text-[0.6rem]">
-                <ShieldCheck size={12} />
-                {guardrail}
+      <div className="adm-card">
+        <div className="adm-card-head"><Workflow size={15} /><span>Workflows</span></div>
+        <div className="adm-card-list">
+          {workflows.length ? workflows.map((w) => (
+            <div key={w.id} className="adm-row">
+              <span className={`adm-row-dot ${w.estado === "PRONTO_PARA_IMPORTAR" ? "adm-row-dot--ok" : "adm-row-dot--warn"}`} />
+              <div className="adm-row-text">
+                <strong>{w.nome}</strong>
+                <span>{w.arquivo}</span>
+              </div>
+              <Badge variant={w.estado === "PRONTO_PARA_IMPORTAR" ? "success" : "warning"} className="text-[0.6rem] shrink-0">
+                {w.estado === "PRONTO_PARA_IMPORTAR" ? "Pronto" : "Pendente"}
               </Badge>
-            ))}
-          </div>
+            </div>
+          )) : (
+            <div className="adm-empty"><GitBranch size={20} /><span>Sem workflows</span></div>
+          )}
         </div>
       </div>
     </div>
   );
 }
 
-/* ── Configurações Tab ───────────────────────────────────── */
+/* ── Configurações ─────────────────────────────────────── */
 
 function ConteudoConfiguracoes({ resumo }: { resumo: ResumoAutomacoes | null }) {
   const configuracoes = resumo?.configuracoes ?? [];
   const porGrupo = useMemo(() => agruparPorGrupo(configuracoes), [configuracoes]);
-  const integracoesConfiguradas = resumo?.integracoes.filter((i) => i.estado === "CONFIGURADA").length ?? 0;
-  const pendencias = [
-    ...(resumo?.configuracoes.filter((c) => c.estado === "PENDENTE") ?? []),
-    ...(resumo?.integracoes.filter((i) => i.estado === "PENDENTE") ?? [])
-  ].length;
 
   return (
-    <div className="grid gap-4">
-      <div className="dash-kpi-grid">
-        {([
-          { rotulo: "Parâmetros", valor: String(configuracoes.length), icone: <Settings size={18} />, cor: "var(--primary)" },
-          { rotulo: "Integrações", valor: String(integracoesConfiguradas), icone: <Store size={18} />, cor: "var(--success)" },
-          { rotulo: "Pendências", valor: String(pendencias), icone: <Shield size={18} />, cor: pendencias ? "var(--warning)" : "var(--muted-foreground)" },
-          { rotulo: "Verificadas", valor: String(resumo?.integracoes.length ?? 0), icone: <CheckCircle2 size={18} />, cor: "var(--info)" },
-        ] as const).map((kpi, i) => (
-          <motion.div key={kpi.rotulo} className="dash-kpi-card" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35, delay: 0.08 * i }}>
-            <div className="dash-kpi-icon" style={{ background: `color-mix(in srgb, ${kpi.cor} 10%, transparent)`, color: kpi.cor }}>{kpi.icone}</div>
-            <div className="dash-kpi-body">
-              <span className="dash-kpi-label">{kpi.rotulo}</span>
-              <strong className="dash-kpi-value">{kpi.valor}</strong>
-            </div>
-          </motion.div>
-        ))}
-      </div>
-
-      <div className="grid gap-4 lg:grid-cols-2">
+    <div className="adm-section-grid">
+      <div className="adm-two-col">
         {Object.entries(porGrupo).map(([grupo, itens]) => (
-          <div key={grupo} className="dash-section-card">
-            <div className="dash-section-header">
-              <Settings size={16} className="text-muted-foreground" />
-              <span className="dash-section-title">{grupo}</span>
-            </div>
-            <div className="divide-y divide-border/50">
+          <div key={grupo} className="adm-card">
+            <div className="adm-card-head"><Settings size={15} /><span>{grupo}</span></div>
+            <div className="adm-card-list">
               {itens.map((item) => (
-                <div key={`${item.grupo}-${item.nome}`} className="flex items-center gap-3 px-4 py-2.5">
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium">{item.nome}</p>
-                    <p className="truncate text-xs text-muted-foreground">{item.detalhe}</p>
+                <div key={`${item.grupo}-${item.nome}`} className="adm-row">
+                  <div className="adm-row-text">
+                    <strong>{item.nome}</strong>
+                    <span>{item.detalhe}</span>
                   </div>
-                  <code className="hidden sm:block rounded bg-muted px-2 py-0.5 text-[0.65rem]">{item.valor}</code>
-                  <Badge variant={item.estado === "ATIVA" ? "success" : item.estado === "PENDENTE" ? "warning" : "secondary"} className="text-[0.6rem]">
+                  <Badge variant={item.estado === "ATIVA" ? "success" : item.estado === "PENDENTE" ? "warning" : "secondary"} className="text-[0.6rem] shrink-0">
                     {item.estado === "ATIVA" ? "Ativa" : item.estado === "PENDENTE" ? "Pendente" : "Off"}
                   </Badge>
                 </div>
@@ -715,141 +459,262 @@ function ConteudoConfiguracoes({ resumo }: { resumo: ResumoAutomacoes | null }) 
           </div>
         ))}
 
-        <div className="dash-section-card">
-          <div className="dash-section-header">
-            <Workflow size={16} className="text-muted-foreground" />
-            <span className="dash-section-title">Integrações</span>
-          </div>
-          {resumo?.integracoes.length ? (
-            <div className="divide-y divide-border/50">
-              {resumo.integracoes.map((integracao) => (
-                <div key={integracao.nome} className="flex items-center gap-3 px-4 py-2.5">
-                  <div className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg ${
-                    integracao.estado === "CONFIGURADA" ? "bg-success/10 text-success" :
-                    integracao.estado === "PENDENTE" ? "bg-warning/10 text-warning" :
-                    "bg-muted text-muted-foreground"
-                  }`}>
-                    <Workflow size={14} />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium">{integracao.nome}</p>
-                    <p className="truncate text-xs text-muted-foreground">{integracao.detalhe}</p>
-                  </div>
-                  <Badge variant={integracao.estado === "CONFIGURADA" ? "success" : integracao.estado === "PENDENTE" ? "warning" : "secondary"} className="text-[0.6rem]">
-                    {traduzirEstadoIntegracao(integracao.estado)}
-                  </Badge>
+        {/* Integrações */}
+        <div className="adm-card">
+          <div className="adm-card-head"><Workflow size={15} /><span>Integrações</span></div>
+          <div className="adm-card-list">
+            {resumo?.integracoes?.length ? resumo.integracoes.map((i) => (
+              <div key={i.nome} className="adm-row">
+                <div className="adm-row-text">
+                  <strong>{i.nome}</strong>
+                  <span>{i.detalhe}</span>
                 </div>
-              ))}
-            </div>
-          ) : (
-            <div className="p-6">
-              <EstadoVazio icone={<Workflow />} titulo="Sem integrações" detalhe="O backend ainda não retornou status." />
-            </div>
-          )}
+                <Badge variant={i.estado === "CONFIGURADA" ? "success" : i.estado === "PENDENTE" ? "warning" : "secondary"} className="text-[0.6rem] shrink-0">
+                  {traduzirEstadoIntegracao(i.estado)}
+                </Badge>
+              </div>
+            )) : (
+              <div className="adm-empty"><Workflow size={20} /><span>Sem integrações</span></div>
+            )}
+          </div>
         </div>
       </div>
     </div>
   );
 }
 
-/* ── Sub-components ──────────────────────────────────────── */
+/* ── Módulos do negócio ───────────────────────────────── */
 
-function AgenteCard({ agente }: { agente: AgenteAutomacao }) {
-  const ativo = agente.estado === "ATIVA";
+interface ModuloNegocio {
+  modulo: string;
+  nome: string;
+  descricao: string;
+  categoria: string;
+  obrigatorio: boolean;
+  ativo: boolean;
+}
+
+const ROTULOS_CATEGORIA: Record<string, string> = {
+  NUCLEO: "Núcleo",
+  VENDA: "Vendas",
+  OPERACAO: "Operação",
+  CRESCIMENTO: "Crescimento",
+  DADOS: "Dados e relatórios",
+  AUTOMACAO: "Automação"
+};
+
+const ORDEM_CATEGORIAS = ["NUCLEO", "VENDA", "OPERACAO", "CRESCIMENTO", "DADOS", "AUTOMACAO"];
+
+function ConteudoModulos() {
+  const [modulos, setModulos] = useState<ModuloNegocio[]>([]);
+  const [carregando, setCarregando] = useState(true);
+  const [aToggle, setAToggle] = useState<string | null>(null);
+  const [mensagem, setMensagem] = useState("");
+
+  async function carregar() {
+    try {
+      const dados = await requisitarApi<{ modulos: ModuloNegocio[] }>("/negocio/modulos");
+      setModulos(dados.modulos ?? []);
+    } catch (e) {
+      setMensagem(e instanceof Error ? e.message : "Erro ao carregar módulos.");
+    } finally {
+      setCarregando(false);
+    }
+  }
+
+  useEffect(() => { void carregar(); }, []);
+
+  async function alternar(modulo: string, ativo: boolean) {
+    setAToggle(modulo);
+    setMensagem("");
+    try {
+      const dados = await requisitarApi<{ modulosAtivos: string[] }>(`/negocio/modulos/${modulo}`, {
+        method: "PATCH",
+        body: { ativo }
+      });
+      setModulos((prev) => prev.map((m) => ({
+        ...m,
+        ativo: dados.modulosAtivos.includes(m.modulo)
+      })));
+    } catch (e) {
+      setMensagem(e instanceof Error ? e.message : "Não foi possível alterar o módulo.");
+    } finally {
+      setAToggle(null);
+    }
+  }
+
+  const porCategoria = useMemo(() => {
+    const grupos: Record<string, ModuloNegocio[]> = {};
+    for (const m of modulos) {
+      grupos[m.categoria] = [...(grupos[m.categoria] ?? []), m];
+    }
+    return ORDEM_CATEGORIAS
+      .filter((cat) => grupos[cat]?.length)
+      .map((cat) => ({ categoria: cat, rotulo: ROTULOS_CATEGORIA[cat] ?? cat, itens: grupos[cat] }));
+  }, [modulos]);
+
+  const ativos = modulos.filter((m) => m.ativo).length;
+
+  if (carregando) {
+    return <div className="adm-section-grid"><div className="adm-card"><div className="adm-empty"><Blocks size={20} /><span>A carregar módulos…</span></div></div></div>;
+  }
 
   return (
-    <div className={`dash-section-card ${ativo ? "ring-1 ring-success/20" : ""}`}>
-      <div className="grid gap-3 p-4">
-        <div className="flex items-start gap-3">
-          <div className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl ${ativo ? "bg-success/10 text-success" : "bg-muted text-muted-foreground"}`}>
-            {iconesAgente[agente.id] ?? <SlidersHorizontal size={18} />}
-          </div>
-          <div className="min-w-0 flex-1">
-            <p className="text-sm font-semibold">{agente.nome}</p>
-            <p className="text-xs text-muted-foreground line-clamp-2">{agente.descricao}</p>
-          </div>
-          <Badge variant={ativo ? "success" : agente.estado === "PENDENTE" ? "warning" : "secondary"} className="text-[0.6rem] shrink-0">
-            {agente.estado === "ATIVA" ? "Ativo" : agente.estado === "PENDENTE" ? "Pendente" : "Off"}
-          </Badge>
-        </div>
-        <div className="grid grid-cols-3 gap-2 text-xs">
-          <div><span className="block text-muted-foreground">Gatilho</span><strong className="truncate block">{agente.gatilho}</strong></div>
-          <div><span className="block text-muted-foreground">Canal</span><strong className="truncate block">{agente.canal}</strong></div>
-          <div><span className="block text-muted-foreground">Origem</span><strong className="truncate block">{agente.origem}</strong></div>
-        </div>
+    <div className="adm-section-grid">
+      <div className="adm-status-bar">
+        <StatusPill icone={<Blocks size={13} />} rotulo="Módulos" valor={`${ativos}/${modulos.length}`} ok={ativos > 0} />
+        <StatusPill icone={<Lock size={13} />} rotulo="Obrigatórios" valor={String(modulos.filter((m) => m.obrigatorio).length)} />
       </div>
+
+      {porCategoria.map(({ categoria, rotulo, itens }) => (
+        <div key={categoria} className="adm-card">
+          <div className="adm-card-head">
+            <Blocks size={15} />
+            <span>{rotulo}</span>
+          </div>
+          <div className="adm-card-list">
+            {itens.map((m) => (
+              <div key={m.modulo} className="adm-row" style={{ opacity: aToggle === m.modulo ? 0.6 : 1 }}>
+                <span className={`adm-row-dot ${m.ativo ? "adm-row-dot--ok" : "adm-row-dot--warn"}`} />
+                <div className="adm-row-text">
+                  <strong>{m.nome}</strong>
+                  <span>{m.descricao}</span>
+                </div>
+                {m.obrigatorio ? (
+                  <Badge variant="secondary" className="text-[0.6rem] shrink-0 gap-1">
+                    <Lock size={9} /> Obrigatório
+                  </Badge>
+                ) : (
+                  <button
+                    type="button"
+                    disabled={aToggle !== null}
+                    onClick={() => void alternar(m.modulo, !m.ativo)}
+                    className={`adm-modulo-toggle ${m.ativo ? "adm-modulo-toggle--on" : ""}`}
+                    title={m.ativo ? "Desactivar módulo" : "Activar módulo"}
+                  >
+                    <span className="adm-modulo-toggle-dot" />
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+
+      {mensagem && <p className="adm-toast" aria-live="polite">{mensagem}</p>}
     </div>
   );
 }
 
-function InstanciaCard({
-  instancia,
-  carregando,
-  onExecutar
-}: {
-  instancia: InstanciaEvolution;
-  carregando: boolean;
+/* ── Sub-componentes reutilizáveis ─────────────────────── */
+
+function StatusPill({ icone, rotulo, valor, ok }: { icone: ReactNode; rotulo: string; valor: string; ok?: boolean | null }) {
+  return (
+    <div className={`adm-pill ${ok === true ? "adm-pill--ok" : ok === false ? "adm-pill--warn" : ""}`}>
+      {icone}
+      <span className="adm-pill-label">{rotulo}</span>
+      <strong>{valor}</strong>
+    </div>
+  );
+}
+
+function Campo({ id, label, value, onChange, type, inputMode, placeholder }: {
+  id: string; label: string; value: string; onChange: (v: string) => void;
+  type?: string; inputMode?: "tel" | "numeric"; placeholder?: string;
+}) {
+  return (
+    <div className="adm-field">
+      <label htmlFor={id}>{label}</label>
+      <Input id={id} type={type} inputMode={inputMode} placeholder={placeholder} value={value} onChange={(e) => onChange(e.target.value)} />
+    </div>
+  );
+}
+
+function IgCard({ instancia, carregando, onDesconectar }: { instancia: InstanciaInstagram; carregando: boolean; onDesconectar: (id: string) => void }) {
+  const [confirmar, setConfirmar] = useState(false);
+  const statusReal = instancia.statusBridge ?? instancia.status;
+  const info = STATUS_IG[statusReal] ?? { label: statusReal, variant: "secondary" as const };
+  const ultimaPoll = instancia.ultimaPollEmBridge ?? instancia.ultimaPollEm;
+
+  return (
+    <div className="adm-ig-card">
+      <div className="adm-ig-top">
+        <div><strong>@{instancia.username}</strong><span>{instancia.nome}</span></div>
+        <Badge variant={info.variant} className="text-[0.6rem]">{info.label}</Badge>
+      </div>
+      {ultimaPoll && <span className="adm-ig-poll">Último poll: {new Date(ultimaPoll).toLocaleString("pt-AO", { dateStyle: "short", timeStyle: "short" })}</span>}
+      {(instancia.ultimoErroBridge ?? instancia.ultimoErro) && (
+        <p className="adm-erro">{instancia.ultimoErroBridge ?? instancia.ultimoErro}</p>
+      )}
+      <Button variant="destructive" size="sm" disabled={carregando} onClick={() => setConfirmar(true)} className="w-fit">
+        <LogOut size={13} /> Desconectar
+      </Button>
+      <ConfirmarAcao
+        aberto={confirmar}
+        titulo="Desconectar Instagram"
+        descricao={`Desconectar @${instancia.username}?`}
+        textoBotao="Desconectar"
+        variante="destructive"
+        onConfirmar={() => { setConfirmar(false); onDesconectar(instancia.id); }}
+        onCancelar={() => setConfirmar(false)}
+      />
+    </div>
+  );
+}
+
+function InstanciaCard({ instancia, carregando, onExecutar }: {
+  instancia: InstanciaEvolution; carregando: boolean;
   onExecutar: (acao: () => Promise<unknown>, sucesso: string) => Promise<void>;
 }) {
   const [confirmarRemover, setConfirmarRemover] = useState(false);
+  const conectada = ["open", "connected", "online"].includes(instancia.status.toLowerCase());
 
   return (
-    <div className="grid gap-3 p-4">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <strong className="block truncate text-sm">{instancia.etiqueta || instancia.nome}</strong>
-          <span className="block truncate text-xs text-muted-foreground">{instancia.nome} · {instancia.telefone || "sem telefone"}</span>
-        </div>
-        <Badge variant={["open", "connected", "online"].includes(instancia.status.toLowerCase()) ? "success" : instancia.status.toLowerCase().includes("error") ? "destructive" : "warning"} className="text-[0.6rem]">
-          {instancia.status}
-        </Badge>
+    <div className="adm-wa-card">
+      <div className="adm-wa-top">
+        <div><strong>{instancia.etiqueta || instancia.nome}</strong><span>{instancia.nome} · {instancia.telefone || "sem telefone"}</span></div>
+        <Badge variant={conectada ? "success" : instancia.status.toLowerCase().includes("error") ? "destructive" : "warning"} className="text-[0.6rem]">{instancia.status}</Badge>
       </div>
 
       {instancia.qrCode || instancia.pairingCode ? (
-        <div className="grid gap-3 rounded-lg border bg-background p-3 sm:grid-cols-[120px_1fr]">
-          {instancia.qrCode && <img src={instancia.qrCode} alt={`QR Code ${instancia.nome}`} className="aspect-square w-full rounded-lg border object-contain" />}
-          <div className="grid content-start gap-2">
-            <strong className="text-sm">Escaneie no WhatsApp</strong>
-            <span className="text-xs text-muted-foreground">Dispositivos conectados &gt; Conectar</span>
-            {instancia.pairingCode && <code className="w-fit rounded bg-muted px-2 py-1 text-xs">{instancia.pairingCode}</code>}
+        <div className="adm-qr-box">
+          {instancia.qrCode && <img src={instancia.qrCode} alt="QR Code" className="adm-qr-img" />}
+          <div className="adm-qr-info">
+            <strong>Escaneie no WhatsApp</strong>
+            <span>Dispositivos conectados → Conectar</span>
+            {instancia.pairingCode && <code>{instancia.pairingCode}</code>}
           </div>
         </div>
       ) : (
-        <div className="grid place-items-center gap-2 rounded-lg border border-dashed bg-background p-4 text-center text-xs text-muted-foreground">
-          <QrCode size={18} />
-          <span>Sem QR disponível. Clique em conectar.</span>
-        </div>
+        <div className="adm-qr-vazio"><QrCode size={16} /><span>Sem QR. Clique em conectar.</span></div>
       )}
 
-      {instancia.ultimoErro && <p className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-xs text-destructive">{instancia.ultimoErro}</p>}
+      {instancia.ultimoErro && <p className="adm-erro">{instancia.ultimoErro}</p>}
 
-      <div className="flex flex-wrap gap-1.5">
-        <Button variant="outline" size="sm" disabled={carregando} onClick={() => void onExecutar(() => requisitarApi(`/evolution/instancias/${instancia.id}/conectar`, { method: "POST" }), "Pedido de conexão enviado.")}>
-          <QrCode size={14} /> Conectar
+      <div className="adm-wa-acoes">
+        <Button variant="outline" size="sm" disabled={carregando} onClick={() => void onExecutar(() => requisitarApi(`/evolution/instancias/${instancia.id}/conectar`, { method: "POST" }), "Conexão enviada.")}>
+          <QrCode size={13} /> Conectar
         </Button>
-        <Button variant="outline" size="sm" disabled={carregando} onClick={() => void onExecutar(() => requisitarApi(`/evolution/instancias/${instancia.id}/estado`, { method: "POST" }), "Estado atualizado.")}>
-          <RefreshCcw size={14} /> Estado
+        <Button variant="outline" size="sm" disabled={carregando} onClick={() => void onExecutar(() => requisitarApi(`/evolution/instancias/${instancia.id}/estado`, { method: "POST" }), "Atualizado.")}>
+          <RefreshCcw size={13} /> Estado
         </Button>
         {!instancia.padrao && (
-          <Button variant="outline" size="sm" disabled={carregando} onClick={() => void onExecutar(() => requisitarApi(`/evolution/instancias/${instancia.id}/padrao`, { method: "POST" }), "Linha padrão atualizada.")}>
-            <CheckCircle2 size={14} /> Padrão
+          <Button variant="outline" size="sm" disabled={carregando} onClick={() => void onExecutar(() => requisitarApi(`/evolution/instancias/${instancia.id}/padrao`, { method: "POST" }), "Padrão atualizada.")}>
+            <CheckCircle2 size={13} /> Padrão
           </Button>
         )}
         <Button variant="destructive" size="sm" disabled={carregando} onClick={() => setConfirmarRemover(true)}>
-          <Ban size={14} /> Remover
+          <Ban size={13} /> Remover
         </Button>
       </div>
 
       <ConfirmarAcao
         aberto={confirmarRemover}
         titulo="Remover instância"
-        descricao={`Remover a instância ${instancia.etiqueta || instancia.nome}? Esta acção desconecta a linha WhatsApp.`}
+        descricao={`Remover ${instancia.etiqueta || instancia.nome}?`}
         textoBotao="Remover"
         variante="destructive"
-        onConfirmar={() => {
-          setConfirmarRemover(false);
-          void onExecutar(() => requisitarApi(`/evolution/instancias/${instancia.id}`, { method: "DELETE" }), "Instância removida.");
-        }}
+        onConfirmar={() => { setConfirmarRemover(false); void onExecutar(() => requisitarApi(`/evolution/instancias/${instancia.id}`, { method: "DELETE" }), "Removida."); }}
         onCancelar={() => setConfirmarRemover(false)}
       />
     </div>
@@ -857,8 +722,8 @@ function InstanciaCard({
 }
 
 function agruparPorGrupo(configuracoes: ConfiguracaoOperacional[]) {
-  return configuracoes.reduce<Record<string, ConfiguracaoOperacional[]>>((grupos, item) => {
-    grupos[item.grupo] = [...(grupos[item.grupo] ?? []), item];
-    return grupos;
+  return configuracoes.reduce<Record<string, ConfiguracaoOperacional[]>>((g, item) => {
+    g[item.grupo] = [...(g[item.grupo] ?? []), item];
+    return g;
   }, {});
 }

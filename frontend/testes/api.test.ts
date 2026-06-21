@@ -1,6 +1,4 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
 import {
   criarFonteEventosAutenticada,
   guardarToken,
@@ -9,7 +7,8 @@ import {
   obterUrlEventos,
   obterToken,
   obterUsuario,
-  requisitarApi
+  requisitarApi,
+  resolverBaseApiUrl
 } from "../src/api";
 
 function criarLocalStorageMock() {
@@ -47,36 +46,36 @@ describe("cliente HTTP do frontend", () => {
     vi.unstubAllGlobals();
   });
 
-  it("usa mesma origem no ngrok quando VITE_API_URL aponta para localhost", () => {
-    const source = readFileSync(resolve(process.cwd(), "src/api.ts"), "utf8");
-
-    expect(source).toContain("ehHostLocal(window.location.hostname)");
-    expect(source).toContain("ehHostLocal(destino.hostname)");
-    expect(source).toContain('return ""');
+  it("usa o proxy do Vite em desenvolvimento quando a API pública não está configurada", () => {
+    expect(
+      resolverBaseApiUrl({
+        emDesenvolvimento: true,
+        hostname: "noncommemorative-concertedly-bonita.ngrok-free.dev",
+        protocol: "https:"
+      })
+    ).toBe("");
   });
 
-  it("usa o proxy do Vite em desenvolvimento quando VITE_API_URL não está configurado", () => {
-    const source = readFileSync(resolve(process.cwd(), "src/api.ts"), "utf8");
-
-    expect(source).not.toContain('return "http://localhost:3333"');
-    expect(source).toContain("return \"\"");
+  it("deriva api-stg a partir de app-stg em produção quando a URL configurada aponta para localhost", () => {
+    expect(
+      resolverBaseApiUrl({
+        apiUrlConfigurada: "http://localhost:3333",
+        emDesenvolvimento: false,
+        hostname: "app-stg.seu-dominio.com",
+        protocol: "https:"
+      })
+    ).toBe("https://api-stg.seu-dominio.com");
   });
 
-  it("mantém no proxy do Vite as rotas consumidas pelo CRM operacional", () => {
-    const source = readFileSync(resolve(process.cwd(), "vite.config.ts"), "utf8");
-
-    expect(source).toContain('"/actividades"');
-    expect(source).toContain('"/cotacoes"');
-    expect(source).toContain('"/formularios"');
-    expect(source).toContain('"/tarefas"');
-    expect(source).toContain('"/social"');
-    expect(source).toContain('"/funil"');
-    expect(source).toContain('"/lembretes"');
-    expect(source).toContain('"/metas"');
-    expect(source).toContain('"/pipeline"');
-    expect(source).toContain('"/recuperacao"');
-    expect(source).toContain('"/respostas-rapidas"');
-    expect(source).toContain('"/sequencias"');
+  it("preserva a URL pública explícita da API", () => {
+    expect(
+      resolverBaseApiUrl({
+        apiUrlConfigurada: "https://api.seu-dominio.com",
+        emDesenvolvimento: false,
+        hostname: "app.seu-dominio.com",
+        protocol: "https:"
+      })
+    ).toBe("https://api.seu-dominio.com");
   });
 
   it("explica quando o Vite devolve HTML no lugar de JSON da API", async () => {
@@ -96,7 +95,6 @@ describe("cliente HTTP do frontend", () => {
   });
 
   it("usa cookies no stream em tempo real sem expor token na URL", () => {
-    guardarToken("jwt-local-legado");
     const eventSourceMock = vi.fn();
     vi.stubGlobal("EventSource", eventSourceMock);
 

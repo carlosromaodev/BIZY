@@ -99,6 +99,11 @@ export class GestaoAfiliadosUseCase {
     return { parceiros: await this.afiliados.listarParceiros(negocioId) };
   }
 
+  async alterarEstadoParceiro(negocioId: string, id: string, ativo: boolean) {
+    const estado = ativo ? "ATIVO" : "PAUSADO";
+    return this.afiliados.atualizarEstadoParceiro(id, negocioId, estado);
+  }
+
   async criarLink(negocioId: string, afiliadoId: string, dados: Omit<NovoLinkAfiliado, "negocioId" | "afiliadoId">) {
     const parceiro = await this.afiliados.buscarParceiroPorId(afiliadoId, negocioId);
     if (!parceiro) throw new Error("Parceiro comercial não encontrado.");

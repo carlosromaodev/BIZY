@@ -22,6 +22,7 @@ const rotasBackend = [
   "/evolution",
   "/formularios",
   "/funil",
+  "/instagram",
   "/integracoes",
   "/lembretes",
   "/lives",

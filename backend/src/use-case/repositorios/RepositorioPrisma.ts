@@ -19,6 +19,7 @@ import type {
   RepositorioPedidos,
   RepositorioPlaybooksRecuperacao,
   RepositorioReservas,
+  RepositorioSeguidoresLoja,
   RepositorioSessoesLive,
   RepositorioSocialInbox,
   RepositorioTarefasOperacionais,
@@ -62,6 +63,7 @@ import type {
   EstadoPagamento,
   EstadoPagamentoPedido,
   EstadoPeca,
+  TipoProduto,
   EstadoPedido,
   EstadoReserva,
   EventoOperacional,
@@ -134,6 +136,7 @@ import type {
   ResultadoInterpretacaoComentario,
   DadosIdentidadeAutenticacao,
   DadosNegocioBizy,
+  EstadoParceiroComercial,
   DadosPublicacaoLoja,
   DadosPerfilEstudantil,
   NegocioBizy,
@@ -182,6 +185,7 @@ export class RepositorioPecasPrisma implements RepositorioPecas {
         descricao: dados.descricao,
         categoria: dados.categoria ?? null,
         colecao: dados.colecao ?? null,
+        tipoProduto: dados.tipoProduto ?? "FISICO",
         precoEmKwanza: dados.precoEmKwanza,
         custoEmKwanza: dados.custoEmKwanza ?? null,
         quantidade: dados.quantidade,
@@ -298,6 +302,22 @@ export class RepositorioPecasPrisma implements RepositorioPecas {
     return { quantidade: atualizada.quantidade };
   }
 
+  async renomearColecao(negocioId: string, de: string, para: string): Promise<number> {
+    const resultado = await this.prisma.peca.updateMany({
+      where: { negocioId, colecao: de },
+      data: { colecao: para }
+    });
+    return resultado.count;
+  }
+
+  async limparColecao(negocioId: string, colecao: string): Promise<number> {
+    const resultado = await this.prisma.peca.updateMany({
+      where: { negocioId, colecao },
+      data: { colecao: null }
+    });
+    return resultado.count;
+  }
+
   private mapearPeca(peca: {
     id: string;
     codigo: string;
@@ -307,6 +327,7 @@ export class RepositorioPecasPrisma implements RepositorioPecas {
     descricao: string;
     categoria: string | null;
     colecao: string | null;
+    tipoProduto?: string;
     precoEmKwanza: number;
     custoEmKwanza: number | null;
     quantidade: number;
@@ -322,6 +343,7 @@ export class RepositorioPecasPrisma implements RepositorioPecas {
     const margemEstimadaEmKwanza = this.calcularMargem(peca.precoEmKwanza, peca.custoEmKwanza);
     return {
       ...peca,
+      tipoProduto: (peca.tipoProduto as TipoProduto) ?? "FISICO",
       fotos: this.lerFotos(peca.fotosJson),
       variantes: this.lerVariantes(peca.variantesJson),
       vitrine: this.lerVitrine(peca.vitrineJson),
@@ -1213,6 +1235,16 @@ export class RepositorioAfiliadosPrisma implements RepositorioAfiliados {
   async buscarParceiroPorId(id: string, negocioId: string): Promise<ParceiroComercial | null> {
     const parceiro = await this.prisma.parceiroComercial.findFirst({ where: { id, negocioId } });
     return parceiro ? this.mapearParceiro(parceiro) : null;
+  }
+
+  async atualizarEstadoParceiro(id: string, negocioId: string, estado: EstadoParceiroComercial): Promise<ParceiroComercial | null> {
+    const existente = await this.prisma.parceiroComercial.findFirst({ where: { id, negocioId } });
+    if (!existente) return null;
+    const atualizado = await this.prisma.parceiroComercial.update({
+      where: { id },
+      data: { estado }
+    });
+    return this.mapearParceiro(atualizado);
   }
 
   async criarLink(dados: NovoLinkAfiliado): Promise<LinkAfiliado> {
@@ -2143,6 +2175,7 @@ export class RepositorioReservasPrisma implements RepositorioReservas {
     descricao: string;
     categoria: string | null;
     colecao: string | null;
+    tipoProduto?: string;
     precoEmKwanza: number;
     custoEmKwanza: number | null;
     quantidade: number;
@@ -2158,6 +2191,7 @@ export class RepositorioReservasPrisma implements RepositorioReservas {
     const margemEstimadaEmKwanza = this.calcularMargem(peca.precoEmKwanza, peca.custoEmKwanza);
     return {
       ...peca,
+      tipoProduto: (peca.tipoProduto as TipoProduto) ?? "FISICO",
       fotos: this.lerFotos(peca.fotosJson),
       variantes: this.lerVariantes(peca.variantesJson),
       vitrine: this.lerVitrine(peca.vitrineJson),
@@ -2286,6 +2320,7 @@ export class RepositorioPedidosPrisma implements RepositorioPedidos {
         ...(filtros.estadoEntrega ? { estadoEntrega: filtros.estadoEntrega } : {}),
         ...(filtros.clienteId ? { clienteNegocioId: filtros.clienteId } : {}),
         ...(filtros.canal ? { canal: { equals: filtros.canal, mode: "insensitive" } } : {}),
+        ...(filtros.origem ? { origem: filtros.origem } : {}),
         ...(filtros.dataInicio || filtros.dataFim
           ? {
               criadoEm: {
@@ -2329,7 +2364,8 @@ export class RepositorioPedidosPrisma implements RepositorioPedidos {
       },
       include: { itens: true },
       orderBy: { criadoEm: "desc" },
-      take: filtros.limite ?? 100
+      take: filtros.limite ?? 100,
+      skip: filtros.offset ?? 0
     });
 
     return pedidos.map((pedido) => this.mapearPedido(pedido));
@@ -2338,6 +2374,14 @@ export class RepositorioPedidosPrisma implements RepositorioPedidos {
   async buscarPorId(id: string, negocioId: string): Promise<Pedido | null> {
     const pedido = await this.prisma.pedido.findFirst({
       where: { id, negocioId },
+      include: { itens: true }
+    });
+    return pedido ? this.mapearPedido(pedido) : null;
+  }
+
+  async buscarPorNumeroPublico(numero: number, negocioId: string): Promise<Pedido | null> {
+    const pedido = await this.prisma.pedido.findFirst({
+      where: { numero, negocioId },
       include: { itens: true }
     });
     return pedido ? this.mapearPedido(pedido) : null;
@@ -3775,7 +3819,8 @@ export class RepositorioClientesPrisma implements RepositorioClientes {
     const clientes = await this.prisma.clienteNegocio.findMany({
       where,
       orderBy: { ultimaInteracaoEm: "desc" },
-      take: filtros.limite ?? 100
+      take: filtros.limite ?? 100,
+      skip: filtros.offset ?? 0
     });
     const tag = filtros.tag?.trim().toLowerCase();
 
@@ -3786,6 +3831,15 @@ export class RepositorioClientesPrisma implements RepositorioClientes {
 
   async buscarPorId(id: string, negocioId: string): Promise<Cliente360 | null> {
     const cliente = await this.prisma.clienteNegocio.findFirst({ where: { id, negocioId } });
+    return cliente ? this.mapearCliente(cliente) : null;
+  }
+
+  async buscarPorUsername(username: string, negocioId: string): Promise<Cliente360 | null> {
+    const normalizado = username.trim().toLowerCase();
+    if (!normalizado) return null;
+    const cliente = await this.prisma.clienteNegocio.findFirst({
+      where: { negocioId, username: { equals: normalizado, mode: "insensitive" } }
+    });
     return cliente ? this.mapearCliente(cliente) : null;
   }
 
@@ -5966,5 +6020,57 @@ export class RepositorioAuditoriaPrisma implements RepositorioAuditoria {
 
   private obterObjeto(valor: unknown): Record<string, unknown> {
     return valor && typeof valor === "object" && !Array.isArray(valor) ? (valor as Record<string, unknown>) : {};
+  }
+}
+
+export class RepositorioSeguidoresLojaPrisma implements RepositorioSeguidoresLoja {
+  constructor(private readonly prisma: PrismaClient) {}
+
+  async seguir(negocioId: string, identificador: string, tipo: string, origem: string) {
+    return this.prisma.seguidorLoja.upsert({
+      where: { negocioId_identificador: { negocioId, identificador } },
+      create: { negocioId, identificador, tipo, origem },
+      update: {}
+    });
+  }
+
+  async deixarDeSeguir(negocioId: string, identificador: string) {
+    try {
+      await this.prisma.seguidorLoja.delete({
+        where: { negocioId_identificador: { negocioId, identificador } }
+      });
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  async estaSeguindo(negocioId: string, identificador: string) {
+    const registro = await this.prisma.seguidorLoja.findUnique({
+      where: { negocioId_identificador: { negocioId, identificador } },
+      select: { id: true }
+    });
+    return Boolean(registro);
+  }
+
+  async contarSeguidores(negocioId: string) {
+    return this.prisma.seguidorLoja.count({ where: { negocioId } });
+  }
+
+  async listarSeguidores(negocioId: string, filtros?: { limite?: number; offset?: number; origem?: string }) {
+    const where = {
+      negocioId,
+      ...(filtros?.origem ? { origem: filtros.origem } : {})
+    };
+    const [seguidores, total] = await Promise.all([
+      this.prisma.seguidorLoja.findMany({
+        where,
+        orderBy: { criadoEm: "desc" },
+        take: filtros?.limite ?? 50,
+        skip: filtros?.offset ?? 0
+      }),
+      this.prisma.seguidorLoja.count({ where })
+    ]);
+    return { seguidores, total };
   }
 }

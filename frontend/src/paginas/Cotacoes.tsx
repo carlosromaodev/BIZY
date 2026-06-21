@@ -194,7 +194,7 @@ export function PaginaCotacoes() {
           ]}
           acoes={[
             { titulo: "Enviar WhatsApp", detalhe: "Enviar proposta pelo atendimento", destino: "/app/conversas", icone: <Send size={14} />, rotuloAcao: "WhatsApp" },
-            { titulo: "Ver pipeline", detalhe: "Propostas abertas alimentam negocios", destino: "/app/pipeline", icone: <ArrowRight size={14} />, rotuloAcao: "Pipeline" },
+            { titulo: "Ver fluxo", detalhe: "Propostas abertas alimentam negócios", destino: "/app/pipeline", icone: <ArrowRight size={14} />, rotuloAcao: "Fluxo" },
             { titulo: "Rever margem", detalhe: "Comparar desconto e valor", destino: "/app/relatorios", icone: <ShieldCheck size={14} />, rotuloAcao: "Margem" }
           ]}
         />

@@ -5,6 +5,8 @@ import {
   ClipboardList,
   Clock,
   Eye,
+  Kanban,
+  List,
   MessageSquare,
   PackageCheck,
   Plus,
@@ -46,6 +48,7 @@ import {
 /* ── Constants ──────────────────────────────────────────────────── */
 
 type FiltroFunil = "todos" | "a-cobrar" | "pagos" | "enviados" | "em-atraso";
+type VistaFunil = "lista" | "kanban";
 
 function criarUrlConversaCliente(cliente: Cliente360 | undefined, pedido: Pedido): string {
   const params = new URLSearchParams();
@@ -71,7 +74,8 @@ export function PaginaReservas() {
   const [carregandoInicial, setCarregandoInicial] = useState(true);
   const [mensagem, setMensagem] = useState("");
   const [filtroFunil, setFiltroFunil] = useState<FiltroFunil>("todos");
-  const [aba, setAba] = useState("pipeline");
+  const [vistaFunil, setVistaFunil] = useState<VistaFunil>("lista");
+  const [aba, setAba] = useState("fluxo");
   const [limitePedidos, setLimitePedidos] = useState(12);
 
   /* ── Data fetching ─────────────────────────────────────────── */
@@ -148,7 +152,7 @@ export function PaginaReservas() {
       ["FALHOU", "DEVOLVIDO"].includes(p.estadoEntrega) ||
       p.estadoPagamento === "REJEITADO",
   );
-  const totalPipeline = pedidos.reduce((t, p) => t + p.totalEmKwanza, 0);
+  const totalFluxo = pedidos.reduce((t, p) => t + p.totalEmKwanza, 0);
   const tarefasPedidos = tarefas.filter(
     (t) => t.pedidoId || t.tipo.includes("PEDIDO") || t.tipo === "COBRANCA",
   );
@@ -180,7 +184,7 @@ export function PaginaReservas() {
           <div>
             <h1>Pedidos</h1>
             <div className="crm-v3-sub">
-              {pedidos.length} abertos · {formatarKwanza(totalPipeline)} em pipeline
+              {pedidos.length} abertos · {formatarKwanza(totalFluxo)} em fluxo
             </div>
           </div>
           <div className="crm-v3-pghead-right">
@@ -194,10 +198,10 @@ export function PaginaReservas() {
           </div>
         </div>
 
-        {/* ── Tabs (Pipeline / Preparação / Entregas / Tarefas) */}
+        {/* ── Tabs (Fluxo / Preparação / Entregas / Tarefas) */}
         <TabsBizy
           tabs={[
-            { id: "pipeline", rotulo: "Pipeline", contagem: pedidos.length },
+            { id: "fluxo", rotulo: "Fluxo de vendas", contagem: pedidos.length },
             { id: "preparacao", rotulo: "Preparação", contagem: preparacao.produtos.length },
             { id: "entregas", rotulo: "Entregas", contagem: entregas.pedidos.length },
             { id: "tarefas", rotulo: "Tarefas", contagem: tarefasPedidos.length },
@@ -206,11 +210,23 @@ export function PaginaReservas() {
           onChange={setAba}
         />
 
-        {/* ── Pipeline Tab ───────────────────────────────────── */}
-        {aba === "pipeline" && (
+        {/* ── Fluxo de vendas Tab ────────────────────────────── */}
+        {aba === "fluxo" && (
           <>
+            {/* Vista toggle + filter tiles */}
+            <div className="bz-funil-toolbar">
+              <div className="bz-funil-vista-toggle">
+                <button type="button" className={`bz-funil-vista-btn ${vistaFunil === "lista" ? "bz-funil-vista-btn--on" : ""}`} onClick={() => setVistaFunil("lista")} title="Vista lista">
+                  <List size={15} />
+                </button>
+                <button type="button" className={`bz-funil-vista-btn ${vistaFunil === "kanban" ? "bz-funil-vista-btn--on" : ""}`} onClick={() => setVistaFunil("kanban")} title="Quadro de etapas">
+                  <Kanban size={15} />
+                </button>
+              </div>
+            </div>
+
             {/* Funnel filter tiles */}
-            <div className="crm-v3-ftiles">
+            {vistaFunil === "lista" && <div className="crm-v3-ftiles">
               <button
                 type="button"
                 className="crm-v3-ftile"
@@ -286,9 +302,20 @@ export function PaginaReservas() {
                 </div>
                 <span className="crm-v3-ftile-count">{emAtraso.length}</span>
               </button>
-            </div>
+            </div>}
+
+            {/* Kanban view */}
+            {vistaFunil === "kanban" && (
+              <FunilKanban
+                pedidos={pedidos}
+                clientesPorId={clientesPorId}
+                carregando={carregando}
+                onExecutar={executar}
+              />
+            )}
 
             {/* Orders table */}
+            {vistaFunil === "lista" && (<>
             {pedidosVisiveis.length > 0 ? (
               <div className="crm-v3-otbl">
                 <div className="crm-v3-otbl-head" style={{ gridTemplateColumns: colTemplate }}>
@@ -318,7 +345,7 @@ export function PaginaReservas() {
                         <span className="crm-v3-av crm-v3-av-32" data-hue={hue}>{iniciais}</span>
                         <span>
                           <span className="crm-v3-otbl-cli-name">{nome}</span>
-                          {canal && <div className="crm-v3-otbl-cli-channel">{canal}</div>}
+                          {canal && <div className="crm-v3-otbl-cli-channel">{canal}{pedido.origem && pedido.origem !== "manual" ? ` · ${pedido.origem}` : ""}</div>}
                         </span>
                       </span>
                       <span className="crm-v3-otbl-item">
@@ -387,13 +414,33 @@ export function PaginaReservas() {
                           </button>
                         )}
                         {pedido.estado === "ENVIADO" && (
-                          <Link
-                            to={`/app/reservas/${pedido.id}`}
-                            className="crm-v3-otbl-action-btn"
-                            title="Ver detalhes"
-                          >
-                            <Eye size={14} />
-                          </Link>
+                          <>
+                            <button
+                              type="button"
+                              className="crm-v3-otbl-action-btn"
+                              title="Confirmar entrega"
+                              disabled={carregando}
+                              onClick={() =>
+                                void executar(
+                                  () =>
+                                    requisitarApi(`/pedidos/${pedido.id}/entrega`, {
+                                      method: "PATCH",
+                                      body: { estadoEntrega: "ENTREGUE", observacao: "Entrega confirmada." },
+                                    }),
+                                  "Entrega confirmada.",
+                                )
+                              }
+                            >
+                              <PackageCheck size={14} />
+                            </button>
+                            <Link
+                              to={`/app/reservas/${pedido.id}`}
+                              className="crm-v3-otbl-action-btn"
+                              title="Ver detalhes"
+                            >
+                              <Eye size={14} />
+                            </Link>
+                          </>
                         )}
                       </span>
                     </div>
@@ -418,6 +465,7 @@ export function PaginaReservas() {
                 </button>
               </div>
             )}
+            </>)}
           </>
         )}
 
@@ -476,22 +524,42 @@ export function PaginaReservas() {
                         {traduzirEntregaPedido(pedido.estadoEntrega)}
                       </StatusBadge>
                       <Money valor={pedido.totalEmKwanza} />
-                      <BotaoBizy
-                        variante="ghost"
-                        icone={Truck}
-                        onClick={() =>
-                          void executar(
-                            () =>
-                              requisitarApi(`/pedidos/${pedido.id}/entrega`, {
-                                method: "PATCH",
-                                body: { estadoEntrega: "ENVIADO", observacao: "Saiu para entrega." },
-                              }),
-                            "Entrega atualizada.",
-                          )
-                        }
-                      >
-                        Enviado
-                      </BotaoBizy>
+                      {pedido.estadoEntrega !== "ENVIADO" && pedido.estadoEntrega !== "ENTREGUE" && (
+                        <BotaoBizy
+                          variante="ghost"
+                          icone={Truck}
+                          onClick={() =>
+                            void executar(
+                              () =>
+                                requisitarApi(`/pedidos/${pedido.id}/entrega`, {
+                                  method: "PATCH",
+                                  body: { estadoEntrega: "ENVIADO", observacao: "Saiu para entrega." },
+                                }),
+                              "Entrega atualizada.",
+                            )
+                          }
+                        >
+                          Enviado
+                        </BotaoBizy>
+                      )}
+                      {pedido.estadoEntrega === "ENVIADO" && (
+                        <BotaoBizy
+                          variante="ghost"
+                          icone={PackageCheck}
+                          onClick={() =>
+                            void executar(
+                              () =>
+                                requisitarApi(`/pedidos/${pedido.id}/entrega`, {
+                                  method: "PATCH",
+                                  body: { estadoEntrega: "ENTREGUE", observacao: "Entrega confirmada." },
+                                }),
+                              "Entrega confirmada.",
+                            )
+                          }
+                        >
+                          Entregue
+                        </BotaoBizy>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -577,6 +645,102 @@ export function PaginaReservas() {
         )}
       </div>
     </CrmPageMotion>
+  );
+}
+
+/* ── Kanban ─────────────────────────────────────────────────────── */
+
+const COLUNAS_KANBAN: Array<{ estado: EstadoPedido; rotulo: string; cor: string }> = [
+  { estado: "NOVO", rotulo: "Novo", cor: "var(--ink-4)" },
+  { estado: "AGUARDANDO_PAGAMENTO", rotulo: "Aguarda pagamento", cor: "var(--amber)" },
+  { estado: "PAGO", rotulo: "Pago", cor: "var(--green)" },
+  { estado: "EM_PREPARACAO", rotulo: "Em preparação", cor: "var(--blue)" },
+  { estado: "PRONTO_ENTREGA", rotulo: "Pronto", cor: "var(--green)" },
+  { estado: "ENVIADO", rotulo: "Enviado", cor: "var(--blue)" },
+  { estado: "ENTREGUE", rotulo: "Entregue", cor: "var(--green)" },
+];
+
+function FunilKanban({
+  pedidos,
+  clientesPorId,
+  carregando,
+  onExecutar,
+}: {
+  pedidos: Pedido[];
+  clientesPorId: Map<string, Cliente360>;
+  carregando: boolean;
+  onExecutar: (acao: () => Promise<unknown>, sucesso: string) => Promise<void>;
+}) {
+  const porEstado = useMemo(() => {
+    const mapa = new Map<EstadoPedido, Pedido[]>();
+    for (const col of COLUNAS_KANBAN) mapa.set(col.estado, []);
+    for (const pedido of pedidos) {
+      const lista = mapa.get(pedido.estado);
+      if (lista) lista.push(pedido);
+    }
+    return mapa;
+  }, [pedidos]);
+
+  return (
+    <div className="bz-kanban">
+      {COLUNAS_KANBAN.map(({ estado, rotulo, cor }) => {
+        const lista = porEstado.get(estado) ?? [];
+        return (
+          <div key={estado} className="bz-kanban-col">
+            <div className="bz-kanban-col-head">
+              <span className="bz-kanban-col-dot" style={{ background: cor }} />
+              <span className="bz-kanban-col-title">{rotulo}</span>
+              <span className="bz-kanban-col-count">{lista.length}</span>
+            </div>
+            <div className="bz-kanban-col-body">
+              {lista.map((pedido) => {
+                const cliente = clientesPorId.get(pedido.clienteNegocioId);
+                const nome = cliente?.nome ?? cliente?.telefone ?? "Cliente";
+                return (
+                  <div key={pedido.id} className="bz-kanban-card">
+                    <div className="bz-kanban-card-top">
+                      <span className="bz-kanban-card-num">#{pedido.numero}</span>
+                      <span className="bz-kanban-card-total">{formatarKwanza(pedido.totalEmKwanza)}</span>
+                    </div>
+                    <div className="bz-kanban-card-cli">{nome}</div>
+                    {pedido.itens[0] && (
+                      <div className="bz-kanban-card-item">{pedido.itens[0].nomeProduto}{pedido.itens.length > 1 ? ` +${pedido.itens.length - 1}` : ""}</div>
+                    )}
+                    <div className="bz-kanban-card-date">{formatarDataHoraCurta(pedido.criadoEm)}</div>
+                    <div className="bz-kanban-card-actions">
+                      <Link to={`/app/conversas?clienteId=${pedido.clienteNegocioId}&pedidoId=${pedido.id}`} className="bz-iconbtn" title="Conversa">
+                        <MessageSquare size={12} />
+                      </Link>
+                      {pedido.estado === "AGUARDANDO_PAGAMENTO" && (
+                        <button type="button" className="bz-iconbtn" title="Confirmar pagamento" disabled={carregando}
+                          onClick={() => void onExecutar(() => requisitarApi(`/pedidos/${pedido.id}/confirmar-pagamento`, { method: "POST", body: { observacao: "Confirmado no CRM Bizy." } }), "Pagamento confirmado.")}>
+                          <Check size={12} />
+                        </button>
+                      )}
+                      {(pedido.estado === "PAGO" || pedido.estado === "PRONTO_ENTREGA") && (
+                        <button type="button" className="bz-iconbtn" title="Marcar enviado" disabled={carregando}
+                          onClick={() => void onExecutar(() => requisitarApi(`/pedidos/${pedido.id}/entrega`, { method: "PATCH", body: { estadoEntrega: "ENVIADO", observacao: "Saiu para entrega." } }), "Entrega atualizada.")}>
+                          <Truck size={12} />
+                        </button>
+                      )}
+                      {pedido.estado === "ENVIADO" && (
+                        <button type="button" className="bz-iconbtn" title="Confirmar entrega" disabled={carregando}
+                          onClick={() => void onExecutar(() => requisitarApi(`/pedidos/${pedido.id}/entrega`, { method: "PATCH", body: { estadoEntrega: "ENTREGUE", observacao: "Entrega confirmada." } }), "Entrega confirmada.")}>
+                          <PackageCheck size={12} />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+              {lista.length === 0 && (
+                <div className="bz-kanban-empty">Sem pedidos</div>
+              )}
+            </div>
+          </div>
+        );
+      })}
+    </div>
   );
 }
 

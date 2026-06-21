@@ -17,6 +17,7 @@ model Peca {
   descricao       String
   categoria       String?
   colecao         String?
+  tipoProduto     String           @default("FISICO")
   precoEmKwanza   Int
   custoEmKwanza   Int?
   quantidade      Int
@@ -514,6 +515,7 @@ model Negocio {
   eventosOperacionais   EventoOperacional[]
   jobsOperacionais      JobOperacional[]
   instanciasInstagram   InstanciaInstagram[]
+  seguidoresLoja        SeguidorLoja[]
 
   @@index([nomeComercial])
   @@index([slugPublico])
@@ -1204,4 +1206,145 @@ model InstanciaInstagram {
   @@unique([negocioId, nome])
   @@index([ativa, padrao])
   @@index([negocioId, ativa, padrao])
+}
+
+model SeguidorLoja {
+  id            String   @id @default(uuid())
+  negocioId     String
+  negocio       Negocio  @relation(fields: [negocioId], references: [id])
+  identificador String
+  tipo          String   @default("anonimo")
+  origem        String   @default("perfil")
+  criadoEm      DateTime @default(now())
+
+  @@unique([negocioId, identificador])
+  @@index([negocioId])
+}
+
+model DenunciaMarket {
+  id              String   @id @default(uuid())
+  tipo            String
+  entidadeTipo    String
+  entidadeId      String
+  negocioAlvoId   String?
+  denuncianteId   String?
+  motivo          String
+  descricao       String?
+  estado          String   @default("PENDENTE")
+  resolvidoPorId  String?
+  resolucao       String?
+  criadoEm        DateTime @default(now())
+  atualizadoEm    DateTime @updatedAt
+
+  @@index([estado])
+  @@index([entidadeTipo, entidadeId])
+  @@index([negocioAlvoId])
+}
+
+model ReservaStockCheckout {
+  id            String   @id @default(uuid())
+  negocioId     String
+  pecaId        String
+  codigoPeca    String
+  quantidade    Int
+  sessaoId      String
+  estado        String   @default("ATIVA")
+  expiraEm      DateTime
+  liberadaEm    DateTime?
+  criadoEm      DateTime @default(now())
+  atualizadoEm  DateTime @updatedAt
+
+  @@index([negocioId, pecaId])
+  @@index([estado, expiraEm])
+  @@index([sessaoId])
+}
+
+model CompraUnificada {
+  id                        String          @id @default(uuid())
+  numero                    Int             @default(autoincrement())
+  compradorTelefone         String
+  compradorNome             String?
+  compradorEmail            String?
+  estado                    String          @default("ABERTA")
+  estadoPagamento           String          @default("PENDENTE")
+  subtotalEmKwanza          Int             @default(0)
+  descontoEmKwanza          Int             @default(0)
+  taxaEntregaTotalEmKwanza  Int             @default(0)
+  totalEmKwanza             Int             @default(0)
+  metodoPagamento           String?
+  comprovativoPagamentoUrl  String?
+  enderecoEntrega           String?
+  observacao                String?
+  origem                    String          @default("market")
+  criadoEm                  DateTime        @default(now())
+  atualizadoEm              DateTime        @updatedAt
+  pedidosFilho              PedidoFilho[]
+
+  @@index([compradorTelefone])
+  @@index([estado])
+}
+
+model PedidoFilho {
+  id                  String          @id @default(uuid())
+  compraUnificadaId   String
+  compraUnificada     CompraUnificada @relation(fields: [compraUnificadaId], references: [id])
+  negocioId           String
+  pedidoId            String
+  estado              String          @default("NOVO")
+  estadoPagamento     String          @default("PENDENTE")
+  estadoEntrega       String          @default("PENDENTE")
+  subtotalEmKwanza    Int             @default(0)
+  taxaEntregaEmKwanza Int             @default(0)
+  totalEmKwanza       Int             @default(0)
+  criadoEm            DateTime        @default(now())
+  atualizadoEm        DateTime        @updatedAt
+
+  @@index([compraUnificadaId])
+  @@index([negocioId])
+  @@index([pedidoId])
+}
+
+model RepasseFinanceiro {
+  id                    String    @id @default(uuid())
+  negocioId             String
+  compraUnificadaId     String?
+  pedidoId              String
+  valorBrutoEmKwanza    Int
+  taxaBizyEmKwanza      Int       @default(0)
+  comissaoEmKwanza      Int       @default(0)
+  descontoEmKwanza      Int       @default(0)
+  valorLiquidoEmKwanza  Int
+  estado                String    @default("PENDENTE")
+  motivo                String?
+  conciliadoEm          DateTime?
+  aprovadoEm            DateTime?
+  pagoEm                DateTime?
+  referenciaPagamento   String?
+  criadoEm              DateTime  @default(now())
+  atualizadoEm          DateTime  @updatedAt
+
+  @@index([negocioId])
+  @@index([pedidoId])
+  @@index([estado])
+  @@index([compraUnificadaId])
+}
+
+model ReembolsoPedido {
+  id                  String    @id @default(uuid())
+  negocioId           String
+  pedidoId            String
+  compraUnificadaId   String?
+  tipo                String
+  valorEmKwanza       Int
+  motivo              String
+  itensAfetadosJson   String    @default("[]")
+  estado              String    @default("PENDENTE")
+  aprovadoPorId       String?
+  processadoEm        DateTime?
+  criadoEm            DateTime  @default(now())
+  atualizadoEm        DateTime  @updatedAt
+
+  @@index([negocioId])
+  @@index([pedidoId])
+  @@index([estado])
 }

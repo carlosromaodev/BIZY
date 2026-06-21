@@ -1,0 +1,11 @@
+{
+  "chat.tools.terminal.autoApprove": {
+    "/^cd /home/carlos/Documentos/project/ÉMeu/mobile && ls -la node_modules/react-native-svg/lib/module/utils && node -e \"try \\{ console\\.log\\(require\\.resolve\\('react-native-svg/lib/module/ReactNativeSVG\\.web\\.js'\\)\\); console\\.log\\(require\\.resolve\\('react-native-svg/lib/module/utils/fetchData\\.js'\\)\\); \\} catch\\(e\\) \\{ console\\.error\\(e\\.message\\); process\\.exit\\(1\\);\\} \"$/": {
+      "approve": true,
+      "matchCommandLine": true
+    },
+    "mkdir": true,
+    "printf": true,
+    "base64": true
+  }
+}

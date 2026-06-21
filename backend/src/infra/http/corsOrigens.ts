@@ -28,20 +28,15 @@ export function resolverOrigemCors(): ResolverOrigemCors {
 }
 
 export function resolverOrigemPermitida(origin: string | undefined): boolean | string {
-  const origem = process.env.ORIGEM_FRONTEND?.trim();
+  const origensFrontend = obterOrigensFrontendConfiguradas();
   const dominioPublicoLoja = normalizarDominioPublicoLoja(process.env.PUBLIC_STORE_DOMAIN);
   const dominioPublicoMarket = obterDominioPublicoMarket(dominioPublicoLoja);
 
   if (!origin) return true;
 
-  if (origem) {
-    const origens = origem
-      .split(",")
-      .map((item) => item.trim())
-      .filter(Boolean);
-
+  if (origensFrontend.length > 0) {
     const permitido =
-      origens.includes(origin) ||
+      origensFrontend.includes(normalizarOrigemConfigurada(origin)) ||
       (process.env.NODE_ENV !== "production" && origemLocalDevPermitida(origin)) ||
       origemMarketPermitida(origin, dominioPublicoMarket) ||
       origemSubdominioLojaPermitida(origin, dominioPublicoLoja);
@@ -50,6 +45,39 @@ export function resolverOrigemPermitida(origin: string | undefined): boolean | s
   }
 
   return process.env.NODE_ENV === "production" ? false : true;
+}
+
+function obterOrigensFrontendConfiguradas(): string[] {
+  const origens = new Set<string>();
+
+  for (const valor of [
+    process.env.ORIGEM_FRONTEND,
+    process.env.FRONTEND_URL,
+    process.env.APP_PUBLIC_URL
+  ]) {
+    for (const origem of dividirOrigensConfiguradas(valor)) {
+      const normalizada = normalizarOrigemConfigurada(origem);
+      if (normalizada) origens.add(normalizada);
+    }
+  }
+
+  return [...origens];
+}
+
+function dividirOrigensConfiguradas(valor?: string | null): string[] {
+  if (!valor) return [];
+  return valor
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function normalizarOrigemConfigurada(valor: string): string {
+  try {
+    return new URL(valor).origin;
+  } catch {
+    return valor.trim().replace(/\/+$/, "");
+  }
 }
 
 function obterDominioPublicoMarket(dominioPublicoLoja: string | null): string | null {

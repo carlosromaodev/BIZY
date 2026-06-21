@@ -9,6 +9,7 @@ export type SeloVitrineProduto =
   | "REPOSICAO"
   | "MAIS_VENDIDO"
   | "KIT"
+  | "PATROCINADO"
   | string;
 
 export interface SeoPublico {
@@ -94,6 +95,7 @@ export interface ProdutoMarketNormalizado {
   precoAntigoEmKwanza: number | null;
   precoFinalEmKwanza: number;
   quantidade: number;
+  selos: SeloVitrineProduto[];
   slugLoja: string;
   urlLoja: string;
   urlMarket: string;
@@ -528,4 +530,183 @@ export interface RespostaPublicacaoProdutosMarketEmMassa {
   atualizados: number;
   falhas: Array<{ codigo: string; erro: string }>;
   resultados: Array<RespostaPublicacaoProdutoMarket | { codigo: string; erro: string }>;
+}
+
+// Fase 2: Lojas no Market
+
+export interface LojaMarket extends FornecedorMarket {
+  totalProdutos: number;
+  categorias: string[];
+}
+
+export interface FiltrosMarketLojas {
+  busca?: string | null;
+  categoria?: string | null;
+  provincia?: string | null;
+  limite?: number | null;
+}
+
+export interface RespostaMarketLojas {
+  lojas: LojaMarket[];
+  total: number;
+  filtros?: RegistroJson;
+}
+
+export interface RespostaLojaMarket {
+  loja: LojaMarket;
+  produtos: ProdutoMarket[];
+  seo?: SeoPublico;
+}
+
+// Fase 3: Studio CRM
+
+export interface SeguidorLoja {
+  id: string;
+  identificador: string;
+  tipo: string;
+  origem: string;
+  criadoEm: string;
+}
+
+export interface RespostaSeguidoresCrm {
+  seguidores: SeguidorLoja[];
+  total: number;
+}
+
+export interface MetricasLojaCrm {
+  perfil: {
+    slug?: string | null;
+    publicada: boolean;
+    seguidores: number;
+    totalProdutos: number;
+  };
+  market: {
+    publicados: number;
+    elegiveis: number;
+    comPendencias: number;
+  };
+  tracking: ResumoTrackingLojaPublica;
+  vendas: {
+    totalPedidos: number;
+    pedidosPagos: number;
+    receitaTotalEmKwanza: number;
+    ticketMedioEmKwanza: number;
+  };
+}
+
+export interface PayloadCatalogoLoja {
+  nome: string;
+  descricao?: string | null;
+  criterio?: "categoria" | "colecao" | "busca" | "todos";
+  valor?: string | null;
+}
+
+export interface RespostaCatalogosCrm {
+  catalogos: CatalogoPersonalizadoLoja[];
+}
+
+// ── Catálogo Público Partilhável ──
+
+export interface CatalogoPublicoResumo {
+  id: string;
+  nome: string;
+  descricao: string | null;
+  criterio: string;
+  totalProdutos: number;
+}
+
+export interface RespostaCatalogoPublico {
+  catalogo: CatalogoPublicoResumo;
+  loja: LojaPublica;
+  produtos: ProdutoLojaPublica[];
+  seo: { titulo: string; descricao: string; slug?: string | null };
+}
+
+// ── Checkout Unificado Multi-Loja ──
+
+export interface ItemCheckoutUnificado {
+  slugLoja: string;
+  codigoPeca: string;
+  varianteSelecionada?: Record<string, string> | null;
+  quantidade: number;
+}
+
+export interface PayloadCheckoutUnificado {
+  compradorTelefone: string;
+  compradorNome?: string | null;
+  compradorEmail?: string | null;
+  itens: ItemCheckoutUnificado[];
+  metodoPagamento?: string | null;
+  comprovativoPagamentoUrl?: string | null;
+  enderecoEntrega?: string | null;
+  observacao?: string | null;
+  origem?: string;
+}
+
+export interface PedidoFilhoUnificado {
+  id: string;
+  compraUnificadaId: string;
+  negocioId: string;
+  pedidoId: string;
+  estado: string;
+  estadoPagamento: string;
+  estadoEntrega: string;
+  subtotalEmKwanza: number;
+  taxaEntregaEmKwanza: number;
+  totalEmKwanza: number;
+  criadoEm: string;
+  atualizadoEm: string;
+}
+
+export interface CompraUnificada {
+  id: string;
+  numero: number;
+  compradorTelefone: string;
+  compradorNome: string | null;
+  compradorEmail: string | null;
+  estado: string;
+  estadoPagamento: string;
+  subtotalEmKwanza: number;
+  descontoEmKwanza: number;
+  taxaEntregaTotalEmKwanza: number;
+  totalEmKwanza: number;
+  metodoPagamento: string | null;
+  enderecoEntrega: string | null;
+  observacao: string | null;
+  origem: string;
+  pedidosFilhoIds: string[];
+  criadoEm: string;
+  atualizadoEm: string;
+}
+
+export interface RespostaCheckoutUnificado {
+  compra: CompraUnificada;
+  pedidosFilho: PedidoFilhoUnificado[];
+}
+
+export interface RespostaCompraEstados {
+  compra: CompraUnificada;
+  pedidosFilho: PedidoFilhoUnificado[];
+}
+
+// ── Repasses Financeiros ──
+
+export interface RepasseFinanceiroCrm {
+  id: string;
+  negocioId: string;
+  compraUnificadaId: string | null;
+  pedidoId: string;
+  valorBrutoEmKwanza: number;
+  taxaBizyEmKwanza: number;
+  comissaoEmKwanza: number;
+  descontoEmKwanza: number;
+  valorLiquidoEmKwanza: number;
+  estado: "PENDENTE" | "CONCILIADO" | "APROVADO" | "PAGO" | "CANCELADO" | "EM_DISPUTA";
+  motivo: string | null;
+  conciliadoEm: string | null;
+  aprovadoEm: string | null;
+  pagoEm: string | null;
+  referenciaPagamento: string | null;
+  criadoEm: string;
+  atualizadoEm: string;
 }

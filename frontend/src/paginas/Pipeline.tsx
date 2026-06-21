@@ -132,7 +132,7 @@ export function PaginaPipeline() {
         >
           <div className="flex flex-wrap items-start justify-between gap-3 mb-4">
             <div>
-              <p className="crm-command-panel-eyebrow">Pipeline de vendas</p>
+              <p className="crm-command-panel-eyebrow">Fluxo de vendas</p>
               <h1 className="crm-command-panel-title">Negócios em aberto</h1>
               <p className="crm-subtitulo">{abertos.length} negócios · {taxa}% conversão</p>
             </div>
@@ -143,7 +143,7 @@ export function PaginaPipeline() {
           </div>
           <div className="flex flex-wrap gap-3">
             <div className="crm-command-metric">
-              <span className="crm-metric-label">Pipeline</span>
+              <span className="crm-metric-label">Em fluxo</span>
               <span className="crm-command-metric-value">{formatarKwanza(pipelineTotal)}</span>
             </div>
             <div className="crm-command-metric">
@@ -162,7 +162,7 @@ export function PaginaPipeline() {
         </motion.div>
 
         <CrmPainelOperacional
-          modulo="Pipeline"
+          modulo="Fluxo"
           titulo="Prioridade comercial"
           atalhoAtivo={atalhoAtivo}
           proximaAcao={proximaAcao}
@@ -179,7 +179,7 @@ export function PaginaPipeline() {
           ]}
           acoes={[
             { titulo: "Agendar follow-up", detalhe: "Criar lembrete para negocio em aberto", destino: "/app/agenda", icone: <CalendarClock size={14} />, rotuloAcao: "Agendar" },
-            { titulo: "Ver cotacoes", detalhe: "Propostas abertas alimentam o pipeline", destino: "/app/cotacoes", icone: <PackageCheck size={14} />, rotuloAcao: "Cotações" },
+            { titulo: "Ver cotacoes", detalhe: "Propostas abertas alimentam o fluxo", destino: "/app/cotacoes", icone: <PackageCheck size={14} />, rotuloAcao: "Cotações" },
             { titulo: "Auditar perdas", detalhe: "Perdidos explicam objeções recorrentes", destino: "/app/actividades", icone: <ShieldAlert size={14} />, rotuloAcao: "Notas" }
           ]}
         />
@@ -195,7 +195,7 @@ export function PaginaPipeline() {
           <TabsList className="flex mb-4">
             <TabsTrigger value="kanban" className="flex-1 gap-1.5">
               <Kanban size={16} className="shrink-0" />
-              <span className="hidden min-[480px]:inline">Kanban</span>
+              <span className="hidden min-[480px]:inline">Quadro</span>
             </TabsTrigger>
             <TabsTrigger value="lista" className="flex-1 gap-1.5">
               <List size={16} className="shrink-0" />
@@ -206,7 +206,7 @@ export function PaginaPipeline() {
           {/* ── Kanban ── */}
           <TabsContent value="kanban">
             {negocios.length === 0 ? (
-              <EstadoVazio icone={<Kanban />} titulo="Pipeline vazio" detalhe="Crie o primeiro negócio para acompanhar as vendas no kanban." />
+              <EstadoVazio icone={<Kanban />} titulo="Sem negócios" detalhe="Crie o primeiro negócio para acompanhar as vendas no quadro." />
             ) : (
               <div className="pipeline-board">
                 {etapasAbertas.map((etapa, ei) => {
@@ -313,7 +313,7 @@ export function PaginaPipeline() {
                 })}
               </div>
             ) : (
-              <EstadoVazio icone={<Kanban />} titulo="Pipeline vazio" detalhe="Crie negócios para visualizar em lista." />
+              <EstadoVazio icone={<Kanban />} titulo="Sem negócios" detalhe="Crie negócios para visualizar em lista." />
             )}
           </TabsContent>
         </AnimatedTabs>

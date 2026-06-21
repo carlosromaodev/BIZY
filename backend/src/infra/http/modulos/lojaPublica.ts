@@ -125,6 +125,12 @@ export const moduloLojaPublica: ModuloHttp = {
       }, extrairFiltrosProdutosPublicos(query));
     });
 
+    app.get("/publico/lojas/:slug/catalogos/:catalogo", async (request, reply) => {
+      const { slug, catalogo } = request.params as { slug: string; catalogo: string };
+      aplicarCacheCatalogoPublico(reply);
+      return contexto.lojaPublica.obterCatalogoPublico(slug, catalogo);
+    });
+
     app.get("/publico/lojas/:slug/produtos/:codigo", async (request, reply) => {
       const { slug, codigo } = request.params as { slug: string; codigo: string };
       const query = request.query as Record<string, string | undefined>;
@@ -177,6 +183,65 @@ export const moduloLojaPublica: ModuloHttp = {
       return reply.code(resultado.duplicado ? 200 : 201).send(resultado);
     });
 
+    app.post("/publico/lojas/:slug/seguir", async (request, reply) => {
+      const { slug } = request.params as { slug: string };
+      aplicarNoStore(reply);
+      const loja = await contexto.lojaPublica.exigirLojaPublicadaExterna(slug);
+      const body = request.body as { identificador?: string; tipo?: string; origem?: string } | undefined;
+      const identificador = body?.identificador?.trim();
+      if (!identificador) {
+        return reply.code(400).send({ erro: "VALIDACAO", mensagem: "Forneça um identificador para seguir a loja." });
+      }
+      const seguidor = await contexto.repositorios.seguidoresLoja.seguir(
+        loja.id,
+        identificador,
+        body?.tipo ?? "anonimo",
+        body?.origem ?? "perfil"
+      );
+      return reply.code(201).send({ ok: true, seguidor: { id: seguidor.id, criadoEm: seguidor.criadoEm } });
+    });
+
+    app.delete("/publico/lojas/:slug/seguir", async (request, reply) => {
+      const { slug } = request.params as { slug: string };
+      aplicarNoStore(reply);
+      const loja = await contexto.lojaPublica.exigirLojaPublicadaExterna(slug);
+      const body = request.body as { identificador?: string } | undefined;
+      const identificador = body?.identificador?.trim();
+      if (!identificador) {
+        return reply.code(400).send({ erro: "VALIDACAO", mensagem: "Forneça o identificador." });
+      }
+      const removido = await contexto.repositorios.seguidoresLoja.deixarDeSeguir(loja.id, identificador);
+      return reply.code(removido ? 200 : 404).send({ ok: removido });
+    });
+
+    app.get("/publico/lojas/:slug/seguindo", async (request, reply) => {
+      const { slug } = request.params as { slug: string };
+      aplicarCacheCatalogoPublico(reply);
+      const loja = await contexto.lojaPublica.exigirLojaPublicadaExterna(slug);
+      const query = request.query as { identificador?: string };
+      const identificador = query.identificador?.trim();
+      if (!identificador) {
+        return reply.code(400).send({ erro: "VALIDACAO", mensagem: "Forneça o identificador." });
+      }
+      const seguindo = await contexto.repositorios.seguidoresLoja.estaSeguindo(loja.id, identificador);
+      return { seguindo };
+    });
+
+    app.get("/publico/lojas/:slug/compras/:numero", async (request, reply) => {
+      const { slug, numero } = request.params as { slug: string; numero: string };
+      aplicarNoStore(reply);
+      const numeroPedido = Number(numero);
+      if (!Number.isInteger(numeroPedido) || numeroPedido <= 0) {
+        return reply.code(400).send({ erro: "VALIDACAO", mensagem: "Número de compra inválido." });
+      }
+      const loja = await contexto.lojaPublica.exigirLojaPublicadaExterna(slug);
+      const pedido = await contexto.gestaoPedidos.obterPedidoPublico(numeroPedido, loja.id);
+      if (!pedido) {
+        return reply.code(404).send({ erro: "NAO_ENCONTRADO", mensagem: "Compra não encontrada." });
+      }
+      return pedido;
+    });
+
     app.post("/publico/tracking/eventos", async (request, reply) => {
       aplicarNoStore(reply);
       const dados = RegistrarEventoTrackingSchema.parse(request.body ?? {});
@@ -192,6 +257,43 @@ export const moduloLojaPublica: ModuloHttp = {
 
       const evento = await contexto.lojaPublica.registrarEventoPublico(dados.slugLoja, dados);
       return reply.code(201).send(evento);
+    });
+
+    app.post("/publico/denuncias", async (request, reply) => {
+      aplicarNoStore(reply);
+      const body = request.body as Record<string, unknown> | null;
+      if (!body) return reply.code(400).send({ erro: "VALIDACAO", mensagem: "Corpo da requisição obrigatório." });
+
+      const tiposValidos = ["PRODUTO_PROIBIDO", "INFORMACAO_FALSA", "FRAUDE", "CONTEUDO_OFENSIVO", "SPAM", "OUTRO"];
+      const tipo = String(body.tipo ?? "");
+      const entidadeTipo = String(body.entidadeTipo ?? "");
+      const entidadeId = String(body.entidadeId ?? "");
+      const motivo = String(body.motivo ?? "").trim();
+
+      if (!tiposValidos.includes(tipo)) {
+        return reply.code(400).send({ erro: "VALIDACAO", mensagem: "Tipo de denúncia inválido." });
+      }
+      if (!["PRODUTO", "LOJA"].includes(entidadeTipo)) {
+        return reply.code(400).send({ erro: "VALIDACAO", mensagem: "entidadeTipo deve ser PRODUTO ou LOJA." });
+      }
+      if (!entidadeId) {
+        return reply.code(400).send({ erro: "VALIDACAO", mensagem: "entidadeId é obrigatório." });
+      }
+      if (!motivo || motivo.length < 5) {
+        return reply.code(400).send({ erro: "VALIDACAO", mensagem: "Motivo deve ter pelo menos 5 caracteres." });
+      }
+
+      const denuncia = await contexto.repositorios.denuncias.criar({
+        tipo: tipo as "PRODUTO_PROIBIDO" | "INFORMACAO_FALSA" | "FRAUDE" | "CONTEUDO_OFENSIVO" | "SPAM" | "OUTRO",
+        entidadeTipo: entidadeTipo as "PRODUTO" | "LOJA",
+        entidadeId,
+        negocioAlvoId: body.negocioAlvoId ? String(body.negocioAlvoId) : null,
+        denuncianteId: body.denuncianteId ? String(body.denuncianteId) : null,
+        motivo,
+        descricao: body.descricao ? String(body.descricao) : null
+      });
+
+      return reply.code(201).send({ id: denuncia.id, estado: denuncia.estado });
     });
   }
 };

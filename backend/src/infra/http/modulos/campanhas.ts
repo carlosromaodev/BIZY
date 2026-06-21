@@ -6,6 +6,7 @@ import {
   FiltrosCampanhasQuerySchema,
   FiltrosEventosOperacionaisQuerySchema,
   PausarCampanhaSchema,
+  ParamIdSchema,
   RegistrarEventoOperacionalSchema,
   CriarJobExportacaoClientesSchema,
   CriarJobExportacaoProdutosSchema,
@@ -50,7 +51,7 @@ export const moduloCampanhas: ModuloHttp = {
       });
       if (!contextoComercial) return;
 
-      const { id } = request.params as { id: string };
+      const { id } = ParamIdSchema.parse(request.params);
       const dados = AtualizarTemplateWhatsAppSchema.parse(request.body ?? {});
       const { motivo, ...resto } = dados;
       const template = await contexto.gestaoCampanhasCrm.atualizarTemplate(id, contextoComercial.negocio.id, {
@@ -107,7 +108,7 @@ export const moduloCampanhas: ModuloHttp = {
       if (!dados.confirmar) {
         throw new Error("Confirmação explícita é obrigatória para disparar campanha.");
       }
-      const { id } = request.params as { id: string };
+      const { id } = ParamIdSchema.parse(request.params);
       const resultado = await contexto.gestaoCampanhasCrm.confirmarCampanha(id, contextoComercial.negocio.id);
 
       return reply.code(202).send(resultado);
@@ -122,7 +123,7 @@ export const moduloCampanhas: ModuloHttp = {
       });
       if (!contextoComercial) return;
 
-      const { id } = request.params as { id: string };
+      const { id } = ParamIdSchema.parse(request.params);
       const dados = PausarCampanhaSchema.parse(request.body ?? {});
       const campanha = await contexto.gestaoCampanhasCrm.pausarCampanha(id, contextoComercial.negocio.id, dados.motivo);
 
@@ -138,7 +139,7 @@ export const moduloCampanhas: ModuloHttp = {
       });
       if (!contextoComercial) return;
 
-      const { id } = request.params as { id: string };
+      const { id } = ParamIdSchema.parse(request.params);
       return contexto.gestaoCampanhasCrm.obterResultados(id, contextoComercial.negocio.id);
     });
 
@@ -227,7 +228,7 @@ export const moduloCampanhas: ModuloHttp = {
       });
       if (!contextoComercial) return;
 
-      const { id } = request.params as { id: string };
+      const { id } = ParamIdSchema.parse(request.params);
       const dados = AtualizarMembroNegocioSchema.parse(request.body ?? {});
       const membroAntes =
         (await contexto.gestaoGovernancaCrm.listarMembros(contextoComercial.negocio.id)).find((membro) => membro.id === id) ??

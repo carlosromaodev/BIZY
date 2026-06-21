@@ -1,4 +1,5 @@
 import {
+  Activity,
   AlertTriangle,
   ArrowLeft,
   Ban,
@@ -6,8 +7,10 @@ import {
   CheckCircle2,
   ChevronDown,
   ClipboardList,
+  Clock,
   Link2,
   MessageCircle,
+  MessageSquare,
   Package,
   Phone,
   Plus,
@@ -164,6 +167,7 @@ export function PaginaConversas() {
   const [drawerMobileAberto, setDrawerMobileAberto] = useState(false);
   const [gestaoMobileAberta, setGestaoMobileAberta] = useState(false);
   const [notaMobileAberta, setNotaMobileAberta] = useState(false);
+  const [abaThread, setAbaThread] = useState<"conversa" | "notas" | "atividade">("conversa");
   const enviarRef = useRef<(() => void) | null>(null);
   const contextoUrlAplicadoRef = useRef<string | null>(null);
   const clienteIdUrl = searchParams.get("clienteId");
@@ -357,6 +361,7 @@ export function PaginaConversas() {
     setContextoAberto(false);
     setGestaoMobileAberta(false);
     setNotaMobileAberta(false);
+    setAbaThread("conversa");
   }, [conversaAtual?.id]);
 
   useEffect(() => {
@@ -682,10 +687,11 @@ export function PaginaConversas() {
         if (dados) setTextoResposta(dados);
         break;
       case "criar-pedido":
-        setContextoAberto(true);
-        setBuscaContexto(conversaAtual.pecaRelacionada ?? conversaAtual.reservaAtual?.codigoPeca ?? "");
-        if (contextoAcao?.entidadeTipo && contextoAcao.entidadeId) {
-          setMensagem("Escolha o produto no painel e envie a proposta ao cliente.");
+        if (pecaRelacionadaObj && pecaRelacionadaObj.estado === "DISPONIVEL") {
+          void criarPedidoPorPeca(pecaRelacionadaObj);
+        } else {
+          setContextoAberto(true);
+          setBuscaContexto(conversaAtual.pecaRelacionada ?? conversaAtual.reservaAtual?.codigoPeca ?? "");
         }
         break;
       case "agendar-followup":
@@ -1181,14 +1187,18 @@ export function PaginaConversas() {
           <div>
             <h1>Atendimento</h1>
             <div className="crm-v3-sub">
-              {conversasFiltradas.length} conversa{conversasFiltradas.length === 1 ? "" : "s"} por responder
+              {contagensFiltros.abertas} conversa{contagensFiltros.abertas === 1 ? "" : "s"} aberta{contagensFiltros.abertas === 1 ? "" : "s"} · {conversasFiltradas.length} total
             </div>
           </div>
-          <div className="crm-v3-pghead-right">
+          <div className="crm-v3-pghead-right" style={{ display: "flex", gap: 8, alignItems: "center" }}>
             <span className="crm-v3-bdg" data-tone="green">
               <span className="crm-v3-bdg-dot" />
               WhatsApp ligado
             </span>
+            <Button variant="outline" size="sm" onClick={() => void carregar()} style={{ gap: 6 }}>
+              <RefreshCcw className="size-3.5" />
+              Atualizar
+            </Button>
           </div>
         </div>
 
@@ -1284,7 +1294,7 @@ export function PaginaConversas() {
         {/* ── Coluna 2: Thread + Propriedades ────────────────────────── */}
         {conversaAtual ? (
           <div className="bz-thread">
-            {/* Thread header */}
+            {/* Thread header — KirriDesk style */}
             <div className="bz-thread-head">
               <AvatarBizy
                 iniciais={obterIniciais(conversaAtual.nomeCliente)}
@@ -1298,30 +1308,19 @@ export function PaginaConversas() {
                 <div className="sub">
                   <StatusBadge cor={corEstadoCrmSemantica(conversaAtual.estadoCrm)}>{traduzirEstadoCrm(conversaAtual.estadoCrm)}</StatusBadge>
                   {conversaAtual.origemPrincipal && (
-                    <span style={{ display: "inline-flex", alignItems: "center", gap: 3 }}> · <IconeOrigem origem={conversaAtual.origemPrincipal} /> {NOME_CANAL[conversaAtual.origemPrincipal] ?? conversaAtual.origemPrincipal}</span>
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 3 }}><IconeOrigem origem={conversaAtual.origemPrincipal} /> {NOME_CANAL[conversaAtual.origemPrincipal] ?? conversaAtual.origemPrincipal}</span>
                   )}
-                  <span> · {conversaAtual.telefone}</span>
-                  {conversaAtual.pecaRelacionada && <span> · {conversaAtual.pecaRelacionada}</span>}
+                  <span>{conversaAtual.telefone}</span>
+                  {conversaAtual.pecaRelacionada && <span>{conversaAtual.pecaRelacionada}</span>}
                 </div>
               </div>
               <div className="right">
                 <a href={`tel:${conversaAtual.telefone}`} className="bz-iconbtn" title="Ligar"><Phone size={15} /></a>
-                <Sheet>
-                  <SheetTrigger asChild>
-                    <button type="button" className="bz-iconbtn" title="Gestão"><Settings2 size={15} /></button>
-                  </SheetTrigger>
-                  <SheetContent className="overflow-y-auto sm:max-w-md">
-                    <SheetHeader>
-                      <SheetTitle>Gestão do atendimento</SheetTitle>
-                      <SheetDescription>{conversaAtual.nomeCliente} · {traduzirEstadoCrm(conversaAtual.estadoCrm)}</SheetDescription>
-                    </SheetHeader>
-                    <div className="px-1 pt-4">{painelPropriedades}</div>
-                  </SheetContent>
-                </Sheet>
+                <button type="button" className="bz-iconbtn" onClick={() => setCriarLembreteAberto(true)} title="Agendar lembrete"><Bell size={15} /></button>
                 <button
                   type="button"
                   className="bz-iconbtn"
-                  title="Encerrar"
+                  title="Encerrar atendimento"
                   disabled={carregando || !conversaAtual.conversaCrmId || conversaAtual.estadoCrm === "ENCERRADA"}
                   onClick={() =>
                     void executar(
@@ -1338,10 +1337,28 @@ export function PaginaConversas() {
               </div>
             </div>
 
+            {/* Thread tabs — Conversa | Notas | Atividade */}
+            <div className="bz-thread-tabs">
+              <button type="button" className={`bz-thread-tab${abaThread === "conversa" ? " active" : ""}`} onClick={() => setAbaThread("conversa")}>
+                <MessageSquare size={13} style={{ marginRight: 4, verticalAlign: -1 }} />
+                Conversa
+              </button>
+              <button type="button" className={`bz-thread-tab${abaThread === "notas" ? " active" : ""}`} onClick={() => setAbaThread("notas")}>
+                <StickyNote size={13} style={{ marginRight: 4, verticalAlign: -1 }} />
+                Notas
+              </button>
+              <button type="button" className={`bz-thread-tab${abaThread === "atividade" ? " active" : ""}`} onClick={() => setAbaThread("atividade")}>
+                <Activity size={13} style={{ marginRight: 4, verticalAlign: -1 }} />
+                Atividade
+              </button>
+            </div>
+
             {/* Context card (related order) */}
-            {pecaRelacionadaObj && (
+            {pecaRelacionadaObj && abaThread === "conversa" && (
               <div className="bz-ctx">
-                <span className="ph" />
+                <span className="ph">
+                  <Package size={16} style={{ color: "var(--green-ink)" }} />
+                </span>
                 <div>
                   <div className="nm">
                     {conversaAtual.reservaAtual ? `Pedido #${conversaAtual.reservaAtual.codigoPeca} · ` : ""}
@@ -1358,89 +1375,195 @@ export function PaginaConversas() {
               </div>
             )}
 
-            {/* Body: messages + props */}
+            {/* Body: tab content + props */}
             <div className="bz-inbox-corpo">
               <div style={{ display: "flex", flexDirection: "column", minHeight: 0, overflow: "hidden" }}>
-                {/* Messages */}
-                <div ref={mensagensRefDesktop} className="bz-thread-body">
-                  {conversaAtual.mensagens.length === 0 ? (
-                    <div className="bz-thread-vazio">Sem mensagens ainda</div>
-                  ) : (
-                    <>
-                      <div className="bz-daysep">Hoje</div>
-                      {conversaAtual.mensagens.map((item) => (
-                        <MensagemBizy
-                          key={item.id}
-                          mensagem={item}
-                          carregando={carregando}
-                          onReenviar={(m) => void reenviarMensagem(m)}
-                          onUsarSugestao={(m) => setTextoResposta(m.conteudo)}
-                        />
-                      ))}
-                    </>
-                  )}
-                </div>
 
-                {/* Smart actions bar */}
-                <BarraAcoesInteligente
-                  conversaAtual={conversaAtual}
-                  pecas={pecas}
-                  reservas={reservas}
-                  acoesServidor={proximasAcoes}
-                  onAccao={lidarComAcaoInteligente}
-                />
+                {/* ── Tab: Conversa ── */}
+                {abaThread === "conversa" && (
+                  <>
+                    <div ref={mensagensRefDesktop} className="bz-thread-body">
+                      {conversaAtual.mensagens.length === 0 ? (
+                        <div className="bz-thread-vazio">Sem mensagens ainda</div>
+                      ) : (
+                        <>
+                          <div className="bz-daysep">Hoje</div>
+                          {conversaAtual.mensagens.map((item) => (
+                            <MensagemBizy
+                              key={item.id}
+                              mensagem={item}
+                              nomeCliente={conversaAtual.nomeCliente}
+                              avatarCliente={conversaAtual.avatarUrlCliente}
+                              carregando={carregando}
+                              onReenviar={(m) => void reenviarMensagem(m)}
+                              onUsarSugestao={(m) => setTextoResposta(m.conteudo)}
+                            />
+                          ))}
+                        </>
+                      )}
+                    </div>
 
-                {/* Panels above composer */}
-                {respostasRapidasAbertas && (
-                  <RespostasRapidasPainel
-                    respostas={respostasRapidas}
-                    conversaAtual={conversaAtual}
-                    pecaRelacionada={pecaRelacionadaObj}
-                    aberto={respostasRapidasAbertas}
-                    onFechar={() => setRespostasRapidasAbertas(false)}
-                    onUsarTexto={(texto) => { setTextoResposta(texto); setRespostasRapidasAbertas(false); }}
-                    onEnviarTexto={(texto) => { void enviarMensagemRapida(texto); setRespostasRapidasAbertas(false); }}
-                  />
+                    <BarraAcoesInteligente
+                      conversaAtual={conversaAtual}
+                      pecas={pecas}
+                      reservas={reservas}
+                      acoesServidor={proximasAcoes}
+                      onAccao={lidarComAcaoInteligente}
+                    />
+
+                    {respostasRapidasAbertas && (
+                      <RespostasRapidasPainel
+                        respostas={respostasRapidas}
+                        conversaAtual={conversaAtual}
+                        pecaRelacionada={pecaRelacionadaObj}
+                        aberto={respostasRapidasAbertas}
+                        onFechar={() => setRespostasRapidasAbertas(false)}
+                        onUsarTexto={(texto) => { setTextoResposta(texto); setRespostasRapidasAbertas(false); }}
+                        onEnviarTexto={(texto) => { void enviarMensagemRapida(texto); setRespostasRapidasAbertas(false); }}
+                      />
+                    )}
+                    {contextoAberto && (
+                      <PainelContextoComercial
+                        contexto={contextoComercial}
+                        pecas={pecas}
+                        buscaContexto={buscaContexto}
+                        onBuscarContexto={setBuscaContexto}
+                        onCriarPedido={criarPedidoPorPeca}
+                        onUsarTexto={(texto) => setTextoResposta(texto)}
+                        onEnviarTexto={(texto) => void enviarMensagemRapida(texto)}
+                      />
+                    )}
+
+                    {/* Composer — KirriDesk style with channel badge */}
+                    <form className="bz-composer" onSubmit={(e) => void enviarMensagem(e)}>
+                      {conversaAtual.origemPrincipal && (
+                        <span className="bz-composer-channel">
+                          <IconeOrigem origem={conversaAtual.origemPrincipal} />
+                          {NOME_CANAL[conversaAtual.origemPrincipal] ?? conversaAtual.origemPrincipal}
+                        </span>
+                      )}
+                      <button type="button" className="bz-iconbtn" onClick={() => setRespostasRapidasAbertas((a) => !a)} disabled={carregando} title="Respostas rápidas">
+                        <Zap size={15} />
+                      </button>
+                      <button type="button" className="bz-iconbtn" onClick={() => setContextoAberto((a) => !a)} disabled={carregando} title="Consultar produtos">
+                        <Package size={15} />
+                      </button>
+                      <textarea
+                        className="inp"
+                        aria-label="Responder"
+                        placeholder="Escreve uma mensagem…"
+                        value={textoResposta}
+                        onChange={(e) => setTextoResposta(e.target.value)}
+                        onKeyDown={lidarComTeclaComposer}
+                        disabled={carregando}
+                        rows={1}
+                      />
+                      <button type="submit" className="send" disabled={carregando || !textoResposta.trim()} title="Enviar">
+                        <Send size={16} />
+                      </button>
+                    </form>
+                  </>
                 )}
-                {contextoAberto && (
-                  <PainelContextoComercial
-                    contexto={contextoComercial}
-                    pecas={pecas}
-                    buscaContexto={buscaContexto}
-                    onBuscarContexto={setBuscaContexto}
-                    onCriarPedido={criarPedidoPorPeca}
-                    onUsarTexto={(texto) => setTextoResposta(texto)}
-                    onEnviarTexto={(texto) => void enviarMensagemRapida(texto)}
-                  />
+
+                {/* ── Tab: Notas ── */}
+                {abaThread === "notas" && (
+                  <div className="bz-tab-content">
+                    <form className="grid gap-3" onSubmit={(e) => void guardarNotaInterna(e)}>
+                      <Textarea
+                        placeholder="Adicionar nota interna para a equipa..."
+                        value={notaInterna}
+                        onChange={(e) => setNotaInterna(e.target.value)}
+                        disabled={carregando || !conversaAtual.conversaCrmId}
+                        rows={3}
+                        className="text-sm"
+                        style={{ borderRadius: 8 }}
+                      />
+                      <Button variant="outline" size="sm" disabled={carregando || !notaInterna.trim() || !conversaAtual.conversaCrmId} className="w-fit">
+                        <StickyNote className="size-3.5 mr-1.5" />
+                        Guardar nota
+                      </Button>
+                    </form>
+                    {conversaAtual.mensagens
+                      .filter((m) => m.origem === "nota_interna")
+                      .map((nota) => (
+                        <div key={nota.id} className="bz-note-card">
+                          <div className="bz-note-card-head">
+                            <span className="bz-note-card-author">Nota interna</span>
+                            <span className="bz-note-card-time">{formatarHora(nota.enviadaEm)}</span>
+                          </div>
+                          <div className="bz-note-card-text">{nota.conteudo}</div>
+                        </div>
+                      ))
+                    }
+                    {conversaAtual.mensagens.filter((m) => m.origem === "nota_interna").length === 0 && (
+                      <div style={{ textAlign: "center", padding: 32, color: "var(--ink-3)", fontSize: 13 }}>
+                        Nenhuma nota interna ainda.
+                      </div>
+                    )}
+                  </div>
                 )}
 
-                {/* Composer */}
-                <form className="bz-composer" onSubmit={(e) => void enviarMensagem(e)}>
-                  <button type="button" className="bz-iconbtn" onClick={() => setRespostasRapidasAbertas((a) => !a)} disabled={carregando} title="Respostas rápidas">
-                    <Zap size={16} />
-                  </button>
-                  <button type="button" className="bz-iconbtn" onClick={() => setContextoAberto((a) => !a)} disabled={carregando} title="Consultar produtos">
-                    <Package size={16} />
-                  </button>
-                  <textarea
-                    className="inp"
-                    aria-label="Responder pelo WhatsApp"
-                    placeholder="Escreve uma mensagem…"
-                    value={textoResposta}
-                    onChange={(e) => setTextoResposta(e.target.value)}
-                    onKeyDown={lidarComTeclaComposer}
-                    disabled={carregando}
-                    rows={1}
-                  />
-                  <button type="submit" className="send" disabled={carregando || !textoResposta.trim()} title="Enviar">
-                    <Send size={16} />
-                  </button>
-                </form>
+                {/* ── Tab: Atividade ── */}
+                {abaThread === "atividade" && (
+                  <div className="bz-tab-content">
+                    {conversaAtual.mensagens
+                      .filter((m) => m.remetente === "sistema")
+                      .map((evento) => (
+                        <div key={evento.id} className="bz-activity-entry">
+                          <span className={`bz-activity-dot ${corAtividadeDot(evento)}`} />
+                          <div>
+                            <div className="bz-activity-text">{evento.conteudo}</div>
+                            <div className="bz-activity-time">{formatarHora(evento.enviadaEm)}</div>
+                          </div>
+                        </div>
+                      ))
+                    }
+                    {conversaAtual.mensagens.filter((m) => m.remetente === "sistema").length === 0 && (
+                      <div style={{ textAlign: "center", padding: 32, color: "var(--ink-3)", fontSize: 13 }}>
+                        Sem atividade registada.
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
-              {/* Properties panel (xl+) */}
+              {/* Properties panel — KirriDesk Agent Card style */}
               <div className="bz-inbox-props">
-                <div className="bz-inbox-props-header">Detalhes</div>
+                {/* Agent Assigned card */}
+                <div className="bz-agent-card">
+                  <div className="bz-agent-card-title">Agente responsável</div>
+                  <div className="bz-agent-card-row">
+                    <div className="bz-agent-card-avatar">
+                      {(formCrm.responsavelId || "A")[0].toUpperCase()}
+                    </div>
+                    <div className="bz-agent-card-info">
+                      <div className="bz-agent-card-name">{formCrm.responsavelId || "Sem responsável"}</div>
+                      <div className="bz-agent-card-role">{traduzirEstadoCrm(conversaAtual.estadoCrm)}</div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Quick action icons */}
+                <div className="bz-props-actions">
+                  <a href={`tel:${conversaAtual.telefone}`} className="bz-props-action-btn" title="Ligar"><Phone size={14} /></a>
+                  <button type="button" className="bz-props-action-btn" onClick={() => setCriarLembreteAberto(true)} title="Lembrete"><Clock size={14} /></button>
+                  <button type="button" className="bz-props-action-btn" onClick={() => setAbaThread("notas")} title="Nota"><StickyNote size={14} /></button>
+                  <button type="button" className="bz-props-action-btn" title="Criar pedido" disabled={carregando || !conversaAtual.conversaCrmId || !pecaRelacionadaObj || pecaRelacionadaObj.estado !== "DISPONIVEL"} onClick={() => pecaRelacionadaObj && void criarPedidoPorPeca(pecaRelacionadaObj)}><ClipboardList size={14} /></button>
+                  <Sheet>
+                    <SheetTrigger asChild>
+                      <button type="button" className="bz-props-action-btn" title="Gestão completa"><Settings2 size={14} /></button>
+                    </SheetTrigger>
+                    <SheetContent className="overflow-y-auto sm:max-w-md">
+                      <SheetHeader>
+                        <SheetTitle>Gestão do atendimento</SheetTitle>
+                        <SheetDescription>{conversaAtual.nomeCliente} · {traduzirEstadoCrm(conversaAtual.estadoCrm)}</SheetDescription>
+                      </SheetHeader>
+                      <div className="px-1 pt-4">{painelPropriedades}</div>
+                    </SheetContent>
+                  </Sheet>
+                </div>
+
+                {/* Scrollable details */}
                 <div className="overflow-y-auto flex-1 p-4 scrollbar-thin">
                   {painelPropriedades}
                 </div>
@@ -1456,11 +1579,11 @@ export function PaginaConversas() {
             />
           </div>
         ) : (
-          <div className="bz-thread-vazio" style={{ background: "var(--bg)" }}>
+          <div className="bz-thread-vazio">
             <div style={{ textAlign: "center" }}>
-              <MessageCircle size={32} style={{ color: "var(--ink-3)", marginBottom: 12, opacity: 0.4 }} />
+              <MessageCircle size={36} style={{ color: "var(--ink-3)", marginBottom: 12, opacity: 0.3 }} />
               <div style={{ fontSize: 14, fontWeight: 600, color: "var(--ink-2)" }}>Seleciona uma conversa</div>
-              <div style={{ fontSize: 12.5, color: "var(--ink-3)", marginTop: 4 }}>Escolhe uma conversa à esquerda para começar o atendimento.</div>
+              <div style={{ fontSize: 12.5, color: "var(--ink-3)", marginTop: 4, maxWidth: 240, margin: "4px auto 0" }}>Escolhe uma conversa à esquerda para começar o atendimento.</div>
             </div>
           </div>
         )}
@@ -2026,45 +2149,99 @@ function corEstadoCrmSemantica(estado: Conversa["estadoCrm"]): CorSemantica {
 
 function MensagemBizy({
   mensagem,
+  nomeCliente,
+  avatarCliente,
   carregando,
   onReenviar,
   onUsarSugestao
 }: {
   mensagem: Mensagem;
+  nomeCliente?: string;
+  avatarCliente?: string | null;
   carregando: boolean;
   onReenviar?: (mensagem: Mensagem) => void;
   onUsarSugestao?: (mensagem: Mensagem) => void;
 }) {
   const enviadaPelaLoja = mensagem.remetente !== "cliente";
+  const ehSistema = mensagem.remetente === "sistema";
   const falhou = enviadaPelaLoja && mensagem.status === "FAILED";
   const permiteReenvio = falhou && (mensagem.origem === "whatsapp" || mensagem.origem === "instagram" || mensagem.origem === "sms");
   const permiteUsarSugestao = mensagem.origem === "ia_sugestao" && mensagem.status === "QUEUED";
-  const classe = falhou ? "bz-msg msg-fail" : enviadaPelaLoja ? "bz-msg msg-out" : "bz-msg msg-in";
+  const classeBolha = ehSistema
+    ? "bz-msg msg-system"
+    : falhou
+      ? "bz-msg msg-fail"
+      : enviadaPelaLoja
+        ? "bz-msg msg-out"
+        : "bz-msg msg-in";
+
+  // System messages render inline without avatar
+  if (ehSistema) {
+    return (
+      <div className={classeBolha}>
+        <span className="bz-msg-text">{mensagem.conteudo}</span>
+        <div className="bz-msg-meta" style={{ justifyContent: "center" }}>
+          <span className="tm">{formatarHora(mensagem.enviadaEm)}</span>
+        </div>
+      </div>
+    );
+  }
+
+  const inicial = enviadaPelaLoja
+    ? "A"
+    : (nomeCliente?.[0] ?? "C").toUpperCase();
 
   return (
-    <div className={classe}>
-      {enviadaPelaLoja && (
-        <span className="sender-label">{traduzirRemetenteMensagem(mensagem)}</span>
-      )}
-      <span className="bz-msg-text">{mensagem.conteudo}</span>
-      <span className="tm">{formatarHora(mensagem.enviadaEm)}</span>
-      {mensagem.erro && (
-        <div style={{ marginTop: 6, fontSize: 11, color: "var(--rose-ink)", background: "var(--rose-tint)", padding: "4px 8px", borderRadius: 8 }}>
-          {mensagem.erro}
+    <div className={`bz-msg-row${enviadaPelaLoja ? " out" : ""}`}>
+      <div className={`bz-msg-avatar ${enviadaPelaLoja ? "agent" : "client"}`}>
+        {!enviadaPelaLoja && avatarCliente ? (
+          <img src={avatarCliente} alt="" />
+        ) : (
+          inicial
+        )}
+      </div>
+      <div className="bz-msg-body">
+        <div className={classeBolha}>
+          {enviadaPelaLoja && (
+            <span className="sender-label">{traduzirRemetenteMensagem(mensagem)}</span>
+          )}
+          <span className="bz-msg-text">{mensagem.conteudo}</span>
+          <div className="bz-msg-meta">
+            <span className="tm">{formatarHora(mensagem.enviadaEm)}</span>
+            {mensagem.origem && NOME_CANAL[mensagem.origem] && (
+              <span className="bz-msg-channel">
+                <IconeOrigem origem={mensagem.origem} />
+                Via {NOME_CANAL[mensagem.origem]}
+              </span>
+            )}
+          </div>
+          {mensagem.erro && (
+            <div style={{ marginTop: 6, fontSize: 11, color: "var(--rose-ink)", background: "var(--rose-tint)", padding: "4px 8px", borderRadius: 6 }}>
+              {mensagem.erro}
+            </div>
+          )}
+          {permiteReenvio && onReenviar && (
+            <button type="button" className="bz-iconbtn" style={{ marginTop: 6 }} disabled={carregando} onClick={() => onReenviar(mensagem)} title="Reenviar">
+              <RefreshCcw size={12} />
+            </button>
+          )}
+          {permiteUsarSugestao && onUsarSugestao && (
+            <button type="button" className="bz-iconbtn" style={{ marginTop: 6 }} disabled={carregando} onClick={() => onUsarSugestao(mensagem)} title="Usar sugestão">
+              <CheckCircle2 size={12} />
+            </button>
+          )}
         </div>
-      )}
-      {permiteReenvio && onReenviar && (
-        <button type="button" className="bz-iconbtn" style={{ marginTop: 6 }} disabled={carregando} onClick={() => onReenviar(mensagem)} title="Reenviar">
-          <RefreshCcw size={12} />
-        </button>
-      )}
-      {permiteUsarSugestao && onUsarSugestao && (
-        <button type="button" className="bz-iconbtn" style={{ marginTop: 6 }} disabled={carregando} onClick={() => onUsarSugestao(mensagem)} title="Usar sugestão">
-          <CheckCircle2 size={12} />
-        </button>
-      )}
+      </div>
     </div>
   );
+}
+
+function corAtividadeDot(mensagem: Mensagem): string {
+  const texto = mensagem.conteudo.toLowerCase();
+  if (texto.includes("pagamento") || texto.includes("confirmad")) return "green";
+  if (texto.includes("aguardando") || texto.includes("expirar")) return "amber";
+  if (texto.includes("criado") || texto.includes("aberto")) return "blue";
+  return "mute";
 }
 
 function ehErroTecnicoEvolution(erro?: string | null) {

@@ -1,0 +1,206 @@
+{
+  "main": {
+    "id": "9972e36df91f791f",
+    "type": "split",
+    "children": [
+      {
+        "id": "c4b1d5b1bc9bf601",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "b27e2aee8257ad53",
+            "type": "leaf",
+            "state": {
+              "type": "graph",
+              "state": {},
+              "icon": "lucide-git-fork",
+              "title": "Visualização em gráfico"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "vertical"
+  },
+  "left": {
+    "id": "6dc7221e479052ce",
+    "type": "split",
+    "children": [
+      {
+        "id": "4ac338066038f021",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "ca1bb43e0f2e4288",
+            "type": "leaf",
+            "state": {
+              "type": "file-explorer",
+              "state": {
+                "sortOrder": "alphabetical",
+                "autoReveal": false
+              },
+              "icon": "lucide-folder-closed",
+              "title": "Explorador de arquivos"
+            }
+          },
+          {
+            "id": "a88f3fd71962e295",
+            "type": "leaf",
+            "state": {
+              "type": "search",
+              "state": {
+                "query": "",
+                "matchingCase": false,
+                "explainSearch": false,
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical"
+              },
+              "icon": "lucide-search",
+              "title": "Procurar"
+            }
+          },
+          {
+            "id": "6773ff2fe1209ead",
+            "type": "leaf",
+            "state": {
+              "type": "bookmarks",
+              "state": {},
+              "icon": "lucide-bookmark",
+              "title": "Marcadores"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 200
+  },
+  "right": {
+    "id": "57bf1a57ceb871dd",
+    "type": "split",
+    "children": [
+      {
+        "id": "b722993a7a54cea8",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "86bf911f047ea89c",
+            "type": "leaf",
+            "state": {
+              "type": "backlink",
+              "state": {
+                "file": "pages/protocolo-atualizacao-memoria-bizy.md",
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical",
+                "showSearch": false,
+                "searchQuery": "",
+                "backlinkCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-coming-in",
+              "title": "Links inversos para protocolo-atualizacao-memoria-bizy"
+            }
+          },
+          {
+            "id": "445e1b1a3b8000e0",
+            "type": "leaf",
+            "state": {
+              "type": "outgoing-link",
+              "state": {
+                "file": "pages/protocolo-atualizacao-memoria-bizy.md",
+                "linksCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-going-out",
+              "title": "Links de saída para protocolo-atualizacao-memoria-bizy"
+            }
+          },
+          {
+            "id": "fb834fa6d333c95c",
+            "type": "leaf",
+            "state": {
+              "type": "tag",
+              "state": {
+                "sortOrder": "frequency",
+                "useHierarchy": true,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-tags",
+              "title": "Etiquetas"
+            }
+          },
+          {
+            "id": "ca11db2717b3bad4",
+            "type": "leaf",
+            "state": {
+              "type": "all-properties",
+              "state": {
+                "sortOrder": "frequency",
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-archive",
+              "title": "Todas as propriedades"
+            }
+          },
+          {
+            "id": "6d15b91f712f435a",
+            "type": "leaf",
+            "state": {
+              "type": "outline",
+              "state": {
+                "file": "pages/protocolo-atualizacao-memoria-bizy.md",
+                "followCursor": false,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-list",
+              "title": "Sumário de protocolo-atualizacao-memoria-bizy"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300,
+    "collapsed": true
+  },
+  "left-ribbon": {
+    "hiddenItems": {
+      "switcher:Abrir a troca rápida": false,
+      "graph:Abrir visualização em gráfico": false,
+      "canvas:Criar novo canvas": false,
+      "daily-notes:Abrir a nota de hoje": false,
+      "templates:Inserir modelo": false,
+      "command-palette:Abrir paleta de comandos": false,
+      "bases:Criar nova base": false
+    }
+  },
+  "active": "b27e2aee8257ad53",
+  "lastOpenFiles": [
+    "pages/inventario-backend-api.md",
+    "pages/bizy-market-lojas-digitais.md",
+    "pages/identidade-visual-bizy-v2.md",
+    "pages/dores-e-qualidades-bizy.md",
+    "pages/protocolo-atualizacao-memoria-bizy.md",
+    "bizy-memoria.canvas",
+    "pages/prioridades-lancamento-bizy.md",
+    "pages/arquitetura-e-guardrails-bizy.md",
+    "pages/fluxos-operacionais-bizy.md",
+    "pages/dominio-e-entidades-bizy.md",
+    "pages/mapa-de-modulos-bizy.md",
+    "pages/visao-produto-bizy.md",
+    "pages/guia-para-ia-bizy.md",
+    "index.md",
+    "pages/memoria-projeto-bizy.md",
+    "pages/inventario-operacao-testes.md",
+    "pages/inventario-frontend.md",
+    "pages/inventario-dados-prisma.md",
+    "pages/inventario-sistema-bizy.md",
+    "pages/deploy-vps-antiga.md",
+    "pages/memoria-viva-bizy.md"
+  ]
+}

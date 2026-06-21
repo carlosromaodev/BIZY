@@ -8,6 +8,7 @@ import {
   CriarPedidoSchema,
   FiltrosEntregaPedidoQuerySchema,
   FiltrosPedidosQuerySchema,
+  ParamIdSchema,
   RegistrarComprovativoPagamentoSchema,
   RecuperarPedidosParadosSchema,
   ReembolsarPedidoSchema,
@@ -173,7 +174,7 @@ export const moduloPedidos: ModuloHttp = {
       });
       if (!contextoComercial) return;
 
-      const { id } = request.params as { id: string };
+      const { id } = ParamIdSchema.parse(request.params);
       const perfil = await contexto.gestaoPedidos.obterPedido(id, contextoComercial.negocio.id);
       if (!perfil) {
         return reply.code(404).send({ erro: "PEDIDO_NAO_ENCONTRADO", mensagem: "Pedido não encontrado." });
@@ -191,7 +192,7 @@ export const moduloPedidos: ModuloHttp = {
       });
       if (!contextoComercial) return;
 
-      const { id } = request.params as { id: string };
+      const { id } = ParamIdSchema.parse(request.params);
       const perfil = await contexto.gestaoPedidos.obterPedido(id, contextoComercial.negocio.id);
       if (!perfil) {
         return reply.code(404).send({ erro: "PEDIDO_NAO_ENCONTRADO", mensagem: "Pedido não encontrado." });
@@ -209,7 +210,7 @@ export const moduloPedidos: ModuloHttp = {
       });
       if (!contextoComercial) return;
 
-      const { id } = request.params as { id: string };
+      const { id } = ParamIdSchema.parse(request.params);
       const perfil = await contexto.gestaoPedidos.obterPedido(id, contextoComercial.negocio.id);
       if (!perfil) {
         return reply.code(404).send({ erro: "PEDIDO_NAO_ENCONTRADO", mensagem: "Pedido não encontrado." });
@@ -245,7 +246,7 @@ export const moduloPedidos: ModuloHttp = {
       });
       if (!contextoComercial) return;
 
-      const { id } = request.params as { id: string };
+      const { id } = ParamIdSchema.parse(request.params);
       const dados = AtualizarItensPedidoSchema.parse(request.body ?? {});
       const pedidoAntes = (await contexto.gestaoPedidos.obterPedido(id, contextoComercial.negocio.id))?.pedido ?? null;
       const pedido = await contexto.gestaoPedidos.atualizarItens(id, contextoComercial.negocio.id, dados);
@@ -274,7 +275,7 @@ export const moduloPedidos: ModuloHttp = {
       });
       if (!contextoComercial) return;
 
-      const { id } = request.params as { id: string };
+      const { id } = ParamIdSchema.parse(request.params);
       const dados = AtualizarEstadoPedidoSchema.parse(request.body ?? {});
       const pedidoAntes = (await contexto.gestaoPedidos.obterPedido(id, contextoComercial.negocio.id))?.pedido ?? null;
       if (dados.estado === "CANCELADO") {
@@ -318,7 +319,7 @@ export const moduloPedidos: ModuloHttp = {
       });
       if (!contextoComercial) return;
 
-      const { id } = request.params as { id: string };
+      const { id } = ParamIdSchema.parse(request.params);
       const dados = SolicitarDescontoPedidoSchema.parse(request.body ?? {});
       const resultado = await contexto.gestaoPedidos.solicitarDesconto(id, contextoComercial.negocio.id, {
         ...dados,
@@ -352,7 +353,7 @@ export const moduloPedidos: ModuloHttp = {
       });
       if (!contextoComercial) return;
 
-      const { id } = request.params as { id: string };
+      const { id } = ParamIdSchema.parse(request.params);
       const dados = AprovarDescontoPedidoSchema.parse(request.body ?? {});
       const pedidoAntes = (await contexto.gestaoPedidos.obterPedido(id, contextoComercial.negocio.id))?.pedido ?? null;
       const resultado = await contexto.gestaoPedidos.aprovarDesconto(id, contextoComercial.negocio.id, dados);
@@ -396,7 +397,7 @@ export const moduloPedidos: ModuloHttp = {
         });
         if (!contextoComercial) return;
 
-        const { id } = request.params as { id: string };
+        const { id } = ParamIdSchema.parse(request.params);
         const dados = RegistrarComprovativoPagamentoSchema.parse(request.body ?? {});
         const pedidoAntes = (await contexto.gestaoPedidos.obterPedido(id, contextoComercial.negocio.id))?.pedido ?? null;
         const comprovativoPagamentoUrl = await persistirValorMedia(dados.comprovativoPagamentoUrl ?? null, {
@@ -432,7 +433,7 @@ export const moduloPedidos: ModuloHttp = {
       });
       if (!contextoComercial) return;
 
-      const { id } = request.params as { id: string };
+      const { id } = ParamIdSchema.parse(request.params);
       const dados = RejeitarPagamentoSchema.parse(request.body ?? {});
       const pedidoAntes = (await contexto.gestaoPedidos.obterPedido(id, contextoComercial.negocio.id))?.pedido ?? null;
       const pedido = await contexto.gestaoPedidos.rejeitarPagamento(id, contextoComercial.negocio.id, {
@@ -463,7 +464,7 @@ export const moduloPedidos: ModuloHttp = {
       });
       if (!contextoComercial) return;
 
-      const { id } = request.params as { id: string };
+      const { id } = ParamIdSchema.parse(request.params);
       const dados = ConfirmarPagamentoPedidoSchema.parse(request.body ?? {});
       const pedidoAntes = (await contexto.gestaoPedidos.obterPedido(id, contextoComercial.negocio.id))?.pedido ?? null;
       const pedido = await contexto.gestaoPedidos.confirmarPagamento(id, contextoComercial.negocio.id, dados);
@@ -493,7 +494,7 @@ export const moduloPedidos: ModuloHttp = {
       });
       if (!contextoComercial) return;
 
-      const { id } = request.params as { id: string };
+      const { id } = ParamIdSchema.parse(request.params);
       const dados = ReembolsarPedidoSchema.parse(request.body ?? {});
       const pedidoAntes = (await contexto.gestaoPedidos.obterPedido(id, contextoComercial.negocio.id))?.pedido ?? null;
       const pedido = await contexto.gestaoPedidos.reembolsar(id, contextoComercial.negocio.id, dados.motivo);
@@ -521,7 +522,7 @@ export const moduloPedidos: ModuloHttp = {
       });
       if (!contextoComercial) return;
 
-      const { id } = request.params as { id: string };
+      const { id } = ParamIdSchema.parse(request.params);
       const dados = AtualizarEntregaPedidoSchema.parse(request.body ?? {});
       const pedidoAntes = (await contexto.gestaoPedidos.obterPedido(id, contextoComercial.negocio.id))?.pedido ?? null;
       const pedido = await contexto.gestaoPedidos.atualizarEntrega(id, contextoComercial.negocio.id, dados);

@@ -3,7 +3,11 @@ import {
   CriarAfiliadoSchema,
   CriarLinkAfiliadoSchema,
   CriarLotePagamentoComissaoSchema,
-  PagarComissaoParceiroSchema
+  PagarComissaoParceiroSchema,
+  ParamCodigoSchema,
+  ParamIdSchema,
+  QueryPacoteDivulgacaoSchema,
+  QueryTrackingIdAfiliadoSchema
 } from "../../../dominio/esquemas.js";
 import { exigirAcessoComercial } from "../contextoComercial.js";
 import type { ModuloHttp } from "./ModuloHttp.js";
@@ -13,7 +17,7 @@ export const moduloAfiliados: ModuloHttp = {
   descricao: "Afiliados, criadores, links de venda e comissões comerciais.",
   registrar(app, contexto) {
     app.get("/publico/links/:codigo", async (request, reply) => {
-      const { codigo } = request.params as { codigo: string };
+      const { codigo } = ParamCodigoSchema.parse(request.params);
       const link = await contexto.gestaoAfiliados.resolverLinkPublico(codigo);
       if (!link) {
         return reply.code(404).send({ erro: "LINK_NAO_ENCONTRADO", mensagem: "Link de venda não encontrado ou inativo." });
@@ -22,8 +26,8 @@ export const moduloAfiliados: ModuloHttp = {
     });
 
     app.get("/publico/mini-lojas/:codigo", async (request, reply) => {
-      const { codigo } = request.params as { codigo: string };
-      const query = request.query as { trackingId?: string };
+      const { codigo } = ParamCodigoSchema.parse(request.params);
+      const query = QueryTrackingIdAfiliadoSchema.parse(request.query ?? {});
       const miniLoja = await contexto.gestaoAfiliados.obterMiniLojaPublica(codigo, {
         trackingId: query.trackingId
       });
@@ -84,7 +88,7 @@ export const moduloAfiliados: ModuloHttp = {
       });
       if (!contextoComercial) return;
 
-      const { id } = request.params as { id: string };
+      const { id } = ParamIdSchema.parse(request.params);
       const dados = CriarLinkAfiliadoSchema.parse(request.body ?? {});
       const link = await contexto.gestaoAfiliados.criarLink(contextoComercial.negocio.id, id, dados);
       return reply.code(201).send(link);
@@ -99,8 +103,8 @@ export const moduloAfiliados: ModuloHttp = {
       });
       if (!contextoComercial) return;
 
-      const { id } = request.params as { id: string };
-      const query = request.query as { codigoProduto?: string };
+      const { id } = ParamIdSchema.parse(request.params);
+      const query = QueryPacoteDivulgacaoSchema.parse(request.query ?? {});
       const pacote = await contexto.gestaoAfiliados.gerarPacoteDivulgacao(contextoComercial.negocio.id, id, {
         codigoProduto: query.codigoProduto
       });
@@ -221,7 +225,7 @@ export const moduloAfiliados: ModuloHttp = {
       });
       if (!contextoComercial) return;
 
-      const { id } = request.params as { id: string };
+      const { id } = ParamIdSchema.parse(request.params);
       const auditoria = await contexto.gestaoAfiliados.listarAuditoriaComissao(id, contextoComercial.negocio.id);
       if (!auditoria) {
         return reply.code(404).send({ erro: "COMISSAO_NAO_ENCONTRADA", mensagem: "Comissão não encontrada." });
@@ -239,7 +243,7 @@ export const moduloAfiliados: ModuloHttp = {
       });
       if (!contextoComercial) return;
 
-      const { id } = request.params as { id: string };
+      const { id } = ParamIdSchema.parse(request.params);
       const dados = PagarComissaoParceiroSchema.parse(request.body ?? {});
       const comissao = await contexto.gestaoAfiliados.marcarComissaoPaga(
         id,
@@ -256,6 +260,27 @@ export const moduloAfiliados: ModuloHttp = {
       }
 
       return comissao;
+    });
+
+    app.put("/afiliados/:id/estado", async (request, reply) => {
+      const ctx = await exigirAcessoComercial(contexto, request, reply, {
+        permissao: "afiliados:gerir",
+        modulo: "afiliados",
+        mensagemPermissao: "Sem permissão para alterar estado de afiliados.",
+        mensagemModulo: "Afiliados desativados para este negócio."
+      });
+      if (!ctx) return;
+
+      const { id } = ParamIdSchema.parse(request.params);
+      const body = request.body as { ativo?: boolean } | undefined;
+      if (body?.ativo === undefined) {
+        return reply.code(400).send({ erro: "VALIDACAO", mensagem: "Informe o campo 'ativo' (true/false)." });
+      }
+      const resultado = await contexto.gestaoAfiliados.alterarEstadoParceiro(ctx.negocio.id, id, body.ativo);
+      if (!resultado) {
+        return reply.code(404).send({ erro: "AFILIADO_NAO_ENCONTRADO", mensagem: "Afiliado não encontrado." });
+      }
+      return resultado;
     });
 
     app.get("/afiliados/resumo", async (request, reply) => {

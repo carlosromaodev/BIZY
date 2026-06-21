@@ -1,5 +1,17 @@
 import type {
   AtualizarPeca,
+  CompraUnificada,
+  NovaCompraUnificada,
+  PedidoFilho,
+  RepasseFinanceiro,
+  NovoRepasseFinanceiro,
+  ReembolsoPedido,
+  NovoReembolsoPedido,
+  DenunciaMarket,
+  NovaDenunciaMarket,
+  ResolucaoDenuncia,
+  ReservaStockCheckout,
+  NovaReservaStockCheckout,
   AtualizacaoCampanhaCrm,
   AtualizacaoCliente360,
   AtualizacaoConversaAtendimento,
@@ -96,6 +108,7 @@ import type {
   DadosPerfilEstudantil,
   PerfilEstudantilUsuario,
   DadosNegocioBizy,
+  EstadoParceiroComercial,
   FiltrosClientes360,
   MovimentoStock,
   NovoEventoTrackingComercial,
@@ -124,6 +137,8 @@ export interface RepositorioPecas {
   registrarMovimentoStock(dados: NovoMovimentoStock): Promise<MovimentoStock>;
   listarMovimentosStock(codigoPeca: string, negocioId?: string | null): Promise<MovimentoStock[]>;
   decrementarStockVariante?(pecaId: string, combinacao: string, quantidade: number): Promise<{ quantidade: number }>;
+  renomearColecao(negocioId: string, de: string, para: string): Promise<number>;
+  limparColecao(negocioId: string, colecao: string): Promise<number>;
 }
 
 export interface RepositorioTrackingComercial {
@@ -208,6 +223,7 @@ export interface RepositorioAfiliados {
   listarHistoricoComissao(comissaoId: string, negocioId: string): Promise<HistoricoComissaoParceiro[] | null>;
   criarLotePagamentoComissoes(dados: NovoLotePagamentoComissao): Promise<LotePagamentoComissao>;
   listarLotesPagamentoComissoes(negocioId: string): Promise<LotePagamentoComissao[]>;
+  atualizarEstadoParceiro(id: string, negocioId: string, estado: EstadoParceiroComercial): Promise<ParceiroComercial | null>;
   resumir(negocioId: string): Promise<ResumoAfiliadosComerciais>;
 }
 
@@ -353,6 +369,7 @@ export interface RepositorioClientes {
   sincronizar(dados: DadosCliente360): Promise<Cliente360 | null>;
   listar(negocioId: string, filtros?: FiltrosClientes360): Promise<Cliente360[]>;
   buscarPorId(id: string, negocioId: string): Promise<Cliente360 | null>;
+  buscarPorUsername(username: string, negocioId: string): Promise<Cliente360 | null>;
   atualizar(id: string, negocioId: string, dados: AtualizacaoCliente360): Promise<Cliente360 | null>;
   anonimizar(id: string, negocioId: string, dados: { motivo: string; anonimizadoEm?: Date }): Promise<Cliente360 | null>;
 }
@@ -380,6 +397,7 @@ export interface RepositorioPedidos {
   criar(dados: DadosPedidoResolvido): Promise<Pedido>;
   listar(negocioId: string, filtros?: FiltrosPedidos): Promise<Pedido[]>;
   buscarPorId(id: string, negocioId: string): Promise<Pedido | null>;
+  buscarPorNumeroPublico(numero: number, negocioId: string): Promise<Pedido | null>;
   buscarPorReservaId(reservaId: string, negocioId: string): Promise<Pedido | null>;
   atualizarEstado(id: string, negocioId: string, dados: AtualizacaoEstadoPedido): Promise<Pedido | null>;
   atualizarFinanceiro(id: string, negocioId: string, dados: AtualizacaoFinanceiraPedido): Promise<Pedido | null>;
@@ -500,4 +518,83 @@ export interface RepositorioSessoesLive {
   buscarPorId(id: string): Promise<RegistroSessaoLive | null>;
   atualizar(id: string, dados: AtualizacaoRegistroSessaoLive): Promise<RegistroSessaoLive>;
   encerrar(id: string, encerradaEm?: Date): Promise<RegistroSessaoLive>;
+}
+
+export interface SeguidorLoja {
+  id: string;
+  negocioId: string;
+  identificador: string;
+  tipo: string;
+  origem: string;
+  criadoEm: Date;
+}
+
+export interface RepositorioSeguidoresLoja {
+  seguir(negocioId: string, identificador: string, tipo: string, origem: string): Promise<SeguidorLoja>;
+  deixarDeSeguir(negocioId: string, identificador: string): Promise<boolean>;
+  estaSeguindo(negocioId: string, identificador: string): Promise<boolean>;
+  contarSeguidores(negocioId: string): Promise<number>;
+  listarSeguidores(negocioId: string, filtros?: {
+    limite?: number;
+    offset?: number;
+    origem?: string;
+  }): Promise<{ seguidores: SeguidorLoja[]; total: number }>;
+}
+
+export interface RepositorioDenuncias {
+  criar(dados: NovaDenunciaMarket): Promise<DenunciaMarket>;
+  listar(filtros?: {
+    estado?: DenunciaMarket["estado"];
+    entidadeTipo?: DenunciaMarket["entidadeTipo"];
+    negocioAlvoId?: string;
+    limite?: number;
+  }): Promise<DenunciaMarket[]>;
+  buscarPorId(id: string): Promise<DenunciaMarket | null>;
+  resolver(id: string, dados: ResolucaoDenuncia): Promise<DenunciaMarket | null>;
+}
+
+export interface RepositorioReservasStockCheckout {
+  reservar(dados: NovaReservaStockCheckout): Promise<ReservaStockCheckout>;
+  listarAtivasPorPeca(pecaId: string, negocioId: string): Promise<ReservaStockCheckout[]>;
+  confirmar(id: string): Promise<ReservaStockCheckout | null>;
+  liberar(id: string): Promise<ReservaStockCheckout | null>;
+  liberarPorSessao(sessaoId: string): Promise<number>;
+  listarExpiradas(agora: Date): Promise<ReservaStockCheckout[]>;
+  liberarExpiradas(agora: Date): Promise<number>;
+}
+
+export interface RepositorioComprasUnificadas {
+  criar(dados: NovaCompraUnificada, pedidosFilho: PedidoFilho[]): Promise<CompraUnificada>;
+  buscarPorId(id: string): Promise<CompraUnificada | null>;
+  buscarPorNumero(numero: number): Promise<CompraUnificada | null>;
+  listarPedidosFilho(compraUnificadaId: string): Promise<PedidoFilho[]>;
+  atualizarEstado(id: string, estado: CompraUnificada["estado"]): Promise<CompraUnificada | null>;
+  atualizarEstadoPagamento(id: string, estadoPagamento: CompraUnificada["estadoPagamento"]): Promise<CompraUnificada | null>;
+}
+
+export interface RepositorioRepassesFinanceiros {
+  criar(dados: NovoRepasseFinanceiro): Promise<RepasseFinanceiro>;
+  listar(negocioId: string, filtros?: {
+    estado?: RepasseFinanceiro["estado"];
+    pedidoId?: string;
+    limite?: number;
+  }): Promise<RepasseFinanceiro[]>;
+  buscarPorId(id: string, negocioId: string): Promise<RepasseFinanceiro | null>;
+  conciliar(id: string, negocioId: string): Promise<RepasseFinanceiro | null>;
+  aprovar(id: string, negocioId: string): Promise<RepasseFinanceiro | null>;
+  pagar(id: string, negocioId: string, referencia: string): Promise<RepasseFinanceiro | null>;
+  cancelar(id: string, negocioId: string, motivo: string): Promise<RepasseFinanceiro | null>;
+}
+
+export interface RepositorioReembolsos {
+  criar(dados: NovoReembolsoPedido): Promise<ReembolsoPedido>;
+  listar(negocioId: string, filtros?: {
+    pedidoId?: string;
+    estado?: ReembolsoPedido["estado"];
+    limite?: number;
+  }): Promise<ReembolsoPedido[]>;
+  buscarPorId(id: string, negocioId: string): Promise<ReembolsoPedido | null>;
+  aprovar(id: string, negocioId: string, aprovadoPorId: string): Promise<ReembolsoPedido | null>;
+  processar(id: string, negocioId: string): Promise<ReembolsoPedido | null>;
+  rejeitar(id: string, negocioId: string): Promise<ReembolsoPedido | null>;
 }

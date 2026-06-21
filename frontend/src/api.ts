@@ -1,39 +1,67 @@
-const apiUrlConfigurada = import.meta.env.VITE_API_URL?.trim();
+const apiUrlConfiguradaPadrao = normalizarUrlBase(import.meta.env.VITE_API_URL ?? "");
 
 function ehHostLocal(hostname: string): boolean {
   return ["localhost", "127.0.0.1", "0.0.0.0", "::1"].includes(hostname);
 }
 
-function inferirApiUrlProducao(): string {
-  if (typeof window === "undefined") return "";
-  const { protocol, hostname } = window.location;
-  if (ehHostLocal(hostname)) return "";
+function normalizarUrlBase(valor: string): string {
+  return valor.trim().replace(/\/+$/, "");
+}
+
+function derivarSubdominioApi(subdominio: string): string {
+  const partes = subdominio.split("-");
+  if (partes.length <= 1) return "api";
+  return ["api", ...partes.slice(1)].join("-");
+}
+
+function inferirApiUrlProducao(hostname: string, protocol: string): string {
+  if (!hostname || ehHostLocal(hostname)) return "";
+
   const partes = hostname.split(".");
-  if (partes.length >= 2) {
-    const dominio = partes.slice(-2).join(".");
-    return `${protocol}//api.${dominio}`;
+  if (partes.length < 2) return "";
+
+  if (partes.length === 2) {
+    return `${protocol}//api.${hostname}`;
   }
-  return "";
+
+  const [subdominio, ...dominioPartes] = partes;
+  if (!subdominio || dominioPartes.length === 0) return "";
+
+  return `${protocol}//${derivarSubdominioApi(subdominio)}.${dominioPartes.join(".")}`;
 }
 
-function obterApiUrl(): string {
-  if (apiUrlConfigurada) {
-    if (typeof window !== "undefined" && !ehHostLocal(window.location.hostname)) {
-      try {
-        const destino = new URL(apiUrlConfigurada);
-        if (ehHostLocal(destino.hostname)) return inferirApiUrlProducao();
-      } catch {
-        return apiUrlConfigurada;
-      }
+interface ResolverBaseApiUrlOpcoes {
+  apiUrlConfigurada?: string | null;
+  emDesenvolvimento?: boolean;
+  hostname?: string;
+  protocol?: string;
+}
+
+export function resolverBaseApiUrl({
+  apiUrlConfigurada = apiUrlConfiguradaPadrao,
+  emDesenvolvimento = import.meta.env.DEV,
+  hostname = typeof window === "undefined" ? "" : window.location.hostname,
+  protocol = typeof window === "undefined" ? "https:" : window.location.protocol
+}: ResolverBaseApiUrlOpcoes = {}): string {
+  const configurada = normalizarUrlBase(apiUrlConfigurada ?? "");
+
+  if (configurada) {
+    try {
+      const destino = new URL(configurada);
+      if (!ehHostLocal(destino.hostname)) return configurada;
+      if (!hostname || ehHostLocal(hostname)) return configurada;
+      return emDesenvolvimento ? "" : inferirApiUrlProducao(hostname, protocol);
+    } catch {
+      return configurada;
     }
-
-    return apiUrlConfigurada;
   }
 
-  return inferirApiUrlProducao();
+  if (emDesenvolvimento) return "";
+
+  return inferirApiUrlProducao(hostname, protocol);
 }
 
-const apiUrl = obterApiUrl();
+const apiUrl = resolverBaseApiUrl();
 
 export function obterBaseApiUrl(): string {
   return apiUrl;

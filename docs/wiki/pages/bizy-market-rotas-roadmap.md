@@ -8,14 +8,14 @@ tags:
   - bizy/rotas
   - bizy/backend
   - bizy/frontend
-status: rascunho
-updated: 2026-06-11
+status: ativo
+updated: 2026-06-20
 ---
 
 # Bizy Market Rotas e Roadmap
 
-Status: rascunho
-Ultima atualizacao: 2026-06-11
+Status: ativo
+Ultima atualizacao: 2026-06-20
 Fontes principais: [[bizy-market-lojas-digitais]], `docs/RF-RNF-RN-BIZY-MARKET-LOJA-DIGITAL.md`
 
 > [!abstract] Decisao
@@ -94,6 +94,7 @@ GET  /publico/market/lojas
 GET  /publico/market/lojas/:slug
 
 GET  /publico/lojas/:slug
+GET  /publico/lojas/:slug/catalogos/:catalogo
 GET  /publico/lojas/:slug/produtos/:codigo
 GET  /publico/lojas/:slug/produtos/:codigo/similares
 POST /publico/lojas/:slug/seguir
@@ -160,6 +161,22 @@ GET  /crm/loja/seguidores
 GET  /crm/loja/metricas
 GET  /crm/loja/pedidos-market
 GET  /crm/loja/repasses
+
+GET    /afiliados
+POST   /afiliados
+GET    /afiliados/resumo
+GET    /afiliados/links
+POST   /afiliados/:id/links
+GET    /afiliados/:id/pacote-divulgacao
+PUT    /afiliados/:id/estado
+GET    /afiliados/comissoes
+GET    /afiliados/comissoes/saldos
+GET    /afiliados/comissoes/lotes-pagamento
+GET    /afiliados/comissoes/lotes-pagamento/exportar.csv
+POST   /afiliados/comissoes/lotes-pagamento
+GET    /afiliados/comissoes/:id/auditoria
+POST   /afiliados/comissoes/:id/pagar
+POST   /afiliados/atribuicoes/manual
 ```
 
 ## Admin Bizy
@@ -217,38 +234,37 @@ POST /admin/market/repasses/:id/conciliar
 - [x] `GET /publico/market/produtos/:codigo`.
 - [x] `GET /publico/market/produtos/:codigo/similares`.
 - [x] `GET /publico/lojas/:slug/produtos/:codigo/similares`.
-- [ ] `GET /publico/market/lojas`.
-- [ ] `GET /publico/market/lojas/:slug`.
-- [ ] `POST /publico/recomendacoes/eventos`.
+- [x] `GET /publico/market/lojas`.
+- [x] `GET /publico/market/lojas/:slug`.
+- [x] `POST /publico/recomendacoes/eventos`.
 
 ### Fase 3 - Bizy Studio no CRM
 
-- [ ] `GET /crm/loja/catalogos`.
-- [ ] `POST /crm/loja/catalogos`.
-- [ ] `PUT /crm/loja/catalogos/:id`.
-- [ ] `DELETE /crm/loja/catalogos/:id`.
-- [ ] `GET /crm/loja/seguidores`.
-- [ ] `GET /crm/loja/metricas`.
+- [x] `GET /crm/loja/catalogos`.
+- [x] `POST /crm/loja/catalogos`.
+- [x] `PUT /crm/loja/catalogos/:id`.
+- [x] `DELETE /crm/loja/catalogos/:id`.
+- [x] `GET /crm/loja/seguidores`.
+- [x] `GET /crm/loja/metricas`.
 
 ### Fase 4 - Checkout Unificado
 
 - [x] `/checkout` frontend progressivo com carrinho local, fornecedor por item e finalizacao por endpoint atual quando houver uma loja.
-- [ ] `POST /publico/checkout/carrinho`.
-- [ ] `POST /publico/checkout/entrega/calcular`.
-- [ ] `POST /publico/checkout/iniciar`.
-- [ ] `POST /publico/checkout/pagamento`.
-- [ ] `POST /publico/checkout/comprovativo`.
-- [ ] `GET /publico/compras/:numeroCompra`.
-- [ ] `GET /crm/loja/pedidos-market`.
+- [x] Checkout MVP para carrinho de uma unica loja (dados do comprador, entrega, pagamento, comprovativo e consentimento).
+- [x] Carrinho client-side com agrupamento por loja (localStorage). Checkout multi-loja desbloqueado no frontend.
+- [x] `POST /publico/market/checkout` — compra unificada multi-loja com pedidos filhos por fornecedor, IVA, taxa Bizy e repasses.
+- [x] `POST /publico/market/compras/:id/pagamento` — pagamento centralizado e propagacao para pedidos filhos.
+- [x] `GET /publico/market/compras/:id` — acompanhamento pelo comprador com estado por fornecedor.
+- [x] `GET /crm/loja/pedidos-market` — pedidos com origem Market no CRM da loja.
 
 ### Fase 5 - Governanca, Financeiro e Boost
 
-- [ ] `/admin/market/categorias`.
-- [ ] `/admin/market/lojas`.
-- [ ] `/admin/market/produtos`.
-- [ ] `/admin/market/denuncias`.
-- [ ] `/admin/market/repasses`.
-- [ ] `GET /crm/loja/repasses`.
+- [x] `GET /admin/market/categorias` e `POST /admin/market/categorias`.
+- [x] `POST /admin/market/suspender` — suspensao/reativacao de lojas e produtos.
+- [x] `POST /admin/market/destaque` — destaque, verificado e patrocinado para produtos.
+- [x] `GET /admin/market/denuncias` e `PUT /admin/market/denuncias/:id/resolver`.
+- [x] `GET /admin/market/repasses` e `POST /admin/market/repasses/:id/conciliar`.
+- [x] `GET /crm/loja/repasses`.
 
 ## MVP Obrigatorio
 
@@ -281,3 +297,10 @@ GET /crm/loja/market/resumo
 - Nao duplicar configuracao de loja fora do CRM.
 - Nao permitir que produto patrocinado apareca se falhar regras de seguranca.
 - Nao deixar rota admin sem auditoria.
+
+## Ligacoes
+
+- [[bizy-market-lojas-digitais]]
+- [[bizy-market-frontend-lojas]]
+- [[requisitos-bizy-market]]
+- [[loja-digital-operacao-crm]]

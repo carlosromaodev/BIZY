@@ -5,6 +5,7 @@ import type {
   RepositorioFunilComercial,
   RepositorioOportunidadesRecuperacao,
   RepositorioPecas,
+  RepositorioSeguidoresLoja,
   RepositorioTrackingComercial
 } from "../dominio/repositorios/contratos.js";
 import { normalizarEmail, normalizarTelefone } from "../dominio/servicos/normalizarContato.js";
@@ -81,6 +82,7 @@ interface DadosCheckoutSitePublico extends DadosCalculoEntregaPublica {
     consentimentoDados: boolean;
   };
   trackingId?: string | null;
+  idempotencyKey?: string | null;
   referencia?: string | null;
   referenciasAssistidas?: Array<string | ReferenciaAtribuicaoComercial>;
   atribuicao?: {
@@ -152,7 +154,8 @@ export class LojaPublicaUseCase {
     private readonly afiliados?: GestaoAfiliadosUseCase,
     private readonly oportunidades?: RepositorioOportunidadesRecuperacao,
     private readonly eventosOperacionais?: RepositorioEventosOperacionais,
-    private readonly funil?: RepositorioFunilComercial
+    private readonly funil?: RepositorioFunilComercial,
+    private readonly seguidoresLoja?: RepositorioSeguidoresLoja
   ) {}
 
   async publicarLoja(negocioId: string, dados: DadosPublicacaoLoja) {
@@ -202,11 +205,12 @@ export class LojaPublicaUseCase {
       utm: tracking?.utm ?? {}
     });
 
+    const totalSeguidores = await this.seguidoresLoja?.contarSeguidores(negocio.id) ?? 0;
     const produtosPublicos = produtos.map((peca) => this.mapearProdutoPublico(peca));
 
     return {
       loja: this.mapearLojaPublica(negocio),
-      perfil: this.mapearPerfilPublico(negocio, produtosVendaveis, colecoes),
+      perfil: this.mapearPerfilPublico(negocio, produtosVendaveis, colecoes, totalSeguidores),
       colecoes,
       market: this.mapearChamadaMarket(negocio, produtosVendaveis),
       produtos: produtosPublicos,
@@ -388,6 +392,42 @@ export class LojaPublicaUseCase {
       consentimentoDados: dados.cliente.consentimentoDados
     });
 
+    if (dados.idempotencyKey && this.eventosOperacionais) {
+      const chave = `checkout:${negocio.id}:${dados.idempotencyKey}`;
+      const eventos = await this.eventosOperacionais.listar(negocio.id, {
+        topico: "checkout",
+        tipo: "CHECKOUT_CONCLUIDO"
+      });
+      const eventoExistente = eventos.find((e) => e.idempotencyKey === chave);
+      if (eventoExistente) {
+        const pedidoId = (eventoExistente.payload as Record<string, unknown> | undefined)?.pedidoId as string | undefined;
+        if (pedidoId) {
+          const pedidoExistente = await this.pedidos.obterPedido(pedidoId, negocio.id);
+          if (pedidoExistente) {
+            return {
+              pedido: {
+                id: pedidoExistente.pedido.id,
+                numero: pedidoExistente.pedido.numero,
+                estado: pedidoExistente.pedido.estado,
+                estadoPagamento: pedidoExistente.pedido.estadoPagamento,
+                estadoEntrega: pedidoExistente.pedido.estadoEntrega
+              },
+              origem: pedidoExistente.pedido.origem,
+              canal: pedidoExistente.pedido.canal,
+              subtotalEmKwanza: pedidoExistente.pedido.subtotalEmKwanza,
+              taxaEntregaEmKwanza: pedidoExistente.pedido.taxaEntregaEmKwanza,
+              totalEmKwanza: pedidoExistente.pedido.totalEmKwanza,
+              entrega: resumo.entrega,
+              moeda: negocio.moeda,
+              atribuicao: this.formatarAtribuicaoPublica(atribuicao),
+              atribuicaoBloqueada,
+              duplicado: true
+            };
+          }
+        }
+      }
+    }
+
     const pedido = await this.pedidos.criarPedido({
       negocioId: negocio.id,
       clienteNegocioId: cliente.id,
@@ -403,6 +443,19 @@ export class LojaPublicaUseCase {
       comprovativoPagamentoUrl: dados.comprovativoPagamentoUrl ?? null,
       observacao: this.montarObservacaoCheckout(dados, resumo, atribuicao)
     });
+
+    if (dados.idempotencyKey && this.eventosOperacionais) {
+      await this.registrarEventoOperacionalSilencioso({
+        negocioId: negocio.id,
+        topico: "checkout",
+        tipo: "CHECKOUT_CONCLUIDO",
+        entidadeTipo: "PEDIDO",
+        entidadeId: pedido.id,
+        idempotencyKey: `checkout:${negocio.id}:${dados.idempotencyKey}`,
+        estado: "PROCESSADO",
+        payload: { pedidoId: pedido.id, numero: pedido.numero }
+      });
+    }
 
     if (atribuicao && this.afiliados) {
       await this.afiliados.registrarComissaoEstimativa({
@@ -551,13 +604,33 @@ export class LojaPublicaUseCase {
     return { oportunidade, cliente, duplicado: false };
   }
 
+  private sanitizarMetadataTrackingBackend(metadata?: Record<string, unknown>): Record<string, unknown> {
+    if (!metadata) return {};
+    const camposSensiveis = [
+      "nome", "nomeCompleto", "telefone", "email", "endereco",
+      "morada", "cpf", "nif", "bilhete", "documento",
+      "password", "senha", "token", "cookie"
+    ];
+    const resultado: Record<string, unknown> = {};
+    for (const [chave, valor] of Object.entries(metadata)) {
+      const chaveNorm = chave.toLowerCase();
+      if (camposSensiveis.some((s) => chaveNorm.includes(s))) continue;
+      resultado[chave] = valor;
+    }
+    return resultado;
+  }
+
   async registrarEventoPublico(slug: string, dados: Omit<NovoEventoTrackingComercial, "negocioId">) {
     const negocio = await this.exigirLojaPublicada(slug);
-    const eventoExistente = await this.buscarEventoTrackingIdempotente(negocio.id, dados);
+    const dadosSanitizados = {
+      ...dados,
+      metadata: this.sanitizarMetadataTrackingBackend(dados.metadata)
+    };
+    const eventoExistente = await this.buscarEventoTrackingIdempotente(negocio.id, dadosSanitizados);
     if (eventoExistente) return eventoExistente;
 
     const evento = await this.tracking.registrarEvento({
-      ...dados,
+      ...dadosSanitizados,
       negocioId: negocio.id,
       slugLoja: negocio.slugPublico
     });
@@ -587,6 +660,43 @@ export class LojaPublicaUseCase {
 
   async resumirTracking(negocioId: string) {
     return this.tracking.resumirEventos(negocioId);
+  }
+
+  async obterCatalogoPublico(slug: string, catalogoId: string) {
+    const negocio = await this.exigirLojaPublicada(slug);
+    const experiencia = this.extrairExperiencia(negocio);
+    const catalogos: Array<{ id: string; nome: string; descricao?: string | null; criterio: string; valor?: string | null }> =
+      Array.isArray(experiencia.catalogosPersonalizados) ? experiencia.catalogosPersonalizados : [];
+    const catalogo = catalogos.find((c) => c.id === catalogoId);
+    if (!catalogo) {
+      throw new Error(`Catálogo "${catalogoId}" não encontrado na loja ${slug}.`);
+    }
+
+    const produtosVendaveis = (await this.pecas.listar(negocio.id)).filter((peca) => this.pecaVendavel(peca));
+    const produtosFiltrados = produtosVendaveis
+      .filter((peca) => this.produtoAtendeCriterio(peca, catalogo.criterio, catalogo.valor))
+      .slice(0, 200);
+
+    return {
+      catalogo: {
+        id: catalogo.id,
+        nome: catalogo.nome,
+        descricao: catalogo.descricao ?? null,
+        criterio: catalogo.criterio,
+        totalProdutos: produtosFiltrados.length
+      },
+      loja: this.mapearLojaPublica(negocio),
+      produtos: produtosFiltrados.map((peca) => this.mapearProdutoPublico(peca)),
+      seo: {
+        titulo: `${catalogo.nome} — ${negocio.nomeComercial}`,
+        descricao: catalogo.descricao ?? `Catálogo ${catalogo.nome} de ${negocio.nomeComercial}`,
+        slug: negocio.slugPublico
+      }
+    };
+  }
+
+  async exigirLojaPublicadaExterna(slug: string): Promise<NegocioBizy> {
+    return this.exigirLojaPublicada(slug);
   }
 
   private async exigirLojaPublicada(slug: string): Promise<NegocioBizy> {
@@ -636,6 +746,28 @@ export class LojaPublicaUseCase {
     if (estadoStock && this.normalizarTexto(peca.estadoStock) !== estadoStock) return false;
 
     return true;
+  }
+
+  private produtoAtendeCriterio(peca: Peca, criterio: string, valor?: string | null): boolean {
+    if (criterio === "todos" || !criterio) return true;
+    if (!valor) return true;
+
+    if (criterio === "categoria") {
+      return this.normalizarTexto(peca.categoria).includes(this.normalizarTexto(valor));
+    }
+    if (criterio === "colecao") {
+      return this.normalizarTexto(peca.colecao).includes(this.normalizarTexto(valor));
+    }
+    if (criterio === "busca") {
+      return this.produtoAtendeFiltrosPublicos(peca, { busca: valor });
+    }
+    return true;
+  }
+
+  private extrairExperiencia(negocio: NegocioBizy): Record<string, unknown> {
+    const entrega = this.objeto(negocio.entrega);
+    const lojaDigital = this.objeto(entrega.lojaDigital);
+    return this.objeto(lojaDigital.experiencia);
   }
 
   private filtrosPublicosAplicados(filtros: FiltrosProdutosPublicos) {
@@ -706,7 +838,8 @@ export class LojaPublicaUseCase {
   private mapearPerfilPublico(
     negocio: NegocioBizy,
     produtos: Peca[],
-    colecoes: Array<{ id: string; nome: string; tipo: string; totalProdutos: number; url: string }>
+    colecoes: Array<{ id: string; nome: string; tipo: string; totalProdutos: number; url: string }>,
+    totalSeguidores = 0
   ) {
     const entrega = this.objeto(negocio.entrega);
     const tema = this.objeto(entrega.temaLoja);
@@ -724,14 +857,14 @@ export class LojaPublicaUseCase {
       corAcento,
       localizacao: this.montarLocalizacaoPublica(negocio),
       contadores: {
-        seguidores: 0,
+        seguidores: totalSeguidores,
         seguindo: 0,
         produtos: produtos.length,
         colecoes: colecoes.length
       },
       selos: this.montarSelosPublicos(negocio),
       acoes: {
-        seguirDisponivel: false,
+        seguirDisponivel: true,
         contactoDisponivel: Boolean(negocio.whatsapp ?? negocio.telefone),
         checkoutDisponivel: produtos.length > 0,
         urlLoja,

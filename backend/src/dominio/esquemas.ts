@@ -34,7 +34,8 @@ import {
   tiposEventoTrackingComercial,
   tiposMovimentoStock,
   tiposRelacaoNegocio,
-  tiposParceiroComercial
+  tiposParceiroComercial,
+  estadosRepasse
 } from "./tipos.js";
 import { categoriasMensagemWhatsApp } from "./provedores/ProvedorWhatsApp.js";
 
@@ -468,6 +469,7 @@ export const CriarPecaSchema = z.object({
   descricao: z.string().trim().max(1000).default(""),
   categoria: TextoCatalogoOpcionalSchema,
   colecao: TextoCatalogoOpcionalSchema,
+  tipoProduto: z.enum(["FISICO", "SERVICO", "DIGITAL"]).default("FISICO"),
   precoEmKwanza: z.coerce.number().int().min(0),
   custoEmKwanza: z.coerce.number().int().min(0).nullable().optional().transform((valor) => valor ?? null),
   quantidade: z.coerce.number().int().min(0),
@@ -492,6 +494,15 @@ export const CriarJobImportacaoProdutosSchema = CriarJobImportacaoClientesSchema
 
 export const ArquivarPecaSchema = z.object({
   motivo: z.string().trim().min(3).max(500).optional()
+});
+
+export const RenomearColecaoSchema = z.object({
+  de: z.string().trim().min(1).max(120),
+  para: z.string().trim().min(1).max(120)
+});
+
+export const LimparColecaoSchema = z.object({
+  colecao: z.string().trim().min(1).max(120)
 });
 
 export const RegistrarMovimentoStockSchema = z.object({
@@ -676,7 +687,8 @@ export const CriarCheckoutSitePublicoSchema = CalcularEntregaPublicaSchema.exten
   canal: z.string().trim().min(1).max(80).default("site"),
   observacao: z.string().trim().max(1000).nullable().optional().transform((valor) => valor ?? null),
   metodoPagamento: z.string().trim().min(1).max(80).nullable().optional().transform((valor) => valor ?? null),
-  comprovativoPagamentoUrl: z.string().trim().min(1).max(500).nullable().optional().transform((valor) => valor ?? null)
+  comprovativoPagamentoUrl: z.string().trim().min(1).max(500).nullable().optional().transform((valor) => valor ?? null),
+  idempotencyKey: z.string().trim().min(1).max(160).nullable().optional().transform((valor) => valor ?? null)
 });
 
 export const AjustarAtribuicaoManualSchema = z.object({
@@ -1194,7 +1206,8 @@ export const FiltrosClientes360QuerySchema = z.object({
   estadoRelacionamento: z.enum(estadosRelacionamentoCliente).optional(),
   tag: z.string().trim().min(1).max(40).optional(),
   consentimentoMarketing: BooleanQueryOpcionalSchema,
-  limite: z.coerce.number().int().min(1).max(10_000).optional()
+  limite: z.coerce.number().int().min(1).max(10_000).optional(),
+  offset: z.coerce.number().int().min(0).optional()
 });
 
 export const CriarJobExportacaoClientesSchema = z.object({
@@ -1397,7 +1410,8 @@ export const FiltrosPedidosQuerySchema = z.object({
   canal: z.string().trim().min(1).max(80).optional(),
   dataInicio: z.coerce.date().optional(),
   dataFim: z.coerce.date().optional(),
-  limite: z.coerce.number().int().min(1).max(1000).optional()
+  limite: z.coerce.number().int().min(1).max(1000).optional(),
+  offset: z.coerce.number().int().min(0).optional()
 });
 
 export const FiltrosEntregaPedidoQuerySchema = z.object({
@@ -1406,7 +1420,8 @@ export const FiltrosEntregaPedidoQuerySchema = z.object({
   responsavelId: z.string().trim().min(1).max(120).optional(),
   dataInicio: z.coerce.date().optional(),
   dataFim: z.coerce.date().optional(),
-  limite: z.coerce.number().int().min(1).max(1000).optional()
+  limite: z.coerce.number().int().min(1).max(1000).optional(),
+  offset: z.coerce.number().int().min(0).optional()
 });
 
 export const RecuperarPedidosParadosSchema = z.object({
@@ -1636,4 +1651,178 @@ export const EventoN8nSchema = z.object({
   occurredAt: z.string().datetime(),
   source: z.literal("emeu-backend"),
   payload: z.record(z.unknown())
+});
+
+// ═══════════════════════════════════════════════════════════
+// Query schemas para HTTP handlers (substituem `request.query as`)
+// ═══════════════════════════════════════════════════════════
+
+const LimiteQuerySchema = z.coerce.number().int().min(1).max(500).optional();
+const OffsetQuerySchema = z.coerce.number().int().min(0).optional();
+const TextoQueryOpcionalSchema = z.string().trim().min(1).optional();
+
+export const QueryAuditoriaOperacionalSchema = z.object({
+  topico: TextoQueryOpcionalSchema,
+  tipo: TextoQueryOpcionalSchema,
+  estado: z.enum(estadosEventoOperacional).optional(),
+  limite: LimiteQuerySchema
+});
+
+export const QueryLimiteSchema = z.object({
+  limite: LimiteQuerySchema
+});
+
+export const QueryLiveIdSchema = z.object({
+  liveId: z.string().trim().min(1).optional()
+});
+
+export const QueryIncluirIgnoradosSchema = z.object({
+  incluirIgnorados: BooleanQueryOpcionalSchema
+});
+
+export const QueryDiagnosticosSmsSchema = z.object({
+  page: z.coerce.number().int().min(1).optional(),
+  telefone: z.string().trim().min(1).optional()
+});
+
+export const QueryTokenSchema = z.object({
+  token: z.string().trim().min(1).optional()
+});
+
+export const QueryRedirectSchema = z.object({
+  redirect: z.string().trim().optional()
+});
+
+export const QueryGoogleCallbackSchema = z.object({
+  code: z.string().trim().min(1).optional(),
+  state: z.string().trim().min(1).optional(),
+  error: z.string().trim().optional()
+});
+
+export const QueryMarketProdutosSchema = z.object({
+  busca: TextoQueryOpcionalSchema,
+  categoria: TextoQueryOpcionalSchema,
+  provincia: TextoQueryOpcionalSchema,
+  municipio: TextoQueryOpcionalSchema,
+  loja: TextoQueryOpcionalSchema,
+  precoMinimo: z.coerce.number().min(0).optional(),
+  precoMaximo: z.coerce.number().min(0).optional(),
+  apenasDisponivel: BooleanQueryOpcionalSchema,
+  apenasPromocao: BooleanQueryOpcionalSchema,
+  limite: LimiteQuerySchema
+});
+
+export const QueryMarketLojasSchema = z.object({
+  busca: TextoQueryOpcionalSchema,
+  categoria: TextoQueryOpcionalSchema,
+  provincia: TextoQueryOpcionalSchema,
+  limite: LimiteQuerySchema
+});
+
+export const QueryMarketSeguidoresSchema = z.object({
+  limite: LimiteQuerySchema,
+  offset: OffsetQuerySchema,
+  origem: TextoQueryOpcionalSchema
+});
+
+export const QueryMarketPedidosSchema = z.object({
+  estado: z.enum(estadosPedido).optional(),
+  estadoPagamento: z.enum(estadosPagamentoPedido).optional(),
+  busca: TextoQueryOpcionalSchema,
+  limite: LimiteQuerySchema
+});
+
+export const QueryRepassesSchema = z.object({
+  estado: z.enum(estadosRepasse).optional(),
+  pedidoId: z.string().trim().uuid().optional(),
+  limite: LimiteQuerySchema
+});
+
+export const QueryReembolsosSchema = z.object({
+  pedidoId: z.string().trim().uuid().optional(),
+  estado: z.enum(["PENDENTE", "APROVADO", "PROCESSADO", "REJEITADO"]).optional(),
+  limite: LimiteQuerySchema
+});
+
+export const QueryLojaPublicaSchema = z.object({
+  trackingId: TextoQueryOpcionalSchema,
+  origem: TextoQueryOpcionalSchema,
+  canal: TextoQueryOpcionalSchema,
+  utm_source: TextoQueryOpcionalSchema,
+  utm_medium: TextoQueryOpcionalSchema,
+  utm_campaign: TextoQueryOpcionalSchema,
+  utm_term: TextoQueryOpcionalSchema,
+  utm_content: TextoQueryOpcionalSchema
+});
+
+export const QueryDominioAutorizarSchema = z.object({
+  domain: z.string().trim().optional(),
+  dominio: z.string().trim().optional()
+});
+
+export const QueryTrackingIdAfiliadoSchema = z.object({
+  trackingId: TextoQueryOpcionalSchema
+});
+
+export const QueryPacoteDivulgacaoSchema = z.object({
+  codigoProduto: TextoQueryOpcionalSchema
+});
+
+export const QueryIdentificadorSchema = z.object({
+  identificador: z.string().trim().min(1).optional()
+});
+
+export const ParamCodigoSchema = z.object({
+  codigo: z.string().trim().min(1)
+});
+
+export const ParamSlugSchema = z.object({
+  slug: z.string().trim().min(1)
+});
+
+export const ParamIdSchema = z.object({
+  id: z.string().trim().min(1)
+});
+
+export const ParamSlugCodigoSchema = z.object({
+  slug: z.string().trim().min(1),
+  codigo: z.string().trim().min(1)
+});
+
+export const ParamSlugCatalogoSchema = z.object({
+  slug: z.string().trim().min(1),
+  catalogo: z.string().trim().min(1)
+});
+
+export const ParamSlugNumeroSchema = z.object({
+  slug: z.string().trim().min(1),
+  numero: z.coerce.number().int().min(1)
+});
+
+export const ParamPhoneSchema = z.object({
+  phone: z.string().trim().min(1)
+});
+
+export const ParamCodeSchema = z.object({
+  code: z.string().trim().min(1)
+});
+
+export const ParamCompraIdSchema = z.object({
+  compraId: z.string().trim().min(1)
+});
+
+export const QueryDenunciasAdminSchema = z.object({
+  estado: TextoQueryOpcionalSchema,
+  entidadeTipo: TextoQueryOpcionalSchema,
+  limite: LimiteQuerySchema
+});
+
+export const SeguirLojaPublicaSchema = z.object({
+  identificador: z.string().trim().min(1),
+  tipo: z.string().trim().min(1).default("anonimo"),
+  origem: z.string().trim().min(1).default("perfil")
+});
+
+export const DeixarSeguirLojaPublicaSchema = z.object({
+  identificador: z.string().trim().min(1)
 });

@@ -1,4 +1,4 @@
-import type { ResultadoInterpretacaoComentario } from "../tipos.js";
+import type { ModoCapturaComentario, ResultadoInterpretacaoComentario } from "../tipos.js";
 import { ResultadoInterpretacaoComentarioSchema } from "../esquemas.js";
 import { NormalizadorTelefone } from "./NormalizadorTelefone.js";
 
@@ -12,6 +12,7 @@ export interface DicionarioParserComentario {
   termosIntencaoCompra?: string[];
   rotulosCodigoPeca?: string[];
   aliasesCodigoPeca?: Record<string, string>;
+  modosCaptura?: ModoCapturaComentario[];
 }
 
 interface ContextoInterpretadorComentario {
@@ -35,7 +36,27 @@ export class InterpretadorComentario {
     /\breserva\b/,
     /\bguarda\b/,
     /\bfica\s+pra\s+mim\b/,
-    /\bfica\s+para\s+mim\b/
+    /\bfica\s+para\s+mim\b/,
+    /\bleva\b/,
+    /\bsepara\b/,
+    /\bme\s+da\b/,
+    /\bme\s+guarda\b/,
+    /\bme\s+reserva\b/,
+    /\bme\s+separa\b/,
+    /\bquero\s+esse\b/,
+    /\bquero\s+essa\b/,
+    /\bquero\s+este\b/,
+    /\bquero\s+esta\b/,
+    /\bvou\s+levar\b/,
+    /\bvou\s+querer\b/,
+    /\beh\s+meu\b/,
+    /\be\s+meu\b/,
+    /\bpode\s+guardar\b/,
+    /\bpode\s+separar\b/,
+    /\bpode\s+reservar\b/,
+    /\bcompro\b/,
+    /\bcomprar\b/,
+    /\bfico\s+com\b/
   ];
 
   interpretar(textoOriginal: string, contexto: ContextoInterpretadorComentario = {}): ResultadoInterpretacaoComentario {
@@ -109,7 +130,8 @@ export class InterpretadorComentario {
     return {
       termosIntencaoCompra: this.listaNormalizada(dicionario?.termosIntencaoCompra),
       rotulosCodigoPeca: this.listaNormalizada(dicionario?.rotulosCodigoPeca),
-      aliasesCodigoPeca: this.aliasesNormalizados(dicionario?.aliasesCodigoPeca)
+      aliasesCodigoPeca: this.aliasesNormalizados(dicionario?.aliasesCodigoPeca),
+      modosCaptura: dicionario?.modosCaptura?.length ? dicionario.modosCaptura : ["TELEFONE_CODIGO"]
     };
   }
 
@@ -237,7 +259,7 @@ export class InterpretadorComentario {
       candidatos.push({ inicio, fim, valor: this.normalizarCodigoPeca(encontrado[0]) });
     }
 
-    return candidatos.length > 1 ? candidatos : candidatos.at(-1) ? [candidatos.at(-1)!] : [];
+    return candidatos;
   }
 
   private trechosSobrepostos(primeiro: TrechoEncontrado, segundo: TrechoEncontrado): boolean {
@@ -274,10 +296,23 @@ export class InterpretadorComentario {
     const antesTelefone = texto.slice(0, telefone.inicio).trim();
     const depoisTelefone = texto.slice(telefone.fim).trim();
 
-    if (antesTelefone || !depoisTelefone) return false;
+    // Formato "923456789 01" — telefone primeiro, código depois
+    if (!antesTelefone && depoisTelefone) {
+      const tokensDepois = depoisTelefone.split(/\s+/);
+      if (tokensDepois.length === 1 && this.normalizarCodigoPeca(tokensDepois[0]) === codigoPeca) {
+        return true;
+      }
+    }
 
-    const tokensDepoisTelefone = depoisTelefone.split(/\s+/);
-    return tokensDepoisTelefone.length === 1 && this.normalizarCodigoPeca(tokensDepoisTelefone[0]) === codigoPeca;
+    // Formato "01 923456789" — código primeiro, telefone depois
+    if (antesTelefone && !depoisTelefone) {
+      const tokensAntes = antesTelefone.split(/\s+/);
+      if (tokensAntes.length === 1 && this.normalizarCodigoPeca(tokensAntes[0]) === codigoPeca) {
+        return true;
+      }
+    }
+
+    return false;
   }
 
   private calcularConfianca(criterios: {

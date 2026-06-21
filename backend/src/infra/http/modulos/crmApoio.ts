@@ -1,5 +1,6 @@
 import type { FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
+import { ParamIdSchema } from "../../../dominio/esquemas.js";
 import type { ContextoAplicacao } from "../ContextoAplicacao.js";
 import { exigirAcessoComercial, type ContextoComercialHttp } from "../contextoComercial.js";
 import type {
@@ -284,7 +285,7 @@ export const moduloCrmApoio: ModuloHttp = {
       const contextoComercial = await exigirCrm(contexto, request, reply, "funil:gerir", "funil");
       if (!contextoComercial) return;
 
-      const { id } = request.params as { id: string };
+      const { id } = ParamIdSchema.parse(request.params);
       const dados = AtualizarEtapaPipelineSchema.parse(request.body ?? {});
       const evento = await contexto.gestaoGovernancaCrm.registrarEvento({
         negocioId: contextoComercial.negocio.id,
@@ -366,7 +367,7 @@ export const moduloCrmApoio: ModuloHttp = {
       const contextoComercial = await exigirCrm(contexto, request, reply, "tarefas:gerir", "crm");
       if (!contextoComercial) return;
 
-      const { id } = request.params as { id: string };
+      const { id } = ParamIdSchema.parse(request.params);
       const dados = AtualizarLembreteSchema.parse(request.body ?? {});
       const pedidoId = dados.pedidoId === undefined
         ? undefined
@@ -431,7 +432,7 @@ export const moduloCrmApoio: ModuloHttp = {
       const contextoComercial = await exigirCrm(contexto, request, reply, "conversas:gerir", "conversas");
       if (!contextoComercial) return;
 
-      const { id } = request.params as { id: string };
+      const { id } = ParamIdSchema.parse(request.params);
       const cotacao = await obterCotacao(contexto, contextoComercial.negocio.id, id);
       if (!cotacao) return reply.code(404).send({ erro: "COTACAO_NAO_ENCONTRADA", mensagem: "Cotação não encontrada." });
       const evento = await contexto.gestaoGovernancaCrm.registrarEvento({
@@ -450,7 +451,7 @@ export const moduloCrmApoio: ModuloHttp = {
       const contextoComercial = await exigirCrm(contexto, request, reply, "pedidos:gerir", "pedidos");
       if (!contextoComercial) return;
 
-      const { id } = request.params as { id: string };
+      const { id } = ParamIdSchema.parse(request.params);
       const cotacao = await obterCotacao(contexto, contextoComercial.negocio.id, id);
       if (!cotacao) return reply.code(404).send({ erro: "COTACAO_NAO_ENCONTRADA", mensagem: "Cotação não encontrada." });
       const evento = await contexto.gestaoGovernancaCrm.registrarEvento({
@@ -478,7 +479,7 @@ export const moduloCrmApoio: ModuloHttp = {
       const contextoComercial = await exigirCrm(contexto, request, reply, "conversas:gerir", "conversas");
       if (!contextoComercial) return;
 
-      const { id } = request.params as { id: string };
+      const { id } = ParamIdSchema.parse(request.params);
       const dados = AtualizarRespostaRapidaSchema.parse(request.body ?? {});
       const respostas = await listarRespostasRapidas(contexto, contextoComercial.negocio.id);
       const atual = respostas.find((resposta) => resposta.id === id);
@@ -527,7 +528,7 @@ export const moduloCrmApoio: ModuloHttp = {
       const contextoComercial = await exigirCrm(contexto, request, reply, "automacoes:gerir", "automacoes");
       if (!contextoComercial) return;
 
-      const { id } = request.params as { id: string };
+      const { id } = ParamIdSchema.parse(request.params);
       const dados = AtualizarSequenciaSchema.parse(request.body ?? {});
       const sequencias = await listarSequencias(contexto, contextoComercial.negocio.id);
       const atual = sequencias.find((sequencia) => sequencia.id === id);

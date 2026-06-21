@@ -1,4 +1,4 @@
-import { TestarSmsSchema } from "../../../dominio/esquemas.js";
+import { QueryDiagnosticosSmsSchema, TestarSmsSchema } from "../../../dominio/esquemas.js";
 import { NormalizadorTelefone } from "../../../dominio/servicos/NormalizadorTelefone.js";
 import {
   extractCredits,
@@ -61,8 +61,8 @@ export const moduloDiagnosticos: ModuloHttp = {
     app.get("/diagnosticos/sms/mensagens", async (request, reply) => {
       const usuario = await exigirUsuarioAutenticado(contexto, request, reply, "Faça login para diagnosticar SMS.");
       if (!usuario) return;
-      const query = request.query as { page?: string; telefone?: string };
-      const page = query.page ? Number(query.page) : undefined;
+      const query = QueryDiagnosticosSmsSchema.parse(request.query ?? {});
+      const page = query.page;
 
       return query.telefone
         ? criarOmbalaClient().listMessagesByRecipient(query.telefone, page)

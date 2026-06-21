@@ -68,8 +68,8 @@ const FILTROS_OPCOES: Array<{ id: Filtro; rotulo: string; cor?: string }> = [
   { id: "VIP", rotulo: "VIP", cor: "var(--violet)" },
   { id: "INADIMPLENTE", rotulo: "Inadimplentes", cor: "var(--rose)" },
   { id: "PRIORIDADE_ALTA", rotulo: "Prioridade", cor: "var(--amber)" },
-  { id: "SEM_WHATSAPP", rotulo: "Sem WA" },
-  { id: "SEM_CONSENTIMENTO", rotulo: "Sem opt-in" },
+  { id: "SEM_WHATSAPP", rotulo: "Sem WhatsApp" },
+  { id: "SEM_CONSENTIMENTO", rotulo: "Sem consentimento" },
   { id: "INATIVO", rotulo: "Inativos" },
 ];
 
@@ -91,8 +91,8 @@ const TEXTO_ESTADO: Record<EstadoRelacionamentoCliente, string> = {
   LEAD: "Lead",
   INADIMPLENTE: "Inadimpl.",
   BLOQUEADO: "Bloqueado",
-  SEM_WHATSAPP: "Sem WA",
-  SEM_CONSENTIMENTO: "Sem opt-in",
+  SEM_WHATSAPP: "Sem WhatsApp",
+  SEM_CONSENTIMENTO: "Sem consentimento",
   INATIVO: "Inativo",
   PRIORIDADE_ALTA: "Prioridade",
 };
@@ -389,6 +389,7 @@ export function PaginaClientes() {
                     <Th>Contacto</Th>
                     <Th right>Receita</Th>
                     <Th right>Pedidos</Th>
+                    <Th>Último pedido</Th>
                     <Th>Origem</Th>
                     <Th right>Ações</Th>
                   </tr>
@@ -397,7 +398,7 @@ export function PaginaClientes() {
                   {clientesPagina.map((cliente) => {
                     const nome = cliente.nome || cliente.username || cliente.telefone || "Cliente";
                     return (
-                      <tr key={cliente.id}>
+                      <tr key={cliente.id} className={cliente.estadoRelacionamento === "VIP" ? "bz-cli-row-vip" : cliente.estadoRelacionamento === "PRIORIDADE_ALTA" ? "bz-cli-row-prioridade" : cliente.estadoRelacionamento === "INADIMPLENTE" ? "bz-cli-row-inadimplente" : ""}>
                         <Td>
                           <div className="bz-cli">
                             <AvatarBizy
@@ -422,8 +423,15 @@ export function PaginaClientes() {
                         </Td>
                         <Td>
                           <div>
-                            <div style={{ fontSize: "13.5px", fontWeight: 600, color: "var(--ink)" }}>
-                              {cliente.telefone ?? "—"}
+                            <div style={{ fontSize: "13.5px", fontWeight: 600, color: "var(--ink)", display: "flex", alignItems: "center", gap: 5 }}>
+                              {cliente.telefone ? (
+                                <>
+                                  {cliente.estadoRelacionamento !== "SEM_WHATSAPP" && (
+                                    <Smartphone size={12} style={{ color: "var(--green)", flexShrink: 0 }} />
+                                  )}
+                                  {cliente.telefone}
+                                </>
+                              ) : "—"}
                             </div>
                             <div className="bz-cli-desc">
                               {cliente.email ?? "—"}
@@ -439,6 +447,15 @@ export function PaginaClientes() {
                         </Td>
                         <Td right className="bz-tnum">
                           {cliente.metricas.totalReservas || 0}
+                        </Td>
+                        <Td>
+                          {cliente.metricas.ultimaCompraEm ? (
+                            <span style={{ fontSize: "12.5px", color: "var(--ink-2)" }}>
+                              {formatarDataHoraCurta(cliente.metricas.ultimaCompraEm)}
+                            </span>
+                          ) : (
+                            <span style={{ fontSize: "12.5px", color: "var(--ink-4)" }}>—</span>
+                          )}
                         </Td>
                         <Td>
                           {cliente.origem ? (
@@ -602,7 +619,7 @@ function PainelDetalheCliente({
       {/* Origin / channels */}
       {cliente.origem && (
         <div className="bz-detail-section">
-          <h4 className="bz-detail-label">Canal de origem</h4>
+          <h4 className="bz-detail-label">De onde veio</h4>
           <div className="bz-detail-row" style={{ gap: 6 }}>
             {ICONE_ORIGEM[cliente.origem.toLowerCase()] ?? <MessageCircle size={13} />}
             <span style={{ fontWeight: 600 }}>{NOME_ORIGEM[cliente.origem.toLowerCase()] ?? cliente.origem}</span>

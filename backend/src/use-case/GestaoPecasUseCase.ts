@@ -1,5 +1,5 @@
 import type { DespachadorEventos } from "../dominio/eventos/DespachadorEventos.js";
-import type { RepositorioPecas, RepositorioReservas } from "../dominio/repositorios/contratos.js";
+import type { RepositorioEventosOperacionais, RepositorioPecas, RepositorioReservas } from "../dominio/repositorios/contratos.js";
 import type {
   AtualizarPeca,
   ConfiguracaoVitrineProduto,
@@ -33,7 +33,8 @@ export class GestaoPecasUseCase {
   constructor(
     private readonly repositorioPecas: RepositorioPecas,
     private readonly eventos: DespachadorEventos,
-    private readonly repositorioReservas?: RepositorioReservas
+    private readonly repositorioReservas?: RepositorioReservas,
+    private readonly eventosOperacionais?: RepositorioEventosOperacionais
   ) {}
 
   async cadastrarPeca(dados: NovaPeca) {
@@ -194,6 +195,16 @@ export class GestaoPecasUseCase {
     };
   }
 
+  async renomearColecao(negocioId: string, de: string, para: string) {
+    const afetados = await this.repositorioPecas.renomearColecao(negocioId, de.trim(), para.trim());
+    return { de, para: para.trim(), afetados };
+  }
+
+  async limparColecao(negocioId: string, colecao: string) {
+    const afetados = await this.repositorioPecas.limparColecao(negocioId, colecao);
+    return { colecao, afetados };
+  }
+
   async atualizarPeca(codigo: string, dados: AtualizarPeca, negocioId?: string | null) {
     const codigoNormalizado = this.normalizarCodigo(codigo);
     const pecaAtual = await this.exigirPeca(codigoNormalizado, negocioId);
@@ -203,6 +214,7 @@ export class GestaoPecasUseCase {
       negocioId
     );
     this.eventos.emitir("STOCK_UPDATED", { peca });
+    await this.registrarHistoricoProduto(pecaAtual, peca, dados);
     return peca;
   }
 
@@ -505,5 +517,43 @@ export class GestaoPecasUseCase {
 
   private normalizarCodigo(codigo: string): string {
     return codigo.trim().toUpperCase();
+  }
+
+  private async registrarHistoricoProduto(antes: Peca, depois: Peca, dados: AtualizarPeca): Promise<void> {
+    if (!this.eventosOperacionais || !depois.negocioId) return;
+
+    const alteracoes: Record<string, { de: unknown; para: unknown }> = {};
+    const camposAuditaveis: Array<keyof Peca> = [
+      "nome", "descricao", "precoEmKwanza", "custoEmKwanza", "quantidade",
+      "stockMinimo", "estado", "categoria", "colecao", "fotos", "arquivadaEm"
+    ];
+
+    for (const campo of camposAuditaveis) {
+      const valorAntes = antes[campo];
+      const valorDepois = depois[campo];
+      if (JSON.stringify(valorAntes) !== JSON.stringify(valorDepois)) {
+        alteracoes[campo] = { de: valorAntes, para: valorDepois };
+      }
+    }
+
+    if (Object.keys(alteracoes).length === 0) return;
+
+    const tipo = dados.arquivadaEm ? "PRODUTO_ARQUIVADO"
+      : dados.estado === "ESGOTADA" ? "PRODUTO_ESGOTADO"
+      : "PRODUTO_ATUALIZADO";
+
+    try {
+      await this.eventosOperacionais.registrar({
+        negocioId: depois.negocioId,
+        topico: "catalogo",
+        tipo,
+        entidadeTipo: "Peca",
+        entidadeId: depois.id,
+        idempotencyKey: `produto:${depois.id}:${Date.now()}`,
+        payload: { codigo: depois.codigo, alteracoes }
+      });
+    } catch {
+      // Auditoria não deve bloquear operação de catálogo.
+    }
   }
 }

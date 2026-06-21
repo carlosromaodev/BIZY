@@ -6,10 +6,19 @@ tags:
   - bizy/wiki
   - bizy/log
 status: ativo
-updated: 2026-06-12
+updated: 2026-06-17
 ---
 
 # Log da Wiki
+
+## [2026-06-17] wiki | Conclusao dos MDs Market e Loja Digital
+
+- `bizy-market-lojas-digitais.md` promovido de rascunho para ativo. Decisoes resolvidas marcadas (dominio Market, checkout MVP single-loja, pagamento por comprovativo). Progresso atualizado com wiki de requisitos completa. Proximos passos clarificados: checkout multi-loja, pedidos CRM, seguidores, repasses e admin Bizy.
+- `bizy-market-rotas-roadmap.md` promovido de rascunho para ativo. Fase 4 atualizada com checkout MVP concluido para uma loja.
+- `bizy-market-frontend-lojas.md` atualizado com ligacao para requisitos-bizy-market.
+- `loja-digital-operacao-crm.md` atualizado com ligacoes cruzadas para Market, rotas, frontend e requisitos.
+- `requisitos-bizy-market.md`, `requisitos-funcionais-bizy.md`, `requisitos-nao-funcionais-bizy.md` e `regras-de-negocio-bizy.md` atualizados com data de hoje.
+- `index.md` atualizado.
 
 ## [2026-06-12] auditoria | Parecer triplo: contabilista, estatistico, engenheiro de dados
 

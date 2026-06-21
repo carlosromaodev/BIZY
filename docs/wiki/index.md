@@ -7,7 +7,7 @@ tags:
   - bizy/wiki
   - bizy/indice
 status: ativo
-updated: 2026-06-07
+updated: 2026-06-17
 ---
 
 # Indice da Wiki Bizy
@@ -58,6 +58,10 @@ updated: 2026-06-07
 
 ## Requisitos e Fontes Principais
 
+- [[requisitos-funcionais-bizy|Requisitos Funcionais do Bizy]]
+- [[requisitos-nao-funcionais-bizy|Requisitos Nao Funcionais do Bizy]]
+- [[regras-de-negocio-bizy|Regras de Negocio do Bizy]]
+- [[requisitos-bizy-market|Requisitos do Bizy Market e Lojas Digitais]]
 - [`docs/RF-RNF-RN-EMEUV1.md`](../RF-RNF-RN-EMEUV1.md)
 - [`docs/RF-RNF-RN-BIZY-MARKET-LOJA-DIGITAL.md`](../RF-RNF-RN-BIZY-MARKET-LOJA-DIGITAL.md)
 - [`docs/arquitetura-modular.md`](../arquitetura-modular.md)

@@ -1,0 +1,598 @@
+{
+  "geradoEm": "2026-06-03T19:51:14.540Z",
+  "total": 74,
+  "capturas": [
+    {
+      "file": "print/001-public-home.png",
+      "label": "public-home",
+      "viewport": {
+        "width": 1440,
+        "height": 1100
+      }
+    },
+    {
+      "file": "print/002-login-criar-conta-telefone.png",
+      "label": "login-criar-conta-telefone",
+      "viewport": {
+        "width": 1440,
+        "height": 1100
+      }
+    },
+    {
+      "file": "print/003-login-codigo-dev.png",
+      "label": "login-codigo-dev",
+      "viewport": {
+        "width": 1440,
+        "height": 1100
+      }
+    },
+    {
+      "file": "print/004-login-estudante.png",
+      "label": "login-estudante",
+      "viewport": {
+        "width": 1440,
+        "height": 1100
+      }
+    },
+    {
+      "file": "print/005-login-entrar.png",
+      "label": "login-entrar",
+      "viewport": {
+        "width": 1440,
+        "height": 1100
+      }
+    },
+    {
+      "file": "print/006-loja-publica-lista-produtos.png",
+      "label": "loja-publica-lista-produtos",
+      "viewport": {
+        "width": 1440,
+        "height": 1100
+      }
+    },
+    {
+      "file": "print/007-loja-publica-pesquisa.png",
+      "label": "loja-publica-pesquisa",
+      "viewport": {
+        "width": 1440,
+        "height": 1100
+      }
+    },
+    {
+      "file": "print/008-loja-publica-destaques.png",
+      "label": "loja-publica-destaques",
+      "viewport": {
+        "width": 1440,
+        "height": 1100
+      }
+    },
+    {
+      "file": "print/009-loja-publica-sobre.png",
+      "label": "loja-publica-sobre",
+      "viewport": {
+        "width": 1440,
+        "height": 1100
+      }
+    },
+    {
+      "file": "print/010-loja-publica-detalhe-produto.png",
+      "label": "loja-publica-detalhe-produto",
+      "viewport": {
+        "width": 1440,
+        "height": 1100
+      }
+    },
+    {
+      "file": "print/011-loja-publica-checkout-variante.png",
+      "label": "loja-publica-checkout-variante",
+      "viewport": {
+        "width": 1440,
+        "height": 1100
+      }
+    },
+    {
+      "file": "print/012-loja-publica-checkout-dados.png",
+      "label": "loja-publica-checkout-dados",
+      "viewport": {
+        "width": 1440,
+        "height": 1100
+      }
+    },
+    {
+      "file": "print/013-loja-publica-checkout-entrega.png",
+      "label": "loja-publica-checkout-entrega",
+      "viewport": {
+        "width": 1440,
+        "height": 1100
+      }
+    },
+    {
+      "file": "print/014-onboarding-negocio.png",
+      "label": "onboarding-negocio",
+      "viewport": {
+        "width": 1440,
+        "height": 1100
+      }
+    },
+    {
+      "file": "print/015-onboarding-produto.png",
+      "label": "onboarding-produto",
+      "viewport": {
+        "width": 1440,
+        "height": 1100
+      }
+    },
+    {
+      "file": "print/016-onboarding-pronto.png",
+      "label": "onboarding-pronto",
+      "viewport": {
+        "width": 1440,
+        "height": 1100
+      }
+    },
+    {
+      "file": "print/017-app-comando-do-dia.png",
+      "label": "app-comando-do-dia",
+      "viewport": {
+        "width": 1440,
+        "height": 1100
+      }
+    },
+    {
+      "file": "print/018-app-busca-global.png",
+      "label": "app-busca-global",
+      "viewport": {
+        "width": 1440,
+        "height": 1100
+      }
+    },
+    {
+      "file": "print/019-app-live.png",
+      "label": "app-live",
+      "viewport": {
+        "width": 1440,
+        "height": 1100
+      }
+    },
+    {
+      "file": "print/020-app-live-comentario-manual.png",
+      "label": "app-live-comentario-manual",
+      "viewport": {
+        "width": 1440,
+        "height": 1100
+      }
+    },
+    {
+      "file": "print/021-app-pedidos-pipeline.png",
+      "label": "app-pedidos-pipeline",
+      "viewport": {
+        "width": 1440,
+        "height": 1100
+      }
+    },
+    {
+      "file": "print/022-app-pedidos-preparacao.png",
+      "label": "app-pedidos-Preparação",
+      "viewport": {
+        "width": 1440,
+        "height": 1100
+      }
+    },
+    {
+      "file": "print/023-app-pedidos-entregas.png",
+      "label": "app-pedidos-Entregas",
+      "viewport": {
+        "width": 1440,
+        "height": 1100
+      }
+    },
+    {
+      "file": "print/024-app-pedidos-tarefas.png",
+      "label": "app-pedidos-Tarefas",
+      "viewport": {
+        "width": 1440,
+        "height": 1100
+      }
+    },
+    {
+      "file": "print/025-app-pedidos-filtro-estados.png",
+      "label": "app-pedidos-filtro-estados",
+      "viewport": {
+        "width": 1440,
+        "height": 1100
+      }
+    },
+    {
+      "file": "print/026-app-tarefas.png",
+      "label": "app-tarefas",
+      "viewport": {
+        "width": 1440,
+        "height": 1100
+      }
+    },
+    {
+      "file": "print/027-app-atendimento.png",
+      "label": "app-atendimento",
+      "viewport": {
+        "width": 1440,
+        "height": 1100
+      }
+    },
+    {
+      "file": "print/028-app-atendimento-chat-joana.png",
+      "label": "app-atendimento-chat-joana",
+      "viewport": {
+        "width": 1440,
+        "height": 1100
+      }
+    },
+    {
+      "file": "print/029-app-atendimento-respostas-rapidas.png",
+      "label": "app-atendimento-respostas-rapidas",
+      "viewport": {
+        "width": 1440,
+        "height": 1100
+      }
+    },
+    {
+      "file": "print/030-app-atendimento-contexto-produtos.png",
+      "label": "app-atendimento-contexto-produtos",
+      "viewport": {
+        "width": 1440,
+        "height": 1100
+      }
+    },
+    {
+      "file": "print/031-app-atendimento-gestao-sheet.png",
+      "label": "app-atendimento-gestao-sheet",
+      "viewport": {
+        "width": 1440,
+        "height": 1100
+      }
+    },
+    {
+      "file": "print/032-app-clientes.png",
+      "label": "app-clientes",
+      "viewport": {
+        "width": 1440,
+        "height": 1100
+      }
+    },
+    {
+      "file": "print/033-app-clientes-perfil-sheet.png",
+      "label": "app-clientes-perfil-sheet",
+      "viewport": {
+        "width": 1440,
+        "height": 1100
+      }
+    },
+    {
+      "file": "print/034-app-clientes-busca-filtro.png",
+      "label": "app-clientes-busca-filtro",
+      "viewport": {
+        "width": 1440,
+        "height": 1100
+      }
+    },
+    {
+      "file": "print/035-app-recuperacao.png",
+      "label": "app-recuperacao",
+      "viewport": {
+        "width": 1440,
+        "height": 1100
+      }
+    },
+    {
+      "file": "print/036-app-pipeline-kanban.png",
+      "label": "app-pipeline-kanban",
+      "viewport": {
+        "width": 1440,
+        "height": 1100
+      }
+    },
+    {
+      "file": "print/037-app-pipeline-lista.png",
+      "label": "app-pipeline-lista",
+      "viewport": {
+        "width": 1440,
+        "height": 1100
+      }
+    },
+    {
+      "file": "print/038-app-cotacoes.png",
+      "label": "app-cotacoes",
+      "viewport": {
+        "width": 1440,
+        "height": 1100
+      }
+    },
+    {
+      "file": "print/039-app-cotacoes-filtro.png",
+      "label": "app-cotacoes-filtro",
+      "viewport": {
+        "width": 1440,
+        "height": 1100
+      }
+    },
+    {
+      "file": "print/040-app-agenda.png",
+      "label": "app-agenda",
+      "viewport": {
+        "width": 1440,
+        "height": 1100
+      }
+    },
+    {
+      "file": "print/041-app-metas.png",
+      "label": "app-metas",
+      "viewport": {
+        "width": 1440,
+        "height": 1100
+      }
+    },
+    {
+      "file": "print/042-app-respostas-rapidas.png",
+      "label": "app-respostas-rapidas",
+      "viewport": {
+        "width": 1440,
+        "height": 1100
+      }
+    },
+    {
+      "file": "print/043-app-notas.png",
+      "label": "app-notas",
+      "viewport": {
+        "width": 1440,
+        "height": 1100
+      }
+    },
+    {
+      "file": "print/044-app-formularios.png",
+      "label": "app-formularios",
+      "viewport": {
+        "width": 1440,
+        "height": 1100
+      }
+    },
+    {
+      "file": "print/045-app-sequencias.png",
+      "label": "app-sequencias",
+      "viewport": {
+        "width": 1440,
+        "height": 1100
+      }
+    },
+    {
+      "file": "print/046-app-produtos.png",
+      "label": "app-produtos",
+      "viewport": {
+        "width": 1440,
+        "height": 1100
+      }
+    },
+    {
+      "file": "print/047-app-produtos-modal-novo.png",
+      "label": "app-produtos-modal-novo",
+      "viewport": {
+        "width": 1440,
+        "height": 1100
+      }
+    },
+    {
+      "file": "print/048-app-produtos-confirmar-desativar.png",
+      "label": "app-produtos-confirmar-desativar",
+      "viewport": {
+        "width": 1440,
+        "height": 1100
+      }
+    },
+    {
+      "file": "print/049-app-loja-digital.png",
+      "label": "app-loja-digital",
+      "viewport": {
+        "width": 1440,
+        "height": 1100
+      }
+    },
+    {
+      "file": "print/050-app-loja-digital-assistente-identidade.png",
+      "label": "app-loja-digital-assistente-identidade",
+      "viewport": {
+        "width": 1440,
+        "height": 1100
+      }
+    },
+    {
+      "file": "print/051-app-loja-digital-assistente-produtos.png",
+      "label": "app-loja-digital-assistente-Produtos",
+      "viewport": {
+        "width": 1440,
+        "height": 1100
+      }
+    },
+    {
+      "file": "print/052-app-loja-digital-assistente-experiencia.png",
+      "label": "app-loja-digital-assistente-Experiência",
+      "viewport": {
+        "width": 1440,
+        "height": 1100
+      }
+    },
+    {
+      "file": "print/053-app-loja-digital-assistente-entrega.png",
+      "label": "app-loja-digital-assistente-Entrega",
+      "viewport": {
+        "width": 1440,
+        "height": 1100
+      }
+    },
+    {
+      "file": "print/054-app-loja-digital-assistente-pagamentos.png",
+      "label": "app-loja-digital-assistente-Pagamentos",
+      "viewport": {
+        "width": 1440,
+        "height": 1100
+      }
+    },
+    {
+      "file": "print/055-app-loja-digital-assistente-operacao.png",
+      "label": "app-loja-digital-assistente-Operação",
+      "viewport": {
+        "width": 1440,
+        "height": 1100
+      }
+    },
+    {
+      "file": "print/056-app-loja-digital-assistente-publicar.png",
+      "label": "app-loja-digital-assistente-Publicar",
+      "viewport": {
+        "width": 1440,
+        "height": 1100
+      }
+    },
+    {
+      "file": "print/057-app-afiliados.png",
+      "label": "app-afiliados",
+      "viewport": {
+        "width": 1440,
+        "height": 1100
+      }
+    },
+    {
+      "file": "print/058-app-relatorios.png",
+      "label": "app-relatorios",
+      "viewport": {
+        "width": 1440,
+        "height": 1100
+      }
+    },
+    {
+      "file": "print/059-app-administracao-whatsapp.png",
+      "label": "app-administracao-whatsapp",
+      "viewport": {
+        "width": 1440,
+        "height": 1100
+      }
+    },
+    {
+      "file": "print/060-app-administracao-automacoes.png",
+      "label": "app-administracao-Automações",
+      "viewport": {
+        "width": 1440,
+        "height": 1100
+      }
+    },
+    {
+      "file": "print/061-app-administracao-n8n.png",
+      "label": "app-administracao-n8n",
+      "viewport": {
+        "width": 1440,
+        "height": 1100
+      }
+    },
+    {
+      "file": "print/062-app-administracao-config.png",
+      "label": "app-administracao-Config.",
+      "viewport": {
+        "width": 1440,
+        "height": 1100
+      }
+    },
+    {
+      "file": "print/063-app-administracao-confirmar-remover.png",
+      "label": "app-administracao-confirmar-remover",
+      "viewport": {
+        "width": 1440,
+        "height": 1100
+      }
+    },
+    {
+      "file": "print/064-app-live-monitor.png",
+      "label": "app-live-monitor",
+      "viewport": {
+        "width": 1440,
+        "height": 1100
+      }
+    },
+    {
+      "file": "print/065-app-live-monitor-revisao-manual.png",
+      "label": "app-live-monitor-revisao-manual",
+      "viewport": {
+        "width": 1440,
+        "height": 1100
+      }
+    },
+    {
+      "file": "print/066-app-live-monitor-limpar-dados.png",
+      "label": "app-live-monitor-limpar-dados",
+      "viewport": {
+        "width": 1440,
+        "height": 1100
+      }
+    },
+    {
+      "file": "print/067-mobile-comando-do-dia.png",
+      "label": "mobile-comando-do-dia",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      }
+    },
+    {
+      "file": "print/068-mobile-menu-principal.png",
+      "label": "mobile-menu-principal",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      }
+    },
+    {
+      "file": "print/069-mobile-busca-global.png",
+      "label": "mobile-busca-global",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      }
+    },
+    {
+      "file": "print/070-mobile-atendimento-lista.png",
+      "label": "mobile-atendimento-lista",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      }
+    },
+    {
+      "file": "print/071-mobile-atendimento-chat.png",
+      "label": "mobile-atendimento-chat",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      }
+    },
+    {
+      "file": "print/072-mobile-atendimento-acoes-rapidas.png",
+      "label": "mobile-atendimento-acoes-rapidas",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      }
+    },
+    {
+      "file": "print/073-mobile-loja-publica.png",
+      "label": "mobile-loja-publica",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      }
+    },
+    {
+      "file": "print/074-mobile-loja-publica-destaques.png",
+      "label": "mobile-loja-publica-destaques",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      }
+    }
+  ]
+}

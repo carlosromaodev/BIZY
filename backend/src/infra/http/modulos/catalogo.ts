@@ -3,7 +3,10 @@ import {
   AtualizarPecaSchema,
   CriarPecaSchema,
   ImportarCsvSchema,
-  RegistrarMovimentoStockSchema
+  LimparColecaoSchema,
+  ParamCodigoSchema,
+  RegistrarMovimentoStockSchema,
+  RenomearColecaoSchema
 } from "../../../dominio/esquemas.js";
 import { montarAlteracoes, registrarAuditoriaCritica } from "../auditoriaOperacional.js";
 import { exigirAcessoComercial } from "../contextoComercial.js";
@@ -66,6 +69,42 @@ export const moduloCatalogo: ModuloHttp = {
       return contexto.gestaoPecas.resumirCatalogo(contextoComercial.negocio.id);
     });
 
+    app.post("/pecas/colecoes/renomear", async (request, reply) => {
+      const contextoComercial = await exigirAcessoComercial(
+        contexto,
+        request,
+        reply,
+        {
+          permissao: "catalogo:gerir",
+          modulo: "catalogo",
+          mensagemPermissao: "Sem permissão para gerir coleções.",
+          mensagemModulo: "Catálogo desativado para este negócio."
+        }
+      );
+      if (!contextoComercial) return;
+
+      const dados = RenomearColecaoSchema.parse(request.body ?? {});
+      return contexto.gestaoPecas.renomearColecao(contextoComercial.negocio.id, dados.de, dados.para);
+    });
+
+    app.post("/pecas/colecoes/limpar", async (request, reply) => {
+      const contextoComercial = await exigirAcessoComercial(
+        contexto,
+        request,
+        reply,
+        {
+          permissao: "catalogo:gerir",
+          modulo: "catalogo",
+          mensagemPermissao: "Sem permissão para gerir coleções.",
+          mensagemModulo: "Catálogo desativado para este negócio."
+        }
+      );
+      if (!contextoComercial) return;
+
+      const dados = LimparColecaoSchema.parse(request.body ?? {});
+      return contexto.gestaoPecas.limparColecao(contextoComercial.negocio.id, dados.colecao);
+    });
+
     app.post("/pecas/importar.csv", async (request, reply) => {
       const contextoComercial = await exigirAcessoComercial(
         contexto,
@@ -99,7 +138,7 @@ export const moduloCatalogo: ModuloHttp = {
       );
       if (!contextoComercial) return;
 
-      const { codigo } = request.params as { codigo: string };
+      const { codigo } = ParamCodigoSchema.parse(request.params);
       const movimentos = await contexto.gestaoPecas.listarMovimentosStock(codigo, contextoComercial.negocio.id);
       return { movimentos };
     });
@@ -118,7 +157,7 @@ export const moduloCatalogo: ModuloHttp = {
       );
       if (!contextoComercial) return;
 
-      const { codigo } = request.params as { codigo: string };
+      const { codigo } = ParamCodigoSchema.parse(request.params);
       const dados = RegistrarMovimentoStockSchema.parse(request.body ?? {});
       const resultado = await contexto.gestaoPecas.registrarMovimentoStock(
         codigo,
@@ -162,7 +201,7 @@ export const moduloCatalogo: ModuloHttp = {
       );
       if (!contextoComercial) return;
 
-      const { codigo } = request.params as { codigo: string };
+      const { codigo } = ParamCodigoSchema.parse(request.params);
       const dados = ArquivarPecaSchema.parse(request.body ?? {});
       return contexto.gestaoPecas.arquivarPeca(codigo, dados.motivo, contextoComercial.negocio.id);
     });
@@ -181,7 +220,7 @@ export const moduloCatalogo: ModuloHttp = {
       );
       if (!contextoComercial) return;
 
-      const { codigo } = request.params as { codigo: string };
+      const { codigo } = ParamCodigoSchema.parse(request.params);
       const dados = AtualizarPecaSchema.parse(request.body ?? {});
       return contexto.gestaoPecas.atualizarPeca(
         codigo,
@@ -204,7 +243,7 @@ export const moduloCatalogo: ModuloHttp = {
       );
       if (!contextoComercial) return;
 
-      const { codigo } = request.params as { codigo: string };
+      const { codigo } = ParamCodigoSchema.parse(request.params);
       return contexto.gestaoPecas.desativarPeca(codigo, contextoComercial.negocio.id);
     });
   }

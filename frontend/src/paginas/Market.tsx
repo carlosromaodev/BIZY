@@ -24,9 +24,18 @@ import { motion, useReducedMotion } from "motion/react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { NativeBottomNav } from "@/components/ui/native-bottom-nav";
-import { listarCategoriasMarket, listarProdutosMarket, normalizarProdutoMarket, ROTAS_LOJAS } from "../lojas";
-import type { CategoriaMarket, ProdutoMarketNormalizado } from "../lojas";
-import { formatarKwanza } from "../utilidades";
+import {
+  listarCategoriasMarket,
+  listarLojasMarket,
+  listarProdutosMarket,
+  normalizarFornecedorMarket,
+  normalizarProdutoMarket,
+  obterLojaMarket,
+  ROTAS_LOJAS
+} from "../lojas";
+import type { CategoriaMarket, LojaMarket, ProdutoMarketNormalizado } from "../lojas";
+import { formatarKwanza, aplicarSeoMetaTags } from "../utilidades";
+import { AvisoPrivacidade } from "../componentes/BizyDesignSystem";
 
 type FiltroTexto = "busca" | "provincia" | "municipio" | "loja" | "precoMinimo" | "precoMaximo";
 
@@ -135,7 +144,8 @@ export function PaginaMarket() {
         setCategorias(respostaCategorias.categorias ?? respostaProdutos.categorias ?? []);
         setProdutos((respostaProdutos.produtos ?? []).map(normalizarProdutoMarket));
         setTotal(respostaProdutos.total ?? respostaProdutos.produtos?.length ?? 0);
-        document.title = categoriaSelecionada ? `${categoriaSelecionada} no Bizy Market` : "Bizy Market";
+        const tituloMarket = categoriaSelecionada ? `${categoriaSelecionada} no Bizy Market` : "Bizy Market";
+        aplicarSeoMetaTags({ titulo: tituloMarket, descricao: `Descubra produtos de lojas angolanas no Bizy Market.` });
       } catch (falha) {
         if (!ativo) return;
         setErro(falha instanceof Error ? falha.message : "Não foi possível carregar o Bizy Market.");
@@ -378,6 +388,8 @@ export function PaginaMarket() {
           { id: "sacola", label: "Comprar", icon: ShoppingBag, variant: "cta", onClick: () => navigate(ROTAS_LOJAS.checkout) }
         ]}
       />
+
+      <AvisoPrivacidade />
     </main>
   );
 }
@@ -385,7 +397,7 @@ export function PaginaMarket() {
 export function PaginaDiretorioLojasMarket() {
   const navigate = useNavigate();
   const [busca, setBusca] = useState("");
-  const [produtos, setProdutos] = useState<ProdutoMarketNormalizado[]>([]);
+  const [lojas, setLojas] = useState<LojaMarket[]>([]);
   const [erro, setErro] = useState("");
   const [carregando, setCarregando] = useState(true);
 
@@ -396,14 +408,14 @@ export function PaginaDiretorioLojasMarket() {
       setCarregando(true);
       setErro("");
       try {
-        const resposta = await listarProdutosMarket({ limite: 72 });
+        const resposta = await listarLojasMarket({ limite: 48 });
         if (!ativo) return;
-        setProdutos((resposta.produtos ?? []).map(normalizarProdutoMarket));
-        document.title = "Lojas no Bizy Market";
+        setLojas(resposta.lojas ?? []);
+        aplicarSeoMetaTags({ titulo: "Lojas no Bizy Market", descricao: "Encontre lojas de confiança no Bizy Market." });
       } catch (falha) {
         if (!ativo) return;
         setErro(falha instanceof Error ? falha.message : "Não foi possível carregar as lojas do Market.");
-        setProdutos([]);
+        setLojas([]);
       } finally {
         if (ativo) setCarregando(false);
       }
@@ -415,29 +427,15 @@ export function PaginaDiretorioLojasMarket() {
     };
   }, []);
 
-  const lojas = useMemo(() => {
-    const mapa = new Map<string, ProdutoMarketNormalizado["fornecedor"] & { total: number; categorias: Set<string> }>();
-    for (const produto of produtos) {
-      const chave = produto.slugLoja || produto.nomeFornecedor;
-      const atual = mapa.get(chave);
-      const categorias = atual?.categorias ?? new Set<string>();
-      if (produto.categoria) categorias.add(produto.categoria);
-      mapa.set(chave, {
-        ...produto.fornecedor,
-        total: (atual?.total ?? 0) + 1,
-        categorias
-      });
-    }
-    return Array.from(mapa.values())
-      .filter((loja) => {
-        const termo = busca.trim().toLowerCase();
-        if (!termo) return true;
-        return [loja.nomeComercial, loja.localizacao, loja.segmento, loja.tipo]
-          .filter(Boolean)
-          .some((valor) => String(valor).toLowerCase().includes(termo));
-      })
-      .sort((a, b) => b.total - a.total);
-  }, [busca, produtos]);
+  const lojasFiltradas = useMemo(() => {
+    const termo = busca.trim().toLowerCase();
+    if (!termo) return lojas;
+    return lojas.filter((loja) =>
+      [loja.nomeComercial, loja.descricaoPublica, loja.segmento, loja.tipo, loja.provincia, loja.municipio]
+        .filter(Boolean)
+        .some((valor) => String(valor).toLowerCase().includes(termo))
+    );
+  }, [busca, lojas]);
 
   return (
     <main className="bizy-market-page market-commerce-page market-stores-directory min-h-[100dvh] bg-[#faf8f4] text-neutral-950">
@@ -454,7 +452,7 @@ export function PaginaDiretorioLojasMarket() {
       <section className="market-category-head">
         <span>Market / <b>Lojas</b></span>
         <h1>Lojas no Bizy</h1>
-        <p>{carregando ? "A carregar fornecedores" : `${lojas.length} lojas ativas encontradas no shopping center`}</p>
+        <p>{carregando ? "A carregar fornecedores" : `${lojasFiltradas.length} lojas ativas encontradas no shopping center`}</p>
         <div className="market-directory-chips" aria-label="Filtros rápidos de lojas">
           {["Todas", "Moda", "Beleza", "Tecnologia", "Luanda", "Verificadas"].map((chip, indice) => (
             <span key={chip} className={indice === 0 ? "is-active" : ""}>{chip}</span>
@@ -476,27 +474,30 @@ export function PaginaDiretorioLojasMarket() {
           </div>
         )}
 
-        {!erro && !carregando && lojas.length > 0 && (
+        {!erro && !carregando && lojasFiltradas.length > 0 && (
           <div className="market-store-row market-directory-grid">
-            {lojas.map((loja) => (
-              <Link key={loja.slug || loja.nomeComercial} to={loja.urlLoja} className="market-store-card">
-                <span className="market-store-cover" />
-                <span className="market-store-avatar">
-                  {loja.logoUrl ? <img src={loja.logoUrl} alt="" /> : <Store size={20} />}
-                </span>
-                <strong>{loja.nomeComercial}</strong>
-                <small>{loja.localizacao || loja.segmento || "Loja Bizy"}</small>
-                <span className="market-store-badges">
-                  <em>{loja.total} produto{loja.total === 1 ? "" : "s"} ativos</em>
-                  {Array.from(loja.categorias).slice(0, 2).map((categoria) => <em key={categoria}>{categoria}</em>)}
-                  <em>Entrar na loja</em>
-                </span>
-              </Link>
-            ))}
+            {lojasFiltradas.map((loja) => {
+              const localizacao = [loja.municipio, loja.provincia].filter(Boolean).join(", ");
+              return (
+                <Link key={loja.slug || loja.nomeComercial} to={loja.slug ? `/lojas/${loja.slug}` : "#"} className="market-store-card">
+                  <span className="market-store-cover" style={loja.capaUrl ? { backgroundImage: `url(${loja.capaUrl})` } : undefined} />
+                  <span className="market-store-avatar">
+                    {loja.logoUrl ? <img src={loja.logoUrl} alt="" /> : <Store size={20} />}
+                  </span>
+                  <strong>{loja.nomeComercial}</strong>
+                  <small>{localizacao || loja.segmento || "Loja Bizy"}</small>
+                  <span className="market-store-badges">
+                    <em>{loja.totalProdutos} produto{loja.totalProdutos === 1 ? "" : "s"} ativos</em>
+                    {(loja.categorias ?? []).slice(0, 2).map((categoria) => <em key={categoria}>{categoria}</em>)}
+                    <em>Entrar na loja</em>
+                  </span>
+                </Link>
+              );
+            })}
           </div>
         )}
 
-        {!erro && !carregando && lojas.length === 0 && (
+        {!erro && !carregando && lojasFiltradas.length === 0 && (
           <div className="market-empty-state">
             <Store size={34} />
             <strong>Nenhuma loja encontrada</strong>
@@ -625,7 +626,7 @@ function CabecalhoMarketComercial({
 function SecaoConfiancaMarket() {
   const itens = [
     { icon: CheckCircle2, titulo: "Loja visível", texto: "cada produto mostra quem vende" },
-    { icon: ShieldCheck, titulo: "Compra organizada", texto: "checkout unificado do Bizy" },
+    { icon: ShieldCheck, titulo: "Compra organizada", texto: "compra unificada pelo Bizy" },
     { icon: Truck, titulo: "Entrega clara", texto: "condições definidas por fornecedor" },
     { icon: Compass, titulo: "Descoberta rápida", texto: "produtos similares sem perder contexto" }
   ];
@@ -718,20 +719,35 @@ function SecaoCategoriasMarket({
 }
 
 function RodapeMarket() {
+  const ano = new Date().getFullYear();
   return (
-    <footer className="market-ecom-footer">
-      <div>
-        <Link to={ROTAS_LOJAS.market} className="market-brand-lockup">
-          <span className="market-wordmark-text wm">bizy<span className="dot">.</span></span>
-          <span className="market-tag mtag">Market</span>
-        </Link>
-        <p>Shopping center com lojas independentes, catálogo próprio e checkout Bizy.</p>
+    <footer className="market-ecom-footer market-footer-v2">
+      <div className="market-footer-top">
+        <div className="market-footer-brand">
+          <Link to={ROTAS_LOJAS.market} className="market-brand-lockup">
+            <span className="market-wordmark-text wm">bizy<span className="dot">.</span></span>
+            <span className="market-tag mtag">Market</span>
+          </Link>
+          <p>O shopping digital de Angola — lojas independentes, catálogo próprio e compra segura Bizy.</p>
+        </div>
+        <div className="market-footer-cols">
+          <div className="market-footer-col">
+            <strong>Explorar</strong>
+            <Link to={ROTAS_LOJAS.lojasMarket}>Lojas</Link>
+            <Link to={ROTAS_LOJAS.market}>Produtos</Link>
+            <Link to={ROTAS_LOJAS.checkout}>Finalizar compra</Link>
+          </div>
+          <div className="market-footer-col">
+            <strong>Para vendedores</strong>
+            <Link to="/login">Vender no Bizy</Link>
+            <Link to="/onboarding">Criar loja</Link>
+          </div>
+        </div>
       </div>
-      <nav aria-label="Links do Bizy Market">
-        <Link to={ROTAS_LOJAS.lojasMarket}>Lojas</Link>
-        <Link to={ROTAS_LOJAS.checkout}>Checkout</Link>
-        <Link to="/login">Vender no Bizy</Link>
-      </nav>
+      <div className="market-footer-bottom">
+        <span>&copy; {ano} Bizy. Todos os direitos reservados.</span>
+        <span>Luanda, Angola</span>
+      </div>
     </footer>
   );
 }
@@ -753,6 +769,7 @@ function CartaoProdutoMarket({ produto }: { produto: ProdutoMarketNormalizado })
         {produto.fotoPrincipal ? <img src={produto.fotoPrincipal} alt={produto.nome} /> : <Package size={34} />}
         <span className="market-product-favorite" aria-hidden="true"><Heart size={14} /></span>
         {produto.descontoPercentual && <span>-{produto.descontoPercentual}%</span>}
+        {produto.selos?.includes("PATROCINADO") && <span className="market-product-sponsored">Patrocinado</span>}
       </Link>
       <div className="market-product-body">
         <Link to={produto.urlMarket} className="market-product-name">{produto.nome}</Link>
@@ -781,5 +798,153 @@ function CartaoProdutoMarket({ produto }: { produto: ProdutoMarketNormalizado })
         </div>
       </div>
     </article>
+  );
+}
+
+export function PaginaLojaMarket() {
+  const { slug = "" } = useParams<{ slug: string }>();
+  const navigate = useNavigate();
+  const [loja, setLoja] = useState<LojaMarket | null>(null);
+  const [produtos, setProdutos] = useState<ProdutoMarketNormalizado[]>([]);
+  const [erro, setErro] = useState("");
+  const [carregando, setCarregando] = useState(true);
+
+  useEffect(() => {
+    let ativo = true;
+
+    let limparSeo = () => {};
+
+    async function carregar() {
+      setCarregando(true);
+      setErro("");
+      try {
+        const resposta = await obterLojaMarket(slug);
+        if (!ativo) return;
+        setLoja(resposta.loja ?? null);
+        setProdutos((resposta.produtos ?? []).map(normalizarProdutoMarket));
+        limparSeo = aplicarSeoMetaTags(resposta.seo ?? {
+          titulo: `${resposta.loja?.nomeComercial ?? slug} | Bizy Market`,
+          descricao: resposta.loja?.descricaoPublica ?? undefined,
+          imagem: resposta.loja?.logoUrl ?? undefined
+        });
+      } catch (falha) {
+        if (!ativo) return;
+        setErro(falha instanceof Error ? falha.message : "Não foi possível carregar a loja.");
+      } finally {
+        if (ativo) setCarregando(false);
+      }
+    }
+
+    if (slug) void carregar();
+    return () => { ativo = false; limparSeo(); };
+  }, [slug]);
+
+  const localizacao = [loja?.municipio, loja?.provincia].filter(Boolean).join(", ");
+
+  return (
+    <main className="bizy-market-page market-commerce-page min-h-[100dvh] bg-[#faf8f4] text-neutral-950">
+      <CabecalhoMarketComercial
+        busca=""
+        categoriaSelecionada=""
+        categorias={[]}
+        onBusca={() => {}}
+        onCategoria={(categoria) => navigate(ROTAS_LOJAS.categoriaMarket(categoria))}
+        onLimpar={() => {}}
+      />
+
+      {carregando && (
+        <section className="market-store-profile-skeleton" aria-busy="true">
+          <div className="market-store-cover market-store-skeleton" style={{ height: 180 }} />
+          <div style={{ padding: "24px 16px", display: "flex", flexDirection: "column", gap: 12 }}>
+            <div className="market-store-skeleton" style={{ width: 120, height: 20, borderRadius: 8 }} />
+            <div className="market-store-skeleton" style={{ width: 200, height: 14, borderRadius: 6 }} />
+          </div>
+        </section>
+      )}
+
+      {erro && (
+        <section className="market-empty-state" role="alert" style={{ marginTop: 48 }}>
+          <Store size={34} />
+          <strong>Loja não encontrada</strong>
+          <span>{erro}</span>
+          <button type="button" className="market-btn-outline" onClick={() => navigate(ROTAS_LOJAS.lojasMarket)}>
+            Ver todas as lojas
+          </button>
+        </section>
+      )}
+
+      {!carregando && !erro && loja && (
+        <>
+          <section className="market-store-profile-hero">
+            <div className="market-store-cover" style={loja.capaUrl ? { backgroundImage: `url(${loja.capaUrl})` } : undefined} />
+            <div className="market-store-profile-info">
+              <span className="market-store-avatar market-store-avatar-lg">
+                {loja.logoUrl ? <img src={loja.logoUrl} alt="" /> : <Store size={28} />}
+              </span>
+              <div>
+                <h1>{loja.nomeComercial}</h1>
+                {loja.descricaoPublica && <p>{loja.descricaoPublica}</p>}
+                <div className="market-store-meta-row">
+                  {localizacao && <span><MapPin size={13} />{localizacao}</span>}
+                  {loja.segmento && <span>{loja.segmento}</span>}
+                  <span><Package size={13} />{loja.totalProdutos} produto{loja.totalProdutos === 1 ? "" : "s"}</span>
+                </div>
+              </div>
+              <Link to={loja.slug ? `/lojas/${loja.slug}` : "#"} className="market-btn-outline">
+                Ver perfil completo
+                <ArrowRight size={15} />
+              </Link>
+            </div>
+          </section>
+
+          {(loja.categorias ?? []).length > 0 && (
+            <section className="market-store-cats" aria-label="Categorias desta loja">
+              {loja.categorias.map((categoria) => (
+                <button
+                  key={categoria}
+                  type="button"
+                  className="market-chip"
+                  onClick={() => navigate(ROTAS_LOJAS.categoriaMarket(categoria))}
+                >
+                  {categoria}
+                </button>
+              ))}
+            </section>
+          )}
+
+          <section className="market-main-products" aria-label={`Produtos de ${loja.nomeComercial}`}>
+            <div className="market-section-title">
+              <span>Produtos no Market</span>
+              <strong>{produtos.length} produto{produtos.length === 1 ? "" : "s"} publicados por {loja.nomeComercial}</strong>
+            </div>
+            {produtos.length > 0 ? (
+              <div className="market-product-grid">
+                {produtos.map((produto) => <CartaoProdutoMarket key={`${produto.slugLoja}-${produto.codigo}`} produto={produto} />)}
+              </div>
+            ) : (
+              <div className="market-empty-state">
+                <Package size={28} />
+                <strong>Nenhum produto publicado</strong>
+                <span>Esta loja ainda não tem produtos no Bizy Market.</span>
+              </div>
+            )}
+          </section>
+        </>
+      )}
+
+      <RodapeMarket />
+
+      <NativeBottomNav
+        activePillId="bizy-market-store-profile-nav"
+        className="lp-nav market-bottom-nav"
+        label="Navegação do perfil da loja"
+        items={[
+          { id: "inicio", label: "Início", icon: Home, onClick: () => navigate("/") },
+          { id: "market", label: "Market", icon: Compass, onClick: () => navigate(ROTAS_LOJAS.market) },
+          { id: "lojas", label: "Lojas", icon: Store, onClick: () => navigate(ROTAS_LOJAS.lojasMarket) },
+          { id: "sacola", label: "Comprar", icon: ShoppingBag, variant: "cta", onClick: () => navigate(ROTAS_LOJAS.checkout) }
+        ]}
+      />
+    </main>
   );
 }

@@ -17,6 +17,9 @@ import {
   FiltrosSocialInboxQuerySchema,
   CriarPedidoConversaAtendimentoSchema,
   ImportarSocialInboxCsvSchema,
+  QueryAuditoriaOperacionalSchema,
+  QueryLimiteSchema,
+  QueryLiveIdSchema,
   RegistrarNotaInternaAtendimentoSchema,
   RegistrarMovimentoFunilComercialSchema,
   RegistrarSugestaoIaAtendimentoSchema,
@@ -57,17 +60,12 @@ export const moduloOperacional: ModuloHttp = {
       });
       if (!contextoComercial) return;
 
-      const query = request.query as {
-        topico?: string;
-        tipo?: string;
-        estado?: EventoOperacional["estado"];
-        limite?: string;
-      };
+      const query = QueryAuditoriaOperacionalSchema.parse(request.query);
       const eventos = await contexto.gestaoGovernancaCrm.listarEventos(contextoComercial.negocio.id, {
         topico: query.topico,
         tipo: query.tipo,
         estado: query.estado,
-        limite: query.limite ? Number(query.limite) : 100
+        limite: query.limite ?? 100
       });
       return {
         logs: eventos.map((evento) => ({
@@ -88,8 +86,8 @@ export const moduloOperacional: ModuloHttp = {
       const usuario = await exigirUsuarioAutenticado(contexto, request, reply, "Faça login para consultar outbox n8n.");
       if (!usuario) return;
 
-      const limite = Number((request.query as { limite?: string } | undefined)?.limite ?? 100);
-      return contexto.consultaOperacional.listarOutboxN8n(Math.max(1, Math.min(limite, 500)));
+      const { limite } = QueryLimiteSchema.parse(request.query);
+      return contexto.consultaOperacional.listarOutboxN8n(Math.max(1, Math.min(limite ?? 100, 500)));
     });
 
     app.get("/automacoes/n8n/outbox/saude", async (request, reply) => {
@@ -108,9 +106,9 @@ export const moduloOperacional: ModuloHttp = {
       });
       if (!contextoComercial) return;
 
-      const limite = Number((request.query as { limite?: string } | undefined)?.limite ?? 100);
+      const { limite } = QueryLimiteSchema.parse(request.query);
       return contexto.repositorios.auditoria.listarMensagensWhatsApp(
-        Math.max(1, Math.min(limite, 500)),
+        Math.max(1, Math.min(limite ?? 100, 500)),
         contextoComercial.negocio.id
       );
     });
@@ -1038,7 +1036,7 @@ export const moduloOperacional: ModuloHttp = {
       const usuario = await exigirUsuarioAutenticado(contexto, request, reply, "Faça login para consultar relatórios.");
       if (!usuario) return;
 
-      const liveId = (request.query as { liveId?: string } | undefined)?.liveId?.trim();
+      const { liveId } = QueryLiveIdSchema.parse(request.query);
       return contexto.consultaOperacional.gerarRelatorioLivePiloto(liveId || undefined);
     });
 
@@ -1046,7 +1044,7 @@ export const moduloOperacional: ModuloHttp = {
       const usuario = await exigirUsuarioAutenticado(contexto, request, reply, "Faça login para consultar relatórios.");
       if (!usuario) return;
 
-      const liveId = (request.query as { liveId?: string } | undefined)?.liveId?.trim();
+      const { liveId } = QueryLiveIdSchema.parse(request.query);
       return contexto.consultaOperacional.gerarRelatorioCrmPosLive(liveId || undefined);
     });
 
@@ -1054,7 +1052,7 @@ export const moduloOperacional: ModuloHttp = {
       const usuario = await exigirUsuarioAutenticado(contexto, request, reply, "Faça login para exportar relatórios.");
       if (!usuario) return;
 
-      const liveId = (request.query as { liveId?: string } | undefined)?.liveId?.trim();
+      const { liveId } = QueryLiveIdSchema.parse(request.query);
       const csv = await contexto.consultaOperacional.exportarCrmPosLiveCsv(liveId || undefined);
       reply.header("Content-Type", "text/csv; charset=utf-8");
       reply.header("Content-Disposition", 'attachment; filename="crm-pos-live-emeu.csv"');

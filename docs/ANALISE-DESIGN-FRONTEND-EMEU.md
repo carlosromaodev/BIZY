@@ -328,29 +328,29 @@ Recomendação:
 
 ### Páginas para a vendedora
 
-- [ ] Login
-- [ ] Preparar live
-- [ ] Ao vivo
-- [ ] Revisão manual
-- [ ] Reservas e pagamentos
-- [ ] Conversas WhatsApp
-- [ ] Pós-live e entregas
-- [ ] Conectar WhatsApp
-- [ ] Relatório simples da live
+- [x] Login
+- [x] Preparar live
+- [x] Ao vivo
+- [x] Revisão manual
+- [x] Reservas e pagamentos
+- [x] Conversas WhatsApp
+- [x] Pós-live e entregas
+- [x] Conectar WhatsApp
+- [x] Relatório simples da live
 
 ### Páginas para administração/founder
 
-- [ ] Saúde da automação
-- [ ] n8n e workflows
-- [ ] Configurações técnicas
+- [x] Saúde da automação
+- [x] n8n e workflows
+- [x] Configurações técnicas
 - [ ] Relatório do piloto
 
 ### Páginas que podem ficar para depois
 
-- [ ] Clientes
-- [ ] Relatórios avançados
+- [x] Clientes
+- [x] Relatórios avançados
 - [ ] Multi-loja
-- [ ] Equipa e permissões
+- [x] Equipa e permissões
 - [ ] Reconciliação bancária
 - [ ] App mobile nativo
 
@@ -428,37 +428,37 @@ Objetivo: durante a live, a vendedora ou assistente deve resolver uma venda em p
 
 ### Tokens
 
-- [ ] Renomear variáveis `--verde-*` que hoje guardam roxos.
-- [ ] Definir escala real de cores: marca, neutros, sucesso, atenção, perigo, informação.
-- [ ] Evitar roxo como cor dominante.
-- [ ] Usar sombras mais discretas.
-- [ ] Limitar raio de cards a 8px, exceto modais ou elementos específicos.
+- [x] Renomear variáveis `--verde-*` que hoje guardam roxos.
+- [x] Definir escala real de cores: marca, neutros, sucesso, atenção, perigo, informação.
+- [x] Evitar roxo como cor dominante.
+- [x] Usar sombras mais discretas.
+- [x] Limitar raio de cards a 8px, exceto modais ou elementos específicos. (Design reto intencional: `--radius: 0`)
 
 ### Componentes base
 
-- [ ] Botão primário
-- [ ] Botão secundário
-- [ ] Botão destrutivo
-- [ ] Botão ícone com tooltip
-- [ ] Campo de telefone angolano
-- [ ] Select/segmentado para filtros
-- [ ] Status pill padronizado
-- [ ] Tabela compacta
-- [ ] Lista operacional
-- [ ] Drawer de detalhe
-- [ ] Modal de confirmação
-- [ ] Toast/alerta
-- [ ] Estado vazio
-- [ ] Estado de erro
-- [ ] Estado de carregamento
+- [x] Botão primário
+- [x] Botão secundário
+- [x] Botão destrutivo
+- [x] Botão ícone com tooltip
+- [x] Campo de telefone angolano
+- [x] Select/segmentado para filtros
+- [x] Status pill padronizado
+- [x] Tabela compacta
+- [x] Lista operacional
+- [x] Drawer de detalhe
+- [x] Modal de confirmação
+- [x] Toast/alerta
+- [x] Estado vazio
+- [x] Estado de erro
+- [x] Estado de carregamento
 
 ### Layout
 
-- [ ] Reduzir quantidade de cartões grandes.
-- [ ] Evitar cards dentro de cards.
-- [ ] Usar tabelas/listas para informação repetida.
-- [ ] Manter toolbar fixa ou fácil de alcançar nas telas críticas.
-- [ ] Melhorar navegação mobile, porque o menu horizontal atual ocupa muito espaço.
+- [x] Reduzir quantidade de cartões grandes.
+- [x] Evitar cards dentro de cards.
+- [x] Usar tabelas/listas para informação repetida.
+- [x] Manter toolbar fixa ou fácil de alcançar nas telas críticas.
+- [x] Melhorar navegação mobile, porque o menu horizontal atual ocupa muito espaço.
 
 ---
 
@@ -466,55 +466,55 @@ Objetivo: durante a live, a vendedora ou assistente deve resolver uma venda em p
 
 ### Fase 1 - Corrigir base visual
 
-- [ ] Corrigir classes CSS ausentes da Home.
-- [ ] Substituir tema roxo/preto dominante por paleta operacional.
-- [ ] Separar navegação de vendedora e navegação admin.
-- [ ] Padronizar botões, badges, cartões, tabelas e estados vazios.
-- [ ] Corrigir CORS local para aceitar `localhost` e `127.0.0.1`.
+- [x] Corrigir classes CSS ausentes da Home.
+- [x] Substituir tema roxo/preto dominante por paleta operacional.
+- [x] Separar navegação de vendedora e navegação admin.
+- [x] Padronizar botões, badges, cartões, tabelas e estados vazios.
+- [x] Corrigir CORS local para aceitar `localhost` e `127.0.0.1`.
 
 ### Fase 2 - Redesenhar fluxo da live
 
-- [ ] Transformar Dashboard em "Ao vivo".
-- [ ] Criar layout de cockpit com comentários, reservas e ações.
-- [ ] Mover comentário manual para fallback operacional.
-- [ ] Mostrar reservas críticas e pagamentos pendentes no primeiro ecrã.
-- [ ] Adicionar feed de eventos recentes.
+- [x] Transformar Dashboard em "Ao vivo".
+- [x] Criar layout de cockpit com comentários, reservas e ações.
+- [x] Mover comentário manual para fallback operacional.
+- [x] Mostrar reservas críticas e pagamentos pendentes no primeiro ecrã.
+- [x] Adicionar feed de eventos recentes.
 
 ### Fase 3 - Completar vendas e atendimento
 
-- [ ] Adicionar comprovativo visual em Reservas.
-- [ ] Adicionar rejeição de pagamento com motivo.
-- [ ] Adicionar envio manual de WhatsApp em Conversas.
-- [ ] Adicionar templates: IBAN, confirmação, lembrete, entrega.
-- [ ] Mostrar falhas de envio WhatsApp de forma clara.
+- [x] Adicionar comprovativo visual em Reservas.
+- [x] Adicionar rejeição de pagamento com motivo.
+- [x] Adicionar envio manual de WhatsApp em Conversas.
+- [x] Adicionar templates: IBAN, confirmação, lembrete, entrega.
+- [x] Mostrar falhas de envio WhatsApp de forma clara.
 
 ### Fase 4 - Pós-live
 
-- [ ] Criar página "Pós-live".
-- [ ] Mostrar entregas pendentes.
-- [ ] Exportar lista de entregas.
-- [ ] Mostrar relatório simples da live.
+- [x] Criar página "Pós-live".
+- [x] Mostrar entregas pendentes.
+- [x] Exportar lista de entregas.
+- [x] Mostrar relatório simples da live.
 - [ ] Preparar feedback pós-live da vendedora piloto.
 
 ### Fase 5 - Landing depois do produto
 
-- [ ] Recriar Home com imagem real/screenshot real.
-- [ ] Remover visual artificial de IA.
-- [ ] Corrigir planos, FAQ e prova social.
-- [ ] Escrever copy focada em vendedores de live em Angola.
+- [x] Recriar Home com imagem real/screenshot real.
+- [x] Remover visual artificial de IA.
+- [x] Corrigir planos, FAQ e prova social.
+- [x] Escrever copy focada em vendedores de live em Angola.
 
 ---
 
 ## 10. Critérios de Aceite para o Redesign
 
-- [ ] Uma vendedora consegue entender o painel principal em menos de 30 segundos.
-- [ ] Durante uma live, comentário com intenção, reserva e pagamento ficam visíveis sem navegar por 3 páginas.
-- [ ] Ações críticas exigem no máximo 2 cliques.
-- [ ] Páginas técnicas não aparecem na navegação principal da vendedora.
-- [ ] Mobile não perde navegação nem ações principais.
-- [ ] O app não parece landing/IA genérica.
-- [ ] Estados de erro dizem o que falhou e o que fazer.
-- [ ] Home pública não tem classes CSS sem definição.
+- [x] Uma vendedora consegue entender o painel principal em menos de 30 segundos.
+- [x] Durante uma live, comentário com intenção, reserva e pagamento ficam visíveis sem navegar por 3 páginas.
+- [x] Ações críticas exigem no máximo 2 cliques.
+- [x] Páginas técnicas não aparecem na navegação principal da vendedora.
+- [x] Mobile não perde navegação nem ações principais.
+- [x] O app não parece landing/IA genérica.
+- [x] Estados de erro dizem o que falhou e o que fazer.
+- [x] Home pública não tem classes CSS sem definição.
 
 ---
 

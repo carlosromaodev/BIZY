@@ -6,6 +6,7 @@ const ambienteOriginal = {
   NODE_ENV: process.env.NODE_ENV,
   MARKET_DOMAIN: process.env.MARKET_DOMAIN,
   ORIGEM_FRONTEND: process.env.ORIGEM_FRONTEND,
+  APP_PUBLIC_URL: process.env.APP_PUBLIC_URL,
   PUBLIC_MARKET_DOMAIN: process.env.PUBLIC_MARKET_DOMAIN,
   PUBLIC_MARKET_URL: process.env.PUBLIC_MARKET_URL,
   PUBLIC_STORE_DOMAIN: process.env.PUBLIC_STORE_DOMAIN,
@@ -50,6 +51,40 @@ describe("CORS em desenvolvimento", () => {
 
       expect(resposta.statusCode).toBe(204);
       expect(resposta.headers["access-control-allow-origin"]).toBe("http://localhost:5174");
+    } finally {
+      await app.close();
+    }
+  });
+
+  it("aceita a origem pública sincronizada pelo ngrok mesmo quando ORIGEM_FRONTEND ficou no localhost", async () => {
+    process.env.NODE_ENV = "production";
+    process.env.ORIGEM_FRONTEND = "http://localhost:5173";
+    process.env.APP_PUBLIC_URL = "https://noncommemorative-concertedly-bonita.ngrok-free.dev";
+    process.env.INICIAR_AGENDADOR_EXPIRACAO = "false";
+    process.env.RESTAURAR_LIVES_ATIVAS = "false";
+    process.env.AUTH_SECRET = "segredo-producao-testes-com-mais-de-32-caracteres";
+    process.env.N8N_EVENTOS_ATIVOS = "false";
+    process.env.EVOLUTION_WEBHOOK_TOKEN = "token-evolution-testes";
+    process.env.LOGIN_SMS_DEV_MODE = "false";
+    process.env.LOGIN_SMS_EXPOR_CODIGO_DEV = "false";
+
+    const app = await criarAplicacao();
+
+    try {
+      const resposta = await app.inject({
+        method: "OPTIONS",
+        url: "/auth/telefone/solicitar-codigo",
+        headers: {
+          origin: "https://noncommemorative-concertedly-bonita.ngrok-free.dev",
+          "access-control-request-method": "POST",
+          "access-control-request-headers": "content-type"
+        }
+      });
+
+      expect(resposta.statusCode).toBe(204);
+      expect(resposta.headers["access-control-allow-origin"]).toBe(
+        "https://noncommemorative-concertedly-bonita.ngrok-free.dev"
+      );
     } finally {
       await app.close();
     }

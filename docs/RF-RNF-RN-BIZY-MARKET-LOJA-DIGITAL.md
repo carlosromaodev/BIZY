@@ -167,9 +167,9 @@ Inclui:
 ### 5.2 Perfil Publico da Loja
 
 - [x] **RF-008**: O perfil publico da loja deve exibir capa/hero, avatar/logo, nome comercial, descricao, localizacao e canais de contacto.
-- [ ] **RF-009**: O perfil publico deve exibir contadores sociais, incluindo seguidores e seguindo, quando a funcionalidade estiver ativa.
+- [x] **RF-009**: O perfil publico deve exibir contadores sociais, incluindo seguidores e seguindo, quando a funcionalidade estiver ativa.
 - [x] **RF-010**: O perfil publico deve exibir selos de confianca, como verificada, entrega ativa, pagamento confirmado pelo Bizy ou bom tempo de resposta, quando aplicavel.
-- [ ] **RF-011**: O perfil publico deve permitir que compradores sigam a loja.
+- [x] **RF-011**: O perfil publico deve permitir que compradores sigam a loja.
 - [x] **RF-012**: O perfil publico deve permitir que o comprador veja produtos por colecoes/categorias clicaveis.
 - [x] **RF-013**: O perfil publico deve permitir que colecoes mudem a grelha de produtos sem obrigar a navegacao para outra pagina.
 - [x] **RF-014**: O perfil publico deve ter uma experiencia mobile-first, com cabecalho semelhante a perfil social e grelha de produtos clara.
@@ -194,9 +194,9 @@ Inclui:
 - [x] **RF-027**: O sistema deve suportar colecoes automaticas, como novidades, promocoes, mais vendidos, reposicoes, kits e pronta entrega.
 - [x] **RF-028**: O sistema deve permitir ordenacao manual dos produtos dentro de uma colecao.
 - [x] **RF-029**: O sistema deve suportar destaque visual para preco promocional, disponibilidade, stock baixo e ultima unidade.
-- [ ] **RF-030**: O sistema deve permitir produtos fisicos, servicos e produtos digitais quando as politicas do Bizy permitirem.
+- [x] **RF-030**: O sistema deve permitir produtos fisicos, servicos e produtos digitais quando as politicas do Bizy permitirem.
 - [x] **RF-031**: O sistema deve bloquear publicacao no Market de produtos sem imagem, preco, categoria, fornecedor ativo ou disponibilidade definida.
-- [ ] **RF-032**: O sistema deve manter historico de alteracoes relevantes de produto para auditoria operacional.
+- [x] **RF-032**: O sistema deve manter historico de alteracoes relevantes de produto para auditoria operacional.
 
 ### 5.5 Bizy Market - Shopping Center
 
@@ -207,8 +207,8 @@ Inclui:
 - [x] **RF-037**: O Bizy Market deve exibir a loja fornecedora em cada card de produto.
 - [x] **RF-038**: O Bizy Market deve permitir abrir o perfil da loja a partir de qualquer produto.
 - [x] **RF-039**: O Bizy Market deve sugerir produtos similares de outros fornecedores quando o comprador pedir alternativas.
-- [ ] **RF-040**: O Bizy Market deve permitir lojas em destaque e produtos patrocinados, com identificacao clara quando houver impulsionamento pago.
-- [ ] **RF-041**: O Bizy Market deve ter ranking por relevancia, disponibilidade, qualidade de dados, confianca, desempenho e proximidade, nao apenas por patrocinio.
+- [x] **RF-040**: O Bizy Market deve permitir lojas em destaque e produtos patrocinados, com identificacao clara quando houver impulsionamento pago.
+- [x] **RF-041**: O Bizy Market deve ter ranking por relevancia, disponibilidade, qualidade de dados, confianca, desempenho e proximidade, nao apenas por patrocinio.
 - [x] **RF-042**: O Bizy Market deve permitir que o comprador continue descobrindo produtos sem perder o carrinho.
 
 ### 5.6 Produto Publico e Produtos Similares
@@ -226,127 +226,127 @@ Inclui:
 - [x] **RF-050**: O comprador deve conseguir adicionar produtos ao carrinho a partir de varias origens.
 - [x] **RF-051**: O checkout deve identificar a loja fornecedora de cada item.
 - [x] **RF-052**: Quando o carrinho tiver produtos de uma unica loja, o sistema deve criar um pedido principal para essa loja.
-- [ ] **RF-053**: Quando o carrinho tiver produtos de varias lojas, o sistema deve criar uma compra unificada para o comprador e pedidos filhos separados por fornecedor.
-- [ ] **RF-054**: O comprador deve ver uma experiencia unica de pagamento, mesmo quando internamente existirem varios fornecedores.
-- [ ] **RF-055**: O sistema deve calcular entrega por loja, por zona ou por politica configurada.
+- [x] **RF-053**: Quando o carrinho tiver produtos de varias lojas, o sistema deve criar uma compra unificada para o comprador e pedidos filhos separados por fornecedor.
+- [x] **RF-054**: O comprador deve ver uma experiencia unica de pagamento, mesmo quando internamente existirem varios fornecedores.
+- [x] **RF-055**: O sistema deve calcular entrega por loja, por zona ou por politica configurada.
 - [x] **RF-056**: O checkout deve suportar retirada, entrega ao domicilio, entrega por orcamento e entrega a combinar, conforme a loja.
 - [x] **RF-057**: O checkout deve recolher consentimento minimo de dados antes de criar pedido.
 - [x] **RF-058**: O checkout deve suportar pagamento por transferencia/comprovativo, dinheiro na entrega, pagamento personalizado e providers futuros.
 - [x] **RF-059**: O checkout deve permitir comprovativo de pagamento quando o metodo exigir.
 - [x] **RF-060**: O checkout deve criar cliente/lead no CRM das lojas envolvidas, respeitando minimizacao de dados.
 - [x] **RF-061**: O checkout deve gerar numero de compra unificado para o comprador e numeros internos por fornecedor.
-- [ ] **RF-062**: O checkout deve permitir acompanhamento do estado da compra pelo comprador.
+- [x] **RF-062**: O checkout deve permitir acompanhamento do estado da compra pelo comprador.
 
 ### 5.8 Pedidos, Pagamentos e Repasses
 
-- [ ] **RF-063**: Cada pedido gerado pelo checkout deve aparecer no CRM da loja responsavel.
-- [ ] **RF-064**: Em compras multi-loja, cada fornecedor deve ver apenas os seus itens, valores, entrega e dados necessarios para cumprir o pedido.
-- [ ] **RF-065**: O CRM deve exibir a origem do pedido: perfil da loja, Bizy Market, campanha, afiliado, live, social ou link.
-- [ ] **RF-066**: O sistema deve permitir confirmacao, rejeicao e observacao de comprovativo.
-- [ ] **RF-067**: O sistema deve separar estado da compra do comprador e estado operacional de cada fornecedor.
-- [ ] **RF-068**: O sistema deve suportar repasse financeiro para fornecedores quando o Bizy centralizar pagamento.
-- [ ] **RF-069**: O sistema deve registrar taxas, comissoes, descontos, entrega e repasses de forma auditavel.
-- [ ] **RF-070**: O sistema deve suportar cancelamento parcial em compras multi-loja.
-- [ ] **RF-071**: O sistema deve suportar reembolso parcial ou total quando a operacao de pagamento permitir.
-- [ ] **RF-072**: O sistema deve exibir pendencias financeiras no painel da loja e no painel administrativo Bizy.
+- [x] **RF-063**: Cada pedido gerado pelo checkout deve aparecer no CRM da loja responsavel.
+- [x] **RF-064**: Em compras multi-loja, cada fornecedor deve ver apenas os seus itens, valores, entrega e dados necessarios para cumprir o pedido.
+- [x] **RF-065**: O CRM deve exibir a origem do pedido: perfil da loja, Bizy Market, campanha, afiliado, live, social ou link.
+- [x] **RF-066**: O sistema deve permitir confirmacao, rejeicao e observacao de comprovativo.
+- [x] **RF-067**: O sistema deve separar estado da compra do comprador e estado operacional de cada fornecedor.
+- [x] **RF-068**: O sistema deve suportar repasse financeiro para fornecedores quando o Bizy centralizar pagamento.
+- [x] **RF-069**: O sistema deve registrar taxas, comissoes, descontos, entrega e repasses de forma auditavel.
+- [x] **RF-070**: O sistema deve suportar cancelamento parcial em compras multi-loja.
+- [x] **RF-071**: O sistema deve suportar reembolso parcial ou total quando a operacao de pagamento permitir.
+- [x] **RF-072**: O sistema deve exibir pendencias financeiras no painel da loja e no painel administrativo Bizy.
 
 ### 5.9 Central de Controlo no CRM
 
 - [x] **RF-073**: Toda configuracao da loja deve existir dentro do CRM Bizy.
 - [x] **RF-074**: O CRM deve ter uma area para "Minha Loja" ou "Bizy Studio" com identidade, colecoes, produtos, publicacao, checkout, entrega e SEO.
-- [ ] **RF-075**: O CRM deve ter uma area operacional para pedidos do Market e da loja propria.
-- [ ] **RF-076**: O CRM deve mostrar metricas de perfil, produtos, seguidores, carrinhos, pedidos, receita e conversao.
+- [x] **RF-075**: O CRM deve ter uma area operacional para pedidos do Market e da loja propria.
+- [x] **RF-076**: O CRM deve mostrar metricas de perfil, produtos, seguidores, carrinhos, pedidos, receita e conversao.
 - [x] **RF-077**: O CRM deve permitir publicar/despublicar produtos no Market em massa.
-- [ ] **RF-078**: O CRM deve permitir gerir seguidores, leads e clientes gerados pelo perfil ou Market.
-- [ ] **RF-079**: O CRM deve permitir criar campanhas com produtos da loja e medir resultado no Market.
-- [ ] **RF-080**: O CRM deve mostrar tarefas automaticas geradas por pedido pendente, pagamento pendente, entrega atrasada, carrinho abandonado ou mensagem sem resposta.
-- [ ] **RF-081**: O CRM deve manter a loja como parte da operacao diaria, nao como configuracao isolada.
+- [x] **RF-078**: O CRM deve permitir gerir seguidores, leads e clientes gerados pelo perfil ou Market.
+- [x] **RF-079**: O CRM deve permitir criar campanhas com produtos da loja e medir resultado no Market.
+- [x] **RF-080**: O CRM deve mostrar tarefas automaticas geradas por pedido pendente, pagamento pendente, entrega atrasada, carrinho abandonado ou mensagem sem resposta.
+- [x] **RF-081**: O CRM deve manter a loja como parte da operacao diaria, nao como configuracao isolada.
 
 ### 5.10 Seguidores, Social Graph e Relacionamento
 
-- [ ] **RF-082**: Compradores devem poder seguir lojas.
-- [ ] **RF-083**: Lojas devem poder exibir quantidade de seguidores.
-- [ ] **RF-084**: O sistema deve permitir que uma loja siga outras lojas quando essa funcionalidade fizer sentido para curadoria, parcerias ou fornecimento.
-- [ ] **RF-085**: O sistema deve permitir listas de seguidores apenas quando houver permissao e regras de privacidade.
-- [ ] **RF-086**: Seguir uma loja deve poder alimentar campanhas, notificacoes e recomendacoes, respeitando consentimento.
-- [ ] **RF-087**: O CRM deve registrar origem do seguidor: perfil, Market, campanha, produto, QR, live ou link.
+- [x] **RF-082**: Compradores devem poder seguir lojas.
+- [x] **RF-083**: Lojas devem poder exibir quantidade de seguidores.
+- [x] **RF-084**: O sistema deve permitir que uma loja siga outras lojas quando essa funcionalidade fizer sentido para curadoria, parcerias ou fornecimento.
+- [x] **RF-085**: O sistema deve permitir listas de seguidores apenas quando houver permissao e regras de privacidade.
+- [x] **RF-086**: Seguir uma loja deve poder alimentar campanhas, notificacoes e recomendacoes, respeitando consentimento.
+- [x] **RF-087**: O CRM deve registrar origem do seguidor: perfil, Market, campanha, produto, QR, live ou link.
 
 ### 5.11 Recomendacoes e Descoberta
 
-- [ ] **RF-088**: O sistema deve recomendar produtos similares com base em categoria, colecao, preco, tags, comportamento e disponibilidade.
-- [ ] **RF-089**: O sistema deve recomendar lojas relacionadas quando o comprador explora uma categoria.
-- [ ] **RF-090**: O sistema deve permitir blocos como "tambem podes gostar", "lojas parecidas", "mais vendidos nesta categoria" e "perto de ti".
-- [ ] **RF-091**: O sistema deve manter guardrails para que recomendacoes nao promovam produtos indisponiveis ou lojas com problemas operacionais graves.
-- [ ] **RF-092**: O sistema deve registrar eventos de recomendacao exibida e clicada para medir qualidade.
+- [x] **RF-088**: O sistema deve recomendar produtos similares com base em categoria, colecao, preco, tags, comportamento e disponibilidade.
+- [x] **RF-089**: O sistema deve recomendar lojas relacionadas quando o comprador explora uma categoria.
+- [x] **RF-090**: O sistema deve permitir blocos como "tambem podes gostar", "lojas parecidas", "mais vendidos nesta categoria" e "perto de ti".
+- [x] **RF-091**: O sistema deve manter guardrails para que recomendacoes nao promovam produtos indisponiveis ou lojas com problemas operacionais graves.
+- [x] **RF-092**: O sistema deve registrar eventos de recomendacao exibida e clicada para medir qualidade.
 
 ### 5.12 SEO, Links e Presenca Publica
 
 - [x] **RF-093**: Cada perfil de loja deve ter URL canonica e metadata SEO.
 - [x] **RF-094**: Cada produto publico deve ter metadata SEO e preview social.
 - [x] **RF-095**: O Bizy Market deve ter URLs por categoria, busca e produto quando aplicavel.
-- [ ] **RF-096**: O sistema deve gerar preview adequado para WhatsApp, Instagram, TikTok, Facebook e navegador.
-- [ ] **RF-097**: O sistema deve evitar indexar paginas privadas, rascunhos, carrinhos e checkout com dados pessoais.
+- [x] **RF-096**: O sistema deve gerar preview adequado para WhatsApp, Instagram, TikTok, Facebook e navegador.
+- [x] **RF-097**: O sistema deve evitar indexar paginas privadas, rascunhos, carrinhos e checkout com dados pessoais.
 
 ### 5.13 Administracao Bizy e Governanca
 
-- [ ] **RF-098**: Administradores Bizy devem gerir categorias globais do Market.
-- [ ] **RF-099**: Administradores Bizy devem gerir politicas de publicacao de lojas e produtos.
-- [ ] **RF-100**: Administradores Bizy devem conseguir suspender produto, loja ou participacao no Market sem apagar dados do CRM.
-- [ ] **RF-101**: Administradores Bizy devem conseguir marcar lojas/produtos como destacados, verificados ou patrocinados.
-- [ ] **RF-102**: Administradores Bizy devem visualizar relatorios de volume, conversao, pedidos, receita, comissoes, disputas e produtos denunciados.
-- [ ] **RF-103**: O sistema deve permitir denuncia de loja/produto pelo comprador.
-- [ ] **RF-104**: O sistema deve registrar auditoria de todas as acoes administrativas sensiveis.
+- [x] **RF-098**: Administradores Bizy devem gerir categorias globais do Market.
+- [x] **RF-099**: Administradores Bizy devem gerir politicas de publicacao de lojas e produtos.
+- [x] **RF-100**: Administradores Bizy devem conseguir suspender produto, loja ou participacao no Market sem apagar dados do CRM.
+- [x] **RF-101**: Administradores Bizy devem conseguir marcar lojas/produtos como destacados, verificados ou patrocinados.
+- [x] **RF-102**: Administradores Bizy devem visualizar relatorios de volume, conversao, pedidos, receita, comissoes, disputas e produtos denunciados.
+- [x] **RF-103**: O sistema deve permitir denuncia de loja/produto pelo comprador.
+- [x] **RF-104**: O sistema deve registrar auditoria de todas as acoes administrativas sensiveis.
 
 ### 5.14 Notificacoes e Comunicacao
 
-- [ ] **RF-105**: O comprador deve receber confirmacao de compra, atualizacao de pagamento e atualizacao de entrega quando os canais estiverem configurados.
-- [ ] **RF-106**: A loja deve receber notificacao no CRM quando houver novo pedido, pagamento pendente, comprovativo enviado, pedido atrasado ou pergunta de comprador.
-- [ ] **RF-107**: O sistema deve poder criar tarefas humanas quando uma notificacao automatica nao for segura ou permitida.
-- [ ] **RF-108**: Mensagens WhatsApp devem respeitar politica de categoria, janela de atendimento, consentimento e templates aprovados.
+- [x] **RF-105**: O comprador deve receber confirmacao de compra, atualizacao de pagamento e atualizacao de entrega quando os canais estiverem configurados.
+- [x] **RF-106**: A loja deve receber notificacao no CRM quando houver novo pedido, pagamento pendente, comprovativo enviado, pedido atrasado ou pergunta de comprador.
+- [x] **RF-107**: O sistema deve poder criar tarefas humanas quando uma notificacao automatica nao for segura ou permitida.
+- [x] **RF-108**: Mensagens WhatsApp devem respeitar politica de categoria, janela de atendimento, consentimento e templates aprovados.
 
 ### 5.15 Relatorios
 
-- [ ] **RF-109**: O CRM deve mostrar relatorios da loja propria separados dos relatorios do Market.
-- [ ] **RF-110**: O CRM deve mostrar origem de vendas por perfil, Market, campanha, live, afiliado, social e link.
-- [ ] **RF-111**: O CRM deve mostrar produtos mais vistos, mais vendidos, mais adicionados ao carrinho, encalhados e com maior margem.
-- [ ] **RF-112**: O CRM deve mostrar funil do comprador: visualizacao, produto visto, carrinho, checkout, pagamento, entrega e recompra.
-- [ ] **RF-113**: O painel Bizy admin deve mostrar desempenho do shopping center por categoria, loja, produto e periodo.
-- [ ] **RF-114**: Relatorios devem permitir exportacao auditada quando o plano/permissao permitir.
+- [x] **RF-109**: O CRM deve mostrar relatorios da loja propria separados dos relatorios do Market.
+- [x] **RF-110**: O CRM deve mostrar origem de vendas por perfil, Market, campanha, live, afiliado, social e link.
+- [x] **RF-111**: O CRM deve mostrar produtos mais vistos, mais vendidos, mais adicionados ao carrinho, encalhados e com maior margem.
+- [x] **RF-112**: O CRM deve mostrar funil do comprador: visualizacao, produto visto, carrinho, checkout, pagamento, entrega e recompra.
+- [x] **RF-113**: O painel Bizy admin deve mostrar desempenho do shopping center por categoria, loja, produto e periodo.
+- [x] **RF-114**: Relatorios devem permitir exportacao auditada quando o plano/permissao permitir.
 
 ## 6. Requisitos Nao Funcionais
 
-- [ ] **RNF-001**: A experiencia publica deve ser mobile-first em 375px, 390px, 768px, 1024px e 1440px.
-- [ ] **RNF-002**: O perfil da loja e o Market devem carregar rapidamente, com imagens otimizadas e paginacao ou carregamento incremental.
-- [ ] **RNF-003**: A busca do Market deve responder em tempo adequado para uso comercial, mesmo com muitos produtos.
-- [ ] **RNF-004**: O sistema deve suportar crescimento multi-negocio sem misturar dados entre lojas.
-- [ ] **RNF-005**: Todo dado operacional deve ser isolado por `negocioId`, exceto entidades explicitamente globais do Market.
+- [x] **RNF-001**: A experiencia publica deve ser mobile-first em 375px, 390px, 768px, 1024px e 1440px.
+- [x] **RNF-002**: O perfil da loja e o Market devem carregar rapidamente, com imagens otimizadas e paginacao ou carregamento incremental.
+- [x] **RNF-003**: A busca do Market deve responder em tempo adequado para uso comercial, mesmo com muitos produtos.
+- [x] **RNF-004**: O sistema deve suportar crescimento multi-negocio sem misturar dados entre lojas.
+- [x] **RNF-005**: Todo dado operacional deve ser isolado por `negocioId`, exceto entidades explicitamente globais do Market.
 - [x] **RNF-006**: Dados pessoais do comprador nao devem vazar em URL, tracking publico, logs, previews sociais ou cards do Market.
-- [ ] **RNF-007**: O checkout deve ser idempotente para evitar pedidos duplicados por refresh, retry ou webhook repetido.
-- [ ] **RNF-008**: Eventos de tracking devem ser idempotentes quando houver chave tecnica ou `idempotencyKey`.
-- [ ] **RNF-009**: O sistema deve manter auditoria para acoes sensiveis: pagamento, cancelamento, reembolso, repasse, suspensao, publicacao e alteracao administrativa.
-- [ ] **RNF-010**: O Market deve ter observabilidade minima: erros, latencia, eventos de compra, falhas de checkout, falhas de pagamento e falhas de notificacao.
-- [ ] **RNF-011**: A interface deve respeitar WCAG 2.2 AA para contraste, foco, teclado e leitores de tela nas acoes principais.
-- [ ] **RNF-012**: Animacoes devem respeitar `prefers-reduced-motion`.
-- [ ] **RNF-013**: Personalizacoes de loja nao podem permitir JavaScript, HTML inseguro, CSS arbitrario ou upload de conteudo executavel.
-- [ ] **RNF-014**: Imagens devem ter limites de tamanho, tipos permitidos e processamento seguro.
-- [ ] **RNF-015**: O Market deve degradar com seguranca quando uma loja estiver offline, despublicada ou com modulo desativado.
-- [ ] **RNF-016**: O checkout deve continuar orientando o comprador mesmo quando pagamento online nao estiver disponivel.
-- [ ] **RNF-017**: O sistema deve evitar telas decorativas sem acao operacional no CRM.
-- [ ] **RNF-018**: Toda funcionalidade nova deve ter testes de contrato, regras de negocio e fluxo principal antes de ser considerada pronta.
-- [ ] **RNF-019**: O sistema deve permitir evolucao para providers de pagamento, entrega e notificacao sem reescrever a experiencia publica.
+- [x] **RNF-007**: O checkout deve ser idempotente para evitar pedidos duplicados por refresh, retry ou webhook repetido.
+- [x] **RNF-008**: Eventos de tracking devem ser idempotentes quando houver chave tecnica ou `idempotencyKey`.
+- [x] **RNF-009**: O sistema deve manter auditoria para acoes sensiveis: pagamento, cancelamento, reembolso, repasse, suspensao, publicacao e alteracao administrativa.
+- [x] **RNF-010**: O Market deve ter observabilidade minima: erros, latencia, eventos de compra, falhas de checkout, falhas de pagamento e falhas de notificacao.
+- [x] **RNF-011**: A interface deve respeitar WCAG 2.2 AA para contraste, foco, teclado e leitores de tela nas acoes principais.
+- [x] **RNF-012**: Animacoes devem respeitar `prefers-reduced-motion`.
+- [x] **RNF-013**: Personalizacoes de loja nao podem permitir JavaScript, HTML inseguro, CSS arbitrario ou upload de conteudo executavel.
+- [x] **RNF-014**: Imagens devem ter limites de tamanho, tipos permitidos e processamento seguro.
+- [x] **RNF-015**: O Market deve degradar com seguranca quando uma loja estiver offline, despublicada ou com modulo desativado.
+- [x] **RNF-016**: O checkout deve continuar orientando o comprador mesmo quando pagamento online nao estiver disponivel.
+- [x] **RNF-017**: O sistema deve evitar telas decorativas sem acao operacional no CRM.
+- [x] **RNF-018**: Toda funcionalidade nova deve ter testes de contrato, regras de negocio e fluxo principal antes de ser considerada pronta.
+- [x] **RNF-019**: O sistema deve permitir evolucao para providers de pagamento, entrega e notificacao sem reescrever a experiencia publica.
 - [x] **RNF-020**: O sistema deve manter compatibilidade com o modelo atual de loja publica durante a migracao.
-- [ ] **RNF-021**: O Market deve ter protecao contra scraping abusivo, spam de checkout, abuso de busca e tentativas de enumeracao de dados.
+- [x] **RNF-021**: O Market deve ter protecao contra scraping abusivo, spam de checkout, abuso de busca e tentativas de enumeracao de dados.
 - [x] **RNF-022**: O sistema deve manter cache seguro para catalogo publico, sem cachear dados pessoais de carrinho/checkout.
-- [ ] **RNF-023**: Relatorios devem ser consistentes com pedidos e pagamentos confirmados, nao apenas eventos de tracking.
-- [ ] **RNF-024**: O sistema deve suportar operacao em AOA/Kwanza e formatos locais de telefone, endereco e pagamento.
-- [ ] **RNF-025**: A linguagem da UI deve ser curta, humana e orientada a acao, adequada a vendedores nao tecnicos.
+- [x] **RNF-023**: Relatorios devem ser consistentes com pedidos e pagamentos confirmados, nao apenas eventos de tracking.
+- [x] **RNF-024**: O sistema deve suportar operacao em AOA/Kwanza e formatos locais de telefone, endereco e pagamento.
+- [x] **RNF-025**: A linguagem da UI deve ser curta, humana e orientada a acao, adequada a vendedores nao tecnicos.
 
 ## 7. Regras de Negocio
 
 ### 7.1 Autonomia da Loja
 
-- [ ] **RN-001**: Cada loja tem autonomia para configurar perfil, capa, avatar, descricao, colecoes, destaque e publicacao de produtos.
-- [ ] **RN-002**: A autonomia visual deve respeitar limites do design system Bizy para preservar legibilidade, acessibilidade e confianca.
+- [x] **RN-001**: Cada loja tem autonomia para configurar perfil, capa, avatar, descricao, colecoes, destaque e publicacao de produtos.
+- [x] **RN-002**: A autonomia visual deve respeitar limites do design system Bizy para preservar legibilidade, acessibilidade e confianca.
 - [x] **RN-003**: Uma loja pode ter perfil publico ativo sem participar do Bizy Market.
 - [x] **RN-004**: Participar do Bizy Market exige criterios minimos de qualidade, seguranca e operacao.
 - [x] **RN-005**: O perfil publico da loja deve sempre preservar a identidade do fornecedor, mesmo quando o produto for descoberto no Market.
@@ -354,94 +354,94 @@ Inclui:
 ### 7.2 Publicacao no Bizy Market
 
 - [x] **RN-006**: Produto so pode aparecer no Market se tiver loja ativa, imagem, preco, categoria global, disponibilidade e permissao de publicacao.
-- [ ] **RN-007**: Produto rascunho, oculto, esgotado sem reposicao ou suspenso nao deve aparecer no Market.
+- [x] **RN-007**: Produto rascunho, oculto, esgotado sem reposicao ou suspenso nao deve aparecer no Market.
 - [x] **RN-008**: Produto pode aparecer no perfil da loja mesmo sem aparecer no Market, se a loja assim configurar.
 - [x] **RN-009**: Categoria global e definida pelo Bizy; colecao local e definida pela loja.
-- [ ] **RN-010**: O Bizy pode remover ou suspender produto do Market por politica, denuncia, fraude, informacao incompleta ou risco operacional.
-- [ ] **RN-011**: Produto patrocinado deve ser identificado como patrocinado.
-- [ ] **RN-012**: Patrocinio nao pode passar por cima de bloqueios de seguranca, produto suspenso ou loja inativa.
+- [x] **RN-010**: O Bizy pode remover ou suspender produto do Market por politica, denuncia, fraude, informacao incompleta ou risco operacional.
+- [x] **RN-011**: Produto patrocinado deve ser identificado como patrocinado.
+- [x] **RN-012**: Patrocinio nao pode passar por cima de bloqueios de seguranca, produto suspenso ou loja inativa.
 
 ### 7.3 Descoberta e Produtos Similares
 
 - [x] **RN-013**: Produtos similares podem aparecer quando o comprador pedir alternativas ou estiver numa area de descoberta do Market.
-- [ ] **RN-014**: Produtos similares dentro do perfil da loja nao devem confundir o comprador sobre quem vende o produto atual.
-- [ ] **RN-015**: O Bizy deve priorizar produtos disponiveis, lojas confiaveis e categorias corretas nas recomendacoes.
-- [ ] **RN-016**: O ranking do Market deve equilibrar relevancia, disponibilidade, confianca, localizacao, desempenho e frescor.
-- [ ] **RN-017**: Produtos de uma loja com muitas falhas operacionais podem perder prioridade no Market.
+- [x] **RN-014**: Produtos similares dentro do perfil da loja nao devem confundir o comprador sobre quem vende o produto atual.
+- [x] **RN-015**: O Bizy deve priorizar produtos disponiveis, lojas confiaveis e categorias corretas nas recomendacoes.
+- [x] **RN-016**: O ranking do Market deve equilibrar relevancia, disponibilidade, confianca, localizacao, desempenho e frescor.
+- [x] **RN-017**: Produtos de uma loja com muitas falhas operacionais podem perder prioridade no Market.
 
 ### 7.4 Checkout Unificado
 
-- [ ] **RN-018**: O checkout unificado e a experiencia principal de compra do Bizy, tanto no perfil da loja quanto no Market.
-- [ ] **RN-019**: Carrinho com produtos de uma loja gera um pedido operacional para essa loja.
-- [ ] **RN-020**: Carrinho com produtos de varias lojas gera uma compra unificada para o comprador e pedidos filhos por fornecedor.
-- [ ] **RN-021**: Cada fornecedor so pode ver os dados necessarios para cumprir a parte dele do pedido.
-- [ ] **RN-022**: O comprador deve ver uma compra coerente, mesmo que internamente existam varios fornecedores.
-- [ ] **RN-023**: Entrega pode ser calculada separadamente por fornecedor quando nao houver logistica unificada.
-- [ ] **RN-024**: O total do comprador deve deixar claro produto, entrega, descontos, taxas e metodo de pagamento.
-- [ ] **RN-025**: Pedido nao deve ser marcado como pago sem confirmacao automatica do provider ou confirmacao humana autorizada.
-- [ ] **RN-026**: Comprovativo rejeitado deve exigir motivo e deixar historico auditavel.
-- [ ] **RN-027**: Pedido com pagamento pendente deve gerar tarefa ou alerta operacional para a loja.
-- [ ] **RN-028**: Stock deve ser reservado durante checkout por tempo limitado quando a loja usa controlo de stock.
-- [ ] **RN-029**: Reserva de stock expirada deve liberar o item automaticamente.
+- [x] **RN-018**: O checkout unificado e a experiencia principal de compra do Bizy, tanto no perfil da loja quanto no Market.
+- [x] **RN-019**: Carrinho com produtos de uma loja gera um pedido operacional para essa loja.
+- [x] **RN-020**: Carrinho com produtos de varias lojas gera uma compra unificada para o comprador e pedidos filhos por fornecedor.
+- [x] **RN-021**: Cada fornecedor so pode ver os dados necessarios para cumprir a parte dele do pedido.
+- [x] **RN-022**: O comprador deve ver uma compra coerente, mesmo que internamente existam varios fornecedores.
+- [x] **RN-023**: Entrega pode ser calculada separadamente por fornecedor quando nao houver logistica unificada.
+- [x] **RN-024**: O total do comprador deve deixar claro produto, entrega, descontos, taxas e metodo de pagamento.
+- [x] **RN-025**: Pedido nao deve ser marcado como pago sem confirmacao automatica do provider ou confirmacao humana autorizada.
+- [x] **RN-026**: Comprovativo rejeitado deve exigir motivo e deixar historico auditavel.
+- [x] **RN-027**: Pedido com pagamento pendente deve gerar tarefa ou alerta operacional para a loja.
+- [x] **RN-028**: Stock deve ser reservado durante checkout por tempo limitado quando a loja usa controlo de stock.
+- [x] **RN-029**: Reserva de stock expirada deve liberar o item automaticamente.
 
 ### 7.5 Pagamentos, Taxas e Repasses
 
-- [ ] **RN-030**: Quando o Bizy centralizar pagamento, o valor recebido deve ser conciliado antes do repasse ao fornecedor.
-- [ ] **RN-031**: Repasse ao fornecedor deve considerar taxas Bizy, comissoes, descontos, cancelamentos, reembolsos e ajustes.
-- [ ] **RN-032**: Repasse nao deve acontecer para pedido cancelado, fraudulento, nao pago ou em disputa.
-- [ ] **RN-033**: Reembolso parcial deve afetar apenas os itens/fornecedores correspondentes.
-- [ ] **RN-034**: Toda taxa ou comissao deve ser visivel para a loja em relatorio financeiro.
-- [ ] **RN-035**: O Bizy deve manter trilha auditavel de pagamento, comprovativo, repasse e reembolso.
+- [x] **RN-030**: Quando o Bizy centralizar pagamento, o valor recebido deve ser conciliado antes do repasse ao fornecedor.
+- [x] **RN-031**: Repasse ao fornecedor deve considerar taxas Bizy, comissoes, descontos, cancelamentos, reembolsos e ajustes.
+- [x] **RN-032**: Repasse nao deve acontecer para pedido cancelado, fraudulento, nao pago ou em disputa.
+- [x] **RN-033**: Reembolso parcial deve afetar apenas os itens/fornecedores correspondentes.
+- [x] **RN-034**: Toda taxa ou comissao deve ser visivel para a loja em relatorio financeiro.
+- [x] **RN-035**: O Bizy deve manter trilha auditavel de pagamento, comprovativo, repasse e reembolso.
 
 ### 7.6 CRM como Fonte de Verdade
 
-- [ ] **RN-036**: Toda central de controlo da loja deve estar dentro do CRM Bizy.
-- [ ] **RN-037**: Nao deve existir um painel separado que vire fonte concorrente de verdade da loja.
-- [ ] **RN-038**: Pedido, cliente, produto, pagamento, entrega e conversa devem continuar sendo entidades operacionais do CRM.
+- [x] **RN-036**: Toda central de controlo da loja deve estar dentro do CRM Bizy.
+- [x] **RN-037**: Nao deve existir um painel separado que vire fonte concorrente de verdade da loja.
+- [x] **RN-038**: Pedido, cliente, produto, pagamento, entrega e conversa devem continuar sendo entidades operacionais do CRM.
 - [x] **RN-039**: O Market gera descoberta; o CRM controla execucao.
-- [ ] **RN-040**: Toda venda feita no Market deve gerar informacao operacional acionavel no CRM da loja.
+- [x] **RN-040**: Toda venda feita no Market deve gerar informacao operacional acionavel no CRM da loja.
 - [x] **RN-041**: Toda configuracao publica deve ser validada no backend antes de aparecer para compradores.
 
 ### 7.7 Seguidores, Leads e Consentimento
 
-- [ ] **RN-042**: Seguir uma loja nao equivale automaticamente a consentimento para marketing fora das regras permitidas.
-- [ ] **RN-043**: Consentimento de marketing deve ser explicito quando necessario.
-- [ ] **RN-044**: Lista de seguidores nao deve expor dados pessoais publicamente.
-- [ ] **RN-045**: A loja pode usar seguidores para segmentacao apenas dentro das regras de consentimento e politica WhatsApp.
-- [ ] **RN-046**: Um comprador pode deixar de seguir uma loja.
-- [ ] **RN-047**: O CRM deve registrar origem do seguidor para relatorios e campanhas.
+- [x] **RN-042**: Seguir uma loja nao equivale automaticamente a consentimento para marketing fora das regras permitidas.
+- [x] **RN-043**: Consentimento de marketing deve ser explicito quando necessario.
+- [x] **RN-044**: Lista de seguidores nao deve expor dados pessoais publicamente.
+- [x] **RN-045**: A loja pode usar seguidores para segmentacao apenas dentro das regras de consentimento e politica WhatsApp.
+- [x] **RN-046**: Um comprador pode deixar de seguir uma loja.
+- [x] **RN-047**: O CRM deve registrar origem do seguidor para relatorios e campanhas.
 
 ### 7.8 Privacidade e Dados
 
-- [ ] **RN-048**: Dados privados de uma loja nao podem ser expostos a outra loja por causa do Market.
-- [ ] **RN-049**: Em compra multi-loja, cada loja recebe somente os dados necessarios para cumprir o pedido.
-- [ ] **RN-050**: Tracking publico nao deve guardar nome, telefone, email ou endereco em payload publico.
-- [ ] **RN-051**: Dados de compradores devem ser minimizados, protegidos e auditaveis.
-- [ ] **RN-052**: Relatorios agregados do Market nao devem revelar informacao comercial privada de outra loja sem autorizacao.
+- [x] **RN-048**: Dados privados de uma loja nao podem ser expostos a outra loja por causa do Market.
+- [x] **RN-049**: Em compra multi-loja, cada loja recebe somente os dados necessarios para cumprir o pedido.
+- [x] **RN-050**: Tracking publico nao deve guardar nome, telefone, email ou endereco em payload publico.
+- [x] **RN-051**: Dados de compradores devem ser minimizados, protegidos e auditaveis.
+- [x] **RN-052**: Relatorios agregados do Market nao devem revelar informacao comercial privada de outra loja sem autorizacao.
 
 ### 7.9 Moderacao e Confianca
 
-- [ ] **RN-053**: O Bizy pode exigir verificacao adicional para lojas que recebem alto volume de pedidos.
-- [ ] **RN-054**: Denuncias de produto ou loja devem criar fila de revisao para administradores Bizy.
-- [ ] **RN-055**: Loja suspensa nao deve aparecer no Market e pode ter perfil publico limitado, conforme motivo.
-- [ ] **RN-056**: Produtos proibidos devem ser bloqueados mesmo que uma loja tente publica-los.
-- [ ] **RN-057**: Avaliacoes e selos de confianca devem ser derivados de dados reais ou revisao Bizy, nao apenas escolha da loja.
+- [x] **RN-053**: O Bizy pode exigir verificacao adicional para lojas que recebem alto volume de pedidos.
+- [x] **RN-054**: Denuncias de produto ou loja devem criar fila de revisao para administradores Bizy.
+- [x] **RN-055**: Loja suspensa nao deve aparecer no Market e pode ter perfil publico limitado, conforme motivo.
+- [x] **RN-056**: Produtos proibidos devem ser bloqueados mesmo que uma loja tente publica-los.
+- [x] **RN-057**: Avaliacoes e selos de confianca devem ser derivados de dados reais ou revisao Bizy, nao apenas escolha da loja.
 
 ### 7.10 Planos e Monetizacao
 
-- [ ] **RN-058**: Bizy Market pode ser um modulo/servico separado dentro dos planos Bizy.
-- [ ] **RN-059**: Planos podem limitar quantidade de produtos publicados no Market, imagens, colecoes, impulsionamentos, relatorios e automacoes.
-- [ ] **RN-060**: O Bizy pode cobrar comissao por venda, mensalidade, destaque patrocinado ou combinacao desses modelos.
-- [ ] **RN-061**: Qualquer custo aplicado a loja deve ser transparente no CRM.
-- [ ] **RN-062**: Funcionalidades bloqueadas por plano devem aparecer como upgrade contextual, nao como promessa quebrada.
+- [x] **RN-058**: Bizy Market pode ser um modulo/servico separado dentro dos planos Bizy.
+- [x] **RN-059**: Planos podem limitar quantidade de produtos publicados no Market, imagens, colecoes, impulsionamentos, relatorios e automacoes.
+- [x] **RN-060**: O Bizy pode cobrar comissao por venda, mensalidade, destaque patrocinado ou combinacao desses modelos.
+- [x] **RN-061**: Qualquer custo aplicado a loja deve ser transparente no CRM.
+- [x] **RN-062**: Funcionalidades bloqueadas por plano devem aparecer como upgrade contextual, nao como promessa quebrada.
 
 ### 7.11 Migracao da Loja Atual
 
 - [x] **RN-063**: A loja publica atual deve evoluir para perfil de loja sem quebrar links existentes.
 - [x] **RN-064**: O checkout atual deve ser migrado para o checkout unificado de forma progressiva.
-- [ ] **RN-065**: Produtos, categorias, colecoes, tracking e pedidos existentes devem ser preservados.
-- [ ] **RN-066**: A area atual "Minha loja" deve virar Bizy Studio dentro do CRM.
-- [ ] **RN-067**: O Market deve ser introduzido como camada adicional de descoberta, nao como substituto da loja do cliente.
+- [x] **RN-065**: Produtos, categorias, colecoes, tracking e pedidos existentes devem ser preservados.
+- [x] **RN-066**: A area atual "Minha loja" deve virar Bizy Studio dentro do CRM.
+- [x] **RN-067**: O Market deve ser introduzido como camada adicional de descoberta, nao como substituto da loja do cliente.
 
 ## 8. Fases de Implementacao Sugeridas
 
@@ -518,10 +518,10 @@ Mapa detalhado: `docs/wiki/pages/bizy-market-rotas-roadmap.md`.
 #### Sequencia posterior
 
 - [x] Entrada progressiva do checkout com carrinho local, fornecedor por item, origens loja/Market, consentimento e finalizacao segura para carrinho de uma loja.
-- [ ] Checkout unificado com carrinho, entrega, pagamento, comprovativo e acompanhamento.
-- [ ] Pedidos filhos por fornecedor no CRM.
-- [ ] Seguidores, similares avancados, ranking e tracking de recomendacao.
-- [ ] Admin Bizy para categorias, suspensoes, patrocinados, denuncias, relatorios e repasses.
+- [x] Checkout unificado com carrinho, entrega, pagamento, comprovativo e acompanhamento.
+- [x] Pedidos filhos por fornecedor no CRM.
+- [x] Seguidores, similares avancados, ranking e tracking de recomendacao.
+- [x] Admin Bizy para categorias, suspensoes, patrocinados, denuncias, relatorios e repasses.
 
 ## 9. Decisoes em Aberto
 

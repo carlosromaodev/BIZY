@@ -1,5 +1,7 @@
 import type { FastifyBaseLogger } from "fastify";
 import { DespachadorEventos } from "../../dominio/eventos/DespachadorEventos.js";
+import { AssistenteIAUseCase } from "../../use-case/AssistenteIAUseCase.js";
+import { ProvedorIAOpenRouter } from "../provedores/ProvedorIAOpenRouter.js";
 import type { LiveCommentProvider } from "../../dominio/provedores/LiveCommentProvider.js";
 import type { ProvedorWhatsApp } from "../../dominio/provedores/ProvedorWhatsApp.js";
 import type {
@@ -25,6 +27,12 @@ import type {
   RepositorioSessoesLive,
   RepositorioSocialInbox,
   RepositorioTarefasOperacionais,
+  RepositorioSeguidoresLoja,
+  RepositorioDenuncias,
+  RepositorioReservasStockCheckout,
+  RepositorioComprasUnificadas,
+  RepositorioRepassesFinanceiros,
+  RepositorioReembolsos,
   RepositorioTemplatesWhatsApp,
   RepositorioTrackingComercial
 } from "../../dominio/repositorios/contratos.js";
@@ -36,6 +44,8 @@ import { AtendimentoCrmUseCase } from "../../use-case/AtendimentoCrmUseCase.js";
 import { AutenticacaoEstudantilUseCase, UorConnectAuthProvider } from "../../use-case/AutenticacaoEstudantilUseCase.js";
 import { AutenticacaoTelefoneUseCase } from "../../use-case/AutenticacaoTelefoneUseCase.js";
 import { BizyMarketUseCase } from "../../use-case/BizyMarketUseCase.js";
+import { CheckoutUnificadoUseCase } from "../../use-case/CheckoutUnificadoUseCase.js";
+import { RepassesFinanceirosUseCase } from "../../use-case/RepassesFinanceirosUseCase.js";
 import { ConsultaAtendimentoN8n } from "../../use-case/ConsultaAtendimentoN8n.js";
 import { ConsultaAtendimentoOperacionalUseCase } from "../../use-case/ConsultaAtendimentoOperacionalUseCase.js";
 import { ConsultaIntegracoesUseCase } from "../../use-case/ConsultaIntegracoesUseCase.js";
@@ -91,6 +101,12 @@ import {
   RepositorioReservasMemoria,
   RepositorioSessoesLiveMemoria,
   RepositorioSocialInboxMemoria,
+  RepositorioSeguidoresLojaMemoria,
+  RepositorioDenunciasMemoria,
+  RepositorioReservasStockCheckoutMemoria,
+  RepositorioComprasUnificadasMemoria,
+  RepositorioRepassesFinanceirosMemoria,
+  RepositorioReembolsosMemoria,
   RepositorioTarefasOperacionaisMemoria,
   RepositorioTemplatesWhatsAppMemoria,
   RepositorioTrackingComercialMemoria
@@ -117,6 +133,7 @@ import {
   RepositorioReservasPrisma,
   RepositorioSessoesLivePrisma,
   RepositorioSocialInboxPrisma,
+  RepositorioSeguidoresLojaPrisma,
   RepositorioTarefasOperacionaisPrisma,
   RepositorioTemplatesWhatsAppPrisma,
   RepositorioTrackingComercialPrisma
@@ -162,6 +179,12 @@ export interface RepositoriosAplicacao {
   playbooksRecuperacao: RepositorioPlaybooksRecuperacao;
   funilComercial: RepositorioFunilComercial;
   oportunidadesRecuperacao: RepositorioOportunidadesRecuperacao;
+  seguidoresLoja: RepositorioSeguidoresLoja;
+  denuncias: RepositorioDenuncias;
+  reservasStockCheckout: RepositorioReservasStockCheckout;
+  comprasUnificadas: RepositorioComprasUnificadas;
+  repassesFinanceiros: RepositorioRepassesFinanceiros;
+  reembolsos: RepositorioReembolsos;
   verificarConexao?: () => Promise<void>;
   encerrar?: () => Promise<void>;
 }
@@ -233,6 +256,9 @@ export interface ContextoAplicacao {
   limparDadosComunicacao: LimparDadosComunicacaoUseCase;
   lojaPublica: LojaPublicaUseCase;
   bizyMarket: BizyMarketUseCase;
+  checkoutUnificado: CheckoutUnificadoUseCase;
+  repassesFinanceiros: RepassesFinanceirosUseCase;
+  assistenteIA: AssistenteIAUseCase | null;
   sessoesLive: Map<string, SessaoLive>;
 }
 
@@ -292,7 +318,7 @@ export function criarContextoAplicacao(logger: FastifyBaseLogger): ContextoAplic
     eventos,
     Number(process.env.N8N_MINUTOS_ANTES_EXPIRAR ?? 2)
   );
-  const gestaoPecas = new GestaoPecasUseCase(repositorios.pecas, eventos, repositorios.reservas);
+  const gestaoPecas = new GestaoPecasUseCase(repositorios.pecas, eventos, repositorios.reservas, repositorios.eventosOperacionais);
   const gestaoPedidos = new GestaoPedidosUseCase(
     repositorios.pedidos,
     repositorios.clientes,
@@ -459,9 +485,36 @@ export function criarContextoAplicacao(logger: FastifyBaseLogger): ContextoAplic
     gestaoAfiliados,
     repositorios.oportunidadesRecuperacao,
     repositorios.eventosOperacionais,
-    repositorios.funilComercial
+    repositorios.funilComercial,
+    repositorios.seguidoresLoja
   );
   const bizyMarket = new BizyMarketUseCase(repositorios.autenticacao, repositorios.pecas);
+
+  const checkoutUnificado = new CheckoutUnificadoUseCase({
+    comprasUnificadas: repositorios.comprasUnificadas,
+    pecas: repositorios.pecas,
+    pedidos: repositorios.pedidos,
+    reservasStockCheckout: repositorios.reservasStockCheckout,
+    repassesFinanceiros: repositorios.repassesFinanceiros,
+    reembolsos: repositorios.reembolsos,
+    eventos
+  });
+
+  const repassesFinanceirosUseCase = new RepassesFinanceirosUseCase({
+    repassesFinanceiros: repositorios.repassesFinanceiros,
+    reembolsos: repositorios.reembolsos,
+    comprasUnificadas: repositorios.comprasUnificadas,
+    pedidos: repositorios.pedidos,
+    eventos
+  });
+
+  const provedorIA = criarProvedorIA();
+  const assistenteIA = provedorIA
+    ? new AssistenteIAUseCase({
+        provedorIA,
+        modeloPadrao: process.env.OPENROUTER_MODELO_PADRAO,
+      })
+    : null;
 
   const publicadorEventosN8n = new PublicadorEventosN8n(eventos, {
     webhookUrl: process.env.N8N_WEBHOOK_EVENTOS_URL,
@@ -519,6 +572,9 @@ export function criarContextoAplicacao(logger: FastifyBaseLogger): ContextoAplic
     limparDadosComunicacao,
     lojaPublica,
     bizyMarket,
+    checkoutUnificado,
+    repassesFinanceiros: repassesFinanceirosUseCase,
+    assistenteIA,
     sessoesLive: new Map()
   };
 }
@@ -562,6 +618,12 @@ function criarRepositorios(): RepositoriosAplicacao {
       playbooksRecuperacao: new RepositorioPlaybooksRecuperacaoMemoria(),
       funilComercial: new RepositorioFunilComercialMemoria(),
       oportunidadesRecuperacao: new RepositorioOportunidadesRecuperacaoMemoria(),
+      seguidoresLoja: new RepositorioSeguidoresLojaMemoria(),
+      denuncias: new RepositorioDenunciasMemoria(),
+      reservasStockCheckout: new RepositorioReservasStockCheckoutMemoria(),
+      comprasUnificadas: new RepositorioComprasUnificadasMemoria(),
+      repassesFinanceiros: new RepositorioRepassesFinanceirosMemoria(),
+      reembolsos: new RepositorioReembolsosMemoria(),
       verificarConexao: async () => undefined
     };
   }
@@ -593,6 +655,12 @@ function criarRepositorios(): RepositoriosAplicacao {
     playbooksRecuperacao: new RepositorioPlaybooksRecuperacaoPrisma(prisma),
     funilComercial: new RepositorioFunilComercialPrisma(prisma),
     oportunidadesRecuperacao: new RepositorioOportunidadesRecuperacaoPrisma(prisma),
+    seguidoresLoja: new RepositorioSeguidoresLojaPrisma(prisma),
+    denuncias: new RepositorioDenunciasMemoria(),
+    reservasStockCheckout: new RepositorioReservasStockCheckoutMemoria(),
+    comprasUnificadas: new RepositorioComprasUnificadasMemoria(),
+    repassesFinanceiros: new RepositorioRepassesFinanceirosMemoria(),
+    reembolsos: new RepositorioReembolsosMemoria(),
     verificarConexao: async () => {
       await prisma.$queryRaw`SELECT 1`;
     },
@@ -673,5 +741,19 @@ function criarProvedorSms() {
   return new ProvedorSmsOmbala({
     baseUrl: process.env.OMBALA_API_BASE_URL ?? "https://api.ombala.ao",
     token: process.env.OMBALA_API_TOKEN
+  });
+}
+
+function criarProvedorIA() {
+  const apiKey = process.env.OPENROUTER_API_KEY;
+  if (!apiKey) return null;
+
+  return new ProvedorIAOpenRouter({
+    apiKey,
+    baseUrl: process.env.OPENROUTER_BASE_URL,
+    modeloPadrao: process.env.OPENROUTER_MODELO_PADRAO,
+    siteUrl: process.env.OPENROUTER_SITE_URL ?? process.env.APP_PUBLIC_URL,
+    siteNome: process.env.OPENROUTER_SITE_NOME ?? "Bizy – ÉMeu",
+    timeoutMs: Number(process.env.OPENROUTER_TIMEOUT_MS ?? 60_000),
   });
 }

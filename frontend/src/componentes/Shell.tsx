@@ -32,7 +32,7 @@ import {
   secoesComerciais,
   usuarioPodeVerAdminSistema,
 } from "../rotasApp";
-import type { Peca, Reserva, RespostaConversas } from "../tipos";
+import type { LiveResumo, Peca, Reserva, RespostaConversas, ResumoPainel } from "../tipos";
 import { formatarKwanza } from "../utilidades";
 import { CrmListItem } from "./CrmInterno21st";
 import { Button } from "@/components/ui/button";
@@ -58,11 +58,43 @@ export function Shell({ children }: { children: ReactNode }) {
   const [menuMobileAberto, setMenuMobileAberto] = useState(false);
   const [notificacoesAberto, setNotificacoesAberto] = useState(false);
   const [modulosAtivos, setModulosAtivos] = useState<string[]>([]);
+  const [liveAtiva, setLiveAtiva] = useState<LiveResumo | null>(null);
+  const [tempoLiveShell, setTempoLiveShell] = useState(0);
   const podeVerAdminSistema = usuarioPodeVerAdminSistema(usuario?.papel);
 
   useEffect(() => {
     requisitarApi<{ modulosAtivos?: string[] }>("/negocio/modulos").then((r) => setModulosAtivos(r?.modulosAtivos ?? [])).catch(() => {});
   }, []);
+
+  useEffect(() => {
+    const verificarLive = () => {
+      requisitarApi<ResumoPainel>("/painel/resumo")
+        .then((r) => {
+          const ativa = r.lives?.find((l) => l.status !== "ENCERRADA") ?? null;
+          setLiveAtiva(ativa);
+        })
+        .catch(() => setLiveAtiva(null));
+    };
+    verificarLive();
+    const intervalo = window.setInterval(verificarLive, 15_000);
+    return () => window.clearInterval(intervalo);
+  }, []);
+
+  useEffect(() => {
+    if (liveAtiva?.iniciadaEm) {
+      const calcular = () => Math.max(0, Math.floor((Date.now() - new Date(liveAtiva.iniciadaEm).getTime()) / 1000));
+      setTempoLiveShell(calcular());
+      const t = window.setInterval(() => setTempoLiveShell(calcular()), 1000);
+      return () => window.clearInterval(t);
+    }
+    setTempoLiveShell(0);
+  }, [liveAtiva]);
+
+  const tempoLiveFormatado = useMemo(() => {
+    const m = Math.floor(tempoLiveShell / 60);
+    const s = tempoLiveShell % 60;
+    return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+  }, [tempoLiveShell]);
 
   const rotasComerciaisFiltradas = useMemo(() => filtrarRotasPorModulos(rotasComerciais, modulosAtivos), [modulosAtivos]);
 
@@ -399,18 +431,23 @@ export function Shell({ children }: { children: ReactNode }) {
                     </NavLink>
                   );
                 })}
-                <span className="crm-v3-live-pill">
-                  <i />
-                  AO VIVO 00:42
-                </span>
+                {liveAtiva && (
+                  <NavLink to="/app/live" className="crm-v3-live-pill">
+                    <i />
+                    AO VIVO {tempoLiveFormatado}
+                  </NavLink>
+                )}
               </motion.div>
             )}
           </AnimatePresence>
         </nav>
       </header>
 
+      {/* ── Skip to content (WCAG 2.2 AA) ── */}
+      <a href="#conteudo-principal" className="skip-to-content">Ir para o conteúdo</a>
+
       {/* ── Main content ── */}
-      <main className="app-route-surface crm-v3-route-surface min-h-dvh">
+      <main id="conteudo-principal" className="app-route-surface crm-v3-route-surface min-h-dvh">
         <div className="crm-v3-mob-search-wrap lg:hidden">
           <BuscaGlobalComercial />
         </div>

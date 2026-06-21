@@ -1,5 +1,60 @@
 import type { EstadoIntegracao, EstadoPeca, EstadoReserva, Peca, Reserva } from "./tipos";
 
+export interface DadosSeo {
+  titulo?: string;
+  descricao?: string;
+  imagem?: string | null;
+  canonicalPath?: string;
+  previewSocial?: {
+    facebook?: { openGraph?: { title?: string; description?: string; image?: string | null; url?: string; type?: string } };
+    navegador?: { title?: string; metaDescription?: string; canonicalPath?: string; image?: string | null };
+    whatsapp?: { titulo?: string; descricao?: string; imagem?: string | null; url?: string };
+  };
+}
+
+export function aplicarSeoMetaTags(seo: DadosSeo | null | undefined): () => void {
+  if (!seo) return () => undefined;
+
+  const criadas: HTMLElement[] = [];
+
+  function upsertMeta(attr: string, valor: string, conteudo: string) {
+    let el = document.querySelector(`meta[${attr}="${valor}"]`) as HTMLMetaElement | null;
+    if (!el) {
+      el = document.createElement("meta");
+      el.setAttribute(attr, valor);
+      document.head.appendChild(el);
+      criadas.push(el);
+    }
+    el.setAttribute("content", conteudo);
+  }
+
+  if (seo.titulo) document.title = seo.titulo;
+  if (seo.descricao) upsertMeta("name", "description", seo.descricao);
+
+  const og = seo.previewSocial?.facebook?.openGraph;
+  if (og?.title) upsertMeta("property", "og:title", og.title);
+  if (og?.description) upsertMeta("property", "og:description", og.description);
+  if (og?.image) upsertMeta("property", "og:image", og.image);
+  if (og?.url) upsertMeta("property", "og:url", og.url);
+  if (og?.type) upsertMeta("property", "og:type", og.type);
+
+  if (!og) {
+    if (seo.titulo) upsertMeta("property", "og:title", seo.titulo);
+    if (seo.descricao) upsertMeta("property", "og:description", seo.descricao);
+    if (seo.imagem) upsertMeta("property", "og:image", seo.imagem);
+  }
+
+  if (seo.titulo) upsertMeta("name", "twitter:title", seo.titulo);
+  if (seo.descricao) upsertMeta("name", "twitter:description", seo.descricao);
+  if (seo.imagem) upsertMeta("name", "twitter:image", seo.imagem);
+  upsertMeta("name", "twitter:card", seo.imagem ? "summary_large_image" : "summary");
+
+  return () => {
+    for (const el of criadas) el.remove();
+    document.title = "Bizy";
+  };
+}
+
 export function formatarKwanza(valor: number): string {
   return new Intl.NumberFormat("pt-AO", {
     style: "currency",

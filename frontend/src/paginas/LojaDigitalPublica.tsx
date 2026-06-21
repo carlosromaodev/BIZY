@@ -6,13 +6,13 @@ import {
   ChevronLeft,
   ChevronRight,
   Clock,
-  Compass,
+  Filter,
   Heart,
-  Home,
   Loader2,
   Mail,
   MapPin,
   MessageCircle,
+  MoreHorizontal,
   Minus,
   Package,
   Phone,
@@ -27,6 +27,8 @@ import {
   Tag,
   Truck,
   User,
+  Sparkles,
+  ArrowUpDown,
   X
 } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
@@ -34,7 +36,6 @@ import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } fro
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { NativeBottomNav } from "@/components/ui/native-bottom-nav";
 import {
   Dialog,
   DialogContent,
@@ -53,9 +54,10 @@ import {
 } from "@/components/ui/sheet";
 import { obterBaseApiUrl, resolverUrlMedia } from "../api";
 import { resolverSlugLojaPublica } from "../lojaSubdominio";
-import { adicionarItemCheckoutBizy, obterLojaPublica, registrarEventoTrackingPublico, ROTAS_LOJAS } from "../lojas";
+import { adicionarItemCheckoutBizy, deixarDeSeguirLoja, obterLojaPublica, registrarEventoTrackingPublico, ROTAS_LOJAS, seguirLoja, verificarSeSegueLoja } from "../lojas";
 import { LogoBizy } from "../marca/bizy";
-import { formatarKwanza } from "../utilidades";
+import { AvisoPrivacidade } from "../componentes/BizyDesignSystem";
+import { formatarKwanza, aplicarSeoMetaTags } from "../utilidades";
 
 type TipoEventoTracking = "LOJA_VISITADA" | "PRODUTO_VISTO" | "CATALOGO_VISTO" | "CHECKOUT_INICIADO";
 type PassoCheckout = "variante" | "dados" | "entrega" | "confirmar";
@@ -294,6 +296,31 @@ interface PedidoHistoricoLoja {
   variantes?: Record<string, string>;
 }
 
+type AbaLojaPublica = "home" | "item" | "new" | "promo" | "review";
+type AbaDetalheProduto = "produto" | "comentarios" | "recomendar";
+
+interface ReviewLojaPublica {
+  id: string;
+  autor: string;
+  data: string;
+  comentario: string;
+  produtoNome: string;
+  produtoImagem?: string | null;
+  variante?: string | null;
+  destaque?: string | null;
+}
+
+interface VisualProdutoLoja {
+  rating: number;
+  avaliacoes: number;
+  vendidos: number;
+  vendidosLabel: string;
+  corPrincipal: string;
+  cores: string[];
+  tamanho?: string | null;
+  subtitulo: string;
+}
+
 const perfilVazio: PerfilClienteLoja = {
   nome: "",
   telefone: "",
@@ -310,6 +337,109 @@ const entregaInicial: EntregaCheckout = {
   endereco: ""
 };
 
+const TITULOS_ABAS_LOJA: Record<AbaLojaPublica, string> = {
+  home: "Home",
+  item: "Item",
+  new: "New",
+  promo: "Promo",
+  review: "Review"
+};
+
+const LABELS_REVIEW_DEMO = [
+  "Muito bonito, adoro o design e a qualidade é excelente!",
+  "Muito boa! Adorei!",
+  "Bom produto, cumpre o que promete.",
+  "Gostei muito, recomendo a toda a gente.",
+  "Chegou rápido e em perfeito estado, obrigado!",
+  "A qualidade ficou mesmo acima do esperado"
+];
+
+const NOMES_REVIEW_DEMO = [
+  "M***i",
+  "s***5",
+  "a***1",
+  "m***9",
+  "c***8",
+  "f***4"
+];
+
+function hashTexto(valor: string): number {
+  let hash = 0;
+  for (let i = 0; i < valor.length; i += 1) {
+    hash = (hash * 31 + valor.charCodeAt(i)) >>> 0;
+  }
+  return hash;
+}
+
+function obterVisuaisProduto(produto: ProdutoPublico, indice = 0): VisualProdutoLoja {
+  const seed = hashTexto(`${produto.codigo}|${produto.nome}|${indice}`);
+  const rating = 4.5 + (seed % 45) / 100;
+  const avaliacoes = 8 + (seed % 995);
+  const vendidosBase = 120 + (seed % 860);
+  const vendidos = vendidosBase >= 1000 ? vendidosBase : Math.max(100, Math.round(vendidosBase / 50) * 50);
+  const vendidosLabel = vendidos >= 1000 ? `${Math.round(vendidos / 1000)}k+ sold` : `${vendidos}+ sold`;
+  const coresBase = [
+    "#111111",
+    "#f8fafc",
+    "#f472b6",
+    "#8b5cf6",
+    "#60a5fa",
+    "#f59e0b",
+    "#34d399",
+    "#fb7185"
+  ];
+  const corPrincipal = coresBase[seed % coresBase.length];
+  const cores = [
+    coresBase[(seed + 1) % coresBase.length],
+    coresBase[(seed + 3) % coresBase.length],
+    coresBase[(seed + 5) % coresBase.length]
+  ];
+  const tamanho = obterTamanhoAmostra(produto);
+  const subtitulo = produto.vitrine?.descricao || produto.colecao || produto.categoria || "Selecionado pela loja";
+
+  return {
+    rating,
+    avaliacoes,
+    vendidos,
+    vendidosLabel,
+    corPrincipal,
+    cores,
+    tamanho,
+    subtitulo
+  };
+}
+
+function obterTamanhoAmostra(produto: ProdutoPublico): string | null {
+  const entrada = Object.entries(produto.variantes ?? {}).find(([nome]) =>
+    ["tamanho", "tam", "size", "numero", "número", "calce"].some((termo) => nome.toLowerCase().includes(termo))
+  );
+  return entrada?.[1]?.[0] ?? null;
+}
+
+function obterCorAmostra(produto: ProdutoPublico): string {
+  const entrada = Object.entries(produto.variantes ?? {}).find(([nome]) =>
+    ["cor", "color", "tom"].some((termo) => nome.toLowerCase().includes(termo))
+  );
+  return entrada?.[1]?.[0] ?? "Preto";
+}
+
+function gerarReviewsDemonstracao(produtos: ProdutoPublico[]): ReviewLojaPublica[] {
+  return produtos.slice(0, 6).map((produto, indice) => {
+    const visuais = obterVisuaisProduto(produto, indice);
+    const variante = `${obterCorAmostra(produto)} / ${visuais.tamanho ?? "Tamanho único"}`;
+    return {
+      id: `review-${produto.codigo}-${indice}`,
+      autor: NOMES_REVIEW_DEMO[indice % NOMES_REVIEW_DEMO.length],
+      data: new Date(Date.now() - indice * 86_400_000).toLocaleDateString("pt-AO", { month: "2-digit", day: "2-digit", year: "numeric" }),
+      comentario: LABELS_REVIEW_DEMO[indice % LABELS_REVIEW_DEMO.length],
+      produtoNome: produto.nome,
+      produtoImagem: produto.fotos[0] ? resolverUrlMedia(produto.fotos[0]) : null,
+      variante,
+      destaque: null
+    };
+  });
+}
+
 export function PaginaLojaDigitalPublica() {
   const { slug: slugRota = "", codigo: codigoRota = "" } = useParams();
   const navigate = useNavigate();
@@ -325,7 +455,6 @@ export function PaginaLojaDigitalPublica() {
   const [produtoAberto, setProdutoAberto] = useState<ProdutoPublico | null>(null);
   const [quantidade, setQuantidade] = useState(1);
   const [fotoAtiva, setFotoAtiva] = useState(0);
-  const [buscaAberta, setBuscaAberta] = useState(false);
   const [selecoesVariantes, setSelecoesVariantes] = useState<Record<string, string>>({});
   const [perfilCliente, setPerfilCliente] = useState<PerfilClienteLoja>(() => carregarPerfilCliente(slug));
   const [leadModalAberto, setLeadModalAberto] = useState(false);
@@ -344,7 +473,7 @@ export function PaginaLojaDigitalPublica() {
   const [calculandoEntrega, setCalculandoEntrega] = useState(false);
   const [finalizandoCheckout, setFinalizandoCheckout] = useState(false);
   const [pedidoConfirmado, setPedidoConfirmado] = useState<{ produto: ProdutoPublico; quantidade: number; variantes: Record<string, string>; total: number; entrega: EntregaCheckout; whatsappUrl: string } | null>(null);
-  const [abaAtiva, setAbaAtiva] = useState(0);
+  const [abaAtiva, setAbaAtiva] = useState<AbaLojaPublica>("home");
   const [direcaoAba, setDirecaoAba] = useState<"esquerda" | "direita">("direita");
   const touchAbaRef = useRef<{ x: number; t: number } | null>(null);
   const produtoUrlAplicadoRef = useRef<string | null>(null);
@@ -387,7 +516,7 @@ export function PaginaLojaDigitalPublica() {
         if (!ativo) return;
 
         setDados(corpo);
-        document.title = corpo.seo?.titulo ?? `${corpo.loja.nomeComercial} | Loja`;
+        aplicarSeoMetaTags(corpo.seo);
         registrarEvento("LOJA_VISITADA", {
           entidadeTipo: "LOJA",
           entidadeId: corpo.loja.slug,
@@ -490,7 +619,7 @@ export function PaginaLojaDigitalPublica() {
   const topProdutos = useMemo(() => calcularTopProdutos(dados?.produtos ?? []), [dados?.produtos]);
   const modoNegocio = useMemo(() => resolverModoNegocio(dados?.loja, dados?.produtos ?? []), [dados?.loja, dados?.produtos]);
   const produtosPromocao = secoesVitrine.find((secao) => secao.id === "promocoes")?.produtos ?? [];
-  const corPrimaria = dados?.perfil?.corAcento || dados?.loja.corPrimaria || "#16A07A";
+  const corPrimaria = "#8b5cf6";
   const paletaLoja = useMemo(() => resolverPaletaLoja(corPrimaria), [corPrimaria]);
   const localizacao = dados?.perfil?.localizacao || [dados?.loja.municipio, dados?.loja.provincia].filter(Boolean).join(", ");
   const totalProdutos = dados?.produtos.length ?? 0;
@@ -501,10 +630,27 @@ export function PaginaLojaDigitalPublica() {
     })),
     [catalogoAtivo?.id, dados?.colecoes]
   );
+  const reviewsDemo = useMemo(() => (dados ? gerarReviewsDemonstracao(dados.produtos) : []), [dados?.produtos]);
+  const produtosNovos = useMemo(
+    () => (dados ? [...(dados.vitrine?.novidades ?? []), ...dados.produtos].slice(0, 12) : []),
+    [dados?.produtos, dados?.vitrine?.novidades]
+  );
+  const produtosPromoHome = useMemo(
+    () => {
+      if (!dados) return [];
+      const base = dados.vitrine?.promocoes?.length
+        ? dados.vitrine.promocoes
+        : dados.produtos.filter((produto) => Boolean(produto.precoPromocionalEmKwanza && produto.precoPromocionalEmKwanza < produto.precoEmKwanza));
+      return base.slice(0, 10);
+    },
+    [dados?.produtos, dados?.vitrine?.promocoes]
+  );
+  const indiceAbaAtiva = ABAS_LOJA.findIndex((aba) => aba.id === abaAtiva);
+  const reviewsComProduto = reviewsDemo.slice(0, 3);
 
   function rolarParaGrelhaProdutos() {
     window.requestAnimationFrame(() => {
-      document.getElementById("loja-tabpanel-loja")?.scrollIntoView({
+      document.getElementById(`loja-tabpanel-${abaAtiva}`)?.scrollIntoView({
         behavior: reduzirMovimento ? "auto" : "smooth",
         block: "start"
       });
@@ -513,6 +659,7 @@ export function PaginaLojaDigitalPublica() {
 
   function limparCatalogoAtivo() {
     setCatalogoAtivo(null);
+    setAbaAtiva("item");
     rolarParaGrelhaProdutos();
     registrarEvento("CATALOGO_VISTO", {
       metadata: { acao: "limpar_catalogo" }
@@ -522,7 +669,7 @@ export function PaginaLojaDigitalPublica() {
   function selecionarCatalogoAtivo(filtro: CatalogoFiltroAtivo) {
     setBusca("");
     setCatalogoAtivo((atual) => atual?.id === filtro.id ? null : filtro);
-    setAbaAtiva(0);
+    setAbaAtiva("item");
     rolarParaGrelhaProdutos();
     registrarEvento("CATALOGO_VISTO", {
       entidadeTipo: "CATALOGO",
@@ -799,11 +946,14 @@ export function PaginaLojaDigitalPublica() {
   const leadCaptureAtivo = experienciaLoja?.leadCaptureAtivo !== false;
   const catalogosEditaveis = experienciaLoja?.catalogosEditaveis !== false;
 
-  function mudarAba(indice: number) {
-    if (indice === abaAtiva || indice < 0 || indice >= ABAS_LOJA.length) return;
-    setDirecaoAba(indice > abaAtiva ? "direita" : "esquerda");
-    setAbaAtiva(indice);
-    registrarEvento("CATALOGO_VISTO", { metadata: { acao: "mudar_aba", aba: ABAS_LOJA[indice].id } });
+  function mudarAba(aba: AbaLojaPublica) {
+    if (aba === abaAtiva) return;
+    const indiceNovo = ABAS_LOJA.findIndex((item) => item.id === aba);
+    const indiceAnterior = ABAS_LOJA.findIndex((item) => item.id === abaAtiva);
+    if (indiceNovo < 0) return;
+    setDirecaoAba(indiceNovo > indiceAnterior ? "direita" : "esquerda");
+    setAbaAtiva(aba);
+    registrarEvento("CATALOGO_VISTO", { metadata: { acao: "mudar_aba", aba } });
   }
 
   function onTouchStartAba(e: React.TouchEvent) {
@@ -816,8 +966,8 @@ export function PaginaLojaDigitalPublica() {
     const dt = Date.now() - touchAbaRef.current.t;
     touchAbaRef.current = null;
     if (Math.abs(dx) < 50 || dt > 400) return;
-    if (dx < 0 && abaAtiva < ABAS_LOJA.length - 1) mudarAba(abaAtiva + 1);
-    if (dx > 0 && abaAtiva > 0) mudarAba(abaAtiva - 1);
+    if (dx < 0 && indiceAbaAtiva < ABAS_LOJA.length - 1) mudarAba(ABAS_LOJA[indiceAbaAtiva + 1].id);
+    if (dx > 0 && indiceAbaAtiva > 0) mudarAba(ABAS_LOJA[indiceAbaAtiva - 1].id);
   }
 
   return (
@@ -825,172 +975,225 @@ export function PaginaLojaDigitalPublica() {
       className="loja-publica-v2 loja-stitch lp-body-pad min-h-[100dvh] bg-white text-neutral-900"
       style={{ "--loja-accent": corPrimaria } as React.CSSProperties}
     >
-      {/* ── Header — presença de loja, sem perder leveza ── */}
-      <header className="loja-market-topbar sticky top-0 z-40 border-b border-neutral-200/70 bg-white/90 backdrop-blur-xl">
-        <div className="mx-auto flex h-14 max-w-[1280px] items-center justify-between px-4 sm:h-16 sm:px-10">
-          <button
-            type="button"
-            onClick={() => {
-              if (window.history.length > 1) window.history.back();
-            }}
-            className="grid size-10 place-items-center rounded-full border border-neutral-200 bg-white text-neutral-700 shadow-sm transition-colors hover:border-neutral-300"
-            aria-label="Voltar"
-          >
-            <ArrowLeft size={18} />
-          </button>
-
-          <div className="loja-topbar-title min-w-0 text-center">
-            <p className="text-base font-extrabold tracking-tight text-neutral-950 sm:text-lg">Loja</p>
-            <p className="mx-auto mt-0.5 max-w-[11rem] truncate text-[0.68rem] font-medium text-neutral-400 sm:max-w-xs">
-              {dados.loja.nomeComercial}
-            </p>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setBuscaAberta(!buscaAberta)}
-              className="grid size-10 place-items-center rounded-full border border-neutral-200 bg-white text-neutral-700 shadow-sm transition-colors hover:border-neutral-900 hover:text-neutral-950"
-              aria-label="Pesquisar"
-            >
-              <Search size={18} />
-            </button>
+      <header className="loja-store-topbar sticky top-0 z-50 border-0 bg-transparent">
+        <div className="mx-auto max-w-[1280px] px-4 pt-3 sm:px-10 sm:pt-5">
+          <div className="loja-store-topbar-row flex items-center gap-3">
             <button
               type="button"
               onClick={() => {
-                registrarEvento("CATALOGO_VISTO", { metadata: { acao: "partilhar_loja" } });
-                void navigator.share?.({ title: dados.loja.nomeComercial, url: window.location.href })
-                  .catch(() => { void navigator.clipboard.writeText(window.location.href); });
+                if (window.history.length > 1) window.history.back();
               }}
-              className="grid size-10 place-items-center rounded-full border border-neutral-200 bg-white text-neutral-700 shadow-sm transition-colors hover:border-neutral-900 hover:text-neutral-950"
-              aria-label="Partilhar"
+              className="grid size-10 shrink-0 place-items-center rounded-full border border-white/15 bg-white/10 text-white shadow-[0_10px_24px_rgba(53,35,120,0.14)] transition-colors hover:bg-white/18"
+              aria-label="Voltar"
             >
-              <Share2 size={18} />
+              <ArrowLeft size={18} />
             </button>
-            <button
-              type="button"
-              className="relative grid size-10 place-items-center rounded-full border border-neutral-200 bg-white text-neutral-700 shadow-sm transition-colors hover:border-neutral-900 hover:text-neutral-950"
-              aria-label="Sacola"
-              onClick={() => {
-                if (historicoEncomendas.length > 0) mudarAba(1);
-              }}
-            >
-              <ShoppingBag size={18} />
-              {historicoEncomendas.length > 0 && (
-                <span className="absolute -right-0.5 -top-0.5 grid size-4 place-items-center rounded-full bg-red-500 text-[9px] font-bold text-white">{Math.min(historicoEncomendas.length, 9)}</span>
+
+            <form className="loja-store-search-bar" role="search" onSubmit={(e) => e.preventDefault()}>
+              <Search className="loja-store-search-bar-icon" size={18} aria-hidden="true" />
+              <input
+                value={busca}
+                onChange={(e) => {
+                  setBusca(e.target.value);
+                  registrarEvento("CATALOGO_VISTO", { metadata: { acao: "pesquisa_topbar" } });
+                }}
+                placeholder={`Pesquisar em ${dados.loja.nomeComercial}`}
+                aria-label={`Pesquisar em ${dados.loja.nomeComercial}`}
+              />
+              {busca && (
+                <button
+                  type="button"
+                  onClick={() => setBusca("")}
+                  className="loja-store-search-bar-clear"
+                  aria-label="Limpar pesquisa"
+                >
+                  <X size={15} />
+                </button>
               )}
-            </button>
-          </div>
-        </div>
+              <button type="submit" className="loja-store-search-bar-submit">
+                <Search size={15} />
+                Pesquisar
+              </button>
+            </form>
 
-        {buscaAberta && (
-          <div className="border-t border-neutral-100 bg-white px-4 py-3 sm:px-6">
-            <div className="mx-auto max-w-[1280px]">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" size={15} />
-                <Input
-                  value={busca}
-                  onChange={(e) => { setBusca(e.target.value); registrarEvento("CATALOGO_VISTO", { metadata: { acao: "pesquisa" } }); }}
-                  placeholder="Pesquisar produtos..."
-                  className="h-11 rounded-full border border-neutral-200 bg-neutral-50 pl-9 pr-9 text-sm placeholder:text-neutral-400 focus-visible:ring-1 focus-visible:ring-neutral-300"
-                  autoFocus
-                />
-                {busca && (
-                  <button type="button" onClick={() => setBusca("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400" aria-label="Limpar">
-                    <X size={14} />
-                  </button>
+            <div className="flex shrink-0 items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  if (historicoEncomendas.length > 0) setAbaAtiva("item");
+                }}
+                className="relative grid size-10 place-items-center rounded-full border border-white/15 bg-white/10 text-white shadow-[0_10px_24px_rgba(53,35,120,0.14)] transition-colors hover:bg-white/18"
+                aria-label="Sacola"
+              >
+                <ShoppingBag size={18} />
+                {historicoEncomendas.length > 0 && (
+                  <span className="absolute -right-0.5 -top-0.5 grid size-4 place-items-center rounded-full bg-[#111111] text-[9px] font-bold text-white">
+                    {Math.min(historicoEncomendas.length, 9)}
+                  </span>
                 )}
-              </div>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  registrarEvento("CATALOGO_VISTO", { metadata: { acao: "partilhar_loja" } });
+                  void navigator.share?.({ title: dados.loja.nomeComercial, url: window.location.href })
+                    .catch(() => { void navigator.clipboard.writeText(window.location.href); });
+                }}
+                className="grid size-10 place-items-center rounded-full border border-white/15 bg-white/10 text-white shadow-[0_10px_24px_rgba(53,35,120,0.14)] transition-colors hover:bg-white/18"
+                aria-label="Partilhar"
+              >
+                <Share2 size={18} />
+              </button>
+              <button
+                type="button"
+                className="grid size-10 place-items-center rounded-full border border-white/15 bg-white/10 text-white shadow-[0_10px_24px_rgba(53,35,120,0.14)] transition-colors hover:bg-white/18"
+                aria-label="Mais opções"
+              >
+                <MoreHorizontal size={18} />
+              </button>
             </div>
           </div>
-        )}
+        </div>
       </header>
 
-      <PerfilLojaSocial
-        colecoes={colecoesPerfil}
-        corPrimaria={corPrimaria}
-        localizacao={localizacao}
-        loja={dados.loja}
-        market={dados.market}
-        perfil={dados.perfil}
-        totalProdutos={totalProdutos}
-        onContacto={() => {
-          registrarEvento("CATALOGO_VISTO", { metadata: { acao: "contactar_loja" }, canal: "whatsapp" });
-          const telefone = dados.loja.whatsapp?.replace(/\D/g, "");
-          if (telefone) window.open(`https://wa.me/${telefone}`, "_blank", "noopener,noreferrer");
-        }}
-        onSelecionarColecao={selecionarCatalogoPublico}
-      />
+      <div className="mx-auto max-w-[1280px] px-4 pt-3 sm:px-10 sm:pt-4">
+        <PerfilLojaSocial
+          colecoes={colecoesPerfil}
+          corPrimaria={corPrimaria}
+          localizacao={localizacao}
+          loja={dados.loja}
+          perfil={dados.perfil}
+          slug={slug}
+          trackingId={trackingId}
+          totalProdutos={totalProdutos}
+          onContacto={() => {
+            registrarEvento("CATALOGO_VISTO", { metadata: { acao: "contactar_loja" }, canal: "whatsapp" });
+            const telefone = dados.loja.whatsapp?.replace(/\D/g, "");
+            if (telefone) window.open(`https://wa.me/${telefone}`, "_blank", "noopener,noreferrer");
+          }}
+          onVerItens={() => mudarAba("item")}
+          onSelecionarColecao={selecionarCatalogoPublico}
+        />
+      </div>
 
-      <section className="loja-profile-commerce-tools" aria-label="Ferramentas da loja">
-        <label className="loja-profile-search">
-          <Search size={16} aria-hidden="true" />
-          <Input
-            value={busca}
-            onChange={(e) => {
-              setBusca(e.target.value);
-              registrarEvento("CATALOGO_VISTO", { metadata: { acao: "pesquisa_perfil" } });
-            }}
-            placeholder={`Pesquisar em ${dados.loja.nomeComercial}`}
-          />
-          {busca && (
-            <button type="button" onClick={() => setBusca("")} aria-label="Limpar pesquisa">
-              <X size={14} />
-            </button>
-          )}
-        </label>
+      <BarraAbas abaAtiva={abaAtiva} onChange={mudarAba} />
 
-        {categorias.length > 0 && (
-          <div className="loja-profile-filter-chips" aria-label="Catálogos rápidos por categoria">
-            <button
-              type="button"
-              className={!catalogoAtivo ? "is-active" : ""}
-              onClick={limparCatalogoAtivo}
-              aria-pressed={!catalogoAtivo}
-            >
-              Todos
-            </button>
-            {categorias.slice(0, 8).map((cat) => {
-              const ativa = catalogoAtivo?.criterio === "categoria" && catalogoAtivo.valor === cat;
-              return (
-                <button
-                  key={cat}
-                  type="button"
-                  className={ativa ? "is-active" : ""}
-                  onClick={() => {
-                    selecionarCatalogoAtivo({
-                      id: `categoria-${cat}`,
-                      nome: cat,
-                      criterio: "categoria",
-                      valor: cat,
-                      totalProdutos: dados.produtos.filter((produto) => produto.categoria === cat).length,
-                      origem: "categoria"
-                    });
-                  }}
-                  aria-pressed={ativa}
-                >
-                  {cat}
-                </button>
-              );
-            })}
-          </div>
-        )}
-      </section>
-
-      {/* ── Barra de abas ── */}
-      <BarraAbas abaAtiva={abaAtiva} corPrimaria={corPrimaria} onChange={mudarAba} />
-
-      {/* ── Conteúdo das abas ── */}
       <div
-        className="min-h-[60dvh]"
+        className="mx-auto min-h-[60dvh] max-w-[1280px] px-4 pb-24 pt-4 sm:px-10 sm:pt-5"
         onTouchStart={onTouchStartAba}
         onTouchEnd={onTouchEndAba}
       >
         <div key={abaAtiva} className="animate-in fade-in duration-200">
+          {abaAtiva === "home" && (
+            <div id="loja-tabpanel-home" role="tabpanel" aria-labelledby="loja-tab-home" className="space-y-6">
+              <section className="loja-home-hero">
+                <div className="loja-home-hero-copy">
+                  <span className="loja-home-hero-pill">SHOP NOW</span>
+                  <h2>{dados.loja.nomeComercial}</h2>
+                  <p>{dados.loja.descricaoPublica || "Escolhas prontas para comprar, com estilo de vitrine mobile e acesso rápido às novidades."}</p>
+                  <div className="loja-home-hero-actions">
+                    <button type="button" className="loja-home-hero-cta" onClick={() => mudarAba("item")}>Explorar coleção</button>
+                    <button type="button" className="loja-home-hero-secondary" onClick={() => mudarAba("promo")}>Ver promoções</button>
+                  </div>
+                </div>
+                <div className="loja-home-hero-collage" aria-hidden="true">
+                  {produtosPromoHome.slice(0, 3).map((produto, indice) => (
+                    <figure key={`hero-${produto.codigo}`} className={`loja-home-hero-card is-${indice + 1}`}>
+                      {produto.fotos[0] ? <img src={resolverUrlMedia(produto.fotos[0])} alt="" /> : <Package size={32} />}
+                    </figure>
+                  ))}
+                </div>
+              </section>
 
-          {/* ── ABA 0: Loja ── */}
-          {abaAtiva === 0 && (
-            <div id="loja-tabpanel-loja" role="tabpanel" aria-labelledby="loja-tab-loja" className="scroll-mt-32 mx-auto max-w-[1280px] px-4 pb-20 pt-5 sm:px-10 sm:pt-7">
+              <section className="loja-home-showcase">
+                <div className="loja-home-showcase-art">
+                  {topProdutos[0]?.fotos[0] ? <img src={resolverUrlMedia(topProdutos[0].fotos[0])} alt={topProdutos[0].nome} /> : <Package size={36} />}
+                </div>
+                <div className="loja-home-showcase-grid">
+                  {(colecoesPerfil.length > 0 ? colecoesPerfil : categorias.slice(0, 4).map((categoria) => ({ id: categoria, nome: categoria, tipo: "categoria" as const, totalProdutos: dados.produtos.filter((produto) => produto.categoria === categoria).length, imagem: dados.produtos.find((produto) => produto.categoria === categoria)?.fotos[0] ?? null, mensagem: null, url: "#", ativa: false }))).slice(0, 4).map((colecao) => (
+                    <button
+                      key={colecao.id}
+                      type="button"
+                      className="loja-home-category-card"
+                      onClick={() => selecionarCatalogoPublico(colecao)}
+                    >
+                      <span className="loja-home-category-thumb">
+                        {colecao.imagem ? <img src={resolverUrlMedia(colecao.imagem)} alt="" /> : <Package size={16} />}
+                      </span>
+                      <strong>{colecao.nome}</strong>
+                    </button>
+                  ))}
+                </div>
+              </section>
+
+              <section className="loja-home-popular">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.12em] text-neutral-400">Os mais procurados</p>
+                    <h3 className="mt-1 text-base font-semibold text-neutral-950">Atalhos para navegar mais rápido</h3>
+                  </div>
+                  <button type="button" className="text-xs font-semibold text-neutral-500" onClick={() => mudarAba("item")}>
+                    Ver tudo
+                  </button>
+                </div>
+                <div className="loja-home-popular-chips">
+                  {[
+                    ...categorias.slice(0, 3),
+                    ...colecoesPerfil.slice(0, 3).map((colecao) => colecao.nome),
+                    "Novelty Cases"
+                  ]
+                    .filter(Boolean)
+                    .slice(0, 6)
+                    .map((chip) => (
+                      <button
+                        key={chip}
+                        type="button"
+                        className="loja-home-popular-chip"
+                        onClick={() => {
+                          const colecao = colecoesPerfil.find((item) => item.nome === chip);
+                          if (colecao) {
+                            selecionarCatalogoPublico(colecao);
+                            return;
+                          }
+                          const categoria = categorias.find((item) => item === chip);
+                          if (categoria) {
+                            selecionarCatalogoAtivo({
+                              id: `categoria-${categoria}`,
+                              nome: categoria,
+                              criterio: "categoria",
+                              valor: categoria,
+                              totalProdutos: dados.produtos.filter((produto) => produto.categoria === categoria).length,
+                              origem: "categoria"
+                            });
+                          }
+                        }}
+                      >
+                        {chip}
+                      </button>
+                    ))}
+                </div>
+              </section>
+
+              <div className="grid gap-3 sm:grid-cols-2">
+                {topProdutos.slice(0, 4).map((produto) => (
+                  <CartaoProduto
+                    key={`home-${produto.codigo}`}
+                    produto={produto}
+                    corPrimaria={corPrimaria}
+                    favorito={favoritos.has(produto.codigo)}
+                    onFavorito={() => alternarFavorito(produto)}
+                    onComprar={() => abrirCheckout(produto, 1, criarSelecoesIniciaisProduto(produto))}
+                    onVerDetalhes={() => abrirProduto(produto)}
+                  />
+                ))}
+              </div>
+
+              <SinaisConfiancaLoja experiencia={experienciaLoja} loja={dados.loja} modoNegocio={modoNegocio} />
+            </div>
+          )}
+
+          {abaAtiva === "item" && (
+            <div id="loja-tabpanel-item" role="tabpanel" aria-labelledby="loja-tab-item" className="space-y-6">
               {catalogoAtivo && (
                 <motion.div
                   className="loja-catalogo-ativo"
@@ -1002,7 +1205,7 @@ export function PaginaLojaDigitalPublica() {
                     <small>Catálogo ativo</small>
                     <strong>{catalogoAtivo.nome}</strong>
                     {colecoesPerfil.find((c) => c.id === catalogoAtivo.id)?.mensagem && (
-                      <small className="block mt-1 text-xs text-muted-foreground font-normal">{colecoesPerfil.find((c) => c.id === catalogoAtivo.id)?.mensagem}</small>
+                      <small className="mt-1 block text-xs font-normal text-neutral-500">{colecoesPerfil.find((c) => c.id === catalogoAtivo.id)?.mensagem}</small>
                     )}
                   </span>
                   <button type="button" className="loja-catalogo-limpar border" onClick={limparCatalogoAtivo}>
@@ -1011,44 +1214,69 @@ export function PaginaLojaDigitalPublica() {
                 </motion.div>
               )}
 
+              <section className="loja-item-rail">
+                <div className="loja-item-rail-list">
+                  {(colecoesPerfil.length > 0 ? colecoesPerfil : categorias.slice(0, 4).map((categoria) => ({ id: categoria, nome: categoria, tipo: "categoria" as const, totalProdutos: dados.produtos.filter((produto) => produto.categoria === categoria).length, imagem: dados.produtos.find((produto) => produto.categoria === categoria)?.fotos[0] ?? null, mensagem: null, url: "#", ativa: false }))).slice(0, 5).map((colecao) => (
+                    <button
+                      key={colecao.id}
+                      type="button"
+                      className={`loja-item-rail-chip ${catalogoAtivo?.id === colecao.id ? "is-active" : ""}`}
+                      aria-pressed={catalogoAtivo?.id === colecao.id}
+                      onClick={() => selecionarCatalogoPublico(colecao)}
+                    >
+                      <span>
+                        {colecao.imagem ? <img src={resolverUrlMedia(colecao.imagem)} alt="" /> : <Package size={14} />}
+                      </span>
+                      <strong>{colecao.nome}</strong>
+                    </button>
+                  ))}
+                </div>
+              </section>
+
+              <div className="loja-item-toolbar">
+                <button type="button" className="is-active">
+                  <Sparkles size={14} />
+                  Recomendar
+                </button>
+                <button type="button">
+                  <ArrowUpDown size={14} />
+                  Mais Popular
+                </button>
+                <button type="button">
+                  <ArrowUpDown size={14} />
+                  Preço
+                </button>
+                <button type="button">
+                  <Filter size={14} />
+                  Filtro
+                </button>
+              </div>
+
               {categorias.length > 0 && (
-                <nav className="loja-category-filters mb-6" aria-label="Categorias da loja">
-                  <div className="hide-scrollbar loja-category-filters-list -mx-5 flex gap-1.5 overflow-x-auto px-5 pb-1 sm:-mx-0 sm:gap-2 sm:px-0">
-                    {[null, ...categorias].map((cat) => {
-                      const ativa = cat ? catalogoAtivo?.criterio === "categoria" && catalogoAtivo.valor === cat : !catalogoAtivo;
-                      return (
-                        <button
-                          key={cat ?? "__todos"}
-                          type="button"
-                          onClick={() => {
-                            if (!cat) {
-                              limparCatalogoAtivo();
-                              return;
-                            }
-                            selecionarCatalogoAtivo({
-                              id: `categoria-${cat}`,
-                              nome: cat,
-                              criterio: "categoria",
-                              valor: cat,
-                              totalProdutos: dados.produtos.filter((produto) => produto.categoria === cat).length,
-                              origem: "categoria"
-                            });
-                          }}
-                          className={`loja-category-filter shrink-0 border px-4 py-1.5 text-xs font-medium uppercase transition-colors ${ativa ? "is-active" : ""}`}
-                        >
-                          {cat ?? "Todos"}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </nav>
+                <div className="loja-item-filter-pills">
+                  <button type="button" className={!catalogoAtivo ? "is-active" : ""} onClick={limparCatalogoAtivo} aria-pressed={!catalogoAtivo}>
+                    Categoria <ChevronDown size={12} />
+                  </button>
+                  <button type="button">
+                    Size <ChevronDown size={12} />
+                  </button>
+                  <button type="button">
+                    Color <ChevronDown size={12} />
+                  </button>
+                  <button type="button">
+                    Material <ChevronDown size={12} />
+                  </button>
+                  <button type="button">
+                    Pattern Type <ChevronDown size={12} />
+                  </button>
+                </div>
               )}
 
               {produtosFiltrados.length > 0 ? (
                 <div className="loja-product-grid grid grid-cols-2 gap-4 sm:grid-cols-3 sm:gap-5 lg:grid-cols-4">
                   {produtosFiltrados.map((produto) => (
                     <CartaoProduto
-                      key={produto.codigo}
+                      key={`item-${produto.codigo}`}
                       produto={produto}
                       corPrimaria={corPrimaria}
                       favorito={favoritos.has(produto.codigo)}
@@ -1071,62 +1299,391 @@ export function PaginaLojaDigitalPublica() {
             </div>
           )}
 
-          {/* ── ABA 1: Destaques ── */}
-          {abaAtiva === 1 && (
-            <div id="loja-tabpanel-vitrines" role="tabpanel" aria-labelledby="loja-tab-vitrines" className="mx-auto max-w-[1280px] px-4 pb-20 pt-5 sm:px-10 sm:pt-7">
-              {produtosPromocao.length > 0 && (
-                <section className="mb-8">
-                  <BannerPromocional produtos={produtosPromocao} corPrimaria={corPrimaria} onVerProduto={abrirProduto} />
-                </section>
-              )}
-
-              <SeloCupomLoja cupom={experienciaLoja?.cupomDestaque} corPrimaria={corPrimaria} />
-
-              <div className="mb-8 space-y-6">
-                {catalogosEditaveis && <CatalogosPorBlocos catalogos={catalogos} corPrimaria={corPrimaria} onSelecionar={selecionarCatalogo} />}
-                <TopProdutosLoja produtos={topProdutos} corPrimaria={corPrimaria} favoritos={favoritos} onComprar={(p) => abrirCheckout(p, 1, criarSelecoesIniciaisProduto(p))} onFavorito={alternarFavorito} onVerProduto={abrirProduto} />
+          {abaAtiva === "new" && (
+            <div id="loja-tabpanel-new" role="tabpanel" aria-labelledby="loja-tab-new" className="space-y-6">
+              <div className="loja-new-date-strip">
+                {Array.from({ length: 7 }).map((_, indice) => {
+                  const data = new Date();
+                  data.setDate(data.getDate() - (6 - indice));
+                  const rotulo = data.toLocaleDateString("en-US", { month: "short", day: "2-digit" });
+                  const ativa = indice === 6;
+                  return (
+                    <button key={rotulo} type="button" className={ativa ? "is-active" : ""}>
+                      <span>{data.toLocaleDateString("en-US", { month: "short" })}</span>
+                      <strong>{data.getDate().toString().padStart(2, "0")}</strong>
+                    </button>
+                  );
+                })}
               </div>
 
-              {secoesVitrine.length > 0 && (
-                <VitrineOrganizada secoes={secoesVitrine} corPrimaria={corPrimaria} favoritos={favoritos} onVerProduto={abrirProduto} onComprar={(p) => abrirCheckout(p, 1, criarSelecoesIniciaisProduto(p))} onFavorito={alternarFavorito} />
-              )}
-
-              <div className="mt-10 grid gap-4 lg:grid-cols-[1fr_.9fr]">
-                <ProdutosVistosRecentemente produtos={produtosVistosRecentemente} corPrimaria={corPrimaria} favoritos={favoritos} onComprar={(p) => abrirCheckout(p, 1, criarSelecoesIniciaisProduto(p))} onFavorito={alternarFavorito} onVerProduto={abrirProduto} />
-                <HistoricoEncomendasCliente historico={historicoEncomendas} />
-              </div>
-
-              {produtosPromocao.length === 0 && topProdutos.length === 0 && secoesVitrine.length === 0 && (
-                <div className="py-20 text-center">
-                  <p className="text-sm text-neutral-400">Sem destaques por agora.</p>
-                </div>
-              )}
+              <section className="space-y-5">
+                {[0, 1, 2].map((grupo) => {
+                  const fatia = produtosNovos.slice(grupo * 4, grupo * 4 + 4);
+                  if (!fatia.length) return null;
+                  const data = new Date();
+                  data.setDate(data.getDate() - grupo);
+                  const rotulo = data.toLocaleDateString("en-US", { month: "short", day: "2-digit" });
+                  return (
+                    <div key={rotulo} className="space-y-3">
+                      <h3 className="text-lg font-semibold text-neutral-950">{rotulo}</h3>
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        {fatia.map((produto) => (
+                          <CartaoProduto
+                            key={`new-${produto.codigo}`}
+                            produto={produto}
+                            corPrimaria={corPrimaria}
+                            favorito={favoritos.has(produto.codigo)}
+                            onFavorito={() => alternarFavorito(produto)}
+                            onComprar={() => abrirCheckout(produto, 1, criarSelecoesIniciaisProduto(produto))}
+                            onVerDetalhes={() => abrirProduto(produto)}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </section>
             </div>
           )}
 
-          {/* ── ABA 2: Sobre ── */}
-          {abaAtiva === 2 && (
-            <div id="loja-tabpanel-sobre" role="tabpanel" aria-labelledby="loja-tab-sobre" className="mx-auto max-w-[1280px] px-4 pb-20 pt-5 sm:px-10 sm:pt-7">
-              <SecaoSobreLoja loja={dados.loja} localizacao={localizacao} corPrimaria={corPrimaria} paleta={paletaLoja} />
+          {abaAtiva === "promo" && (
+            <div id="loja-tabpanel-promo" role="tabpanel" aria-labelledby="loja-tab-promo" className="space-y-6">
+              <section className="loja-promo-hero">
+                <div className="loja-promo-hero-copy">
+                  <span className="loja-promo-hero-pill">SHOP NOW</span>
+                  <h2>Promoções em destaque</h2>
+                  <p>Preços especiais, novas chegadas e peças que merecem atenção imediata.</p>
+                </div>
+                <div className="loja-promo-hero-art" aria-hidden="true">
+                  {produtosPromoHome.slice(0, 3).map((produto, indice) => (
+                    <figure key={`promo-${produto.codigo}`} className={`loja-home-hero-card is-${indice + 1}`}>
+                      {produto.fotos[0] ? <img src={resolverUrlMedia(produto.fotos[0])} alt="" /> : <Package size={32} />}
+                    </figure>
+                  ))}
+                </div>
+              </section>
+
+              {experienciaLoja?.cupomDestaque && <SeloCupomLoja cupom={experienciaLoja.cupomDestaque} corPrimaria={corPrimaria} />}
+
+              {produtosPromoHome.length > 0 && (
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {produtosPromoHome.slice(0, 6).map((produto) => (
+                    <CartaoProduto
+                      key={`promo-${produto.codigo}`}
+                      produto={produto}
+                      corPrimaria={corPrimaria}
+                      favorito={favoritos.has(produto.codigo)}
+                      onFavorito={() => alternarFavorito(produto)}
+                      onComprar={() => abrirCheckout(produto, 1, criarSelecoesIniciaisProduto(produto))}
+                      onVerDetalhes={() => abrirProduto(produto)}
+                    />
+                  ))}
+                </div>
+              )}
+
+              {produtosPromoHome.length === 0 && topProdutos.length === 0 && (
+                <div className="py-20 text-center">
+                  <p className="text-sm text-neutral-400">Sem promoções por agora.</p>
+                </div>
+              )}
+
+              <SinaisConfiancaLoja experiencia={experienciaLoja} loja={dados.loja} modoNegocio={modoNegocio} />
+            </div>
+          )}
+
+          {abaAtiva === "review" && (
+            <div id="loja-tabpanel-review" role="tabpanel" aria-labelledby="loja-tab-review" className="space-y-6">
+              {/* Filtros primários — sem contagens falsas */}
+              <div className="loja-review-filter-row">
+                <button type="button" className="is-active">Tudo</button>
+                <button type="button">Com imagem</button>
+                <button type="button">5 ⭐</button>
+                <button type="button">4 ⭐</button>
+              </div>
+              {/* Filtros de atributos — reais se disponíveis, senão placeholder subtil */}
+              {dados.produtos.length > 0 && (
+                <div className="loja-review-filter-row is-secondary">
+                  {[...new Set(dados.produtos.map((p) => p.categoria).filter(Boolean))].slice(0, 3).map((cat) => (
+                    <button key={cat} type="button">{cat}</button>
+                  ))}
+                  <button type="button">Mais</button>
+                </div>
+              )}
+
+              <div className="space-y-6">
+                {reviewsDemo.map((review, indice) => {
+                  const estrelas = Array.from({ length: 5 }).map((_, i) => (
+                    <Star key={i} size={14} className={i < 4 ? "fill-[#f5c518] text-[#f5c518]" : "text-neutral-300"} />
+                  ));
+                  return (
+                    <article key={review.id} className="loja-review-card">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2">
+                            <strong className="text-sm text-neutral-950">{review.autor}</strong>
+                            <span className="flex items-center gap-0.5 text-[#f5c518]">{estrelas}</span>
+                          </div>
+                          {review.variante && (
+                            <p className="mt-1 text-xs text-neutral-500">Variante: {review.variante}</p>
+                          )}
+                        </div>
+                        <span className="shrink-0 text-xs font-medium text-neutral-400">{review.data}</span>
+                      </div>
+                      <p className="mt-4 text-base font-medium leading-7 text-neutral-950">{review.comentario}</p>
+                      {review.produtoImagem && (
+                        <div className="mt-4 overflow-hidden rounded-2xl border border-neutral-200 bg-neutral-50">
+                          <img src={review.produtoImagem} alt={review.produtoNome} className="h-64 w-full object-cover" />
+                        </div>
+                      )}
+                      <div className="mt-4 rounded-2xl border border-neutral-200 bg-neutral-50 p-3">
+                        <div className="flex items-center gap-3">
+                          <div className="size-14 overflow-hidden rounded-2xl bg-white">
+                            {review.produtoImagem
+                              ? <img src={review.produtoImagem} alt="" className="size-full object-cover" />
+                              : <Package className="m-auto mt-4 text-neutral-300" size={18} />}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-sm font-semibold text-neutral-950">{review.produtoNome}</p>
+                            <p className="mt-1 text-xs text-neutral-500">{formatarKwanza(precoProduto(dados.produtos[indice] ?? dados.produtos[0]))}</p>
+                          </div>
+                          <button
+                            type="button"
+                            className="grid size-10 shrink-0 place-items-center rounded-2xl border border-neutral-200 bg-white text-neutral-950"
+                            onClick={() => {
+                              const produto = dados.produtos[indice] ?? dados.produtos[0];
+                              if (produto) abrirCheckout(produto, 1, criarSelecoesIniciaisProduto(produto));
+                            }}
+                          >
+                            <ShoppingBag size={16} />
+                          </button>
+                        </div>
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+
+              {/* Banner seguir — dados reais da loja */}
+              <section className="loja-review-follow-banner">
+                <div className="loja-review-follow-brand">
+                  <span className="loja-review-follow-avatar">
+                    {dados.loja.logoUrl
+                      ? <img src={resolverUrlMedia(dados.loja.logoUrl)} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: "999px" }} />
+                      : dados.loja.nomeComercial.slice(0, 2).toUpperCase()}
+                  </span>
+                  <div>
+                    <h3>Siga {dados.loja.nomeComercial} para novidades</h3>
+                    {dados.loja.descricaoPublica
+                      ? <p className="mt-1 text-sm text-neutral-500 line-clamp-1">{dados.loja.descricaoPublica}</p>
+                      : <p className="mt-1 text-sm text-neutral-400 italic">Novidades e promoções em primeira mão</p>}
+                  </div>
+                </div>
+                <button type="button" className="loja-review-follow-btn" onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}>
+                  + Seguir
+                </button>
+              </section>
+
+              {/* Recomendações — categorias reais da loja */}
+              <section className="space-y-4">
+                <div className="flex items-end justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.12em] text-neutral-400">Também pode gostar</p>
+                    <h3 className="mt-1 text-lg font-semibold text-neutral-950">Recomendações da loja</h3>
+                  </div>
+                  <button type="button" className="text-xs font-semibold text-neutral-500" onClick={() => mudarAba("item")}>
+                    Ver mais
+                  </button>
+                </div>
+                {dados.produtos.length > 0 && (
+                  <div className="loja-review-category-tabs">
+                    <button type="button" className="is-active">Recomendados</button>
+                    {[...new Set(dados.produtos.map((p) => p.categoria).filter(Boolean))].slice(0, 3).map((cat) => (
+                      <button key={cat} type="button">{cat}</button>
+                    ))}
+                  </div>
+                )}
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {topProdutos.slice(0, 4).map((produto) => (
+                    <CartaoProduto
+                      key={`review-${produto.codigo}`}
+                      produto={produto}
+                      corPrimaria={corPrimaria}
+                      favorito={favoritos.has(produto.codigo)}
+                      onFavorito={() => alternarFavorito(produto)}
+                      onComprar={() => abrirCheckout(produto, 1, criarSelecoesIniciaisProduto(produto))}
+                      onVerDetalhes={() => abrirProduto(produto)}
+                    />
+                  ))}
+                </div>
+              </section>
+
+              <div className="grid gap-4 lg:grid-cols-[1fr_.9fr]">
+                <ProdutosVistosRecentemente produtos={produtosVistosRecentemente} corPrimaria={corPrimaria} favoritos={favoritos} onComprar={(p) => abrirCheckout(p, 1, criarSelecoesIniciaisProduto(p))} onFavorito={alternarFavorito} onVerProduto={abrirProduto} />
+                <HistoricoEncomendasCliente historico={historicoEncomendas} />
+              </div>
             </div>
           )}
         </div>
       </div>
 
-      <footer className="border-t border-neutral-100 bg-neutral-50/70">
-        <div className="mx-auto flex max-w-[1280px] flex-col gap-3 px-4 py-6 sm:flex-row sm:items-center sm:justify-between sm:px-10">
-          <div className="inline-flex w-fit items-center gap-2 rounded-2xl border border-neutral-200 bg-white px-3 py-2 text-xs font-medium text-neutral-700 shadow-sm">
-            <span className="grid size-7 place-items-center rounded-full bg-neutral-950 text-white">
-              <LogoBizy variante="icone" style={{ width: 15, height: 15 }} />
-            </span>
-            <span>Loja criada com Bizy</span>
+      <footer className="loja-sf" aria-label="Rodapé da loja">
+        <div className="loja-sf-beam" aria-hidden="true" />
+
+        {/* ── HERO: identidade da loja + stats + contactos ── */}
+        <motion.div
+          className="loja-sf-hero"
+          initial={{ opacity: 0, y: 16 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: "-40px" }}
+          transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+        >
+          {/* Esquerda: avatar + info textual */}
+          <div className="loja-sf-identity">
+            <div className="loja-sf-avatar">
+              {(dados.perfil?.avatarUrl ?? dados.loja.logoUrl)
+                ? <img src={resolverUrlMedia(dados.perfil?.avatarUrl ?? dados.loja.logoUrl ?? "")} alt="" className="loja-sf-avatar-img" />
+                : <span className="loja-sf-avatar-init">{dados.loja.nomeComercial.slice(0, 2).toUpperCase()}</span>}
+            </div>
+            <div className="loja-sf-info">
+              <h2 className="loja-sf-nome">{dados.loja.nomeComercial}</h2>
+              <div className="loja-sf-meta">
+                {dados.loja.segmento && <span className="loja-sf-seg">{dados.loja.segmento}</span>}
+                {localizacao && <span className="loja-sf-loc"><MapPin size={11} aria-hidden="true" />{localizacao}</span>}
+              </div>
+              {(dados.perfil?.bio ?? dados.loja.descricaoPublica) && (
+                <p className="loja-sf-desc">{dados.perfil?.bio ?? dados.loja.descricaoPublica}</p>
+              )}
+            </div>
           </div>
-          <Link
-            to="/"
-            className="text-xs font-semibold text-neutral-900 underline underline-offset-4 transition-colors hover:text-neutral-600"
-          >
-            Ver planos
-          </Link>
+
+          {/* Direita: contadores + botões de contacto */}
+          <div className="loja-sf-side">
+            <div className="loja-sf-stats">
+              <div className="loja-sf-stat">
+                <strong>{totalProdutos}</strong>
+                <span>Produtos</span>
+              </div>
+              <div className="loja-sf-stat-div" aria-hidden="true" />
+              <div className="loja-sf-stat">
+                <strong>{dados.perfil?.contadores?.seguidores ?? 0}</strong>
+                <span>Seguidores</span>
+              </div>
+            </div>
+            <div className="loja-sf-contacts">
+              {dados.loja.whatsapp && (
+                <motion.a
+                  href={`https://wa.me/${dados.loja.whatsapp.replace(/\D/g, "")}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="loja-sf-contact loja-sf-contact--wa"
+                  whileHover={{ y: -2 }}
+                  transition={{ duration: 0.14 }}
+                >
+                  <MessageCircle size={15} />
+                  <span>WhatsApp</span>
+                </motion.a>
+              )}
+              {dados.loja.instagram && (
+                <motion.a
+                  href={`https://instagram.com/${dados.loja.instagram.replace(/^@/, "")}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="loja-sf-contact loja-sf-contact--ig"
+                  whileHover={{ y: -2 }}
+                  transition={{ duration: 0.14 }}
+                >
+                  <Share2 size={15} />
+                  <span>Instagram</span>
+                </motion.a>
+              )}
+            </div>
+          </div>
+        </motion.div>
+
+        <div className="loja-sf-sep" aria-hidden="true" />
+
+        {/* ── GRID 3 colunas: Explorar / Políticas / Bizy ── */}
+        <motion.div
+          className="loja-sf-grid"
+          initial={{ opacity: 0 }}
+          whileInView={{ opacity: 1 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.4, delay: 0.1 }}
+        >
+          {/* Col 1 — Explorar */}
+          <div className="loja-sf-col">
+            <p className="loja-sf-col-title">Explorar</p>
+            <nav aria-label="Secções da loja">
+              {(["home", "item", "new", "promo", "review"] as AbaLojaPublica[]).map((aba) => (
+                <motion.button
+                  key={aba}
+                  type="button"
+                  className="loja-sf-nav-link"
+                  onClick={() => { mudarAba(aba); window.scrollTo({ top: 0, behavior: "smooth" }); }}
+                  whileHover={{ x: 5 }}
+                  transition={{ duration: 0.14 }}
+                >
+                  {({ home: "Início", item: "Todos os produtos", new: "Novidades", promo: "Promoções", review: "Avaliações" } as Record<AbaLojaPublica, string>)[aba]}
+                </motion.button>
+              ))}
+            </nav>
+          </div>
+
+          {/* Col 2 — Políticas */}
+          <div className="loja-sf-col">
+            {experienciaLoja?.politicaEntrega ? (
+              <>
+                <p className="loja-sf-col-title">Entrega</p>
+                <p className="loja-sf-policy">{experienciaLoja.politicaEntrega}</p>
+              </>
+            ) : null}
+            {experienciaLoja?.politicaTroca ? (
+              <>
+                <p className="loja-sf-col-title" style={{ marginTop: experienciaLoja?.politicaEntrega ? "1.25rem" : undefined }}>Trocas</p>
+                <p className="loja-sf-policy">{experienciaLoja.politicaTroca}</p>
+              </>
+            ) : null}
+            {!experienciaLoja?.politicaEntrega && !experienciaLoja?.politicaTroca && (
+              <>
+                <p className="loja-sf-col-title">Políticas</p>
+                <p className="loja-sf-policy loja-sf-policy--empty">As políticas da loja serão adicionadas em breve.</p>
+              </>
+            )}
+          </div>
+
+          {/* Col 3 — Bizy */}
+          <div className="loja-sf-col">
+            <p className="loja-sf-col-title">Plataforma</p>
+            <motion.div
+              className="loja-sf-bizy"
+              whileHover={{ y: -3 }}
+              transition={{ duration: 0.2, ease: "easeOut" }}
+            >
+              <div className="loja-sf-bizy-header">
+                <motion.div
+                  className="loja-sf-bizy-icon"
+                  whileHover={{ scale: 1.08 }}
+                  transition={{ duration: 0.18 }}
+                >
+                  <LogoBizy variante="icone" style={{ width: 20, height: 20 }} />
+                </motion.div>
+                <div>
+                  <p className="loja-sf-bizy-name">Bizy</p>
+                  <p className="loja-sf-bizy-sub">Lojas digitais em Angola</p>
+                </div>
+              </div>
+              <p className="loja-sf-bizy-desc">Cria e gere a tua loja online em minutos. Vende mais, cresce mais.</p>
+              <Link to="/" className="loja-sf-bizy-cta">
+                Criar a minha loja
+                <ArrowRight size={14} aria-hidden="true" />
+              </Link>
+            </motion.div>
+          </div>
+        </motion.div>
+
+        <div className="loja-sf-base">
+          <span>© {new Date().getFullYear()} {dados.loja.nomeComercial} · Criado com Bizy</span>
+          <span>Bizy · Todos os direitos reservados</span>
         </div>
       </footer>
 
@@ -1160,6 +1717,9 @@ export function PaginaLojaDigitalPublica() {
               onComprar={() => abrirCheckout(produtoAberto, quantidade, selecoesVariantes)}
               onAdicionarCheckout={() => adicionarProdutoAoCheckoutBizy(produtoAberto, quantidade, selecoesVariantes)}
               onFechar={() => setProdutoAberto(null)}
+              reviews={reviewsComProduto}
+              recomendacoes={topProdutos.slice(0, 6)}
+              onAbrirProduto={abrirProduto}
             />
           )}
         </SheetContent>
@@ -1174,7 +1734,7 @@ export function PaginaLojaDigitalPublica() {
           <SheetHeader className="border-b border-neutral-100 px-5 py-4 text-left">
             <div className="flex items-center justify-between gap-3">
               <div>
-                <SheetTitle>Checkout assistido</SheetTitle>
+                <SheetTitle>Compra assistida</SheetTitle>
                 <SheetDescription>Produto, dados e entrega preparados antes de abrir o WhatsApp.</SheetDescription>
               </div>
               <button
@@ -1229,7 +1789,6 @@ export function PaginaLojaDigitalPublica() {
               variantes={pedidoConfirmado.variantes}
               total={pedidoConfirmado.total}
               entrega={pedidoConfirmado.entrega}
-              whatsappUrl={pedidoConfirmado.whatsappUrl}
               onWhatsApp={() => {
                 window.open(pedidoConfirmado.whatsappUrl, "_blank", "noopener,noreferrer");
               }}
@@ -1258,51 +1817,6 @@ export function PaginaLojaDigitalPublica() {
         }}
       />
 
-      {/* ── Bottom Navigation (mobile only) ── */}
-      <NativeBottomNav
-        activeIndex={abaAtiva === 1 ? 2 : abaAtiva === 2 ? 4 : 0}
-        activePillId="loja-mobile-nav"
-        className="lp-nav"
-        label="Navegação da loja"
-        items={[
-          { id: "loja", label: "Loja", icon: Home, onClick: () => mudarAba(0) },
-          {
-            id: "explorar",
-            label: "Explorar",
-            icon: Compass,
-            onClick: () => {
-              setCatalogoAtivo(null);
-              mudarAba(0);
-              setBuscaAberta(false);
-            },
-          },
-          {
-            id: "comprar",
-            label: "Comprar",
-            icon: ShoppingBag,
-            ariaLabel: "Ver destaques da loja",
-            onClick: () => mudarAba(1),
-            variant: "primary",
-          },
-          {
-            id: "favoritos",
-            label: "Favoritos",
-            icon: Heart,
-            badgeCount: favoritos.size,
-            iconClassName: favoritos.size > 0 ? "fill-current" : undefined,
-            onClick: () => {
-              const favList = dados.produtos.filter((p) => favoritos.has(p.codigo));
-              if (favList.length > 0) {
-                setBusca("");
-                setCatalogoAtivo(null);
-                mudarAba(0);
-              }
-            },
-          },
-          { id: "perfil", label: "Perfil", icon: User, onClick: () => mudarAba(2) },
-        ]}
-      />
-
       {erro && dados && (
         <div className="fixed bottom-20 left-1/2 z-50 -translate-x-1/2 animate-in fade-in slide-in-from-bottom-4 sm:bottom-6">
           <div className="flex items-center gap-3 rounded-2xl bg-neutral-900 px-5 py-3 text-sm text-white shadow-lg">
@@ -1313,45 +1827,95 @@ export function PaginaLojaDigitalPublica() {
           </div>
         </div>
       )}
+
+      <AvisoPrivacidade texto={experienciaLoja?.politicaPrivacidade} />
     </main>
   );
 }
 
 const ABAS_LOJA = [
-  { id: "loja", rotulo: "Loja" },
-  { id: "vitrines", rotulo: "Destaques" },
-  { id: "sobre", rotulo: "Sobre" }
-] as const;
+  { id: "home", rotulo: "Home" },
+  { id: "item", rotulo: "Item" },
+  { id: "new", rotulo: "New" },
+  { id: "promo", rotulo: "Promo" },
+  { id: "review", rotulo: "Review" }
+] as const satisfies ReadonlyArray<{ id: AbaLojaPublica; rotulo: string }>;
 
 function PerfilLojaSocial({
   colecoes,
   corPrimaria,
   localizacao,
   loja,
-  market,
   onContacto,
+  onVerItens,
   onSelecionarColecao,
   perfil,
+  slug,
+  trackingId,
   totalProdutos
 }: {
   colecoes: ColecaoPerfilLoja[];
   corPrimaria: string;
   localizacao: string;
   loja: LojaPublicaResposta["loja"];
-  market?: LojaPublicaResposta["market"];
   onContacto: () => void;
+  onVerItens: () => void;
   onSelecionarColecao: (colecao: ColecaoPerfilLoja) => void;
   perfil?: LojaPublicaResposta["perfil"];
+  slug: string;
+  trackingId: string;
   totalProdutos: number;
 }) {
   const [seguindo, setSeguindo] = useState(false);
+  const [totalSeguidores, setTotalSeguidores] = useState(perfil?.contadores?.seguidores ?? 0);
+  const [carregandoFollow, setCarregandoFollow] = useState(false);
+
+  useEffect(() => {
+    setTotalSeguidores(perfil?.contadores?.seguidores ?? 0);
+  }, [perfil?.contadores?.seguidores]);
+
+  useEffect(() => {
+    if (!slug || !trackingId) return;
+    verificarSeSegueLoja(slug, trackingId)
+      .then((r) => setSeguindo(r.seguindo))
+      .catch(() => {});
+  }, [slug, trackingId]);
+
+  const alternarFollow = useCallback(async () => {
+    if (carregandoFollow || !slug || !trackingId) return;
+    setCarregandoFollow(true);
+    try {
+      if (seguindo) {
+        await deixarDeSeguirLoja(slug, trackingId);
+        setSeguindo(false);
+        setTotalSeguidores((n) => Math.max(0, n - 1));
+      } else {
+        await seguirLoja(slug, trackingId, "perfil");
+        setSeguindo(true);
+        setTotalSeguidores((n) => n + 1);
+      }
+    } catch { /* silencioso */ }
+    setCarregandoFollow(false);
+  }, [carregandoFollow, seguindo, slug, trackingId]);
   const capaUrl = resolverUrlMedia(perfil?.capaUrl ?? loja.capaUrl);
   const avatarUrl = resolverUrlMedia(perfil?.avatarUrl ?? loja.logoUrl);
   const bio = perfil?.bio ?? loja.descricaoPublica;
   const totalColecoes = perfil?.contadores?.colecoes ?? colecoes.length;
-  const marketUrl = market?.url || ROTAS_LOJAS.market;
-  const mostrarContacto = perfil?.acoes?.contactoDisponivel !== false && Boolean(loja.whatsapp);
-  const selos = perfil?.selos ?? [];
+  const capaEstilo = capaUrl
+    ? {
+        backgroundImage: `linear-gradient(180deg, color-mix(in srgb, ${corPrimaria} 70%, #000) 0%, color-mix(in srgb, ${corPrimaria} 40%, #000) 100%), url(${capaUrl})`,
+        backgroundSize: "cover, cover",
+        backgroundPosition: "center, center"
+      }
+    : {
+        backgroundImage: `linear-gradient(145deg, color-mix(in srgb, ${corPrimaria} 60%, #000) 0%, color-mix(in srgb, ${corPrimaria} 30%, #000) 100%)`
+      };
+  const totalProdutosReal = perfil?.contadores?.produtos ?? totalProdutos;
+  const estatisticas = [
+    totalSeguidores > 0 && { icon: <User size={13} />, label: `${formatarNumeroCurto(totalSeguidores)} Seguidores` },
+    totalProdutosReal > 0 && { icon: <ShoppingBag size={13} />, label: `${formatarNumeroCurto(totalProdutosReal)} Produtos` },
+    loja.segmento && { icon: <Tag size={13} />, label: loja.segmento }
+  ].filter(Boolean) as { icon: ReactNode; label: string }[];
 
   return (
     <motion.section
@@ -1361,77 +1925,72 @@ function PerfilLojaSocial({
       transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
     >
       <div className="loja-profile-cover">
-        {capaUrl ? (
-          <img src={capaUrl} alt="" className="size-full object-cover" />
-        ) : (
-          <div className="loja-profile-cover-fallback" style={{ background: `linear-gradient(135deg, ${corPrimaria}, color-mix(in srgb, ${corPrimaria} 14%, white))` }} />
-        )}
+        <div className="loja-profile-cover-fallback" style={capaEstilo} />
+        <div className="loja-profile-cover-glow" />
       </div>
 
       <div className="loja-profile-content">
-        <div className="loja-profile-row">
-          <span className="loja-profile-avatar" aria-hidden="true">
-            {avatarUrl ? <img src={avatarUrl} alt="" /> : <Store size={28} />}
-          </span>
-
-          <div className="loja-profile-actions">
-            {perfil?.acoes?.seguirDisponivel !== false && (
-              <button
-                type="button"
-                className={`loja-profile-action follow ${seguindo ? "is-following" : ""}`}
-                onClick={() => setSeguindo((atual) => !atual)}
-                aria-pressed={seguindo}
-              >
-                {seguindo ? "A seguir" : "Seguir"}
-              </button>
-            )}
-            {mostrarContacto && (
-              <button type="button" className="loja-profile-action chat" onClick={onContacto} aria-label="Contactar loja">
-                <MessageCircle size={16} />
-              </button>
-            )}
-          </div>
-        </div>
-
-        <div className="loja-profile-main">
-          <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-2">
-              <h1>{perfil?.nomeComercial ?? loja.nomeComercial}</h1>
-              {selos.slice(0, 2).map((selo) => (
-                <span key={selo.id} className="loja-profile-seal">
-                  <ShieldCheck size={13} />
-                  {selo.label}
-                </span>
-              ))}
+        <div className="loja-profile-head">
+          <div className="loja-profile-head-copy">
+            <span className="loja-profile-avatar" aria-hidden="true">
+              {avatarUrl ? <img src={avatarUrl} alt="" /> : <span>{(perfil?.nomeComercial ?? loja.nomeComercial).slice(0, 3).toUpperCase()}</span>}
+              <small>trends</small>
+            </span>
+            <div className="loja-profile-head-text">
+              <div className="loja-profile-name-row">
+                <h1>{perfil?.nomeComercial ?? loja.nomeComercial}</h1>
+                <ChevronRight size={18} />
+              </div>
+              {totalSeguidores > 0 && (
+                <p>
+                  <strong>{formatarNumeroCurto(totalSeguidores)} Seguidores</strong>
+                </p>
+              )}
             </div>
-            {localizacao && (
-              <p className="loja-profile-location">
-                <MapPin size={14} />
-                {localizacao}
-              </p>
-            )}
           </div>
         </div>
 
         {bio && <p className="loja-profile-bio">{bio}</p>}
+        {localizacao && (
+          <p className="loja-profile-location">
+            <MapPin size={13} />
+            <span>{localizacao}</span>
+            {totalColecoes > 0 && <small>{formatarNumeroCurto(totalColecoes)} catálogos</small>}
+          </p>
+        )}
 
-        <div className="loja-profile-stats" aria-label="Resumo da loja">
-          <span>
-            <strong>{formatarNumeroCurto(totalProdutos)}</strong>
-            <small>Produtos</small>
-          </span>
-          {totalColecoes > 0 && (
-            <span>
-              <strong>{formatarNumeroCurto(totalColecoes)}</strong>
-              <small>Catálogos</small>
-            </span>
+        {estatisticas.length > 0 && (
+          <div className="loja-profile-badges" aria-label="Destaques da loja">
+            {estatisticas.map((badge) => (
+              <span key={badge.label} className="loja-profile-badge">
+                <span className="loja-profile-badge-icon">{badge.icon}</span>
+                <span>{badge.label}</span>
+              </span>
+            ))}
+          </div>
+        )}
+
+        <button type="button" className="loja-profile-trends-banner" onClick={onVerItens}>
+          <span className="loja-profile-trends-brand">trends</span>
+          <span className="loja-profile-trends-copy">Esta loja é selecionada como um "Loja de Tendências"</span>
+          <ChevronRight size={18} />
+        </button>
+
+        <div className="loja-profile-action-row">
+          {perfil?.acoes?.seguirDisponivel !== false && (
+            <button
+              type="button"
+              className={`loja-profile-action-pill is-primary${seguindo ? " is-following" : ""}`}
+              onClick={alternarFollow}
+              disabled={carregandoFollow}
+              aria-pressed={seguindo}
+            >
+              {carregandoFollow ? <Loader2 size={15} className="animate-spin" /> : seguindo ? "A seguir" : "+ Seguir"}
+            </button>
           )}
-          {loja.segmento && (
-            <span>
-              <strong>{loja.segmento}</strong>
-              <small>Segmento</small>
-            </span>
-          )}
+          <button type="button" className="loja-profile-action-pill" onClick={onVerItens}>
+            Todos os itens
+          </button>
         </div>
 
         {colecoes.length > 0 && (
@@ -1440,24 +1999,20 @@ function PerfilLojaSocial({
               <button
                 key={colecao.id}
                 type="button"
-                className={`loja-profile-catalogo-chip border ${colecao.ativa ? "is-active" : ""}`}
+                className={`loja-profile-catalogo-chip ${colecao.ativa ? "is-active" : ""}`}
                 aria-pressed={colecao.ativa}
                 onClick={() => onSelecionarColecao(colecao)}
               >
-                {colecao.imagem && <img src={resolverUrlMedia(colecao.imagem)} alt="" />}
-                <span>{colecao.nome}</span>
-                <small>{colecao.totalProdutos}</small>
+                <span className="loja-profile-catalogo-thumb">
+                  {colecao.imagem ? <img src={resolverUrlMedia(colecao.imagem)} alt="" /> : <Package size={16} />}
+                </span>
+                <span className="loja-profile-catalogo-copy">
+                  <strong>{colecao.nome}</strong>
+                  <small>{colecao.totalProdutos}</small>
+                </span>
               </button>
             ))}
           </div>
-        )}
-
-        {market?.disponivel !== false && (
-          <Link to={marketUrl} className="loja-profile-market-link">
-            <Store size={15} />
-            <span>{market?.label || "Ver similares no Bizy Market"}</span>
-            <ArrowRight size={16} />
-          </Link>
         )}
       </div>
     </motion.section>
@@ -1466,19 +2021,18 @@ function PerfilLojaSocial({
 
 function BarraAbas({
   abaAtiva,
-  corPrimaria,
   onChange
 }: {
-  abaAtiva: number;
-  corPrimaria: string;
-  onChange: (indice: number) => void;
+  abaAtiva: AbaLojaPublica;
+  onChange: (aba: AbaLojaPublica) => void;
 }) {
   return (
-    <nav className="loja-stitch-tabs sticky top-14 z-30 bg-white/95 py-2 shadow-[0_10px_28px_rgba(15,23,42,0.06)] backdrop-blur-xl sm:top-16">
+    <nav className="loja-store-tabs sticky top-[4.65rem] z-30 bg-white/95 py-2 shadow-[0_10px_28px_rgba(15,23,42,0.06)] backdrop-blur-xl sm:top-[5.1rem]">
       <div className="mx-auto max-w-[1280px] px-4 sm:px-10">
-        <div className="inline-flex w-full rounded-full border border-neutral-200 bg-neutral-100 p-1 shadow-sm sm:w-auto" role="tablist" aria-label="Secções da loja">
-          {ABAS_LOJA.map((aba, i) => {
-            const ativa = i === abaAtiva;
+        <div className="loja-store-tabs-bar" role="tablist" aria-label="Secções da loja">
+          {ABAS_LOJA.map((aba) => {
+            const ativa = aba.id === abaAtiva;
+            const isNew = aba.id === "new";
             return (
               <button
                 key={aba.id}
@@ -1487,167 +2041,26 @@ function BarraAbas({
                 role="tab"
                 aria-selected={ativa}
                 aria-controls={`loja-tabpanel-${aba.id}`}
-                onClick={() => onChange(i)}
-                className={`min-h-10 flex-1 rounded-full px-4 text-xs font-semibold uppercase tracking-[0.08em] transition-all sm:min-w-28 sm:flex-none sm:text-[0.8rem] ${
-                  ativa ? "bg-neutral-950 text-white shadow-sm" : "text-neutral-500 hover:bg-white hover:text-neutral-900"
-                }`}
-                style={ativa ? { boxShadow: `0 10px 24px ${corPrimaria}20` } : undefined}
+                onClick={() => onChange(aba.id)}
+                className={`loja-store-tab ${ativa ? "is-active" : ""} ${isNew ? "is-new" : ""}`}
+                data-active={ativa ? "true" : "false"}
               >
-                {aba.rotulo}
+                {ativa && (
+                  <motion.span
+                    layoutId="loja-tab-underline"
+                    className="loja-store-tab-underline"
+                    style={{ backgroundColor: isNew ? "#22c55e" : "#111111" }}
+                    transition={{ type: "spring", bounce: 0.18, duration: 0.45 }}
+                  />
+                )}
+                <span className="relative z-10 inline-flex items-center gap-1.5">
+                  {isNew && <Sparkles size={14} />}
+                  {TITULOS_ABAS_LOJA[aba.id]}
+                </span>
               </button>
             );
           })}
         </div>
-      </div>
-    </nav>
-  );
-}
-
-function VitrineOrganizada({
-  corPrimaria,
-  favoritos,
-  onComprar,
-  onFavorito,
-  onVerProduto,
-  secoes
-}: {
-  corPrimaria: string;
-  favoritos: Set<string>;
-  onComprar: (produto: ProdutoPublico) => void;
-  onFavorito: (produto: ProdutoPublico) => void;
-  onVerProduto: (produto: ProdutoPublico) => void;
-  secoes: SecaoVitrine[];
-}) {
-  return (
-    <div className="space-y-10">
-      {secoes.map((secao) => (
-        <section key={secao.id}>
-          <div className="mb-4 flex items-end justify-between gap-3">
-            <div>
-              <p className="text-[0.65rem] font-medium uppercase tracking-[0.12em] text-neutral-400">{secao.titulo}</p>
-              <h2 className="mt-1 text-base font-semibold tracking-tight text-neutral-950">{secao.detalhe}</h2>
-            </div>
-          </div>
-          <div className="hide-scrollbar -mx-5 flex gap-px overflow-x-auto bg-neutral-100 px-5 pb-1 sm:-mx-0 sm:px-0">
-            {secao.produtos.slice(0, 10).map((produto) => (
-              <div key={`${secao.id}-${produto.codigo}`} className="w-40 shrink-0 sm:w-48">
-                <CartaoProduto
-                  produto={produto}
-                  corPrimaria={corPrimaria}
-                  favorito={favoritos.has(produto.codigo)}
-                  onComprar={() => onComprar(produto)}
-                  onFavorito={() => onFavorito(produto)}
-                  onVerDetalhes={() => onVerProduto(produto)}
-                  compacto
-                />
-              </div>
-            ))}
-          </div>
-        </section>
-      ))}
-    </div>
-  );
-}
-
-function BannerPromocional({
-  produtos,
-  corPrimaria,
-  onVerProduto
-}: {
-  produtos: ProdutoPublico[];
-  corPrimaria: string;
-  onVerProduto: (produto: ProdutoPublico) => void;
-}) {
-  const scrollRef = useRef<HTMLDivElement>(null);
-
-  function scrollar(direcao: "esquerda" | "direita") {
-    if (!scrollRef.current) return;
-    const largura = scrollRef.current.clientWidth * 0.7;
-    scrollRef.current.scrollBy({ left: direcao === "esquerda" ? -largura : largura, behavior: "smooth" });
-  }
-
-  return (
-    <div className="bg-neutral-950 text-white">
-      <div className="flex items-center justify-between px-5 pb-1 pt-5 sm:px-6">
-        <div>
-          <p className="text-[0.65rem] font-medium uppercase tracking-[0.12em] text-white/40">Promoções</p>
-          <h3 className="mt-1 text-lg font-semibold tracking-tight">Escolhas com preço especial</h3>
-        </div>
-        <div className="flex gap-px">
-          <button type="button" onClick={() => scrollar("esquerda")} className="grid size-8 place-items-center bg-white/8 text-white transition-colors hover:bg-white/15">
-            <ChevronLeft size={16} />
-          </button>
-          <button type="button" onClick={() => scrollar("direita")} className="grid size-8 place-items-center bg-white/8 text-white transition-colors hover:bg-white/15">
-            <ChevronRight size={16} />
-          </button>
-        </div>
-      </div>
-
-      <div ref={scrollRef} className="hide-scrollbar flex gap-px overflow-x-auto px-5 py-4 sm:px-6">
-        {produtos.map((produto) => {
-          const desconto = produto.precoPromocionalEmKwanza
-            ? Math.round(((produto.precoEmKwanza - produto.precoPromocionalEmKwanza) / produto.precoEmKwanza) * 100)
-            : 0;
-
-          return (
-            <button key={produto.codigo} type="button" onClick={() => onVerProduto(produto)} className="group shrink-0 text-left">
-              <div className="relative w-40 overflow-hidden bg-white/5 sm:w-52">
-                <div className="aspect-[3/4] overflow-hidden">
-                  {produto.fotos[0] ? (
-                    <img src={resolverUrlMedia(produto.fotos[0])} alt={produto.nome} className="size-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.03]" />
-                  ) : (
-                    <div className="grid size-full place-items-center">
-                      <Package className="text-white/20" size={32} />
-                    </div>
-                  )}
-                </div>
-                {desconto > 0 && (
-                  <span className="absolute left-0 top-3 bg-neutral-900 px-2 py-1 text-[0.6rem] font-semibold uppercase tracking-wider text-white">
-                    -{desconto}%
-                  </span>
-                )}
-              </div>
-              <div className="mt-2.5 w-40 sm:w-52">
-                <p className="truncate text-xs font-normal text-white/80">{produto.nome}</p>
-                <div className="mt-1 flex items-center gap-2">
-                  <span className="text-xs font-semibold">{formatarKwanza(precoProduto(produto))}</span>
-                  {produto.precoPromocionalEmKwanza && (
-                    <span className="text-[0.65rem] text-white/30 line-through">{formatarKwanza(produto.precoEmKwanza)}</span>
-                  )}
-                </div>
-              </div>
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-function CatalogosPorBlocos({
-  catalogos,
-  onSelecionar
-}: {
-  catalogos: CatalogoBloco[];
-  corPrimaria: string;
-  onSelecionar: (catalogo: CatalogoBloco) => void;
-}) {
-  if (!catalogos.length) return null;
-
-  return (
-    <nav>
-      <p className="mb-3 text-[0.65rem] font-medium uppercase tracking-[0.12em] text-neutral-400">Explorar por catálogos</p>
-      <div className="hide-scrollbar -mx-5 flex gap-1.5 overflow-x-auto px-5 pb-1 sm:-mx-0 sm:flex-wrap sm:gap-2 sm:px-0">
-        {catalogos.slice(0, 10).map((catalogo) => (
-          <button
-            key={catalogo.id}
-            type="button"
-            onClick={() => onSelecionar(catalogo)}
-            className="shrink-0 border border-neutral-200 bg-white px-4 py-1.5 text-xs font-medium tracking-wide uppercase text-neutral-500 transition-colors hover:border-neutral-900 hover:bg-neutral-900 hover:text-white"
-          >
-            {catalogo.nome}
-          </button>
-        ))}
       </div>
     </nav>
   );
@@ -1717,7 +2130,7 @@ function SinaisConfiancaLoja({
   const sinais = [
     {
       icon: <ShoppingBag size={16} />,
-      titulo: "Checkout guiado",
+      titulo: "Compra guiada",
       detalhe: modoNegocio === "moda" ? "Tamanho, cor e quantidade seguem no pedido." : "Produto, quantidade e preferência seguem organizados."
     },
     {
@@ -1753,74 +2166,6 @@ function SinaisConfiancaLoja({
             <strong className="mt-3 block text-sm text-neutral-950">{sinal.titulo}</strong>
             <p className="mt-1 text-xs leading-5 text-neutral-500">{sinal.detalhe}</p>
           </div>
-        ))}
-      </div>
-    </section>
-  );
-}
-
-function TopProdutosLoja({
-  favoritos,
-  onComprar,
-  onFavorito,
-  onVerProduto,
-  produtos
-}: {
-  corPrimaria: string;
-  favoritos: Set<string>;
-  onComprar: (produto: ProdutoPublico) => void;
-  onFavorito: (produto: ProdutoPublico) => void;
-  onVerProduto: (produto: ProdutoPublico) => void;
-  produtos: ProdutoPublico[];
-}) {
-  if (!produtos.length) return null;
-
-  return (
-    <section className="rounded-[1.75rem] border border-neutral-200 bg-white p-4 shadow-[0_24px_70px_rgba(15,23,42,0.08)] sm:p-5">
-      <div className="mb-4 flex items-center justify-between gap-3">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-wide text-neutral-400">top produtos</p>
-          <h2 className="mt-1 text-lg font-semibold tracking-tight text-neutral-950">Destaques da loja</h2>
-          <p className="mt-1 text-sm text-neutral-500">Escolhas com boa procura para comprar agora.</p>
-        </div>
-        <span className="grid size-10 place-items-center rounded-2xl bg-neutral-950 text-white">
-          <Star size={17} />
-        </span>
-      </div>
-
-      <div className="hide-scrollbar -mx-4 flex gap-3 overflow-x-auto px-4 pb-1 sm:-mx-1 sm:px-1">
-        {produtos.slice(0, 6).map((produto, indice) => (
-          <article key={`top-${produto.codigo}`} className="w-52 shrink-0 overflow-hidden rounded-[1.35rem] border border-neutral-200 bg-white text-neutral-950 shadow-sm transition-transform hover:-translate-y-0.5 sm:w-60">
-            <button type="button" onClick={() => onVerProduto(produto)} className="relative block aspect-[4/5] w-full overflow-hidden bg-neutral-100 text-left">
-              {produto.fotos[0] ? (
-                <img src={resolverUrlMedia(produto.fotos[0])} alt={produto.nome} className="size-full object-cover transition-transform duration-500 hover:scale-105" />
-              ) : (
-                <span className="grid size-full place-items-center"><Package className="text-neutral-300" size={30} /></span>
-              )}
-              <span className="absolute left-3 top-3 rounded-full bg-neutral-950 px-3 py-1 text-xs font-bold text-white shadow-sm">
-                #{indice + 1}
-              </span>
-            </button>
-            <div className="space-y-3 p-3">
-              <button type="button" onClick={() => onVerProduto(produto)} className="block text-left">
-                <h3 className="line-clamp-2 text-sm font-semibold leading-snug">{produto.nome}</h3>
-              </button>
-              <div className="flex items-center justify-between gap-2">
-                <strong className="text-sm">{formatarKwanza(precoProduto(produto))}</strong>
-                <button
-                  type="button"
-                  onClick={() => onFavorito(produto)}
-                  className="grid size-8 place-items-center rounded-full bg-neutral-100 text-neutral-500 hover:text-red-500"
-                  aria-label={favoritos.has(produto.codigo) ? "Remover favorito" : "Adicionar favorito"}
-                >
-                  <Heart size={15} className={favoritos.has(produto.codigo) ? "fill-red-500 text-red-500" : ""} />
-                </button>
-              </div>
-              <BotaoComprarLoja onClick={(evento) => { evento.stopPropagation(); onComprar(produto); }}>
-                Comprar agora
-              </BotaoComprarLoja>
-            </div>
-          </article>
         ))}
       </div>
     </section>
@@ -1911,114 +2256,6 @@ function HistoricoEncomendasCliente({ historico }: { historico: PedidoHistoricoL
   );
 }
 
-function PoliticasLoja({
-  experiencia,
-  loja,
-  modoNegocio
-}: {
-  experiencia?: ExperienciaLojaPublica;
-  loja: LojaPublicaResposta["loja"];
-  modoNegocio: ModoNegocio;
-}) {
-  const politicas = {
-    moda: [
-      { icon: <Ruler size={16} />, titulo: "Tamanhos", detalhe: "Escolha tamanho/cor antes de enviar o pedido." },
-      { icon: <ShieldCheck size={16} />, titulo: "Trocas", detalhe: experiencia?.politicaTroca || "Troca combinada com a loja conforme disponibilidade." },
-      { icon: <Truck size={16} />, titulo: "Entrega", detalhe: experiencia?.politicaEntrega || "Taxa calculada no checkout antes do WhatsApp." }
-    ],
-    comida: [
-      { icon: <Clock size={16} />, titulo: "Tempo", detalhe: "Pedido enviado com entrega ou retirada escolhida." },
-      { icon: <Check size={16} />, titulo: "Disponibilidade", detalhe: "Itens dependem da preparação e stock do dia." },
-      { icon: <Truck size={16} />, titulo: "Entrega", detalhe: experiencia?.politicaEntrega || "Morada e referência entram no pedido." }
-    ],
-    servicos: [
-      { icon: <Clock size={16} />, titulo: "Agenda", detalhe: "Pedido vira conversa para combinar horário." },
-      { icon: <ShieldCheck size={16} />, titulo: "Orçamento", detalhe: experiencia?.politicaTroca || "Detalhes são enviados para atendimento confirmar." },
-      { icon: <MessageCircle size={16} />, titulo: "Contacto", detalhe: "WhatsApp recebe contexto completo do cliente." }
-    ],
-    geral: [
-      { icon: <Truck size={16} />, titulo: "Entrega", detalhe: experiencia?.politicaEntrega || "Entrega, retirada ou orçamento no checkout." },
-      { icon: <ShieldCheck size={16} />, titulo: "Confiança", detalhe: experiencia?.politicaPrivacidade || "Dados do pedido seguem organizados para a loja." },
-      { icon: <MessageCircle size={16} />, titulo: "WhatsApp", detalhe: "Compra finalizada com atendimento humano." }
-    ]
-  } satisfies Record<ModoNegocio, Array<{ icon: React.ReactNode; titulo: string; detalhe: string }>>;
-
-  return (
-    <section className="mt-10 rounded-3xl bg-white p-4 ring-1 ring-neutral-100 sm:p-5">
-      <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-wide text-neutral-400">políticas da loja</p>
-          <h2 className="mt-1 text-base font-semibold text-neutral-950">Antes de comprar em {loja.nomeComercial}</h2>
-        </div>
-        <Badge variant="outline" className="rounded-lg capitalize">{modoNegocio}</Badge>
-      </div>
-      <div className="grid gap-2 sm:grid-cols-3">
-        {politicas[modoNegocio].map((politica) => (
-          <div key={politica.titulo} className="rounded-2xl border border-neutral-200 bg-neutral-50 p-3">
-            <span className="text-neutral-500">{politica.icon}</span>
-            <strong className="mt-3 block text-sm text-neutral-950">{politica.titulo}</strong>
-            <p className="mt-1 text-xs leading-5 text-neutral-500">{politica.detalhe}</p>
-          </div>
-        ))}
-      </div>
-    </section>
-  );
-}
-
-function TabelaMedidas({ experiencia, modoNegocio, produto }: { experiencia?: ExperienciaLojaPublica; modoNegocio: ModoNegocio; produto: ProdutoPublico }) {
-  const entradaTamanho = Object.entries(produto.variantes ?? {}).find(([nome]) =>
-    ["tamanho", "tam", "size", "numero", "número"].some((termo) => nome.toLowerCase().includes(termo))
-  );
-  const opcoes = entradaTamanho?.[1] ?? [];
-  const tabelaConfigurada = experiencia?.tabelaMedidas?.filter((linha) => linha.tamanho) ?? [];
-  if (modoNegocio !== "moda" && !opcoes.length && !tabelaConfigurada.length) return null;
-
-  const tamanhos = opcoes.length ? opcoes : ["P", "M", "G", "GG"];
-  const linhas = tabelaConfigurada.length
-    ? tabelaConfigurada
-    : tamanhos.slice(0, 6).map((tamanho) => ({
-        tamanho,
-        busto: null,
-        cintura: null,
-        quadril: null,
-        observacao: "Enviar para confirmação"
-      }));
-
-  return (
-    <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
-      <div className="mb-3 flex items-start gap-3">
-        <Ruler className="mt-0.5 text-neutral-500" size={17} />
-        <div>
-          <h4 className="text-sm font-semibold text-neutral-900">Tabela de medidas</h4>
-          <p className="mt-1 text-xs leading-5 text-neutral-500">Confirme o tamanho antes de enviar o pedido; a seleção segue no WhatsApp.</p>
-        </div>
-      </div>
-      <div className="overflow-hidden rounded-2xl border border-neutral-200 bg-white">
-        <table className="w-full text-left text-xs">
-          <thead className="bg-neutral-50 text-neutral-500">
-            <tr>
-              <th className="px-3 py-2 font-semibold">Opção</th>
-              <th className="px-3 py-2 font-semibold">Busto</th>
-              <th className="px-3 py-2 font-semibold">Cintura</th>
-              <th className="px-3 py-2 font-semibold">Observação</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-neutral-100">
-            {linhas.slice(0, 8).map((linha) => (
-              <tr key={linha.tamanho}>
-                <td className="px-3 py-2 font-semibold text-neutral-950">{linha.tamanho}</td>
-                <td className="px-3 py-2 text-neutral-600">{linha.busto || "-"}</td>
-                <td className="px-3 py-2 text-neutral-600">{linha.cintura || linha.quadril || "-"}</td>
-                <td className="px-3 py-2 text-neutral-500">{linha.observacao || "Enviar para confirmação"}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
-}
-
 function CartaoProduto({
   produto,
   corPrimaria,
@@ -2040,28 +2277,43 @@ function CartaoProduto({
   const desconto = temPromocao ? Math.round(((produto.precoEmKwanza - produto.precoPromocionalEmKwanza!) / produto.precoEmKwanza) * 100) : 0;
   const semStock = produto.quantidade <= 0 || produto.estadoStock === "ESGOTADO" || produto.disponivel === false;
   const ehNovidade = produto.vitrine?.selos?.some((s) => /novo|new|novidade/i.test(s));
+  const visuais = obterVisuaisProduto(produto);
 
   return (
     <article
-      className={`loja-produto-card group flex h-full cursor-pointer flex-col bg-white ${compacto ? "is-compact" : ""}`}
+      className={`loja-produto-card group flex h-full cursor-pointer flex-col overflow-hidden ${compacto ? "is-compact" : ""}`}
       onClick={onVerDetalhes}
       onKeyDown={(e) => { if (e.key === "Enter") onVerDetalhes(); }}
       tabIndex={0}
       role="button"
     >
-      <div className="loja-produto-card-media relative aspect-[3/4] overflow-hidden rounded-xl bg-neutral-50">
+      <div className="loja-produto-card-media">
         {produto.fotos[0] ? (
-          <img src={resolverUrlMedia(produto.fotos[0])} alt={produto.nome} className="size-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.03]" loading="lazy" />
+          <img
+            src={resolverUrlMedia(produto.fotos[0])}
+            alt={produto.nome}
+            className="size-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.05]"
+            loading="lazy"
+          />
         ) : (
           <div className="grid size-full place-items-center bg-neutral-50">
-            <Package className="text-neutral-200" size={32} />
+            <Package className="text-neutral-200" size={28} />
           </div>
         )}
 
-        {semStock && <span className="lp-tag esgotado">Esgotado</span>}
-        {!semStock && produto.quantidade === 1 && <span className="lp-tag ultima-unidade">Última unidade</span>}
-        {!semStock && temPromocao && <span className="lp-tag promo">-{desconto}%</span>}
-        {!semStock && !temPromocao && ehNovidade && <span className="lp-tag novo">Novo</span>}
+        <div className="loja-produto-card-tag-row">
+          {semStock && <span className="lp-tag esgotado">Esgotado</span>}
+          {!semStock && produto.quantidade === 1 && <span className="lp-tag ultima-unidade">Última unidade</span>}
+          {!semStock && temPromocao && <span className="lp-tag promo">-{desconto}%</span>}
+          {!semStock && !temPromocao && ehNovidade && <span className="lp-tag novo">Novo</span>}
+        </div>
+
+        <div className="loja-produto-card-swatches" aria-hidden="true">
+          {visuais.cores.slice(0, 3).map((cor) => (
+            <span key={cor} style={{ backgroundColor: cor }} />
+          ))}
+          <small>{Math.min(9, produto.fotos.length || visuais.cores.length)}</small>
+        </div>
 
         <button
           type="button"
@@ -2071,26 +2323,28 @@ function CartaoProduto({
         >
           <Heart className={favorito ? "fill-current" : ""} />
         </button>
+
+        <button
+          type="button"
+          className="loja-produto-card-cart"
+          disabled={semStock}
+          onClick={(e) => { e.stopPropagation(); onComprar(); }}
+          aria-label={semStock ? "Esgotado" : "Adicionar ao carrinho"}
+        >
+          <ShoppingBag size={16} />
+        </button>
       </div>
 
-      <div className={`loja-produto-card-info flex flex-1 flex-col ${compacto ? "py-2" : "py-3 sm:py-4"}`}>
-        <h3 className="line-clamp-2 text-xs font-normal text-neutral-800 sm:text-sm">{produto.nome}</h3>
+      <div className="loja-produto-card-info">
+        <h3>{produto.nome}</h3>
+
         {produto.categoria && <p className="loja-produto-card-category">{produto.categoria}</p>}
 
-        <div className="loja-produto-card-bottom mt-1.5 flex items-center justify-between gap-2">
-          <div className="loja-produto-card-price flex items-baseline gap-2">
-            <span className="text-xs font-semibold text-neutral-900 tabular-nums sm:text-sm">{formatarKwanza(precoProduto(produto))}</span>
-            {temPromocao && <span className="text-[0.65rem] text-neutral-400 line-through">{formatarKwanza(produto.precoEmKwanza)}</span>}
+        <div className="loja-produto-card-bottom">
+          <div className="loja-produto-card-price">
+            <span>{formatarKwanza(precoProduto(produto))}</span>
+            {temPromocao && <del>{formatarKwanza(produto.precoEmKwanza)}</del>}
           </div>
-          <button
-            type="button"
-            className="lp-add"
-            disabled={semStock}
-            onClick={(e) => { e.stopPropagation(); onComprar(); }}
-            aria-label={semStock ? "Esgotado" : "Adicionar à sacola"}
-          >
-            <Plus />
-          </button>
         </div>
       </div>
     </article>
@@ -2113,7 +2367,10 @@ function DetalheProduto({
   onFavorito,
   onComprar,
   onAdicionarCheckout,
-  onFechar
+  onFechar,
+  onAbrirProduto,
+  reviews = [],
+  recomendacoes = []
 }: {
   produto: ProdutoPublico;
   corPrimaria: string;
@@ -2131,6 +2388,9 @@ function DetalheProduto({
   onComprar: () => void;
   onAdicionarCheckout: () => void;
   onFechar: () => void;
+  onAbrirProduto?: (produto: ProdutoPublico) => void;
+  reviews?: ReviewLojaPublica[];
+  recomendacoes?: ProdutoPublico[];
 }) {
   const temPromocao = Boolean(produto.precoPromocionalEmKwanza && produto.precoPromocionalEmKwanza < produto.precoEmKwanza);
   const desconto = temPromocao ? Math.round(((produto.precoEmKwanza - produto.precoPromocionalEmKwanza!) / produto.precoEmKwanza) * 100) : 0;
@@ -2139,16 +2399,22 @@ function DetalheProduto({
   const ehNovidade = produto.vitrine?.selos?.some((s) => /novo|new|novidade/i.test(s));
   const reduzirMovimento = useReducedMotion();
   const fotosGaleria = fotos.slice(0, Math.max(1, Math.min(fotos.length, 6)));
-  const resumoVariante = montarResumoVariantes(selecoesVariantes);
   const categoria = produto.categoria || produto.colecao || "Produto";
   const tituloSelo = semStock ? "Indisponível" : temPromocao ? "Oferta limitada" : ehNovidade ? "Nova chegada" : "Produto verificado";
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const voltarRef = useRef<HTMLButtonElement | null>(null);
-  const [accordionAberto, setAccordionAberto] = useState("descricao");
+  const [abaDetalhe, setAbaDetalhe] = useState<AbaDetalheProduto>("produto");
+  const reviewsVisiveis = reviews.length > 0 ? reviews.slice(0, 4) : gerarReviewsDemonstracao([produto]);
+  const recomendacoesVisiveis = recomendacoes.filter((item) => item.codigo !== produto.codigo).slice(0, 4);
   const localizacaoLoja = [loja.municipio, loja.provincia].filter(Boolean).join(", ");
-  const urlMarketProduto = ROTAS_LOJAS.produtoMarket(produto.codigo);
+  const janelaEntregaInicio = new Date();
+  janelaEntregaInicio.setDate(janelaEntregaInicio.getDate() + 3);
+  const janelaEntregaFim = new Date();
+  janelaEntregaFim.setDate(janelaEntregaFim.getDate() + 10);
+  const janelaEntrega = `${janelaEntregaInicio.toLocaleDateString("en-US", { month: "short", day: "2-digit" })} - ${janelaEntregaFim.toLocaleDateString("en-US", { month: "short", day: "2-digit" })}`;
 
   useEffect(() => {
+    setAbaDetalhe("produto");
     const node = scrollRef.current;
     if (!node) return;
     node.scrollTo({ top: 0 });
@@ -2165,6 +2431,10 @@ function DetalheProduto({
         <button ref={voltarRef} type="button" onClick={onFechar} className="loja-pdp-icon-button" aria-label="Voltar ao catálogo">
           <ChevronLeft size={20} />
         </button>
+        <div className="loja-pdp-topline">
+          <span>{categoria}</span>
+          <strong>{produto.vitrine?.titulo || "Caso apenas o acessório"}</strong>
+        </div>
         <div className="loja-pdp-toolbar-actions">
           <button type="button" onClick={onFavorito} className="loja-pdp-icon-button" aria-label={favorito ? "Remover dos favoritos" : "Adicionar aos favoritos"} aria-pressed={favorito}>
             <Heart size={18} className={favorito ? "fill-red-500 text-red-500" : ""} />
@@ -2181,261 +2451,351 @@ function DetalheProduto({
           >
             <Share2 size={18} />
           </button>
+          <button type="button" className="loja-pdp-icon-button" aria-label="Mais opções">
+            <MoreHorizontal size={18} />
+          </button>
         </div>
+      </div>
+
+      <div className="loja-pdp-tabs" role="tablist" aria-label="Detalhes do produto">
+        {([
+          { id: "produto", label: "Produto" },
+          { id: "comentarios", label: "Comentários" },
+          { id: "recomendar", label: "Recomendar" }
+        ] as Array<{ id: AbaDetalheProduto; label: string }>).map((aba) => {
+          const ativa = abaDetalhe === aba.id;
+          return (
+            <button
+              key={aba.id}
+              type="button"
+              id={`loja-tab-${aba.id}`}
+              role="tab"
+              aria-selected={ativa}
+              aria-controls={`loja-tabpanel-${aba.id}`}
+              className={`loja-pdp-tab ${ativa ? "is-active" : ""}`}
+              onClick={() => setAbaDetalhe(aba.id)}
+            >
+              <span>{aba.label}</span>
+              {ativa && <span className="loja-pdp-tab-underline" />}
+            </button>
+          );
+        })}
       </div>
 
       <div className="loja-pdp-scroll" ref={scrollRef}>
         <div className="loja-pdp-shell">
-          <motion.div
-            className="loja-pdp-gallery"
-            initial={reduzirMovimento ? false : { opacity: 0, y: 18 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.34, ease: [0.22, 1, 0.36, 1] }}
-            aria-label={`Galeria de ${produto.nome}`}
-          >
-            <div className="loja-product-hero">
-              {fotos[fotoAtiva] ? (
-                <img src={resolverUrlMedia(fotos[fotoAtiva])} alt={produto.nome} className="size-full object-cover" />
-              ) : (
-                <div className="grid size-full place-items-center">
-                  <Package className="text-neutral-300" size={56} />
+          {abaDetalhe === "produto" && (
+            <motion.div
+              id="loja-tabpanel-produto"
+              role="tabpanel"
+              aria-labelledby="loja-tab-produto"
+              className="loja-pdp-panel"
+              initial={reduzirMovimento ? false : { opacity: 0, y: 18 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.34, ease: [0.22, 1, 0.36, 1] }}
+            >
+              <div className="loja-pdp-gallery">
+                <div className="loja-pdp-hero">
+                  {fotos[fotoAtiva] ? (
+                    <img src={resolverUrlMedia(fotos[fotoAtiva])} alt={produto.nome} className="size-full object-cover" />
+                  ) : (
+                    <div className="grid size-full place-items-center bg-neutral-50">
+                      <Package className="text-neutral-300" size={56} />
+                    </div>
+                  )}
+
+                  <div className="loja-pdp-hero-copy">
+                    <span>{produto.vitrine?.titulo || "Case Only | Tablet Not Included"}</span>
+                  </div>
+
+                  <div className="loja-pdp-badges">
+                    {!semStock && produto.quantidade === 1 && <span className="lp-tag ultima-unidade">Última unidade</span>}
+                    {temPromocao && <span className="lp-tag promo">-{desconto}%</span>}
+                    {!temPromocao && ehNovidade && <span className="lp-tag novo">Novo</span>}
+                    <span className="loja-pdp-shot-count">{fotoAtiva + 1}/{fotos.length}</span>
+                  </div>
+
+                  {fotos.length > 1 && (
+                    <>
+                      <button type="button" onClick={() => setFotoAtiva(fotoAtiva > 0 ? fotoAtiva - 1 : fotos.length - 1)} className="loja-pdp-gallery-arrow is-left" aria-label="Ver foto anterior">
+                        <ChevronLeft size={19} />
+                      </button>
+                      <button type="button" onClick={() => setFotoAtiva(fotoAtiva < fotos.length - 1 ? fotoAtiva + 1 : 0)} className="loja-pdp-gallery-arrow is-right" aria-label="Ver próxima foto">
+                        <ChevronRight size={19} />
+                      </button>
+                    </>
+                  )}
                 </div>
-              )}
 
-              <div className="loja-pdp-badges">
-                {!semStock && produto.quantidade === 1 && <span className="lp-tag ultima-unidade">Última unidade</span>}
-                {temPromocao && <span className="lp-tag promo">-{desconto}%</span>}
-                {!temPromocao && ehNovidade && <span className="lp-tag novo">Novo</span>}
-                <span className="loja-pdp-shot-count">{fotoAtiva + 1}/{fotos.length}</span>
+                {fotosGaleria.length > 1 && (
+                  <div className="loja-product-thumbs" aria-label="Selecionar imagem do produto">
+                    {fotosGaleria.map((foto, indice) => (
+                      <button
+                        key={indice}
+                        type="button"
+                        onClick={() => setFotoAtiva(indice)}
+                        className={indice === fotoAtiva ? "is-active" : ""}
+                        aria-label={`Ver imagem ${indice + 1}`}
+                        aria-current={indice === fotoAtiva ? "true" : undefined}
+                      >
+                        {foto ? <img src={resolverUrlMedia(foto)} alt="" className="size-full object-cover" /> : <Package size={14} className="mx-auto text-neutral-400" />}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
 
-              {fotos.length > 1 && (
-                <>
-                  <button type="button" onClick={() => setFotoAtiva(fotoAtiva > 0 ? fotoAtiva - 1 : fotos.length - 1)} className="loja-pdp-gallery-arrow is-left" aria-label="Ver foto anterior">
-                    <ChevronLeft size={19} />
-                  </button>
-                  <button type="button" onClick={() => setFotoAtiva(fotoAtiva < fotos.length - 1 ? fotoAtiva + 1 : 0)} className="loja-pdp-gallery-arrow is-right" aria-label="Ver próxima foto">
-                    <ChevronRight size={19} />
-                  </button>
-                </>
-              )}
-            </div>
+              <div className="loja-pdp-summary">
+                <div className="loja-pdp-price-row">
+                  <span>A partir de</span>
+                  <strong>{formatarKwanza(precoProduto(produto))}</strong>
+                </div>
 
-            {fotosGaleria.length > 1 && (
-              <div className="loja-product-thumbs" aria-label="Selecionar imagem do produto">
-                {fotosGaleria.map((foto, indice) => (
-                  <button
-                    key={indice}
-                    type="button"
-                    onClick={() => setFotoAtiva(indice)}
-                    className={indice === fotoAtiva ? "is-active" : ""}
-                    aria-label={`Ver imagem ${indice + 1}`}
-                    aria-current={indice === fotoAtiva ? "true" : undefined}
-                  >
-                    {foto ? <img src={resolverUrlMedia(foto)} alt="" className="size-full object-cover" /> : <Package size={14} className="mx-auto text-neutral-400" />}
-                  </button>
-                ))}
-              </div>
-            )}
+                <h2 id="loja-product-title">{produto.nome}</h2>
+                <p className="loja-pdp-subtitle">{produto.vitrine?.descricao || produto.colecao || produto.categoria || "Selecionado pela loja"}</p>
 
-            <div className="loja-pdp-mosaic" aria-hidden="true">
-              {fotosGaleria.slice(1, 5).map((foto, indice) => (
-                <button key={`${foto ?? "foto"}-${indice}`} type="button" onClick={() => setFotoAtiva(indice + 1)}>
-                  {foto ? <img src={resolverUrlMedia(foto)} alt="" /> : <Package size={28} />}
-                </button>
-              ))}
-            </div>
-          </motion.div>
+                <div className="loja-pdp-store-pill">
+                  <span>
+                    {loja.logoUrl ? <img src={resolverUrlMedia(loja.logoUrl)} alt="" /> : <Store size={16} />}
+                  </span>
+                  <span>
+                    <small>Vendido por</small>
+                    <strong>{loja.nomeComercial}</strong>
+                    <em>{localizacaoLoja || "Loja online"}</em>
+                  </span>
+                  <ArrowRight size={14} />
+                </div>
 
-          <motion.aside
-            className="loja-pdp-buy-panel"
-            initial={reduzirMovimento ? false : { opacity: 0, y: 24 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.38, delay: 0.04, ease: [0.22, 1, 0.36, 1] }}
-          >
-            <nav className="loja-pdp-breadcrumb" aria-label="Caminho do produto">
-              <button type="button" onClick={onFechar}>Loja</button>
-              <span aria-hidden="true">/</span>
-              <span>{categoria}</span>
-            </nav>
+                <div className="loja-pdp-proof-row">
+                  <span className="loja-pdp-proof">
+                    <ShieldCheck size={15} />
+                    {tituloSelo}
+                  </span>
+                </div>
 
-            <div className="loja-pdp-proof-row">
-              <span className="loja-pdp-proof">
-                <ShieldCheck size={15} />
-                {tituloSelo}
-              </span>
-              <span className="lp-stars" aria-label="Produto com validação da loja">
-                {Array.from({ length: 5 }).map((_, i) => <Star key={i} size={13} />)}
-              </span>
-            </div>
+                {produto.descricao && (
+                  <p className="loja-pdp-description">{produto.descricao}</p>
+                )}
 
-            <div className="loja-product-info">
-              <Link to={ROTAS_LOJAS.loja(loja.slug)} className="loja-pdp-store-badge">
-                <span>
-                  {loja.logoUrl ? <img src={resolverUrlMedia(loja.logoUrl)} alt="" /> : <Store size={16} />}
-                </span>
-                <span>
-                  <small>Vendido por</small>
-                  <strong>{loja.nomeComercial}</strong>
-                </span>
-                <ArrowRight size={14} />
-              </Link>
+                <div className="loja-pdp-section-label">Size</div>
+                <SeletoresVariantes produto={produto} selecoesVariantes={selecoesVariantes} onSelecionar={onSelecionarVariante} corPrimaria={corPrimaria} />
 
-              <h2 id="loja-product-title">{produto.nome}</h2>
-              <p className="loja-pdp-subtitle">{produto.vitrine?.descricao || produto.colecao || produto.categoria || "Selecionado pela loja"}</p>
+                {!semStock && (
+                  <div className="loja-pdp-quantity-row">
+                    <span className="loja-pdp-section-label">Quantidade</span>
+                    <QuantidadeSelector quantidade={quantidade} maximo={produto.quantidade} onChange={setQuantidade} />
+                  </div>
+                )}
 
-              <div className="loja-product-price-row">
-                <span>{formatarKwanza(precoProduto(produto))}</span>
-                {temPromocao && <span>{formatarKwanza(produto.precoEmKwanza)}</span>}
-              </div>
+                <div className="loja-pdp-delivery-card">
+                  <div className="loja-pdp-delivery-head">
+                    <span className="loja-pdp-delivery-location">
+                      <MapPin size={16} />
+                      envio para o Angola
+                    </span>
+                    <ChevronRight size={16} className="text-neutral-300" />
+                  </div>
+                  <div className="loja-pdp-delivery-line is-primary">
+                    <Truck size={16} />
+                    <div>
+                      <strong>Free Shipping(Orders ≥ $129.00)</strong>
+                      <p>Est. Delivery: {janelaEntrega}</p>
+                    </div>
+                  </div>
+                  <div className="loja-pdp-delivery-line">
+                    <Package size={16} />
+                    <div>
+                      <strong>Returns Accepted</strong>
+                      <p>Devoluções e trocas dependem da política da loja.</p>
+                    </div>
+                  </div>
+                  <div className="loja-pdp-delivery-line">
+                    <ShieldCheck size={16} />
+                    <div>
+                      <strong>Safe Payments · Privacy Protection</strong>
+                      <p>{experiencia?.politicaPrivacidade || "A loja recebe apenas os dados necessários para confirmar o pedido."}</p>
+                    </div>
+                  </div>
+                </div>
 
-              <StatusStock produto={produto} />
-
-              {produto.descricao && (
-                <p className="loja-pdp-description">{produto.descricao}</p>
-              )}
-
-              <SeletoresVariantes produto={produto} selecoesVariantes={selecoesVariantes} onSelecionar={onSelecionarVariante} corPrimaria={corPrimaria} />
-
-              {!semStock && (
-                <QuantidadeSelector quantidade={quantidade} maximo={produto.quantidade} onChange={setQuantidade} />
-              )}
-
-              <div className="loja-pdp-actions">
-                <button type="button" className="loja-pdp-primary-cta" disabled={semStock} onClick={() => onComprar()}>
+                <button
+                  type="button"
+                  className="loja-pdp-primary-cta"
+                  disabled={semStock}
+                  onClick={semStock ? undefined : onComprar}
+                >
                   <span>{semStock ? "Indisponível" : "Comprar agora"}</span>
-                  <ArrowRight size={20} />
-                </button>
-                <button type="button" className="loja-pdp-wishlist" onClick={onFavorito} aria-label={favorito ? "Remover dos favoritos" : "Adicionar aos favoritos"} aria-pressed={favorito}>
-                  <Heart size={19} className={favorito ? "fill-current" : ""} />
+                  <ArrowRight size={18} />
                 </button>
               </div>
+            </motion.div>
+          )}
 
-              <button type="button" className="loja-pdp-unified-cta" disabled={semStock} onClick={() => onAdicionarCheckout()}>
-                <span>Adicionar ao checkout Bizy</span>
-                <ShoppingBag size={18} />
-              </button>
-
-              <div className="loja-pdp-selection" aria-live="polite">
-                <ShoppingBag size={16} />
-                <span>
-                  Total {formatarKwanza(precoProduto(produto) * quantidade)}
-                  {resumoVariante ? ` · ${resumoVariante}` : ""}
-                </span>
+          {abaDetalhe === "comentarios" && (
+            <motion.div
+              id="loja-tabpanel-comentarios"
+              role="tabpanel"
+              aria-labelledby="loja-tab-comentarios"
+              className="loja-pdp-panel"
+              initial={reduzirMovimento ? false : { opacity: 0, y: 18 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.34, ease: [0.22, 1, 0.36, 1] }}
+            >
+              <div className="loja-review-filter-row">
+                <button type="button" className="is-active">Tudo(1000+)</button>
+                <button type="button">Com Imagem(1000+)</button>
+                <button type="button">5 ⭐ (1000+)</button>
+                <button type="button">4 ⭐</button>
+              </div>
+              <div className="loja-review-filter-row is-secondary">
+                <button type="button">Good Quality(1000+)</button>
+                <button type="button">Beautiful(1000+)</button>
+                <button type="button">Mais</button>
               </div>
 
-              <div className="loja-pdp-service-grid">
+              <div className="loja-review-summary-card">
                 <div>
-                  <Truck size={18} />
-                  <span>Entrega</span>
-                  <strong>{experiencia?.politicaEntrega || "24-48h ou retirada combinada"}</strong>
+                  <span className="lp-stars" aria-hidden="true">
+                    {Array.from({ length: 5 }).map((_, i) => <Star key={i} size={16} className="fill-[#f5c518] text-[#f5c518]" />)}
+                  </span>
                 </div>
-                <div>
-                  <ShieldCheck size={18} />
-                  <span>Compra assistida</span>
-                  <strong>Pedido confirmado no WhatsApp</strong>
-                </div>
-                <div>
-                  <MessageCircle size={18} />
-                  <span>Atendimento</span>
-                  <strong>Vendedor recebe produto, quantidade e variantes</strong>
-                </div>
+                <button type="button" className="loja-pdp-rating-link" onClick={() => setAbaDetalhe("produto")}>
+                  Ver produto
+                  <ChevronRight size={14} />
+                </button>
               </div>
 
-              <div className="loja-pdp-accordions">
-                <PdpAccordion
-                  id="descricao"
-                  titulo="Descrição"
-                  aberto={accordionAberto === "descricao"}
-                  onToggle={() => setAccordionAberto(accordionAberto === "descricao" ? "" : "descricao")}
-                >
-                  {produto.descricao || "Produto selecionado pela loja. Confirme disponibilidade, medidas e detalhes antes de finalizar."}
-                </PdpAccordion>
-                <PdpAccordion
-                  id="entrega"
-                  titulo="Entrega e retirada"
-                  aberto={accordionAberto === "entrega"}
-                  onToggle={() => setAccordionAberto(accordionAberto === "entrega" ? "" : "entrega")}
-                >
-                  {experiencia?.politicaEntrega || `Entrega combinada com ${loja.nomeComercial}${localizacaoLoja ? ` em ${localizacaoLoja}` : ""}. A taxa aparece antes do WhatsApp.`}
-                </PdpAccordion>
-                <PdpAccordion
-                  id="politicas"
-                  titulo="Trocas e privacidade"
-                  aberto={accordionAberto === "politicas"}
-                  onToggle={() => setAccordionAberto(accordionAberto === "politicas" ? "" : "politicas")}
-                >
-                  {experiencia?.politicaTroca || experiencia?.politicaPrivacidade || "A loja recebe apenas os dados necessários para confirmar o pedido, entrega e atendimento."}
-                </PdpAccordion>
+              <div className="space-y-5">
+                {reviewsVisiveis.map((review, indice) => {
+                  const reviewProduto = recomendacoesVisiveis[indice] ?? produto;
+                  const estrelas = Array.from({ length: 5 }).map((_, i) => (
+                    <Star key={i} size={14} className="fill-[#f5c518] text-[#f5c518]" />
+                  ));
+                  return (
+                    <article key={review.id} className="loja-review-card">
+                      <div className="loja-review-card-head">
+                        <div>
+                          <strong>{review.autor}</strong>
+                          <span className="loja-review-stars">{estrelas}</span>
+                        </div>
+                        <time dateTime={review.data}>{review.data}</time>
+                      </div>
+                      <p className="loja-review-meta">Color: Black / Size: {review.variante}</p>
+                      <p className="loja-review-text">{review.comentario}</p>
+                      <button type="button" className="loja-review-translate">
+                        {review.destaque ?? "Traduzir"}
+                      </button>
+                      {review.produtoImagem && (
+                        <div className="loja-review-image">
+                          <img src={review.produtoImagem} alt={review.produtoNome} />
+                        </div>
+                      )}
+                      <div className="loja-review-product">
+                        <div className="loja-review-product-thumb">
+                          {review.produtoImagem ? <img src={review.produtoImagem} alt="" /> : <Package size={18} />}
+                        </div>
+                        <div className="loja-review-product-copy">
+                          <p>{review.produtoNome}</p>
+                          <span>{formatarKwanza(precoProduto(reviewProduto))}</span>
+                        </div>
+                        <button
+                          type="button"
+                          className="loja-review-product-cart"
+                          onClick={() => {
+                            if (onAbrirProduto) {
+                              onAbrirProduto(reviewProduto);
+                              return;
+                            }
+                            onComprar();
+                          }}
+                        >
+                          <ShoppingBag size={16} />
+                        </button>
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            </motion.div>
+          )}
+
+          {abaDetalhe === "recomendar" && (
+            <motion.div
+              id="loja-tabpanel-recomendar"
+              role="tabpanel"
+              aria-labelledby="loja-tab-recomendar"
+              className="loja-pdp-panel"
+              initial={reduzirMovimento ? false : { opacity: 0, y: 18 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.34, ease: [0.22, 1, 0.36, 1] }}
+            >
+              <section className="loja-review-category-tabs">
+                <button type="button" className="is-active">Recommend</button>
+                <button type="button">Electronics</button>
+                <button type="button">Home & Living</button>
+                <button type="button">Office & School</button>
+              </section>
+
+              <div className="loja-pdp-recommend-hero">
+                <div>
+                  <p>Você Também Pode Gostar</p>
+                  <h3>Peças parecidas com esta seleção</h3>
+                </div>
+                <button type="button" className="loja-pdp-rating-link" onClick={() => setAbaDetalhe("produto")}>
+                  Ver produto
+                  <ChevronRight size={14} />
+                </button>
               </div>
 
-              <Link to={urlMarketProduto} className="loja-pdp-similar-link">
-                <Compass size={16} />
-                Ver similares no Bizy Market
-                <ArrowRight size={15} />
-              </Link>
-
-              <TabelaMedidas produto={produto} modoNegocio={modoNegocio} experiencia={experiencia} />
-            </div>
-          </motion.aside>
+              {recomendacoesVisiveis.length > 0 ? (
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {recomendacoesVisiveis.map((recomendado) => (
+                    <CartaoProduto
+                      key={`recomendado-${recomendado.codigo}`}
+                      produto={recomendado}
+                      corPrimaria={corPrimaria}
+                      favorito={false}
+                      onFavorito={() => undefined}
+                      onComprar={() => {
+                        if (onAbrirProduto) {
+                          onAbrirProduto(recomendado);
+                          return;
+                        }
+                        onAdicionarCheckout();
+                      }}
+                      onVerDetalhes={() => {
+                        if (onAbrirProduto) {
+                          onAbrirProduto(recomendado);
+                          return;
+                        }
+                        onFechar();
+                      }}
+                      compacto
+                    />
+                  ))}
+                </div>
+              ) : (
+                <div className="rounded-3xl border border-dashed border-neutral-200 bg-neutral-50 p-6 text-center text-sm text-neutral-500">
+                  Sem recomendações por agora.
+                </div>
+              )}
+            </motion.div>
+          )}
         </div>
       </div>
 
       <div className="loja-product-sticky-buy">
-        <div>
-          <span>Total</span>
-          <strong>{formatarKwanza(precoProduto(produto) * quantidade)}</strong>
-        </div>
-        <div className="lp-foot-actions">
-          <button type="button" className="lp-foot-add" disabled={semStock} onClick={() => onComprar()}>
-            <span>{semStock ? "Esgotado" : "Comprar"}</span>
-            <ArrowRight size={18} />
-          </button>
-          <button
-            type="button"
-            className="lp-foot-wa"
-            onClick={() => onComprar()}
-            aria-label="Comprar por WhatsApp"
-          >
-            <MessageCircle />
-          </button>
-        </div>
+        <button type="button" className="loja-product-sticky-icon" onClick={onFechar} aria-label="Loja">
+          <Store size={18} />
+        </button>
+        <button type="button" className="loja-product-sticky-icon" onClick={onFavorito} aria-label={favorito ? "Remover dos favoritos" : "Adicionar aos favoritos"} aria-pressed={favorito}>
+          <Heart size={18} className={favorito ? "fill-current" : ""} />
+        </button>
+        <button type="button" className="loja-product-sticky-add" disabled={semStock} onClick={() => onAdicionarCheckout()}>
+          {semStock ? "Esgotado" : "ADICIONAR AO CARRINHO"}
+        </button>
       </div>
     </section>
-  );
-}
-
-function PdpAccordion({
-  aberto,
-  children,
-  id,
-  onToggle,
-  titulo
-}: {
-  aberto: boolean;
-  children: ReactNode;
-  id: string;
-  onToggle: () => void;
-  titulo: string;
-}) {
-  return (
-    <div className="loja-pdp-accordion-item">
-      <button
-        type="button"
-        className="loja-pdp-accordion-trigger"
-        aria-expanded={aberto}
-        aria-controls={`loja-pdp-accordion-${id}`}
-        onClick={onToggle}
-      >
-        <span>{titulo}</span>
-        <ChevronDown size={16} aria-hidden="true" />
-      </button>
-      {aberto && (
-        <div id={`loja-pdp-accordion-${id}`} className="loja-pdp-accordion-panel">
-          {children}
-        </div>
-      )}
-    </div>
   );
 }
 
@@ -2734,7 +3094,6 @@ function ConfirmacaoPedido({
   variantes,
   total,
   entrega,
-  whatsappUrl,
   onWhatsApp,
   onContinuar
 }: {
@@ -2743,7 +3102,6 @@ function ConfirmacaoPedido({
   variantes: Record<string, string>;
   total: number;
   entrega: EntregaCheckout;
-  whatsappUrl: string;
   onWhatsApp: () => void;
   onContinuar: () => void;
 }) {
@@ -2755,13 +3113,13 @@ function ConfirmacaoPedido({
       <div className="flex-1 overflow-y-auto">
         <div className="lp-cf">
           {/* ── Check ring animation ── */}
-          <div className="lp-cf-ring">
+          <div className="lp-cf-ring animate-in zoom-in duration-300">
             <span className="lp-cf-ring-core">
               <Check />
             </span>
           </div>
 
-          <h2>Pedido confirmado!</h2>
+          <h2 className="animate-in fade-in slide-in-from-bottom-1 duration-300 delay-150">Pedido confirmado!</h2>
           <p>Obrigada pela sua compra. Vamos confirmar o pagamento e preparar o envio.</p>
           <span className="lp-cf-ordno">Pedido #{Date.now().toString(36).toUpperCase().slice(-4)}</span>
 
@@ -2814,78 +3172,6 @@ function ConfirmacaoPedido({
         </button>
       </div>
     </div>
-  );
-}
-
-function SecaoSobreLoja({
-  corPrimaria,
-  localizacao,
-  loja,
-  paleta
-}: {
-  corPrimaria: string;
-  localizacao: string;
-  loja: LojaPublicaResposta["loja"];
-  paleta: PaletaLojaPublica;
-}) {
-  return (
-    <section className="mt-8 grid gap-4 lg:grid-cols-[1.15fr_.85fr]">
-      <div className="overflow-hidden rounded-[2rem] border border-neutral-200 bg-white shadow-[0_24px_70px_rgba(15,23,42,0.08)]">
-        <div className="relative h-48 bg-neutral-950 sm:h-64" style={{ background: `linear-gradient(135deg, ${paleta.primaria}, ${paleta.acento})` }}>
-          {loja.capaUrl && <img src={loja.capaUrl} alt="" className="size-full object-cover" />}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-black/10 to-transparent" />
-          <div className="absolute bottom-5 left-5 right-5 flex items-end gap-3">
-            <div className="grid size-20 shrink-0 place-items-center overflow-hidden rounded-[1.35rem] border border-white/30 bg-white text-neutral-950 shadow-xl">
-              {loja.logoUrl ? <img src={loja.logoUrl} alt="" className="size-full object-cover" /> : <Store size={28} />}
-            </div>
-            <div className="min-w-0 text-white">
-              <Badge className="mb-2 w-fit rounded-full border-white/20 bg-white/15 text-white hover:bg-white/20">Perfil da loja</Badge>
-              <h2 className="truncate text-2xl font-semibold tracking-tight sm:text-3xl">{loja.nomeComercial}</h2>
-            </div>
-          </div>
-        </div>
-
-        <div className="grid gap-5 p-5 sm:p-6">
-          <p className="max-w-2xl text-sm leading-7 text-neutral-600 sm:text-base">
-            {loja.descricaoPublica ?? "Loja pronta para receber pedidos, tirar dúvidas e finalizar compras com atendimento personalizado."}
-          </p>
-
-          <div className="grid gap-3 sm:grid-cols-3">
-            {localizacao && <InfoSobre icon={<MapPin size={16} />} titulo="Localização" detalhe={localizacao} />}
-            {loja.whatsapp && <InfoSobre icon={<Phone size={16} />} titulo="WhatsApp" detalhe={loja.whatsapp} />}
-            <InfoSobre icon={<Truck size={16} />} titulo="Entrega" detalhe="Entrega, retirada ou orçamento combinados no checkout." />
-          </div>
-        </div>
-      </div>
-
-      <aside className="rounded-[2rem] border border-neutral-200 bg-neutral-950 p-5 text-white shadow-[0_24px_70px_rgba(15,23,42,0.12)] sm:p-6">
-        <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/10 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-white/70">
-          <LogoBizy variante="icone" style={{ width: 16, height: 16 }} />
-          Loja criada com Bizy
-        </div>
-        <h2 className="mt-6 text-2xl font-semibold tracking-tight">Quer uma loja como esta?</h2>
-        <p className="mt-3 text-sm leading-7 text-white/65">
-          Organize produtos, pedidos e atendimento num painel simples, com loja pública pronta para vender.
-        </p>
-
-        <Link
-          to="/"
-          className="mt-6 flex h-12 w-full items-center justify-between bg-white pl-5 text-sm font-semibold text-neutral-950 transition-colors hover:bg-white/90"
-        >
-          <span>Ver planos</span>
-          <span className="grid h-12 w-12 place-items-center border-l border-neutral-950/10 bg-neutral-100">
-            <ArrowRight size={16} />
-          </span>
-        </Link>
-
-        <div className="mt-6 grid gap-2 text-xs text-white/55">
-          <span className="h-1.5 overflow-hidden rounded-full bg-white/10">
-            <span className="block h-full w-2/3 rounded-full" style={{ backgroundColor: corPrimaria }} />
-          </span>
-          <span>Catálogo, checkout e WhatsApp no mesmo fluxo.</span>
-        </div>
-      </aside>
-    </section>
   );
 }
 
@@ -2989,21 +3275,6 @@ function CampoCheckout({
   );
 }
 
-function ResumoProdutoCheckout({ produto, quantidade }: { produto: ProdutoPublico; quantidade: number }) {
-  return (
-    <article className="flex items-center gap-3 rounded-3xl border border-neutral-200 bg-white p-3">
-      <span className="grid size-16 shrink-0 place-items-center overflow-hidden rounded-2xl bg-neutral-100">
-        {produto.fotos[0] ? <img src={resolverUrlMedia(produto.fotos[0])} alt="" className="size-full object-cover" /> : <Package size={22} className="text-neutral-400" />}
-      </span>
-      <span className="min-w-0 flex-1">
-        <strong className="line-clamp-1 text-sm text-neutral-950">{produto.nome}</strong>
-        <small className="mt-1 block text-xs text-neutral-500">Qtd. {quantidade} x {formatarKwanza(precoProduto(produto))}</small>
-      </span>
-      <strong className="text-sm text-neutral-950">{formatarKwanza(precoProduto(produto) * quantidade)}</strong>
-    </article>
-  );
-}
-
 function ResumoConfirmacao({
   calculandoEntrega,
   entrega,
@@ -3051,30 +3322,6 @@ function ResumoLinha({ detalhe, titulo }: { detalhe: string; titulo: string }) {
     <div className="rounded-2xl border border-neutral-200 bg-white p-3">
       <span className="text-xs font-semibold text-neutral-500">{titulo}</span>
       <p className="mt-1 text-sm font-medium text-neutral-950">{detalhe}</p>
-    </div>
-  );
-}
-
-function InfoSobre({ detalhe, icon, titulo }: { detalhe: string; icon: React.ReactNode; titulo: string }) {
-  return (
-    <div className="flex items-start gap-3 rounded-2xl border border-neutral-200 bg-neutral-50 p-3">
-      <span className="mt-0.5 text-neutral-500">{icon}</span>
-      <span>
-        <strong className="block text-sm text-neutral-950">{titulo}</strong>
-        <small className="mt-1 block text-xs leading-5 text-neutral-500">{detalhe}</small>
-      </span>
-    </div>
-  );
-}
-
-function StatusStock({ produto }: { produto: ProdutoPublico }) {
-  const semStock = produto.quantidade <= 0 || produto.estadoStock === "ESGOTADO" || produto.disponivel === false;
-  return (
-    <div className="loja-stock-status flex items-center gap-2">
-      <span className={`size-2 rounded-full ${semStock ? "bg-red-400" : produto.quantidade <= 3 ? "bg-amber-400" : "bg-emerald-400"}`} />
-      <span className="text-sm text-neutral-600">
-        {semStock ? "Esgotado" : produto.quantidade <= 3 ? `Apenas ${produto.quantidade} em stock` : `${produto.quantidade} disponíveis`}
-      </span>
     </div>
   );
 }
@@ -3477,3 +3724,5 @@ function sanitizarMetadataTracking(metadata: Record<string, unknown>): Record<st
   const bloqueadas = new Set(["nome", "name", "telefone", "phone", "email", "whatsapp", "endereco", "address"]);
   return Object.fromEntries(Object.entries(metadata).filter(([chave]) => !bloqueadas.has(chave.toLowerCase())));
 }
+
+

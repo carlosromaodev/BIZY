@@ -26,11 +26,12 @@ import {
   calcularTotaisCheckoutBizy,
   carregarCarrinhoCheckoutBizy,
   criarCheckoutLojaPublica,
+  criarCheckoutUnificado,
   limparCarrinhoCheckoutBizy,
   removerItemCheckoutBizy,
   ROTAS_LOJAS
 } from "../lojas";
-import type { EntregaCheckoutPublico, ItemCarrinhoCheckoutBizy, RespostaCheckoutLojaPublica } from "../lojas";
+import type { EntregaCheckoutPublico, ItemCarrinhoCheckoutBizy, RespostaCheckoutLojaPublica, RespostaCheckoutUnificado } from "../lojas";
 import { LogoBizy } from "../marca/bizy";
 import { formatarKwanza } from "../utilidades";
 
@@ -76,6 +77,7 @@ export function PaginaCheckoutBizy() {
   const [mensagem, setMensagem] = useState("");
   const [finalizando, setFinalizando] = useState(false);
   const [pedidoCriado, setPedidoCriado] = useState<RespostaCheckoutLojaPublica | null>(null);
+  const [compraUnificada, setCompraUnificada] = useState<RespostaCheckoutUnificado | null>(null);
 
   const grupos = useMemo(() => agruparItensCheckoutPorLoja(itens), [itens]);
   const totais = useMemo(() => calcularTotaisCheckoutBizy(itens), [itens]);
@@ -95,13 +97,8 @@ export function PaginaCheckoutBizy() {
   async function finalizarCheckout() {
     setMensagem("");
 
-    if (!itens.length || !grupoUnico) {
+    if (!itens.length) {
       setMensagem("Adiciona um produto antes de finalizar.");
-      return;
-    }
-
-    if (checkoutMultiLoja) {
-      setMensagem("Não cria pedidos multi-loja sem backend de pedidos filhos.");
       return;
     }
 
@@ -122,36 +119,66 @@ export function PaginaCheckoutBizy() {
 
     setFinalizando(true);
     try {
-      const itensPayload = grupoUnico.itens.map((item) => ({
-        codigoPeca: item.codigoProduto,
-        quantidade: item.quantidade
-      }));
+      if (checkoutMultiLoja) {
+        // Checkout unificado multi-loja
+        const enderecoCompleto = entrega.tipo === "ENTREGA"
+          ? [entrega.endereco, entrega.bairro, entrega.municipio, entrega.provincia].filter(Boolean).join(", ")
+          : undefined;
 
-      await calcularEntregaLojaPublica(grupoUnico.slugLoja, {
-        itens: itensPayload,
-        entrega
-      }).catch(() => null);
+        const resposta = await criarCheckoutUnificado({
+          compradorTelefone: cliente.telefone,
+          compradorNome: cliente.nome,
+          compradorEmail: cliente.email || null,
+          itens: itens.map((item) => ({
+            slugLoja: item.slugLoja,
+            codigoPeca: item.codigoProduto,
+            variantes: item.variantes ? Object.keys(item.variantes).length > 0 ? item.variantes : undefined : undefined,
+            quantidade: item.quantidade
+          })),
+          metodoPagamento,
+          enderecoEntrega: enderecoCompleto,
+          observacao: observacao.trim() || null,
+          origem: "checkout-bizy"
+        });
 
-      const resposta = await criarCheckoutLojaPublica(grupoUnico.slugLoja, {
-        itens: itensPayload,
-        entrega,
-        cliente: {
-          nome: cliente.nome,
-          telefone: cliente.telefone,
-          email: cliente.email || null,
-          consentimentoMarketing: cliente.consentimentoMarketing,
-          consentimentoDados: cliente.consentimentoDados
-        },
-        origem: "checkout-bizy",
-        canal: "site",
-        observacao: montarObservacaoCheckoutBizy(grupoUnico.nomeFornecedor, observacao, grupoUnico.itens),
-        metodoPagamento
-      });
+        setCompraUnificada(resposta);
+        limparCarrinhoCheckoutBizy();
+        setItens([]);
+        setMensagem("Compra unificada criada com sucesso.");
+      } else {
+        // Checkout single-store (fluxo existente)
+        const grupo = grupoUnico!;
+        const itensPayload = grupo.itens.map((item) => ({
+          codigoPeca: item.codigoProduto,
+          quantidade: item.quantidade
+        }));
 
-      setPedidoCriado(resposta);
-      limparCarrinhoCheckoutBizy();
-      setItens([]);
-      setMensagem("Pedido criado no CRM da loja.");
+        await calcularEntregaLojaPublica(grupo.slugLoja, {
+          itens: itensPayload,
+          entrega
+        }).catch(() => null);
+
+        const resposta = await criarCheckoutLojaPublica(grupo.slugLoja, {
+          itens: itensPayload,
+          entrega,
+          cliente: {
+            nome: cliente.nome,
+            telefone: cliente.telefone,
+            email: cliente.email || null,
+            consentimentoMarketing: cliente.consentimentoMarketing,
+            consentimentoDados: cliente.consentimentoDados
+          },
+          origem: "checkout-bizy",
+          canal: "site",
+          observacao: montarObservacaoCheckoutBizy(grupo.nomeFornecedor, observacao, grupo.itens),
+          metodoPagamento
+        });
+
+        setPedidoCriado(resposta);
+        limparCarrinhoCheckoutBizy();
+        setItens([]);
+        setMensagem("Pedido criado no CRM da loja.");
+      }
     } catch (erro) {
       setMensagem(erro instanceof Error ? erro.message : "Não foi possível finalizar o checkout.");
     } finally {
@@ -175,10 +202,12 @@ export function PaginaCheckoutBizy() {
       </header>
 
       <section className="checkout-bizy-hero">
-        <span><Lock size={14} /> Entrada unificada progressiva</span>
+        <span><Lock size={14} /> Checkout unificado Bizy</span>
         <h1>Compra organizada, fornecedor sempre claro.</h1>
         <p>
-          Nesta fase, o Bizy finaliza com segurança compras de uma loja usando o checkout real já ligado ao CRM. Carrinhos multi-loja ficam preparados e bloqueados até o backend de pedidos filhos entrar.
+          {checkoutMultiLoja
+            ? `Produtos de ${grupos.length} lojas diferentes. O Bizy separa cada pedido por fornecedor e gere a compra como uma unidade.`
+            : "Checkout seguro do Bizy ligado ao CRM de cada loja."}
         </p>
       </section>
 
@@ -186,22 +215,38 @@ export function PaginaCheckoutBizy() {
         <ShieldCheck size={17} />
         <span>
           {checkoutMultiLoja
-            ? "Os teus produtos vêm de várias lojas. O Bizy separa fornecedor por fornecedor, mas a finalização multi-loja ainda fica bloqueada."
+            ? `Os teus produtos vêm de ${grupos.length} lojas. O Bizy cria um pedido separado para cada fornecedor numa compra unificada.`
             : grupoUnico
               ? `Os teus produtos vêm de ${grupoUnico.nomeFornecedor}. O pedido será finalizado num só passo.`
               : "Adiciona produtos da loja ou do Market para começar um checkout protegido pelo Bizy."}
         </span>
       </section>
 
-      {pedidoCriado ? (
+      {pedidoCriado || compraUnificada ? (
         <section className="checkout-success-card">
           <CheckCircle2 size={40} />
-          <h2>Pedido #{pedidoCriado.pedido.numero} criado</h2>
-          <p>O pedido já entrou no CRM da loja responsável com estado {pedidoCriado.pedido.estadoPagamento.toLowerCase()}.</p>
-          <div>
-            <strong>{formatarKwanza(pedidoCriado.totalEmKwanza)}</strong>
-            <span>Total do pedido</span>
-          </div>
+          {compraUnificada ? (
+            <>
+              <h2>Compra #{compraUnificada.compra.numero} criada</h2>
+              <p>
+                {compraUnificada.pedidosFilho.length} pedido{compraUnificada.pedidosFilho.length === 1 ? "" : "s"} separado{compraUnificada.pedidosFilho.length === 1 ? "" : "s"} por fornecedor.
+                Estado: {compraUnificada.compra.estado.toLowerCase().replace(/_/g, " ")}.
+              </p>
+              <div>
+                <strong>{formatarKwanza(compraUnificada.compra.totalEmKwanza)}</strong>
+                <span>Total da compra</span>
+              </div>
+            </>
+          ) : pedidoCriado ? (
+            <>
+              <h2>Pedido #{pedidoCriado.pedido.numero} criado</h2>
+              <p>O pedido já entrou no CRM da loja responsável com estado {pedidoCriado.pedido.estadoPagamento.toLowerCase()}.</p>
+              <div>
+                <strong>{formatarKwanza(pedidoCriado.totalEmKwanza)}</strong>
+                <span>Total do pedido</span>
+              </div>
+            </>
+          ) : null}
           <Button asChild>
             <Link to={ROTAS_LOJAS.market}>Continuar no Market</Link>
           </Button>
@@ -258,8 +303,8 @@ export function PaginaCheckoutBizy() {
               <div className="checkout-multi-store-guard" role="status">
                 <ShieldCheck size={20} />
                 <div>
-                  <strong>Compra multi-loja preparada, mas ainda não finalizada automaticamente.</strong>
-                  <p>Não cria pedidos multi-loja sem backend de pedidos filhos. Por agora, finalize uma loja de cada vez para manter operação, entrega e dados isolados por fornecedor.</p>
+                  <strong>Compra multi-loja</strong>
+                  <p>O Bizy cria um pedido separado para cada fornecedor. Entrega, pagamento e atendimento ficam isolados por loja.</p>
                 </div>
               </div>
             )}
@@ -367,11 +412,11 @@ export function PaginaCheckoutBizy() {
             <Button
               type="button"
               className="checkout-submit"
-              disabled={finalizando || !itens.length || checkoutMultiLoja}
+              disabled={finalizando || !itens.length}
               onClick={() => void finalizarCheckout()}
             >
               {finalizando ? <Loader2 className="animate-spin" size={18} /> : <Lock size={18} />}
-              Finalizar checkout seguro
+              {checkoutMultiLoja ? "Finalizar compra multi-loja" : "Finalizar checkout seguro"}
             </Button>
           </aside>
         </section>

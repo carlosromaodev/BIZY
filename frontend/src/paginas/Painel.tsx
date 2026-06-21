@@ -1,5 +1,6 @@
 import {
   AlertTriangle,
+  CheckCircle2,
   Clock,
   Coins,
   Eye,
@@ -18,7 +19,9 @@ import { SkeletonPagina } from "../componentes/SkeletonBlocks";
 import { CrmPageMotion } from "../componentes/CrmInterno21st";
 import {
   type RespostaConversas,
+  type RespostaTarefasOperacionais,
   type ResumoPainel,
+  type TarefaOperacional,
   resumoInicial,
   estadosReservaAtiva,
 } from "../tipos";
@@ -82,6 +85,7 @@ export function PaginaPainel() {
   const [resumo, setResumo] = useState<ResumoPainel>(resumoInicial);
   const [mensagem, setMensagem] = useState("");
   const [conversas, setConversas] = useState<RespostaConversas["conversas"]>([]);
+  const [tarefas, setTarefas] = useState<TarefaOperacional[]>([]);
   const [carregandoInicial, setCarregandoInicial] = useState(true);
   const usuario = obterUsuario();
 
@@ -158,6 +162,17 @@ export function PaginaPainel() {
   const maxFat = Math.max(...faturacaoSemanal, 1);
   const diasLabels = obterDiasSemana();
 
+  const tarefasAbertas = useMemo(() => {
+    const abertas = tarefas.filter((t) => t.estado === "ABERTA" || t.estado === "EM_ANDAMENTO");
+    const pesoPrio: Record<string, number> = { URGENTE: 0, ALTA: 1, NORMAL: 2, BAIXA: 3 };
+    return abertas.sort((a, b) => {
+      const aAtrasada = a.prazoEm && new Date(a.prazoEm) < new Date() ? 0 : 1;
+      const bAtrasada = b.prazoEm && new Date(b.prazoEm) < new Date() ? 0 : 1;
+      if (aAtrasada !== bAtrasada) return aAtrasada - bAtrasada;
+      return (pesoPrio[a.prioridade] ?? 2) - (pesoPrio[b.prioridade] ?? 2);
+    });
+  }, [tarefas]);
+
   const pedidosRecentes = useMemo(
     () =>
       [...resumo.reservas]
@@ -169,15 +184,17 @@ export function PaginaPainel() {
   /* ── Data fetching ─────────────────────────────────────────── */
 
   async function carregarResumo() {
-    const [respostaResumo, respostaConversas] = await Promise.allSettled([
+    const [respostaResumo, respostaConversas, respostaTarefas] = await Promise.allSettled([
       requisitarApi<ResumoPainel>("/painel/resumo"),
       requisitarApi<RespostaConversas>("/atendimento/conversas"),
+      requisitarApi<RespostaTarefasOperacionais>("/tarefas?limite=30"),
     ]);
 
     if (respostaResumo.status === "rejected") throw respostaResumo.reason;
 
     setResumo(respostaResumo.value);
     setConversas(respostaConversas.status === "fulfilled" ? respostaConversas.value.conversas : []);
+    setTarefas(respostaTarefas.status === "fulfilled" ? respostaTarefas.value.tarefas : []);
   }
 
   useEffect(() => {
@@ -327,6 +344,52 @@ export function PaginaPainel() {
             <span className="crm-v3-ftile-count">{reservasLive}</span>
           </Link>
         </div>
+
+        {/* ── Minhas tarefas ─────────────────────────────────── */}
+        {tarefasAbertas.length > 0 && (
+          <div className="crm-v3-otbl" style={{ marginBottom: 0 }}>
+            <div className="crm-v3-otbl-head" style={{ gridTemplateColumns: "1fr 100px 110px 80px" }}>
+              <span>Tarefa</span>
+              <span>Prioridade</span>
+              <span>Prazo</span>
+              <span />
+            </div>
+            {tarefasAbertas.slice(0, 5).map((t) => {
+              const atrasada = t.prazoEm && new Date(t.prazoEm) < new Date();
+              const corPrio = t.prioridade === "URGENTE" ? "rose" : t.prioridade === "ALTA" ? "amber" : t.prioridade === "NORMAL" ? "blue" : "mute";
+              return (
+                <div key={t.id} className="crm-v3-otbl-row" style={{ gridTemplateColumns: "1fr 100px 110px 80px" }}>
+                  <span className="crm-v3-otbl-cli">
+                    <span>
+                      <span className="crm-v3-otbl-cli-name">{t.titulo}</span>
+                      {t.descricao && <small style={{ display: "block", color: "var(--ink-3)", fontSize: 11, marginTop: 1 }}>{t.descricao.slice(0, 60)}{t.descricao.length > 60 ? "…" : ""}</small>}
+                    </span>
+                  </span>
+                  <span>
+                    <span className="crm-v3-bdg" data-tone={corPrio}>
+                      <span className="crm-v3-bdg-dot" />
+                      {t.prioridade === "URGENTE" ? "Urgente" : t.prioridade === "ALTA" ? "Alta" : t.prioridade === "NORMAL" ? "Normal" : "Baixa"}
+                    </span>
+                  </span>
+                  <span style={{ fontSize: 12, color: atrasada ? "var(--rose)" : "var(--ink-3)", fontWeight: atrasada ? 600 : 400 }}>
+                    {t.prazoEm ? formatarTempoRelativo(t.prazoEm) : "—"}
+                    {atrasada && " ⚠"}
+                  </span>
+                  <span>
+                    <Link to={t.pedidoId ? `/app/reservas?pedidoId=${t.pedidoId}` : "/app/reservas"} className="crm-v3-btn crm-v3-btn-ghost" style={{ fontSize: 11, padding: "3px 8px" }}>
+                      Ver
+                    </Link>
+                  </span>
+                </div>
+              );
+            })}
+            {tarefasAbertas.length > 5 && (
+              <Link to="/app/reservas" style={{ display: "block", textAlign: "center", fontSize: 12, color: "var(--em)", padding: "8px 0", fontWeight: 500 }}>
+                Ver todas ({tarefasAbertas.length})
+              </Link>
+            )}
+          </div>
+        )}
 
         {/* ── 2-column: Orders mini-table + Bar chart ───────── */}
         <div style={{ display: "grid", gridTemplateColumns: "1.5fr 1fr", gap: 12 }}>

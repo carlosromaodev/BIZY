@@ -1,14 +1,15 @@
 import {
   Camera,
   Check,
+  Clock,
   Eye,
   MessageSquare,
-  PackageCheck,
   Radio,
-  RefreshCcw,
   Send,
+  ShoppingBag,
   Signal,
-  Square,
+  TrendingUp,
+  Users,
   X,
   Zap
 } from "lucide-react";
@@ -19,8 +20,6 @@ import { notificarSite } from "../componentes/Notificacoes";
 import { ConfirmarAcao } from "../componentes/ConfirmarAcao";
 import { CrmPageMotion } from "../componentes/CrmInterno21st";
 import {
-  PageHead,
-  PillBizy,
   BotaoBizy,
   AvatarBizy,
   obterCorAvatar,
@@ -55,6 +54,15 @@ function obterUsernameTikTokPadrao() {
 
 function formatarContagemLive(valor: number): string {
   return new Intl.NumberFormat("pt-AO").format(valor);
+}
+
+function formatarTempoRelativo(criadaEm: string): { texto: string; recente: boolean } {
+  const diff = Date.now() - new Date(criadaEm).getTime();
+  if (diff < 60_000) return { texto: "agora", recente: true };
+  const min = Math.floor(diff / 60_000);
+  if (min < 60) return { texto: `${min} min`, recente: min <= 2 };
+  const h = Math.floor(min / 60);
+  return { texto: `${h}h`, recente: false };
 }
 
 interface FeedEvento {
@@ -94,18 +102,12 @@ export function PaginaLive() {
     [resumo.reservas]
   );
 
-  const rotuloEstadoLive = liveAtual
-    ? liveAtual.status === "ERRO"
-      ? "Com alerta"
-      : liveAtual.status === "CONECTANDO"
-        ? "A ligar"
-        : "Ativa"
-    : "Inativa";
-
-  /* ── Timer da live ── */
+  /* ── Timer da live (calcula duração real desde iniciadaEm) ── */
   useEffect(() => {
-    if (liveAtual && liveAtual.status !== "ERRO") {
-      tempoRef.current = window.setInterval(() => setTempoLive((t) => t + 1), 1000);
+    if (liveAtual && liveAtual.status !== "ERRO" && liveAtual.iniciadaEm) {
+      const calcularDuracao = () => Math.max(0, Math.floor((Date.now() - new Date(liveAtual.iniciadaEm!).getTime()) / 1000));
+      setTempoLive(calcularDuracao());
+      tempoRef.current = window.setInterval(() => setTempoLive(calcularDuracao()), 1000);
       return () => { if (tempoRef.current) window.clearInterval(tempoRef.current); };
     }
     setTempoLive(0);
@@ -262,12 +264,10 @@ export function PaginaLive() {
   const conversao = resumo.comentariosRecebidos > 0
     ? ((resumo.reservasCriadas / resumo.comentariosRecebidos) * 100).toFixed(1)
     : "0";
-  const espectadoresAtuaisTexto = liveAtual?.espectadoresAtuais == null
-    ? "A aguardar dados"
-    : `${formatarContagemLive(liveAtual.espectadoresAtuais)} a assistir`;
   const picoEspectadoresTexto = liveAtual?.picoEspectadores == null
-    ? "Sem dados"
+    ? "—"
     : formatarContagemLive(liveAtual.picoEspectadores);
+  const pagos = reservasAtivas.filter((r) => r.estado === "PAID").length;
 
   /* ── Produto em destaque ── */
   const produtoDestaque = useMemo(() => {
@@ -296,10 +296,9 @@ export function PaginaLive() {
           )}
           <Sheet open={sheetAberto} onOpenChange={setSheetAberto}>
             <SheetTrigger asChild>
-              <button type="button" className="crm-v3-btn crm-v3-btn-ghost">
-                <Zap size={13} />
+              <BotaoBizy variante="ghost" icone={Zap}>
                 Teste rápido
-              </button>
+              </BotaoBizy>
             </SheetTrigger>
             <SheetContent>
               <SheetHeader>
@@ -333,6 +332,44 @@ export function PaginaLive() {
         </div>
       </div>
 
+      {/* ── KPI Strip ── */}
+      <div className="bz-live-kpis">
+        <div className="bz-live-kpi">
+          <div className="bz-live-kpi-icon"><Eye size={16} /></div>
+          <div className="bz-live-kpi-body">
+            <span className="bz-live-kpi-label">A assistir agora</span>
+            <strong className="bz-live-kpi-value bz-live-kpi-big">
+              {liveAtual?.espectadoresAtuais != null ? formatarContagemLive(liveAtual.espectadoresAtuais) : "—"}
+            </strong>
+            <span className="bz-live-kpi-sub">pico {picoEspectadoresTexto}</span>
+          </div>
+        </div>
+        <div className="bz-live-kpi">
+          <div className="bz-live-kpi-icon accent-green"><ShoppingBag size={16} /></div>
+          <div className="bz-live-kpi-body">
+            <span className="bz-live-kpi-label">Reservas na live</span>
+            <strong className="bz-live-kpi-value">{reservasAtivas.length}</strong>
+            <span className="bz-live-kpi-sub">conversão {conversao}%</span>
+          </div>
+        </div>
+        <div className="bz-live-kpi">
+          <div className="bz-live-kpi-icon accent-green"><TrendingUp size={16} /></div>
+          <div className="bz-live-kpi-body">
+            <span className="bz-live-kpi-label">Reservado</span>
+            <strong className="bz-live-kpi-value">{receitaReservada >= 1000 ? `${Math.round(receitaReservada / 1000)}k` : receitaReservada}</strong>
+            <span className="bz-live-kpi-sub">Kz nesta live</span>
+          </div>
+        </div>
+        <div className="bz-live-kpi">
+          <div className="bz-live-kpi-icon accent-amber"><Check size={16} /></div>
+          <div className="bz-live-kpi-body">
+            <span className="bz-live-kpi-label">Já pagos</span>
+            <strong className="bz-live-kpi-value">{pagos}</strong>
+            <span className="bz-live-kpi-sub">{pagos === 1 ? "1 a aguardar" : `${Math.max(0, reservasAtivas.length - pagos)} a aguardar`}</span>
+          </div>
+        </div>
+      </div>
+
       {/* ── Live Grid (Stage + Feed) ── */}
       <div className="bz-live-grid">
         <div>
@@ -340,24 +377,30 @@ export function PaginaLive() {
           {liveAtual ? (
             <div className="bz-live-stage">
               <div className="bz-live-top">
-                <span className="bz-live-tag"><span className="pulse-dot" />Ao vivo</span>
-                <span className="bz-live-eye"><Eye size={14} />{espectadoresAtuaisTexto}</span>
+                <span className="bz-live-tag"><span className="pulse-dot" />AO VIVO · {tempoFormatado}</span>
+                <span className="bz-live-eye"><Users size={14} />{liveAtual.espectadoresAtuais != null ? formatarContagemLive(liveAtual.espectadoresAtuais) : "—"}</span>
               </div>
               <div className="bz-live-cam"><Camera size={48} /></div>
               {produtoDestaque && (
-                <div className="bz-now-show">
-                  <span className="bz-now-ph" style={{ background: "linear-gradient(150deg, oklch(0.62 0.12 159), oklch(0.45 0.09 162))" }} />
+                <motion.div
+                  className="bz-now-show"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  key={produtoDestaque.codigo}
+                >
+                  <span className="bz-now-ph" />
                   <div>
                     <div className="bz-now-show-label">A mostrar agora</div>
                     <div className="bz-now-show-name">{produtoDestaque.nome}</div>
                   </div>
                   <span className="bz-now-show-price">{formatarKwanza(produtoDestaque.precoEmKwanza)}</span>
-                </div>
+                </motion.div>
               )}
             </div>
           ) : (
-            /* ── Start Live Form ── */
-            <div className="bz-panel">
+            /* ── Start Live Form (colorido) ── */
+            <div className="bz-live-start-card">
+              <div className="bz-live-start-deco" />
               <form
                 onSubmit={(e) => {
                   e.preventDefault();
@@ -367,22 +410,22 @@ export function PaginaLive() {
                   if (providerLive !== "manual") { setConfirmarIniciar(username); return; }
                   void enviar(e, () => requisitarApi("/lives/iniciar", { method: "POST", body: { liveUsername: username, provider: providerLive } }), "Live conectada.");
                 }}
-                className="grid gap-4 p-5"
+                className="bz-live-start-form"
               >
-                <div className="flex items-start justify-between gap-3">
+                <div className="bz-live-start-head">
                   <div>
-                    <p className="bz-eyebrow"><span className="bz-pip" />Captação</p>
-                    <h2 style={{ fontSize: 16, fontWeight: 700, color: "var(--ink)" }}>Iniciar live de vendas</h2>
+                    <div className="bz-live-start-badge"><Radio size={14} />Pronto para transmitir</div>
+                    <h2 className="bz-live-start-title">Iniciar live de vendas</h2>
+                    <p className="bz-live-start-desc">Conecte a sua live e comece a captar reservas em tempo real a partir dos comentários.</p>
                   </div>
-                  <Signal size={18} style={{ color: "var(--ink-3)" }} />
                 </div>
-                <div className="grid gap-4 sm:grid-cols-[1fr_1fr_auto]">
-                  <div className="grid gap-2">
-                    <label className="text-sm font-medium" htmlFor="liveUser">Username da live</label>
+                <div className="bz-live-start-fields">
+                  <div className="bz-live-start-field">
+                    <label htmlFor="liveUser">Username da live</label>
                     <Input id="liveUser" value={liveUsername} onChange={(e) => setLiveUsername(e.target.value)} placeholder="@loja_exemplo" />
                   </div>
-                  <div className="grid gap-2">
-                    <label className="text-sm font-medium" htmlFor="provider">Método de captação</label>
+                  <div className="bz-live-start-field">
+                    <label htmlFor="provider">Método de captação</label>
                     <Select value={providerLive} onValueChange={setProviderLive}>
                       <SelectTrigger id="provider"><SelectValue placeholder="Método" /></SelectTrigger>
                       <SelectContent>
@@ -392,137 +435,112 @@ export function PaginaLive() {
                       </SelectContent>
                     </Select>
                   </div>
-                  <div className="flex items-end">
-                    <BotaoBizy icone={Radio} tipo="submit">Iniciar</BotaoBizy>
-                  </div>
                 </div>
+                <BotaoBizy icone={Radio} tipo="submit" className="bz-live-start-btn">Iniciar live</BotaoBizy>
               </form>
             </div>
           )}
-
-          {/* ── Mini Metrics ── */}
-          <div className="bz-live-mini">
-            <div className="bz-live-mini-card accent">
-              <div className="bz-live-mini-label">Reservas na live</div>
-              <div className="bz-live-mini-value">{reservasAtivas.length}</div>
-            </div>
-            <div className="bz-live-mini-card accent">
-              <div className="bz-live-mini-label">Receita reservada</div>
-              <div className="bz-live-mini-value">{receitaReservada >= 1000 ? `${Math.round(receitaReservada / 1000)}k` : receitaReservada}</div>
-            </div>
-            <div className="bz-live-mini-card">
-              <div className="bz-live-mini-label">Pico de espectadores</div>
-              <div className="bz-live-mini-value">{picoEspectadoresTexto}</div>
-            </div>
-            <div className="bz-live-mini-card">
-              <div className="bz-live-mini-label">Conversão</div>
-              <div className="bz-live-mini-value">{conversao}%</div>
-            </div>
-          </div>
         </div>
 
         {/* ── Feed de reservas em tempo real ── */}
         <div className="bz-feed">
           <div className="bz-feed-head">
-            <span className="bz-feed-title"><Zap size={17} style={{ color: "var(--green)" }} />Reservas em tempo real</span>
+            <span className="bz-feed-title"><Zap size={16} className="bz-icon-green" />Reservas em tempo real</span>
             {liveAtual && (
-              <span className="bz-feed-auto"><Zap size={13} />Auto-reserva activa</span>
+              <span className="bz-feed-auto"><Clock size={12} />actualiza a cada 5 s</span>
             )}
           </div>
-          <AnimatePresence mode="popLayout" initial={false}>
-            {reservasAtivas.length > 0 ? reservasAtivas.slice(0, 8).map((reserva, i) => {
-              const nome = reserva.nomeCliente || reserva.usernameCliente || "Cliente";
-              const username = reserva.usernameCliente || reserva.telefoneCliente;
-              const peca = resumo.pecas.find((p) => p.codigo === reserva.codigoPeca);
-              const preco = peca?.precoEmKwanza ?? 0;
-              const variante = reserva.varianteSelecionada
-                ? ` · ${Object.values(reserva.varianteSelecionada).join(", ")}`
-                : "";
-              const isNew = i === 0 && Date.now() - new Date(reserva.criadaEm).getTime() < 60000;
+          <div className="bz-feed-scroll">
+            <AnimatePresence mode="popLayout" initial={false}>
+              {reservasAtivas.length > 0 ? reservasAtivas.slice(0, 10).map((reserva) => {
+                const nome = reserva.nomeCliente || reserva.usernameCliente || "Cliente";
+                const username = reserva.usernameCliente || reserva.telefoneCliente;
+                const peca = resumo.pecas.find((p) => p.codigo === reserva.codigoPeca);
+                const preco = peca?.precoEmKwanza ?? 0;
+                const variante = reserva.varianteSelecionada
+                  ? ` · ${Object.values(reserva.varianteSelecionada).join(", ")}`
+                  : "";
+                const tempo = formatarTempoRelativo(reserva.criadaEm);
 
-              return (
+                return (
+                  <motion.div
+                    key={reserva.id}
+                    className={`bz-feed-row${tempo.recente ? " novo" : ""}`}
+                    initial={{ opacity: 0, x: -20, scale: 0.96 }}
+                    animate={{ opacity: 1, x: 0, scale: 1 }}
+                    exit={{ opacity: 0, x: 20, scale: 0.96 }}
+                    transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                    layout
+                  >
+                    <AvatarBizy
+                      iniciais={obterIniciais(nome)}
+                      cor={obterCorAvatar(nome)}
+                      tamanho={38}
+                      src={reserva.avatarUrlCliente}
+                      alt={nome}
+                    />
+                    <div className="bz-feed-body">
+                      <div className="bz-feed-person">
+                        <b>{nome}</b>
+                        {username && <span>@{username}</span>}
+                      </div>
+                      <div className="bz-feed-line">
+                        {peca?.nome ?? `#${reserva.codigoPeca}`}{variante}
+                      </div>
+                    </div>
+                    {preco > 0 && <span className="bz-feed-price">{formatarKwanza(preco)}</span>}
+                    <span className={`bz-feed-time${tempo.recente ? " recente" : ""}`}>{tempo.texto}</span>
+                  </motion.div>
+                );
+              }) : (
                 <motion.div
-                  key={reserva.id}
-                  className={`bz-feed-row${isNew ? " novo" : ""}`}
-                  initial={{ opacity: 0, x: -12 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: 12 }}
-                  transition={{ duration: 0.25 }}
-                  layout
+                  key="vazio"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="bz-feed-empty"
+                >
+                  <ShoppingBag size={28} className="bz-icon-muted" />
+                  {carregando ? "A carregar reservas..." : "Sem reservas activas. Inicie uma live para captar comentários."}
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            {/* ── Feed de eventos toast (comentários identificados) ── */}
+            <AnimatePresence>
+              {feedEventos.filter((e) => e.tipo === "comentario").slice(0, 3).map((evento) => (
+                <motion.div
+                  key={evento.id}
+                  className="bz-feed-row bz-feed-row-comment"
+                  initial={{ opacity: 0, scale: 0.92, y: -8 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.92, y: -8 }}
+                  transition={{ type: "spring", stiffness: 350, damping: 25 }}
                 >
                   <AvatarBizy
-                    iniciais={obterIniciais(nome)}
-                    cor={obterCorAvatar(nome)}
-                    tamanho={34}
-                    src={reserva.avatarUrlCliente}
-                    alt={nome}
+                    iniciais={obterIniciais(evento.displayName || evento.username || "?")}
+                    cor={obterCorAvatar(evento.displayName || evento.username || "?")}
+                    tamanho={38}
+                    src={evento.avatarUrl}
+                    alt={evento.displayName || evento.username || "Cliente"}
                   />
                   <div className="bz-feed-body">
                     <div className="bz-feed-person">
-                      <b>{nome}</b>
-                      {username && <span>@{username}</span>}
+                      <b>{evento.displayName || evento.username || "Cliente"}</b>
+                      {evento.username && <span>@{evento.username}</span>}
                     </div>
                     <div className="bz-feed-line">
-                      reservou <b>{peca?.nome ?? `#${reserva.codigoPeca}`}</b>{variante}
-                    </div>
-                    <div className="bz-feed-meta">
-                      {isNew
-                        ? <span style={{ color: "var(--green-ink)", fontWeight: 700 }}>agora mesmo</span>
-                        : reserva.expiraEm ? formatarTempoRestante(reserva.expiraEm) : traduzirEstadoReserva(reserva.estado)
-                      }
+                      perguntou <b>{`"${evento.texto.split('"')[1] ?? evento.texto.slice(0, 40)}"`}</b>
                     </div>
                   </div>
-                  {preco > 0 && <span className="bz-feed-price">{formatarKwanza(preco)}</span>}
-                  <IconButton icone={Check} solid titulo="Confirmar" />
+                  <IconButton icone={MessageSquare} titulo="Responder" />
                 </motion.div>
-              );
-            }) : (
-              <motion.div
-                key="vazio"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="bz-feed-empty"
-              >
-                {carregando ? "A carregar reservas..." : "Sem reservas activas. Inicie uma live para captar comentários."}
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          {/* ── Feed de eventos toast ── */}
-          <AnimatePresence>
-            {feedEventos.filter((e) => e.tipo === "comentario").slice(0, 3).map((evento) => (
-              <motion.div
-                key={evento.id}
-                className="bz-feed-row"
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.95 }}
-              >
-                <AvatarBizy
-                  iniciais={obterIniciais(evento.displayName || evento.username || "?")}
-                  cor={obterCorAvatar(evento.displayName || evento.username || "?")}
-                  tamanho={34}
-                  src={evento.avatarUrl}
-                  alt={evento.displayName || evento.username || "Cliente"}
-                />
-                <div className="bz-feed-body">
-                  <div className="bz-feed-person">
-                    <b>{evento.displayName || evento.username || "Cliente"}</b>
-                    {evento.username && <span>@{evento.username}</span>}
-                  </div>
-                  <div className="bz-feed-line">
-                    perguntou <b>{`"${evento.texto.split('"')[1] ?? evento.texto.slice(0, 40)}"`}</b>
-                  </div>
-                  <div className="bz-feed-meta">agora · comentário</div>
-                </div>
-                <IconButton icone={MessageSquare} titulo="Responder" />
-              </motion.div>
-            ))}
-          </AnimatePresence>
+              ))}
+            </AnimatePresence>
+          </div>
         </div>
       </div>
 
-      {mensagem && <footer className="bz-panel" style={{ padding: "12px 18px", fontSize: 13.5, color: "var(--ink-2)" }} aria-live="polite">{mensagem}</footer>}
+      {mensagem && <footer className="bz-live-msg" aria-live="polite">{mensagem}</footer>}
 
       <ConfirmarAcao
         aberto={confirmarIniciar !== null}

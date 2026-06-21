@@ -1,4 +1,6 @@
+import { moduloAdminGovernanca } from "./adminGovernanca.js";
 import { moduloAfiliados } from "./afiliados.js";
+import { moduloCheckoutUnificado } from "./checkoutUnificado.js";
 import { moduloAutenticacao } from "./autenticacao.js";
 import { moduloCampanhas } from "./campanhas.js";
 import { moduloCatalogo } from "./catalogo.js";
@@ -38,5 +40,7 @@ export const modulosHttp = [
   moduloIntegracoes,
   moduloN8n,
   moduloOperacional,
-  moduloPainel
+  moduloPainel,
+  moduloAdminGovernanca,
+  moduloCheckoutUnificado
 ] satisfies ModuloHttp[];

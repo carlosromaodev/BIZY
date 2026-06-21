@@ -10,6 +10,7 @@ import {
   FiltrosClientes360QuerySchema,
   ImportarCsvSchema,
   MesclarClientesSchema,
+  ParamIdSchema,
   RevogarCompartilhamentoClienteSchema
 } from "../../../dominio/esquemas.js";
 import { exigirAcessoComercial } from "../contextoComercial.js";
@@ -35,7 +36,8 @@ export const moduloClientes: ModuloHttp = {
         tag: query.tag,
         estadoRelacionamento: query.estadoRelacionamento,
         consentimentoMarketing: query.consentimentoMarketing,
-        limite: query.limite
+        limite: query.limite,
+        offset: query.offset
       });
     });
 
@@ -147,7 +149,7 @@ export const moduloClientes: ModuloHttp = {
       });
       if (!contextoComercial) return;
 
-      const { id } = request.params as { id: string };
+      const { id } = ParamIdSchema.parse(request.params);
       const dados = AtualizarRelacaoNegocioSchema.parse(request.body ?? {});
       try {
         const relacao = await contexto.gestaoCompartilhamentoClientes.atualizarRelacao(id, contextoComercial.negocio.id, {
@@ -284,7 +286,7 @@ export const moduloClientes: ModuloHttp = {
       });
       if (!contextoComercial) return;
 
-      const { id } = request.params as { id: string };
+      const { id } = ParamIdSchema.parse(request.params);
       const dados = RevogarCompartilhamentoClienteSchema.parse(request.body ?? {});
       try {
         return await contexto.gestaoCompartilhamentoClientes.revogarCompartilhamento({
@@ -310,7 +312,7 @@ export const moduloClientes: ModuloHttp = {
       });
       if (!contextoComercial) return;
 
-      const { id } = request.params as { id: string };
+      const { id } = ParamIdSchema.parse(request.params);
       const dados = CriarCompartilhamentoClienteSchema.parse(request.body ?? {});
       try {
         const resultado = await contexto.gestaoCompartilhamentoClientes.compartilharCliente({
@@ -343,7 +345,7 @@ export const moduloClientes: ModuloHttp = {
       });
       if (!contextoComercial) return;
 
-      const { id } = request.params as { id: string };
+      const { id } = ParamIdSchema.parse(request.params);
       const dados = AcaoRapidaClienteSchema.parse(request.body ?? {});
       const perfil = await contexto.gestaoClientesCrm.obterPerfil(id, contextoComercial.negocio.id);
       if (!perfil) {
@@ -383,7 +385,7 @@ export const moduloClientes: ModuloHttp = {
       });
       if (!contextoComercial) return;
 
-      const { id } = request.params as { id: string };
+      const { id } = ParamIdSchema.parse(request.params);
       const dados = AnonimizarClienteSchema.parse(request.body ?? {});
       try {
         const cliente = await contexto.gestaoClientesCrm.anonimizarCliente(
@@ -422,7 +424,7 @@ export const moduloClientes: ModuloHttp = {
       });
       if (!contextoComercial) return;
 
-      const { id } = request.params as { id: string };
+      const { id } = ParamIdSchema.parse(request.params);
       const resultado = await contexto.gestaoClientesCrm.listarEnderecosCliente(id, contextoComercial.negocio.id);
       if (!resultado) {
         return reply.code(404).send({ erro: "CLIENTE_NAO_ENCONTRADO", mensagem: "Cliente não encontrado." });
@@ -440,7 +442,7 @@ export const moduloClientes: ModuloHttp = {
       });
       if (!contextoComercial) return;
 
-      const { id } = request.params as { id: string };
+      const { id } = ParamIdSchema.parse(request.params);
       const dados = CriarEnderecoClienteSchema.parse(request.body ?? {});
       const resultado = await contexto.gestaoClientesCrm.salvarEnderecoCliente(
         id,
@@ -463,7 +465,7 @@ export const moduloClientes: ModuloHttp = {
       });
       if (!contextoComercial) return;
 
-      const { id } = request.params as { id: string };
+      const { id } = ParamIdSchema.parse(request.params);
       const perfil = await contexto.gestaoClientesCrm.obterPerfil(id, contextoComercial.negocio.id);
       if (!perfil) {
         return reply.code(404).send({ erro: "CLIENTE_NAO_ENCONTRADO", mensagem: "Cliente não encontrado." });
@@ -481,7 +483,7 @@ export const moduloClientes: ModuloHttp = {
       });
       if (!contextoComercial) return;
 
-      const { id } = request.params as { id: string };
+      const { id } = ParamIdSchema.parse(request.params);
       const dados = AtualizarClienteCrmSchema.parse(request.body ?? {});
       try {
         return await contexto.gestaoClientesCrm.atualizarCliente(id, contextoComercial.negocio.id, dados);

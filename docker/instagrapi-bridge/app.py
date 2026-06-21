@@ -3,17 +3,24 @@ Instagrapi Bridge — microserviço que encapsula a instagrapi (API privada do I
 e expõe endpoints REST para o backend Node do Bizy.
 
 Funcionalidades:
-- Login com username/password (salva sessão em disco)
+- Login com username/password (salva sessão + device fingerprint em disco)
 - Polling de DMs novas (envia webhook ao backend)
 - Envio de DMs (texto e media)
 - Consulta de perfil de utilizador
+
+Anti-challenge strategies:
+- Persistir device fingerprint (device_id, phone_id, uuid) entre logins e restarts
+- Reutilizar sessão salva antes de tentar login fresco
+- Cooldown exponencial após challenges
+- Locale/timezone realistas para Angola
+- Suporte a proxy residencial via env
 """
 
 import asyncio
-import hashlib
 import json
 import logging
 import os
+import random
 import time
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
@@ -41,6 +48,7 @@ BRIDGE_TOKEN = os.getenv("INSTAGRAM_BRIDGE_TOKEN", "")
 SESSIONS_DIR = Path(os.getenv("INSTAGRAM_SESSIONS_DIR", "/app/sessions"))
 POLL_INTERVAL = int(os.getenv("INSTAGRAM_POLL_INTERVAL_SECONDS", "30"))
 DM_FETCH_LIMIT = int(os.getenv("INSTAGRAM_DM_FETCH_LIMIT", "20"))
+PROXY_URL = os.getenv("INSTAGRAM_PROXY_URL", "")  # ex: http://user:pass@proxy:port
 
 logger = logging.getLogger("instagrapi-bridge")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
@@ -52,37 +60,134 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(mess
 instancias: dict[str, "InstanciaInstagram"] = {}
 poll_task: asyncio.Task | None = None
 
+# Cooldown global por conta — impede retries rápidos após challenge
+_challenge_cooldown: dict[str, float] = {}  # nome -> timestamp até quando bloquear
+_challenge_count: dict[str, int] = {}  # nome -> tentativas consecutivas
+
+
+NOME_INSTANCIA_REGEX = r"^[a-zA-Z0-9_-]{1,50}$"
+
+
+def _validar_nome_instancia(nome: str) -> str:
+    """Valida nome de instância para evitar path traversal."""
+    import re
+    nome = nome.strip()
+    if not re.match(NOME_INSTANCIA_REGEX, nome):
+        raise ValueError(f"Nome de instância inválido: '{nome}'. Apenas letras, números, _ e - (máx 50 chars).")
+    return nome
+
+
+def _criar_client_configurado() -> InstaClient:
+    """Cria InstaClient com configurações realistas para evitar detecção."""
+    cl = InstaClient()
+    cl.delay_range = [3, 7]
+
+    # Locale e timezone para Angola (reduz suspeita de datacenter europeu)
+    cl.set_locale("pt_AO")
+    cl.set_country("AO")
+    cl.set_country_code(244)
+    cl.set_timezone_offset(3600)  # WAT = UTC+1
+
+    # Proxy residencial se configurado
+    if PROXY_URL:
+        cl.set_proxy(PROXY_URL)
+        logger.info("Proxy configurado: %s", PROXY_URL.split("@")[-1] if "@" in PROXY_URL else "***")
+
+    return cl
+
 
 class InstanciaInstagram:
     def __init__(self, nome: str, username: str):
-        self.nome = nome
+        self.nome = _validar_nome_instancia(nome)
         self.username = username
-        self.client = InstaClient()
-        self.client.delay_range = [2, 5]
+        self.client = _criar_client_configurado()
         self.status = "CRIADA"
         self.ultimo_erro: str | None = None
         self.ultima_poll_em: datetime | None = None
         self.mensagens_vistas: set[str] = set()
         self.negocio_id: str | None = None
 
+        # Tenta carregar device settings persistidos (mesmo se não há sessão completa)
+        self._carregar_device_settings()
+
     @property
     def session_path(self) -> Path:
         return SESSIONS_DIR / f"{self.nome}.json"
+
+    @property
+    def device_path(self) -> Path:
+        """Ficheiro separado para device fingerprint — sobrevive a logouts."""
+        return SESSIONS_DIR / f"{self.nome}_device.json"
 
     def salvar_sessao(self):
         SESSIONS_DIR.mkdir(parents=True, exist_ok=True)
         settings = self.client.get_settings()
         self.session_path.write_text(json.dumps(settings, default=str))
+        # Salvar device settings separadamente para persistir entre logouts
+        self._salvar_device_settings(settings)
+
+    def _salvar_device_settings(self, settings: dict | None = None):
+        """Persiste o fingerprint do dispositivo (sobrevive a logout e restart)."""
+        if settings is None:
+            settings = self.client.get_settings()
+        device_data = {
+            "device_settings": settings.get("device_settings", {}),
+            "user_agent": settings.get("user_agent", ""),
+            "uuid": settings.get("uuid", ""),
+            "phone_id": settings.get("phone_id", ""),
+            "advertising_id": settings.get("advertising_id", ""),
+            "android_device_id": settings.get("android_device_id", ""),
+            "request_id": settings.get("request_id", ""),
+            "mid": settings.get("mid", ""),
+        }
+        SESSIONS_DIR.mkdir(parents=True, exist_ok=True)
+        self.device_path.write_text(json.dumps(device_data, default=str))
+
+    def _carregar_device_settings(self):
+        """Carrega fingerprint do dispositivo persistido — garante mesmo device_id entre logins."""
+        if not self.device_path.exists():
+            # Primeira vez: forçar geração de settings e depois salvar
+            _ = self.client.get_settings()  # gera uuid, phone_id, device_id internamente
+            self._salvar_device_settings()
+            logger.info("Device fingerprint gerado e salvo para %s", self.nome)
+            return
+
+        try:
+            device_data = json.loads(self.device_path.read_text())
+            if not device_data.get("uuid"):
+                # Device file vazio/corrompido — regenerar
+                _ = self.client.get_settings()
+                self._salvar_device_settings()
+                logger.info("Device fingerprint regenerado para %s (ficheiro corrompido)", self.nome)
+                return
+
+            # Aplicar settings ao client ANTES do login
+            current = self.client.get_settings()
+            for key in ("device_settings", "user_agent", "uuid", "phone_id",
+                        "advertising_id", "android_device_id", "request_id", "mid"):
+                if key in device_data and device_data[key]:
+                    current[key] = device_data[key]
+            self.client.set_settings(current)
+            logger.info("Device fingerprint restaurado para %s (device_id: %s)",
+                        self.nome, device_data.get("android_device_id", "?"))
+        except Exception as e:
+            logger.warning("Falha ao carregar device settings para %s: %s", self.nome, e)
 
     def carregar_sessao(self) -> bool:
+        """Tenta restaurar sessão completa sem fazer novo login."""
         if not self.session_path.exists():
             return False
         try:
             settings = json.loads(self.session_path.read_text())
             self.client.set_settings(settings)
-            self.client.login(self.username, "")  # relogin from session
+            # Testar se sessão é válida com uma chamada leve (sem login)
+            self.client.get_timeline_feed()
+            logger.info("Sessão restaurada com sucesso para %s", self.nome)
             return True
-        except Exception:
+        except Exception as e:
+            logger.warning("Sessão expirada/inválida para %s: %s", self.nome, str(e)[:100])
+            # Manter device settings mesmo que sessão falhe
+            self._carregar_device_settings()
             return False
 
 
@@ -117,6 +222,7 @@ class StatusResponse(BaseModel):
     status: str
     ultimo_erro: str | None
     ultima_poll_em: str | None
+    challenge_cooldown_restante: int | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -133,6 +239,47 @@ def verificar_token(authorization: str | None = Header(None), x_bridge_token: st
         token = x_bridge_token
     if token != BRIDGE_TOKEN:
         raise HTTPException(status_code=401, detail="Token inválido.")
+
+
+# ---------------------------------------------------------------------------
+# Challenge cooldown
+# ---------------------------------------------------------------------------
+
+def _verificar_cooldown(nome: str):
+    """Verifica se a instância está em cooldown após challenge."""
+    if nome in _challenge_cooldown:
+        restante = _challenge_cooldown[nome] - time.time()
+        if restante > 0:
+            minutos = int(restante / 60)
+            raise HTTPException(
+                status_code=429,
+                detail=f"Cooldown activo. Aguarde {minutos}min antes de tentar novamente. "
+                       f"Resolva o challenge no app do Instagram primeiro."
+            )
+        else:
+            del _challenge_cooldown[nome]
+            _challenge_count.pop(nome, None)
+
+
+def _registar_challenge(nome: str):
+    """Regista um challenge e aplica backoff exponencial."""
+    count = _challenge_count.get(nome, 0) + 1
+    _challenge_count[nome] = count
+
+    # Backoff: 5min, 15min, 30min, 60min, 120min
+    delays = [300, 900, 1800, 3600, 7200]
+    delay = delays[min(count - 1, len(delays) - 1)]
+    # Adicionar jitter
+    delay += random.randint(0, 60)
+
+    _challenge_cooldown[nome] = time.time() + delay
+    logger.warning("Challenge #%d para %s — cooldown de %dmin", count, nome, delay // 60)
+
+
+def _limpar_challenge(nome: str):
+    """Login bem-sucedido — limpar contador de challenges."""
+    _challenge_cooldown.pop(nome, None)
+    _challenge_count.pop(nome, None)
 
 
 # ---------------------------------------------------------------------------
@@ -192,7 +339,14 @@ async def poll_dms():
 async def _poll_instancia(inst: InstanciaInstagram):
     """Verifica DMs novas para uma instância."""
     loop = asyncio.get_event_loop()
-    threads = await loop.run_in_executor(None, _fetch_direct_threads, inst)
+    try:
+        threads = await asyncio.wait_for(
+            loop.run_in_executor(None, _fetch_direct_threads, inst),
+            timeout=60.0,
+        )
+    except asyncio.TimeoutError:
+        logger.warning("Timeout ao buscar DMs para %s", inst.nome)
+        return
 
     for thread in threads:
         for message in thread.messages:
@@ -203,7 +357,6 @@ async def _poll_instancia(inst: InstanciaInstagram):
 
             # Limitar set para evitar crescimento infinito
             if len(inst.mensagens_vistas) > 10_000:
-                # Remover as mais antigas (set não é ordenado, mas é suficiente)
                 to_remove = list(inst.mensagens_vistas)[:5_000]
                 for k in to_remove:
                     inst.mensagens_vistas.discard(k)
@@ -237,7 +390,6 @@ def _fetch_direct_threads(inst: InstanciaInstagram):
 
 
 def _resolver_sender(thread, message) -> dict[str, str]:
-    """Resolve username e nome do remetente a partir dos users do thread."""
     for user in (thread.users or []):
         if str(user.pk) == str(message.user_id):
             return {
@@ -281,8 +433,13 @@ def _resolver_media_url(message) -> str | None:
 async def lifespan(app: FastAPI):
     global poll_task
     SESSIONS_DIR.mkdir(parents=True, exist_ok=True)
+
+    # Auto-restaurar sessões salvas no disco
+    await _restaurar_sessoes()
+
     poll_task = asyncio.create_task(poll_dms())
-    logger.info("Instagrapi Bridge iniciado. Poll interval: %ds", POLL_INTERVAL)
+    logger.info("Instagrapi Bridge iniciado. Poll interval: %ds | Proxy: %s",
+                POLL_INTERVAL, "sim" if PROXY_URL else "não")
     yield
     if poll_task:
         poll_task.cancel()
@@ -291,7 +448,34 @@ async def lifespan(app: FastAPI):
         await http_client.aclose()
 
 
-app = FastAPI(title="Instagrapi Bridge", version="1.0.0", lifespan=lifespan)
+async def _restaurar_sessoes():
+    """No startup, tenta restaurar todas as sessões salvas em disco."""
+    session_files = list(SESSIONS_DIR.glob("*.json"))
+    # Filtrar apenas sessões (não device files)
+    session_files = [f for f in session_files if not f.name.endswith("_device.json")]
+
+    for sf in session_files:
+        nome = sf.stem
+        try:
+            settings = json.loads(sf.read_text())
+            username = settings.get("username", nome)
+
+            inst = InstanciaInstagram(nome, username)
+            instancias[nome] = inst
+
+            loop = asyncio.get_event_loop()
+            ok = await loop.run_in_executor(None, inst.carregar_sessao)
+            if ok:
+                inst.status = "CONECTADA"
+                logger.info("Sessão auto-restaurada: %s (%s)", nome, username)
+            else:
+                inst.status = "SESSAO_EXPIRADA"
+                logger.info("Sessão expirada no startup: %s", nome)
+        except Exception as e:
+            logger.warning("Falha ao restaurar sessão %s: %s", nome, str(e)[:100])
+
+
+app = FastAPI(title="Instagrapi Bridge", version="2.0.0", lifespan=lifespan)
 
 
 @app.get("/health")
@@ -300,6 +484,7 @@ async def health():
         "status": "ok",
         "instancias": len(instancias),
         "activas": sum(1 for i in instancias.values() if i.status == "CONECTADA"),
+        "proxy": bool(PROXY_URL),
     }
 
 
@@ -307,16 +492,50 @@ async def health():
 async def login(req: LoginRequest, authorization: str | None = Header(None), x_bridge_token: str | None = Header(None)):
     verificar_token(authorization, x_bridge_token)
 
-    inst = instancias.get(req.instancia)
+    # Validar nome da instância (previne path traversal)
+    try:
+        nome_validado = _validar_nome_instancia(req.instancia)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    # Verificar cooldown de challenge
+    _verificar_cooldown(nome_validado)
+
+    inst = instancias.get(nome_validado)
     if not inst:
-        inst = InstanciaInstagram(req.instancia, req.username)
-        instancias[req.instancia] = inst
+        inst = InstanciaInstagram(nome_validado, req.username)
+        instancias[nome_validado] = inst
 
     inst.username = req.username
     inst.negocio_id = req.negocio_id
 
     loop = asyncio.get_event_loop()
+
+    # Estratégia 1: Tentar restaurar sessão existente primeiro (sem password)
+    if not req.verification_code and inst.session_path.exists():
+        try:
+            ok = await loop.run_in_executor(None, inst.carregar_sessao)
+            if ok:
+                inst.status = "CONECTADA"
+                inst.ultimo_erro = None
+                _limpar_challenge(nome_validado)
+                logger.info("Login via sessão restaurada: %s (%s)", nome_validado, req.username)
+                return {
+                    "ok": True,
+                    "instancia": nome_validado,
+                    "username": req.username,
+                    "user_id": str(inst.client.user_id),
+                    "status": inst.status,
+                    "metodo": "sessao_restaurada",
+                }
+        except Exception:
+            logger.info("Sessão inválida para %s, tentando login fresco", nome_validado)
+
+    # Estratégia 2: Login fresco (com o MESMO device fingerprint persistido)
     try:
+        # Pequeno delay antes do login para parecer mais humano
+        await asyncio.sleep(random.uniform(1.5, 3.0))
+
         if req.verification_code:
             await loop.run_in_executor(
                 None,
@@ -330,15 +549,28 @@ async def login(req: LoginRequest, authorization: str | None = Header(None), x_b
         inst.status = "CONECTADA"
         inst.ultimo_erro = None
         inst.salvar_sessao()
-        logger.info("Login bem-sucedido: %s (%s)", req.instancia, req.username)
+        _limpar_challenge(nome_validado)
+        logger.info("Login bem-sucedido: %s (%s)", nome_validado, req.username)
     except TwoFactorRequired:
         inst.status = "AGUARDANDO_2FA"
-        inst.ultimo_erro = "Autenticação de dois fatores necessária."
-        raise HTTPException(status_code=428, detail="2FA necessário. Envie verification_code.")
+        inst.ultimo_erro = "Autenticação de dois fatores necessária. Insira o código 2FA."
+        # NÃO salvar sessão — login incompleto. Manter apenas device settings.
+        inst._salvar_device_settings()
+        raise HTTPException(status_code=428, detail="2FA necessário. Envie verification_code.", headers={"X-Instagram-Reason": "2fa"})
     except ChallengeRequired:
         inst.status = "CHALLENGE"
-        inst.ultimo_erro = "Instagram pede verificação de segurança."
-        raise HTTPException(status_code=428, detail="Challenge de segurança do Instagram. Verifique o app ou email.")
+        _registar_challenge(nome_validado)
+        cooldown_restante = int((_challenge_cooldown.get(nome_validado, 0) - time.time()) / 60)
+        inst.ultimo_erro = (
+            f"Instagram pede verificação de segurança (tentativa #{_challenge_count.get(nome_validado, 1)}). "
+            f"Cooldown: {cooldown_restante}min. "
+            f"Resolva o challenge no app do Instagram e tente novamente depois."
+        )
+        raise HTTPException(
+            status_code=428,
+            detail=inst.ultimo_erro,
+            headers={"X-Instagram-Reason": "challenge"},
+        )
     except BadPassword:
         inst.status = "ERRO"
         inst.ultimo_erro = "Password incorrecta."
@@ -350,10 +582,11 @@ async def login(req: LoginRequest, authorization: str | None = Header(None), x_b
 
     return {
         "ok": True,
-        "instancia": req.instancia,
+        "instancia": nome_validado,
         "username": req.username,
         "user_id": str(inst.client.user_id),
         "status": inst.status,
+        "metodo": "login_fresco",
     }
 
 
@@ -382,7 +615,6 @@ async def send_dm(req: SendDmRequest, authorization: str | None = Header(None), 
                 None, lambda: inst.client.direct_send(req.text, [int(user_id)])
             )
         elif req.media_url:
-            # Baixar media e enviar como foto
             async with httpx.AsyncClient() as client:
                 resp = await client.get(req.media_url)
                 tmp_path = SESSIONS_DIR / f"tmp_media_{int(time.time())}.jpg"
@@ -449,18 +681,23 @@ async def get_profile(req: ProfileRequest, authorization: str | None = Header(No
 async def list_status(authorization: str | None = Header(None), x_bridge_token: str | None = Header(None)):
     verificar_token(authorization, x_bridge_token)
 
-    return {
-        "instancias": [
-            StatusResponse(
-                instancia=nome,
-                username=inst.username,
-                status=inst.status,
-                ultimo_erro=inst.ultimo_erro,
-                ultima_poll_em=inst.ultima_poll_em.isoformat() if inst.ultima_poll_em else None,
-            )
-            for nome, inst in instancias.items()
-        ]
-    }
+    result = []
+    for nome, inst in instancias.items():
+        cooldown = None
+        if nome in _challenge_cooldown:
+            restante = _challenge_cooldown[nome] - time.time()
+            cooldown = max(0, int(restante))
+
+        result.append(StatusResponse(
+            instancia=nome,
+            username=inst.username,
+            status=inst.status,
+            ultimo_erro=inst.ultimo_erro,
+            ultima_poll_em=inst.ultima_poll_em.isoformat() if inst.ultima_poll_em else None,
+            challenge_cooldown_restante=cooldown,
+        ))
+
+    return {"instancias": result}
 
 
 @app.post("/logout")
@@ -477,5 +714,15 @@ async def logout(instancia: str, authorization: str | None = Header(None), x_bri
     except Exception:
         pass
 
+    # Apagar sessão mas MANTER device settings para próximo login
     inst.session_path.unlink(missing_ok=True)
+    _limpar_challenge(instancia)
     return {"ok": True, "instancia": instancia}
+
+
+@app.post("/clear-challenge")
+async def clear_challenge(instancia: str, authorization: str | None = Header(None), x_bridge_token: str | None = Header(None)):
+    """Limpar cooldown manualmente (após resolver challenge no app do Instagram)."""
+    verificar_token(authorization, x_bridge_token)
+    _limpar_challenge(instancia)
+    return {"ok": True, "instancia": instancia, "message": "Cooldown limpo. Pode tentar login novamente."}

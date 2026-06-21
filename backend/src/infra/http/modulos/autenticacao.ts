@@ -7,6 +7,8 @@ import {
   LoginEstudantilSchema,
   ModuloNegocioParametroSchema,
   SalvarNegocioOnboardingSchema,
+  QueryGoogleCallbackSchema,
+  QueryRedirectSchema,
   SolicitarCodigoLoginSchema
 } from "../../../dominio/esquemas.js";
 import { exigirPermissaoComercial, resolverContextoComercial } from "../contextoComercial.js";
@@ -99,10 +101,10 @@ export const moduloAutenticacao: ModuloHttp = {
         });
       }
 
-      const query = request.query as { redirect?: string } | undefined;
+      const query = QueryRedirectSchema.parse(request.query ?? {});
       const redirectUri = obterGoogleRedirectUri();
       const estado = assinarEstadoGoogle({
-        redirect: sanitizarRedirectFrontend(query?.redirect ?? "/onboarding"),
+        redirect: sanitizarRedirectFrontend(query.redirect ?? "/onboarding"),
         nonce: randomUUID(),
         exp: Date.now() + 10 * 60_000
       });
@@ -118,13 +120,13 @@ export const moduloAutenticacao: ModuloHttp = {
     });
 
     app.get("/auth/google/callback", async (request, reply) => {
-      const query = request.query as { code?: string; state?: string; error?: string } | undefined;
+      const query = QueryGoogleCallbackSchema.parse(request.query ?? {});
 
-      if (query?.error) {
+      if (query.error) {
         return reply.redirect(criarUrlFrontendComErro("/login", "Login Gmail cancelado."));
       }
 
-      if (!query?.code || !query.state) {
+      if (!query.code || !query.state) {
         return reply.code(400).send({ erro: "GOOGLE_CALLBACK_INVALIDO", mensagem: "Callback Google inválido." });
       }
 
@@ -313,6 +315,7 @@ function extrairPagamentosNegocio(negocio: {
 
 function obterFrontendUrl() {
   return (
+    process.env.APP_PUBLIC_URL?.trim() ||
     process.env.FRONTEND_URL?.split(",")[0]?.trim() ||
     process.env.ORIGEM_FRONTEND?.split(",")[0]?.trim() ||
     "http://localhost:5173"

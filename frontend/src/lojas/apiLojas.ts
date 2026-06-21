@@ -1,12 +1,16 @@
 import { requisitarApi, resolverUrlMedia } from "../api";
 import { ROTAS_API_LOJAS, ROTAS_LOJAS } from "./rotasLojas";
 import type {
+  CatalogoPersonalizadoLoja,
   EventoTrackingPublicoPayload,
   FiltrosLojaPublica,
+  FiltrosMarketLojas,
   FiltrosMarketProdutos,
   FornecedorMarket,
   FornecedorMarketNormalizado,
+  MetricasLojaCrm,
   PayloadCalculoEntregaLojaPublica,
+  PayloadCatalogoLoja,
   PayloadCheckoutAbandonadoLojaPublica,
   PayloadCheckoutLojaPublica,
   PayloadConfiguracaoLojaPublica,
@@ -15,21 +19,30 @@ import type {
   ProdutoMarket,
   ProdutoMarketNormalizado,
   RegistroJson,
+  RespostaCatalogosCrm,
   RespostaCheckoutAbandonadoLojaPublica,
   RespostaCheckoutLojaPublica,
   RespostaConfiguracaoLojaPublica,
+  RespostaLojaMarket,
   RespostaLojaPublica,
   RespostaMarketCategorias,
+  RespostaMarketLojas,
   RespostaMarketProdutos,
   RespostaProdutoLojaPublica,
   RespostaProdutoMarket,
   RespostaPublicacaoProdutoMarket,
   RespostaPublicacaoProdutosMarketEmMassa,
+  RespostaSeguidoresCrm,
   RespostaSimilaresMarket,
   RespostaWhatsAppLojaPublica,
   ResumoCheckoutLojaPublica,
   ResumoMarketLoja,
-  ResumoTrackingLojaPublica
+  ResumoTrackingLojaPublica,
+  PayloadCheckoutUnificado,
+  RespostaCatalogoPublico,
+  RespostaCheckoutUnificado,
+  RespostaCompraEstados,
+  RepasseFinanceiroCrm
 } from "./tiposLojas";
 
 type ValorQuery = string | number | boolean | null | undefined;
@@ -357,8 +370,27 @@ export function normalizarProdutoMarket(produto: ProdutoMarket): ProdutoMarketNo
     urlLoja,
     urlMarket: montarUrlProdutoMarket(produto.codigo),
     urlProduto,
+    selos: produto.vitrine?.selos ?? [],
     variantes: normalizarVariantes(produto.variantes)
   };
+}
+
+export async function seguirLoja(slug: string, identificador: string, origem = "perfil"): Promise<{ ok: boolean }> {
+  return requisitarApi(`${ROTAS_API_LOJAS.lojaPublica(slug)}/seguir`, {
+    method: "POST",
+    body: JSON.stringify({ identificador, tipo: "anonimo", origem })
+  });
+}
+
+export async function deixarDeSeguirLoja(slug: string, identificador: string): Promise<{ ok: boolean }> {
+  return requisitarApi(`${ROTAS_API_LOJAS.lojaPublica(slug)}/seguir`, {
+    method: "DELETE",
+    body: JSON.stringify({ identificador })
+  });
+}
+
+export async function verificarSeSegueLoja(slug: string, identificador: string): Promise<{ seguindo: boolean }> {
+  return requisitarApi(`${ROTAS_API_LOJAS.lojaPublica(slug)}/seguindo?identificador=${encodeURIComponent(identificador)}`);
 }
 
 export function normalizarProdutoLojaPublica(produto: ProdutoLojaPublica, slugLoja?: string | null): ProdutoMarketNormalizado {
@@ -371,4 +403,127 @@ export function normalizarProdutoLojaPublica(produto: ProdutoLojaPublica, slugLo
     urlLoja: montarUrlLojaPublica(slugLoja),
     urlProduto: montarUrlProdutoLoja(slugLoja, produto.codigo)
   });
+}
+
+// --- Catálogo Público Partilhável ---
+
+export function obterCatalogoPublico(slug: string, catalogoId: string): Promise<RespostaCatalogoPublico> {
+  return requisitarApi<RespostaCatalogoPublico>(ROTAS_API_LOJAS.catalogoPublicoLoja(slug, catalogoId), {}, false);
+}
+
+// --- Fase 2: Lojas no Market ---
+
+export function listarLojasMarket(filtros: FiltrosMarketLojas = {}): Promise<RespostaMarketLojas> {
+  return requisitarApi<RespostaMarketLojas>(
+    comQuery(ROTAS_API_LOJAS.lojasMarketApi, {
+      busca: filtros.busca,
+      categoria: filtros.categoria,
+      provincia: filtros.provincia,
+      limite: filtros.limite
+    }),
+    {},
+    false
+  );
+}
+
+export function obterLojaMarket(slug: string): Promise<RespostaLojaMarket> {
+  return requisitarApi<RespostaLojaMarket>(ROTAS_API_LOJAS.lojaMarketApi(slug), {}, false);
+}
+
+export function registrarEventoRecomendacao(payload: EventoTrackingPublicoPayload): Promise<RegistroJson> {
+  return requisitarApi<RegistroJson>(ROTAS_API_LOJAS.trackingRecomendacoes, { method: "POST", body: payload }, false);
+}
+
+// --- Fase 3: Studio CRM ---
+
+export function listarCatalogosCrm(): Promise<RespostaCatalogosCrm> {
+  return requisitarApi<RespostaCatalogosCrm>(ROTAS_API_LOJAS.catalogosCrm);
+}
+
+export function criarCatalogoCrm(payload: PayloadCatalogoLoja): Promise<CatalogoPersonalizadoLoja> {
+  return requisitarApi<CatalogoPersonalizadoLoja>(ROTAS_API_LOJAS.catalogosCrm, {
+    method: "POST",
+    body: payload
+  });
+}
+
+export function atualizarCatalogoCrm(id: string, payload: Partial<PayloadCatalogoLoja>): Promise<CatalogoPersonalizadoLoja> {
+  return requisitarApi<CatalogoPersonalizadoLoja>(ROTAS_API_LOJAS.catalogoCrm(id), {
+    method: "PUT",
+    body: payload
+  });
+}
+
+export function removerCatalogoCrm(id: string): Promise<{ ok: boolean }> {
+  return requisitarApi<{ ok: boolean }>(ROTAS_API_LOJAS.catalogoCrm(id), {
+    method: "DELETE"
+  });
+}
+
+export function listarSeguidoresCrm(filtros?: { limite?: number; offset?: number; origem?: string }): Promise<RespostaSeguidoresCrm> {
+  return requisitarApi<RespostaSeguidoresCrm>(
+    comQuery(ROTAS_API_LOJAS.seguidoresCrm, {
+      limite: filtros?.limite,
+      offset: filtros?.offset,
+      origem: filtros?.origem
+    })
+  );
+}
+
+export function obterMetricasLojaCrm(): Promise<MetricasLojaCrm> {
+  return requisitarApi<MetricasLojaCrm>(ROTAS_API_LOJAS.metricasCrm);
+}
+
+// ── Checkout Unificado Multi-Loja ──
+
+export function criarCheckoutUnificado(payload: PayloadCheckoutUnificado): Promise<RespostaCheckoutUnificado> {
+  return requisitarApi<RespostaCheckoutUnificado>(ROTAS_API_LOJAS.checkoutUnificado, {
+    method: "POST",
+    body: payload
+  }, false);
+}
+
+export function obterCompraUnificada(compraId: string): Promise<RespostaCompraEstados> {
+  return requisitarApi<RespostaCompraEstados>(ROTAS_API_LOJAS.compraUnificada(compraId), {}, false);
+}
+
+export function confirmarPagamentoUnificado(compraId: string, comprovativoUrl?: string): Promise<unknown> {
+  return requisitarApi(ROTAS_API_LOJAS.pagamentoUnificado(compraId), {
+    method: "POST",
+    body: { comprovativoUrl }
+  }, false);
+}
+
+// ── Pedidos Market no CRM ──
+
+export function listarPedidosMarketCrm(filtros?: {
+  estado?: string;
+  estadoPagamento?: string;
+  busca?: string;
+  limite?: number;
+}): Promise<{ pedidos: unknown[]; total: number }> {
+  return requisitarApi(
+    comQuery(ROTAS_API_LOJAS.pedidosMarketCrm, {
+      estado: filtros?.estado,
+      estadoPagamento: filtros?.estadoPagamento,
+      busca: filtros?.busca,
+      limite: filtros?.limite
+    })
+  );
+}
+
+// ── Repasses Financeiros no CRM ──
+
+export function listarRepassesCrm(filtros?: {
+  estado?: string;
+  pedidoId?: string;
+  limite?: number;
+}): Promise<RepasseFinanceiroCrm[]> {
+  return requisitarApi<RepasseFinanceiroCrm[]>(
+    comQuery(ROTAS_API_LOJAS.repassesCrm, {
+      estado: filtros?.estado,
+      pedidoId: filtros?.pedidoId,
+      limite: filtros?.limite
+    })
+  );
 }

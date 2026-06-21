@@ -84,6 +84,16 @@ export class AtendimentoCrmUseCase {
 
     if (evento.tipo === "WHATSAPP_MESSAGE_STATUS") {
       await this.registrarStatusWhatsapp(evento);
+      return;
+    }
+
+    if (evento.tipo === "INSTAGRAM_DM_RECEIVED") {
+      await this.registrarInstagramRecebido(evento);
+      return;
+    }
+
+    if (evento.tipo === "INSTAGRAM_DM_SENT") {
+      await this.registrarInstagramEnviado(evento);
     }
   }
 
@@ -471,6 +481,89 @@ export class AtendimentoCrmUseCase {
       });
       this.logger.warn(`[crm] WhatsApp ${providerMessageId} falhou de forma assíncrona e foi reenfileirado.`);
     }
+  }
+
+  private async registrarInstagramRecebido(evento: EventoSistema): Promise<void> {
+    const mensagem = this.obterObjeto(evento.dados.mensagem);
+    const username = this.obterString(mensagem.username);
+    const texto = this.obterString(mensagem.texto);
+    const negocioId = this.obterString(mensagem.negocioId);
+
+    if (!username || !texto) return;
+
+    const telefoneVirtual = `ig:${username}`;
+    const nomeCliente = this.obterString(mensagem.nomeCompleto) ?? username;
+
+    const cliente = await this.sincronizarCliente({
+      negocioId,
+      telefone: telefoneVirtual,
+      nome: nomeCliente,
+      username,
+      userId: this.obterString(mensagem.userId),
+      avatarUrl: this.obterString(mensagem.avatarUrl),
+      origem: "instagram",
+      consentimentoDados: true,
+      ultimaInteracaoEm: this.obterData(mensagem.recebidaEm) ?? new Date()
+    });
+
+    await this.repositorioAtendimento.registrarMensagem({
+      negocioId,
+      clienteNegocioId: cliente?.id ?? null,
+      telefone: telefoneVirtual,
+      nomeCliente,
+      usernameCliente: username,
+      userIdCliente: this.obterString(mensagem.userId),
+      avatarUrlCliente: this.obterString(mensagem.avatarUrl),
+      direcao: "INBOUND",
+      remetente: "cliente",
+      canal: "instagram",
+      tipo: this.obterString(mensagem.tipoMensagem) ?? "RECEBIDA",
+      conteudo: texto,
+      provider: "instagrapi",
+      providerMessageId: this.obterString(mensagem.idMensagem),
+      status: "RECEIVED",
+      origem: "instagram",
+      contexto: {
+        instancia: this.obterString(mensagem.instancia),
+        threadId: this.obterString(mensagem.threadId),
+        mediaUrl: this.obterString(mensagem.mediaUrl)
+      },
+      enviadaEm: this.obterData(mensagem.recebidaEm)
+    });
+  }
+
+  private async registrarInstagramEnviado(evento: EventoSistema): Promise<void> {
+    const mensagem = this.obterObjeto(evento.dados.mensagem);
+    const username = this.obterString(mensagem.username);
+    const texto = this.obterString(mensagem.texto);
+    const negocioId = this.obterString(mensagem.negocioId);
+
+    if (!username || !texto) return;
+
+    const telefoneVirtual = `ig:${username}`;
+
+    await this.repositorioAtendimento.registrarMensagem({
+      negocioId,
+      telefone: telefoneVirtual,
+      nomeCliente: this.obterString(mensagem.nomeCompleto) ?? username,
+      usernameCliente: username,
+      userIdCliente: this.obterString(mensagem.userId),
+      avatarUrlCliente: this.obterString(mensagem.avatarUrl),
+      direcao: "OUTBOUND",
+      remetente: "sistema",
+      canal: "instagram",
+      tipo: "INSTAGRAM_DM",
+      conteudo: texto,
+      provider: "instagrapi",
+      providerMessageId: this.obterString(mensagem.idMensagem),
+      status: "SENT",
+      origem: "instagram",
+      contexto: {
+        instancia: this.obterString(mensagem.instancia),
+        threadId: this.obterString(mensagem.threadId)
+      },
+      enviadaEm: this.obterData(mensagem.recebidaEm)
+    });
   }
 
   private mapearStatusProvider(status: string): StatusMensagemAtendimento {

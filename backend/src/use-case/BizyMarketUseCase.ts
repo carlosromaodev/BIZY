@@ -236,16 +236,174 @@ export class BizyMarketUseCase {
     return true;
   }
 
+  private calcularScoreRelevancia(item: ItemMarket): number {
+    let score = 0;
+    if (item.peca.quantidade > 0) score += 30;
+    if (item.peca.fotos.length >= 3) score += 10;
+    if (item.peca.descricao && item.peca.descricao.length > 50) score += 10;
+    if (item.peca.vitrine.precoPromocionalEmKwanza) score += 5;
+    if (item.peca.estadoStock === "DISPONIVEL") score += 15;
+    if (item.peca.estadoStock === "BAIXO_STOCK") score += 5;
+    if (item.peca.vitrine.selos.includes("PATROCINADO")) score += 20;
+    if (item.peca.vitrine.selos.includes("DESTAQUE")) score += 15;
+    if (item.peca.vitrine.selos.includes("MAIS_VENDIDO")) score += 10;
+    if (item.peca.vitrine.selos.includes("NOVIDADE")) score += 5;
+    score -= item.peca.vitrine.prioridade;
+    return score;
+  }
+
   private ordenarItensMarket(a: ItemMarket, b: ItemMarket): number {
+    const scoreA = this.calcularScoreRelevancia(a);
+    const scoreB = this.calcularScoreRelevancia(b);
     return (
-      a.peca.vitrine.prioridade - b.peca.vitrine.prioridade ||
+      scoreB - scoreA ||
       a.peca.nome.localeCompare(b.peca.nome, "pt-AO", { numeric: true, sensitivity: "base" }) ||
       a.loja.nomeComercial.localeCompare(b.loja.nomeComercial, "pt-AO", { sensitivity: "base" })
     );
   }
 
+  async listarLojasMarket(filtros: { busca?: string | null; categoria?: string | null; provincia?: string | null; limite?: number | null } = {}) {
+    const limite = this.normalizarLimite(filtros.limite ?? 24);
+    const itens = await this.listarItensMarket();
+    const lojasPorId = new Map<string, { loja: NegocioBizy; totalProdutos: number; categorias: Set<string> }>();
+
+    for (const item of itens) {
+      const existente = lojasPorId.get(item.loja.id);
+      if (existente) {
+        existente.totalProdutos++;
+        if (item.peca.categoria?.trim()) existente.categorias.add(item.peca.categoria.trim());
+      } else {
+        const cats = new Set<string>();
+        if (item.peca.categoria?.trim()) cats.add(item.peca.categoria.trim());
+        lojasPorId.set(item.loja.id, { loja: item.loja, totalProdutos: 1, categorias: cats });
+      }
+    }
+
+    let lojas = [...lojasPorId.values()];
+
+    if (filtros.busca) {
+      const busca = this.normalizarTexto(filtros.busca);
+      lojas = lojas.filter(({ loja }) => {
+        const campos = [loja.nomeComercial, loja.slugPublico, loja.descricaoPublica, loja.segmento].map((v) => this.normalizarTexto(v));
+        return campos.some((c) => c.includes(busca));
+      });
+    }
+    if (filtros.categoria) {
+      const cat = this.normalizarTexto(filtros.categoria);
+      lojas = lojas.filter(({ categorias }) => [...categorias].some((c) => this.normalizarTexto(c).includes(cat)));
+    }
+    if (filtros.provincia) {
+      const prov = this.normalizarTexto(filtros.provincia);
+      lojas = lojas.filter(({ loja }) => this.normalizarTexto(loja.provincia).includes(prov));
+    }
+
+    lojas.sort((a, b) => b.totalProdutos - a.totalProdutos);
+
+    return {
+      lojas: lojas.slice(0, limite).map(({ loja, totalProdutos, categorias }) => ({
+        ...this.mapearLojaMarket(loja),
+        totalProdutos,
+        categorias: [...categorias].sort()
+      })),
+      total: lojas.length,
+      filtros: {
+        ...(filtros.busca ? { busca: filtros.busca } : {}),
+        ...(filtros.categoria ? { categoria: filtros.categoria } : {}),
+        ...(filtros.provincia ? { provincia: filtros.provincia } : {}),
+        limite
+      }
+    };
+  }
+
+  async obterLojaMarket(slug: string) {
+    const lojas = await this.autenticacao.listarNegociosPublicados();
+    const loja = lojas.find((l) => l.slugPublico === slug.trim().toLowerCase());
+    if (!loja || !this.lojaParticipaNoMarket(loja)) {
+      throw new Error(`Loja '${slug}' não encontrada no Bizy Market.`);
+    }
+
+    const pecas = await this.pecas.listar(loja.id);
+    const produtos = pecas.filter((p) => this.produtoElegivelMarket(p));
+    const categorias = this.montarCategorias(produtos.map((p) => ({ peca: p, loja })));
+
+    return {
+      loja: {
+        ...this.mapearLojaMarket(loja),
+        totalProdutos: produtos.length,
+        categorias: categorias.map((c) => c.categoria)
+      },
+      produtos: produtos
+        .sort((a, b) => this.ordenarItensMarket({ peca: a, loja }, { peca: b, loja }))
+        .slice(0, 48)
+        .map((p) => this.mapearProdutoMarket(p, loja)),
+      seo: {
+        titulo: `${loja.nomeComercial} | Bizy Market`,
+        descricao: this.texto(loja.descricaoPublica) ?? `Produtos de ${loja.nomeComercial} no Bizy Market.`,
+        canonicalPath: `/market/lojas/${slug}`,
+        imagem: this.texto(this.objeto(this.objeto(loja.entrega).temaLoja).capaUrl)
+      }
+    };
+  }
+
+  async listarLojasRelacionadas(categoria: string, opcoes: { limite?: number | null } = {}) {
+    const limite = this.normalizarLimite(opcoes.limite ?? 6);
+    const categoriaNorm = this.normalizarTexto(categoria);
+    const itens = await this.listarItensMarket();
+    const lojasPorId = new Map<string, { loja: NegocioBizy; totalProdutos: number }>();
+
+    for (const item of itens) {
+      if (!this.normalizarTexto(item.peca.categoria).includes(categoriaNorm)) continue;
+      const existente = lojasPorId.get(item.loja.id);
+      if (existente) {
+        existente.totalProdutos++;
+      } else {
+        lojasPorId.set(item.loja.id, { loja: item.loja, totalProdutos: 1 });
+      }
+    }
+
+    const lojas = [...lojasPorId.values()]
+      .sort((a, b) => b.totalProdutos - a.totalProdutos)
+      .slice(0, limite);
+
+    return {
+      categoria,
+      lojas: lojas.map(({ loja, totalProdutos }) => ({
+        ...this.mapearLojaMarket(loja),
+        totalProdutos
+      })),
+      total: lojasPorId.size
+    };
+  }
+
+  async listarBlocoDescoberta(opcoes: { limite?: number | null } = {}) {
+    const limite = this.normalizarLimite(opcoes.limite ?? 12);
+    const itens = await this.listarItensMarket();
+
+    const maisVendidos = itens
+      .filter((i) => i.peca.vitrine.selos.includes("MAIS_VENDIDO"))
+      .sort((a, b) => this.ordenarItensMarket(a, b))
+      .slice(0, limite);
+
+    const novidades = itens
+      .filter((i) => i.peca.vitrine.selos.includes("NOVIDADE"))
+      .sort((a, b) => this.ordenarItensMarket(a, b))
+      .slice(0, limite);
+
+    const promocoes = itens
+      .filter((i) => Boolean(i.peca.vitrine.precoPromocionalEmKwanza))
+      .sort((a, b) => this.ordenarItensMarket(a, b))
+      .slice(0, limite);
+
+    return {
+      maisVendidos: maisVendidos.map(({ peca, loja }) => this.mapearProdutoMarket(peca, loja)),
+      novidades: novidades.map(({ peca, loja }) => this.mapearProdutoMarket(peca, loja)),
+      promocoes: promocoes.map(({ peca, loja }) => this.mapearProdutoMarket(peca, loja))
+    };
+  }
+
   private mapearProdutoMarket(peca: Peca, loja: NegocioBizy) {
     const slug = loja.slugPublico ?? "";
+    const patrocinado = peca.vitrine.selos.includes("PATROCINADO");
     return {
       codigo: peca.codigo,
       sku: peca.sku,
@@ -260,6 +418,7 @@ export class BizyMarketUseCase {
       variantes: peca.variantes,
       vitrine: peca.vitrine,
       estadoStock: peca.estadoStock,
+      patrocinado,
       urlProduto: `/lojas/${slug}/produtos/${peca.codigo}`,
       urlLoja: `/lojas/${slug}`,
       loja: this.mapearLojaMarket(loja)

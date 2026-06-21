@@ -2,6 +2,7 @@ import {
   CancelarReservaSchema,
   ConfirmarPagamentoSchema,
   ConverterReservaPedidoSchema,
+  ParamIdSchema,
   RegistrarComprovativoPagamentoSchema
 } from "../../../dominio/esquemas.js";
 import { persistirValorMedia } from "../../media/MediaStorage.js";
@@ -39,7 +40,7 @@ export const moduloReservas: ModuloHttp = {
       });
       if (!contextoComercial) return;
 
-      const { id } = request.params as { id: string };
+      const { id } = ParamIdSchema.parse(request.params);
       const reserva = await contexto.repositorios.reservas.buscarPorId(id, contextoComercial.negocio.id);
       if (!reserva) {
         return reply.code(404).send({ erro: "RESERVA_NAO_ENCONTRADA", mensagem: "Reserva não encontrada." });
@@ -62,7 +63,7 @@ export const moduloReservas: ModuloHttp = {
       if (!contextoComercial) return;
 
       ConfirmarPagamentoSchema.parse(request.body ?? {});
-      const { id } = request.params as { id: string };
+      const { id } = ParamIdSchema.parse(request.params);
       const resultado = await contexto.motorReservas.confirmarPagamento(id, { negocioId: contextoComercial.negocio.id });
       await contexto.automacaoWhatsApp.notificarPagamentoConfirmado(resultado.reserva, resultado.peca);
       return reply.send(resultado);
@@ -83,7 +84,7 @@ export const moduloReservas: ModuloHttp = {
         if (!contextoComercial) return;
 
         const dados = RegistrarComprovativoPagamentoSchema.parse(request.body ?? {});
-        const { id } = request.params as { id: string };
+        const { id } = ParamIdSchema.parse(request.params);
         const comprovativoPagamentoUrl = await persistirValorMedia(dados.comprovativoPagamentoUrl ?? null, {
           purpose: "comprovativos-pagamento",
           allowDocuments: true
@@ -106,7 +107,7 @@ export const moduloReservas: ModuloHttp = {
       });
       if (!contextoComercial) return;
 
-      const { id } = request.params as { id: string };
+      const { id } = ParamIdSchema.parse(request.params);
       const reserva = await contexto.repositorios.reservas.buscarPorId(id, contextoComercial.negocio.id);
       if (!reserva) {
         return reply.code(404).send({ erro: "RESERVA_NAO_ENCONTRADA", mensagem: "Reserva não encontrada." });
@@ -155,7 +156,7 @@ export const moduloReservas: ModuloHttp = {
       if (!contextoComercial) return;
 
       const dados = CancelarReservaSchema.parse(request.body ?? {});
-      const { id } = request.params as { id: string };
+      const { id } = ParamIdSchema.parse(request.params);
       const resultado = await contexto.motorReservas.cancelarReserva(id, {
         permitirCancelarPaga: dados.permitirCancelarPaga,
         negocioId: contextoComercial.negocio.id

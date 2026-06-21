@@ -2,7 +2,7 @@ import type { CategoriaMensagemWhatsApp } from "./provedores/ProvedorWhatsApp.js
 
 export const estadosPeca = ["DISPONIVEL", "RESERVADA", "VENDIDA", "ESGOTADA"] as const;
 export type EstadoPeca = (typeof estadosPeca)[number];
-export const selosProdutoPublico = ["DESTAQUE", "PROMOCAO", "NOVIDADE", "MAIS_VENDIDO", "REPOSICAO", "KIT"] as const;
+export const selosProdutoPublico = ["DESTAQUE", "PROMOCAO", "NOVIDADE", "MAIS_VENDIDO", "REPOSICAO", "KIT", "PATROCINADO", "VERIFICADO"] as const;
 export type SeloProdutoPublico = (typeof selosProdutoPublico)[number];
 
 export const estadosStockProduto = ["DISPONIVEL", "BAIXO_STOCK", "ESGOTADO", "ARQUIVADO"] as const;
@@ -66,6 +66,14 @@ export type EstadoComentario = (typeof estadosComentario)[number];
 export const fontesLive = ["tiktok", "instagram", "facebook", "youtube", "manual"] as const;
 export type FonteLive = (typeof fontesLive)[number];
 
+export const modosCapturaComentario = [
+  "TELEFONE_CODIGO",
+  "APENAS_CODIGO",
+  "PECA_ATIVA",
+  "LINK_QR"
+] as const;
+export type ModoCapturaComentario = (typeof modosCapturaComentario)[number];
+
 export const tiposEventoSistema = [
   "LIVE_CONNECTED",
   "LIVE_DISCONNECTED",
@@ -101,7 +109,16 @@ export const tiposEventoSistema = [
   "INSTAGRAM_DM_RECEIVED",
   "INSTAGRAM_DM_SENT",
   "INSTAGRAM_DM_FAILED",
-  "STOCK_UPDATED"
+  "STOCK_UPDATED",
+  "COMPRA_UNIFICADA_CRIADA",
+  "COMPRA_UNIFICADA_PAGA",
+  "PEDIDO_FILHO_CANCELADO",
+  "REEMBOLSO_SOLICITADO",
+  "REEMBOLSO_PROCESSADO",
+  "REPASSE_CONCILIADO",
+  "REPASSE_APROVADO",
+  "REPASSE_PAGO",
+  "REPASSE_CANCELADO"
 ] as const;
 export type TipoEventoSistema = (typeof tiposEventoSistema)[number];
 
@@ -213,6 +230,9 @@ export interface ResultadoInterpretacaoComentario {
   reasons: string[];
 }
 
+export const tiposProduto = ["FISICO", "SERVICO", "DIGITAL"] as const;
+export type TipoProduto = (typeof tiposProduto)[number];
+
 export interface Peca {
   id: string;
   codigo: string;
@@ -222,6 +242,7 @@ export interface Peca {
   descricao: string;
   categoria: string | null;
   colecao: string | null;
+  tipoProduto: TipoProduto;
   precoEmKwanza: number;
   custoEmKwanza: number | null;
   margemEstimadaEmKwanza: number | null;
@@ -270,6 +291,7 @@ export interface NovaPeca {
   descricao: string;
   categoria?: string | null;
   colecao?: string | null;
+  tipoProduto?: TipoProduto;
   precoEmKwanza: number;
   custoEmKwanza?: number | null;
   quantidade: number;
@@ -288,6 +310,7 @@ export interface AtualizarPeca {
   descricao?: string;
   categoria?: string | null;
   colecao?: string | null;
+  tipoProduto?: TipoProduto;
   precoEmKwanza?: number;
   custoEmKwanza?: number | null;
   quantidade?: number;
@@ -1452,6 +1475,7 @@ export interface FiltrosClientes360 {
   tag?: string;
   consentimentoMarketing?: boolean;
   limite?: number;
+  offset?: number;
 }
 
 export interface MetricasCliente360 {
@@ -1610,9 +1634,11 @@ export interface FiltrosPedidos {
   busca?: string;
   produto?: string;
   canal?: string;
+  origem?: string;
   dataInicio?: Date;
   dataFim?: Date;
   limite?: number;
+  offset?: number;
 }
 
 export interface AtualizacaoEstadoPedido {
@@ -1805,7 +1831,8 @@ export const modulosNegocioDisponiveis = [
   "entregas",
   "stock",
   "checkout",
-  "catalogo-digital"
+  "catalogo-digital",
+  "market"
 ] as const;
 export type ModuloNegocioCodigo = (typeof modulosNegocioDisponiveis)[number];
 
@@ -1960,6 +1987,13 @@ export const catalogoModulosNegocio: DefinicaoModuloNegocio[] = [
     nome: "Catálogo digital",
     descricao: "Catálogos partilháveis com seleção de produtos e disponibilidade.",
     categoria: "VENDA",
+    obrigatorio: false
+  },
+  {
+    modulo: "market",
+    nome: "Bizy Market",
+    descricao: "Participação no shopping center Bizy com descoberta cruzada de produtos.",
+    categoria: "CRESCIMENTO",
     obrigatorio: false
   }
 ];
@@ -2440,4 +2474,208 @@ export interface ResultadoReserva {
 export interface ResultadoExpiracaoReservas {
   expiradas: Reserva[];
   promovidas: Array<{ reserva: Reserva; peca: Peca }>;
+}
+
+export const estadosDenuncia = ["PENDENTE", "EM_REVISAO", "ACEITE", "REJEITADA", "RESOLVIDA"] as const;
+export type EstadoDenuncia = (typeof estadosDenuncia)[number];
+
+export const tiposDenuncia = [
+  "PRODUTO_PROIBIDO",
+  "INFORMACAO_FALSA",
+  "FRAUDE",
+  "CONTEUDO_OFENSIVO",
+  "SPAM",
+  "OUTRO"
+] as const;
+export type TipoDenuncia = (typeof tiposDenuncia)[number];
+
+export interface DenunciaMarket {
+  id: string;
+  tipo: TipoDenuncia;
+  entidadeTipo: "PRODUTO" | "LOJA";
+  entidadeId: string;
+  negocioAlvoId: string | null;
+  denuncianteId: string | null;
+  motivo: string;
+  descricao: string | null;
+  estado: EstadoDenuncia;
+  resolvidoPorId: string | null;
+  resolucao: string | null;
+  criadoEm: Date;
+  atualizadoEm: Date;
+}
+
+export interface NovaDenunciaMarket {
+  tipo: TipoDenuncia;
+  entidadeTipo: "PRODUTO" | "LOJA";
+  entidadeId: string;
+  negocioAlvoId?: string | null;
+  denuncianteId?: string | null;
+  motivo: string;
+  descricao?: string | null;
+}
+
+export interface ResolucaoDenuncia {
+  resolvidoPorId: string;
+  resolucao: string;
+  estado: "ACEITE" | "REJEITADA" | "RESOLVIDA";
+}
+
+export const estadosReservaStockCheckout = ["ATIVA", "CONFIRMADA", "EXPIRADA", "LIBERADA"] as const;
+export type EstadoReservaStockCheckout = (typeof estadosReservaStockCheckout)[number];
+
+export interface ReservaStockCheckout {
+  id: string;
+  negocioId: string;
+  pecaId: string;
+  codigoPeca: string;
+  quantidade: number;
+  sessaoId: string;
+  estado: EstadoReservaStockCheckout;
+  expiraEm: Date;
+  liberadaEm: Date | null;
+  criadoEm: Date;
+  atualizadoEm: Date;
+}
+
+export interface NovaReservaStockCheckout {
+  negocioId: string;
+  pecaId: string;
+  codigoPeca: string;
+  quantidade: number;
+  sessaoId: string;
+  expiraEm: Date;
+}
+
+export const estadosCompraUnificada = [
+  "ABERTA",
+  "AGUARDANDO_PAGAMENTO",
+  "PAGA",
+  "EM_PROCESSAMENTO",
+  "PARCIALMENTE_ENTREGUE",
+  "ENTREGUE",
+  "CANCELADA",
+  "PARCIALMENTE_CANCELADA"
+] as const;
+export type EstadoCompraUnificada = (typeof estadosCompraUnificada)[number];
+
+export interface CompraUnificada {
+  id: string;
+  numero: number;
+  compradorTelefone: string;
+  compradorNome: string | null;
+  compradorEmail: string | null;
+  estado: EstadoCompraUnificada;
+  estadoPagamento: EstadoPagamentoPedido;
+  subtotalEmKwanza: number;
+  descontoEmKwanza: number;
+  taxaEntregaTotalEmKwanza: number;
+  totalEmKwanza: number;
+  metodoPagamento: string | null;
+  comprovativoPagamentoUrl: string | null;
+  enderecoEntrega: string | null;
+  observacao: string | null;
+  origem: string;
+  pedidosFilhoIds: string[];
+  criadoEm: Date;
+  atualizadoEm: Date;
+}
+
+export interface NovaCompraUnificada {
+  compradorTelefone: string;
+  compradorNome?: string | null;
+  compradorEmail?: string | null;
+  itens: Array<{
+    negocioId: string;
+    codigoPeca: string;
+    varianteSelecionada?: Record<string, string> | null;
+    quantidade: number;
+  }>;
+  metodoPagamento?: string | null;
+  comprovativoPagamentoUrl?: string | null;
+  enderecoEntrega?: string | null;
+  observacao?: string | null;
+  origem?: string;
+}
+
+export interface PedidoFilho {
+  id: string;
+  compraUnificadaId: string;
+  negocioId: string;
+  pedidoId: string;
+  estado: EstadoPedido;
+  estadoPagamento: EstadoPagamentoPedido;
+  estadoEntrega: EstadoEntregaPedido;
+  subtotalEmKwanza: number;
+  taxaEntregaEmKwanza: number;
+  totalEmKwanza: number;
+  criadoEm: Date;
+  atualizadoEm: Date;
+}
+
+export const estadosRepasse = [
+  "PENDENTE",
+  "CONCILIADO",
+  "APROVADO",
+  "PAGO",
+  "CANCELADO",
+  "EM_DISPUTA"
+] as const;
+export type EstadoRepasse = (typeof estadosRepasse)[number];
+
+export interface RepasseFinanceiro {
+  id: string;
+  negocioId: string;
+  compraUnificadaId: string | null;
+  pedidoId: string;
+  valorBrutoEmKwanza: number;
+  taxaBizyEmKwanza: number;
+  comissaoEmKwanza: number;
+  descontoEmKwanza: number;
+  valorLiquidoEmKwanza: number;
+  estado: EstadoRepasse;
+  motivo: string | null;
+  conciliadoEm: Date | null;
+  aprovadoEm: Date | null;
+  pagoEm: Date | null;
+  referenciaPagamento: string | null;
+  criadoEm: Date;
+  atualizadoEm: Date;
+}
+
+export interface NovoRepasseFinanceiro {
+  negocioId: string;
+  compraUnificadaId?: string | null;
+  pedidoId: string;
+  valorBrutoEmKwanza: number;
+  taxaBizyEmKwanza?: number;
+  comissaoEmKwanza?: number;
+  descontoEmKwanza?: number;
+  motivo?: string | null;
+}
+
+export interface ReembolsoPedido {
+  id: string;
+  negocioId: string;
+  pedidoId: string;
+  compraUnificadaId: string | null;
+  tipo: "TOTAL" | "PARCIAL";
+  valorEmKwanza: number;
+  motivo: string;
+  itensAfetados: Array<{ codigoPeca: string; quantidade: number; valorEmKwanza: number }>;
+  estado: "PENDENTE" | "APROVADO" | "PROCESSADO" | "REJEITADO";
+  aprovadoPorId: string | null;
+  processadoEm: Date | null;
+  criadoEm: Date;
+  atualizadoEm: Date;
+}
+
+export interface NovoReembolsoPedido {
+  negocioId: string;
+  pedidoId: string;
+  compraUnificadaId?: string | null;
+  tipo: "TOTAL" | "PARCIAL";
+  valorEmKwanza: number;
+  motivo: string;
+  itensAfetados?: Array<{ codigoPeca: string; quantidade: number; valorEmKwanza: number }>;
 }

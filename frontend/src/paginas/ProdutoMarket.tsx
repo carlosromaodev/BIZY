@@ -29,7 +29,7 @@ import {
   ROTAS_LOJAS
 } from "../lojas";
 import type { ProdutoMarketNormalizado } from "../lojas";
-import { formatarKwanza } from "../utilidades";
+import { formatarKwanza, aplicarSeoMetaTags } from "../utilidades";
 
 const CORES_VARIANTES: Record<string, string> = {
   amarelo: "#d9a441",
@@ -103,6 +103,7 @@ export function PaginaProdutoMarket() {
 
   useEffect(() => {
     let ativo = true;
+    let limparSeo = () => {};
 
     async function carregarProduto() {
       setCarregando(true);
@@ -119,7 +120,11 @@ export function PaginaProdutoMarket() {
         setSimilares((respostaSimilares?.produtos ?? resposta.similares ?? []).map(normalizarProdutoMarket));
         setFotoAtiva(0);
         setQuantidade(1);
-        document.title = `${normalizado.nome} | Bizy Market`;
+        limparSeo = aplicarSeoMetaTags(resposta.seo ?? {
+          titulo: `${normalizado.nome} | Bizy Market`,
+          descricao: normalizado.descricao ?? undefined,
+          imagem: normalizado.fotos[0] ?? undefined
+        });
       } catch (falha) {
         if (!ativo) return;
         setErro(falha instanceof Error ? falha.message : "Produto fora do Market ou indisponível.");
@@ -133,6 +138,7 @@ export function PaginaProdutoMarket() {
     void carregarProduto();
     return () => {
       ativo = false;
+      limparSeo();
     };
   }, [codigo]);
 

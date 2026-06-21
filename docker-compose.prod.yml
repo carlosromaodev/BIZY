@@ -26,3 +26,7 @@ services:
   evolution-manager:
     ports: !override
       - "${EVOLUTION_MANAGER_BIND:-127.0.0.1}:${EVOLUTION_MANAGER_PORT:-3000}:80"
+
+  instagrapi-bridge:
+    ports: !override
+      - "127.0.0.1:8686:8686"

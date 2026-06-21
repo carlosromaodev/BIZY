@@ -1,0 +1,13 @@
+{
+  "baseUrl": "http://127.0.0.1:5173",
+  "generatedAt": "2026-06-07T08:00:39.188Z",
+  "files": [
+    "home-desktop.png",
+    "home-mobile.png",
+    "login-desktop.png",
+    "login-mobile.png"
+  ],
+  "consoleErrors": [
+    "home-desktop: Failed to load resource: net::ERR_NAME_NOT_RESOLVED"
+  ]
+}
