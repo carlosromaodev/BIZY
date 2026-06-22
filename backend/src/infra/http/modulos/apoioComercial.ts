@@ -269,9 +269,9 @@ const sequenciasPadrao: SequenciaFrontend[] = [
   }
 ];
 
-export const moduloCrmApoio: ModuloHttp = {
-  nome: "crm-apoio",
-  descricao: "Contratos de apoio para módulos CRM do frontend.",
+export const moduloApoioComercial: ModuloHttp = {
+  nome: "apoio-comercial",
+  descricao: "Contratos de apoio para módulos comerciais do frontend.",
   registrar(app, contexto) {
     app.get("/pipeline", async (request, reply) => {
       const contextoComercial = await exigirCrm(contexto, request, reply, "funil:ler", "funil");

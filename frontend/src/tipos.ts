@@ -844,6 +844,57 @@ export interface RespostaPapeis {
   papeis: PapelNegocio[];
 }
 
+export interface ConviteEquipa {
+  id: string;
+  negocioId: string;
+  token: string;
+  telefone: string | null;
+  email: string | null;
+  nomeConvidado: string | null;
+  papelSugerido: string;
+  estado: "PENDENTE" | "ACEITE" | "EXPIRADO" | "REENVIO";
+  expiraEm: string;
+  criadoEm: string;
+}
+
+export interface RespostaConvites {
+  convites: ConviteEquipa[];
+}
+
+export interface NotaInterna {
+  id: string;
+  autorId: string;
+  entidadeTipo: string;
+  entidadeId: string;
+  conteudo: string;
+  mencoesJson: string;
+  criadoEm: string;
+}
+
+export interface ActividadeFeed {
+  id: string;
+  autorId: string | null;
+  tipo: string;
+  entidadeTipo: string | null;
+  entidadeId: string | null;
+  resumo: string;
+  detalhesJson: string;
+  criadoEm: string;
+}
+
+export interface RespostaFeed {
+  actividades: ActividadeFeed[];
+}
+
+export interface PersonaPapel {
+  id: string;
+  nome: string;
+  descricao: string | null;
+  papelBase: string;
+  permissoesJson: string;
+  ativo: boolean;
+}
+
 /* ── Diagnósticos SMS ── */
 export interface DiagnosticoSmsOverview {
   totalEnviados: number;

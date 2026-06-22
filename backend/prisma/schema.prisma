@@ -402,6 +402,9 @@ model UsuarioSistema {
   relacoesNegocioCriadas RelacaoNegocio[] @relation("RelacoesNegocioCriadas")
   compartilhamentosAprovados CompartilhamentoCliente[] @relation("CompartilhamentosAprovados")
   auditoriasCompartilhamento AuditoriaCompartilhamentoCliente[] @relation("AuditoriasCompartilhamentoUsuario")
+  convitesCriados        ConviteEquipa[] @relation("ConvitesCriados")
+  notasInternas          NotaInterna[] @relation("NotasInternas")
+  feedActividades        FeedActividade[] @relation("FeedActividades")
 }
 
 model IdentidadeAutenticacao {
@@ -516,6 +519,14 @@ model Negocio {
   jobsOperacionais      JobOperacional[]
   instanciasInstagram   InstanciaInstagram[]
   seguidoresLoja        SeguidorLoja[]
+  personasPapel         PersonaPapel[]
+  convitesEquipa        ConviteEquipa[]
+  notasInternas         NotaInterna[]
+  feedActividades       FeedActividade[]
+  checklistsOnboarding  ChecklistOnboarding[]
+  mascaramentosDados    MascaramentoDados[]
+  configuracaoGamificacao ConfiguracaoGamificacao?
+  rankingsEquipa        RankingEquipa[]
 
   @@index([nomeComercial])
   @@index([slugPublico])
@@ -982,6 +993,9 @@ model MembroNegocio {
   criadoEm     DateTime       @default(now())
   atualizadoEm DateTime       @updatedAt
 
+  checklistOnboarding ChecklistOnboarding[]
+  rankings            RankingEquipa[]
+
   @@unique([negocioId, usuarioId])
   @@index([usuarioId])
   @@index([negocioId, papel, status])
@@ -1347,4 +1361,143 @@ model ReembolsoPedido {
   @@index([negocioId])
   @@index([pedidoId])
   @@index([estado])
+}
+
+// ── Fase 0 BIZY Team ───────────────────────────────────────────
+
+model PersonaPapel {
+  id              String   @id @default(uuid())
+  negocioId       String?
+  negocio         Negocio? @relation(fields: [negocioId], references: [id])
+  nome            String
+  descricao       String?
+  papelBase       String
+  permissoesJson  String   @default("{}")
+  ativo           Boolean  @default(true)
+  criadoEm        DateTime @default(now())
+  atualizadoEm    DateTime @updatedAt
+
+  @@unique([negocioId, nome])
+  @@index([negocioId, ativo])
+}
+
+model ConviteEquipa {
+  id              String    @id @default(uuid())
+  negocioId       String
+  negocio         Negocio   @relation(fields: [negocioId], references: [id])
+  token           String    @unique @default(uuid())
+  telefone        String?
+  email           String?
+  nomeConvidado   String?
+  papelSugerido   String    @default("VENDEDOR")
+  personaId       String?
+  estado          String    @default("PENDENTE")
+  criadoPorId     String
+  criadoPor       UsuarioSistema @relation("ConvitesCriados", fields: [criadoPorId], references: [id])
+  aceitePorId     String?
+  aceiteEm        DateTime?
+  expiraEm        DateTime
+  reenviadoEm     DateTime?
+  criadoEm        DateTime  @default(now())
+  atualizadoEm    DateTime  @updatedAt
+
+  @@index([negocioId, estado])
+  @@index([telefone])
+  @@index([email])
+  @@index([token])
+}
+
+model NotaInterna {
+  id              String   @id @default(uuid())
+  negocioId       String
+  negocio         Negocio  @relation(fields: [negocioId], references: [id])
+  autorId         String
+  autor           UsuarioSistema @relation("NotasInternas", fields: [autorId], references: [id])
+  entidadeTipo    String
+  entidadeId      String
+  conteudo        String
+  mencoesJson     String   @default("[]")
+  criadoEm        DateTime @default(now())
+  atualizadoEm    DateTime @updatedAt
+
+  @@index([negocioId, entidadeTipo, entidadeId, criadoEm])
+  @@index([autorId])
+}
+
+model FeedActividade {
+  id              String   @id @default(uuid())
+  negocioId       String
+  negocio         Negocio  @relation(fields: [negocioId], references: [id])
+  autorId         String?
+  autor           UsuarioSistema? @relation("FeedActividades", fields: [autorId], references: [id])
+  tipo            String
+  entidadeTipo    String?
+  entidadeId      String?
+  resumo          String
+  detalhesJson    String   @default("{}")
+  criadoEm        DateTime @default(now())
+
+  @@index([negocioId, criadoEm])
+  @@index([negocioId, tipo, criadoEm])
+  @@index([negocioId, entidadeTipo, entidadeId, criadoEm])
+  @@index([autorId])
+}
+
+model ChecklistOnboarding {
+  id              String    @id @default(uuid())
+  negocioId       String
+  negocio         Negocio   @relation(fields: [negocioId], references: [id])
+  membroId        String
+  membro          MembroNegocio @relation(fields: [membroId], references: [id])
+  item            String
+  descricao       String?
+  concluido       Boolean   @default(false)
+  concluidoEm     DateTime?
+  criadoEm        DateTime  @default(now())
+  atualizadoEm    DateTime  @updatedAt
+
+  @@unique([membroId, item])
+  @@index([negocioId, membroId])
+}
+
+model MascaramentoDados {
+  id              String   @id @default(uuid())
+  negocioId       String
+  negocio         Negocio  @relation(fields: [negocioId], references: [id])
+  papel           String
+  campo           String
+  tipo            String   @default("PARCIAL")
+  criadoEm        DateTime @default(now())
+  atualizadoEm    DateTime @updatedAt
+
+  @@unique([negocioId, papel, campo])
+  @@index([negocioId])
+}
+
+model ConfiguracaoGamificacao {
+  id              String   @id @default(uuid())
+  negocioId       String   @unique
+  negocio         Negocio  @relation(fields: [negocioId], references: [id])
+  ativo           Boolean  @default(false)
+  kpiPrincipal    String   @default("VENDAS_VALOR")
+  periodo         String   @default("MENSAL")
+  recompensa      String?
+  criadoEm        DateTime @default(now())
+  atualizadoEm    DateTime @updatedAt
+}
+
+model RankingEquipa {
+  id              String   @id @default(uuid())
+  negocioId       String
+  negocio         Negocio  @relation(fields: [negocioId], references: [id])
+  membroId        String
+  membro          MembroNegocio @relation(fields: [membroId], references: [id])
+  periodo         String
+  kpi             String
+  valor           Float    @default(0)
+  posicao         Int      @default(0)
+  criadoEm        DateTime @default(now())
+
+  @@index([negocioId, periodo, kpi, criadoEm])
+  @@index([membroId, criadoEm])
 }

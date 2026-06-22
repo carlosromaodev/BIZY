@@ -6,8 +6,9 @@ import { moduloCampanhas } from "./campanhas.js";
 import { moduloCatalogo } from "./catalogo.js";
 import { moduloClientes } from "./clientes.js";
 import { moduloContratos } from "./contratos.js";
-import { moduloCrmApoio } from "./crmApoio.js";
+import { moduloApoioComercial } from "./apoioComercial.js";
 import { moduloDiagnosticos } from "./diagnosticos.js";
+import { moduloEquipa } from "./equipa.js";
 import { moduloIntegracoes } from "./integracoes.js";
 import { moduloLives } from "./lives.js";
 import { moduloLojaPublica } from "./lojaPublica.js";
@@ -28,7 +29,7 @@ export const modulosHttp = [
   moduloCatalogo,
   moduloClientes,
   moduloCampanhas,
-  moduloCrmApoio,
+  moduloApoioComercial,
   moduloContratos,
   moduloLojaPublica,
   moduloMarket,
@@ -42,5 +43,6 @@ export const modulosHttp = [
   moduloOperacional,
   moduloPainel,
   moduloAdminGovernanca,
-  moduloCheckoutUnificado
+  moduloCheckoutUnificado,
+  moduloEquipa
 ] satisfies ModuloHttp[];

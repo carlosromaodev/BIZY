@@ -56,6 +56,7 @@ import { GestaoAfiliadosUseCase } from "../../use-case/GestaoAfiliadosUseCase.js
 import { GestaoCampanhasCrmUseCase } from "../../use-case/GestaoCampanhasCrmUseCase.js";
 import { GestaoClientesCrmUseCase } from "../../use-case/GestaoClientesCrmUseCase.js";
 import { GestaoCompartilhamentoClientesUseCase } from "../../use-case/GestaoCompartilhamentoClientesUseCase.js";
+import { GestaoEquipaUseCase } from "../../use-case/GestaoEquipaUseCase.js";
 import { GestaoFunilComercialUseCase } from "../../use-case/GestaoFunilComercialUseCase.js";
 import { GestaoGovernancaCrmUseCase } from "../../use-case/GestaoGovernancaCrmUseCase.js";
 import { GestaoModulosNegocioUseCase } from "../../use-case/GestaoModulosNegocioUseCase.js";
@@ -185,6 +186,7 @@ export interface RepositoriosAplicacao {
   comprasUnificadas: RepositorioComprasUnificadas;
   repassesFinanceiros: RepositorioRepassesFinanceiros;
   reembolsos: RepositorioReembolsos;
+  prisma?: import("@prisma/client").PrismaClient;
   verificarConexao?: () => Promise<void>;
   encerrar?: () => Promise<void>;
 }
@@ -258,6 +260,7 @@ export interface ContextoAplicacao {
   bizyMarket: BizyMarketUseCase;
   checkoutUnificado: CheckoutUnificadoUseCase;
   repassesFinanceiros: RepassesFinanceirosUseCase;
+  gestaoEquipa: GestaoEquipaUseCase;
   assistenteIA: AssistenteIAUseCase | null;
   sessoesLive: Map<string, SessaoLive>;
 }
@@ -508,6 +511,10 @@ export function criarContextoAplicacao(logger: FastifyBaseLogger): ContextoAplic
     eventos
   });
 
+  const gestaoEquipa = repositorios.prisma
+    ? new GestaoEquipaUseCase(repositorios.prisma)
+    : new GestaoEquipaUseCase(criarPrismaCliente());
+
   const provedorIA = criarProvedorIA();
   const assistenteIA = provedorIA
     ? new AssistenteIAUseCase({
@@ -574,6 +581,7 @@ export function criarContextoAplicacao(logger: FastifyBaseLogger): ContextoAplic
     bizyMarket,
     checkoutUnificado,
     repassesFinanceiros: repassesFinanceirosUseCase,
+    gestaoEquipa,
     assistenteIA,
     sessoesLive: new Map()
   };
@@ -661,6 +669,7 @@ function criarRepositorios(): RepositoriosAplicacao {
     comprasUnificadas: new RepositorioComprasUnificadasMemoria(),
     repassesFinanceiros: new RepositorioRepassesFinanceirosMemoria(),
     reembolsos: new RepositorioReembolsosMemoria(),
+    prisma,
     verificarConexao: async () => {
       await prisma.$queryRaw`SELECT 1`;
     },
