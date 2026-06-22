@@ -1190,12 +1190,12 @@ export function PaginaConversas() {
               {contagensFiltros.abertas} conversa{contagensFiltros.abertas === 1 ? "" : "s"} aberta{contagensFiltros.abertas === 1 ? "" : "s"} · {conversasFiltradas.length} total
             </div>
           </div>
-          <div className="crm-v3-pghead-right" style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <div className="crm-v3-pghead-right">
             <span className="crm-v3-bdg" data-tone="green">
               <span className="crm-v3-bdg-dot" />
               WhatsApp ligado
             </span>
-            <Button variant="outline" size="sm" onClick={() => void carregar()} style={{ gap: 6 }}>
+            <Button variant="outline" size="sm" onClick={() => void carregar()}>
               <RefreshCcw className="size-3.5" />
               Atualizar
             </Button>
@@ -1232,10 +1232,10 @@ export function PaginaConversas() {
             />
           </div>
           {filtroCanal !== "todos" && (
-            <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "0 12px 8px", fontSize: 12, color: "var(--ink-3)" }}>
+            <div className="bz-conv-channel-filter">
               <IconeOrigem origem={filtroCanal} />
               <span>{NOME_CANAL[filtroCanal] ?? filtroCanal}</span>
-              <button type="button" onClick={() => setFiltroCanal("todos")} style={{ marginLeft: "auto", cursor: "pointer", opacity: 0.6 }}>
+              <button type="button" className="bz-conv-channel-filter-close" onClick={() => setFiltroCanal("todos")}>
                 <X size={12} />
               </button>
             </div>
@@ -1269,7 +1269,7 @@ export function PaginaConversas() {
                     <div className="msg">{conversa.ultimaMensagem || "Sem mensagens"}</div>
                     <div className="meta">
                       {conversa.origemPrincipal && (
-                        <span className="tagm" style={{ display: "inline-flex", alignItems: "center", gap: 3 }}>
+                        <span className="tagm bz-inline-channel">
                           <IconeOrigem origem={conversa.origemPrincipal} />
                           {NOME_CANAL[conversa.origemPrincipal] ?? conversa.origemPrincipal}
                         </span>
@@ -1284,7 +1284,7 @@ export function PaginaConversas() {
                 </button>
               ))
             ) : (
-              <div style={{ padding: 40, textAlign: "center", color: "var(--ink-3)", fontSize: 13 }}>
+              <div className="bz-conv-vazio">
                 Nenhuma conversa neste filtro.
               </div>
             )}
@@ -1303,12 +1303,12 @@ export function PaginaConversas() {
                 src={conversaAtual.avatarUrlCliente}
                 alt={conversaAtual.nomeCliente}
               />
-              <div style={{ flex: 1, minWidth: 0 }}>
+              <div className="bz-thread-head-body">
                 <div className="nm">{conversaAtual.nomeCliente}</div>
                 <div className="sub">
                   <StatusBadge cor={corEstadoCrmSemantica(conversaAtual.estadoCrm)}>{traduzirEstadoCrm(conversaAtual.estadoCrm)}</StatusBadge>
                   {conversaAtual.origemPrincipal && (
-                    <span style={{ display: "inline-flex", alignItems: "center", gap: 3 }}><IconeOrigem origem={conversaAtual.origemPrincipal} /> {NOME_CANAL[conversaAtual.origemPrincipal] ?? conversaAtual.origemPrincipal}</span>
+                    <span className="bz-inline-channel"><IconeOrigem origem={conversaAtual.origemPrincipal} /> {NOME_CANAL[conversaAtual.origemPrincipal] ?? conversaAtual.origemPrincipal}</span>
                   )}
                   <span>{conversaAtual.telefone}</span>
                   {conversaAtual.pecaRelacionada && <span>{conversaAtual.pecaRelacionada}</span>}
@@ -1340,15 +1340,15 @@ export function PaginaConversas() {
             {/* Thread tabs — Conversa | Notas | Atividade */}
             <div className="bz-thread-tabs">
               <button type="button" className={`bz-thread-tab${abaThread === "conversa" ? " active" : ""}`} onClick={() => setAbaThread("conversa")}>
-                <MessageSquare size={13} style={{ marginRight: 4, verticalAlign: -1 }} />
+                <MessageSquare size={12} className="bz-thread-tab-icon" />
                 Conversa
               </button>
               <button type="button" className={`bz-thread-tab${abaThread === "notas" ? " active" : ""}`} onClick={() => setAbaThread("notas")}>
-                <StickyNote size={13} style={{ marginRight: 4, verticalAlign: -1 }} />
+                <StickyNote size={12} className="bz-thread-tab-icon" />
                 Notas
               </button>
               <button type="button" className={`bz-thread-tab${abaThread === "atividade" ? " active" : ""}`} onClick={() => setAbaThread("atividade")}>
-                <Activity size={13} style={{ marginRight: 4, verticalAlign: -1 }} />
+                <Activity size={12} className="bz-thread-tab-icon" />
                 Atividade
               </button>
             </div>
@@ -1357,7 +1357,7 @@ export function PaginaConversas() {
             {pecaRelacionadaObj && abaThread === "conversa" && (
               <div className="bz-ctx">
                 <span className="ph">
-                  <Package size={16} style={{ color: "var(--green-ink)" }} />
+                  <Package size={16} className="bz-icon-green" />
                 </span>
                 <div>
                   <div className="nm">
@@ -1377,7 +1377,7 @@ export function PaginaConversas() {
 
             {/* Body: tab content + props */}
             <div className="bz-inbox-corpo">
-              <div style={{ display: "flex", flexDirection: "column", minHeight: 0, overflow: "hidden" }}>
+              <div className="bz-thread-content">
 
                 {/* ── Tab: Conversa ── */}
                 {abaThread === "conversa" && (
@@ -1476,7 +1476,6 @@ export function PaginaConversas() {
                         disabled={carregando || !conversaAtual.conversaCrmId}
                         rows={3}
                         className="text-sm"
-                        style={{ borderRadius: 8 }}
                       />
                       <Button variant="outline" size="sm" disabled={carregando || !notaInterna.trim() || !conversaAtual.conversaCrmId} className="w-fit">
                         <StickyNote className="size-3.5 mr-1.5" />
@@ -1496,7 +1495,7 @@ export function PaginaConversas() {
                       ))
                     }
                     {conversaAtual.mensagens.filter((m) => m.origem === "nota_interna").length === 0 && (
-                      <div style={{ textAlign: "center", padding: 32, color: "var(--ink-3)", fontSize: 13 }}>
+                      <div className="bz-empty-tab">
                         Nenhuma nota interna ainda.
                       </div>
                     )}
@@ -1519,7 +1518,7 @@ export function PaginaConversas() {
                       ))
                     }
                     {conversaAtual.mensagens.filter((m) => m.remetente === "sistema").length === 0 && (
-                      <div style={{ textAlign: "center", padding: 32, color: "var(--ink-3)", fontSize: 13 }}>
+                      <div className="bz-empty-tab">
                         Sem atividade registada.
                       </div>
                     )}
@@ -1580,10 +1579,10 @@ export function PaginaConversas() {
           </div>
         ) : (
           <div className="bz-thread-vazio">
-            <div style={{ textAlign: "center" }}>
-              <MessageCircle size={36} style={{ color: "var(--ink-3)", marginBottom: 12, opacity: 0.3 }} />
-              <div style={{ fontSize: 14, fontWeight: 600, color: "var(--ink-2)" }}>Seleciona uma conversa</div>
-              <div style={{ fontSize: 12.5, color: "var(--ink-3)", marginTop: 4, maxWidth: 240, margin: "4px auto 0" }}>Escolhe uma conversa à esquerda para começar o atendimento.</div>
+            <div className="bz-thread-placeholder">
+              <MessageCircle size={36} className="bz-thread-placeholder-icon" />
+              <div className="bz-thread-placeholder-title">Seleciona uma conversa</div>
+              <div className="bz-thread-placeholder-desc">Escolhe uma conversa à esquerda para começar o atendimento.</div>
             </div>
           </div>
         )}
@@ -1592,9 +1591,9 @@ export function PaginaConversas() {
 
       {/* Feedback toast */}
       {mensagem && (
-        <div className="fixed bottom-4 right-4 z-50 hidden lg:flex items-center gap-3 bz-panel px-4 py-3 text-sm shadow-lg" style={{ fontSize: 13, color: "var(--ink-2)" }} aria-live="polite">
+        <div className="fixed bottom-4 right-4 z-50 hidden lg:flex items-center gap-3 bz-panel bz-toast px-4 py-3 text-sm shadow-lg" aria-live="polite">
           {mensagem}
-          <button type="button" onClick={() => setMensagem("")} className="bz-iconbtn" style={{ marginLeft: 4 }}>
+          <button type="button" onClick={() => setMensagem("")} className="bz-iconbtn bz-toast-close">
             <X size={14} />
           </button>
         </div>

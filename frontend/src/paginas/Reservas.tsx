@@ -188,11 +188,11 @@ export function PaginaReservas() {
             </div>
           </div>
           <div className="crm-v3-pghead-right">
-            <button type="button" className="crm-v3-btn crm-v3-btn-ghost" onClick={() => void carregar()}>
+            <BotaoBizy variante="ghost" onClick={() => void carregar()}>
               Exportar
-            </button>
+            </BotaoBizy>
             <Link to="/app/reservas" className="crm-v3-btn crm-v3-btn-primary">
-              <Plus size={13} />
+              <Plus size={16} />
               Novo pedido
             </Link>
           </div>
@@ -455,14 +455,10 @@ export function PaginaReservas() {
               />
             )}
             {existemMais && (
-              <div style={{ textAlign: "center", marginTop: 12 }}>
-                <button
-                  type="button"
-                  className="crm-v3-btn crm-v3-btn-ghost"
-                  onClick={() => setLimitePedidos((l) => l + 12)}
-                >
+              <div className="bz-load-more">
+                <BotaoBizy variante="ghost" onClick={() => setLimitePedidos((l) => l + 12)}>
                   Ver mais pedidos
-                </button>
+                </BotaoBizy>
               </div>
             )}
             </>)}
