@@ -8106,6 +8106,15 @@ body.mobile-chat-imersivo .atendimento-message-bubble {
 .bz-icon-violet {
   color: var(--violet, #8b5cf6);
 }
+.bz-eq-rank {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink-2);
+}
 
 .bz-btn-rose {
   color: var(--rose-ink) !important;

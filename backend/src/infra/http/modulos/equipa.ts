@@ -33,7 +33,13 @@ const CriarPersonaSchema = z.object({
 
 const FiltrosFeedSchema = z.object({
   tipo: z.string().trim().max(60).optional(),
-  limite: z.coerce.number().int().min(1).max(200).optional()
+  limite: z.coerce.number().int().min(1).max(200).optional(),
+  autorId: z.string().uuid().optional()
+});
+
+const FiltrosDesempenhoSchema = z.object({
+  de: z.coerce.date().optional(),
+  ate: z.coerce.date().optional()
 });
 
 const NotasFiltroSchema = z.object({
@@ -71,6 +77,65 @@ export const moduloEquipa: ModuloHttp = {
         const mensagem = erro instanceof Error ? erro.message : "Erro ao desativar membro.";
         return reply.code(400).send({ erro: "DESATIVACAO_FALHOU", mensagem });
       }
+    });
+
+    /* ── Desempenho / KPIs ─────────────────────────────────── */
+
+    app.get("/equipa/desempenho", async (request, reply) => {
+      const ctx = await exigirEquipa(contexto, request, reply, "equipa:ler");
+      if (!ctx) return;
+
+      const filtros = FiltrosDesempenhoSchema.parse(request.query ?? {});
+      const periodo = filtros.de && filtros.ate ? { de: filtros.de, ate: filtros.ate } : undefined;
+      const resultado = await contexto.gestaoEquipa.obterDesempenhoEquipa(ctx.negocio.id, periodo);
+      return resultado;
+    });
+
+    /* ── Evolução Temporal (RF-T053) ───────────────────────── */
+
+    app.get("/equipa/desempenho/:id/evolucao", async (request, reply) => {
+      const ctx = await exigirEquipa(contexto, request, reply, "equipa:ler");
+      if (!ctx) return;
+
+      const { id } = ParamIdSchema.parse(request.params);
+      const { periodos } = z.object({ periodos: z.coerce.number().int().min(1).max(12).optional() }).parse(request.query ?? {});
+      const resultado = await contexto.gestaoEquipa.obterEvolucaoDesempenho(ctx.negocio.id, id, periodos);
+      return resultado;
+    });
+
+    /* ── Gamificação (RN-T040 / RF-T120) ────────────────── */
+
+    app.get("/equipa/gamificacao", async (request, reply) => {
+      const ctx = await exigirEquipa(contexto, request, reply, "equipa:ler");
+      if (!ctx) return;
+
+      const config = await contexto.gestaoEquipa.obterConfiguracaoGamificacao(ctx.negocio.id);
+      return { configuracao: config };
+    });
+
+    app.put("/equipa/gamificacao", async (request, reply) => {
+      const ctx = await exigirEquipa(contexto, request, reply, "equipa:gestao");
+      if (!ctx) return;
+
+      const dados = z.object({
+        ativo: z.boolean().optional(),
+        kpiPrincipal: z.string().trim().max(40).optional(),
+        periodo: z.enum(["SEMANAL", "MENSAL"]).optional(),
+        recompensa: z.string().trim().max(200).optional()
+      }).parse(request.body ?? {});
+
+      const config = await contexto.gestaoEquipa.actualizarConfiguracaoGamificacao(ctx.negocio.id, dados);
+      return { configuracao: config };
+    });
+
+    /* ── Inactividade (RN-T036) ─────────────────────────── */
+
+    app.post("/equipa/inactividade/verificar", async (request, reply) => {
+      const ctx = await exigirEquipa(contexto, request, reply, "equipa:gestao");
+      if (!ctx) return;
+
+      const resultado = await contexto.gestaoEquipa.suspenderMembrosInactivos(ctx.negocio.id);
+      return resultado;
     });
 
     /* ── Convites ────────────────────────────────────────────── */
@@ -184,6 +249,39 @@ export const moduloEquipa: ModuloHttp = {
       return { actividades };
     });
 
+    /* ── Mascaramento de Dados ─────────────────────────────── */
+
+    app.get("/equipa/mascaramento", async (request, reply) => {
+      const ctx = await exigirEquipa(contexto, request, reply, "equipa:gestao");
+      if (!ctx) return;
+
+      const regras = await contexto.gestaoEquipa.listarMascaramento(ctx.negocio.id);
+      return { regras };
+    });
+
+    app.post("/equipa/mascaramento", async (request, reply) => {
+      const ctx = await exigirEquipa(contexto, request, reply, "equipa:gestao");
+      if (!ctx) return;
+
+      const dados = z.object({
+        papel: z.string().trim().min(2).max(40),
+        campo: z.string().trim().min(2).max(60),
+        tipo: z.enum(["PARCIAL", "OCULTO", "HASH"]).optional()
+      }).parse(request.body ?? {});
+
+      const regra = await contexto.gestaoEquipa.configurarMascaramento(ctx.negocio.id, dados);
+      return reply.code(201).send({ regra });
+    });
+
+    app.delete("/equipa/mascaramento/:id", async (request, reply) => {
+      const ctx = await exigirEquipa(contexto, request, reply, "equipa:gestao");
+      if (!ctx) return;
+
+      const { id } = ParamIdSchema.parse(request.params);
+      await contexto.gestaoEquipa.removerMascaramento(id, ctx.negocio.id);
+      return { ok: true };
+    });
+
     /* ── Onboarding Checklist ────────────────────────────────── */
 
     app.get("/equipa/onboarding/:id", async (request, reply) => {
@@ -195,6 +293,14 @@ export const moduloEquipa: ModuloHttp = {
       return { checklist };
     });
 
+    app.get("/equipa/onboarding", async (request, reply) => {
+      const ctx = await exigirEquipa(contexto, request, reply, "equipa:gestao");
+      if (!ctx) return;
+
+      const resumo = await contexto.gestaoEquipa.resumoOnboardingEquipa(ctx.negocio.id);
+      return { membros: resumo };
+    });
+
     app.post("/equipa/onboarding/:id/completar", async (request, reply) => {
       const ctx = await resolverContextoComercial(contexto, request, reply);
       if (!ctx) return;
@@ -203,6 +309,195 @@ export const moduloEquipa: ModuloHttp = {
       const { item } = z.object({ item: z.string().trim().min(1).max(60) }).parse(request.body ?? {});
       await contexto.gestaoEquipa.marcarItemOnboarding(id, item);
       return { ok: true };
+    });
+
+    /* ── Metas de Vendas ─────────────────────────────────────── */
+
+    app.get("/equipa/metas", async (request, reply) => {
+      const ctx = await exigirEquipa(contexto, request, reply, "equipa:ler");
+      if (!ctx) return;
+
+      const filtros = z.object({
+        tipo: z.enum(["INDIVIDUAL", "EQUIPA"]).optional(),
+        membroId: z.string().uuid().optional(),
+        periodo: z.enum(["DIARIO", "SEMANAL", "MENSAL"]).optional(),
+        limite: z.coerce.number().int().min(1).max(200).optional()
+      }).parse(request.query ?? {});
+
+      const metas = await contexto.gestaoEquipa.listarMetas(ctx.negocio.id, filtros);
+      return { metas };
+    });
+
+    app.post("/equipa/metas", async (request, reply) => {
+      const ctx = await exigirEquipa(contexto, request, reply, "equipa:gestao");
+      if (!ctx) return;
+
+      const dados = z.object({
+        membroId: z.string().uuid().optional(),
+        tipo: z.enum(["INDIVIDUAL", "EQUIPA"]).optional(),
+        kpi: z.enum(["VENDAS_VALOR", "VENDAS_QTD", "CONVERSAO"]).optional(),
+        periodo: z.enum(["DIARIO", "SEMANAL", "MENSAL"]).optional(),
+        valorMeta: z.number().int().positive(),
+        mes: z.number().int().min(1).max(12).optional(),
+        ano: z.number().int().min(2024).max(2030).optional()
+      }).parse(request.body ?? {});
+
+      const meta = await contexto.gestaoEquipa.criarMeta(ctx.negocio.id, dados);
+      return reply.code(201).send({ meta });
+    });
+
+    /* ── Alertas de Metas (RF-T057) ──────────────────────────── */
+
+    app.get("/equipa/metas/alertas", async (request, reply) => {
+      const ctx = await exigirEquipa(contexto, request, reply, "equipa:ler");
+      if (!ctx) return;
+
+      const resultado = await contexto.gestaoEquipa.obterAlertasMetas(ctx.negocio.id);
+      return resultado;
+    });
+
+    /* ── Bónus/Comissão por Meta (RF-T058) ───────────────────── */
+
+    app.get("/equipa/metas/bonus", async (request, reply) => {
+      const ctx = await exigirEquipa(contexto, request, reply, "equipa:ler");
+      if (!ctx) return;
+
+      const filtros = z.object({
+        mes: z.coerce.number().int().min(1).max(12).optional(),
+        ano: z.coerce.number().int().min(2024).max(2030).optional(),
+        membroId: z.string().uuid().optional()
+      }).parse(request.query ?? {});
+
+      const resultado = await contexto.gestaoEquipa.calcularBonusComissao(ctx.negocio.id, filtros);
+      return resultado;
+    });
+
+    app.get("/equipa/metas/:id/progresso", async (request, reply) => {
+      const ctx = await exigirEquipa(contexto, request, reply, "equipa:ler");
+      if (!ctx) return;
+
+      const { id } = ParamIdSchema.parse(request.params);
+      const progresso = await contexto.gestaoEquipa.obterProgressoMeta(id, ctx.negocio.id);
+      return { progresso };
+    });
+
+    app.delete("/equipa/metas/:id", async (request, reply) => {
+      const ctx = await exigirEquipa(contexto, request, reply, "equipa:gestao");
+      if (!ctx) return;
+
+      const { id } = ParamIdSchema.parse(request.params);
+      await contexto.gestaoEquipa.eliminarMeta(id, ctx.negocio.id);
+      return { ok: true };
+    });
+
+    /* ── Turnos e Presença ────────────────────────────────────── */
+
+    app.get("/equipa/turnos", async (request, reply) => {
+      const ctx = await exigirEquipa(contexto, request, reply, "equipa:ler");
+      if (!ctx) return;
+
+      const { membroId } = z.object({ membroId: z.string().uuid().optional() }).parse(request.query ?? {});
+      const turnos = await contexto.gestaoEquipa.listarTurnos(ctx.negocio.id, membroId);
+      return { turnos };
+    });
+
+    app.post("/equipa/turnos", async (request, reply) => {
+      const ctx = await exigirEquipa(contexto, request, reply, "equipa:gestao");
+      if (!ctx) return;
+
+      const dados = z.object({
+        membroId: z.string().uuid(),
+        diaSemana: z.number().int().min(0).max(6),
+        horaInicio: z.string().regex(/^\d{2}:\d{2}$/),
+        horaFim: z.string().regex(/^\d{2}:\d{2}$/)
+      }).parse(request.body ?? {});
+
+      const turno = await contexto.gestaoEquipa.definirTurno(ctx.negocio.id, dados);
+      return reply.code(201).send({ turno });
+    });
+
+    app.delete("/equipa/turnos/:id", async (request, reply) => {
+      const ctx = await exigirEquipa(contexto, request, reply, "equipa:gestao");
+      if (!ctx) return;
+
+      const { id } = ParamIdSchema.parse(request.params);
+      await contexto.gestaoEquipa.removerTurno(id, ctx.negocio.id);
+      return { ok: true };
+    });
+
+    app.get("/equipa/disponibilidade", async (request, reply) => {
+      const ctx = await exigirEquipa(contexto, request, reply, "equipa:ler");
+      if (!ctx) return;
+
+      const disponibilidade = await contexto.gestaoEquipa.obterDisponibilidadeActual(ctx.negocio.id);
+      return { disponibilidade };
+    });
+
+    app.post("/equipa/presenca", async (request, reply) => {
+      const ctx = await exigirEquipa(contexto, request, reply, "equipa:ler");
+      if (!ctx) return;
+
+      const dados = z.object({
+        membroId: z.string().uuid(),
+        tipo: z.enum(["CHECK_IN", "CHECK_OUT"]),
+        metodo: z.enum(["MANUAL", "WHATSAPP", "AUTOMATICO"]).optional(),
+        observacao: z.string().trim().max(200).optional()
+      }).parse(request.body ?? {});
+
+      const registo = await contexto.gestaoEquipa.registarPresenca(ctx.negocio.id, dados);
+      return reply.code(201).send({ registo });
+    });
+
+    app.get("/equipa/presenca", async (request, reply) => {
+      const ctx = await exigirEquipa(contexto, request, reply, "equipa:ler");
+      if (!ctx) return;
+
+      const filtros = z.object({
+        membroId: z.string().uuid().optional(),
+        de: z.coerce.date().optional(),
+        ate: z.coerce.date().optional(),
+        limite: z.coerce.number().int().min(1).max(500).optional()
+      }).parse(request.query ?? {});
+
+      const registos = await contexto.gestaoEquipa.listarPresencas(ctx.negocio.id, filtros);
+      return { registos };
+    });
+
+    /* ── Passagem de Turno (RF-T116) ─────────────────────────── */
+
+    app.get("/equipa/passagem-turno/:id", async (request, reply) => {
+      const ctx = await exigirEquipa(contexto, request, reply, "equipa:ler");
+      if (!ctx) return;
+
+      const { id } = ParamIdSchema.parse(request.params);
+      const relatorio = await contexto.gestaoEquipa.gerarRelatorioPassagemTurno(ctx.negocio.id, id);
+      return relatorio;
+    });
+
+    /* ── Widget Comissão Estimada (RF-T118) ──────────────────── */
+
+    app.get("/equipa/comissao-estimada", async (request, reply) => {
+      const ctx = await exigirEquipa(contexto, request, reply, "equipa:ler");
+      if (!ctx) return;
+
+      const resultado = await contexto.gestaoEquipa.obterComissaoEstimada(ctx.negocio.id, ctx.usuario.id);
+      return resultado;
+    });
+
+    /* ── Horas Trabalhadas ─────────────────────────────────────── */
+
+    app.get("/equipa/horas-trabalhadas/:id", async (request, reply) => {
+      const ctx = await exigirEquipa(contexto, request, reply, "equipa:ler");
+      if (!ctx) return;
+
+      const { id } = ParamIdSchema.parse(request.params);
+      const { de, ate } = z.object({
+        de: z.coerce.date(),
+        ate: z.coerce.date()
+      }).parse(request.query ?? {});
+
+      const resultado = await contexto.gestaoEquipa.calcularHorasTrabalhadas(ctx.negocio.id, id, de, ate);
+      return resultado;
     });
   }
 };

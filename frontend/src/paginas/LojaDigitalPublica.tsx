@@ -903,11 +903,11 @@ export function PaginaLojaDigitalPublica() {
 
   if (carregando) {
     return (
-      <main className="loja-publica-v2 grid min-h-[100dvh] place-items-center bg-[#fafaf8]">
+      <main className="loja-publica-v2 grid min-h-[100dvh] place-items-center bg-[var(--bg)]">
         <div className="flex flex-col items-center gap-4">
           <div className="relative size-16 animate-pulse">
-            <div className="absolute inset-0 rounded-2xl opacity-10" style={{ backgroundColor: corPrimaria }} />
-            <div className="grid size-full place-items-center rounded-2xl">
+            <div className="absolute inset-0 opacity-10" style={{ backgroundColor: corPrimaria }} />
+            <div className="grid size-full place-items-center">
               <ShoppingBag size={28} className="text-neutral-400" />
             </div>
           </div>
@@ -922,14 +922,14 @@ export function PaginaLojaDigitalPublica() {
 
   if (erro && !dados) {
     return (
-      <main className="loja-publica-v2 grid min-h-[100dvh] place-items-center bg-[#fafaf8] px-4">
+      <main className="loja-publica-v2 grid min-h-[100dvh] place-items-center bg-[var(--bg)] px-4">
         <section className="w-full max-w-sm text-center">
-          <div className="mx-auto grid size-20 place-items-center rounded-3xl bg-neutral-100">
+          <div className="mx-auto grid size-20 place-items-center bg-neutral-100">
             <Store size={32} className="text-neutral-400" />
           </div>
           <h1 className="mt-6 text-2xl font-semibold tracking-tight text-neutral-900">Loja indisponível</h1>
           <p className="mt-3 text-sm leading-6 text-neutral-500">{erro || "Esta loja ainda não está publicada."}</p>
-          <Button asChild className="mt-8 h-12 w-full rounded-2xl text-sm font-medium">
+          <Button asChild className="mt-8 h-12 w-full text-sm font-medium">
             <Link to="/">
               <ArrowLeft size={16} />
               Voltar ao início
@@ -972,7 +972,7 @@ export function PaginaLojaDigitalPublica() {
 
   return (
     <main
-      className="loja-publica-v2 loja-stitch lp-body-pad min-h-[100dvh] bg-white text-neutral-900"
+      className="loja-publica-v2 loja-stitch lp-body-pad min-h-[100dvh] bg-white text-foreground"
       style={{ "--loja-accent": corPrimaria } as React.CSSProperties}
     >
       <header className="loja-store-topbar sticky top-0 z-50 border-0 bg-transparent">
@@ -983,7 +983,7 @@ export function PaginaLojaDigitalPublica() {
               onClick={() => {
                 if (window.history.length > 1) window.history.back();
               }}
-              className="grid size-10 shrink-0 place-items-center rounded-full border border-white/15 bg-white/10 text-white shadow-[0_10px_24px_rgba(53,35,120,0.14)] transition-colors hover:bg-white/18"
+              className="grid size-10 shrink-0 place-items-center border border-white/15 bg-white/10 text-white transition-colors hover:bg-white/18"
               aria-label="Voltar"
             >
               <ArrowLeft size={18} />
@@ -1022,12 +1022,12 @@ export function PaginaLojaDigitalPublica() {
                 onClick={() => {
                   if (historicoEncomendas.length > 0) setAbaAtiva("item");
                 }}
-                className="relative grid size-10 place-items-center rounded-full border border-white/15 bg-white/10 text-white shadow-[0_10px_24px_rgba(53,35,120,0.14)] transition-colors hover:bg-white/18"
+                className="relative grid size-10 place-items-center border border-white/15 bg-white/10 text-white transition-colors hover:bg-white/18"
                 aria-label="Sacola"
               >
                 <ShoppingBag size={18} />
                 {historicoEncomendas.length > 0 && (
-                  <span className="absolute -right-0.5 -top-0.5 grid size-4 place-items-center rounded-full bg-[#111111] text-[9px] font-bold text-white">
+                  <span className="absolute -right-0.5 -top-0.5 grid size-4 place-items-center rounded-full bg-foreground text-[9px] font-bold text-white">
                     {Math.min(historicoEncomendas.length, 9)}
                   </span>
                 )}
@@ -1039,14 +1039,14 @@ export function PaginaLojaDigitalPublica() {
                   void navigator.share?.({ title: dados.loja.nomeComercial, url: window.location.href })
                     .catch(() => { void navigator.clipboard.writeText(window.location.href); });
                 }}
-                className="grid size-10 place-items-center rounded-full border border-white/15 bg-white/10 text-white shadow-[0_10px_24px_rgba(53,35,120,0.14)] transition-colors hover:bg-white/18"
+                className="grid size-10 place-items-center border border-white/15 bg-white/10 text-white transition-colors hover:bg-white/18"
                 aria-label="Partilhar"
               >
                 <Share2 size={18} />
               </button>
               <button
                 type="button"
-                className="grid size-10 place-items-center rounded-full border border-white/15 bg-white/10 text-white shadow-[0_10px_24px_rgba(53,35,120,0.14)] transition-colors hover:bg-white/18"
+                className="grid size-10 place-items-center border border-white/15 bg-white/10 text-white transition-colors hover:bg-white/18"
                 aria-label="Mais opções"
               >
                 <MoreHorizontal size={18} />
@@ -1431,13 +1431,13 @@ export function PaginaLojaDigitalPublica() {
                       </div>
                       <p className="mt-4 text-base font-medium leading-7 text-neutral-950">{review.comentario}</p>
                       {review.produtoImagem && (
-                        <div className="mt-4 overflow-hidden rounded-2xl border border-neutral-200 bg-neutral-50">
+                        <div className="mt-4 overflow-hidden border border-neutral-200 bg-neutral-50">
                           <img src={review.produtoImagem} alt={review.produtoNome} className="h-64 w-full object-cover" />
                         </div>
                       )}
-                      <div className="mt-4 rounded-2xl border border-neutral-200 bg-neutral-50 p-3">
+                      <div className="mt-4 border border-neutral-200 bg-neutral-50 p-3">
                         <div className="flex items-center gap-3">
-                          <div className="size-14 overflow-hidden rounded-2xl bg-white">
+                          <div className="size-14 overflow-hidden bg-white">
                             {review.produtoImagem
                               ? <img src={review.produtoImagem} alt="" className="size-full object-cover" />
                               : <Package className="m-auto mt-4 text-neutral-300" size={18} />}
@@ -1448,7 +1448,7 @@ export function PaginaLojaDigitalPublica() {
                           </div>
                           <button
                             type="button"
-                            className="grid size-10 shrink-0 place-items-center rounded-2xl border border-neutral-200 bg-white text-neutral-950"
+                            className="grid size-10 shrink-0 place-items-center border border-neutral-200 bg-white text-neutral-950"
                             onClick={() => {
                               const produto = dados.produtos[indice] ?? dados.produtos[0];
                               if (produto) abrirCheckout(produto, 1, criarSelecoesIniciaisProduto(produto));
@@ -1690,7 +1690,7 @@ export function PaginaLojaDigitalPublica() {
       <Sheet open={!!produtoAberto} onOpenChange={(aberto) => { if (!aberto) setProdutoAberto(null); }}>
         <SheetContent
           side="bottom"
-          className="loja-stitch loja-modal-responsivo loja-product-sheet h-[96dvh] overflow-hidden rounded-t-[1.75rem] border-0 p-0 data-[side=bottom]:!border-0 sm:mx-auto sm:h-[92dvh] sm:max-w-[1180px] sm:rounded-t-[2rem] lg:h-[94dvh]"
+          className="loja-stitch loja-modal-responsivo loja-product-sheet h-[96dvh] overflow-hidden border-0 p-0 data-[side=bottom]:!border-0 sm:mx-auto sm:h-[92dvh] sm:max-w-[1180px] lg:h-[94dvh]"
           showCloseButton={false}
           onOpenAutoFocus={(evento) => evento.preventDefault()}
         >
@@ -1740,7 +1740,7 @@ export function PaginaLojaDigitalPublica() {
               <button
                 type="button"
                 onClick={() => setCheckoutAberto(false)}
-                className="grid size-10 place-items-center rounded-xl text-neutral-500 hover:bg-neutral-100"
+                className="grid size-10 place-items-center text-neutral-500 hover:bg-neutral-100"
                 aria-label="Fechar checkout"
               >
                 <X size={18} />
@@ -1775,7 +1775,7 @@ export function PaginaLojaDigitalPublica() {
       <Sheet open={!!pedidoConfirmado} onOpenChange={(aberto) => { if (!aberto) setPedidoConfirmado(null); }}>
         <SheetContent
           side="bottom"
-          className="loja-modal-responsivo h-[96dvh] overflow-hidden rounded-t-[1.75rem] border-0 p-0 data-[side=bottom]:!border-0 sm:mx-auto sm:h-[90dvh] sm:max-w-lg sm:rounded-t-[2rem]"
+          className="loja-modal-responsivo h-[96dvh] overflow-hidden border-0 p-0 data-[side=bottom]:!border-0 sm:mx-auto sm:h-[90dvh] sm:max-w-lg"
           showCloseButton={false}
         >
           <SheetHeader className="sr-only">
@@ -1819,7 +1819,7 @@ export function PaginaLojaDigitalPublica() {
 
       {erro && dados && (
         <div className="fixed bottom-20 left-1/2 z-50 -translate-x-1/2 animate-in fade-in slide-in-from-bottom-4 sm:bottom-6">
-          <div className="flex items-center gap-3 rounded-2xl bg-neutral-900 px-5 py-3 text-sm text-white shadow-lg">
+          <div className="flex items-center gap-3 bg-neutral-900 px-5 py-3 text-sm text-white">
             <span className="max-w-xs">{erro}</span>
             <button type="button" onClick={() => setErro("")} className="shrink-0 text-neutral-400 hover:text-white">
               <X size={16} />
@@ -2027,7 +2027,7 @@ function BarraAbas({
   onChange: (aba: AbaLojaPublica) => void;
 }) {
   return (
-    <nav className="loja-store-tabs sticky top-[4.65rem] z-30 bg-white/95 py-2 shadow-[0_10px_28px_rgba(15,23,42,0.06)] backdrop-blur-xl sm:top-[5.1rem]">
+    <nav className="loja-store-tabs sticky top-[4.65rem] z-30 border-b border-neutral-100 bg-white/95 py-2 backdrop-blur-xl sm:top-[5.1rem]">
       <div className="mx-auto max-w-[1280px] px-4 sm:px-10">
         <div className="loja-store-tabs-bar" role="tablist" aria-label="Secções da loja">
           {ABAS_LOJA.map((aba) => {
@@ -2049,7 +2049,7 @@ function BarraAbas({
                   <motion.span
                     layoutId="loja-tab-underline"
                     className="loja-store-tab-underline"
-                    style={{ backgroundColor: isNew ? "#22c55e" : "#111111" }}
+                    style={{ backgroundColor: isNew ? "var(--green)" : "var(--foreground)" }}
                     transition={{ type: "spring", bounce: 0.18, duration: 0.45 }}
                   />
                 )}
@@ -2071,10 +2071,10 @@ function SeloCupomLoja({ corPrimaria, cupom }: { corPrimaria: string; cupom?: st
   if (!cupomLimpo) return null;
 
   return (
-    <section className="mb-6 rounded-3xl bg-neutral-950 p-4 text-white sm:p-5">
+    <section className="mb-6 bg-foreground p-4 text-white sm:p-5">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-start gap-3">
-          <span className="grid size-11 shrink-0 place-items-center rounded-2xl bg-white/10" style={{ color: corPrimaria }}>
+          <span className="grid size-11 shrink-0 place-items-center bg-white/10" style={{ color: corPrimaria }}>
             <Tag size={19} />
           </span>
           <div>
@@ -2085,7 +2085,7 @@ function SeloCupomLoja({ corPrimaria, cupom }: { corPrimaria: string; cupom?: st
             </p>
           </div>
         </div>
-        <div className="rounded-2xl border border-white/10 bg-white px-4 py-3 text-center text-neutral-950 shadow-sm">
+        <div className="border border-white/10 bg-white px-4 py-3 text-center text-neutral-950">
           <span className="block text-[0.65rem] font-bold uppercase tracking-wide text-neutral-400">Código</span>
           <strong className="mt-1 block text-lg tracking-wide">{cupomLimpo}</strong>
         </div>
@@ -2108,7 +2108,7 @@ function BotaoComprarLoja({
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className="group flex h-11 w-full items-center justify-between rounded-none bg-neutral-950 pl-4 text-sm font-semibold text-white shadow-sm transition-all hover:bg-neutral-800 disabled:cursor-not-allowed disabled:bg-neutral-300 disabled:text-neutral-500"
+      className="group flex h-11 w-full items-center justify-between rounded-none bg-foreground pl-4 text-sm font-semibold text-white transition-all hover:bg-foreground/90 disabled:cursor-not-allowed disabled:bg-muted disabled:text-muted-foreground"
     >
       <span className="truncate">{children}</span>
       <span className="grid h-11 w-11 shrink-0 place-items-center border-l border-white/15 bg-white/10 transition-colors group-hover:bg-white/15">
@@ -2151,17 +2151,17 @@ function SinaisConfiancaLoja({
   ];
 
   return (
-    <section className="mt-10 rounded-3xl bg-white p-4 ring-1 ring-neutral-100 sm:p-5">
+    <section className="mt-10 bg-white p-4 ring-1 ring-neutral-100 sm:p-5">
       <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
         <div>
           <p className="text-xs font-semibold uppercase tracking-wide text-neutral-400">Sinais de confiança</p>
           <h2 className="mt-1 text-base font-semibold text-neutral-950">Compra clara antes de falar com {loja.nomeComercial}</h2>
         </div>
-        <Badge variant="outline" className="rounded-lg">Sem surpresas</Badge>
+        <Badge variant="outline">Sem surpresas</Badge>
       </div>
       <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
         {sinais.map((sinal) => (
-          <div key={sinal.titulo} className="rounded-2xl border border-neutral-200 bg-neutral-50 p-3">
+          <div key={sinal.titulo} className="border border-neutral-200 bg-neutral-50 p-3">
             <span className="text-neutral-500">{sinal.icon}</span>
             <strong className="mt-3 block text-sm text-neutral-950">{sinal.titulo}</strong>
             <p className="mt-1 text-xs leading-5 text-neutral-500">{sinal.detalhe}</p>
@@ -2190,7 +2190,7 @@ function ProdutosVistosRecentemente({
   if (!produtos.length) return null;
 
   return (
-    <section className="rounded-3xl bg-white p-4 ring-1 ring-neutral-100 sm:p-5">
+    <section className="bg-white p-4 ring-1 ring-neutral-100 sm:p-5">
       <div className="mb-4 flex items-center justify-between gap-3">
         <div>
           <p className="text-xs font-semibold uppercase tracking-wide text-neutral-400">vistos recentemente</p>
@@ -2219,7 +2219,7 @@ function ProdutosVistosRecentemente({
 
 function HistoricoEncomendasCliente({ historico }: { historico: PedidoHistoricoLoja[] }) {
   return (
-    <section className="rounded-3xl bg-white p-4 ring-1 ring-neutral-100 sm:p-5">
+    <section className="bg-white p-4 ring-1 ring-neutral-100 sm:p-5">
       <div className="mb-4 flex items-center justify-between gap-3">
         <div>
           <p className="text-xs font-semibold uppercase tracking-wide text-neutral-400">histórico</p>
@@ -2230,7 +2230,7 @@ function HistoricoEncomendasCliente({ historico }: { historico: PedidoHistoricoL
       {historico.length > 0 ? (
         <div className="space-y-2">
           {historico.slice(0, 3).map((pedido) => (
-            <div key={`${pedido.codigo}-${pedido.criadoEm}`} className="rounded-2xl border border-neutral-200 bg-neutral-50 p-3">
+            <div key={`${pedido.codigo}-${pedido.criadoEm}`} className="border border-neutral-200 bg-neutral-50 p-3">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <strong className="line-clamp-1 text-sm text-neutral-950">{pedido.nome}</strong>
@@ -2248,7 +2248,7 @@ function HistoricoEncomendasCliente({ historico }: { historico: PedidoHistoricoL
           ))}
         </div>
       ) : (
-        <div className="rounded-2xl border border-dashed border-neutral-200 bg-neutral-50 p-4 text-sm leading-6 text-neutral-500">
+        <div className="border border-dashed border-neutral-200 bg-neutral-50 p-4 text-sm leading-6 text-neutral-500">
           As próximas compras ficam guardadas aqui para o cliente voltar ao mesmo produto com menos esforço.
         </div>
       )}
@@ -2775,7 +2775,7 @@ function DetalheProduto({
                   ))}
                 </div>
               ) : (
-                <div className="rounded-3xl border border-dashed border-neutral-200 bg-neutral-50 p-6 text-center text-sm text-neutral-500">
+                <div className="border border-dashed border-neutral-200 bg-neutral-50 p-6 text-center text-sm text-neutral-500">
                   Sem recomendações por agora.
                 </div>
               )}
@@ -2869,7 +2869,7 @@ function CheckoutAssistido({
               key={item.id}
               type="button"
               onClick={() => setPasso(item.id)}
-              className={`rounded-xl px-2 py-2 text-xs font-semibold transition-colors ${
+              className={`px-2 py-2 text-xs font-semibold transition-colors ${
                 item.id === passo
                   ? "text-white"
                   : indice < indiceAtual
@@ -2918,7 +2918,7 @@ function CheckoutAssistido({
             <CampoCheckout icon={<User size={16} />} label="Nome" value={perfil.nome} onChange={(valor) => setPerfil({ ...perfil, nome: valor })} placeholder="O seu nome" />
             <CampoCheckout icon={<Phone size={16} />} label="WhatsApp" value={perfil.telefone} onChange={(valor) => setPerfil({ ...perfil, telefone: valor })} placeholder="923 000 000" />
             <CampoCheckout icon={<Mail size={16} />} label="Email opcional" value={perfil.email} onChange={(valor) => setPerfil({ ...perfil, email: valor })} placeholder="email@exemplo.com" />
-            <label className="flex items-start gap-3 rounded-2xl border border-neutral-200 bg-white p-3 text-sm text-neutral-600">
+            <label className="flex items-start gap-3 border border-neutral-200 bg-white p-3 text-sm text-neutral-600">
               <input
                 type="checkbox"
                 checked={perfil.consentimentoMarketing}
@@ -2967,7 +2967,7 @@ function CheckoutAssistido({
                 <CampoCheckout icon={<MapPin size={16} />} label="Município" value={entrega.municipio} onChange={(valor) => setEntrega({ ...entrega, municipio: valor })} placeholder="Talatona" />
                 <CampoCheckout icon={<MapPin size={16} />} label="Bairro" value={entrega.bairro} onChange={(valor) => setEntrega({ ...entrega, bairro: valor })} placeholder="Bairro ou zona" />
                 <CampoCheckout icon={<Truck size={16} />} label="Endereço/referência" value={entrega.endereco} onChange={(valor) => setEntrega({ ...entrega, endereco: valor })} placeholder="Rua, casa, ponto de referência" />
-                <Button type="button" variant="outline" className="rounded-2xl" onClick={() => void calcularEntregaCheckout()} disabled={calculandoEntrega}>
+                <Button type="button" variant="outline" onClick={() => void calcularEntregaCheckout()} disabled={calculandoEntrega}>
                   {calculandoEntrega ? <Loader2 className="animate-spin" size={16} /> : <Truck size={16} />}
                   Calcular entrega
                 </Button>
@@ -3029,7 +3029,7 @@ function CheckoutAssistido({
           </button>
         ) : (
           <div className="flex gap-2">
-            <Button type="button" variant="outline" className="flex-1 rounded-2xl" onClick={passoAnterior} disabled={indiceAtual === 0 || finalizando}>
+            <Button type="button" variant="outline" className="flex-1" onClick={passoAnterior} disabled={indiceAtual === 0 || finalizando}>
               Voltar
             </Button>
             <button type="button" className="lp-co-btn flex-1" onClick={proximoPasso}>
@@ -3059,7 +3059,7 @@ function LeadCaptureModal({
 }) {
   return (
     <Dialog open={aberto} onOpenChange={(valor) => { if (!valor) fechar(); }}>
-      <DialogContent className="loja-modal-responsivo max-h-[92dvh] overflow-y-auto rounded-3xl p-5 sm:max-w-md sm:p-6">
+      <DialogContent className="loja-modal-responsivo max-h-[92dvh] overflow-y-auto p-5 sm:max-w-md sm:p-6">
         <DialogHeader>
           <Badge variant="outline" className="w-fit">Atendimento rápido</Badge>
           <DialogTitle>Quer ajuda desta loja?</DialogTitle>
@@ -3069,7 +3069,7 @@ function LeadCaptureModal({
           <CampoCheckout icon={<User size={16} />} label="Nome" value={perfil.nome} onChange={(valor) => setPerfil({ ...perfil, nome: valor })} placeholder="O seu nome" />
           <CampoCheckout icon={<Phone size={16} />} label="WhatsApp" value={perfil.telefone} onChange={(valor) => setPerfil({ ...perfil, telefone: valor })} placeholder="923 000 000" />
           <CampoCheckout icon={<Mail size={16} />} label="Email opcional" value={perfil.email} onChange={(valor) => setPerfil({ ...perfil, email: valor })} placeholder="email@exemplo.com" />
-          <label className="flex items-start gap-3 rounded-2xl border border-neutral-200 bg-neutral-50 p-3 text-sm text-neutral-600">
+          <label className="flex items-start gap-3 border border-neutral-200 bg-neutral-50 p-3 text-sm text-neutral-600">
             <input
               type="checkbox"
               checked={perfil.consentimentoMarketing}
@@ -3080,8 +3080,8 @@ function LeadCaptureModal({
           </label>
         </div>
         <DialogFooter className="gap-2 sm:gap-2">
-          <Button variant="outline" className="w-full rounded-2xl sm:w-auto" onClick={fechar}>Agora não</Button>
-          <Button className="w-full rounded-2xl sm:w-auto" onClick={salvar}>Guardar contacto</Button>
+          <Button variant="outline" className="w-full sm:w-auto" onClick={fechar}>Agora não</Button>
+          <Button className="w-full sm:w-auto" onClick={salvar}>Guardar contacto</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -3238,7 +3238,7 @@ function QuantidadeSelector({
   return (
     <div className="space-y-2">
       <h4 className="text-sm font-semibold text-neutral-900">Quantidade</h4>
-      <div className="inline-flex items-center gap-0 rounded-xl ring-1 ring-neutral-200">
+      <div className="inline-flex items-center gap-0 ring-1 ring-neutral-200">
         <button type="button" onClick={() => onChange(Math.max(1, quantidade - 1))} className="grid size-10 place-items-center text-neutral-600 transition-colors hover:bg-neutral-50">
           <Minus size={16} />
         </button>
@@ -3269,7 +3269,7 @@ function CampoCheckout({
       <span className="text-xs font-semibold text-neutral-500">{label}</span>
       <span className="relative block">
         <span className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400">{icon}</span>
-        <Input value={value} onChange={(evento) => onChange(evento.target.value)} placeholder={placeholder} className="h-12 rounded-2xl border-neutral-200 bg-white pl-10" />
+        <Input value={value} onChange={(evento) => onChange(evento.target.value)} placeholder={placeholder} className="h-12 border-neutral-200 bg-white pl-10" />
       </span>
     </label>
   );
@@ -3298,7 +3298,7 @@ function ResumoConfirmacao({
       {Object.keys(variantes).length > 0 && <ResumoLinha titulo="Variantes" detalhe={montarResumoVariantes(variantes)} />}
       <ResumoLinha titulo="Cliente" detalhe={`${perfil.nome || "Sem nome"} · ${perfil.telefone || "Sem telefone"}`} />
       <ResumoLinha titulo="Entrega" detalhe={entrega.tipo === "ENTREGA" ? entrega.endereco || "Endereço pendente" : entrega.tipo === "RETIRADA" ? "Retirada na loja" : "Entrega sob orçamento"} />
-      <div className="rounded-3xl bg-neutral-950 p-4 text-white">
+      <div className="bg-foreground p-4 text-white">
         <div className="flex items-center justify-between text-sm text-white/62">
           <span>Subtotal</span>
           <span>{formatarKwanza(resumoEntrega?.subtotalEmKwanza ?? precoProduto(produto) * quantidade)}</span>
@@ -3319,7 +3319,7 @@ function ResumoConfirmacao({
 
 function ResumoLinha({ detalhe, titulo }: { detalhe: string; titulo: string }) {
   return (
-    <div className="rounded-2xl border border-neutral-200 bg-white p-3">
+    <div className="border border-neutral-200 bg-white p-3">
       <span className="text-xs font-semibold text-neutral-500">{titulo}</span>
       <p className="mt-1 text-sm font-medium text-neutral-950">{detalhe}</p>
     </div>

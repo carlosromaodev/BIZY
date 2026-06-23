@@ -9,6 +9,8 @@ import { moduloContratos } from "./contratos.js";
 import { moduloApoioComercial } from "./apoioComercial.js";
 import { moduloDiagnosticos } from "./diagnosticos.js";
 import { moduloEquipa } from "./equipa.js";
+import { moduloFinancas } from "./financas.js";
+import { moduloInteligencia } from "./inteligencia.js";
 import { moduloIntegracoes } from "./integracoes.js";
 import { moduloLives } from "./lives.js";
 import { moduloLojaPublica } from "./lojaPublica.js";
@@ -44,5 +46,7 @@ export const modulosHttp = [
   moduloPainel,
   moduloAdminGovernanca,
   moduloCheckoutUnificado,
-  moduloEquipa
+  moduloEquipa,
+  moduloFinancas,
+  moduloInteligencia
 ] satisfies ModuloHttp[];

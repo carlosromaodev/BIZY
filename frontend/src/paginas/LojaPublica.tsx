@@ -1042,14 +1042,14 @@ export function PaginaLojaPublica() {
       >
         <div className="loja-admin-command-grid grid min-w-0 grid-cols-1 gap-3 lg:grid-cols-[minmax(0,1fr)_20rem] xl:grid-cols-[minmax(0,1fr)_22rem]">
           <div className="grid gap-3 sm:gap-4">
-            <div className="rounded-lg border border-border/60 bg-background p-3">
+            <div className="border border-border/60 bg-background p-3">
               <div className="mb-2 flex items-center justify-between gap-2 sm:gap-3">
                 <span className="text-xs sm:text-sm font-medium text-foreground">Prontidão</span>
                 <span className="text-xs sm:text-sm tabular-nums text-muted-foreground">{prontidao.progresso}%</span>
               </div>
-              <div className="h-2 overflow-hidden rounded-full bg-muted">
+              <div className="h-2 overflow-hidden bg-muted">
                 <div
-                  className="h-full rounded-full bg-foreground transition-all"
+                  className="h-full bg-foreground transition-all"
                   style={{ width: `${Math.min(100, Math.max(0, prontidao.progresso))}%` }}
                 />
               </div>
@@ -1268,15 +1268,15 @@ export function PaginaLojaPublica() {
                     key={item.id}
                     type="button"
                     onClick={() => setPasso(item.id)}
-                    className={`flex min-w-[5.75rem] shrink-0 flex-col items-center gap-1 rounded-lg border px-2 py-2 text-center transition-colors lg:min-w-0 lg:flex-row lg:items-start lg:gap-3 lg:px-3 lg:text-left ${
+                    className={`flex min-w-[5.75rem] shrink-0 flex-col items-center gap-1 border px-2 py-2 text-center transition-colors lg:min-w-0 lg:flex-row lg:items-start lg:gap-3 lg:px-3 lg:text-left ${
                       passo === item.id
-                        ? "border-neutral-950 bg-white text-neutral-950 shadow-sm"
+                        ? "border-foreground bg-card text-foreground"
                         : "border-transparent bg-transparent text-muted-foreground hover:border-border hover:bg-muted/60 hover:text-foreground"
                     }`}
                   >
-                    <span className="lg:mt-0.5">{item.icone}</span>
+                    <span className="lg:mt-1">{item.icone}</span>
                     <span className="min-w-0">
-                      <span className="block truncate text-[0.65rem] font-medium sm:text-xs lg:text-sm">{item.titulo}</span>
+                      <span className="block truncate text-xs font-medium lg:text-sm">{item.titulo}</span>
                       <span className="hidden truncate text-xs opacity-75 lg:block">{item.detalhe}</span>
                     </span>
                   </button>
@@ -1361,7 +1361,7 @@ export function PaginaLojaPublica() {
       </Sheet>
 
       {false && mensagem && (
-        <footer className="rounded-lg border bg-card px-4 py-3 text-sm text-muted-foreground" aria-live="polite">
+        <footer className="border bg-card px-4 py-3 text-sm text-muted-foreground" aria-live="polite">
           {mensagem}
         </footer>
       )}
@@ -1381,14 +1381,14 @@ function TelaInicioCriacaoLoja({
   produtosDestaque: Peca[];
 }) {
   return (
-    <section className="grid min-h-[min(34rem,calc(100vh-12rem))] place-items-center rounded-xl border border-border/60 bg-[radial-gradient(circle_at_top_left,rgba(17,17,17,0.08),transparent_34%),linear-gradient(180deg,#ffffff,#f6f6f4)] px-4 py-8 text-center">
+    <section className="grid min-h-[min(34rem,calc(100vh-12rem))] place-items-center border border-border/60 bg-[radial-gradient(circle_at_top_left,rgba(17,17,17,0.08),transparent_34%),linear-gradient(180deg,var(--surface),var(--bg-2))] px-4 py-8 text-center">
       <div className="mx-auto grid max-w-2xl gap-5">
-        <span className="mx-auto grid size-12 place-items-center rounded-2xl bg-neutral-950 text-white shadow-sm">
+        <span className="mx-auto grid size-12 place-items-center bg-foreground text-background">
           <Store size={22} />
         </span>
         <div className="space-y-2">
-          <Badge variant="outline" className="mx-auto w-fit bg-white">Criação manual</Badge>
-          <h2 className="text-3xl font-semibold tracking-tight text-neutral-950 sm:text-4xl">Vamos criar sua loja digital</h2>
+          <Badge variant="outline" className="mx-auto w-fit bg-card">Criação manual</Badge>
+          <h2 className="text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">Vamos criar sua loja digital</h2>
           <p className="mx-auto max-w-xl text-sm leading-6 text-muted-foreground">
             A loja só fica criada depois de passar pelo assistente e guardar o rascunho ou publicar. Antes disso, vamos verificar o catálogo e escolher quais produtos entram.
           </p>
@@ -1403,7 +1403,7 @@ function TelaInicioCriacaoLoja({
         {produtosDestaque.length > 0 && (
           <div className="mx-auto flex max-w-lg flex-wrap justify-center gap-2">
             {produtosDestaque.slice(0, 4).map((produto) => (
-              <span key={produto.id} className="inline-flex items-center gap-2 rounded-full border border-border/70 bg-white px-3 py-1.5 text-xs font-medium text-neutral-700">
+              <span key={produto.id} className="inline-flex items-center gap-2 border border-border/70 bg-card px-3 py-1 text-xs font-medium text-muted-foreground">
                 <Package size={13} />
                 {produto.nome}
               </span>
@@ -1467,7 +1467,7 @@ function StudioMarketPanel({
           <ResumoCompacto titulo="Categorias" valor={marketStudio?.categorias.length ?? 0} detalhe="globais" tom="neutro" />
         </div>
 
-        <div className="bz-market-studio-table mt-4 overflow-hidden rounded-xl border border-border/60 bg-background">
+        <div className="bz-market-studio-table mt-4 overflow-hidden border border-border/60 bg-background">
           {itens.length ? (
             <div className="overflow-x-auto">
               <table className="w-full min-w-[720px] text-sm">
@@ -1497,7 +1497,7 @@ function StudioMarketPanel({
                         {item.pendencias.length ? (
                           <span className="text-xs text-muted-foreground">{item.pendencias.join(", ")}</span>
                         ) : (
-                          <span className="text-xs text-emerald-700">Sem pendências</span>
+                          <span className="text-xs text-success">Sem pendências</span>
                         )}
                       </td>
                       <td className="px-3 py-3 text-right">
@@ -1566,9 +1566,9 @@ function StudioSeguidoresPanel() {
         <ResumoCompacto titulo="Market" valor={seguidores.filter((s) => s.origem === "market").length} detalhe="do Market" tom="neutro" />
       </div>
 
-      {erro && <div className="text-sm text-red-600 mb-3">{erro}</div>}
+      {erro && <div className="text-sm text-destructive mb-3">{erro}</div>}
 
-      <div className="overflow-hidden rounded-xl border border-border/60 bg-background">
+      <div className="overflow-hidden border border-border/60 bg-background">
         {carregando ? (
           <div className="flex items-center justify-center py-12 text-muted-foreground text-sm">A carregar seguidores...</div>
         ) : seguidores.length > 0 ? (
@@ -1644,7 +1644,7 @@ function StudioMetricasPanel() {
   if (erro) {
     return (
       <CrmSection icon={<MousePointerClick size={20} />} title="Métricas" description={erro}>
-        <div className="text-sm text-red-600">{erro}</div>
+        <div className="text-sm text-destructive">{erro}</div>
       </CrmSection>
     );
   }
@@ -1670,7 +1670,7 @@ function StudioMetricasPanel() {
       </div>
 
       {metricas?.tracking && (
-        <div className="rounded-xl border border-border/60 bg-background p-4">
+        <div className="border border-border/60 bg-background p-4">
           <h3 className="text-sm font-semibold text-foreground mb-2">Tracking público</h3>
           <p className="text-xs text-muted-foreground">
             Dados de visitação e interação com a loja pública. Os eventos são registados automaticamente quando visitantes navegam no perfil e nos produtos.
@@ -2140,7 +2140,7 @@ function AbaCriarLoja({
           <ResumoCompacto titulo="A rever" valor={catalogo.produtosSemStock + catalogo.produtosBaixoStock} detalhe="stock ou estado" tom={catalogo.produtosSemStock || catalogo.produtosBaixoStock ? "atencao" : "neutro"} />
         </div>
 
-        <div className="mt-4 grid gap-3 rounded-lg border border-border/60 bg-background p-3">
+        <div className="mt-4 grid gap-3 border border-border/60 bg-background p-3">
           <StatusLinha
             pronto={temVendaveis}
             texto={temVendaveis ? "Produtos vendáveis entram automaticamente quando a loja for criada." : "Ainda não há produtos prontos para aparecer na loja."}
@@ -2220,14 +2220,14 @@ function ModalInicioCriacao({
             <ResumoCompacto titulo="Bloqueados" valor={catalogo.produtosSemStock} detalhe="sem stock" tom={catalogo.produtosSemStock ? "perigo" : "neutro"} />
           </div>
 
-          <section className="grid gap-2 rounded-xl border border-border/60 bg-muted/30 p-3 animate-in fade-in slide-in-from-bottom-2">
+          <section className="grid gap-2 border border-border/60 bg-muted/30 p-3 animate-in fade-in slide-in-from-bottom-2">
             <div className="flex items-start gap-3">
-              <span className="grid size-9 place-items-center rounded-lg bg-background text-foreground">
+              <span className="grid size-9 place-items-center bg-background text-foreground">
                 <PackageCheck size={18} />
               </span>
               <div className="min-w-0 flex-1">
                 <h3 className="text-sm font-semibold text-foreground">Produtos da loja</h3>
-                <p className="mt-0.5 text-xs leading-5 text-muted-foreground">
+                <p className="mt-1 text-xs leading-5 text-muted-foreground">
                   Produtos disponíveis e com stock entram automaticamente na loja criada. Produtos esgotados ficam fora até serem corrigidos.
                 </p>
               </div>
@@ -2236,7 +2236,7 @@ function ModalInicioCriacao({
             {produtosDestaque.length ? (
               <div className="grid gap-2">
                 {produtosDestaque.slice(0, 3).map((peca) => (
-                  <div key={peca.id} className="flex items-center gap-3 rounded-lg border border-border/60 bg-background p-2">
+                  <div key={peca.id} className="flex items-center gap-3 border border-border/60 bg-background p-2">
                     <span className="grid size-10 place-items-center overflow-hidden rounded-lg bg-muted">
                       {peca.fotos?.[0] ? <img src={resolverUrlMedia(peca.fotos[0])} alt="" className="h-full w-full object-cover" /> : <Package size={16} />}
                     </span>
@@ -2331,13 +2331,13 @@ function PassoIdentidade({
                 key={paleta.id}
                 type="button"
                 onClick={() => atualizarSecao("tema", { corPrimaria: paleta.primaria })}
-                className={`rounded-xl border p-3 text-left transition-all ${
-                  ativa ? "border-foreground bg-foreground text-background shadow-sm" : "border-border/70 bg-background hover:bg-muted/50"
+                className={`border p-3 text-left transition-all ${
+                  ativa ? "border-foreground bg-foreground text-background ring-1 ring-foreground/40" : "border-border/70 bg-background hover:bg-muted/50"
                 }`}
               >
-                <span className="flex gap-1.5">
+                <span className="flex gap-2">
                   {[paleta.primaria, paleta.secundaria, paleta.acento].map((cor) => (
-                    <span key={cor} className="size-6 rounded-full border border-black/10" style={{ backgroundColor: cor }} />
+                    <span key={cor} className="size-6 border border-black/10" style={{ backgroundColor: cor }} />
                   ))}
                 </span>
                 <strong className="mt-3 block text-sm">{paleta.nome}</strong>
@@ -2348,14 +2348,14 @@ function PassoIdentidade({
         </div>
 
         <div className="grid gap-3 md:grid-cols-[.9fr_1.1fr]">
-          <div className="rounded-xl border border-border/60 p-3">
+          <div className="border border-border/60 p-3">
             <span className="text-sm font-medium text-foreground">Paleta selecionada</span>
-            <div className="mt-3 overflow-hidden rounded-xl border border-border/60">
+            <div className="mt-3 overflow-hidden border border-border/60">
               <div className="h-16" style={{ background: `linear-gradient(135deg, ${paletaAtual.primaria}, ${paletaAtual.acento})` }} />
               <div className="grid gap-2 p-3" style={{ backgroundColor: paletaAtual.secundaria }}>
                 <strong className="text-sm text-foreground">{form.identidade.nomeComercial || "Nome da loja"}</strong>
-                <span className="h-2 w-2/3 rounded-full bg-black/15" />
-                <span className="h-2 w-1/2 rounded-full bg-black/10" />
+                <span className="h-2 w-2/3 bg-black/15" />
+                <span className="h-2 w-1/2 bg-black/10" />
               </div>
             </div>
           </div>
@@ -2376,7 +2376,7 @@ function PassoIdentidade({
           <CampoUploadFoto id="capaUrl" label="Imagem de capa" value={form.tema.capaUrl} onChange={(valor) => atualizarSecao("tema", { capaUrl: valor })} purpose="lojas" aspecto="paisagem" />
         </div>
         {urlPublica && (
-          <div className="flex flex-wrap items-center gap-2 rounded-lg border border-border/60 bg-muted/40 p-3">
+          <div className="flex flex-wrap items-center gap-2 border border-border/60 bg-muted/40 p-3">
             <span className="min-w-0 flex-1 truncate text-sm text-muted-foreground">{urlPublica}</span>
             <Button variant="outline" size="sm" onClick={copiarLink}>
               <Copy size={14} />
@@ -2524,7 +2524,7 @@ function EditorExperienciaLoja({
               key={modo.id}
               type="button"
               onClick={() => atualizarExperiencia({ modoNegocio: modo.id })}
-              className={`rounded-lg border p-3 text-left transition-colors ${
+              className={`border p-3 text-left transition-colors ${
                 form.experiencia.modoNegocio === modo.id
                   ? "border-foreground bg-foreground text-background"
                   : "border-border/70 bg-background hover:bg-muted/60"
@@ -2587,7 +2587,7 @@ function EditorExperienciaLoja({
                       <button
                         type="button"
                         onClick={() => alternarOculta(nome, !estaOculta)}
-                        className={`flex items-center gap-1 text-xs ${estaOculta ? "text-warning-foreground" : "text-muted-foreground hover:text-foreground"}`}
+                        className={`flex items-center gap-1 text-xs ${estaOculta ? "text-warning" : "text-muted-foreground hover:text-foreground"}`}
                       >
                         {estaOculta ? <><EyeOff size={13} /> Oculta</> : <><Eye size={13} /> Visível</>}
                       </button>
@@ -2652,12 +2652,12 @@ function EditorExperienciaLoja({
           onChange={(valor) => atualizarExperiencia({ tabelaMedidasTexto: valor })}
           rows={5}
         />
-        <div className="rounded-lg border border-border/60 bg-muted/30 p-3">
+        <div className="border border-border/60 bg-muted/30 p-3">
           <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Prévia interpretada</span>
           {linhasMedidas.length ? (
             <div className="mt-3 grid gap-2">
               {linhasMedidas.slice(0, 4).map((linha) => (
-                <div key={linha.tamanho} className="grid grid-cols-4 gap-2 rounded-lg bg-background px-3 py-2 text-xs">
+                <div key={linha.tamanho} className="grid grid-cols-4 gap-2 bg-background px-3 py-2 text-xs">
                   <strong>{linha.tamanho}</strong>
                   <span>{linha.busto || "-"}</span>
                   <span>{linha.cintura || "-"}</span>
@@ -2734,7 +2734,7 @@ function EditorCatalogosPersonalizados({
   }
 
   return (
-    <div className="rounded-xl border border-border/60 bg-muted/25 p-3">
+    <div className="border border-border/60 bg-muted/25 p-3">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <span className="text-sm font-semibold text-foreground">Catálogos personalizados</span>
@@ -2756,15 +2756,15 @@ function EditorCatalogosPersonalizados({
           onChange={onChange}
           rows={5}
         />
-        <div className="rounded-lg border border-border/60 bg-background p-3">
+        <div className="border border-border/60 bg-background p-3">
           <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Prévia dos blocos</span>
           {catalogos.length ? (
             <div className="mt-3 grid gap-2">
               {catalogos.slice(0, 5).map((catalogo) => (
-                <div key={catalogo.id} className="rounded-lg border border-border/60 p-3">
+                <div key={catalogo.id} className="border border-border/60 p-3">
                   <div className="flex items-center justify-between gap-2">
                     <strong className="truncate text-sm text-foreground">{catalogo.nome}</strong>
-                    <Badge variant="outline" className="rounded-md">{catalogo.criterio}</Badge>
+                    <Badge variant="outline">{catalogo.criterio}</Badge>
                   </div>
                   <p className="mt-1 line-clamp-2 text-xs leading-5 text-muted-foreground">
                     {catalogo.valor ? `${catalogo.valor} · ` : ""}{catalogo.descricao || "Sem descrição"}
@@ -2928,7 +2928,7 @@ function PassoOperacaoLoja({
           detail="Quando uma função estiver bloqueada, o admin explica o benefício e leva ao plano certo."
           onChange={(checked) => atualizarOperacao("plano", { upgradeContextual: checked })}
         />
-        <div className="grid gap-2 rounded-lg border border-border/60 bg-muted/30 p-3">
+        <div className="grid gap-2 border border-border/60 bg-muted/30 p-3">
           <span className="text-sm font-semibold text-foreground">Quotas de uso</span>
           <p className="text-xs leading-5 text-muted-foreground">Encomendas, imagens, WhatsApp e email ficam visíveis para o dono da loja antes de chegar ao limite.</p>
         </div>
@@ -3050,7 +3050,7 @@ function PassoOperacaoLoja({
               key={opcao.id}
               type="button"
               onClick={() => atualizarOperacao("fidelizacao", { acessoLoja: opcao.id })}
-              className={`rounded-lg border p-3 text-left transition-colors ${
+              className={`border p-3 text-left transition-colors ${
                 form.operacao.fidelizacao.acessoLoja === opcao.id
                   ? "border-foreground bg-foreground text-background"
                   : "border-border/70 bg-background hover:bg-muted/60"
@@ -3164,7 +3164,7 @@ function PassoOperacaoLoja({
       <BlocoFormulario icon={<Link2 size={18} />} title="Canais conectados" detail="Selecione as origens que a loja deve medir e encaminhar para as áreas certas do CRM.">
         <div className="grid gap-3 md:grid-cols-2">
           {canaisLojaDigital.map((canal) => (
-            <div key={canal.id} className="grid gap-2 rounded-lg border border-border/70 bg-background p-3">
+            <div key={canal.id} className="grid gap-2 border border-border/70 bg-background p-3">
               <OpcaoMarcavel
                 checked={form.operacao.canais[canal.id]}
                 title={canal.titulo}
@@ -3353,7 +3353,7 @@ function PassoPublicar({
         />
 
         {urlPublica ? (
-          <div className="flex flex-wrap items-center gap-2 rounded-lg border border-border/60 bg-muted/40 p-3">
+          <div className="flex flex-wrap items-center gap-2 border border-border/60 bg-muted/40 p-3">
             <span className="min-w-0 flex-1 truncate text-sm text-muted-foreground">{urlPublica}</span>
             <Button variant="outline" size="sm" onClick={copiarLink}>
               <Copy size={14} />
@@ -3479,12 +3479,12 @@ function BlocoFormulario({
   title: string;
 }) {
   return (
-    <section className="grid gap-4 rounded-xl border border-border/60 bg-card p-4">
+    <section className="grid gap-4 border border-border/60 bg-card p-4">
       <header className="flex items-start gap-3">
-        <span className="grid size-9 place-items-center rounded-lg bg-muted text-foreground">{icon}</span>
+        <span className="grid size-9 place-items-center bg-muted text-foreground">{icon}</span>
         <div className="min-w-0">
           <h3 className="font-heading text-base font-semibold text-foreground">{title}</h3>
-          <p className="mt-0.5 text-xs leading-5 text-muted-foreground">{detail}</p>
+          <p className="mt-1 text-xs leading-5 text-muted-foreground">{detail}</p>
         </div>
       </header>
       <div className="grid gap-3">{children}</div>
@@ -3510,7 +3510,7 @@ function CampoTexto({
   return (
     <label className="grid gap-2 text-sm font-medium text-foreground" htmlFor={id}>
       {label}
-      <div className="flex overflow-hidden rounded-lg border border-input bg-background focus-within:ring-3 focus-within:ring-ring/30">
+      <div className="flex overflow-hidden border border-input bg-background focus-within:ring-3 focus-within:ring-ring/30">
         {prefixo && <span className="hidden items-center border-r bg-muted px-3 text-xs text-muted-foreground sm:flex">{prefixo}</span>}
         <Input
           id={id}
@@ -3582,7 +3582,7 @@ function OpcaoMarcavel({
   title: string;
 }) {
   return (
-    <label className={`flex cursor-pointer items-start gap-3 rounded-lg border p-3 transition-colors ${checked ? "border-foreground bg-foreground text-background" : "border-border/70 bg-background hover:bg-muted/60"}`}>
+    <label className={`flex cursor-pointer items-start gap-3 border p-3 transition-colors ${checked ? "border-foreground bg-foreground text-background" : "border-border/70 bg-background hover:bg-muted/60"}`}>
       <Checkbox checked={checked} onCheckedChange={(valor) => onChange(valor === true)} className={checked ? "border-background data-checked:bg-background data-checked:text-foreground" : ""} />
       <span className="min-w-0">
         <span className="block text-sm font-medium">{title}</span>
@@ -3612,7 +3612,7 @@ function ResumoCompacto({
   } satisfies Record<typeof tom, string>;
 
   return (
-    <div className={`rounded-lg border p-3 ${classes[tom]}`}>
+    <div className={`border p-3 ${classes[tom]}`}>
       <span className="block text-xs font-medium opacity-80">{titulo}</span>
       <strong className="mt-1 block truncate text-xl font-semibold tabular-nums text-foreground">{valor}</strong>
       <small className="mt-1 block truncate text-xs opacity-80">{detalhe}</small>
@@ -3622,7 +3622,7 @@ function ResumoCompacto({
 
 function StatusLinha({ pronto, texto }: { pronto: boolean; texto: string }) {
   return (
-    <div className="flex items-center gap-2 rounded-lg border border-border/60 bg-background px-3 py-2 text-sm">
+    <div className="flex items-center gap-2 border border-border/60 bg-background px-3 py-2 text-sm">
       {pronto ? <CheckCircle2 className="text-success" size={16} /> : <XCircle className="text-warning" size={16} />}
       <span className="min-w-0 flex-1 text-foreground">{texto}</span>
     </div>
@@ -3641,8 +3641,8 @@ function AtalhoOperacional({
   to: string;
 }) {
   return (
-    <Link to={to} className="group flex items-center gap-3 rounded-lg border border-border/60 bg-background p-3 transition-colors hover:border-foreground/40 hover:bg-muted/50">
-      <span className="grid size-9 place-items-center rounded-lg bg-muted text-foreground">{icon}</span>
+    <Link to={to} className="group flex items-center gap-3 border border-border/60 bg-background p-3 transition-colors hover:border-foreground/40 hover:bg-muted/50">
+      <span className="grid size-9 place-items-center bg-muted text-foreground">{icon}</span>
       <span className="min-w-0 flex-1">
         <span className="block truncate text-sm font-medium text-foreground">{title}</span>
         <span className="block truncate text-xs text-muted-foreground">{detail}</span>

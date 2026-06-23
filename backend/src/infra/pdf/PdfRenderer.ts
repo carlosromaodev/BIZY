@@ -78,8 +78,18 @@ export async function renderPdfFromHtml(html: string, options: OpcoesRenderPdf =
 }
 
 async function getPdfBrowser() {
+  const launchOpts: Parameters<typeof chromium.launch>[0] = {
+    headless: true,
+    args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-gpu", "--disable-dev-shm-usage"]
+  };
+
+  // Em Alpine/containers sem o browser do Playwright, usar chromium do sistema
+  if (process.env.CHROMIUM_EXECUTABLE_PATH) {
+    launchOpts.executablePath = process.env.CHROMIUM_EXECUTABLE_PATH;
+  }
+
   if (!browserPromise) {
-    browserPromise = chromium.launch({ headless: true });
+    browserPromise = chromium.launch(launchOpts);
   }
 
   try {
@@ -89,7 +99,7 @@ async function getPdfBrowser() {
     // A promessa anterior pode ter falhado por falta de browser ou encerramento externo.
   }
 
-  browserPromise = chromium.launch({ headless: true });
+  browserPromise = chromium.launch(launchOpts);
   return browserPromise;
 }
 

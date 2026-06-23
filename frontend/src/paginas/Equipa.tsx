@@ -4,12 +4,15 @@ import {
   Clock,
   Crown,
   Mail,
+  MessageSquare,
   Phone,
   Plus,
   RefreshCcw,
   Send,
   Shield,
+  Target,
   Trash2,
+  TrendingUp,
   UserMinus,
   UserPlus,
   Users,
@@ -46,9 +49,11 @@ import type {
   RespostaConvites,
   ActividadeFeed,
   RespostaFeed,
+  DesempenhoMembro,
+  RespostaDesempenho,
 } from "../tipos";
 
-type TabEquipa = "membros" | "convites" | "actividade";
+type TabEquipa = "membros" | "convites" | "actividade" | "desempenho";
 
 export function PaginaEquipa() {
   const [tabActiva, setTabActiva] = useState<TabEquipa>("membros");
@@ -56,6 +61,7 @@ export function PaginaEquipa() {
   const [papeis, setPapeis] = useState<PapelNegocio[]>([]);
   const [convites, setConvites] = useState<ConviteEquipa[]>([]);
   const [feed, setFeed] = useState<ActividadeFeed[]>([]);
+  const [desempenho, setDesempenho] = useState<RespostaDesempenho | null>(null);
   const [carregando, setCarregando] = useState(true);
   const [mostrarForm, setMostrarForm] = useState(false);
 
@@ -67,16 +73,18 @@ export function PaginaEquipa() {
   async function carregar() {
     setCarregando(true);
     try {
-      const [rm, rp, rc, rf] = await Promise.allSettled([
+      const [rm, rp, rc, rf, rd] = await Promise.allSettled([
         requisitarApi<RespostaMembros>("/negocio/membros"),
         requisitarApi<RespostaPapeis>("/negocio/papeis"),
         requisitarApi<RespostaConvites>("/equipa/convites"),
         requisitarApi<RespostaFeed>("/equipa/feed"),
+        requisitarApi<RespostaDesempenho>("/equipa/desempenho"),
       ]);
       setMembros(rm.status === "fulfilled" ? rm.value.membros : []);
       setPapeis(rp.status === "fulfilled" ? rp.value.papeis : []);
       setConvites(rc.status === "fulfilled" ? rc.value.convites : []);
       setFeed(rf.status === "fulfilled" ? rf.value.actividades : []);
+      setDesempenho(rd.status === "fulfilled" ? rd.value : null);
     } catch { /* silencioso */ }
     finally { setCarregando(false); }
   }
@@ -126,6 +134,7 @@ export function PaginaEquipa() {
 
   const tabs = [
     { id: "membros" as const, rotulo: "Membros", contagem: membros.length },
+    { id: "desempenho" as const, rotulo: "Desempenho", contagem: desempenho?.ranking.length ?? 0 },
     { id: "convites" as const, rotulo: "Convites", contagem: convitesPendentes },
     { id: "actividade" as const, rotulo: "Actividade", contagem: feed.length },
   ];
@@ -344,6 +353,72 @@ export function PaginaEquipa() {
         </>
       )}
 
+      {/* ── Tab Desempenho ───────────────────────────────────── */}
+      {tabActiva === "desempenho" && desempenho && (
+        <>
+          <KpiGrid>
+            <KpiCard hero icone={TrendingUp} rotulo="Receita equipa" valor={formatarKz(desempenho.totais.receitaTotal)} delta={`${desempenho.totais.totalVendas} pedido${desempenho.totais.totalVendas !== 1 ? "s" : ""}`} deltaPositivo />
+            <KpiCard icone={MessageSquare} cor="blue" rotulo="Conversas" valor={desempenho.totais.totalConversas} />
+            <KpiCard icone={Target} cor="green" rotulo="Tarefas concluídas" valor={desempenho.totais.tarefasConcluidas} delta={`de ${desempenho.totais.totalTarefas}`} deltaPositivo={desempenho.totais.tarefasConcluidas > 0} />
+          </KpiGrid>
+
+          <TableCard>
+            <Table>
+              <TableHead>
+                <Th>#</Th>
+                <Th>Membro</Th>
+                <Th>Vendas</Th>
+                <Th>Receita</Th>
+                <Th>Conversão</Th>
+                <Th>Conversas</Th>
+                <Th>Tarefas</Th>
+              </TableHead>
+              <tbody>
+                {desempenho.ranking.length > 0 ? desempenho.ranking.map((m) => (
+                  <tr key={m.membroId}>
+                    <Td>
+                      <span className="bz-eq-rank">{m.posicao === 1 ? "🥇" : m.posicao === 2 ? "🥈" : m.posicao === 3 ? "🥉" : m.posicao}</span>
+                    </Td>
+                    <Td>
+                      <div className="bz-cli">
+                        <AvatarBizy iniciais={obterIniciais(m.nome)} cor={obterCorAvatar(m.nome)} tamanho={34} />
+                        <div>
+                          <div className="bz-cli-name">{m.nome}</div>
+                          <div className="bz-cli-at">{m.papel}</div>
+                        </div>
+                      </div>
+                    </Td>
+                    <Td><strong>{m.kpis.totalVendas}</strong></Td>
+                    <Td>{formatarKz(m.kpis.receitaTotal)}</Td>
+                    <Td>
+                      <StatusBadge cor={m.kpis.taxaConversao >= 70 ? "green" : m.kpis.taxaConversao >= 40 ? "amber" : "mute"}>
+                        {m.kpis.taxaConversao}%
+                      </StatusBadge>
+                    </Td>
+                    <Td>{m.kpis.conversasResolvidas}/{m.kpis.totalConversas}</Td>
+                    <Td>{m.kpis.tarefasConcluidas}/{m.kpis.totalTarefas}</Td>
+                  </tr>
+                )) : (
+                  <tr>
+                    <td colSpan={7} className="bz-feed-empty">
+                      Sem dados de desempenho para o período.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </Table>
+          </TableCard>
+        </>
+      )}
+
+      {tabActiva === "desempenho" && !desempenho && (
+        <PanelCard titulo="Desempenho">
+          <div className="bz-feed-empty">
+            {carregando ? "A carregar dados de desempenho..." : "Sem dados de desempenho disponíveis."}
+          </div>
+        </PanelCard>
+      )}
+
       {/* ── Tab Actividade ─────────────────────────────────────── */}
       {tabActiva === "actividade" && (
         <PanelCard titulo="Feed de actividade">
@@ -412,4 +487,10 @@ function iconeActividade(tipo: string) {
   if (tipo === "MEMBRO_DESATIVADO") return <XCircle size={14} />;
   if (tipo === "NOTA_CRIADA") return <Activity size={14} />;
   return <Clock size={14} />;
+}
+
+function formatarKz(valor: number): string {
+  if (valor >= 1_000_000) return `${(valor / 1_000_000).toFixed(1)}M Kz`;
+  if (valor >= 1_000) return `${(valor / 1_000).toFixed(0)}k Kz`;
+  return `${valor} Kz`;
 }

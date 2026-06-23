@@ -527,6 +527,17 @@ model Negocio {
   mascaramentosDados    MascaramentoDados[]
   configuracaoGamificacao ConfiguracaoGamificacao?
   rankingsEquipa        RankingEquipa[]
+  facturas              Factura[]
+  notasCredito          NotaCredito[]
+  metasVendas           MetaVendas[]
+  turnosMembros         TurnoMembro[]
+  registosPresenca      RegistoPresenca[]
+  categoriasFinanceiras CategoriaFinanceira[]
+  movimentosFinanceiros MovimentoFinanceiro[]
+  despesas              Despesa[]
+  contasReceber         ContaReceber[]
+  contasPagar           ContaPagar[]
+  orcamentos            OrcamentoPeriodo[]
 
   @@index([nomeComercial])
   @@index([slugPublico])
@@ -995,6 +1006,9 @@ model MembroNegocio {
 
   checklistOnboarding ChecklistOnboarding[]
   rankings            RankingEquipa[]
+  metas               MetaVendas[]
+  turnos              TurnoMembro[]
+  registosPresenca    RegistoPresenca[]
 
   @@unique([negocioId, usuarioId])
   @@index([usuarioId])
@@ -1500,4 +1514,248 @@ model RankingEquipa {
 
   @@index([negocioId, periodo, kpi, criadoEm])
   @@index([membroId, criadoEm])
+}
+
+// ── Fase 1 BIZY Team — Finanças Core ─────────────────────────────────────
+
+model CategoriaFinanceira {
+  id          String   @id @default(uuid())
+  negocioId   String
+  negocio     Negocio  @relation(fields: [negocioId], references: [id])
+  nome        String
+  tipo        String   @default("DESPESA") // RECEITA | DESPESA
+  icone       String?
+  cor         String?
+  ativo       Boolean  @default(true)
+  criadoEm    DateTime @default(now())
+  atualizadoEm DateTime @updatedAt
+
+  movimentos  MovimentoFinanceiro[]
+  despesas    Despesa[]
+  orcamentos  OrcamentoPeriodo[]
+
+  @@unique([negocioId, nome])
+  @@index([negocioId, tipo])
+}
+
+model MovimentoFinanceiro {
+  id              String   @id @default(uuid())
+  negocioId       String
+  negocio         Negocio  @relation(fields: [negocioId], references: [id])
+  tipo            String   // ENTRADA | SAIDA
+  categoriaId     String?
+  categoria       CategoriaFinanceira? @relation(fields: [categoriaId], references: [id])
+  descricao       String
+  valor           Int      // em kwanza (centavos evitados — usa inteiro)
+  origemTipo      String?  // PEDIDO | COMISSAO | DESPESA | MANUAL | REEMBOLSO
+  origemId        String?
+  responsavelId   String?
+  dataMovimento   DateTime @default(now())
+  reconciliado    Boolean  @default(false)
+  observacao      String?
+  criadoEm        DateTime @default(now())
+  atualizadoEm    DateTime @updatedAt
+
+  @@index([negocioId, tipo, dataMovimento])
+  @@index([negocioId, categoriaId, dataMovimento])
+  @@index([negocioId, reconciliado])
+  @@index([origemTipo, origemId])
+}
+
+model Despesa {
+  id              String   @id @default(uuid())
+  negocioId       String
+  negocio         Negocio  @relation(fields: [negocioId], references: [id])
+  categoriaId     String?
+  categoria       CategoriaFinanceira? @relation(fields: [categoriaId], references: [id])
+  descricao       String
+  valor           Int
+  tipoRecorrencia String   @default("UNICA") // UNICA | SEMANAL | MENSAL
+  fornecedor      String?
+  comprovativoUrl String?
+  dataVencimento  DateTime?
+  pago            Boolean  @default(false)
+  pagoEm          DateTime?
+  observacao      String?
+  criadoEm        DateTime @default(now())
+  atualizadoEm    DateTime @updatedAt
+
+  @@index([negocioId, pago, dataVencimento])
+  @@index([negocioId, categoriaId])
+  @@index([negocioId, tipoRecorrencia])
+}
+
+model ContaReceber {
+  id              String   @id @default(uuid())
+  negocioId       String
+  negocio         Negocio  @relation(fields: [negocioId], references: [id])
+  clienteId       String?
+  pedidoId        String?
+  descricao       String
+  valor           Int
+  dataVencimento  DateTime
+  estado          String   @default("A_VENCER") // A_VENCER | VENCIDO | PAGO | CANCELADO
+  pagoEm          DateTime?
+  valorPago       Int?
+  observacao      String?
+  criadoEm        DateTime @default(now())
+  atualizadoEm    DateTime @updatedAt
+
+  @@index([negocioId, estado, dataVencimento])
+  @@index([negocioId, clienteId])
+}
+
+model ContaPagar {
+  id              String   @id @default(uuid())
+  negocioId       String
+  negocio         Negocio  @relation(fields: [negocioId], references: [id])
+  fornecedor      String
+  descricao       String
+  valor           Int
+  dataVencimento  DateTime
+  estado          String   @default("A_VENCER") // A_VENCER | VENCIDO | PAGO
+  pagoEm          DateTime?
+  observacao      String?
+  criadoEm        DateTime @default(now())
+  atualizadoEm    DateTime @updatedAt
+
+  @@index([negocioId, estado, dataVencimento])
+}
+
+model OrcamentoPeriodo {
+  id              String   @id @default(uuid())
+  negocioId       String
+  negocio         Negocio  @relation(fields: [negocioId], references: [id])
+  categoriaId     String
+  categoria       CategoriaFinanceira @relation(fields: [categoriaId], references: [id])
+  mes             Int      // 1-12
+  ano             Int
+  valorOrcado     Int
+  criadoEm        DateTime @default(now())
+  atualizadoEm    DateTime @updatedAt
+
+  @@unique([negocioId, categoriaId, mes, ano])
+  @@index([negocioId, ano, mes])
+}
+
+// ── Facturação ───────────────────────────────────────────────────────────
+
+model Factura {
+  id                String        @id @default(uuid())
+  negocioId         String
+  negocio           Negocio       @relation(fields: [negocioId], references: [id])
+  pedidoId          String?
+  clienteNome       String
+  clienteNif        String?
+  clienteEndereco   String?
+  serie             String        @default("FT")
+  numero            Int
+  anoFiscal         Int
+  estado            String        @default("EMITIDA") // EMITIDA | ANULADA | CORRIGIDA
+  subtotal          Int
+  ivaPercentual     Float         @default(14)
+  ivaValor          Int           @default(0)
+  total             Int
+  observacao        String?
+  anuladaEm         DateTime?
+  motivoAnulacao    String?
+  emitidaEm         DateTime      @default(now())
+  criadoEm          DateTime      @default(now())
+  atualizadoEm      DateTime      @updatedAt
+
+  itens             ItemFactura[]
+  notasCredito      NotaCredito[]
+
+  @@unique([negocioId, serie, numero, anoFiscal])
+  @@index([negocioId, estado, emitidaEm])
+  @@index([negocioId, pedidoId])
+}
+
+model ItemFactura {
+  id                String   @id @default(uuid())
+  facturaId         String
+  factura           Factura  @relation(fields: [facturaId], references: [id], onDelete: Cascade)
+  descricao         String
+  quantidade        Int
+  precoUnitario     Int
+  subtotal          Int
+  ivaPercentual     Float    @default(14)
+  ivaValor          Int      @default(0)
+  criadoEm          DateTime @default(now())
+
+  @@index([facturaId])
+}
+
+model NotaCredito {
+  id              String   @id @default(uuid())
+  negocioId       String
+  negocio         Negocio  @relation(fields: [negocioId], references: [id])
+  facturaId       String
+  factura         Factura  @relation(fields: [facturaId], references: [id])
+  numero          Int
+  anoFiscal       Int
+  motivo          String
+  valor           Int
+  estado          String   @default("EMITIDA") // EMITIDA | ANULADA
+  emitidaEm       DateTime @default(now())
+  criadoEm        DateTime @default(now())
+  atualizadoEm    DateTime @updatedAt
+
+  @@unique([negocioId, numero, anoFiscal])
+  @@index([negocioId, facturaId])
+}
+
+// ── Metas de Vendas (Fase 2) ─────────────────────────────────────────────
+
+model MetaVendas {
+  id              String   @id @default(uuid())
+  negocioId       String
+  negocio         Negocio  @relation(fields: [negocioId], references: [id])
+  membroId        String?
+  membro          MembroNegocio? @relation(fields: [membroId], references: [id])
+  tipo            String   @default("INDIVIDUAL") // INDIVIDUAL | EQUIPA
+  kpi             String   @default("VENDAS_VALOR") // VENDAS_VALOR | VENDAS_QTD | CONVERSAO
+  periodo         String   @default("MENSAL") // DIARIO | SEMANAL | MENSAL
+  valorMeta       Int
+  mes             Int?     // 1-12
+  ano             Int?
+  criadoEm        DateTime @default(now())
+  atualizadoEm    DateTime @updatedAt
+
+  @@index([negocioId, tipo, periodo])
+  @@index([membroId, periodo])
+}
+
+// ── Turnos e Presença (Fase 2) ──────────────────────────────────────────
+
+model TurnoMembro {
+  id              String   @id @default(uuid())
+  negocioId       String
+  negocio         Negocio  @relation(fields: [negocioId], references: [id])
+  membroId        String
+  membro          MembroNegocio @relation(fields: [membroId], references: [id])
+  diaSemana       Int      // 0=Dom, 1=Seg, ..., 6=Sab
+  horaInicio      String   // "08:00"
+  horaFim         String   // "17:00"
+  activo          Boolean  @default(true)
+  criadoEm        DateTime @default(now())
+  atualizadoEm    DateTime @updatedAt
+
+  @@unique([membroId, diaSemana])
+  @@index([negocioId, diaSemana])
+}
+
+model RegistoPresenca {
+  id              String    @id @default(uuid())
+  negocioId       String
+  negocio         Negocio   @relation(fields: [negocioId], references: [id])
+  membroId        String
+  membro          MembroNegocio @relation(fields: [membroId], references: [id])
+  tipo            String    @default("CHECK_IN") // CHECK_IN | CHECK_OUT
+  registadoEm     DateTime  @default(now())
+  metodo          String    @default("MANUAL") // MANUAL | WHATSAPP | AUTOMATICO
+  observacao      String?
+
+  @@index([negocioId, membroId, registadoEm])
+  @@index([negocioId, registadoEm])
 }

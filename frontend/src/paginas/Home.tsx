@@ -60,10 +60,10 @@ const beneficiosPrincipais = [
   { icone: Users, titulo: "CRM e gestão de clientes", texto: "Cada cliente com histórico de compras, conversas, notas e tags. Funil de vendas, pipeline comercial, score de fiabilidade e perfil enriquecido automaticamente.", tom: "violeta" as const },
   { icone: MessageCircle, titulo: "Inbox omnicanal", texto: "WhatsApp, Instagram e TikTok — todas as conversas num único inbox. Respostas rápidas, sequências automáticas e histórico completo por cliente.", tom: "ambar" as const },
   { icone: Zap, titulo: "Lives que vendem sozinhas", texto: "Cada comentário com palavra-chave vira pedido automático. Stock actualizado em tempo real, checkout preparado e notificação ao comprador — tu focas na câmara.", tom: "rosa" as const },
-  { icone: CreditCard, titulo: "Pagamentos e logística", texto: "Transferência, cash na entrega ou gateway. Comprovativo, rastreio de entrega e notificações automáticas. Reembolsos parciais ou totais com auditoria completa.", tom: "azul" as const },
+  { icone: CreditCard, titulo: "Finanças e facturação", texto: "Contas a receber e pagar, cobranças automáticas, risco de inadimplência por cliente, priorização de pagamentos e orçamento mensal. Facturação com recibos PDF.", tom: "azul" as const },
   { icone: Link2, titulo: "Afiliados e parcerias", texto: "Cria links rastreáveis, recruta parceiros e define comissões automáticas por venda. Cada conversão atribuída ao parceiro certo com relatório detalhado.", tom: "verde" as const },
-  { icone: BarChart3, titulo: "Relatórios e inteligência", texto: "Painel com conversão, recompra, produtos fortes e oportunidades perdidas. Diagnósticos operacionais e painel financeiro com repasses e pendências.", tom: "violeta" as const },
-  { icone: Target, titulo: "Campanhas e recuperação", texto: "Campanhas CRM segmentadas. Playbooks de recuperação para clientes inativos. Metas comerciais, tarefas operacionais e agenda integrada.", tom: "ambar" as const },
+  { icone: BarChart3, titulo: "Inteligência preditiva", texto: "Scoring RFM, alertas de churn VIP, previsão de fluxo de caixa, detecção de anomalias, análise de carga da equipa e funil comercial com sugestões automáticas.", tom: "violeta" as const },
+  { icone: Target, titulo: "Equipa e metas", texto: "Gestão de equipa com turnos, presenças, metas de vendas com alertas, bónus e comissões estimadas. Passagem de turno com resumo automático e feed de actividade.", tom: "ambar" as const },
   { icone: Shield, titulo: "Governança e compliance", texto: "Gestão de módulos por negócio, permissões por papel, auditoria de eventos, contratos de plataforma e denúncias no marketplace. Dados protegidos.", tom: "rosa" as const },
 ];
 
@@ -71,9 +71,9 @@ const modulosPlataforma: { icone: LucideIcon; titulo: string; itens: string[] }[
   { icone: Store, titulo: "Loja digital", itens: ["Catálogo com variantes e stock", "Loja pública com slug", "Colecções manuais e automáticas", "Compra assistida por WhatsApp", "Cupões e promoções", "SEO por loja e produto", "Sistema de seguidores"] },
   { icone: Globe, titulo: "Bizy Market", itens: ["Marketplace multi-loja", "Pesquisa por localização e preço", "Compra unificada multi-fornecedor", "Produtos patrocinados e destaques", "Repasses financeiros automáticos", "Reembolsos parciais e totais", "Denúncias e moderação"] },
   { icone: Users, titulo: "CRM completo", itens: ["Ficha de cliente com histórico", "Fluxo e funil de vendas", "Tags, notas e segmentação", "Score de fiabilidade privado", "Partilha de perfil com consentimento", "Recuperação de clientes inativos", "Playbooks automáticos"] },
-  { icone: MessageCircle, titulo: "Comunicação", itens: ["Inbox WhatsApp integrado", "Instagram Direct via bridge", "Respostas rápidas por canal", "Sequências de mensagens", "Social inbox unificado", "Formulários de contacto", "Atendimento CRM multi-agente"] },
-  { icone: Receipt, titulo: "Pedidos e pagamentos", itens: ["Gestão de pedidos completa", "Compra unificada multi-loja", "IVA e fiscalidade angolana", "Comprovativos e recibos PDF", "Reservas com motor de booking", "Cotações e orçamentos", "Repasses a fornecedores"] },
-  { icone: BarChart3, titulo: "Operação e dados", itens: ["Painel comercial", "Relatórios de conversão", "Diagnósticos operacionais", "Auditoria de eventos", "Metas e tarefas da equipa", "Agenda integrada", "Assistente IA"] },
+  { icone: Receipt, titulo: "Finanças e facturação", itens: ["Contas a receber e pagar", "Cobranças automáticas de vencidos", "Risco de inadimplência por cliente", "Priorização de pagamentos", "Orçamento mensal por categoria", "Recibos e facturas em PDF", "Metas de vendas com comissões"] },
+  { icone: BarChart3, titulo: "Inteligência preditiva", itens: ["Scoring RFM de clientes", "Alertas de churn VIP", "Previsão de fluxo de caixa", "Detecção de anomalias", "Análise de carga da equipa", "Funil comercial com sugestões", "LTV por cliente"] },
+  { icone: CalendarCheck, titulo: "Equipa e operação", itens: ["Turnos e registo de presenças", "Metas com alertas e bónus", "Passagem de turno automática", "Feed de actividade da equipa", "Comissão estimada diária/mensal", "Convites e papéis por membro", "Notas com menções e notificações"] },
 ];
 
 const resultados = [
@@ -105,25 +105,25 @@ const capacidades = [
   "CRM e perfil de cliente",
   "Inbox WhatsApp + Instagram",
   "Lives com captura automática",
-  "Pagamentos e comprovativos",
-  "Logística e rastreio",
+  "Finanças e facturação",
+  "Cobranças automáticas",
   "Checkout multi-loja",
   "Programa de afiliados",
-  "Repasses financeiros",
-  "Reembolsos e disputas",
-  "Reservas e booking",
-  "Campanhas e recuperação",
-  "Fluxo de vendas",
-  "Relatórios comerciais",
-  "Diagnósticos operacionais",
-  "Assistente IA",
+  "Inteligência preditiva",
+  "Scoring RFM e churn",
+  "Previsão de fluxo de caixa",
+  "Turnos e presenças",
+  "Metas com bónus",
+  "Passagem de turno",
+  "Comissões estimadas",
+  "Detecção de anomalias",
   "Gestão de equipa",
-  "Metas e tarefas",
+  "Risco de inadimplência",
   "Auditoria e compliance",
   "SEO e descoberta",
   "Colecções e catálogos",
-  "Cupões e promoções",
-  "Cotações e orçamentos",
+  "Recibos e facturas PDF",
+  "Feed de actividade",
 ];
 
 const canaisVenda = [
@@ -143,12 +143,12 @@ const testemunhos = [
 ];
 
 const perguntasFrequentes: [string, string][] = [
-  ["O Bizy serve apenas para lives?", "De todo. O Bizy é uma plataforma completa de comércio: loja digital, marketplace, CRM, inbox omnicanal, pagamentos, logística, afiliados, campanhas e relatórios. As lives são apenas um dos cinco canais de venda disponíveis."],
+  ["O Bizy serve apenas para lives?", "De todo. O Bizy é uma plataforma completa: loja digital, marketplace, CRM, finanças, inteligência preditiva, gestão de equipa com turnos e metas, facturação PDF, afiliados e relatórios. As lives são apenas um dos canais de venda."],
   ["O que é o Bizy Market?", "É o marketplace integrado onde os teus produtos ficam visíveis a milhares de compradores. Funciona como um shopping digital — o comprador pode comprar de várias lojas num único checkout, com pagamento unificado e repasse automático a cada fornecedor."],
   ["Como funciona o CRM?", "Cada cliente tem uma ficha completa: histórico de compras, conversas, notas privadas, tags e score de fiabilidade. O pipeline de vendas acompanha cada oportunidade. Quando um cliente fica inactivo, o sistema sugere playbooks de recuperação."],
-  ["Que canais de venda tenho?", "Cinco: loja digital com subdomínio, Bizy Market (marketplace), WhatsApp com checkout assistido, Instagram Direct e lives com captura automática de pedidos."],
-  ["Como funcionam os pagamentos?", "Transferência bancária, dinheiro na entrega ou gateway personalizado. O sistema gere comprovativos, recibos PDF, IVA angolano, repasses a fornecedores e reembolsos parciais ou totais — tudo auditável."],
-  ["O que é o programa de afiliados?", "Crias links rastreáveis e recrutas parceiros que promovem os teus produtos. Cada venda gerada por um afiliado é registada com comissão automática e relatório detalhado."],
+  ["O que é a inteligência preditiva?", "O motor analisa os teus dados e gera scoring RFM dos clientes, alertas de churn VIP, previsão de fluxo de caixa com cenários, detecção de anomalias em receitas e despesas, análise de carga da equipa e funil comercial com sugestões."],
+  ["Como funciona a gestão de equipa?", "Crias membros com papéis e permissões, defines turnos e registos de presença, estabeleces metas de vendas com alertas automáticos e bónus por atingimento. O sistema calcula comissões estimadas e gera passagens de turno com resumo."],
+  ["Como funcionam as finanças?", "Contas a receber e pagar, cobranças automáticas de vencidos, risco de inadimplência por cliente, priorização de pagamentos, orçamento mensal por categoria, recibos e facturas em PDF — tudo com auditoria completa."],
   ["Preciso de saber programar?", "Zero código. O assistente guia-te na criação da loja em minutos — nome, produtos, pagamento e publicação."],
   ["Existe plano gratuito?", "Sim. Começas grátis com todas as funcionalidades base. Só passas para plano pago quando precisares de mais."],
   ["Os meus dados estão protegidos?", "Sim. O sistema segue os princípios da Lei 22/11 angolana: dados de clientes são privados por loja, partilha apenas com consentimento, auditoria completa e permissões por papel."],
@@ -165,10 +165,10 @@ const passos = [
 const diferenciais = [
   { icone: Globe, titulo: "Multi-canal nativo", texto: "Não é um plugin — cada canal (loja, market, WhatsApp, Instagram, live) está integrado de raiz." },
   { icone: UserCheck, titulo: "CRM com identidade", texto: "Um cliente, um perfil global. Cada loja tem a sua relação privada — dados protegidos por design." },
-  { icone: Repeat, titulo: "Checkout multi-loja", texto: "O comprador compra de 3 lojas num só pedido. Pagamento unificado, repasse automático." },
+  { icone: BarChart3, titulo: "Inteligência preditiva", texto: "RFM, churn VIP, previsão de caixa e detecção de anomalias — o sistema antecipa problemas antes que aconteçam." },
   { icone: Search, titulo: "Descoberta no Market", texto: "Os teus produtos aparecem a compradores que ainda não te conhecem. SEO, filtros e destaques." },
-  { icone: Palette, titulo: "Loja com a tua marca", texto: "Subdomínio, cores, catálogos, colecções e perfil de redes sociais. A loja é tua." },
-  { icone: BookOpen, titulo: "Tudo auditável", texto: "Eventos, pagamentos, repasses e reembolsos — cada acção fica registada com data e responsável." },
+  { icone: CalendarCheck, titulo: "Equipa organizada", texto: "Turnos, presenças, metas de vendas com bónus, comissões estimadas e passagem de turno com resumo automático." },
+  { icone: ReceiptText, titulo: "Finanças e facturação", texto: "Contas a receber, cobranças automáticas, risco de inadimplência, facturas PDF e orçamento mensal — tudo auditável." },
 ];
 
 /* ═══════════════════════════════════════════════════════════
@@ -281,7 +281,7 @@ export function PaginaHome() {
             initial={rm ? false : { opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.45, delay: 0.08, ease: [0.22, 1, 0.36, 1] }}
-          >Loja + Marketplace + CRM + Inbox + Lives + Pagamentos</motion.p>
+          >Loja + Marketplace + CRM + Finanças + Inteligência + Equipa</motion.p>
 
           <motion.h1
             className="bizy-hero-h1"
@@ -298,7 +298,7 @@ export function PaginaHome() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.22, ease: [0.22, 1, 0.36, 1] }}
           >
-            Loja digital, marketplace, CRM com perfil de cliente, inbox omnicanal, lives com captura automática, checkout multi-loja, afiliados, campanhas, pagamentos com repasse e relatórios — tudo integrado numa única plataforma feita para Angola.
+            Loja digital, marketplace, CRM, finanças com cobranças automáticas, inteligência preditiva, gestão de equipa com turnos e metas, facturação PDF, afiliados e relatórios — tudo integrado numa única plataforma feita para Angola.
           </motion.p>
 
           <motion.div
@@ -404,11 +404,11 @@ export function PaginaHome() {
             <span className="bizy-solution-label"><Sparkles size={14} />Com Bizy</span>
             <ul>
               <li>Cada comentário e mensagem vira pedido automático</li>
-              <li>Checkout com link directo, comprovativo e rastreio</li>
-              <li>Painel financeiro com pagamentos, repasses e reembolsos</li>
-              <li>CRM com perfil completo, pipeline e recuperação</li>
+              <li>Finanças com cobranças automáticas e risco por cliente</li>
+              <li>Inteligência preditiva: churn, RFM, previsão de caixa</li>
+              <li>Equipa com turnos, metas, bónus e passagem de turno</li>
               <li>Loja digital + marketplace com milhares de compradores</li>
-              <li>Afiliados com comissão automática e relatório</li>
+              <li>Facturas e recibos PDF gerados automaticamente</li>
             </ul>
           </Reveal>
         </div>
@@ -420,7 +420,7 @@ export function PaginaHome() {
           <div className="bizy-section-head">
             <span>Plataforma completa</span>
             <h2>Tudo o que o {NOME_PRODUTO} faz <em>por ti</em></h2>
-            <p>Não é só lives e automação. É loja, marketplace, CRM, pagamentos, logística, afiliados, campanhas, relatórios e muito mais.</p>
+            <p>Loja, marketplace, CRM, finanças, inteligência preditiva, gestão de equipa, facturação, afiliados e muito mais — integrado de raiz.</p>
           </div>
         </Reveal>
         <div className="bizy-feature-grid">
@@ -592,7 +592,7 @@ export function PaginaHome() {
         <div className="bizy-footer-main">
           <div className="bizy-footer-brand">
             <LogoBizy />
-            <p>A plataforma completa de comércio para empreendedores angolanos — loja, marketplace, CRM, pagamentos e muito mais.</p>
+            <p>A plataforma completa de comércio para empreendedores angolanos — loja, marketplace, CRM, finanças, inteligência e equipa.</p>
             <Link className="bizy-btn bizy-btn-primary" to="/login">Começar agora <ArrowRight size={16} /></Link>
           </div>
           <nav aria-label="Plataforma">
@@ -608,15 +608,15 @@ export function PaginaHome() {
             <span>Loja digital</span>
             <span>Bizy Market</span>
             <span>CRM e clientes</span>
-            <span>Inbox omnicanal</span>
-            <span>Lives e automação</span>
-            <span>Afiliados</span>
+            <span>Finanças e facturação</span>
+            <span>Inteligência preditiva</span>
+            <span>Gestão de equipa</span>
           </nav>
           <div className="bizy-footer-contact">
             <strong>Contacto</strong>
             <span>Luanda, Angola</span>
             <a href="mailto:suporte@bizy.ao">suporte@bizy.ao</a>
-            <span>Loja, marketplace, CRM, pagamentos — tudo num lugar.</span>
+            <span>Loja, marketplace, CRM, finanças, inteligência — tudo num lugar.</span>
           </div>
         </div>
         <div className="bizy-footer-bottom">

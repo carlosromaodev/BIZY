@@ -19,7 +19,8 @@ RUN npm run build
 
 FROM node:20-alpine AS runtime
 WORKDIR /app
-RUN apk add --no-cache openssl libc6-compat
+RUN apk add --no-cache openssl libc6-compat chromium nss freetype harfbuzz font-opensans
+ENV CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium-browser
 
 COPY package.json package-lock.json ./
 COPY backend/package.json backend/package.json

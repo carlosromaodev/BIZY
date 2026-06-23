@@ -71,6 +71,7 @@ export function resolverUrlMedia(url?: string | null): string {
   const valor = url?.trim();
   if (!valor) return "";
   if (/^(https?:|data:|blob:)/i.test(valor)) return valor;
+  if (valor.startsWith("/api/media/files/")) return `${apiUrl}${valor.replace("/api/media/", "/media/")}`;
   if (valor.startsWith("/media/files/")) return `${apiUrl}${valor}`;
   return valor;
 }

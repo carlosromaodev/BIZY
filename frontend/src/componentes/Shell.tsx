@@ -175,7 +175,7 @@ export function Shell({ children }: { children: ReactNode }) {
           <Link to="/app" aria-label={`Painel ${NOME_PRODUTO}`}>
             <LogoBizy className="crm-brand-wordmark" cores={CORES_BIZY_PADRAO} aria-hidden="true" />
           </Link>
-          <span className="crm-v3-mob-tag">CRM</span>
+          <span className="crm-v3-mob-tag">Team</span>
           <div className="crm-v3-mob-head-actions">
             <button type="button" className="crm-v3-mob-head-icon" aria-label="Buscar" onClick={() => navigate("/app")}>
               <Search size={16} />
@@ -224,7 +224,7 @@ export function Shell({ children }: { children: ReactNode }) {
               <Grid2X2 size={16} />
               Módulos
             </SheetTitle>
-            <SheetDescription className="text-xs" style={{ color: "var(--ink-3)" }}>Todos os módulos do CRM</SheetDescription>
+            <SheetDescription className="text-xs" style={{ color: "var(--ink-3)" }}>Todos os módulos</SheetDescription>
           </SheetHeader>
           <ScrollArea className="h-[calc(80dvh-72px)]">
             <nav className="crm-v3-mob-modulos-grid">
@@ -329,7 +329,7 @@ export function Shell({ children }: { children: ReactNode }) {
         <div className="crm-v3-head">
           <Link to="/app" className="crm-v3-brand" aria-label={`Painel ${NOME_PRODUTO}`}>
             <LogoBizy className="crm-brand-wordmark crm-v3-brand-wordmark" aria-hidden="true" />
-            <span>CRM</span>
+            <span>Team</span>
           </Link>
 
           <div className="crm-v3-search-wrap">
@@ -361,7 +361,7 @@ export function Shell({ children }: { children: ReactNode }) {
 
         <nav
           className="crm-v3-tabs"
-          aria-label="Navegação principal do CRM"
+          aria-label="Navegação principal"
           onMouseLeave={fecharModulosComDelay}
         >
           <button
@@ -708,7 +708,7 @@ function BuscaGlobalComercial({ className, placeholder = "Buscar cliente, telefo
               ))
             ) : (
               <p className="px-2 py-3 text-sm text-muted-foreground" role="status">
-                Nenhum resultado encontrado neste CRM.
+                Nenhum resultado encontrado.
               </p>
             )}
           </CardContent>

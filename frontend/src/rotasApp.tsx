@@ -24,6 +24,7 @@ import {
   Target,
   Users,
   UsersRound,
+  Wallet,
   Workflow
 } from "lucide-react";
 import type { ReactNode } from "react";
@@ -58,6 +59,7 @@ import { PaginaTarefas } from "./paginas/Tarefas";
 import { PaginaSequencias } from "./paginas/Sequencias";
 import { PaginaCampanhas } from "./paginas/Campanhas";
 import { PaginaEquipa } from "./paginas/Equipa";
+import { PaginaFinancas } from "./paginas/Financas";
 import { PaginaSocialInbox } from "./paginas/SocialInbox";
 import { PaginaDiagnosticos } from "./paginas/Diagnosticos";
 import { PaginaAuditoria } from "./paginas/Auditoria";
@@ -65,7 +67,7 @@ import { PaginaPagamentos } from "./paginas/Pagamentos";
 import { temSubdominioLojaPublica } from "./lojaSubdominio";
 import { temDominioMarketPublico } from "./marketDominio";
 
-export type SecaoNavegacao = "Hoje" | "Vendas" | "CRM" | "Vitrine" | "Gestão" | "Admin/Sistema";
+export type SecaoNavegacao = "Hoje" | "Vendas" | "Comercial" | "Vitrine" | "Gestão" | "Admin/Sistema";
 
 export interface RotaPublica {
   caminho: string;
@@ -120,15 +122,15 @@ export const rotasComerciais: RotaPrivada[] = [
   { caminho: "/app/campanhas", icone: <Megaphone size={20} />, rotulo: "Campanhas", secao: "Vendas", elemento: <PaginaCampanhas />, modulo: "automacoes" },
   { caminho: "/app/social-inbox", icone: <Inbox size={20} />, rotulo: "Social Inbox", secao: "Vendas", elemento: <PaginaSocialInbox />, modulo: "social-inbox" },
 
-  // ── CRM (Camada 2 — requer módulo activo) ──
-  { caminho: "/app/pipeline", icone: <Kanban size={20} />, rotulo: "Fluxo", secao: "CRM", elemento: <PaginaPipeline />, modulo: "funil" },
-  { caminho: "/app/cotacoes", icone: <FileText size={20} />, rotulo: "Cotações", secao: "CRM", elemento: <PaginaCotacoes />, modulo: "funil" },
-  { caminho: "/app/agenda", icone: <Calendar size={20} />, rotulo: "Agenda", secao: "CRM", elemento: <PaginaAgenda />, modulo: "funil" },
-  { caminho: "/app/metas", icone: <Target size={20} />, rotulo: "Metas", secao: "CRM", elemento: <PaginaMetas />, modulo: "funil" },
-  { caminho: "/app/respostas-rapidas", icone: <MessageSquareText size={20} />, rotulo: "Respostas rápidas", secao: "CRM", elemento: <PaginaRespostasRapidas />, modulo: "funil" },
-  { caminho: "/app/actividades", icone: <MessageSquare size={20} />, rotulo: "Notas", secao: "CRM", elemento: <PaginaActividades />, modulo: "funil" },
-  { caminho: "/app/formularios", icone: <ClipboardList size={20} />, rotulo: "Formulários", secao: "CRM", elemento: <PaginaFormularios />, modulo: "funil" },
-  { caminho: "/app/sequencias", icone: <Workflow size={20} />, rotulo: "Sequências", secao: "CRM", elemento: <PaginaSequencias />, modulo: "automacoes" },
+  // ── Comercial (Camada 2 — requer módulo activo) ──
+  { caminho: "/app/pipeline", icone: <Kanban size={20} />, rotulo: "Fluxo", secao: "Comercial", elemento: <PaginaPipeline />, modulo: "funil" },
+  { caminho: "/app/cotacoes", icone: <FileText size={20} />, rotulo: "Cotações", secao: "Comercial", elemento: <PaginaCotacoes />, modulo: "funil" },
+  { caminho: "/app/agenda", icone: <Calendar size={20} />, rotulo: "Agenda", secao: "Comercial", elemento: <PaginaAgenda />, modulo: "funil" },
+  { caminho: "/app/metas", icone: <Target size={20} />, rotulo: "Metas", secao: "Comercial", elemento: <PaginaMetas />, modulo: "funil" },
+  { caminho: "/app/respostas-rapidas", icone: <MessageSquareText size={20} />, rotulo: "Respostas rápidas", secao: "Comercial", elemento: <PaginaRespostasRapidas />, modulo: "funil" },
+  { caminho: "/app/actividades", icone: <MessageSquare size={20} />, rotulo: "Notas", secao: "Comercial", elemento: <PaginaActividades />, modulo: "funil" },
+  { caminho: "/app/formularios", icone: <ClipboardList size={20} />, rotulo: "Formulários", secao: "Comercial", elemento: <PaginaFormularios />, modulo: "funil" },
+  { caminho: "/app/sequencias", icone: <Workflow size={20} />, rotulo: "Sequências", secao: "Comercial", elemento: <PaginaSequencias />, modulo: "automacoes" },
 
   // ── Vitrine (Camada 1 parcial + Camada 2) ──
   { caminho: "/app/catalogo", icone: <Package size={20} />, rotulo: "Produtos", secao: "Vitrine", elemento: <PaginaCatalogo /> },
@@ -138,6 +140,7 @@ export const rotasComerciais: RotaPrivada[] = [
   // ── Gestão ──
   { caminho: "/app/relatorios", icone: <LineChart size={20} />, rotulo: "Desempenho", secao: "Gestão", elemento: <PaginaRelatorios /> },
   { caminho: "/app/equipa", icone: <UsersRound size={20} />, rotulo: "Equipa", secao: "Gestão", elemento: <PaginaEquipa /> },
+  { caminho: "/app/financas", icone: <Wallet size={20} />, rotulo: "Finanças", secao: "Gestão", elemento: <PaginaFinancas /> },
   { caminho: "/app/pagamentos", icone: <CreditCard size={20} />, rotulo: "Pagamentos", secao: "Gestão", elemento: <PaginaPagamentos /> },
   { caminho: "/app/administracao", icone: <Settings size={20} />, rotulo: "Administração", secao: "Gestão", elemento: <PaginaAdministracao /> }
 ];
@@ -164,8 +167,8 @@ export const rotasPrivadasOcultas: RotaPublica[] = [
   { caminho: "/app/loja-publica", elemento: <PaginaLojaPublica /> }
 ];
 
-export const secoesNavegacao: SecaoNavegacao[] = ["Hoje", "Vendas", "CRM", "Vitrine", "Gestão", "Admin/Sistema"];
-export const secoesComerciais: SecaoNavegacao[] = ["Hoje", "Vendas", "CRM", "Vitrine", "Gestão"];
+export const secoesNavegacao: SecaoNavegacao[] = ["Hoje", "Vendas", "Comercial", "Vitrine", "Gestão", "Admin/Sistema"];
+export const secoesComerciais: SecaoNavegacao[] = ["Hoje", "Vendas", "Comercial", "Vitrine", "Gestão"];
 
 export function usuarioPodeVerAdminSistema(papel?: string | null): boolean {
   const normalizado = papel?.trim().toUpperCase() ?? "";

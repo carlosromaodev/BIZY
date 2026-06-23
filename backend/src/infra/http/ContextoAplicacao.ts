@@ -57,6 +57,8 @@ import { GestaoCampanhasCrmUseCase } from "../../use-case/GestaoCampanhasCrmUseC
 import { GestaoClientesCrmUseCase } from "../../use-case/GestaoClientesCrmUseCase.js";
 import { GestaoCompartilhamentoClientesUseCase } from "../../use-case/GestaoCompartilhamentoClientesUseCase.js";
 import { GestaoEquipaUseCase } from "../../use-case/GestaoEquipaUseCase.js";
+import { GestaoFinancasUseCase } from "../../use-case/GestaoFinancasUseCase.js";
+import { InteligenciaPreditivaUseCase } from "../../use-case/InteligenciaPreditivaUseCase.js";
 import { GestaoFunilComercialUseCase } from "../../use-case/GestaoFunilComercialUseCase.js";
 import { GestaoGovernancaCrmUseCase } from "../../use-case/GestaoGovernancaCrmUseCase.js";
 import { GestaoModulosNegocioUseCase } from "../../use-case/GestaoModulosNegocioUseCase.js";
@@ -261,6 +263,8 @@ export interface ContextoAplicacao {
   checkoutUnificado: CheckoutUnificadoUseCase;
   repassesFinanceiros: RepassesFinanceirosUseCase;
   gestaoEquipa: GestaoEquipaUseCase;
+  gestaoFinancas: GestaoFinancasUseCase;
+  inteligenciaPreditiva: InteligenciaPreditivaUseCase;
   assistenteIA: AssistenteIAUseCase | null;
   sessoesLive: Map<string, SessaoLive>;
 }
@@ -511,9 +515,11 @@ export function criarContextoAplicacao(logger: FastifyBaseLogger): ContextoAplic
     eventos
   });
 
-  const gestaoEquipa = repositorios.prisma
-    ? new GestaoEquipaUseCase(repositorios.prisma)
-    : new GestaoEquipaUseCase(criarPrismaCliente());
+  const prismaDirecto = repositorios.prisma ?? criarPrismaCliente();
+
+  const gestaoEquipa = new GestaoEquipaUseCase(prismaDirecto);
+  const gestaoFinancas = new GestaoFinancasUseCase(prismaDirecto);
+  const inteligenciaPreditiva = new InteligenciaPreditivaUseCase(prismaDirecto);
 
   const provedorIA = criarProvedorIA();
   const assistenteIA = provedorIA
@@ -582,6 +588,8 @@ export function criarContextoAplicacao(logger: FastifyBaseLogger): ContextoAplic
     checkoutUnificado,
     repassesFinanceiros: repassesFinanceirosUseCase,
     gestaoEquipa,
+    gestaoFinancas,
+    inteligenciaPreditiva,
     assistenteIA,
     sessoesLive: new Map()
   };

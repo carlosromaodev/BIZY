@@ -1,5 +1,5 @@
-import { ImagePlus, Loader2, Trash2 } from "lucide-react";
-import { useRef, useState } from "react";
+import { ImagePlus, Loader2, Trash2, Upload } from "lucide-react";
+import { useRef, useState, type DragEvent } from "react";
 import { resolverUrlMedia } from "../api";
 import { enviarMedia } from "../media";
 import { Button } from "@/components/ui/button";
@@ -25,12 +25,13 @@ export function CampoUploadFoto({
 }: CampoUploadFotoProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [enviando, setEnviando] = useState(false);
+  const [arrastando, setArrastando] = useState(false);
 
   const urlResolvida = resolverUrlMedia(value);
 
   async function tratarFicheiro(ficheiros: FileList | null) {
     const ficheiro = ficheiros?.[0];
-    if (!ficheiro) return;
+    if (!ficheiro || !ficheiro.type.startsWith("image/")) return;
 
     setEnviando(true);
     try {
@@ -42,6 +43,22 @@ export function CampoUploadFoto({
       setEnviando(false);
       if (inputRef.current) inputRef.current.value = "";
     }
+  }
+
+  function onDragOver(e: DragEvent) {
+    e.preventDefault();
+    setArrastando(true);
+  }
+
+  function onDragLeave(e: DragEvent) {
+    e.preventDefault();
+    setArrastando(false);
+  }
+
+  function onDrop(e: DragEvent) {
+    e.preventDefault();
+    setArrastando(false);
+    void tratarFicheiro(e.dataTransfer.files);
   }
 
   const alturaPreview = aspecto === "paisagem" ? "h-32" : "h-28";
@@ -91,17 +108,25 @@ export function CampoUploadFoto({
           type="button"
           disabled={enviando}
           onClick={() => inputRef.current?.click()}
-          className={`flex ${alturaPreview} w-full cursor-pointer items-center justify-center gap-2 rounded-lg border-2 border-dashed border-input bg-muted/30 text-sm text-muted-foreground transition-colors hover:border-primary/40 hover:bg-muted/60 disabled:cursor-not-allowed disabled:opacity-60`}
+          onDragOver={onDragOver}
+          onDragLeave={onDragLeave}
+          onDrop={onDrop}
+          className={`flex ${alturaPreview} w-full cursor-pointer flex-col items-center justify-center gap-1.5 rounded-lg border-2 border-dashed bg-muted/30 text-sm text-muted-foreground transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${arrastando ? "border-primary bg-primary/5" : "border-input hover:border-primary/40 hover:bg-muted/60"}`}
         >
           {enviando ? (
             <>
               <Loader2 size={18} className="animate-spin" />
               A enviar...
             </>
+          ) : arrastando ? (
+            <>
+              <Upload size={18} />
+              Largar aqui
+            </>
           ) : (
             <>
               <ImagePlus size={18} />
-              Clique para escolher imagem
+              Clique ou arraste uma imagem
             </>
           )}
         </button>

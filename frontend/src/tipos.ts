@@ -895,6 +895,40 @@ export interface PersonaPapel {
   ativo: boolean;
 }
 
+export interface KpisMembro {
+  totalVendas: number;
+  receitaTotal: number;
+  pedidosPagos: number;
+  taxaConversao: number;
+  totalConversas: number;
+  conversasResolvidas: number;
+  totalTarefas: number;
+  tarefasConcluidas: number;
+  tarefasNoPrazo: number;
+}
+
+export interface DesempenhoMembro {
+  membroId: string;
+  usuarioId: string;
+  nome: string;
+  avatarUrl: string | null;
+  papel: string;
+  kpis: KpisMembro;
+  posicao: number;
+}
+
+export interface RespostaDesempenho {
+  ranking: DesempenhoMembro[];
+  totais: {
+    totalVendas: number;
+    receitaTotal: number;
+    totalConversas: number;
+    totalTarefas: number;
+    tarefasConcluidas: number;
+  };
+  periodo: { de: string; ate: string };
+}
+
 /* ── Diagnósticos SMS ── */
 export interface DiagnosticoSmsOverview {
   totalEnviados: number;
