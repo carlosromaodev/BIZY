@@ -1,4 +1,5 @@
 import { createHmac, randomUUID } from "node:crypto";
+import { z } from "zod";
 import {
   AtualizarPagamentosNegocioSchema,
   ConfirmarCodigoLoginSchema,
@@ -176,6 +177,45 @@ export const moduloAutenticacao: ModuloHttp = {
       await contexto.autenticacaoTelefone.encerrarSessao(sessao?.tokenInterno ?? null);
       limparCookieSessao(reply);
       return { sucesso: true };
+    });
+
+    app.get("/workspaces", async (request, reply) => {
+      const usuario = await exigirUsuarioAutenticado(contexto, request, reply);
+      if (!usuario) return;
+
+      const negocios = await contexto.repositorios.autenticacao.listarNegociosPorUsuario(usuario.id);
+      const principal = await contexto.repositorios.autenticacao.buscarNegocioPrincipalPorUsuario(usuario.id);
+
+      return {
+        isolamentoObrigatorio: true,
+        negocios: negocios.map((n) => ({
+          id: n.id,
+          nomeComercial: n.nomeComercial,
+          segmento: n.segmento,
+          tipo: n.tipo,
+          slugPublico: n.slugPublico,
+          papel: n.usuarioPapel ?? null,
+          principal: n.id === principal?.id
+        }))
+      };
+    });
+
+    app.post("/workspaces/alternar", async (request, reply) => {
+      const usuario = await exigirUsuarioAutenticado(contexto, request, reply);
+      if (!usuario) return;
+
+      const { negocioId } = z.object({ negocioId: z.string().uuid() }).parse(request.body ?? {});
+      const negocio = await contexto.repositorios.autenticacao.buscarNegocioPorUsuario(usuario.id, negocioId);
+
+      if (!negocio) {
+        return reply.code(403).send({
+          erro: "ACESSO_NEGADO",
+          mensagem: "Não tens acesso a este workspace ou o membro está inactivo."
+        });
+      }
+
+      reply.header("X-Bizy-Limpar-Estado", "1");
+      return { negocioId, sucesso: true, limparEstado: true };
     });
 
     app.get("/onboarding/estado", async (request, reply) => {

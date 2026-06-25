@@ -128,7 +128,7 @@ describe("pedidos HTTP", () => {
           subtotalEmKwanza: 28_500,
           descontoEmKwanza: 1_000,
           taxaEntregaEmKwanza: 1_500,
-          totalEmKwanza: 29_000,
+          totalEmKwanza: 32_850,
           canal: "whatsapp",
           origem: "manual"
         })
@@ -295,7 +295,7 @@ describe("pedidos HTTP", () => {
       expect(exportacao.headers["content-type"]).toContain("text/csv");
       expect(exportacao.body).toContain("numero,cliente,telefone,estado,estadoPagamento,estadoEntrega,totalEmKwanza");
       expect(exportacao.body).toContain("Cliente Pedido");
-      expect(exportacao.body).toContain("29000");
+      expect(exportacao.body).toContain("32850");
       expect(exportacao.body).toContain("2x Produto P1 (#P1) | 1x Produto P2 (#P2)");
 
       const exportacaoPorProduto = await app.inject({
@@ -383,7 +383,7 @@ describe("pedidos HTTP", () => {
           clienteNegocioId: comentario.json().reserva.clienteNegocioId,
           origem: "live",
           canal: "tiktok",
-          totalEmKwanza: 21_000,
+          totalEmKwanza: 23_940,
           itens: [
             expect.objectContaining({
               codigoPeca: "LIVE-77",
@@ -430,7 +430,7 @@ describe("pedidos HTTP", () => {
           pedido: expect.objectContaining({
             origem: "live",
             canal: "tiktok",
-            totalEmKwanza: 17_000
+            totalEmKwanza: 19_380
           })
         })
       );
@@ -609,7 +609,7 @@ describe("pedidos HTTP", () => {
             clienteNegocioId: comentario.json().reserva.clienteNegocioId,
             origem: "live",
             canal: "manual",
-            totalEmKwanza: 18_000,
+            totalEmKwanza: 20_520,
             enderecoEntrega: null
           })
         })
@@ -704,7 +704,7 @@ describe("pedidos HTTP", () => {
           id: pedido.json().id,
           subtotalEmKwanza: 30_000,
           taxaEntregaEmKwanza: 1_000,
-          totalEmKwanza: 31_000,
+          totalEmKwanza: 35_200,
           observacao: "Cliente removeu B1 e aumentou A1"
         })
       );
@@ -794,7 +794,7 @@ describe("pedidos HTTP", () => {
       expect(pedido.json()).toEqual(
         expect.objectContaining({
           enderecoEntrega: "Rua 7, casa 12, Talatona, Belas - Ref.: Próximo ao mercado",
-          totalEmKwanza: 16_000
+          totalEmKwanza: 18_100
         })
       );
     } finally {
@@ -894,7 +894,7 @@ describe("pedidos HTTP", () => {
           pedidoId,
           numero: pedido.json().numero,
           cliente: expect.objectContaining({ nome: "Cliente Pagamento", telefone: "937624780" }),
-          totalEmKwanza: 20_000,
+          totalEmKwanza: 22_520,
           estadoPagamento: "CONFIRMADO",
           comprovativoPagamentoUrl: "https://example.com/comprovativo-validado.png",
           itens: [expect.objectContaining({ codigoPeca: "PAY-1", quantidade: 1 })]

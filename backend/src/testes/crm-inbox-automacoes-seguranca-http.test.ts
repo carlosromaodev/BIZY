@@ -205,7 +205,7 @@ describe("CRM+ inbox, automações seguras e tracking privado", () => {
         expect.objectContaining({
           estado: "AGUARDANDO_PAGAMENTO",
           canal: "whatsapp",
-          totalEmKwanza: 16_500
+          totalEmKwanza: 18_600
         })
       );
 

@@ -13,6 +13,7 @@ coverage
 *.tsbuildinfo
 .DS_Store
 tmp/
+storage/
 .agents/
 .claude/
 .codex/

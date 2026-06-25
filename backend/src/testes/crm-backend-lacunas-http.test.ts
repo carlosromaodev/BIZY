@@ -398,7 +398,7 @@ describe("CRM+ lacunas backend dos RF/RNF/RN", () => {
         expect.objectContaining({
           id: pedido.json().id,
           clienteNegocioId: cliente.id,
-          totalEmKwanza: 11_000
+          totalEmKwanza: 12_540
         })
       );
     } finally {

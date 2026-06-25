@@ -227,16 +227,20 @@ export class UorConnectAuthProvider implements ProvedorAutenticacaoEstudantil {
   }
 
   private autenticarEmDev(credenciais: CredenciaisEstudantis): ResultadoAutenticacaoEstudantil {
-    const studentNumber = credenciais.tipoIdentificador === "studentNumber"
-      ? credenciais.identificador.replace(/\D/g, "")
-      : "20240000";
+    const porUsername = credenciais.tipoIdentificador === "username";
+    const studentNumber = porUsername
+      ? "20240000"
+      : credenciais.identificador.replace(/\D/g, "");
+    const username = porUsername
+      ? credenciais.identificador
+      : credenciais.identificador.replace(/\D/g, "");
 
     return {
       sucesso: true,
       perfil: {
         institutionCode: credenciais.provider === "isptec" ? "ISPTEC" : "UOR",
         studentNumber,
-        username: credenciais.tipoIdentificador === "username" ? credenciais.identificador : null,
+        username,
         nome: `Estudante ${studentNumber}`,
         email: `${studentNumber}@bizy.local`,
         dados: { modo: "dev" }

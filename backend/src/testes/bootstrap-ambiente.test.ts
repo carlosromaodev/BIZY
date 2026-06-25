@@ -22,7 +22,7 @@ describe("bootstrap de ambiente", () => {
       },
       moduloNegocio: {
         findUnique: vi.fn(async ({ where }: { where: { negocioId_modulo: { modulo: string } } }) =>
-          where.negocioId_modulo.modulo === "crm" ? { id: "modulo_crm" } : null
+          where.negocioId_modulo.modulo === "team-core" ? { id: "modulo_team_core" } : null
         ),
         create: vi.fn(async ({ data }: { data: Record<string, unknown> }) => ({ id: `modulo_${data.modulo}`, ...data }))
       }

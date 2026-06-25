@@ -1,5 +1,5 @@
 import type { FastifyReply, FastifyRequest } from "fastify";
-import { modulosNegocioDisponiveis, modulosNegocioPadrao } from "../../dominio/tipos.js";
+import { modulosNegocioDisponiveis, modulosNegocioPadrao, modulosNegocioSaoEquivalentes, normalizarModuloNegocio } from "../../dominio/tipos.js";
 import type { DadosNegocioBizy, NegocioBizy, UsuarioSistema } from "../../dominio/tipos.js";
 import type { ContextoAplicacao } from "./ContextoAplicacao.js";
 import { exigirUsuarioAutenticado } from "./seguranca.js";
@@ -80,7 +80,9 @@ export async function resolverContextoComercial(
   const usuario = await exigirUsuarioAutenticado(contexto, request, reply, mensagemAutenticacao);
   if (!usuario) return null;
 
-  const negocio = await obterOuCriarNegocioPrincipal(contexto, usuario);
+  const negocio = await resolverNegocioDoRequest(contexto, usuario, request, reply);
+  if (!negocio) return null;
+
   const papel = normalizarPapel(negocio.usuarioPapel ?? usuario.papel);
 
   return {
@@ -162,6 +164,37 @@ export async function exigirAcessoComercial(
   return contextoComercial;
 }
 
+export const HEADER_NEGOCIO_ID = "x-bizy-negocio-id";
+
+async function resolverNegocioDoRequest(
+  contexto: ContextoAplicacao,
+  usuario: UsuarioSistema,
+  request: FastifyRequest,
+  reply: FastifyReply
+): Promise<NegocioBizy | null> {
+  const headerNegocioId = extrairHeaderNegocioId(request);
+
+  if (headerNegocioId) {
+    const negocio = await contexto.repositorios.autenticacao.buscarNegocioPorUsuario(usuario.id, headerNegocioId);
+    if (!negocio) {
+      await reply.code(403).send({
+        erro: "NEGOCIO_NAO_ACESSIVEL",
+        mensagem: "Não tem acesso a este negócio ou ele não existe."
+      });
+      return null;
+    }
+    return negocio;
+  }
+
+  return obterOuCriarNegocioPrincipal(contexto, usuario);
+}
+
+function extrairHeaderNegocioId(request: FastifyRequest): string | null {
+  const valor = request.headers[HEADER_NEGOCIO_ID];
+  const id = Array.isArray(valor) ? valor[0] : valor;
+  return id?.trim() || null;
+}
+
 export async function obterOuCriarNegocioPrincipal(
   contexto: ContextoAplicacao,
   usuario: UsuarioSistema
@@ -205,7 +238,7 @@ export function obterLimiteDescontoSemAprovacaoPercentual(negocio: Pick<NegocioB
 }
 
 export function moduloAtivo(modulosAtivos: string[], moduloNecessario: string): boolean {
-  return modulosAtivos.includes(moduloNecessario);
+  return modulosAtivos.some((modulo) => modulosNegocioSaoEquivalentes(modulo, moduloNecessario));
 }
 
 function normalizarPapel(papel?: string | null): string {
@@ -219,10 +252,11 @@ async function modulosAtivosDoNegocio(contexto: ContextoAplicacao, negocioId: st
 
   const ativos = new Set<string>(padrao);
   for (const modulo of modulosConfigurados) {
+    const codigoModulo = normalizarModuloNegocio(modulo.modulo);
     if (modulo.ativo) {
-      ativos.add(modulo.modulo);
+      ativos.add(codigoModulo);
     } else {
-      ativos.delete(modulo.modulo);
+      ativos.delete(codigoModulo);
     }
   }
 

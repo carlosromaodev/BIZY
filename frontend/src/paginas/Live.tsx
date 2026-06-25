@@ -279,16 +279,16 @@ export function PaginaLive() {
   return (
     <CrmPageMotion>
       {/* ── Header ── */}
-      <div className="crm-v3-pghead">
+      <div className="team-pghead">
         <div>
           <h1>Central de live</h1>
-          <div className="crm-v3-sub">
+          <div className="team-sub">
             {liveAtual
               ? `${liveAtual.providerNome} · @${liveAtual.username} · começou às ${new Date(liveAtual.iniciadaEm ?? Date.now()).toLocaleTimeString("pt", { hour: "2-digit", minute: "2-digit" })}`
               : "Nenhuma live ativa"}
           </div>
         </div>
-        <div className="crm-v3-pghead-right">
+        <div className="team-pghead-right">
           {liveAtual && (
             <BotaoBizy variante="ghost" icone={X} onClick={() => void encerrarLive()} className="bz-btn-rose">
               Terminar live

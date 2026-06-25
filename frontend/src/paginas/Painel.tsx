@@ -1,10 +1,13 @@
 import {
   AlertTriangle,
+  ArrowRight,
   CheckCircle2,
+  Circle,
   Clock,
   Coins,
   Eye,
   MessageSquare,
+  Package,
   Plus,
   ShoppingBag,
   Tag,
@@ -177,9 +180,23 @@ export function PaginaPainel() {
     () =>
       [...resumo.reservas]
         .sort((a, b) => Number(new Date(b.criadaEm ?? 0)) - Number(new Date(a.criadaEm ?? 0)))
-        .slice(0, 3),
+        .slice(0, 4),
     [resumo.reservas],
   );
+
+  /* ── Briefing line — smart summary ─────────────────────────── */
+
+  const linhasBriefing = useMemo(() => {
+    const pontos: string[] = [];
+    if (aguardandoPagamento > 0) pontos.push(`${aguardandoPagamento} cobrança${aguardandoPagamento !== 1 ? "s" : ""} pendente${aguardandoPagamento !== 1 ? "s" : ""}`);
+    if (conversasSemResposta > 0) pontos.push(`${conversasSemResposta} mensage${conversasSemResposta !== 1 ? "ns" : "m"} sem resposta`);
+    if (entregasPendentes > 0) pontos.push(`${entregasPendentes} envio${entregasPendentes !== 1 ? "s" : ""} para preparar`);
+    if (produtosStockBaixo > 0) pontos.push(`${produtosStockBaixo} produto${produtosStockBaixo !== 1 ? "s" : ""} com stock baixo`);
+    if (tarefasAbertas.length > 0) pontos.push(`${tarefasAbertas.length} tarefa${tarefasAbertas.length !== 1 ? "s" : ""} aberta${tarefasAbertas.length !== 1 ? "s" : ""}`);
+    return pontos;
+  }, [aguardandoPagamento, conversasSemResposta, entregasPendentes, produtosStockBaixo, tarefasAbertas]);
+
+  const temUrgencias = aguardandoPagamento > 0 || conversasSemResposta > 0 || entregasPendentes > 0;
 
   /* ── Data fetching ─────────────────────────────────────────── */
 
@@ -225,244 +242,280 @@ export function PaginaPainel() {
 
   return (
     <CrmPageMotion>
-      <div className="crm-v3-pgwrap">
-        {/* ── Page Head ─────────────────────────────────────── */}
-        <div className="crm-v3-pghead">
+      <div className="team-pgwrap">
+        {/* ── Page Head — Comando do dia ────────────────────── */}
+        <div className="team-pghead">
           <div>
-            <h1>{obterSaudacao()}, {usuario?.nome?.split(" ")[0] ?? "Vendedor"} 👋</h1>
-            <div className="crm-v3-sub">
-              {formatarDataLocal()}
-              {liveAtual && " · a tua live está a converter bem"}
-            </div>
+            <h1>{obterSaudacao()}, {usuario?.nome?.split(" ")[0] ?? "Vendedor"}</h1>
+            <div className="team-sub">{formatarDataLocal()}</div>
           </div>
-          <div className="crm-v3-pghead-right">
-            <Link to="/app/loja" className="crm-v3-btn crm-v3-btn-ghost">
+          <div className="team-pghead-right">
+            <Link to="/app/loja" className="team-btn team-btn-ghost">
               <Eye size={13} />
               Ver loja
             </Link>
-            <Link to="/app/reservas" className="crm-v3-btn crm-v3-btn-primary">
+            <Link to="/app/reservas" className="team-btn team-btn-primary">
               <Plus size={13} />
               Novo pedido
             </Link>
           </div>
         </div>
 
-        {/* ── KPI Strip ─────────────────────────────────────── */}
-        <div className="crm-v3-kstrip">
-          <div className="crm-v3-kbig">
-            <div className="crm-v3-kbig-label">Receita reservada hoje</div>
-            <div className="crm-v3-kbig-value">
-              {formatarKwanza(receitaReservada).replace(" Kz", "")}
-              <span className="crm-v3-kbig-unit">Kz</span>
+        {/* ── Briefing — resumo inteligente do dia ─────────── */}
+        {linhasBriefing.length > 0 && (
+          <div className="cd-briefing" data-urgente={temUrgencias || undefined}>
+            <div className="cd-briefing-head">
+              <Package size={15} />
+              <span className="cd-briefing-titulo">Briefing do dia</span>
             </div>
-            <span className="crm-v3-kbig-delta">
-              ↑ {resumo.reservasPagas}/{resumo.reservasCriadas || 0} pagas
-            </span>
-          </div>
-          <div className="crm-v3-kcard">
-            <div className="crm-v3-kcard-label">
-              <ShoppingBag size={14} />
-              Pedidos hoje
-            </div>
-            <div className="crm-v3-kcard-value">{pedidosNovosHoje}</div>
-            <div className="crm-v3-kcard-delta">
-              {pedidosNovosHoje > 0 ? `${pedidosNovosHoje} desde hoje` : "nenhum ainda"}
-            </div>
-          </div>
-          <div className="crm-v3-kcard">
-            <div className="crm-v3-kcard-label">
-              <Clock size={14} />
-              A confirmar
-            </div>
-            <div className="crm-v3-kcard-value">{aguardandoPagamento}</div>
-            <div className="crm-v3-kcard-delta" data-warn="true">
-              comprovativos pendentes
-            </div>
-          </div>
-          <div className="crm-v3-kcard">
-            <div className="crm-v3-kcard-label">
-              <AlertTriangle size={14} />
-              Stock em risco
-            </div>
-            <div className="crm-v3-kcard-value">{produtosStockBaixo}</div>
-            <div className="crm-v3-kcard-delta" data-bad="true">
-              ≤ 2 unidades
-            </div>
-          </div>
-        </div>
-
-        {/* ── Filter Tiles (quick actions) ──────────────────── */}
-        <div className="crm-v3-ftiles">
-          <Link to="/app/reservas?filtro=a-cobrar" className="crm-v3-ftile" data-active="true">
-            <span className="crm-v3-ftile-icon" style={{ background: "var(--em-tint)", color: "var(--em)" }}>
-              <Coins size={17} />
-            </span>
-            <div>
-              <div className="crm-v3-ftile-title">Cobranças</div>
-              <div className="crm-v3-ftile-desc">a aguardar</div>
-            </div>
-            <span className="crm-v3-ftile-count">{aguardandoPagamento}</span>
-          </Link>
-          <Link to="/app/reservas?filtro=enviados" className="crm-v3-ftile">
-            <span className="crm-v3-ftile-icon" style={{ background: "var(--blue-tint)", color: "var(--blue)" }}>
-              <Truck size={17} />
-            </span>
-            <div>
-              <div className="crm-v3-ftile-title">Envios</div>
-              <div className="crm-v3-ftile-desc">para preparar</div>
-            </div>
-            <span className="crm-v3-ftile-count">{entregasPendentes}</span>
-          </Link>
-          <Link to="/app/conversas" className="crm-v3-ftile">
-            <span className="crm-v3-ftile-icon" style={{ background: "var(--violet-tint)", color: "var(--violet)" }}>
-              <MessageSquare size={17} />
-            </span>
-            <div>
-              <div className="crm-v3-ftile-title">Mensagens</div>
-              <div className="crm-v3-ftile-desc">sem resposta</div>
-            </div>
-            <span className="crm-v3-ftile-count">{conversasSemResposta}</span>
-          </Link>
-          <Link to="/app/catalogo" className="crm-v3-ftile">
-            <span className="crm-v3-ftile-icon" style={{ background: "var(--amber-tint)", color: "var(--amber)" }}>
-              <Tag size={17} />
-            </span>
-            <div>
-              <div className="crm-v3-ftile-title">Produtos</div>
-              <div className="crm-v3-ftile-desc">stock baixo</div>
-            </div>
-            <span className="crm-v3-ftile-count">{produtosStockBaixo}</span>
-          </Link>
-          <Link to="/app/live" className="crm-v3-ftile">
-            <span className="crm-v3-ftile-icon" style={{ background: "var(--rose-tint)", color: "var(--rose)" }}>
-              <Video size={17} />
-            </span>
-            <div>
-              <div className="crm-v3-ftile-title">Live agora</div>
-              <div className="crm-v3-ftile-desc">{liveAtual ? liveAtual.username : "sem live"}</div>
-            </div>
-            <span className="crm-v3-ftile-count">{reservasLive}</span>
-          </Link>
-        </div>
-
-        {/* ── Minhas tarefas ─────────────────────────────────── */}
-        {tarefasAbertas.length > 0 && (
-          <div className="crm-v3-otbl" style={{ marginBottom: 0 }}>
-            <div className="crm-v3-otbl-head" style={{ gridTemplateColumns: "1fr 100px 110px 80px" }}>
-              <span>Tarefa</span>
-              <span>Prioridade</span>
-              <span>Prazo</span>
-              <span />
-            </div>
-            {tarefasAbertas.slice(0, 5).map((t) => {
-              const atrasada = t.prazoEm && new Date(t.prazoEm) < new Date();
-              const corPrio = t.prioridade === "URGENTE" ? "rose" : t.prioridade === "ALTA" ? "amber" : t.prioridade === "NORMAL" ? "blue" : "mute";
-              return (
-                <div key={t.id} className="crm-v3-otbl-row" style={{ gridTemplateColumns: "1fr 100px 110px 80px" }}>
-                  <span className="crm-v3-otbl-cli">
-                    <span>
-                      <span className="crm-v3-otbl-cli-name">{t.titulo}</span>
-                      {t.descricao && <small style={{ display: "block", color: "var(--ink-3)", fontSize: 11, marginTop: 1 }}>{t.descricao.slice(0, 60)}{t.descricao.length > 60 ? "…" : ""}</small>}
-                    </span>
-                  </span>
-                  <span>
-                    <span className="crm-v3-bdg" data-tone={corPrio}>
-                      <span className="crm-v3-bdg-dot" />
-                      {t.prioridade === "URGENTE" ? "Urgente" : t.prioridade === "ALTA" ? "Alta" : t.prioridade === "NORMAL" ? "Normal" : "Baixa"}
-                    </span>
-                  </span>
-                  <span style={{ fontSize: 12, color: atrasada ? "var(--rose)" : "var(--ink-3)", fontWeight: atrasada ? 600 : 400 }}>
-                    {t.prazoEm ? formatarTempoRelativo(t.prazoEm) : "—"}
-                    {atrasada && " ⚠"}
-                  </span>
-                  <span>
-                    <Link to={t.pedidoId ? `/app/reservas?pedidoId=${t.pedidoId}` : "/app/reservas"} className="crm-v3-btn crm-v3-btn-ghost" style={{ fontSize: 11, padding: "3px 8px" }}>
-                      Ver
-                    </Link>
-                  </span>
-                </div>
-              );
-            })}
-            {tarefasAbertas.length > 5 && (
-              <Link to="/app/reservas" style={{ display: "block", textAlign: "center", fontSize: 12, color: "var(--em)", padding: "8px 0", fontWeight: 500 }}>
-                Ver todas ({tarefasAbertas.length})
-              </Link>
+            <ul className="cd-briefing-lista">
+              {linhasBriefing.map((ponto) => (
+                <li key={ponto}>
+                  <Circle size={5} />
+                  {ponto}
+                </li>
+              ))}
+            </ul>
+            {liveAtual && (
+              <div className="cd-briefing-live">
+                <Video size={13} />
+                Live activa: <strong>{liveAtual.username}</strong> — {reservasLive} pedido{reservasLive !== 1 ? "s" : ""} hoje
+              </div>
             )}
           </div>
         )}
 
-        {/* ── 2-column: Orders mini-table + Bar chart ───────── */}
-        <div style={{ display: "grid", gridTemplateColumns: "1.5fr 1fr", gap: 12 }}>
-          {/* Orders mini-table */}
-          <div className="crm-v3-otbl">
-            <div className="crm-v3-otbl-head" style={{ gridTemplateColumns: colTemplate }}>
-              <span>Pedido</span>
-              <span>Cliente</span>
-              <span>Itens</span>
-              <span>Total</span>
-              <span>Estado</span>
+        {/* ── KPI Strip ─────────────────────────────────────── */}
+        <div className="team-kstrip">
+          <div className="team-kbig">
+            <div className="team-kbig-label">Receita reservada hoje</div>
+            <div className="team-kbig-value">
+              {formatarKwanza(receitaReservada).replace(" Kz", "")}
+              <span className="team-kbig-unit">Kz</span>
             </div>
-            {pedidosRecentes.map((r) => {
-              const peca = resumo.pecas.find((p) => p.codigo === r.codigoPeca);
-              const preco = obterPrecoDaPeca(resumo.pecas, r.codigoPeca);
-              const iniciais = (r.nomeCliente ?? "??").split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase();
-              const hue = r.estado === "PAID" ? "green" : r.estado === "WAITING_PAYMENT" ? "amber" : "violet";
-              const estadoLabel = r.estado === "PAID" ? "Pago" : r.estado === "WAITING_PAYMENT" ? "Aguarda pagamento" : r.estado === "EXPIRED" ? "Expirado" : r.estado;
-              const badgeTone = r.estado === "PAID" ? "green" : r.estado === "WAITING_PAYMENT" ? "amber" : r.estado === "EXPIRED" ? "rose" : "blue";
+            <span className="team-kbig-delta">
+              {resumo.reservasPagas}/{resumo.reservasCriadas || 0} pagas
+            </span>
+          </div>
+          <div className="team-kcard">
+            <div className="team-kcard-label">
+              <ShoppingBag size={14} />
+              Pedidos hoje
+            </div>
+            <div className="team-kcard-value">{pedidosNovosHoje}</div>
+            <div className="team-kcard-delta">
+              {pedidosNovosHoje > 0 ? `${pedidosNovosHoje} desde hoje` : "nenhum ainda"}
+            </div>
+          </div>
+          <div className="team-kcard">
+            <div className="team-kcard-label">
+              <Clock size={14} />
+              A confirmar
+            </div>
+            <div className="team-kcard-value">{aguardandoPagamento}</div>
+            <div className="team-kcard-delta" data-warn={aguardandoPagamento > 0 ? "true" : undefined}>
+              {aguardandoPagamento > 0 ? "comprovativos pendentes" : "tudo confirmado"}
+            </div>
+          </div>
+          <div className="team-kcard">
+            <div className="team-kcard-label">
+              <AlertTriangle size={14} />
+              Stock em risco
+            </div>
+            <div className="team-kcard-value">{produtosStockBaixo}</div>
+            <div className="team-kcard-delta" data-bad={produtosStockBaixo > 0 ? "true" : undefined}>
+              {produtosStockBaixo > 0 ? `${produtosStockBaixo} com ≤ 2 un.` : "stock OK"}
+            </div>
+          </div>
+        </div>
 
-              return (
-                <div key={r.id} className="crm-v3-otbl-row" style={{ gridTemplateColumns: colTemplate }}>
-                  <span className="crm-v3-otbl-oid">
-                    #{r.id.toString().slice(-4)}
-                    <small>{r.criadaEm ? formatarTempoRelativo(r.criadaEm) : ""}</small>
-                  </span>
-                  <span className="crm-v3-otbl-cli">
-                    <span className="crm-v3-av crm-v3-av-32" data-hue={hue}>{iniciais}</span>
-                    <span>
-                      <span className="crm-v3-otbl-cli-name">{r.nomeCliente ?? "—"}</span>
-                    </span>
-                  </span>
-                  <span className="crm-v3-otbl-item">
-                    <b>{peca?.nome ?? r.codigoPeca}</b>
-                  </span>
-                  <span className="crm-v3-otbl-price">{formatarKwanza(preco).replace(" Kz", "")}</span>
-                  <span>
-                    <span className="crm-v3-bdg" data-tone={badgeTone}>
-                      <span className="crm-v3-bdg-dot" />
-                      {estadoLabel}
-                    </span>
-                  </span>
-                </div>
-              );
-            })}
-            {pedidosRecentes.length === 0 && (
-              <div style={{ padding: "24px 18px", textAlign: "center", color: "var(--ink-3)", fontSize: "12px" }}>
-                Sem pedidos recentes
+        {/* ── Acções prioritárias ──────────────────────────── */}
+        <div className="cd-accoes-titulo">
+          <span>O que fazer agora</span>
+        </div>
+        <div className="team-ftiles">
+          <Link
+            to="/app/reservas?filtro=a-cobrar"
+            className="team-ftile"
+            data-active={aguardandoPagamento > 0 ? "true" : undefined}
+          >
+            <span className="team-ftile-icon" style={{ background: "var(--em-tint)", color: "var(--em)" }}>
+              <Coins size={17} />
+            </span>
+            <div>
+              <div className="team-ftile-title">Cobranças</div>
+              <div className="team-ftile-desc">a aguardar</div>
+            </div>
+            <span className="team-ftile-count">{aguardandoPagamento}</span>
+          </Link>
+          <Link to="/app/reservas?filtro=enviados" className="team-ftile" data-active={entregasPendentes > 0 ? "true" : undefined}>
+            <span className="team-ftile-icon" style={{ background: "var(--blue-tint)", color: "var(--blue)" }}>
+              <Truck size={17} />
+            </span>
+            <div>
+              <div className="team-ftile-title">Envios</div>
+              <div className="team-ftile-desc">para preparar</div>
+            </div>
+            <span className="team-ftile-count">{entregasPendentes}</span>
+          </Link>
+          <Link to="/app/conversas" className="team-ftile" data-active={conversasSemResposta > 0 ? "true" : undefined}>
+            <span className="team-ftile-icon" style={{ background: "var(--violet-tint)", color: "var(--violet)" }}>
+              <MessageSquare size={17} />
+            </span>
+            <div>
+              <div className="team-ftile-title">Mensagens</div>
+              <div className="team-ftile-desc">sem resposta</div>
+            </div>
+            <span className="team-ftile-count">{conversasSemResposta}</span>
+          </Link>
+          <Link to="/app/catalogo" className="team-ftile" data-active={produtosStockBaixo > 0 ? "true" : undefined}>
+            <span className="team-ftile-icon" style={{ background: "var(--amber-tint)", color: "var(--amber)" }}>
+              <Tag size={17} />
+            </span>
+            <div>
+              <div className="team-ftile-title">Produtos</div>
+              <div className="team-ftile-desc">stock baixo</div>
+            </div>
+            <span className="team-ftile-count">{produtosStockBaixo}</span>
+          </Link>
+          <Link to="/app/live" className="team-ftile" data-active={liveAtual ? "true" : undefined}>
+            <span className="team-ftile-icon" style={{ background: "var(--rose-tint)", color: "var(--rose)" }}>
+              <Video size={17} />
+            </span>
+            <div>
+              <div className="team-ftile-title">Live</div>
+              <div className="team-ftile-desc">{liveAtual ? liveAtual.username : "sem live"}</div>
+            </div>
+            <span className="team-ftile-count">{reservasLive}</span>
+          </Link>
+        </div>
+
+        {/* ── Tarefas do dia ─────────────────────────────────── */}
+        {tarefasAbertas.length > 0 && (
+          <div className="cd-tarefas">
+            <div className="cd-tarefas-head">
+              <span className="cd-tarefas-titulo">Tarefas abertas</span>
+              <Link to="/app/tarefas" className="cd-tarefas-link">
+                Ver todas <ArrowRight size={12} />
+              </Link>
+            </div>
+            <div className="cd-tarefas-lista">
+              {tarefasAbertas.slice(0, 5).map((t) => {
+                const atrasada = t.prazoEm && new Date(t.prazoEm) < new Date();
+                const corPrio = t.prioridade === "URGENTE" ? "rose" : t.prioridade === "ALTA" ? "amber" : t.prioridade === "NORMAL" ? "blue" : "mute";
+                return (
+                  <Link
+                    key={t.id}
+                    to={t.pedidoId ? `/app/reservas?pedidoId=${t.pedidoId}` : "/app/tarefas"}
+                    className="cd-tarefa"
+                    data-atrasada={atrasada || undefined}
+                  >
+                    <span className="cd-tarefa-prio" data-tone={corPrio} />
+                    <div className="cd-tarefa-conteudo">
+                      <span className="cd-tarefa-titulo">{t.titulo}</span>
+                      {t.descricao && (
+                        <span className="cd-tarefa-desc">
+                          {t.descricao.slice(0, 70)}{t.descricao.length > 70 ? "…" : ""}
+                        </span>
+                      )}
+                    </div>
+                    <div className="cd-tarefa-meta">
+                      <span className="team-bdg" data-tone={corPrio}>
+                        <span className="team-bdg-dot" />
+                        {t.prioridade === "URGENTE" ? "Urgente" : t.prioridade === "ALTA" ? "Alta" : t.prioridade === "NORMAL" ? "Normal" : "Baixa"}
+                      </span>
+                      {t.prazoEm && (
+                        <span className="cd-tarefa-prazo" data-atrasada={atrasada || undefined}>
+                          <Clock size={11} />
+                          {formatarTempoRelativo(t.prazoEm)}
+                        </span>
+                      )}
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* ── 2-column: Pedidos recentes + Gráfico semanal ─── */}
+        <div className="cd-grid-dupla">
+          {/* Pedidos recentes */}
+          <div className="cd-pedidos-recentes">
+            <div className="cd-secao-head">
+              <span className="cd-secao-titulo">Pedidos recentes</span>
+              <Link to="/app/reservas" className="cd-tarefas-link">
+                Ver todos <ArrowRight size={12} />
+              </Link>
+            </div>
+            {pedidosRecentes.length > 0 ? (
+              <div className="cd-pedidos-lista">
+                {pedidosRecentes.map((r) => {
+                  const peca = resumo.pecas.find((p) => p.codigo === r.codigoPeca);
+                  const preco = obterPrecoDaPeca(resumo.pecas, r.codigoPeca);
+                  const iniciais = (r.nomeCliente ?? "??").split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase();
+                  const hue = r.estado === "PAID" ? "green" : r.estado === "WAITING_PAYMENT" ? "amber" : "violet";
+                  const estadoLabel = r.estado === "PAID" ? "Pago" : r.estado === "WAITING_PAYMENT" ? "A confirmar" : r.estado === "EXPIRED" ? "Expirado" : r.estado;
+                  const badgeTone = r.estado === "PAID" ? "green" : r.estado === "WAITING_PAYMENT" ? "amber" : r.estado === "EXPIRED" ? "rose" : "blue";
+
+                  return (
+                    <div key={r.id} className="cd-pedido">
+                      <span className="team-av team-av-32" data-hue={hue}>{iniciais}</span>
+                      <div className="cd-pedido-info">
+                        <span className="cd-pedido-nome">{r.nomeCliente ?? "—"}</span>
+                        <span className="cd-pedido-produto">{peca?.nome ?? r.codigoPeca}</span>
+                      </div>
+                      <div className="cd-pedido-dir">
+                        <span className="cd-pedido-valor">{formatarKwanza(preco)}</span>
+                        <span className="team-bdg" data-tone={badgeTone}>
+                          <span className="team-bdg-dot" />
+                          {estadoLabel}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="cd-vazio">
+                <ShoppingBag size={20} />
+                <span>Sem pedidos recentes</span>
               </div>
             )}
           </div>
 
-          {/* Bar chart — Reservas esta semana */}
-          <div className="crm-v3-chartcard">
-            <div className="crm-v3-chartcard-head">
-              <span className="crm-v3-chartcard-title">Reservas · esta semana</span>
-              <span className="crm-v3-chartcard-sub">total {formatarKwanza(totalSemana)}</span>
+          {/* Gráfico semanal */}
+          <div className="team-chartcard">
+            <div className="team-chartcard-head">
+              <span className="team-chartcard-title">Receita semanal</span>
+              <span className="team-chartcard-sub">{formatarKwanza(totalSemana)}</span>
             </div>
-            <div className="crm-v3-bars">
+            <div className="team-bars">
               {faturacaoSemanal.map((val, i) => (
-                <div key={i} className="crm-v3-bar" data-hot={i === 6 ? "true" : undefined}>
+                <div key={i} className="team-bar" data-hot={i === 6 ? "true" : undefined}>
                   <motion.i
                     style={{ height: `${Math.max(4, (val / maxFat) * 100)}%` }}
                     initial={{ height: 0 }}
                     animate={{ height: `${Math.max(4, (val / maxFat) * 100)}%` }}
                     transition={{ duration: 0.6, delay: i * 0.05, ease: "easeOut" }}
                   />
-                  <span className="crm-v3-bar-label">{diasLabels[i]}</span>
+                  <span className="team-bar-label">{diasLabels[i]}</span>
                 </div>
               ))}
             </div>
           </div>
         </div>
+
+        {/* ── Estado geral — quando tudo está calmo ─────────── */}
+        {linhasBriefing.length === 0 && (
+          <div className="cd-tudo-ok">
+            <CheckCircle2 size={22} />
+            <div>
+              <strong>Tudo em dia</strong>
+              <span>Sem cobranças pendentes, mensagens respondidas e stock OK. Bom trabalho.</span>
+            </div>
+          </div>
+        )}
       </div>
 
       {mensagem && (

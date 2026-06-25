@@ -4,6 +4,7 @@ import {
   descontoExigeAprovacao,
   exigirModuloComercial,
   exigirPermissaoComercial,
+  HEADER_NEGOCIO_ID,
   permissoesDoPapel,
   resolverContextoComercial,
   temPermissao
@@ -106,7 +107,7 @@ describe("contexto comercial HTTP", () => {
         usuario,
         negocio,
         papel: "DONO",
-        modulosAtivos: expect.arrayContaining(["crm", "catalogo", "conversas", "whatsapp"])
+        modulosAtivos: expect.arrayContaining(["team-core", "catalogo", "conversas", "whatsapp"])
       })
     );
     expect(resultado?.permissoes).toEqual(expect.arrayContaining(["catalogo:gerir", "clientes:gerir"]));
@@ -157,10 +158,42 @@ describe("contexto comercial HTTP", () => {
     );
 
     expect(resultado?.modulosAtivos).toEqual(
-      expect.arrayContaining(["crm", "loja-publica", "afiliados", "conversas"])
+      expect.arrayContaining(["team-core", "loja-publica", "afiliados", "conversas"])
     );
     expect(resultado?.modulosAtivos).not.toContain("catalogo");
     expect(listarModulosPorNegocio).toHaveBeenCalledWith("negocio_1");
+  });
+
+  it("normaliza o módulo legado crm para team-core nas respostas públicas", async () => {
+    const listarModulosPorNegocio = vi.fn().mockResolvedValue([
+      {
+        modulo: "crm",
+        ativo: true
+      }
+    ]);
+    const contexto = {
+      autenticacaoTelefone: {
+        obterSessao: vi.fn().mockResolvedValue(usuario)
+      },
+      repositorios: {
+        autenticacao: {
+          buscarNegocioPrincipalPorUsuario: vi.fn().mockResolvedValue(negocio),
+          salvarNegocioUsuario: vi.fn(),
+          listarModulosAtivosPorNegocio: vi.fn().mockResolvedValue([]),
+          listarModulosPorNegocio
+        }
+      }
+    } as unknown as ContextoAplicacao;
+    const { reply } = criarReplyFake();
+
+    const resultado = await resolverContextoComercial(
+      contexto,
+      { headers: { authorization: "Bearer token-dev" } } as never,
+      reply as never
+    );
+
+    expect(resultado?.modulosAtivos).toContain("team-core");
+    expect(resultado?.modulosAtivos).not.toContain("crm");
   });
 
   it("autoriza leitura quando o papel possui permissão de gestão do mesmo domínio", async () => {
@@ -232,7 +265,7 @@ describe("contexto comercial HTTP", () => {
       repositorios: {
         autenticacao: {
           buscarNegocioPrincipalPorUsuario: vi.fn().mockResolvedValue(negocio),
-          listarModulosAtivosPorNegocio: vi.fn().mockResolvedValue(["crm", "reservas"]),
+          listarModulosAtivosPorNegocio: vi.fn().mockResolvedValue(["team-core", "reservas"]),
           listarModulosPorNegocio: vi.fn().mockResolvedValue([{ modulo: "catalogo", ativo: false }])
         }
       }
@@ -290,5 +323,103 @@ describe("contexto comercial HTTP", () => {
         erro: "NAO_AUTENTICADO"
       })
     );
+  });
+
+  describe("multi-workspace via X-Bizy-Negocio-Id", () => {
+    const negocio2: NegocioBizy = {
+      ...negocio,
+      id: "negocio_2",
+      nomeComercial: "Segunda Loja",
+      usuarioPapel: "ADMIN"
+    };
+
+    it("usa negócio especificado pelo header quando o utilizador tem acesso", async () => {
+      const contexto = {
+        autenticacaoTelefone: {
+          obterSessao: vi.fn().mockResolvedValue(usuario)
+        },
+        repositorios: {
+          autenticacao: {
+            buscarNegocioPorUsuario: vi.fn().mockResolvedValue(negocio2),
+            buscarNegocioPrincipalPorUsuario: vi.fn().mockResolvedValue(negocio),
+            salvarNegocioUsuario: vi.fn(),
+            listarModulosAtivosPorNegocio: vi.fn().mockResolvedValue([]),
+            listarModulosPorNegocio: vi.fn().mockResolvedValue([])
+          }
+        }
+      } as unknown as ContextoAplicacao;
+      const { reply } = criarReplyFake();
+
+      const resultado = await resolverContextoComercial(
+        contexto,
+        { headers: { authorization: "Bearer token-dev", [HEADER_NEGOCIO_ID]: "negocio_2" } } as never,
+        reply as never
+      );
+
+      expect(resultado?.negocio.id).toBe("negocio_2");
+      expect(resultado?.negocio.nomeComercial).toBe("Segunda Loja");
+      expect(resultado?.papel).toBe("ADMIN");
+      expect(contexto.repositorios.autenticacao.buscarNegocioPorUsuario).toHaveBeenCalledWith(usuario.id, "negocio_2");
+      expect(contexto.repositorios.autenticacao.buscarNegocioPrincipalPorUsuario).not.toHaveBeenCalled();
+    });
+
+    it("responde 403 quando o header aponta para negócio sem acesso", async () => {
+      const contexto = {
+        autenticacaoTelefone: {
+          obterSessao: vi.fn().mockResolvedValue(usuario)
+        },
+        repositorios: {
+          autenticacao: {
+            buscarNegocioPorUsuario: vi.fn().mockResolvedValue(null),
+            buscarNegocioPrincipalPorUsuario: vi.fn(),
+            salvarNegocioUsuario: vi.fn(),
+            listarModulosAtivosPorNegocio: vi.fn().mockResolvedValue([]),
+            listarModulosPorNegocio: vi.fn().mockResolvedValue([])
+          }
+        }
+      } as unknown as ContextoAplicacao;
+      const { reply, estado } = criarReplyFake();
+
+      const resultado = await resolverContextoComercial(
+        contexto,
+        { headers: { authorization: "Bearer token-dev", [HEADER_NEGOCIO_ID]: "negocio_inexistente" } } as never,
+        reply as never
+      );
+
+      expect(resultado).toBeNull();
+      expect(estado.statusCode).toBe(403);
+      expect(estado.payload).toEqual({
+        erro: "NEGOCIO_NAO_ACESSIVEL",
+        mensagem: "Não tem acesso a este negócio ou ele não existe."
+      });
+    });
+
+    it("usa negócio principal quando o header não é enviado", async () => {
+      const contexto = {
+        autenticacaoTelefone: {
+          obterSessao: vi.fn().mockResolvedValue(usuario)
+        },
+        repositorios: {
+          autenticacao: {
+            buscarNegocioPorUsuario: vi.fn(),
+            buscarNegocioPrincipalPorUsuario: vi.fn().mockResolvedValue(negocio),
+            salvarNegocioUsuario: vi.fn(),
+            listarModulosAtivosPorNegocio: vi.fn().mockResolvedValue([]),
+            listarModulosPorNegocio: vi.fn().mockResolvedValue([])
+          }
+        }
+      } as unknown as ContextoAplicacao;
+      const { reply } = criarReplyFake();
+
+      const resultado = await resolverContextoComercial(
+        contexto,
+        { headers: { authorization: "Bearer token-dev" } } as never,
+        reply as never
+      );
+
+      expect(resultado?.negocio.id).toBe("negocio_1");
+      expect(contexto.repositorios.autenticacao.buscarNegocioPorUsuario).not.toHaveBeenCalled();
+      expect(contexto.repositorios.autenticacao.buscarNegocioPrincipalPorUsuario).toHaveBeenCalledWith(usuario.id);
+    });
   });
 });

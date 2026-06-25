@@ -3,6 +3,7 @@ import {
   catalogoModulosNegocio,
   modulosNegocioObrigatorios,
   modulosNegocioPadrao,
+  normalizarModuloNegocio,
   type AtualizacaoModuloNegocio,
   type ModuloNegocioCodigo,
   type ModuloNegocioConfigurado
@@ -13,7 +14,9 @@ export class GestaoModulosNegocioUseCase {
 
   async listar(negocioId: string) {
     const configurados = await this.autenticacao.listarModulosPorNegocio(negocioId);
-    const configuradosPorCodigo = new Map(configurados.map((modulo) => [modulo.modulo, modulo]));
+    const configuradosPorCodigo = new Map(
+      configurados.map((modulo) => [normalizarModuloNegocio(modulo.modulo), { ...modulo, modulo: normalizarModuloNegocio(modulo.modulo) }])
+    );
     const modulos = catalogoModulosNegocio.map((definicao) => {
       const configurado = configuradosPorCodigo.get(definicao.modulo);
       const ativo = configurado ? configurado.ativo : modulosNegocioPadrao.includes(definicao.modulo);
@@ -45,7 +48,7 @@ export class GestaoModulosNegocioUseCase {
 
   private validarAtualizacao(modulo: ModuloNegocioCodigo, dados: AtualizacaoModuloNegocio) {
     if (modulosNegocioObrigatorios.includes(modulo) && dados.ativo === false) {
-      throw new Error(`O módulo ${modulo} é obrigatório para manter o núcleo CRM consistente.`);
+      throw new Error(`O módulo ${modulo} é obrigatório para manter o núcleo BIZY Team consistente.`);
     }
   }
 

@@ -852,7 +852,7 @@ describe("loja pública, catálogo digital e tracking HTTP", () => {
             colecoes: 4
           },
           acoes: expect.objectContaining({
-            seguirDisponivel: false,
+            seguirDisponivel: true,
             urlLoja: "/lojas/loja-perfil-bizy",
             urlMarket: "/market?loja=loja-perfil-bizy"
           })
@@ -1361,7 +1361,7 @@ describe("loja pública, catálogo digital e tracking HTTP", () => {
           canal: "site",
           subtotalEmKwanza: 25_000,
           taxaEntregaEmKwanza: 1_500,
-          totalEmKwanza: 26_500
+          totalEmKwanza: 30_000
         })
       );
       expect(checkout.json().pedido).toEqual(
@@ -1383,7 +1383,7 @@ describe("loja pública, catálogo digital e tracking HTTP", () => {
           origem: "link-afiliado-ana",
           canal: "site",
           taxaEntregaEmKwanza: 1_500,
-          totalEmKwanza: 26_500,
+          totalEmKwanza: 30_000,
           enderecoEntrega: expect.stringContaining("Talatona")
         })
       ]);
@@ -1414,7 +1414,7 @@ describe("loja pública, catálogo digital e tracking HTTP", () => {
           checkoutsIniciados: 1,
           pedidosCriados: 1,
           leadsIdentificados: 1,
-          receitaAtribuidaEmKwanza: 26_500,
+          receitaAtribuidaEmKwanza: 30_000,
           taxaPedidoPorCheckout: 100
         })
       );
@@ -1559,26 +1559,26 @@ describe("loja pública, catálogo digital e tracking HTTP", () => {
           eventos: 2,
           checkoutsIniciados: 1,
           pedidosCriados: 1,
-          receitaAtribuidaEmKwanza: 12_500,
+          receitaAtribuidaEmKwanza: 14_250,
           taxaPedidoPorCheckout: 100
         })
       );
       expect(resumoTracking.json().atribuicoes.porVendedor["vend-luanda-01"]).toEqual(
         expect.objectContaining({
           pedidosCriados: 1,
-          receitaAtribuidaEmKwanza: 12_500
+          receitaAtribuidaEmKwanza: 14_250
         })
       );
       expect(resumoTracking.json().atribuicoes.porLink["LIA-CAMP-1"]).toEqual(
         expect.objectContaining({
           pedidosCriados: 1,
-          receitaAtribuidaEmKwanza: 12_500
+          receitaAtribuidaEmKwanza: 14_250
         })
       );
       expect(resumoTracking.json().atribuicoes.porAfiliado["CRIADORA-LIA"]).toEqual(
         expect.objectContaining({
           pedidosCriados: 1,
-          receitaAtribuidaEmKwanza: 12_500
+          receitaAtribuidaEmKwanza: 14_250
         })
       );
     } finally {
@@ -1788,7 +1788,7 @@ describe("loja pública, catálogo digital e tracking HTTP", () => {
             }),
             customData: expect.objectContaining({
               currency: "AOA",
-              value: 12_500,
+              value: 14_250,
               order_id: checkout.json().pedido.id
             })
           })

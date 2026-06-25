@@ -122,15 +122,15 @@ export function PaginaRelatorios() {
   return (
     <CrmPageMotion>
       {/* ── Header ── */}
-      <div className="crm-v3-pghead">
+      <div className="team-pghead">
         <div>
           <h1>Relatórios</h1>
-          <div className="crm-v3-sub">
+          <div className="team-sub">
             {new Date().toLocaleDateString("pt", { month: "long", year: "numeric" })} · comparado com o mês anterior
           </div>
         </div>
-        <div className="crm-v3-pghead-right">
-          <button type="button" className="crm-v3-btn crm-v3-btn-ghost" onClick={() => void carregar()} disabled={carregando}>
+        <div className="team-pghead-right">
+          <button type="button" className="team-btn team-btn-ghost" onClick={() => void carregar()} disabled={carregando}>
             Exportar PDF
           </button>
         </div>

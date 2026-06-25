@@ -1,3 +1,4 @@
+import { accessSync, constants } from "node:fs";
 import { chromium, type Browser } from "playwright";
 
 let browserPromise: Promise<Browser> | null = null;
@@ -69,6 +70,7 @@ export async function renderPdfFromHtml(html: string, options: OpcoesRenderPdf =
       await page.close();
     }
   } catch (erro) {
+    console.error("[PdfRenderer] Playwright falhou, a usar fallback de texto:", (erro as Error).message);
     if (process.env.PDF_RENDERER_ALLOW_FALLBACK === "false") {
       throw erro;
     }
@@ -77,16 +79,23 @@ export async function renderPdfFromHtml(html: string, options: OpcoesRenderPdf =
   }
 }
 
+function detectarChromiumPath(): string | undefined {
+  if (process.env.CHROMIUM_EXECUTABLE_PATH) return process.env.CHROMIUM_EXECUTABLE_PATH;
+
+  const caminhos = ["/usr/bin/chromium-browser", "/usr/bin/chromium", "/usr/bin/google-chrome-stable"];
+  for (const p of caminhos) {
+    try { accessSync(p, constants.X_OK); return p; } catch { /* continua */ }
+  }
+  return undefined;
+}
+
 async function getPdfBrowser() {
+  const execPath = detectarChromiumPath();
   const launchOpts: Parameters<typeof chromium.launch>[0] = {
     headless: true,
+    executablePath: execPath,
     args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-gpu", "--disable-dev-shm-usage"]
   };
-
-  // Em Alpine/containers sem o browser do Playwright, usar chromium do sistema
-  if (process.env.CHROMIUM_EXECUTABLE_PATH) {
-    launchOpts.executablePath = process.env.CHROMIUM_EXECUTABLE_PATH;
-  }
 
   if (!browserPromise) {
     browserPromise = chromium.launch(launchOpts);

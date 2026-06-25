@@ -288,7 +288,7 @@ describe("afiliados, criadores e comissões HTTP", () => {
           canal: "tiktok",
           subtotalEmKwanza: 25_000,
           taxaEntregaEmKwanza: 0,
-          totalEmKwanza: 25_000
+          totalEmKwanza: 28_500
         })
       );
 

@@ -151,7 +151,7 @@ import type {
   TipoHistoricoComissaoParceiro,
   UsuarioSistema
 } from "../../dominio/tipos.js";
-import { modulosNegocioPadrao } from "../../dominio/tipos.js";
+import { modulosNegocioPadrao, normalizarModuloNegocio } from "../../dominio/tipos.js";
 import { normalizarEmail, normalizarTelefone } from "../../dominio/servicos/normalizarContato.js";
 
 const estadosQueBloqueiamStock: EstadoReserva[] = ["PENDING", "RESERVED", "WAITING_PAYMENT", "PAID"];
@@ -3045,6 +3045,24 @@ export class RepositorioAutenticacaoPrisma implements RepositorioAutenticacao {
     return this.mapearNegocio(negocio, "DONO");
   }
 
+  async buscarNegocioPorUsuario(usuarioId: string, negocioId: string): Promise<NegocioBizy | null> {
+    const membro = await this.prisma.membroNegocio.findUnique({
+      where: { negocioId_usuarioId: { negocioId, usuarioId } },
+      include: { negocio: true }
+    });
+    if (!membro || membro.status !== "ATIVO") return null;
+    return this.mapearNegocio(membro.negocio, membro.papel);
+  }
+
+  async listarNegociosPorUsuario(usuarioId: string): Promise<NegocioBizy[]> {
+    const membros = await this.prisma.membroNegocio.findMany({
+      where: { usuarioId, status: "ATIVO" },
+      include: { negocio: true },
+      orderBy: { criadoEm: "asc" }
+    });
+    return membros.map((m) => this.mapearNegocio(m.negocio, m.papel));
+  }
+
   async atualizarContasSociaisNegocio(negocioId: string, contasSociais: Record<string, unknown>): Promise<NegocioBizy> {
     const negocio = await this.prisma.negocio.update({
       where: { id: negocioId },
@@ -3127,10 +3145,11 @@ export class RepositorioAutenticacaoPrisma implements RepositorioAutenticacao {
 
     const ativos = new Set<string>(modulosNegocioPadrao);
     for (const modulo of modulos) {
+      const codigoModulo = normalizarModuloNegocio(modulo.modulo);
       if (modulo.ativo) {
-        ativos.add(modulo.modulo);
+        ativos.add(codigoModulo);
       } else {
-        ativos.delete(modulo.modulo);
+        ativos.delete(codigoModulo);
       }
     }
 
@@ -3358,7 +3377,7 @@ export class RepositorioAutenticacaoPrisma implements RepositorioAutenticacao {
     return {
       id: modulo.id,
       negocioId: modulo.negocioId,
-      modulo: modulo.modulo as ModuloNegocioCodigo,
+      modulo: normalizarModuloNegocio(modulo.modulo),
       ativo: modulo.ativo,
       configuracao: this.lerObjeto(modulo.configuracaoJson),
       criadoEm: modulo.criadoEm,

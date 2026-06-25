@@ -63,6 +63,27 @@ export class GestaoFinancasUseCase {
       observacao?: string;
     }
   ) {
+    // RN-T001: todo movimento financeiro deve ter origem classificada
+    if (!dados.origemTipo) {
+      throw new Error(
+        "RN-T001: Todo movimento financeiro deve ter origem classificada (origemTipo). Entradas: PEDIDO, RECEBIMENTO_MANUAL, COMISSAO. Saídas: FORNECEDOR, DESPESA, IMPOSTO, COMISSAO_PAGA."
+      );
+    }
+
+    const origensEntrada = ["PEDIDO", "RECEBIMENTO_MANUAL", "COMISSAO", "FACTURA", "CONTA_RECEBER", "RECIBO"];
+    const origensSaida = ["FORNECEDOR", "DESPESA", "IMPOSTO", "COMISSAO_PAGA", "NOTA_CREDITO", "CONTA_PAGAR", "REEMBOLSO"];
+
+    if (dados.tipo === "ENTRADA" && !origensEntrada.includes(dados.origemTipo)) {
+      throw new Error(
+        "RN-T001: Todo movimento financeiro deve ter origem classificada (origemTipo). Entradas: PEDIDO, RECEBIMENTO_MANUAL, COMISSAO. Saídas: FORNECEDOR, DESPESA, IMPOSTO, COMISSAO_PAGA."
+      );
+    }
+    if (dados.tipo === "SAIDA" && !origensSaida.includes(dados.origemTipo)) {
+      throw new Error(
+        "RN-T001: Todo movimento financeiro deve ter origem classificada (origemTipo). Entradas: PEDIDO, RECEBIMENTO_MANUAL, COMISSAO. Saídas: FORNECEDOR, DESPESA, IMPOSTO, COMISSAO_PAGA."
+      );
+    }
+
     return this.prisma.movimentoFinanceiro.create({
       data: {
         negocioId,
@@ -1076,6 +1097,192 @@ export class GestaoFinancasUseCase {
     riscos.sort((a, b) => b.score - a.score);
 
     return { clientes: riscos };
+  }
+
+  // ── Fecho de Período (RN-T004) ─────────────────────────────────────────
+
+  async fecharPeriodo(negocioId: string, mes: number, ano: number) {
+    const de = new Date(ano, mes - 1, 1);
+    const ate = new Date(ano, mes, 0, 23, 59, 59);
+
+    const semCategoria = await this.prisma.movimentoFinanceiro.count({
+      where: { negocioId, dataMovimento: { gte: de, lte: ate }, categoriaId: null }
+    });
+
+    if (semCategoria > 0) {
+      throw new Error(
+        `RN-T004: Existem ${semCategoria} movimentos sem categoria no período ${mes}/${ano}. Reconcilie antes de fechar.`
+      );
+    }
+
+    const negocio = await this.prisma.negocio.findUniqueOrThrow({
+      where: { id: negocioId },
+      select: { dadosOperacionaisJson: true }
+    });
+
+    const dadosOp = JSON.parse(negocio.dadosOperacionaisJson || "{}");
+    if (!dadosOp.periodosFechados) dadosOp.periodosFechados = [];
+
+    const chave = `${mes}/${ano}`;
+    if (dadosOp.periodosFechados.includes(chave)) {
+      throw new Error(`Período ${chave} já se encontra fechado.`);
+    }
+
+    dadosOp.periodosFechados.push(chave);
+
+    await this.prisma.negocio.update({
+      where: { id: negocioId },
+      data: { dadosOperacionaisJson: JSON.stringify(dadosOp) }
+    });
+
+    return { periodo: chave, fechadoEm: new Date() };
+  }
+
+  // ── Limite de Desconto (RN-T005) ──────────────────────────────────────
+
+  async validarLimiteDesconto(
+    negocioId: string,
+    percentualDesconto: number,
+    aprovadorId?: string
+  ) {
+    const LIMITE_DESCONTO = 15;
+
+    if (percentualDesconto <= LIMITE_DESCONTO) {
+      return { aprovado: true, percentualDesconto };
+    }
+
+    if (!aprovadorId) {
+      throw new Error(
+        "RN-T005: Descontos acima de 15% exigem aprovação de perfil com permissão financas:aprovacao."
+      );
+    }
+
+    const membro = await this.prisma.membroNegocio.findFirst({
+      where: {
+        negocioId,
+        usuarioId: aprovadorId,
+        status: "ATIVO",
+        papel: { in: ["ADMIN", "DONO", "GESTOR_FINANCEIRO"] }
+      }
+    });
+
+    if (!membro) {
+      throw new Error(
+        "RN-T005: Descontos acima de 15% exigem aprovação de perfil com permissão financas:aprovacao."
+      );
+    }
+
+    return { aprovado: true, percentualDesconto, aprovadorId };
+  }
+
+  // ── Reembolso Vinculado (RN-T006) ─────────────────────────────────────
+
+  async registarReembolso(
+    negocioId: string,
+    dados: {
+      descricao: string;
+      valor: number;
+      pedidoId?: string;
+      facturaId?: string;
+      notaCreditoId?: string;
+      responsavelId?: string;
+      observacao?: string;
+    }
+  ) {
+    if (!dados.pedidoId && !dados.facturaId && !dados.notaCreditoId) {
+      throw new Error(
+        "RN-T006: Todo reembolso deve estar vinculado a um pedido, factura ou nota de crédito. Reembolsos avulsos são bloqueados."
+      );
+    }
+
+    const origemId = dados.pedidoId ?? dados.facturaId ?? dados.notaCreditoId;
+    const origemDetalhe = dados.pedidoId
+      ? `Pedido: ${dados.pedidoId}`
+      : dados.facturaId
+        ? `Factura: ${dados.facturaId}`
+        : `Nota crédito: ${dados.notaCreditoId}`;
+
+    return this.registarMovimento(negocioId, {
+      tipo: "SAIDA",
+      descricao: dados.descricao || `Reembolso — ${origemDetalhe}`,
+      valor: dados.valor,
+      origemTipo: "REEMBOLSO",
+      origemId,
+      responsavelId: dados.responsavelId,
+      observacao: dados.observacao
+    });
+  }
+
+  // ── Movimento Multi-Moeda (RN-T007) ───────────────────────────────────
+
+  async registarMovimentoMultiMoeda(
+    negocioId: string,
+    dados: {
+      tipo: string;
+      categoriaId?: string;
+      descricao: string;
+      valor: number;
+      origemTipo?: string;
+      origemId?: string;
+      responsavelId?: string;
+      dataMovimento?: Date;
+      observacao?: string;
+      moedaOriginal?: string;
+      taxaCambio?: number;
+      valorOriginal?: number;
+    }
+  ) {
+    const negocio = await this.prisma.negocio.findUniqueOrThrow({
+      where: { id: negocioId },
+      select: { moeda: true }
+    });
+
+    const moedaPadrao = negocio.moeda || "AOA";
+
+    if (dados.moedaOriginal && dados.moedaOriginal !== moedaPadrao) {
+      if (!dados.taxaCambio || !dados.valorOriginal) {
+        throw new Error(
+          "RN-T007: Transacções em moeda estrangeira devem registar taxa de câmbio e valor original."
+        );
+      }
+
+      const valorConvertido = Math.round(dados.valorOriginal * dados.taxaCambio);
+
+      const detalheCambio = JSON.stringify({
+        moedaOriginal: dados.moedaOriginal,
+        valorOriginal: dados.valorOriginal,
+        taxaCambio: dados.taxaCambio,
+        moedaDestino: moedaPadrao
+      });
+
+      const observacaoFinal = dados.observacao
+        ? `${dados.observacao} | Câmbio: ${detalheCambio}`
+        : `Câmbio: ${detalheCambio}`;
+
+      return this.registarMovimento(negocioId, {
+        tipo: dados.tipo,
+        categoriaId: dados.categoriaId,
+        descricao: dados.descricao,
+        valor: valorConvertido,
+        origemTipo: dados.origemTipo,
+        origemId: dados.origemId,
+        responsavelId: dados.responsavelId,
+        dataMovimento: dados.dataMovimento,
+        observacao: observacaoFinal
+      });
+    }
+
+    return this.registarMovimento(negocioId, {
+      tipo: dados.tipo,
+      categoriaId: dados.categoriaId,
+      descricao: dados.descricao,
+      valor: dados.valor,
+      origemTipo: dados.origemTipo,
+      origemId: dados.origemId,
+      responsavelId: dados.responsavelId,
+      dataMovimento: dados.dataMovimento,
+      observacao: dados.observacao
+    });
   }
 
   // ── Regras Fiscais (RN-T002, RN-T003) ────────────────────────────────────

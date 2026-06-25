@@ -1,18 +1,11 @@
-import { AlertTriangle, ArrowUpRight, BadgeCheck, ChevronDown, Coins, FolderOpen, ImagePlus, Layers3, Package, PencilLine, Plus, Tag, Trash2, X } from "lucide-react";
-import { type FormEvent, useEffect, useRef, useState } from "react";
+import { BadgeCheck, ChevronDown, ChevronRight, Coins, FolderOpen, Layers3, Package, PencilLine, Plus, Search, Tag, Trash2, Upload, X } from "lucide-react";
+import { type DragEvent, type FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import { requisitarApi, resolverUrlMedia } from "../api";
+import { ExibidorImagem } from "../componentes/ExibidorImagem";
 import { ConfirmarAcao } from "../componentes/ConfirmarAcao";
 import { CrmPageMotion } from "../componentes/CrmInterno21st";
 import { SkeletonPagina } from "../componentes/SkeletonBlocks";
-import {
-  PageHead,
-  KpiGrid,
-  KpiCard,
-  ToolbarBizy,
-  BotaoBizy,
-  StatusBadge,
-  type CorSemantica,
-} from "../componentes/BizyDesignSystem";
+import { BotaoBizy } from "../componentes/BizyDesignSystem";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -75,13 +68,6 @@ const formularioInicial = {
 const estadosPeca: EstadoPeca[] = ["DISPONIVEL", "RESERVADA", "VENDIDA", "ESGOTADA"];
 
 import { enviarMedia } from "../media";
-
-function corEstadoPeca(estado: EstadoPeca): CorSemantica {
-  if (estado === "DISPONIVEL") return "green";
-  if (estado === "RESERVADA") return "amber";
-  if (estado === "ESGOTADA") return "rose";
-  return "blue";
-}
 
 export function PaginaCatalogo() {
   const [pecas, setPecas] = useState<Peca[]>([]);
@@ -281,58 +267,84 @@ export function PaginaCatalogo() {
     ...catalogos.map((c) => ({ id: c, rotulo: c })),
   ];
 
+  const contagensCatalogo = pecas.reduce<Record<string, number>>((acc, p) => {
+    if (p.categoria) acc[p.categoria] = (acc[p.categoria] ?? 0) + 1;
+    return acc;
+  }, {});
+
   if (carregandoInicial) return <CrmPageMotion><SkeletonPagina /></CrmPageMotion>;
 
   return (
     <CrmPageMotion>
-      <PageHead eyebrow={`Vitrine · ${pecas.length} artigo${pecas.length !== 1 ? "s" : ""}`} titulo="Produtos" tamanhoTitulo="sm">
+      {/* ── Header ── */}
+      <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 16 }}>
+        <div>
+          <h1 style={{ fontSize: 20, fontWeight: 800, color: "var(--studio-ink)", lineHeight: 1.2, margin: 0 }}>Produtos</h1>
+          <p style={{ fontSize: 12.5, color: "var(--studio-muted)", marginTop: 2 }}>
+            Gestão de catálogo, stock e preços
+          </p>
+        </div>
         <BotaoBizy icone={Plus} onClick={abrirCadastro}>Novo produto</BotaoBizy>
-      </PageHead>
+      </div>
 
-      <KpiGrid>
-        <KpiCard
-          hero
-          icone={Coins}
-          rotulo="Valor de inventário"
-          valor={new Intl.NumberFormat("pt-AO").format(valorInventario)}
-          unidade="Kz"
-          delta={`${pecas.length} artigos ativos`}
-          deltaPositivo
-          rodape={`${totalStock} unidades em stock`}
-        />
-        <KpiCard
-          icone={Tag}
-          cor="blue"
-          rotulo="Ativos"
-          valor={disponiveis}
-          delta={esgotados > 0 ? `${esgotados} esgotado${esgotados !== 1 ? "s" : ""}` : "todos ativos"}
-        />
-        <KpiCard
-          icone={AlertTriangle}
-          cor="amber"
-          rotulo="Stock baixo"
-          valor={stockBaixo}
-          delta={stockBaixo > 0 ? "repor em breve" : "ok"}
-          deltaPositivo={stockBaixo > 0 ? false : undefined}
-        />
-        <KpiCard
-          icone={ArrowUpRight}
-          cor="green"
-          rotulo="Mais vendido"
-          valor={maisVendido?.nome ?? "—"}
-          delta={maisVendido ? `${maisVendido.quantidade} em stock` : undefined}
-          deltaPositivo
-        />
-      </KpiGrid>
+      {/* ── Strip numérica ── */}
+      <div className="cat-strip">
+        <div className="cat-strip-cell">
+          <div className="cat-strip-val">{formatarKwanza(valorInventario)}</div>
+          <div className="cat-strip-lbl">inventário</div>
+        </div>
+        <div className="cat-strip-cell">
+          <div className="cat-strip-val">{disponiveis}</div>
+          <div className="cat-strip-lbl">activos</div>
+        </div>
+        <div className="cat-strip-cell">
+          <div className="cat-strip-val" data-tom={stockBaixo > 0 ? "aviso" : undefined}>{stockBaixo}</div>
+          <div className="cat-strip-lbl">stock baixo</div>
+        </div>
+        <div className="cat-strip-cell">
+          <div className="cat-strip-val" data-tom={esgotados > 0 ? "perigo" : undefined}>{esgotados}</div>
+          <div className="cat-strip-lbl">esgotados</div>
+        </div>
+      </div>
 
-      <ToolbarBizy
-        placeholder="Buscar produto…"
-        valorBusca={busca}
-        onBuscaChange={setBusca}
-        selectOpcoes={selectCategorias}
-        selectValor={categoriaFiltro}
-        onSelectChange={setCategoriaFiltro}
-      />
+      {/* ── Tabs catálogos ── */}
+      <div className="cat-tabs">
+        <button
+          type="button"
+          className="cat-tab"
+          data-active={categoriaFiltro === "todas" ? true : undefined}
+          onClick={() => setCategoriaFiltro("todas")}
+        >
+          Todos
+          <span className="cat-tab-count">{pecas.length}</span>
+        </button>
+        {catalogos.map((cat) => (
+          <button
+            key={cat}
+            type="button"
+            className="cat-tab"
+            data-active={categoriaFiltro === cat ? true : undefined}
+            onClick={() => setCategoriaFiltro(cat)}
+          >
+            {cat}
+            <span className="cat-tab-count">{contagensCatalogo[cat] ?? 0}</span>
+          </button>
+        ))}
+      </div>
+
+      {/* ── Barra de busca ── */}
+      <div className="cat-bar">
+        <div className="cat-search-wrap">
+          <Search size={15} />
+          <input
+            type="text"
+            className="cat-search"
+            placeholder="Buscar produto…"
+            value={busca}
+            onChange={(e) => setBusca(e.target.value)}
+          />
+        </div>
+      </div>
 
       {/* ── Coleções ── */}
       {colecoes.length > 0 && (
@@ -353,52 +365,50 @@ export function PaginaCatalogo() {
         />
       )}
 
-      {/* ── Product Grid ── */}
+      {/* ── Grelha de produtos ── */}
       {pecasFiltradas.length > 0 ? (
-        <div className="bz-prod-grid">
+        <div className="cat-grid">
           {pecasFiltradas.map((peca) => {
-            const estadoCor = corEstadoPeca(peca.estado);
             const stockLabel = peca.estado === "ESGOTADA"
               ? "Esgotado"
               : peca.quantidade <= 2
-                ? "Stock baixo"
-                : "Em stock";
-            const stockCor = peca.estado === "ESGOTADA"
+                ? "Baixo"
+                : null;
+            const badgeCor = peca.estado === "ESGOTADA"
               ? "rose"
               : peca.quantidade <= 2
                 ? "amber"
                 : "green";
 
             return (
-              <div key={peca.id} className="bz-prod-card" onClick={() => iniciarEdicao(peca)} role="button" tabIndex={0}>
-                <div className="bz-prod-photo">
+              <div key={peca.id} className="cat-card" onClick={() => iniciarEdicao(peca)} role="button" tabIndex={0}>
+                <div className="cat-card-photo">
                   {peca.fotos[0] ? (
-                    <img src={resolverUrlMedia(peca.fotos[0])} alt={peca.nome} className="bz-prod-img" />
+                    <img src={resolverUrlMedia(peca.fotos[0])} alt={peca.nome} loading="lazy" />
                   ) : (
-                    <Package size={40} className="bz-prod-icon" />
+                    <div className="cat-card-photo-empty">
+                      <Package size={32} />
+                    </div>
                   )}
-                  {peca.categoria && <span className="bz-prod-cat">{peca.categoria}</span>}
-                  <span className="bz-prod-stock">
-                    <StatusBadge cor={stockCor as CorSemantica}>{stockLabel}</StatusBadge>
-                  </span>
+                  {stockLabel && <span className="cat-card-badge" data-cor={badgeCor}>{stockLabel}</span>}
+                  <span className="cat-card-stock">{peca.quantidade}</span>
                 </div>
-                <div className="bz-prod-body">
-                  <div className="bz-prod-nm">{peca.nome}</div>
-                  <div className="bz-prod-meta">
+                <div className="cat-card-body">
+                  <div className="cat-card-name">{peca.nome}</div>
+                  <div className="cat-card-meta">
+                    {peca.categoria ?? ""}
                     {peca.variantes && Object.keys(peca.variantes).length > 0
-                      ? `${Object.entries(peca.variantes).map(([k, v]) => `${v.length} ${k}`).join(" · ")} · `
-                      : ""
-                    }
-                    {peca.quantidade > 0 ? `${peca.quantidade} em stock` : "0 em stock"}
+                      ? ` · ${Object.entries(peca.variantes).map(([k, v]) => `${v.length} ${k}`).join(", ")}`
+                      : ""}
                   </div>
-                  <div className="bz-prod-row">
-                    <span className="bz-prod-pr bz-tnum">{formatarKwanza(peca.precoEmKwanza)}</span>
-                    <div className="bz-prod-actions">
-                      <button type="button" className="bz-iconbtn" onClick={(e) => { e.stopPropagation(); iniciarEdicao(peca); }} title="Editar">
-                        <PencilLine size={14} />
+                  <div className="cat-card-foot">
+                    <span className="cat-card-price">{formatarKwanza(peca.precoEmKwanza)}</span>
+                    <div className="cat-card-actions">
+                      <button type="button" onClick={(e) => { e.stopPropagation(); iniciarEdicao(peca); }} title="Editar">
+                        <PencilLine size={13} />
                       </button>
-                      <button type="button" className="bz-iconbtn" onClick={(e) => { e.stopPropagation(); setPecaParaDesativar(peca); }} title="Desativar" disabled={peca.estado === "ESGOTADA"}>
-                        <Trash2 size={14} />
+                      <button type="button" onClick={(e) => { e.stopPropagation(); setPecaParaDesativar(peca); }} title="Desativar" disabled={peca.estado === "ESGOTADA"}>
+                        <Trash2 size={13} />
                       </button>
                     </div>
                   </div>
@@ -408,301 +418,30 @@ export function PaginaCatalogo() {
           })}
         </div>
       ) : (
-        <div className="bz-empty-msg">
-          <Package size={24} style={{ opacity: 0.5 }} />
+        <div className="cat-empty">
+          <Package size={28} style={{ opacity: 0.4 }} />
           <strong>Sem produtos</strong>
           <span>Cadastre o primeiro produto para iniciar a venda.</span>
         </div>
       )}
 
       {/* ── Product Form Dialog ── */}
-      <Dialog open={modalProdutoAberto} onOpenChange={(aberto) => { if (!aberto) fecharFormulario(); }}>
-        <DialogContent className="bz-product-dialog max-h-[calc(100dvh-1rem)] overflow-hidden p-0 sm:max-w-3xl">
-          <DialogHeader className="bz-dialog-head border-b px-5 py-4 text-left">
-            <span className="bz-dialog-icon"><Package size={18} /></span>
-            <DialogTitle>{codigoEditando ? `Editar produto #${codigoEditando}` : "Novo produto"}</DialogTitle>
-            <DialogDescription>
-              Produto completo, ligado a um catálogo e pronto para aparecer na loja digital.
-            </DialogDescription>
-          </DialogHeader>
-
-          <form aria-label="Formulário de produto" onSubmit={salvarPeca} className="bz-product-form flex min-h-0 flex-col">
-            <div className="bz-product-form-scroll grid gap-5 overflow-y-auto p-4 sm:p-5">
-              <section className="bz-form-section grid gap-3">
-                <div className="bz-form-section-head">
-                  <span className="bz-form-section-icon"><Tag size={16} /></span>
-                  <h3>Catálogo obrigatório</h3>
-                </div>
-                <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-                  <div className="grid gap-2">
-                    <label className="text-sm font-medium" htmlFor="catalogoPeca">Catálogo</label>
-                    {catalogosComForm.length ? (
-                      <Select value={formPeca.categoria} onValueChange={(categoria) => setFormPeca({ ...formPeca, categoria })}>
-                        <SelectTrigger id="catalogoPeca">
-                          <SelectValue placeholder="Escolha onde este produto entra" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {catalogosComForm.map((catalogo) => (
-                            <SelectItem key={catalogo} value={catalogo}>{catalogo}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    ) : (
-                      <div className="bz-form-help flex min-h-11 items-center rounded-md border px-3 text-sm">
-                        Crie o primeiro catálogo ao lado.
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="grid gap-2">
-                    <label className="text-sm font-medium" htmlFor="novoCatalogoPeca">Criar catálogo</label>
-                    <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
-                      <Input
-                        id="novoCatalogoPeca"
-                        value={formPeca.novoCatalogo}
-                        onChange={(e) => setFormPeca({ ...formPeca, novoCatalogo: e.target.value })}
-                        placeholder="Ex: Vestidos, Sneakers, Serviços"
-                      />
-                      <Button type="button" variant="outline" className="whitespace-normal sm:whitespace-nowrap" onClick={adicionarNovoCatalogo}>
-                        <Plus size={16} />
-                        Adicionar novo catálogo
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              </section>
-
-              <section className="bz-form-section grid gap-4">
-                <div className="grid gap-4 sm:grid-cols-[0.8fr_1fr]">
-                  <div className="grid gap-2">
-                    <label className="text-sm font-medium" htmlFor="codPeca">Código</label>
-                    <Input id="codPeca" value={formPeca.codigo} disabled={codigoEditando !== null} onChange={(e) => setFormPeca({ ...formPeca, codigo: e.target.value })} placeholder="Ex: A01" />
-                  </div>
-                  <div className="grid gap-2">
-                    <label className="text-sm font-medium" htmlFor="skuPeca">Referência interna</label>
-                    <Input id="skuPeca" value={formPeca.sku} onChange={(e) => setFormPeca({ ...formPeca, sku: e.target.value })} placeholder="Ex: BIZY-VEST-001" />
-                  </div>
-                </div>
-
-                <div className="grid gap-2">
-                  <label className="text-sm font-medium" htmlFor="nomePeca">Nome do produto</label>
-                  <Input id="nomePeca" value={formPeca.nome} onChange={(e) => setFormPeca({ ...formPeca, nome: e.target.value })} placeholder="Vestido verde acetinado" />
-                </div>
-
-                <div className="grid gap-2">
-                  <label className="text-sm font-medium" htmlFor="descPeca">Descrição de venda</label>
-                  <Textarea
-                    id="descPeca"
-                    className="min-h-24"
-                    value={formPeca.descricao}
-                    onChange={(e) => setFormPeca({ ...formPeca, descricao: e.target.value })}
-                    placeholder="Material, uso recomendado, cuidados, diferenciais e o que o cliente precisa saber antes de comprar."
-                  />
-                </div>
-              </section>
-
-              <section className="bz-form-section grid gap-4 sm:grid-cols-2">
-                <div className="grid gap-2">
-                  <label className="text-sm font-medium" htmlFor="precPeca">Preço de venda (Kz)</label>
-                  <Input id="precPeca" type="number" min="0" step="500" value={formPeca.precoEmKwanza} onChange={(e) => setFormPeca({ ...formPeca, precoEmKwanza: Number(e.target.value) })} />
-                </div>
-                <div className="grid gap-2">
-                  <label className="text-sm font-medium" htmlFor="custoPeca">Custo estimado (Kz)</label>
-                  <Input id="custoPeca" type="number" min="0" step="500" value={formPeca.custoEmKwanza} onChange={(e) => setFormPeca({ ...formPeca, custoEmKwanza: Number(e.target.value) })} />
-                </div>
-                <div className="grid gap-2">
-                  <label className="text-sm font-medium" htmlFor="qtdPeca">Quantidade disponível</label>
-                  <Input id="qtdPeca" type="number" min="0" value={formPeca.quantidade} onChange={(e) => setFormPeca({ ...formPeca, quantidade: Number(e.target.value) })} />
-                </div>
-                <div className="grid gap-2">
-                  <label className="text-sm font-medium" htmlFor="stockMinimoPeca">Alerta de stock mínimo</label>
-                  <Input id="stockMinimoPeca" type="number" min="0" value={formPeca.stockMinimo} onChange={(e) => setFormPeca({ ...formPeca, stockMinimo: Number(e.target.value) })} />
-                </div>
-              </section>
-
-              <section className="bz-form-section grid gap-4 sm:grid-cols-2">
-                <div className="grid gap-2">
-                  <label className="text-sm font-medium" htmlFor="colecaoPeca">Coleção ou vitrine</label>
-                  <Input
-                    id="colecaoPeca"
-                    list="colecoesPeca"
-                    value={formPeca.colecao}
-                    onChange={(e) => setFormPeca({ ...formPeca, colecao: e.target.value })}
-                    placeholder="Ex: Novidades, Promoções, Pronta entrega"
-                  />
-                  <datalist id="colecoesPeca">
-                    {colecoes.map((colecao) => <option key={colecao} value={colecao} />)}
-                  </datalist>
-                </div>
-                {codigoEditando && (
-                  <div className="grid gap-2">
-                    <label className="text-sm font-medium" htmlFor="estadoPeca">Estado</label>
-                    <Select value={formPeca.estado} onValueChange={(estado) => setFormPeca({ ...formPeca, estado: estado as EstadoPeca })}>
-                      <SelectTrigger id="estadoPeca">
-                        <SelectValue placeholder="Estado" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {estadosPeca.map((estado) => (
-                          <SelectItem key={estado} value={estado}>{traduzirEstadoPeca(estado)}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
-              </section>
-
-              <section className="bz-form-section grid gap-3">
-                <div className="bz-form-section-head">
-                  <span className="bz-form-section-icon"><Layers3 size={16} /></span>
-                  <h3>Variantes</h3>
-                </div>
-                <Textarea
-                  className="min-h-24"
-                  value={formPeca.variantesTexto}
-                  onChange={(e) => setFormPeca({ ...formPeca, variantesTexto: e.target.value })}
-                  placeholder={"tamanho: P, M, G\ncor: Preto, Branco\nmaterial: Algodão"}
-                />
-              </section>
-
-              <section className="bz-form-section grid gap-3">
-                <div className="bz-form-section-head">
-                  <span className="bz-form-section-icon"><BadgeCheck size={16} /></span>
-                  <h3>Vitrine e selos</h3>
-                </div>
-                <div className="grid gap-2 sm:grid-cols-3">
-                  {selosDisponiveis.map((selo) => {
-                    const ativo = formPeca.selos.includes(selo.id);
-                    return (
-                      <label
-                        key={selo.id}
-                        className={`flex cursor-pointer items-center gap-2 border px-3 py-2 text-sm transition-colors ${
-                          ativo ? "border-foreground bg-foreground text-background" : "border-border/70 bg-background hover:bg-muted/60"
-                        }`}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={ativo}
-                          onChange={(e) => {
-                            const novos = e.target.checked
-                              ? [...formPeca.selos, selo.id]
-                              : formPeca.selos.filter((s) => s !== selo.id);
-                            setFormPeca({ ...formPeca, selos: novos });
-                          }}
-                          className="sr-only"
-                        />
-                        <div>
-                          <strong className="block text-xs">{selo.titulo}</strong>
-                          <span className={`text-xs ${ativo ? "opacity-70" : "text-muted-foreground"}`}>{selo.detalhe}</span>
-                        </div>
-                      </label>
-                    );
-                  })}
-                </div>
-                <div className="grid gap-2 sm:grid-cols-2">
-                  <div className="grid gap-1">
-                    <label className="text-xs font-medium text-muted-foreground" htmlFor="prioridadePeca">Prioridade (0 = topo, 9999 = fundo)</label>
-                    <Input id="prioridadePeca" type="number" min="0" max="9999" value={formPeca.prioridade} onChange={(e) => setFormPeca({ ...formPeca, prioridade: Number(e.target.value) })} />
-                  </div>
-                </div>
-
-                <div className="grid gap-1">
-                  <span className="text-xs font-medium text-muted-foreground">Visibilidade do produto</span>
-                  <div className="grid gap-2 sm:grid-cols-3">
-                    {opcoesVisibilidade.map((opcao) => {
-                      const ativo = formPeca.visibilidade === opcao.id;
-                      return (
-                        <label
-                          key={opcao.id}
-                          className={`flex cursor-pointer items-center gap-2 border px-3 py-2 text-sm transition-colors ${
-                            ativo ? "border-foreground bg-foreground text-background" : "border-border/70 bg-background hover:bg-muted/60"
-                          }`}
-                        >
-                          <input
-                            type="radio"
-                            name="visibilidadeProduto"
-                            checked={ativo}
-                            onChange={() => setFormPeca({ ...formPeca, visibilidade: opcao.id })}
-                            className="sr-only"
-                          />
-                          <div>
-                            <strong className="block text-xs">{opcao.titulo}</strong>
-                            <span className={`text-xs ${ativo ? "opacity-70" : "text-muted-foreground"}`}>{opcao.detalhe}</span>
-                          </div>
-                        </label>
-                      );
-                    })}
-                  </div>
-                </div>
-              </section>
-
-              <section className="bz-form-section grid gap-3">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div className="bz-form-section-head">
-                    <span className="bz-form-section-icon"><ImagePlus size={16} /></span>
-                    <h3>Fotos do produto</h3>
-                  </div>
-                  <input
-                    ref={inputFotosRef}
-                    type="file"
-                    accept="image/png,image/jpeg,image/webp"
-                    multiple
-                    className="sr-only"
-                    disabled={enviandoFotos}
-                    onChange={(e) => {
-                      void enviarFotosProduto(e.currentTarget.files);
-                      e.currentTarget.value = "";
-                    }}
-                  />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    disabled={enviandoFotos}
-                    onClick={() => inputFotosRef.current?.click()}
-                  >
-                    <ImagePlus size={16} />
-                    {enviandoFotos ? "A enviar..." : "Escolher fotos"}
-                  </Button>
-                </div>
-
-                {formPeca.fotos.length ? (
-                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                    {formPeca.fotos.map((foto) => (
-                      <div key={foto} className="group relative aspect-square overflow-hidden rounded-xl border bg-background">
-                        <img src={resolverUrlMedia(foto)} alt="" className="h-full w-full object-cover" />
-                        <Button
-                          type="button"
-                          variant="secondary"
-                          size="icon-sm"
-                          className="absolute right-2 top-2 opacity-90"
-                          onClick={() => removerFotoProduto(foto)}
-                          aria-label="Remover foto"
-                        >
-                          <X size={14} />
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="bz-upload-empty grid min-h-28 place-items-center rounded-xl border border-dashed text-center text-sm">
-                    Envie fotos reais do produto para alimentar loja, catálogo e atendimento.
-                  </div>
-                )}
-              </section>
-            </div>
-
-            <div className="bz-dialog-actions bz-dialog-actions-sticky flex flex-col-reverse gap-2 border-t sm:flex-row sm:justify-end">
-              <Button type="button" variant="outline" size="lg" onClick={fecharFormulario}>
-                Cancelar
-              </Button>
-              <Button type="submit" size="lg" disabled={carregando || enviandoFotos}>
-                <BadgeCheck size={18} />
-                {codigoEditando ? "Guardar alterações" : "Cadastrar produto"}
-              </Button>
-            </div>
-          </form>
-        </DialogContent>
-      </Dialog>
+      <ModalProduto
+        aberto={modalProdutoAberto}
+        codigoEditando={codigoEditando}
+        formPeca={formPeca}
+        setFormPeca={setFormPeca}
+        catalogosComForm={catalogosComForm}
+        colecoes={colecoes}
+        carregando={carregando}
+        enviandoFotos={enviandoFotos}
+        inputFotosRef={inputFotosRef}
+        onSubmit={salvarPeca}
+        onEnviarFotos={enviarFotosProduto}
+        onRemoverFoto={removerFotoProduto}
+        onAdicionarCatalogo={adicionarNovoCatalogo}
+        onFechar={fecharFormulario}
+      />
 
       {mensagem && <footer className="bz-footer-msg" aria-live="polite">{mensagem}</footer>}
 
@@ -833,6 +572,442 @@ function PainelColecoes({
           {mensagem && <p className="bz-colecoes-msg">{mensagem}</p>}
         </div>
       )}
+    </div>
+  );
+}
+
+/* ── Modal Produto (redesenhado) ─────────────────────────────── */
+
+function ModalProduto({
+  aberto,
+  codigoEditando,
+  formPeca,
+  setFormPeca,
+  catalogosComForm,
+  colecoes,
+  carregando,
+  enviandoFotos,
+  inputFotosRef,
+  onSubmit,
+  onEnviarFotos,
+  onRemoverFoto,
+  onAdicionarCatalogo,
+  onFechar,
+}: {
+  aberto: boolean;
+  codigoEditando: string | null;
+  formPeca: typeof formularioInicial;
+  setFormPeca: React.Dispatch<React.SetStateAction<typeof formularioInicial>>;
+  catalogosComForm: string[];
+  colecoes: string[];
+  carregando: boolean;
+  enviandoFotos: boolean;
+  inputFotosRef: React.RefObject<HTMLInputElement>;
+  onSubmit: (e: FormEvent) => void;
+  onEnviarFotos: (arquivos: FileList | null) => void;
+  onRemoverFoto: (url: string) => void;
+  onAdicionarCatalogo: () => void;
+  onFechar: () => void;
+}) {
+  const [arrastando, setArrastando] = useState(false);
+  const [secaoAberta, setSecaoAberta] = useState<string | null>(null);
+
+  const alternarSecao = useCallback((id: string) => {
+    setSecaoAberta((atual) => (atual === id ? null : id));
+  }, []);
+
+  const onDragOver = useCallback((e: DragEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+    setArrastando(true);
+  }, []);
+
+  const onDragLeave = useCallback(() => setArrastando(false), []);
+
+  const onDrop = useCallback(
+    (e: DragEvent<HTMLButtonElement>) => {
+      e.preventDefault();
+      setArrastando(false);
+      onEnviarFotos(e.dataTransfer.files);
+    },
+    [onEnviarFotos]
+  );
+
+  return (
+    <Dialog open={aberto} onOpenChange={(v) => { if (!v) onFechar(); }}>
+      <DialogContent className="bz-product-dialog p-0 gap-0">
+        <DialogHeader className="bz-dialog-head">
+          <div className="bz-dialog-icon"><Package size={20} /></div>
+          <DialogTitle className="text-base font-bold">
+            {codigoEditando ? "Editar produto" : "Novo produto"}
+          </DialogTitle>
+          <DialogDescription className="text-xs mt-0.5" style={{ color: "var(--ink-3)" }}>
+            {codigoEditando ? `A editar #${codigoEditando}` : "Preenche os dados do produto"}
+          </DialogDescription>
+        </DialogHeader>
+
+        <form onSubmit={onSubmit} className="bz-product-form flex flex-col">
+          <div className="bz-product-form-scroll flex-1 overflow-y-auto px-5 py-4 flex flex-col gap-5">
+
+            {/* ── 1. FOTOS (hero) ── */}
+            <div className="flex flex-col gap-3">
+              {formPeca.fotos.length > 0 ? (
+                <div className="bizy-upload-preview">
+                  {formPeca.fotos.map((foto) => (
+                    <div key={foto} className="bizy-upload-thumb">
+                      <ExibidorImagem src={foto} alt="Foto produto" />
+                      <button type="button" onClick={() => onRemoverFoto(foto)} title="Remover">
+                        <Trash2 size={12} />
+                      </button>
+                    </div>
+                  ))}
+                  <button
+                    type="button"
+                    className="bizy-upload-add"
+                    onClick={() => inputFotosRef.current?.click()}
+                    disabled={enviandoFotos}
+                  >
+                    <Plus size={20} />
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  className={`bizy-upload-card${arrastando ? " is-dragging" : ""}`}
+                  onClick={() => inputFotosRef.current?.click()}
+                  disabled={enviandoFotos}
+                  onDragOver={onDragOver}
+                  onDragLeave={onDragLeave}
+                  onDrop={onDrop}
+                >
+                  <Upload size={28} />
+                  <strong>{enviandoFotos ? "A enviar…" : "Adicionar fotos"}</strong>
+                  <span>Arrasta ou clica para enviar</span>
+                </button>
+              )}
+              <input
+                ref={inputFotosRef}
+                type="file"
+                accept="image/*"
+                multiple
+                className="hidden"
+                onChange={(e) => onEnviarFotos(e.target.files)}
+              />
+            </div>
+
+            {/* ── 2. ESSENCIAIS ── */}
+            <div className="bz-form-section flex flex-col gap-3">
+              <div className="bz-form-section-head">
+                <div className="bz-form-section-icon"><Tag size={15} /></div>
+                <h3>Essencial</h3>
+              </div>
+
+              <div className="flex flex-col gap-2.5">
+                <label>
+                  Nome do produto
+                  <Input
+                    value={formPeca.nome}
+                    onChange={(e) => setFormPeca({ ...formPeca, nome: e.target.value })}
+                    placeholder="Ex: Vestido Ankara"
+                    required
+                  />
+                </label>
+
+                <div className="grid grid-cols-2 gap-2.5">
+                  <label>
+                    Preço (Kz)
+                    <Input
+                      type="number"
+                      min={0}
+                      value={formPeca.precoEmKwanza}
+                      onChange={(e) => setFormPeca({ ...formPeca, precoEmKwanza: Number(e.target.value) })}
+                      required
+                    />
+                  </label>
+                  <label>
+                    Stock
+                    <Input
+                      type="number"
+                      min={0}
+                      value={formPeca.quantidade}
+                      onChange={(e) => setFormPeca({ ...formPeca, quantidade: Number(e.target.value) })}
+                      required
+                    />
+                  </label>
+                </div>
+
+                {!codigoEditando && (
+                  <label>
+                    Código
+                    <Input
+                      value={formPeca.codigo}
+                      onChange={(e) => setFormPeca({ ...formPeca, codigo: e.target.value })}
+                      placeholder="Ex: VES-001"
+                    />
+                  </label>
+                )}
+
+                <label>
+                  Catálogo
+                  <Select
+                    value={formPeca.categoria}
+                    onValueChange={(v) => setFormPeca({ ...formPeca, categoria: v })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Escolher catálogo" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {catalogosComForm.map((cat) => (
+                        <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </label>
+
+                <div className="flex gap-2">
+                  <Input
+                    className="flex-1"
+                    value={formPeca.novoCatalogo}
+                    onChange={(e) => setFormPeca({ ...formPeca, novoCatalogo: e.target.value })}
+                    placeholder="Novo catálogo…"
+                  />
+                  <Button type="button" variant="outline" size="sm" onClick={onAdicionarCatalogo}>
+                    <Plus size={14} className="mr-1" /> Criar
+                  </Button>
+                </div>
+
+                {codigoEditando && (
+                  <label>
+                    Estado
+                    <Select
+                      value={formPeca.estado}
+                      onValueChange={(v) => setFormPeca({ ...formPeca, estado: v as EstadoPeca })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {estadosPeca.map((e) => (
+                          <SelectItem key={e} value={e}>{traduzirEstadoPeca(e)}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </label>
+                )}
+              </div>
+            </div>
+
+            {/* ── 3. DESCRIÇÃO (colapsável) ── */}
+            <SecaoColapsavel
+              id="descricao"
+              titulo="Descrição"
+              icone={<PencilLine size={15} />}
+              aberta={secaoAberta === "descricao"}
+              onAlternar={alternarSecao}
+            >
+              <Textarea
+                rows={3}
+                value={formPeca.descricao}
+                onChange={(e) => setFormPeca({ ...formPeca, descricao: e.target.value })}
+                placeholder="Descreve o produto…"
+              />
+            </SecaoColapsavel>
+
+            {/* ── 4. VARIANTES (colapsável) ── */}
+            <SecaoColapsavel
+              id="variantes"
+              titulo="Variantes"
+              icone={<Layers3 size={15} />}
+              aberta={secaoAberta === "variantes"}
+              onAlternar={alternarSecao}
+            >
+              <Textarea
+                rows={3}
+                value={formPeca.variantesTexto}
+                onChange={(e) => setFormPeca({ ...formPeca, variantesTexto: e.target.value })}
+                placeholder={"cor: vermelho, azul, preto\ntamanho: S, M, L, XL"}
+              />
+              <p className="text-xs mt-1" style={{ color: "var(--ink-3)" }}>
+                Uma variante por linha. Formato: <strong>nome: opção1, opção2</strong>
+              </p>
+            </SecaoColapsavel>
+
+            {/* ── 5. DETALHES AVANÇADOS (colapsável) ── */}
+            <SecaoColapsavel
+              id="avancado"
+              titulo="Detalhes avançados"
+              icone={<Coins size={15} />}
+              aberta={secaoAberta === "avancado"}
+              onAlternar={alternarSecao}
+            >
+              <div className="flex flex-col gap-2.5">
+                <label>
+                  SKU
+                  <Input
+                    value={formPeca.sku}
+                    onChange={(e) => setFormPeca({ ...formPeca, sku: e.target.value })}
+                    placeholder="Referência interna"
+                  />
+                </label>
+                <div className="grid grid-cols-2 gap-2.5">
+                  <label>
+                    Custo (Kz)
+                    <Input
+                      type="number"
+                      min={0}
+                      value={formPeca.custoEmKwanza}
+                      onChange={(e) => setFormPeca({ ...formPeca, custoEmKwanza: Number(e.target.value) })}
+                    />
+                  </label>
+                  <label>
+                    Stock mínimo
+                    <Input
+                      type="number"
+                      min={0}
+                      value={formPeca.stockMinimo}
+                      onChange={(e) => setFormPeca({ ...formPeca, stockMinimo: Number(e.target.value) })}
+                    />
+                  </label>
+                </div>
+                <label>
+                  Coleção
+                  <Select
+                    value={formPeca.colecao}
+                    onValueChange={(v) => setFormPeca({ ...formPeca, colecao: v })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Sem coleção" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value=" ">Sem coleção</SelectItem>
+                      {colecoes.map((col) => (
+                        <SelectItem key={col} value={col}>{col}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </label>
+              </div>
+            </SecaoColapsavel>
+
+            {/* ── 6. VITRINE & SELOS (colapsável) ── */}
+            <SecaoColapsavel
+              id="vitrine"
+              titulo="Vitrine e selos"
+              icone={<BadgeCheck size={15} />}
+              aberta={secaoAberta === "vitrine"}
+              onAlternar={alternarSecao}
+            >
+              <div className="flex flex-col gap-3">
+                <label>
+                  Visibilidade
+                  <Select
+                    value={formPeca.visibilidade}
+                    onValueChange={(v) => setFormPeca({ ...formPeca, visibilidade: v as VisibilidadeProduto })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {opcoesVisibilidade.map((op) => (
+                        <SelectItem key={op.id} value={op.id}>{op.titulo}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </label>
+
+                <label>
+                  Prioridade
+                  <Input
+                    type="number"
+                    min={1}
+                    max={999}
+                    value={formPeca.prioridade}
+                    onChange={(e) => setFormPeca({ ...formPeca, prioridade: Number(e.target.value) })}
+                  />
+                </label>
+
+                <div>
+                  <span className="text-xs font-bold block mb-2" style={{ color: "var(--ink-2)" }}>Selos</span>
+                  <div className="flex flex-wrap gap-2">
+                    {selosDisponiveis.map((selo) => {
+                      const ativo = formPeca.selos.includes(selo.id);
+                      return (
+                        <button
+                          key={selo.id}
+                          type="button"
+                          className="bz-selo-chip"
+                          data-ativo={ativo || undefined}
+                          onClick={() =>
+                            setFormPeca({
+                              ...formPeca,
+                              selos: ativo
+                                ? formPeca.selos.filter((s) => s !== selo.id)
+                                : [...formPeca.selos, selo.id],
+                            })
+                          }
+                          title={selo.detalhe}
+                        >
+                          {selo.titulo}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            </SecaoColapsavel>
+          </div>
+
+          {/* ── AÇÕES FIXAS ── */}
+          <div className="bz-dialog-actions-sticky flex gap-2 justify-end border-t">
+            <Button type="button" variant="ghost" onClick={onFechar} disabled={carregando}>
+              Cancelar
+            </Button>
+            <Button type="submit" disabled={carregando || !formPeca.nome.trim()}>
+              {carregando ? "A guardar…" : codigoEditando ? "Guardar alterações" : "Cadastrar produto"}
+            </Button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/* ── Secção colapsável reutilizável ── */
+
+function SecaoColapsavel({
+  id,
+  titulo,
+  icone,
+  aberta,
+  onAlternar,
+  children,
+}: {
+  id: string;
+  titulo: string;
+  icone: React.ReactNode;
+  aberta: boolean;
+  onAlternar: (id: string) => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="bz-form-section flex flex-col gap-3">
+      <button
+        type="button"
+        className="bz-form-section-head w-full cursor-pointer"
+        onClick={() => onAlternar(id)}
+        style={{ background: "none", border: "none", padding: 0 }}
+      >
+        <div className="bz-form-section-icon">{icone}</div>
+        <h3 className="flex-1 text-left">{titulo}</h3>
+        <ChevronRight
+          size={14}
+          style={{
+            color: "var(--ink-3)",
+            transition: "transform 0.2s",
+            transform: aberta ? "rotate(90deg)" : "rotate(0deg)",
+          }}
+        />
+      </button>
+      {aberta && <div className="flex flex-col gap-2.5">{children}</div>}
     </div>
   );
 }

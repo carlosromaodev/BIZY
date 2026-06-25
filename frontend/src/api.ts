@@ -78,8 +78,10 @@ export function resolverUrlMedia(url?: string | null): string {
 
 const CHAVE_TOKEN = "emeu_token";
 const CHAVE_USUARIO = "emeu_usuario";
+const CHAVE_NEGOCIO_ACTUAL = "bizy_negocio_actual_id";
 export const EVENTO_SESSAO_EXPIRADA = "emeu:sessao-expirada";
 export const EVENTO_SESSAO_ATUALIZADA = "emeu:sessao-atualizada";
+export const EVENTO_WORKSPACE_ALTERADO = "bizy:workspace-alterado";
 const EVENTO_NOTIFICACAO_SITE = "bizy:notificacao";
 
 function emitirNotificacaoSite(detalhe: {
@@ -164,9 +166,30 @@ export function removerUsuario(): void {
   localStorage.removeItem(CHAVE_USUARIO);
 }
 
+// ── Workspace (RF-T110) ───────────────────────────────────────────
+
+export function obterNegocioActualId(): string | null {
+  return localStorage.getItem(CHAVE_NEGOCIO_ACTUAL);
+}
+
+export function alternarWorkspace(negocioId: string): void {
+  localStorage.setItem(CHAVE_NEGOCIO_ACTUAL, negocioId);
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent(EVENTO_WORKSPACE_ALTERADO, { detail: { negocioId } }));
+  }
+}
+
+export function limparEstadoWorkspace(): void {
+  localStorage.removeItem(CHAVE_NEGOCIO_ACTUAL);
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new Event(EVENTO_WORKSPACE_ALTERADO));
+  }
+}
+
 function notificarSessaoExpirada(): void {
   removerToken();
   removerUsuario();
+  localStorage.removeItem(CHAVE_NEGOCIO_ACTUAL);
 
   if (typeof window !== "undefined") {
     window.dispatchEvent(new Event(EVENTO_SESSAO_EXPIRADA));
@@ -242,6 +265,10 @@ export async function requisitarApi<T = unknown>(
 
   if (autenticado && token) {
     headers.Authorization = `Bearer ${token}`;
+    const negocioId = obterNegocioActualId();
+    if (negocioId) {
+      headers["X-Bizy-Negocio-Id"] = negocioId;
+    }
   }
 
   let resposta: Response;

@@ -174,27 +174,42 @@ export function PaginaReservas() {
 
   if (carregandoInicial) return <CrmPageMotion><SkeletonPagina /></CrmPageMotion>;
 
-  const colTemplate = "108px 1.5fr 1.6fr 110px 150px 120px 96px";
-
   return (
     <CrmPageMotion>
-      <div className="crm-v3-pgwrap">
+      <div className="team-pgwrap">
         {/* ── Page Head ─────────────────────────────────────── */}
-        <div className="crm-v3-pghead">
+        <div className="team-pghead">
           <div>
             <h1>Pedidos</h1>
-            <div className="crm-v3-sub">
-              {pedidos.length} abertos · {formatarKwanza(totalFluxo)} em fluxo
+            <div className="team-sub">
+              Gestão de vendas, cobranças e entregas
             </div>
           </div>
-          <div className="crm-v3-pghead-right">
-            <BotaoBizy variante="ghost" onClick={() => void carregar()}>
-              Exportar
-            </BotaoBizy>
-            <Link to="/app/reservas" className="crm-v3-btn crm-v3-btn-primary">
+          <div className="team-pghead-right">
+            <Link to="/app/reservas" className="team-btn team-btn-primary">
               <Plus size={16} />
               Novo pedido
             </Link>
+          </div>
+        </div>
+
+        {/* ── KPI strip ────────────────────────────────────── */}
+        <div className="ped-kpis">
+          <div className="ped-kpi">
+            <span className="ped-kpi-value">{formatarKwanza(totalFluxo)}</span>
+            <span className="ped-kpi-label">em fluxo</span>
+          </div>
+          <div className="ped-kpi">
+            <span className="ped-kpi-value">{pedidos.length}</span>
+            <span className="ped-kpi-label">abertos</span>
+          </div>
+          <div className="ped-kpi" data-tom={aguardandoPagamento.length > 0 ? "atencao" : undefined}>
+            <span className="ped-kpi-value">{aguardandoPagamento.length}</span>
+            <span className="ped-kpi-label">a cobrar</span>
+          </div>
+          <div className="ped-kpi" data-tom={emAtraso.length > 0 ? "perigo" : undefined}>
+            <span className="ped-kpi-value">{emAtraso.length}</span>
+            <span className="ped-kpi-label">em atraso</span>
           </div>
         </div>
 
@@ -213,8 +228,28 @@ export function PaginaReservas() {
         {/* ── Fluxo de vendas Tab ────────────────────────────── */}
         {aba === "fluxo" && (
           <>
-            {/* Vista toggle + filter tiles */}
-            <div className="bz-funil-toolbar">
+            {/* Toolbar: segmented filter + vista toggle */}
+            <div className="ped-toolbar">
+              <div className="ped-filters">
+                {([
+                  { id: "todos" as FiltroFunil, rotulo: "Todos", contagem: pedidos.length },
+                  { id: "a-cobrar" as FiltroFunil, rotulo: "A cobrar", contagem: aguardandoPagamento.length },
+                  { id: "pagos" as FiltroFunil, rotulo: "Pagos", contagem: pagos.length },
+                  { id: "enviados" as FiltroFunil, rotulo: "Enviados", contagem: enviados.length },
+                  { id: "em-atraso" as FiltroFunil, rotulo: "Em atraso", contagem: emAtraso.length },
+                ]).map((f) => (
+                  <button
+                    key={f.id}
+                    type="button"
+                    className="ped-filter"
+                    data-active={filtroFunil === f.id || undefined}
+                    onClick={() => setFiltroFunil(f.id)}
+                  >
+                    {f.rotulo}
+                    {f.contagem > 0 && <span className="ped-filter-count">{f.contagem}</span>}
+                  </button>
+                ))}
+              </div>
               <div className="bz-funil-vista-toggle">
                 <button type="button" className={`bz-funil-vista-btn ${vistaFunil === "lista" ? "bz-funil-vista-btn--on" : ""}`} onClick={() => setVistaFunil("lista")} title="Vista lista">
                   <List size={15} />
@@ -224,85 +259,6 @@ export function PaginaReservas() {
                 </button>
               </div>
             </div>
-
-            {/* Funnel filter tiles */}
-            {vistaFunil === "lista" && <div className="crm-v3-ftiles">
-              <button
-                type="button"
-                className="crm-v3-ftile"
-                data-active={filtroFunil === "todos" ? "true" : undefined}
-                onClick={() => setFiltroFunil("todos")}
-              >
-                <span className="crm-v3-ftile-icon" style={{ background: "var(--em-tint)", color: "var(--em)" }}>
-                  <ShoppingBag size={17} />
-                </span>
-                <div>
-                  <div className="crm-v3-ftile-title">Todos</div>
-                  <div className="crm-v3-ftile-desc">em aberto</div>
-                </div>
-                <span className="crm-v3-ftile-count">{pedidos.length}</span>
-              </button>
-              <button
-                type="button"
-                className="crm-v3-ftile"
-                data-active={filtroFunil === "a-cobrar" ? "true" : undefined}
-                onClick={() => setFiltroFunil("a-cobrar")}
-              >
-                <span className="crm-v3-ftile-icon" style={{ background: "var(--amber-tint)", color: "var(--amber)" }}>
-                  <Clock size={17} />
-                </span>
-                <div>
-                  <div className="crm-v3-ftile-title">A cobrar</div>
-                  <div className="crm-v3-ftile-desc">aguardam pagamento</div>
-                </div>
-                <span className="crm-v3-ftile-count">{aguardandoPagamento.length}</span>
-              </button>
-              <button
-                type="button"
-                className="crm-v3-ftile"
-                data-active={filtroFunil === "pagos" ? "true" : undefined}
-                onClick={() => setFiltroFunil("pagos")}
-              >
-                <span className="crm-v3-ftile-icon" style={{ background: "var(--em-tint)", color: "var(--em)" }}>
-                  <Check size={17} />
-                </span>
-                <div>
-                  <div className="crm-v3-ftile-title">Pagos</div>
-                  <div className="crm-v3-ftile-desc">prontos a preparar</div>
-                </div>
-                <span className="crm-v3-ftile-count">{pagos.length}</span>
-              </button>
-              <button
-                type="button"
-                className="crm-v3-ftile"
-                data-active={filtroFunil === "enviados" ? "true" : undefined}
-                onClick={() => setFiltroFunil("enviados")}
-              >
-                <span className="crm-v3-ftile-icon" style={{ background: "var(--blue-tint)", color: "var(--blue)" }}>
-                  <Truck size={17} />
-                </span>
-                <div>
-                  <div className="crm-v3-ftile-title">Enviados</div>
-                  <div className="crm-v3-ftile-desc">em trânsito</div>
-                </div>
-                <span className="crm-v3-ftile-count">{enviados.length}</span>
-              </button>
-              <button
-                type="button"
-                className="crm-v3-ftile"
-                data-active={filtroFunil === "em-atraso" ? "true" : undefined}
-                onClick={() => setFiltroFunil("em-atraso")}
-              >
-                <span className="crm-v3-ftile-icon" style={{ background: "var(--rose-tint)", color: "var(--rose)" }}>
-                  <AlertTriangle size={17} />
-                </span>
-                <div>
-                  <div className="crm-v3-ftile-title">Em atraso</div>
-                  <div className="crm-v3-ftile-desc">requerem ação</div>
-                </div>
-                <span className="crm-v3-ftile-count">{emAtraso.length}</span>
-              </button>
-            </div>}
 
             {/* Kanban view */}
             {vistaFunil === "kanban" && (
@@ -317,15 +273,14 @@ export function PaginaReservas() {
             {/* Orders table */}
             {vistaFunil === "lista" && (<>
             {pedidosVisiveis.length > 0 ? (
-              <div className="crm-v3-otbl">
-                <div className="crm-v3-otbl-head" style={{ gridTemplateColumns: colTemplate }}>
+              <div className="ped-tbl">
+                <div className="ped-tbl-head">
                   <span>Pedido</span>
                   <span>Cliente</span>
-                  <span>Itens</span>
                   <span>Total</span>
                   <span>Estado</span>
                   <span>Entrega</span>
-                  <span style={{ textAlign: "right" }}>Ações</span>
+                  <span />
                 </div>
                 {pedidosVisiveis.map((pedido) => {
                   const cliente = clientesPorId.get(pedido.clienteNegocioId);
@@ -336,38 +291,38 @@ export function PaginaReservas() {
                   const canal = pedido.canal ?? "";
 
                   return (
-                    <div key={pedido.id} className="crm-v3-otbl-row" style={{ gridTemplateColumns: colTemplate }}>
-                      <span className="crm-v3-otbl-oid">
+                    <div key={pedido.id} className="ped-tbl-row">
+                      <span className="ped-tbl-num">
                         #{pedido.numero}
                         <small>{formatarDataHoraCurta(pedido.criadoEm)}</small>
                       </span>
-                      <span className="crm-v3-otbl-cli">
-                        <span className="crm-v3-av crm-v3-av-32" data-hue={hue}>{iniciais}</span>
+                      <span className="ped-tbl-cli">
+                        <span className="team-av team-av-32" data-hue={hue}>{iniciais}</span>
                         <span>
-                          <span className="crm-v3-otbl-cli-name">{nome}</span>
-                          {canal && <div className="crm-v3-otbl-cli-channel">{canal}{pedido.origem && pedido.origem !== "manual" ? ` · ${pedido.origem}` : ""}</div>}
+                          <span className="ped-tbl-cli-name">{nome}</span>
+                          <span className="ped-tbl-cli-detail">
+                            {primeiroItem?.nomeProduto ?? "sem itens"}
+                            {pedido.itens.length > 1 && ` +${pedido.itens.length - 1}`}
+                            {canal && ` · ${canal}`}
+                          </span>
                         </span>
                       </span>
-                      <span className="crm-v3-otbl-item">
-                        <b>{primeiroItem?.nomeProduto ?? "sem itens"}</b>
-                        {pedido.itens.length > 1 && ` +${pedido.itens.length - 1}`}
-                      </span>
-                      <span className="crm-v3-otbl-price">
+                      <span className="ped-tbl-price">
                         {formatarKwanza(pedido.totalEmKwanza)}
                       </span>
                       <span>
-                        <span className="crm-v3-bdg" data-tone={toneBadgeEstado(pedido.estado)}>
-                          <span className="crm-v3-bdg-dot" />
+                        <span className="team-bdg" data-tone={toneBadgeEstado(pedido.estado)}>
+                          <span className="team-bdg-dot" />
                           {traduzirEstadoPedido(pedido.estado)}
                         </span>
                       </span>
-                      <span className="crm-v3-otbl-item">
+                      <span className="ped-tbl-entrega">
                         {pedido.enderecoEntrega ?? traduzirEntregaPedido(pedido.estadoEntrega)}
                       </span>
-                      <span className="crm-v3-otbl-actions">
+                      <span className="ped-tbl-actions">
                         <Link
                           to={criarUrlConversaCliente(cliente, pedido)}
-                          className="crm-v3-otbl-action-btn"
+                          className="ped-action-btn"
                           title="Abrir conversa"
                         >
                           <MessageSquare size={14} />
@@ -375,7 +330,7 @@ export function PaginaReservas() {
                         {pedido.estado === "AGUARDANDO_PAGAMENTO" && (
                           <button
                             type="button"
-                            className="crm-v3-otbl-action-btn"
+                            className="ped-action-btn"
                             data-hot="true"
                             title="Confirmar pagamento"
                             disabled={carregando}
@@ -396,7 +351,7 @@ export function PaginaReservas() {
                         {(pedido.estado === "PAGO" || pedido.estado === "PRONTO_ENTREGA") && (
                           <button
                             type="button"
-                            className="crm-v3-otbl-action-btn"
+                            className="ped-action-btn"
                             title="Marcar como enviado"
                             disabled={carregando}
                             onClick={() =>
@@ -417,7 +372,7 @@ export function PaginaReservas() {
                           <>
                             <button
                               type="button"
-                              className="crm-v3-otbl-action-btn"
+                              className="ped-action-btn"
                               title="Confirmar entrega"
                               disabled={carregando}
                               onClick={() =>
@@ -435,7 +390,7 @@ export function PaginaReservas() {
                             </button>
                             <Link
                               to={`/app/reservas/${pedido.id}`}
-                              className="crm-v3-otbl-action-btn"
+                              className="ped-action-btn"
                               title="Ver detalhes"
                             >
                               <Eye size={14} />

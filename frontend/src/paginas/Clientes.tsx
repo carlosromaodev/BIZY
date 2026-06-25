@@ -286,20 +286,20 @@ export function PaginaClientes() {
 
   return (
     <CrmPageMotion>
-      <div className="crm-v3-pgwrap">
+      <div className="team-pgwrap">
         {/* ── Page Head ─────────────────────────────────────── */}
-        <div className="crm-v3-pghead">
+        <div className="team-pghead">
           <div>
             <h1>Clientes</h1>
-            <div className="crm-v3-sub">
+            <div className="team-sub">
               {clientes.length} clientes · {novosEsteMes} novos este mês
             </div>
           </div>
-          <div className="crm-v3-pghead-right">
-            <button type="button" className="crm-v3-btn crm-v3-btn-ghost" onClick={exportar}>
+          <div className="team-pghead-right">
+            <button type="button" className="team-btn team-btn-ghost" onClick={exportar}>
               Importar contactos
             </button>
-            <Link to="/app/clientes" className="crm-v3-btn crm-v3-btn-primary">
+            <Link to="/app/clientes" className="team-btn team-btn-primary">
               <Plus size={13} />
               Novo cliente
             </Link>
@@ -307,66 +307,66 @@ export function PaginaClientes() {
         </div>
 
         {/* ── Segment Filter Tiles ────────────────────────────── */}
-        <div className="crm-v3-ftiles" style={{ gridTemplateColumns: "repeat(4, 1fr)" }}>
+        <div className="team-ftiles" style={{ gridTemplateColumns: "repeat(4, 1fr)" }}>
           <button
             type="button"
-            className="crm-v3-ftile"
+            className="team-ftile"
             data-active={filtro === "todos" ? "true" : undefined}
             onClick={() => setFiltro("todos")}
           >
-            <span className="crm-v3-ftile-icon" style={{ background: "var(--em-tint)", color: "var(--em)" }}>
+            <span className="team-ftile-icon" style={{ background: "var(--em-tint)", color: "var(--em)" }}>
               <Users size={17} />
             </span>
             <div>
-              <div className="crm-v3-ftile-title">Todos</div>
-              <div className="crm-v3-ftile-desc">base completa</div>
+              <div className="team-ftile-title">Todos</div>
+              <div className="team-ftile-desc">base completa</div>
             </div>
-            <span className="crm-v3-ftile-count">{clientes.length}</span>
+            <span className="team-ftile-count">{clientes.length}</span>
           </button>
           <button
             type="button"
-            className="crm-v3-ftile"
+            className="team-ftile"
             data-active={filtro === "VIP" ? "true" : undefined}
             onClick={() => setFiltro("VIP")}
           >
-            <span className="crm-v3-ftile-icon" style={{ background: "var(--violet-tint)", color: "var(--violet)" }}>
+            <span className="team-ftile-icon" style={{ background: "var(--violet-tint)", color: "var(--violet)" }}>
               <CheckCircle2 size={17} />
             </span>
             <div>
-              <div className="crm-v3-ftile-title">VIP</div>
-              <div className="crm-v3-ftile-desc">+5 compras</div>
+              <div className="team-ftile-title">VIP</div>
+              <div className="team-ftile-desc">+5 compras</div>
             </div>
-            <span className="crm-v3-ftile-count">{totalVip}</span>
+            <span className="team-ftile-count">{totalVip}</span>
           </button>
           <button
             type="button"
-            className="crm-v3-ftile"
+            className="team-ftile"
             data-active={filtro === "ATIVO" ? "true" : undefined}
             onClick={() => setFiltro("ATIVO")}
           >
-            <span className="crm-v3-ftile-icon" style={{ background: "var(--blue-tint)", color: "var(--blue)" }}>
+            <span className="team-ftile-icon" style={{ background: "var(--blue-tint)", color: "var(--blue)" }}>
               <Bolt size={17} />
             </span>
             <div>
-              <div className="crm-v3-ftile-title">Ativos 30 dias</div>
-              <div className="crm-v3-ftile-desc">compraram há pouco</div>
+              <div className="team-ftile-title">Ativos 30 dias</div>
+              <div className="team-ftile-desc">compraram há pouco</div>
             </div>
-            <span className="crm-v3-ftile-count">{ativos30dias}</span>
+            <span className="team-ftile-count">{ativos30dias}</span>
           </button>
           <button
             type="button"
-            className="crm-v3-ftile"
+            className="team-ftile"
             data-active={filtro === "INATIVO" ? "true" : undefined}
             onClick={() => setFiltro("INATIVO")}
           >
-            <span className="crm-v3-ftile-icon" style={{ background: "var(--amber-tint)", color: "var(--amber)" }}>
+            <span className="team-ftile-icon" style={{ background: "var(--amber-tint)", color: "var(--amber)" }}>
               <Clock size={17} />
             </span>
             <div>
-              <div className="crm-v3-ftile-title">A recuperar</div>
-              <div className="crm-v3-ftile-desc">+60 dias sem comprar</div>
+              <div className="team-ftile-title">A recuperar</div>
+              <div className="team-ftile-desc">+60 dias sem comprar</div>
             </div>
-            <span className="crm-v3-ftile-count">{aRecuperar}</span>
+            <span className="team-ftile-count">{aRecuperar}</span>
           </button>
         </div>
 

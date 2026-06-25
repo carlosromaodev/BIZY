@@ -23,7 +23,7 @@ describe("Módulos do negócio", () => {
     process.env = { ...ambienteOriginal };
   });
 
-  it("permite ativar e desativar módulos opcionais sem perder o núcleo CRM", async () => {
+  it("permite ativar e desativar módulos opcionais sem perder o núcleo BIZY Team", async () => {
     const app = await criarAplicacao();
 
     try {
@@ -36,7 +36,7 @@ describe("Módulos do negócio", () => {
       });
 
       expect(inicial.statusCode).toBe(200);
-      expect(inicial.json().modulosAtivos).toEqual(expect.arrayContaining(["crm", "catalogo", "conversas", "pedidos"]));
+      expect(inicial.json().modulosAtivos).toEqual(expect.arrayContaining(["team-core", "catalogo", "conversas", "pedidos"]));
       expect(inicial.json().modulosAtivos).not.toContain("afiliados");
       expect(inicial.json().modulos).toEqual(
         expect.arrayContaining([
@@ -70,8 +70,20 @@ describe("Módulos do negócio", () => {
           }
         })
       );
-      expect(ativado.json().modulosAtivos).toContain("crm");
+      expect(ativado.json().modulosAtivos).toContain("team-core");
       expect(ativado.json().modulosAtivos).toContain("afiliados");
+
+      const tentativaDesativarLegado = await app.inject({
+        method: "PATCH",
+        url: "/negocio/modulos/crm",
+        headers,
+        payload: {
+          ativo: false
+        }
+      });
+
+      expect(tentativaDesativarLegado.statusCode).toBe(400);
+      expect(tentativaDesativarLegado.json().mensagem).toContain("team-core");
 
       const desativado = await app.inject({
         method: "PATCH",

@@ -105,8 +105,8 @@ describe("Checkout Unificado multi-loja", () => {
           compradorTelefone: "923800001",
           compradorNome: "Comprador Teste",
           itens: [
-            { negocioId: pecaA.negocioId, codigoPeca: "PROD-A1", quantidade: 2 },
-            { negocioId: pecaB.negocioId, codigoPeca: "PROD-B1", quantidade: 1 }
+            { slugLoja: "fornecedor-a", codigoPeca: "PROD-A1", quantidade: 2 },
+            { slugLoja: "fornecedor-b", codigoPeca: "PROD-B1", quantidade: 1 }
           ],
           enderecoEntrega: "Rua do Teste, Luanda",
           origem: "MARKET"
@@ -145,18 +145,14 @@ describe("Checkout Unificado multi-loja", () => {
       await publicarLoja(app, lojaA, "fornecedor-c");
       await publicarLoja(app, lojaB, "fornecedor-d");
 
-      // Obter negocioIds
-      const pecaC = (await app.inject({ method: "GET", url: "/pecas", headers: lojaA })).json();
-      const pecaD = (await app.inject({ method: "GET", url: "/pecas", headers: lojaB })).json();
-
       const checkout = await app.inject({
         method: "POST",
         url: "/publico/market/checkout",
         payload: {
           compradorTelefone: "923800002",
           itens: [
-            { negocioId: pecaC[0].negocioId, codigoPeca: "PROD-C1", quantidade: 1 },
-            { negocioId: pecaD[0].negocioId, codigoPeca: "PROD-D1", quantidade: 1 }
+            { slugLoja: "fornecedor-c", codigoPeca: "PROD-C1", quantidade: 1 },
+            { slugLoja: "fornecedor-d", codigoPeca: "PROD-D1", quantidade: 1 }
           ]
         }
       });
@@ -200,17 +196,14 @@ describe("Checkout Unificado multi-loja", () => {
       await publicarLoja(app, lojaA, "fornecedor-e");
       await publicarLoja(app, lojaB, "fornecedor-f");
 
-      const pecaE = (await app.inject({ method: "GET", url: "/pecas", headers: lojaA })).json();
-      const pecaF = (await app.inject({ method: "GET", url: "/pecas", headers: lojaB })).json();
-
       const checkout = await app.inject({
         method: "POST",
         url: "/publico/market/checkout",
         payload: {
           compradorTelefone: "923800003",
           itens: [
-            { negocioId: pecaE[0].negocioId, codigoPeca: "PROD-E1", quantidade: 1 },
-            { negocioId: pecaF[0].negocioId, codigoPeca: "PROD-F1", quantidade: 1 }
+            { slugLoja: "fornecedor-e", codigoPeca: "PROD-E1", quantidade: 1 },
+            { slugLoja: "fornecedor-f", codigoPeca: "PROD-F1", quantidade: 1 }
           ]
         }
       });
@@ -251,7 +244,7 @@ describe("Checkout Unificado multi-loja", () => {
         payload: {
           compradorTelefone: "923800004",
           itens: [
-            { negocioId: pecaG[0].negocioId, codigoPeca: "PROD-G1", quantidade: 3 }
+            { slugLoja: "fornecedor-g", codigoPeca: "PROD-G1", quantidade: 3 }
           ]
         }
       });
@@ -292,16 +285,13 @@ describe("Checkout Unificado multi-loja", () => {
       const loja = await autenticar(app, "923700008", "Fornecedor H");
       await publicarLoja(app, loja, "fornecedor-h");
 
-      const pecas = (await app.inject({ method: "GET", url: "/pecas", headers: loja })).json();
-      const negocioId = pecas.length > 0 ? pecas[0].negocioId : "negocio-inexistente";
-
       const checkout = await app.inject({
         method: "POST",
         url: "/publico/market/checkout",
         payload: {
           compradorTelefone: "923800005",
           itens: [
-            { negocioId, codigoPeca: "PROD-INEXISTENTE", quantidade: 1 }
+            { slugLoja: "fornecedor-h", codigoPeca: "PROD-INEXISTENTE", quantidade: 1 }
           ]
         }
       });
@@ -344,17 +334,14 @@ describe("Repasses Financeiros", () => {
       await publicarLoja(app, lojaA, "loja-repasse-a");
       await publicarLoja(app, lojaB, "loja-repasse-b");
 
-      const pecaA = (await app.inject({ method: "GET", url: "/pecas", headers: lojaA })).json();
-      const pecaB = (await app.inject({ method: "GET", url: "/pecas", headers: lojaB })).json();
-
       await app.inject({
         method: "POST",
         url: "/publico/market/checkout",
         payload: {
           compradorTelefone: "923810001",
           itens: [
-            { negocioId: pecaA[0].negocioId, codigoPeca: "REP-A1", quantidade: 1 },
-            { negocioId: pecaB[0].negocioId, codigoPeca: "REP-B1", quantidade: 1 }
+            { slugLoja: "loja-repasse-a", codigoPeca: "REP-A1", quantidade: 1 },
+            { slugLoja: "loja-repasse-b", codigoPeca: "REP-B1", quantidade: 1 }
           ]
         }
       });
@@ -400,7 +387,7 @@ describe("Repasses Financeiros", () => {
         payload: {
           compradorTelefone: "923810002",
           itens: [
-            { negocioId: pecas[0].negocioId, codigoPeca: "REM-1", quantidade: 2 }
+            { slugLoja: "loja-reembolso", codigoPeca: "REM-1", quantidade: 2 }
           ]
         }
       });

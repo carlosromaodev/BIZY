@@ -29,7 +29,8 @@ export async function criarAplicacao(): Promise<FastifyInstance> {
   });
 
   await app.register(helmet, {
-    contentSecurityPolicy: false
+    contentSecurityPolicy: false,
+    crossOriginResourcePolicy: { policy: "same-site" }
   });
 
   await app.register(cors, {
@@ -50,6 +51,7 @@ export async function criarAplicacao(): Promise<FastifyInstance> {
   );
 
   app.addHook("preHandler", async (request, reply) => {
+    if (request.method === "OPTIONS") return;
     if (!deveExigirSessaoOperacional(request.url)) {
       return;
     }

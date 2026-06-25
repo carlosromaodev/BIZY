@@ -123,7 +123,7 @@ describe("CRM apoio para módulos do frontend", () => {
           id: pedido.json().id,
           clienteNome: "Cliente Apoio",
           etapa: "CONTACTO_FEITO",
-          valorEstimadoEmKwanza: 15_000
+          valorEstimadoEmKwanza: 17_100
         })
       ]);
 
@@ -219,7 +219,7 @@ describe("CRM apoio para módulos do frontend", () => {
           id: pedido.json().id,
           clienteNome: "Cliente Apoio",
           estado: "ABERTA",
-          totalEmKwanza: 15_000
+          totalEmKwanza: 17_100
         })
       ]);
 

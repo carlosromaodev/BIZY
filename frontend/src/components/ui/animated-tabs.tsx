@@ -76,8 +76,8 @@ function TabsTrigger({
       {active ? (
         <motion.span
           layoutId="animated-tabs-active"
-          className="absolute inset-0 rounded-[inherit] bg-[var(--animated-tabs-active-bg,var(--background))] shadow-sm ring-1 ring-[var(--animated-tabs-active-ring,var(--border))]"
-          transition={{ type: "spring", stiffness: 430, damping: 34 }}
+          className="absolute inset-0 rounded-[inherit] bg-[var(--animated-tabs-active-bg,var(--background))] ring-1 ring-[var(--animated-tabs-active-ring,var(--border))]"
+          transition={{ type: "tween", duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
         />
       ) : null}
       <span className="relative z-10 inline-flex items-center justify-center gap-2">
@@ -113,9 +113,9 @@ function TabsContent({
     >
       <motion.div
         className="min-w-0 max-w-full"
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.15 }}
       >
         {children}
       </motion.div>

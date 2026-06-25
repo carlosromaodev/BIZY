@@ -1813,7 +1813,7 @@ export interface DadosPerfilEstudantil {
 export type TipoNegocioBizy = "LOJA" | "CRIADOR" | "REVENDEDOR" | "SERVICO" | string;
 
 export const modulosNegocioDisponiveis = [
-  "crm",
+  "team-core",
   "catalogo",
   "conversas",
   "reservas",
@@ -1837,7 +1837,7 @@ export const modulosNegocioDisponiveis = [
 export type ModuloNegocioCodigo = (typeof modulosNegocioDisponiveis)[number];
 
 export const modulosNegocioPadrao: ModuloNegocioCodigo[] = [
-  "crm",
+  "team-core",
   "catalogo",
   "conversas",
   "reservas",
@@ -1851,8 +1851,22 @@ export const modulosNegocioPadrao: ModuloNegocioCodigo[] = [
   "tracking"
 ];
 
-export const modulosNegocioObrigatorios: ModuloNegocioCodigo[] = ["crm"];
+export const modulosNegocioObrigatorios: ModuloNegocioCodigo[] = ["team-core"];
+export const modulosNegocioLegados = ["crm"] as const;
 export type CategoriaModuloNegocio = "NUCLEO" | "VENDA" | "OPERACAO" | "CRESCIMENTO" | "AUTOMACAO" | "DADOS";
+
+export function normalizarModuloNegocio(modulo: string): ModuloNegocioCodigo {
+  const normalizado = modulo.trim().toLowerCase();
+  if (normalizado === "crm") return "team-core";
+  if ((modulosNegocioDisponiveis as readonly string[]).includes(normalizado)) {
+    return normalizado as ModuloNegocioCodigo;
+  }
+  return normalizado as ModuloNegocioCodigo;
+}
+
+export function modulosNegocioSaoEquivalentes(a: string, b: string): boolean {
+  return normalizarModuloNegocio(a) === normalizarModuloNegocio(b);
+}
 
 export interface DefinicaoModuloNegocio {
   modulo: ModuloNegocioCodigo;
@@ -1864,9 +1878,9 @@ export interface DefinicaoModuloNegocio {
 
 export const catalogoModulosNegocio: DefinicaoModuloNegocio[] = [
   {
-    modulo: "crm",
-    nome: "CRM base",
-    descricao: "Clientes, tarefas e operação mínima do negócio.",
+    modulo: "team-core",
+    nome: "BIZY Team Core",
+    descricao: "Clientes, tarefas e operação comercial mínima do negócio.",
     categoria: "NUCLEO",
     obrigatorio: true
   },

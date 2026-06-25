@@ -181,7 +181,7 @@ function metricasCampanhaZeradas() {
     receitaAtribuidaEmKwanza: 0
   };
 }
-import { modulosNegocioPadrao } from "../../dominio/tipos.js";
+import { modulosNegocioPadrao, normalizarModuloNegocio } from "../../dominio/tipos.js";
 
 const estadosQueBloqueiamStock: EstadoReserva[] = ["PENDING", "RESERVED", "WAITING_PAYMENT", "PAID"];
 const estadosAtivosParaDuplicidade: EstadoReserva[] = ["PENDING", "RESERVED", "WAITING_PAYMENT", "WAITLISTED"];
@@ -1598,6 +1598,7 @@ export class RepositorioAutenticacaoMemoria implements RepositorioAutenticacao {
   private readonly perfisEstudantis = new Map<string, PerfilEstudantilUsuario>();
   private readonly negocios = new Map<string, NegocioBizy>();
   private readonly negocioPrincipalPorUsuario = new Map<string, string>();
+  private readonly negociosPorUsuario = new Map<string, Set<string>>();
   private readonly modulosPorNegocio = new Map<string, Map<string, ModuloNegocioConfigurado>>();
   private readonly codigos = new Map<string, CodigoLoginSms>();
   private readonly sessoes = new Map<string, {
@@ -1789,7 +1790,22 @@ export class RepositorioAutenticacaoMemoria implements RepositorioAutenticacao {
 
     this.negocios.set(negocio.id, negocio);
     this.negocioPrincipalPorUsuario.set(usuarioId, negocio.id);
+    const ids = this.negociosPorUsuario.get(usuarioId) ?? new Set();
+    ids.add(negocio.id);
+    this.negociosPorUsuario.set(usuarioId, ids);
     return negocio;
+  }
+
+  async buscarNegocioPorUsuario(usuarioId: string, negocioId: string): Promise<NegocioBizy | null> {
+    const ids = this.negociosPorUsuario.get(usuarioId);
+    if (!ids?.has(negocioId)) return null;
+    return this.negocios.get(negocioId) ?? null;
+  }
+
+  async listarNegociosPorUsuario(usuarioId: string): Promise<NegocioBizy[]> {
+    const ids = this.negociosPorUsuario.get(usuarioId);
+    if (!ids) return [];
+    return [...ids].map((id) => this.negocios.get(id)).filter((n): n is NegocioBizy => n != null);
   }
 
   async atualizarContasSociaisNegocio(negocioId: string, contasSociais: Record<string, unknown>): Promise<NegocioBizy> {
@@ -1843,10 +1859,11 @@ export class RepositorioAutenticacaoMemoria implements RepositorioAutenticacao {
 
     const ativos = new Set<string>(modulosNegocioPadrao);
     for (const modulo of configurados) {
+      const codigoModulo = normalizarModuloNegocio(modulo.modulo);
       if (modulo.ativo) {
-        ativos.add(modulo.modulo);
+        ativos.add(codigoModulo);
       } else {
-        ativos.delete(modulo.modulo);
+        ativos.delete(codigoModulo);
       }
     }
 

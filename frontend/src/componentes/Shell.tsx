@@ -170,33 +170,33 @@ export function Shell({ children }: { children: ReactNode }) {
   return (
     <div className="app-commerce-shell min-h-dvh bg-background text-foreground">
       {/* ── CRM v3 Mobile header — same visual identity as desktop ── */}
-      <header className="crm-v3-mob-head sticky top-0 lg:hidden">
-        <div className="crm-v3-mob-head-r1">
+      <header className="team-mob-head sticky top-0 lg:hidden">
+        <div className="team-mob-head-r1">
           <Link to="/app" aria-label={`Painel ${NOME_PRODUTO}`}>
             <LogoBizy className="crm-brand-wordmark" cores={CORES_BIZY_PADRAO} aria-hidden="true" />
           </Link>
-          <span className="crm-v3-mob-tag">Team</span>
-          <div className="crm-v3-mob-head-actions">
-            <button type="button" className="crm-v3-mob-head-icon" aria-label="Buscar" onClick={() => navigate("/app")}>
+          <span className="team-mob-tag">Team</span>
+          <div className="team-mob-head-actions">
+            <button type="button" className="team-mob-head-icon" aria-label="Buscar" onClick={() => navigate("/app")}>
               <Search size={16} />
             </button>
-            <button type="button" className="crm-v3-mob-head-icon" aria-label="Notificações" onClick={() => setNotificacoesAberto(true)}>
+            <button type="button" className="team-mob-head-icon" aria-label="Notificações" onClick={() => setNotificacoesAberto(true)}>
               <Bell size={16} />
-              <span className="crm-v3-mob-badge">4</span>
+              <span className="team-mob-badge">4</span>
             </button>
           </div>
         </div>
-        {/* Tab bar — reuses desktop .crm-v3-tabs / .crm-v3-tab classes */}
-        <nav className="crm-v3-tabs crm-v3-mob-tabbar" aria-label="Navegação principal">
+        {/* Tab bar — reuses desktop .team-tabs / .team-tab classes */}
+        <nav className="team-tabs team-mob-tabbar" aria-label="Navegação principal">
           <button
             type="button"
-            className="crm-v3-menu-trigger"
+            className="team-menu-trigger"
             onClick={() => setMenuMobileAberto(true)}
           >
             <Menu size={15} />
             Módulos
           </button>
-          <div className="crm-v3-tabs-inner">
+          <div className="team-tabs-inner">
             {rotasPrimariasCrmV3.map((item) => {
               const ativo = item.fim ? location.pathname === item.caminho : location.pathname.startsWith(item.caminho);
               return (
@@ -205,7 +205,7 @@ export function Shell({ children }: { children: ReactNode }) {
                   to={item.caminho}
                   end={item.fim}
                   aria-current={ativo ? "page" : undefined}
-                  className="crm-v3-tab"
+                  className="team-tab"
                 >
                   <span aria-hidden="true">{iconesCrmV3[item.caminho] ?? item.icone}</span>
                   {item.rotulo}
@@ -218,7 +218,7 @@ export function Shell({ children }: { children: ReactNode }) {
 
       {/* ── Mobile modules sheet (replaces old sidebar) ── */}
       <Sheet open={menuMobileAberto} onOpenChange={setMenuMobileAberto}>
-        <SheetContent side="bottom" className="crm-v3-mob-modulos-sheet rounded-t-2xl max-h-[80dvh]" style={{ background: "var(--surface)", borderColor: "var(--line)" }}>
+        <SheetContent side="bottom" className="team-mob-modulos-sheet rounded-t-2xl max-h-[80dvh]" style={{ background: "var(--surface)", borderColor: "var(--line)" }}>
           <SheetHeader className="border-b px-4 py-3 text-left" style={{ borderColor: "var(--line-2)" }}>
             <SheetTitle className="flex items-center gap-2 text-sm" style={{ color: "var(--ink)" }}>
               <Grid2X2 size={16} />
@@ -227,7 +227,7 @@ export function Shell({ children }: { children: ReactNode }) {
             <SheetDescription className="text-xs" style={{ color: "var(--ink-3)" }}>Todos os módulos</SheetDescription>
           </SheetHeader>
           <ScrollArea className="h-[calc(80dvh-72px)]">
-            <nav className="crm-v3-mob-modulos-grid">
+            <nav className="team-mob-modulos-grid">
               {secoesVisiveis.map((secao) => {
                 const rotasSecao = secao === "Admin/Sistema"
                   ? rotasAdminSistema
@@ -235,7 +235,7 @@ export function Shell({ children }: { children: ReactNode }) {
                 if (!rotasSecao.length) return null;
                 return (
                   <Fragment key={secao}>
-                    <span className="crm-v3-mob-modulos-secao">{secao}</span>
+                    <span className="team-mob-modulos-secao">{secao}</span>
                     {rotasSecao.map((item) => {
                       const ativo = item.fim ? location.pathname === item.caminho : location.pathname.startsWith(item.caminho);
                       return (
@@ -244,7 +244,7 @@ export function Shell({ children }: { children: ReactNode }) {
                           to={item.caminho}
                           end={item.fim}
                           aria-current={ativo ? "page" : undefined}
-                          className="crm-v3-mob-modulos-item"
+                          className="team-mob-modulos-item"
                         >
                           <span aria-hidden="true">{item.icone}</span>
                           {item.rotulo}
@@ -257,7 +257,7 @@ export function Shell({ children }: { children: ReactNode }) {
               <Separator className="my-2 col-span-2" style={{ background: "var(--line)" }} />
               <button
                 type="button"
-                className="crm-v3-mob-modulos-item col-span-2"
+                className="team-mob-modulos-item col-span-2"
                 style={{ color: "var(--ink-3)" }}
                 onClick={() => void sair()}
               >
@@ -271,7 +271,7 @@ export function Shell({ children }: { children: ReactNode }) {
 
       {/* ── Mobile notifications sheet ── */}
       <Sheet open={notificacoesAberto} onOpenChange={setNotificacoesAberto}>
-        <SheetContent side="bottom" className="crm-v3-mob-modulos-sheet rounded-t-2xl max-h-[70dvh]" style={{ background: "var(--surface)", borderColor: "var(--line)" }}>
+        <SheetContent side="bottom" className="team-mob-modulos-sheet rounded-t-2xl max-h-[70dvh]" style={{ background: "var(--surface)", borderColor: "var(--line)" }}>
           <SheetHeader className="border-b px-4 py-3 text-left" style={{ borderColor: "var(--line-2)" }}>
             <SheetTitle className="flex items-center gap-2 text-sm" style={{ color: "var(--ink)" }}>
               <Bell size={16} />
@@ -313,60 +313,60 @@ export function Shell({ children }: { children: ReactNode }) {
       </Sheet>
 
       {/* ── Desktop CRM v3 header (Market identity) ── */}
-      <header className="crm-v3-shell hidden lg:block">
-        <div className="crm-v3-util">
-          <span className="crm-v3-util-live">
+      <header className="team-shell hidden lg:block">
+        <div className="team-util">
+          <span className="team-util-live">
             <Bolt size={13} />
             Live pronta · pedidos, clientes e loja no mesmo comando
           </span>
-          <span className="crm-v3-util-right">
+          <span className="team-util-right">
             <Link to="/app/loja">Ver loja pública</Link>
             <span>Ajuda</span>
             <span>{usuario?.nome ?? "Vendedor"} · {NOME_PRODUTO}</span>
           </span>
         </div>
 
-        <div className="crm-v3-head">
-          <Link to="/app" className="crm-v3-brand" aria-label={`Painel ${NOME_PRODUTO}`}>
-            <LogoBizy className="crm-brand-wordmark crm-v3-brand-wordmark" aria-hidden="true" />
+        <div className="team-head">
+          <Link to="/app" className="team-brand" aria-label={`Painel ${NOME_PRODUTO}`}>
+            <LogoBizy className="crm-brand-wordmark team-brand-wordmark" aria-hidden="true" />
             <span>Team</span>
           </Link>
 
-          <div className="crm-v3-search-wrap">
-            <span className="crm-v3-search-scope">
+          <div className="team-search-wrap">
+            <span className="team-search-scope">
               Em tudo
               <ChevronDown size={13} />
             </span>
-            <BuscaGlobalComercial className="crm-v3-searchbar" placeholder="Buscar pedidos, clientes, produtos…" />
-            <button type="button" className="crm-v3-search-go" aria-label="Buscar">
+            <BuscaGlobalComercial className="team-searchbar" placeholder="Buscar pedidos, clientes, produtos…" />
+            <button type="button" className="team-search-go" aria-label="Buscar">
               <Search size={15} />
               Buscar
             </button>
           </div>
 
-          <button type="button" className="crm-v3-action" onClick={() => navigate("/app/relatorios")}>
+          <button type="button" className="team-action" onClick={() => navigate("/app/relatorios")}>
             <Bell size={20} />
-            <span className="crm-v3-badge">4</span>
+            <span className="team-badge">4</span>
             Avisos
           </button>
-          <button type="button" className="crm-v3-action" onClick={() => navigate("/app/reservas")}>
+          <button type="button" className="team-action" onClick={() => navigate("/app/reservas")}>
             <Plus size={20} />
             Criar
           </button>
-          <button type="button" className="crm-v3-account" onClick={() => navigate("/app/administracao")}>
+          <button type="button" className="team-account" onClick={() => navigate("/app/administracao")}>
             <span>{(usuario?.nome ?? "V").slice(0, 2).toUpperCase()}</span>
             Conta
           </button>
         </div>
 
         <nav
-          className="crm-v3-tabs"
+          className="team-tabs"
           aria-label="Navegação principal"
           onMouseLeave={fecharModulosComDelay}
         >
           <button
             type="button"
-            className="crm-v3-menu-trigger"
+            className="team-menu-trigger"
             onClick={() => setModulosAberto((v) => !v)}
             onMouseEnter={abrirModulos}
           >
@@ -378,7 +378,7 @@ export function Shell({ children }: { children: ReactNode }) {
             {modulosAberto ? (
               <motion.div
                 key="modulos"
-                className="crm-v3-modulos-drawer"
+                className="team-modulos-drawer"
                 initial={{ opacity: 0, x: -12 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -12 }}
@@ -386,8 +386,8 @@ export function Shell({ children }: { children: ReactNode }) {
                 onMouseEnter={abrirModulos}
               >
                 {[...secoesModulos.entries()].map(([secao, rotas]) => (
-                  <div key={secao} className="crm-v3-modulos-grupo">
-                    <span className="crm-v3-modulos-secao">{secao}</span>
+                  <div key={secao} className="team-modulos-grupo">
+                    <span className="team-modulos-secao">{secao}</span>
                     {rotas.map((rota) => {
                       const ativo = rota.fim ? location.pathname === rota.caminho : location.pathname.startsWith(rota.caminho);
                       return (
@@ -396,7 +396,7 @@ export function Shell({ children }: { children: ReactNode }) {
                           to={rota.caminho}
                           end={rota.fim}
                           aria-current={ativo ? "page" : undefined}
-                          className="crm-v3-modulos-item"
+                          className="team-modulos-item"
                           onClick={fecharModulos}
                         >
                           <span aria-hidden="true">{rota.icone}</span>
@@ -410,7 +410,7 @@ export function Shell({ children }: { children: ReactNode }) {
             ) : (
               <motion.div
                 key="tabs"
-                className="crm-v3-tabs-inner"
+                className="team-tabs-inner"
                 initial={{ opacity: 0, x: 12 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: 12 }}
@@ -424,7 +424,7 @@ export function Shell({ children }: { children: ReactNode }) {
                       to={item.caminho}
                       end={item.fim}
                       aria-current={ativo ? "page" : undefined}
-                      className="crm-v3-tab"
+                      className="team-tab"
                     >
                       <span aria-hidden="true">{iconesCrmV3[item.caminho] ?? item.icone}</span>
                       {item.rotulo}
@@ -432,7 +432,7 @@ export function Shell({ children }: { children: ReactNode }) {
                   );
                 })}
                 {liveAtiva && (
-                  <NavLink to="/app/live" className="crm-v3-live-pill">
+                  <NavLink to="/app/live" className="team-live-pill">
                     <i />
                     AO VIVO {tempoLiveFormatado}
                   </NavLink>
@@ -447,8 +447,8 @@ export function Shell({ children }: { children: ReactNode }) {
       <a href="#conteudo-principal" className="skip-to-content">Ir para o conteúdo</a>
 
       {/* ── Main content ── */}
-      <main id="conteudo-principal" className="app-route-surface crm-v3-route-surface min-h-dvh">
-        <div className="crm-v3-mob-search-wrap lg:hidden">
+      <main id="conteudo-principal" className="app-route-surface team-route-surface min-h-dvh">
+        <div className="team-mob-search-wrap lg:hidden">
           <BuscaGlobalComercial />
         </div>
         <AnimatePresence mode="wait">
@@ -505,7 +505,7 @@ function CrmV3MobileBottomNav({
       <button
         key={item.id}
         type="button"
-        className="crm-v3-mob-bottom-item"
+        className="team-mob-bottom-item"
         data-active={ativo || undefined}
         aria-current={ativo ? "page" : undefined}
         onClick={() => navigate(item.path)}
@@ -517,11 +517,11 @@ function CrmV3MobileBottomNav({
   };
 
   return (
-    <nav className="crm-v3-mob-bottom lg:hidden" aria-label="Navegação principal">
+    <nav className="team-mob-bottom lg:hidden" aria-label="Navegação principal">
       {crmV3BottomNavItems.map(renderItem)}
       <button
         type="button"
-        className="crm-v3-mob-fab"
+        className="team-mob-fab"
         aria-label="Módulos"
         onClick={onAbrirMenu}
       >

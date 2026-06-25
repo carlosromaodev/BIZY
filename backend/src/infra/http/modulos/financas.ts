@@ -130,6 +130,34 @@ const GerarReciboSchema = z.object({
   observacao: z.string().trim().max(500).optional()
 });
 
+const ValidarDescontoSchema = z.object({
+  percentualDesconto: z.number().min(0).max(100),
+  aprovadorId: z.string().uuid().optional()
+});
+
+const RegistarReembolsoSchema = z.object({
+  descricao: z.string().trim().min(2).max(200),
+  valor: z.number().int().positive(),
+  pedidoId: z.string().uuid().optional(),
+  facturaId: z.string().uuid().optional(),
+  notaCreditoId: z.string().uuid().optional(),
+  observacao: z.string().trim().max(500).optional()
+});
+
+const MovimentoMultiMoedaSchema = z.object({
+  tipo: z.enum(["ENTRADA", "SAIDA"]),
+  categoriaId: z.string().uuid().optional(),
+  descricao: z.string().trim().min(2).max(200),
+  valor: z.number().int().positive(),
+  origemTipo: z.string().trim().max(40).optional(),
+  origemId: z.string().uuid().optional(),
+  dataMovimento: z.coerce.date().optional(),
+  observacao: z.string().trim().max(500).optional(),
+  moedaOriginal: z.string().trim().max(10).optional(),
+  taxaCambio: z.number().positive().optional(),
+  valorOriginal: z.number().positive().optional()
+});
+
 /* ── Módulo HTTP ──────────────────────────────────────────────── */
 
 export const moduloFinancas: ModuloHttp = {
@@ -450,6 +478,60 @@ export const moduloFinancas: ModuloHttp = {
 
       const resultado = await contexto.gestaoFinancas.priorizarPagamentos(ctx.negocio.id);
       return resultado;
+    });
+
+    /* ── Fecho de Período (RN-T004) ─────────────────────────── */
+
+    app.post("/financas/fechar-periodo", async (request, reply) => {
+      const ctx = await exigirFinancas(contexto, request, reply, "equipa:gestao");
+      if (!ctx) return;
+
+      const { mes, ano } = MesAnoSchema.parse(request.body ?? {});
+      const resultado = await contexto.gestaoFinancas.fecharPeriodo(ctx.negocio.id, mes, ano);
+      return resultado;
+    });
+
+    /* ── Validar Desconto (RN-T005) ──────────────────────────── */
+
+    app.post("/financas/validar-desconto", async (request, reply) => {
+      const ctx = await exigirFinancas(contexto, request, reply, "equipa:ler");
+      if (!ctx) return;
+
+      const dados = ValidarDescontoSchema.parse(request.body ?? {});
+      const resultado = await contexto.gestaoFinancas.validarLimiteDesconto(
+        ctx.negocio.id,
+        dados.percentualDesconto,
+        dados.aprovadorId
+      );
+      return resultado;
+    });
+
+    /* ── Reembolso (RN-T006) ─────────────────────────────────── */
+
+    app.post("/financas/reembolsos", async (request, reply) => {
+      const ctx = await exigirFinancas(contexto, request, reply, "equipa:gestao");
+      if (!ctx) return;
+
+      const dados = RegistarReembolsoSchema.parse(request.body ?? {});
+      const movimento = await contexto.gestaoFinancas.registarReembolso(ctx.negocio.id, {
+        ...dados,
+        responsavelId: ctx.usuario.id
+      });
+      return reply.code(201).send({ movimento });
+    });
+
+    /* ── Movimento Multi-Moeda (RN-T007) ─────────────────────── */
+
+    app.post("/financas/movimentos/multi-moeda", async (request, reply) => {
+      const ctx = await exigirFinancas(contexto, request, reply, "equipa:gestao");
+      if (!ctx) return;
+
+      const dados = MovimentoMultiMoedaSchema.parse(request.body ?? {});
+      const movimento = await contexto.gestaoFinancas.registarMovimentoMultiMoeda(ctx.negocio.id, {
+        ...dados,
+        responsavelId: ctx.usuario.id
+      });
+      return reply.code(201).send({ movimento });
     });
 
     /* ── Orçamento ────────────────────────────────────────────── */

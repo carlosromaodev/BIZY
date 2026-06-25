@@ -58,6 +58,9 @@ import { GestaoClientesCrmUseCase } from "../../use-case/GestaoClientesCrmUseCas
 import { GestaoCompartilhamentoClientesUseCase } from "../../use-case/GestaoCompartilhamentoClientesUseCase.js";
 import { GestaoEquipaUseCase } from "../../use-case/GestaoEquipaUseCase.js";
 import { GestaoFinancasUseCase } from "../../use-case/GestaoFinancasUseCase.js";
+import { GestaoWorkflowUseCase } from "../../use-case/GestaoWorkflowUseCase.js";
+import { GestaoProjectosUseCase } from "../../use-case/GestaoProjectosUseCase.js";
+import { ConformidadeROIUseCase } from "../../use-case/ConformidadeROIUseCase.js";
 import { InteligenciaPreditivaUseCase } from "../../use-case/InteligenciaPreditivaUseCase.js";
 import { GestaoFunilComercialUseCase } from "../../use-case/GestaoFunilComercialUseCase.js";
 import { GestaoGovernancaCrmUseCase } from "../../use-case/GestaoGovernancaCrmUseCase.js";
@@ -264,6 +267,9 @@ export interface ContextoAplicacao {
   repassesFinanceiros: RepassesFinanceirosUseCase;
   gestaoEquipa: GestaoEquipaUseCase;
   gestaoFinancas: GestaoFinancasUseCase;
+  gestaoWorkflow: GestaoWorkflowUseCase;
+  gestaoProjectos: GestaoProjectosUseCase;
+  conformidadeROI: ConformidadeROIUseCase;
   inteligenciaPreditiva: InteligenciaPreditivaUseCase;
   assistenteIA: AssistenteIAUseCase | null;
   sessoesLive: Map<string, SessaoLive>;
@@ -519,6 +525,9 @@ export function criarContextoAplicacao(logger: FastifyBaseLogger): ContextoAplic
 
   const gestaoEquipa = new GestaoEquipaUseCase(prismaDirecto);
   const gestaoFinancas = new GestaoFinancasUseCase(prismaDirecto);
+  const gestaoWorkflow = new GestaoWorkflowUseCase(prismaDirecto);
+  const gestaoProjectos = new GestaoProjectosUseCase(prismaDirecto);
+  const conformidadeROI = new ConformidadeROIUseCase(prismaDirecto);
   const inteligenciaPreditiva = new InteligenciaPreditivaUseCase(prismaDirecto);
 
   const provedorIA = criarProvedorIA();
@@ -589,6 +598,9 @@ export function criarContextoAplicacao(logger: FastifyBaseLogger): ContextoAplic
     repassesFinanceiros: repassesFinanceirosUseCase,
     gestaoEquipa,
     gestaoFinancas,
+    gestaoWorkflow,
+    gestaoProjectos,
+    conformidadeROI,
     inteligenciaPreditiva,
     assistenteIA,
     sessoesLive: new Map()

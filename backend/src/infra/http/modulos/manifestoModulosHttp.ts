@@ -12,6 +12,9 @@ import { moduloEquipa } from "./equipa.js";
 import { moduloFinancas } from "./financas.js";
 import { moduloInteligencia } from "./inteligencia.js";
 import { moduloIntegracoes } from "./integracoes.js";
+import { moduloWorkflow } from "./workflow.js";
+import { moduloProjectos } from "./projectos.js";
+import { moduloConformidade } from "./conformidade.js";
 import { moduloLives } from "./lives.js";
 import { moduloLojaPublica } from "./lojaPublica.js";
 import { moduloMarket } from "./market.js";
@@ -48,5 +51,8 @@ export const modulosHttp = [
   moduloCheckoutUnificado,
   moduloEquipa,
   moduloFinancas,
-  moduloInteligencia
+  moduloInteligencia,
+  moduloWorkflow,
+  moduloProjectos,
+  moduloConformidade
 ] satisfies ModuloHttp[];

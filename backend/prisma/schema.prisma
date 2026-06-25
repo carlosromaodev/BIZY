@@ -538,6 +538,20 @@ model Negocio {
   contasReceber         ContaReceber[]
   contasPagar           ContaPagar[]
   orcamentos            OrcamentoPeriodo[]
+  previsoesDemanda      PrevisaoDemanda[]
+  scoresCliente         ScoreCliente[]
+  previsoesFluxoCaixa   PrevisaoFluxoCaixa[]
+  insightsPreditivos    InsightPreditivo[]
+  fluxosAutomaticos     FluxoAutomatico[]
+  configuracaoNotificacoes ConfiguracaoNotificacao[]
+  departamentos         Departamento[]
+  projectos             Projecto[]
+  projetosComerciais    ProjetoComercial[]
+  passagensTurno        PassagemTurno[]
+  regrasFiscais         RegraFiscal[]
+  baselinesKPI          BaselineKPI[]
+  metricasAdopcao       MetricaAdopcao[]
+  pesquisasNPS          PesquisaNPS[]
 
   @@index([nomeComercial])
   @@index([slugPublico])
@@ -1009,6 +1023,7 @@ model MembroNegocio {
   metas               MetaVendas[]
   turnos              TurnoMembro[]
   registosPresenca    RegistoPresenca[]
+  configuracaoNotificacoes ConfiguracaoNotificacao[]
 
   @@unique([negocioId, usuarioId])
   @@index([usuarioId])
@@ -1410,6 +1425,7 @@ model ConviteEquipa {
   criadoPor       UsuarioSistema @relation("ConvitesCriados", fields: [criadoPorId], references: [id])
   aceitePorId     String?
   aceiteEm        DateTime?
+  termosAceitesEm DateTime?
   expiraEm        DateTime
   reenviadoEm     DateTime?
   criadoEm        DateTime  @default(now())
@@ -1758,4 +1774,402 @@ model RegistoPresenca {
 
   @@index([negocioId, membroId, registadoEm])
   @@index([negocioId, registadoEm])
+}
+
+// ── Fase 3 — Inteligência Preditiva ─────────────────────────────────────
+
+model PrevisaoDemanda {
+  id              String   @id @default(uuid())
+  negocioId       String
+  negocio         Negocio  @relation(fields: [negocioId], references: [id])
+  pecaId          String?
+  sku             String?
+  periodoInicio   DateTime
+  periodoFim      DateTime
+  quantidadePrevista Int
+  quantidadeReal  Int?
+  confianca       Float    @default(0.5)
+  factoresJson    String   @default("[]")
+  criadoEm        DateTime @default(now())
+
+  @@index([negocioId, pecaId, periodoInicio])
+  @@index([negocioId, criadoEm])
+}
+
+model ScoreCliente {
+  id              String   @id @default(uuid())
+  negocioId       String
+  negocio         Negocio  @relation(fields: [negocioId], references: [id])
+  clienteId       String
+  tipoScore       String   @default("RFM") // RFM | CHURN | LTV
+  valor           Float    @default(0)
+  segmento        String?  // CHAMPION | LOYAL | AT_RISK | LOST
+  recencia        Int?
+  frequencia      Int?
+  monetario       Int?
+  probabilidadeChurn Float?
+  ltvEstimado     Int?
+  factoresJson    String   @default("[]")
+  calculadoEm     DateTime @default(now())
+
+  @@index([negocioId, clienteId, tipoScore])
+  @@index([negocioId, tipoScore, segmento])
+  @@index([negocioId, calculadoEm])
+}
+
+model PrevisaoFluxoCaixa {
+  id              String   @id @default(uuid())
+  negocioId       String
+  negocio         Negocio  @relation(fields: [negocioId], references: [id])
+  semanaInicio    DateTime
+  semanaFim       DateTime
+  entradasPrevistas Int    @default(0)
+  saidasPrevistas Int      @default(0)
+  saldoPrevisto   Int      @default(0)
+  confianca       Float    @default(0.5)
+  factoresJson    String   @default("[]")
+  criadoEm        DateTime @default(now())
+
+  @@index([negocioId, semanaInicio])
+}
+
+model InsightPreditivo {
+  id              String   @id @default(uuid())
+  negocioId       String
+  negocio         Negocio  @relation(fields: [negocioId], references: [id])
+  tipo            String   // DEMANDA | CHURN | FLUXO_CAIXA | OPORTUNIDADE | STOCK
+  titulo          String
+  descricao       String
+  confianca       Float    @default(0.5)
+  nivelConfianca  String   @default("MEDIA") // ALTA | MEDIA | BAIXA
+  acaoSugerida    String?
+  entidadeTipo    String?
+  entidadeId      String?
+  factoresJson    String   @default("[]")
+  expiradoEm      DateTime?
+  criadoEm        DateTime @default(now())
+  feedbacks       FeedbackInsight[]
+
+  @@index([negocioId, tipo, criadoEm])
+  @@index([negocioId, nivelConfianca])
+}
+
+model FeedbackInsight {
+  id              String   @id @default(uuid())
+  insightId       String
+  insight         InsightPreditivo @relation(fields: [insightId], references: [id], onDelete: Cascade)
+  usuarioId       String
+  accao           String   // ACEITE | REJEITADO | IGNORADO
+  comentario      String?
+  criadoEm        DateTime @default(now())
+
+  @@index([insightId])
+  @@index([usuarioId, criadoEm])
+}
+
+// ── Fase 4 — Workflow e Notificações ────────────────────────────────────
+
+model FluxoAutomatico {
+  id              String   @id @default(uuid())
+  negocioId       String
+  negocio         Negocio  @relation(fields: [negocioId], references: [id])
+  nome            String
+  descricao       String?
+  gatilho         String   // PEDIDO_CRIADO | RESERVA_EXPIRADA | TURNO_INICIO | CONVERSA_SEM_RESPOSTA | CUSTOM
+  ativo           Boolean  @default(true)
+  condicoesJson   String   @default("{}")
+  falhasConsecutivas Int   @default(0)
+  pausadoPorFalha Boolean  @default(false)
+  criadoEm        DateTime @default(now())
+  atualizadoEm    DateTime @updatedAt
+  passos          PassoFluxo[]
+  execucoes       ExecucaoFluxo[]
+
+  @@index([negocioId, ativo, gatilho])
+  @@index([negocioId, criadoEm])
+}
+
+model PassoFluxo {
+  id              String   @id @default(uuid())
+  fluxoId         String
+  fluxo           FluxoAutomatico @relation(fields: [fluxoId], references: [id], onDelete: Cascade)
+  ordem           Int
+  tipo            String   // CONDICAO | ACAO | ESPERA | NOTIFICACAO
+  configuracaoJson String  @default("{}")
+  criadoEm        DateTime @default(now())
+
+  @@index([fluxoId, ordem])
+}
+
+model ExecucaoFluxo {
+  id              String   @id @default(uuid())
+  fluxoId         String
+  fluxo           FluxoAutomatico @relation(fields: [fluxoId], references: [id], onDelete: Cascade)
+  gatilhoEntidadeId String?
+  estado          String   @default("EM_EXECUCAO") // EM_EXECUCAO | CONCLUIDO | FALHADO | PAUSADO
+  passoActual     Int      @default(0)
+  resultadoJson   String   @default("{}")
+  erro            String?
+  iniciadoEm      DateTime @default(now())
+  concluidoEm     DateTime?
+
+  @@index([fluxoId, estado])
+  @@index([fluxoId, iniciadoEm])
+}
+
+model ConfiguracaoNotificacao {
+  id              String   @id @default(uuid())
+  negocioId       String
+  negocio         Negocio  @relation(fields: [negocioId], references: [id])
+  membroId        String
+  membro          MembroNegocio @relation(fields: [membroId], references: [id])
+  canal           String   // WHATSAPP | EMAIL | PUSH | SMS
+  tipo            String   // PEDIDO | CONVERSA | TURNO | META | STOCK | TAREFA
+  ativo           Boolean  @default(true)
+  horarioInicio   String?
+  horarioFim      String?
+  criadoEm        DateTime @default(now())
+  atualizadoEm    DateTime @updatedAt
+
+  @@unique([negocioId, membroId, canal, tipo])
+  @@index([negocioId, membroId])
+}
+
+model ContadorNotificacaoDiaria {
+  id              String   @id @default(uuid())
+  negocioId       String
+  membroId        String
+  canal           String
+  data            DateTime @db.Date
+  contagem        Int      @default(0)
+
+  @@unique([negocioId, membroId, canal, data])
+  @@index([negocioId, membroId, data])
+}
+
+// ── Fase 5 — Projectos, Estrutura e Integração Operacional ──────────────
+
+model Departamento {
+  id              String   @id @default(uuid())
+  negocioId       String
+  negocio         Negocio  @relation(fields: [negocioId], references: [id])
+  nome            String
+  descricao       String?
+  liderId         String?
+  paisId          String?
+  criadoEm        DateTime @default(now())
+  atualizadoEm    DateTime @updatedAt
+
+  @@unique([negocioId, nome])
+  @@index([negocioId, paisId])
+}
+
+model Projecto {
+  id              String   @id @default(uuid())
+  negocioId       String
+  negocio         Negocio  @relation(fields: [negocioId], references: [id])
+  nome            String
+  descricao       String?
+  orcamento       Int?
+  dataInicio      DateTime?
+  dataFim         DateTime?
+  estado          String   @default("PLANEADO") // PLANEADO | EM_ANDAMENTO | PAUSADO | FECHADO
+  departamentoId  String?
+  gestorId        String?
+  motivoFecho     String?
+  relatorioFinalJson String?
+  criadoEm        DateTime @default(now())
+  atualizadoEm    DateTime @updatedAt
+  entregas        EntregaProjecto[]
+  membrosProjecto MembroProjecto[]
+
+  @@index([negocioId, estado])
+  @@index([negocioId, departamentoId])
+}
+
+model EntregaProjecto {
+  id              String   @id @default(uuid())
+  projectoId      String
+  projecto        Projecto @relation(fields: [projectoId], references: [id], onDelete: Cascade)
+  titulo          String
+  descricao       String?
+  estado          String   @default("PENDENTE") // PENDENTE | EM_PROGRESSO | CONCLUIDA | CANCELADA
+  dataLimite      DateTime?
+  concluidaEm     DateTime?
+  dependeDeId     String?
+  motivoCancelamento String?
+  criadoEm        DateTime @default(now())
+  atualizadoEm    DateTime @updatedAt
+
+  @@index([projectoId, estado])
+}
+
+model MembroProjecto {
+  id              String   @id @default(uuid())
+  projectoId      String
+  projecto        Projecto @relation(fields: [projectoId], references: [id], onDelete: Cascade)
+  membroId        String
+  papelProjecto   String   @default("MEMBRO") // GESTOR | MEMBRO | REVISOR | SUPORTE_VENDAS | LOGISTICA
+  alocadoDesde    DateTime @default(now())
+  alocadoAte      DateTime?
+  activo          Boolean  @default(true)
+
+  @@unique([projectoId, membroId])
+  @@index([projectoId, activo])
+  @@index([membroId])
+}
+
+model ProjetoComercial {
+  id              String   @id @default(uuid())
+  negocioId       String
+  negocio         Negocio  @relation(fields: [negocioId], references: [id])
+  nome            String
+  descricao       String?
+  tipo            String   @default("LIVE") // LIVE | CAMPANHA | LANCAMENTO
+  estado          String   @default("PLANEADO") // PLANEADO | EM_ANDAMENTO | FECHADO
+  dataInicio      DateTime?
+  dataFim         DateTime?
+  criadoEm        DateTime @default(now())
+  atualizadoEm    DateTime @updatedAt
+  poolStock       PoolStockProjeto[]
+  equipaProjeto   EquipaProjeto[]
+  filas           FilaProjeto[]
+  debriefing      DebriefingProjeto?
+
+  @@index([negocioId, estado])
+  @@index([negocioId, tipo, estado])
+}
+
+model PoolStockProjeto {
+  id                  String   @id @default(uuid())
+  projetoComercialId  String
+  projetoComercial    ProjetoComercial @relation(fields: [projetoComercialId], references: [id], onDelete: Cascade)
+  pecaId              String
+  quantidadeReservada Int      @default(0)
+  quantidadeVendida   Int      @default(0)
+  pausado             Boolean  @default(false)
+  criadoEm            DateTime @default(now())
+  atualizadoEm        DateTime @updatedAt
+
+  @@unique([projetoComercialId, pecaId])
+  @@index([projetoComercialId])
+}
+
+model EquipaProjeto {
+  id                  String   @id @default(uuid())
+  projetoComercialId  String
+  projetoComercial    ProjetoComercial @relation(fields: [projetoComercialId], references: [id], onDelete: Cascade)
+  membroId            String
+  papelProjeto        String   @default("SUPORTE_VENDAS")
+  alocadoDesde        DateTime @default(now())
+  alocadoAte          DateTime?
+  activo              Boolean  @default(true)
+
+  @@unique([projetoComercialId, membroId])
+  @@index([projetoComercialId, activo])
+}
+
+model FilaProjeto {
+  id                  String   @id @default(uuid())
+  projetoComercialId  String
+  projetoComercial    ProjetoComercial @relation(fields: [projetoComercialId], references: [id], onDelete: Cascade)
+  entidadeTipo        String   // TAREFA | RESERVA | SOCIAL_INBOX
+  entidadeId          String
+  prioridade          Int      @default(0)
+  estado              String   @default("PENDENTE") // PENDENTE | ATRIBUIDO | CONCLUIDO
+  atribuidoAId        String?
+  criadoEm            DateTime @default(now())
+  atualizadoEm        DateTime @updatedAt
+
+  @@index([projetoComercialId, estado])
+  @@index([projetoComercialId, entidadeTipo])
+}
+
+model DebriefingProjeto {
+  id                  String   @id @default(uuid())
+  projetoComercialId  String   @unique
+  projetoComercial    ProjetoComercial @relation(fields: [projetoComercialId], references: [id], onDelete: Cascade)
+  totalVendas         Int      @default(0)
+  receitaTotal        Int      @default(0)
+  tempoMedioResposta  Int?
+  stockLiquidado      Int?
+  comissoesGeradas    Int?
+  audiencia           Int?
+  roiPercentual       Float?
+  notasJson           String   @default("{}")
+  geradoEm            DateTime @default(now())
+}
+
+model PassagemTurno {
+  id              String   @id @default(uuid())
+  negocioId       String
+  negocio         Negocio  @relation(fields: [negocioId], references: [id])
+  membroSaindoId  String
+  membroEntrandoId String?
+  conversasAbertas Int     @default(0)
+  tarefasPendentes Int     @default(0)
+  clientesQuentes  Int     @default(0)
+  resumoJson      String   @default("{}")
+  criadoEm        DateTime @default(now())
+
+  @@index([negocioId, criadoEm])
+  @@index([membroSaindoId])
+}
+
+// ── Fase 6 — Conformidade e ROI ─────────────────────────────────────────
+
+model RegraFiscal {
+  id              String   @id @default(uuid())
+  negocioId       String
+  negocio         Negocio  @relation(fields: [negocioId], references: [id])
+  jurisdicao      String   @default("AO")
+  tipoImposto     String   @default("IVA")
+  taxa            Float    @default(14)
+  descricao       String?
+  aplicavelA      String?
+  criadoEm        DateTime @default(now())
+  atualizadoEm    DateTime @updatedAt
+
+  @@index([negocioId, jurisdicao, tipoImposto])
+}
+
+model BaselineKPI {
+  id              String   @id @default(uuid())
+  negocioId       String
+  negocio         Negocio  @relation(fields: [negocioId], references: [id])
+  modulo          String
+  kpi             String
+  valorBaseline   Float
+  registadoEm     DateTime @default(now())
+
+  @@unique([negocioId, modulo, kpi])
+  @@index([negocioId, modulo])
+}
+
+model MetricaAdopcao {
+  id              String   @id @default(uuid())
+  negocioId       String
+  negocio         Negocio  @relation(fields: [negocioId], references: [id])
+  data            DateTime @db.Date
+  dau             Int      @default(0)
+  mau             Int      @default(0)
+  profundidadeJson String  @default("{}")
+  criadoEm        DateTime @default(now())
+
+  @@unique([negocioId, data])
+  @@index([negocioId, data])
+}
+
+model PesquisaNPS {
+  id              String   @id @default(uuid())
+  negocioId       String
+  negocio         Negocio  @relation(fields: [negocioId], references: [id])
+  usuarioId       String
+  pontuacao       Int
+  comentario      String?
+  modulo          String?
+  criadoEm        DateTime @default(now())
+
+  @@index([negocioId, criadoEm])
+  @@index([negocioId, modulo])
 }

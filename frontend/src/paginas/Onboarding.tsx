@@ -16,13 +16,15 @@ import {
   ShoppingBag,
   Store,
   Tag,
+  Trash2,
   Upload
 } from "lucide-react";
-import { type FormEvent, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { type DragEvent, type FormEvent, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { motion, useReducedMotion, AnimatePresence } from "motion/react";
 import { useNavigate } from "react-router-dom";
 import { obterUsuario, requisitarApi, resolverUrlMedia, type NegocioSessao } from "../api";
 import { enviarMedia } from "../media";
+import { ExibidorImagem } from "../componentes/ExibidorImagem";
 import { CORES_LOGO_BIZY_ESCURA, LogoBizy } from "../marca/bizy";
 import { BorderTrail } from "@/components/ui/border-trail";
 import { Badge } from "@/components/ui/badge";
@@ -176,6 +178,7 @@ export function PaginaOnboarding() {
     fotos: [] as string[]
   });
   const [enviandoFoto, setEnviandoFoto] = useState(false);
+  const [arrastando, setArrastando] = useState(false);
   const inputFotoRef = useRef<HTMLInputElement>(null);
 
   const tratarFotoProduto = useCallback(async (ficheiros: FileList | null) => {
@@ -184,10 +187,11 @@ export function PaginaOnboarding() {
     try {
       const novasUrls: string[] = [];
       for (const ficheiro of Array.from(ficheiros).slice(0, 4)) {
+        if (!ficheiro.type.startsWith("image/")) continue;
         const resultado = await enviarMedia(ficheiro, "catalogo", 1200);
         novasUrls.push(resultado.url);
       }
-      setProduto((atual) => ({ ...atual, fotos: [...atual.fotos, ...novasUrls] }));
+      setProduto((atual) => ({ ...atual, fotos: [...atual.fotos, ...novasUrls].slice(0, 4) }));
     } catch (erro) {
       setMensagem(erro instanceof Error ? erro.message : "Não foi possível enviar a foto.");
     } finally {
@@ -195,6 +199,10 @@ export function PaginaOnboarding() {
       if (inputFotoRef.current) inputFotoRef.current.value = "";
     }
   }, []);
+
+  const onDragOver = useCallback((e: DragEvent) => { e.preventDefault(); setArrastando(true); }, []);
+  const onDragLeave = useCallback((e: DragEvent) => { e.preventDefault(); setArrastando(false); }, []);
+  const onDrop = useCallback((e: DragEvent) => { e.preventDefault(); setArrastando(false); void tratarFotoProduto(e.dataTransfer.files); }, [tratarFotoProduto]);
 
   const indicePassoAtual = passosOnboarding.findIndex((item) => item.id === passo);
   const progresso = `${((indicePassoAtual + 1) / passosOnboarding.length) * 100}%`;
@@ -566,20 +574,42 @@ export function PaginaOnboarding() {
                       <div className="bizy-upload-preview">
                         {produto.fotos.map((foto, i) => (
                           <div key={i} className="bizy-upload-thumb">
-                            <img src={resolverUrlMedia(foto)} alt={`Foto ${i + 1}`} />
-                            <button type="button" aria-label="Remover" onClick={() => setProduto((a) => ({ ...a, fotos: a.fotos.filter((_, j) => j !== i) }))}>×</button>
+                            <ExibidorImagem
+                              src={foto}
+                              alt={`Foto ${i + 1}`}
+                              fallbackIcone={<ImageIcon size={20} />}
+                            />
+                            <button type="button" aria-label="Remover" onClick={() => setProduto((a) => ({ ...a, fotos: a.fotos.filter((_, j) => j !== i) }))}>
+                              <Trash2 size={12} />
+                            </button>
                           </div>
                         ))}
                         {produto.fotos.length < 4 && (
-                          <button type="button" className="bizy-upload-add" onClick={() => inputFotoRef.current?.click()} disabled={enviandoFoto}>
+                          <button
+                            type="button"
+                            className="bizy-upload-add"
+                            onClick={() => inputFotoRef.current?.click()}
+                            onDragOver={onDragOver}
+                            onDragLeave={onDragLeave}
+                            onDrop={onDrop}
+                            disabled={enviandoFoto}
+                          >
                             {enviandoFoto ? <Loader2 size={18} className="animate-spin" /> : <Upload size={18} />}
                           </button>
                         )}
                       </div>
                     ) : (
-                      <button type="button" className="bizy-upload-card" onClick={() => inputFotoRef.current?.click()} disabled={enviandoFoto}>
-                        {enviandoFoto ? <Loader2 size={22} className="animate-spin" /> : <Upload size={22} />}
-                        <strong>{enviandoFoto ? "A enviar..." : "Toca para escolher uma foto"}</strong>
+                      <button
+                        type="button"
+                        className={`bizy-upload-card ${arrastando ? "is-dragging" : ""}`}
+                        onClick={() => inputFotoRef.current?.click()}
+                        onDragOver={onDragOver}
+                        onDragLeave={onDragLeave}
+                        onDrop={onDrop}
+                        disabled={enviandoFoto}
+                      >
+                        {enviandoFoto ? <Loader2 size={22} className="animate-spin" /> : arrastando ? <Upload size={22} /> : <ImageIcon size={22} />}
+                        <strong>{enviandoFoto ? "A enviar..." : arrastando ? "Largar aqui" : "Clique ou arraste uma foto"}</strong>
                         <span>Produtos com foto vendem mais. PNG ou JPG até 5 MB.</span>
                       </button>
                     )}
@@ -786,14 +816,18 @@ function PreviewLoja({ negocio }: { negocio: { nomeComercial: string; segmento: 
   );
 }
 
-function PreviewProduto({ produto }: { produto: { nome: string; categoria: string; precoEmKwanza: number; quantidade: number } }) {
+function PreviewProduto({ produto }: { produto: { nome: string; categoria: string; precoEmKwanza: number; quantidade: number; fotos: string[] } }) {
   return (
     <aside className="bizy-live-preview">
       <span><i />Como o cliente vê</span>
       <div className="bizy-product-preview-card">
         <div>
           <b>Novo</b>
-          <ImageIcon size={34} />
+          {produto.fotos.length > 0 ? (
+            <ExibidorImagem src={produto.fotos[0]} alt={produto.nome} fallbackIcone={<ImageIcon size={34} />} />
+          ) : (
+            <ImageIcon size={34} />
+          )}
         </div>
         <section>
           <strong>{produto.nome || "Sandália dourada salto bloco"}</strong>

@@ -84,7 +84,26 @@ export class GestaoEquipaUseCase {
       detalhes: { papelSugerido: dados.papelSugerido ?? "VENDEDOR" }
     });
 
-    return convite;
+    // RF-T063: preparar notificação de convite
+    const notificacao = this.enviarNotificacaoConvite(convite);
+
+    return { ...convite, notificacao };
+  }
+
+  // ── Notificação de Convite (RF-T063) ─────────────────────────────────────
+
+  enviarNotificacaoConvite(convite: {
+    token: string;
+    email?: string | null;
+    telefone?: string | null;
+  }) {
+    const link = `${process.env.ORIGEM_FRONTEND ?? "https://usebizy.space"}/convite/${convite.token}`;
+    return {
+      tipo: convite.email ? "EMAIL" as const : "WHATSAPP" as const,
+      destinatario: convite.email ?? convite.telefone ?? null,
+      link,
+      mensagem: `Foste convidado(a) para a equipa! Aceita aqui: ${link}`
+    };
   }
 
   async listarConvites(negocioId: string) {
@@ -94,7 +113,7 @@ export class GestaoEquipaUseCase {
     });
   }
 
-  async aceitarConvite(token: string, usuarioId: string) {
+  async aceitarConvite(token: string, usuarioId: string, termosAceites?: boolean) {
     const convite = await this.prisma.conviteEquipa.findUnique({ where: { token } });
 
     if (!convite) {
@@ -109,13 +128,20 @@ export class GestaoEquipaUseCase {
       throw new Error("Este convite expirou.");
     }
 
+    if (termosAceites !== true) {
+      throw new Error(
+        "RN-T034: É obrigatório aceitar os termos de uso e política de dados para formalizar o convite."
+      );
+    }
+
     const [conviteAtualizado, membro] = await this.prisma.$transaction(async (tx) => {
       const conviteAceite = await tx.conviteEquipa.update({
         where: { id: convite.id },
         data: {
           estado: "ACEITE",
           aceitePorId: usuarioId,
-          aceiteEm: new Date()
+          aceiteEm: new Date(),
+          termosAceitesEm: new Date()
         }
       });
 
@@ -137,6 +163,24 @@ export class GestaoEquipaUseCase {
           descricao,
           concluido: false
         }))
+      });
+
+      // RF-T114: criar tarefa de boas-vindas para o dono do negócio
+      const dono = await tx.membroNegocio.findFirst({
+        where: { negocioId: convite.negocioId, papel: "DONO", status: "ATIVO" }
+      });
+
+      await tx.tarefaOperacional.create({
+        data: {
+          negocioId: convite.negocioId,
+          tipo: "EQUIPA",
+          titulo: `Dar boas-vindas a ${convite.nomeConvidado ?? "novo membro"}`,
+          descricao: `Novo membro juntou-se à equipa com papel ${convite.papelSugerido ?? "VENDEDOR"}. Apresente-se e ofereça mentoria inicial.`,
+          prioridade: "MEDIA",
+          estado: "ABERTA",
+          responsavelId: dono?.usuarioId ?? null,
+          prazoEm: new Date(Date.now() + 24 * 60 * 60 * 1000)
+        }
       });
 
       return [conviteAceite, novoMembro];
@@ -338,6 +382,12 @@ export class GestaoEquipaUseCase {
 
   // ── Members ────────────────────────────────────────────────────────────────
 
+  async obterMembroPorUsuario(negocioId: string, usuarioId: string) {
+    return this.prisma.membroNegocio.findFirst({
+      where: { negocioId, usuarioId, status: "ATIVO" }
+    });
+  }
+
   async listarMembros(negocioId: string) {
     return this.prisma.membroNegocio.findMany({
       where: { negocioId },
@@ -383,12 +433,38 @@ export class GestaoEquipaUseCase {
       data: { status: "SUSPENSO" }
     });
 
+    // RN-T013: redistribuir conversas e tarefas abertas do membro suspenso
+    const conversasRedistribuidas = await this.prisma.conversaAtendimento.updateMany({
+      where: {
+        negocioId,
+        responsavelId: membro.usuarioId,
+        estado: { in: ["ABERTA", "EM_ATENDIMENTO"] }
+      },
+      data: { responsavelId: null }
+    });
+
+    const tarefasRedistribuidas = await this.prisma.tarefaOperacional.updateMany({
+      where: {
+        negocioId,
+        responsavelId: membro.usuarioId,
+        estado: { in: ["ABERTA", "PENDENTE", "EM_PROGRESSO"] }
+      },
+      data: { responsavelId: null }
+    });
+
+    const totalRedistribuidos = conversasRedistribuidas.count + tarefasRedistribuidas.count;
+
     await this.registrarActividade(negocioId, {
       tipo: "MEMBRO_DESATIVADO",
       entidadeTipo: "MembroNegocio",
       entidadeId: membroNegocioId,
-      resumo: "Membro da equipa foi suspenso",
-      detalhes: { papel: membro.papel }
+      resumo: `Membro da equipa foi suspenso. ${conversasRedistribuidas.count} conversa(s) e ${tarefasRedistribuidas.count} tarefa(s) foram desatribuídas.`,
+      detalhes: {
+        papel: membro.papel,
+        conversasDesatribuidas: conversasRedistribuidas.count,
+        tarefasDesatribuidas: tarefasRedistribuidas.count,
+        totalRedistribuidos
+      }
     });
 
     return membroAtualizado;
@@ -437,7 +513,8 @@ export class GestaoEquipaUseCase {
 
   async obterDesempenhoEquipa(
     negocioId: string,
-    periodo?: { de: Date; ate: Date }
+    periodo?: { de: Date; ate: Date },
+    solicitanteId?: string
   ) {
     const de = periodo?.de ?? new Date(new Date().getFullYear(), new Date().getMonth(), 1);
     const ate = periodo?.ate ?? new Date();
@@ -534,6 +611,32 @@ export class GestaoEquipaUseCase {
       totalTarefas: kpisPorMembro.reduce((s, m) => s + m.kpis.totalTarefas, 0),
       tarefasConcluidas: kpisPorMembro.reduce((s, m) => s + m.kpis.tarefasConcluidas, 0)
     };
+
+    // RN-T014: privacidade de desempenho — membros base só vêem os próprios KPIs
+    if (solicitanteId) {
+      const solicitante = await this.prisma.membroNegocio.findFirst({
+        where: { negocioId, usuarioId: solicitanteId, status: "ATIVO" }
+      });
+
+      const papelSolicitante = solicitante?.papel ?? "VENDEDOR";
+      const permissoes = solicitante?.permissoesJson
+        ? (typeof solicitante.permissoesJson === "string"
+            ? solicitante.permissoesJson
+            : JSON.stringify(solicitante.permissoesJson))
+        : "{}";
+      const temPermissaoGestao = permissoes.includes("equipa:gestao");
+
+      const papeisComAcesso = ["DONO", "ADMIN", "GESTOR_FINANCEIRO"];
+      const acessoCompleto = papeisComAcesso.includes(papelSolicitante) || temPermissaoGestao;
+
+      if (!acessoCompleto) {
+        const rankingFiltrado = ranking.map((m) => {
+          if (m.usuarioId === solicitanteId) return m;
+          return { ...m, nome: "***", avatarUrl: null, kpis: null };
+        });
+        return { ranking: rankingFiltrado, totais, periodo: { de, ate } };
+      }
+    }
 
     return { ranking, totais, periodo: { de, ate } };
   }
@@ -667,7 +770,7 @@ export class GestaoEquipaUseCase {
       ano?: number;
     }
   ) {
-    return this.prisma.metaVendas.create({
+    const meta = await this.prisma.metaVendas.create({
       data: {
         negocioId,
         membroId: dados.membroId,
@@ -679,6 +782,70 @@ export class GestaoEquipaUseCase {
         ano: dados.ano
       }
     });
+
+    // RN-T011: auto-distribuir meta de equipa para membros individuais
+    if ((dados.tipo ?? "INDIVIDUAL") === "EQUIPA") {
+      await this.distribuirMetaEquipa(negocioId, meta.id);
+    }
+
+    return meta;
+  }
+
+  // ── Distribuição de Meta de Equipa (RN-T011) ─────────────────────────────
+
+  async distribuirMetaEquipa(negocioId: string, metaId: string) {
+    const meta = await this.prisma.metaVendas.findFirstOrThrow({
+      where: { id: metaId, negocioId }
+    });
+
+    if (meta.tipo !== "EQUIPA") {
+      throw new Error("RN-T011: Apenas metas do tipo EQUIPA podem ser distribuídas.");
+    }
+
+    const membrosActivos = await this.prisma.membroNegocio.findMany({
+      where: { negocioId, status: "ATIVO" }
+    });
+
+    const totalMembros = membrosActivos.length;
+    if (totalMembros === 0) {
+      return { distribuidas: 0, valorPorMembro: 0 };
+    }
+
+    const valorPorMembro = Math.ceil(meta.valorMeta / totalMembros);
+    let distribuidas = 0;
+
+    for (const membro of membrosActivos) {
+      // Verificar se já existe meta individual para o mesmo kpi/periodo/mes/ano
+      const metaExistente = await this.prisma.metaVendas.findFirst({
+        where: {
+          negocioId,
+          membroId: membro.id,
+          tipo: "INDIVIDUAL",
+          kpi: meta.kpi,
+          periodo: meta.periodo,
+          mes: meta.mes,
+          ano: meta.ano
+        }
+      });
+
+      if (!metaExistente) {
+        await this.prisma.metaVendas.create({
+          data: {
+            negocioId,
+            membroId: membro.id,
+            tipo: "INDIVIDUAL",
+            kpi: meta.kpi,
+            periodo: meta.periodo,
+            valorMeta: valorPorMembro,
+            mes: meta.mes,
+            ano: meta.ano
+          }
+        });
+        distribuidas++;
+      }
+    }
+
+    return { distribuidas, valorPorMembro };
   }
 
   async listarMetas(
@@ -1068,6 +1235,63 @@ export class GestaoEquipaUseCase {
     }));
   }
 
+  // ── Membros em Turno (RN-T012) ──────────────────────────────────────────────
+
+  async obterMembrosEmTurno(negocioId: string) {
+    const agora = new Date();
+    const diaSemana = agora.getDay();
+    const horaActual = `${String(agora.getHours()).padStart(2, "0")}:${String(agora.getMinutes()).padStart(2, "0")}`;
+
+    const turnos = await this.prisma.turnoMembro.findMany({
+      where: { negocioId, diaSemana, activo: true },
+      include: { membro: { select: { id: true, usuarioId: true, status: true } } }
+    });
+
+    const membrosEmTurno = turnos
+      .filter((t) => t.membro.status === "ATIVO" && horaActual >= t.horaInicio && horaActual <= t.horaFim)
+      .map((t) => t.membroId);
+
+    return membrosEmTurno;
+  }
+
+  async validarAtribuicaoTurno(negocioId: string, membroId: string) {
+    const agora = new Date();
+    const diaSemana = agora.getDay();
+    const horaActual = `${String(agora.getHours()).padStart(2, "0")}:${String(agora.getMinutes()).padStart(2, "0")}`;
+
+    const turnoHoje = await this.prisma.turnoMembro.findFirst({
+      where: { negocioId, membroId, diaSemana, activo: true }
+    });
+
+    if (turnoHoje && horaActual >= turnoHoje.horaInicio && horaActual <= turnoHoje.horaFim) {
+      return { emTurno: true };
+    }
+
+    // Procurar próximo turno para informação
+    const turnosFuturos = await this.prisma.turnoMembro.findMany({
+      where: { negocioId, membroId, activo: true },
+      orderBy: [{ diaSemana: "asc" }, { horaInicio: "asc" }]
+    });
+
+    let proximoTurno: string | undefined;
+    const diasSemana = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
+
+    for (const turno of turnosFuturos) {
+      if (turno.diaSemana > diaSemana || (turno.diaSemana === diaSemana && turno.horaInicio > horaActual)) {
+        proximoTurno = `${diasSemana[turno.diaSemana]} ${turno.horaInicio}`;
+        break;
+      }
+    }
+
+    // Se não encontrou turno futuro na mesma semana, usar o primeiro da semana seguinte
+    if (!proximoTurno && turnosFuturos.length > 0) {
+      const primeiro = turnosFuturos[0];
+      proximoTurno = `${diasSemana[primeiro.diaSemana]} ${primeiro.horaInicio}`;
+    }
+
+    return { emTurno: false, proximoTurno };
+  }
+
   // ── Relatório Passagem de Turno (RF-T116) ──────────────────────────────────
 
   async gerarRelatorioPassagemTurno(negocioId: string, membroId: string) {
@@ -1240,6 +1464,43 @@ export class GestaoEquipaUseCase {
         bonusPercentual
       }
     };
+  }
+
+  // ── Módulos Visíveis para Novos Membros (RF-T113) ──────────────────────────
+
+  async obterModulosVisiveis(negocioId: string, membroId: string) {
+    const membro = await this.prisma.membroNegocio.findFirstOrThrow({
+      where: { id: membroId, negocioId }
+    });
+
+    // Determinar data de adesão: convite aceite ou criação do membro
+    const convite = await this.prisma.conviteEquipa.findFirst({
+      where: { negocioId, aceitePorId: membro.usuarioId, estado: "ACEITE" },
+      orderBy: { aceiteEm: "desc" }
+    });
+
+    const dataAdesao = convite?.aceiteEm ?? membro.criadoEm;
+    const diasDesdeAdesao = Math.floor(
+      (Date.now() - dataAdesao.getTime()) / (1000 * 60 * 60 * 24)
+    );
+
+    const modulosComplexos = ["FINANCAS", "PIPELINE", "RELATORIOS", "CAMPANHAS"];
+    const todosModulos = [
+      "PAINEL", "PEDIDOS", "CATALOGO", "ATENDIMENTO", "EQUIPA",
+      "FINANCAS", "PIPELINE", "RELATORIOS", "CAMPANHAS"
+    ];
+
+    const papeisBase = ["VENDEDOR", "ATENDENTE"];
+    const deveOcultar = diasDesdeAdesao < 7 && papeisBase.includes(membro.papel);
+
+    const modulosOcultos = deveOcultar ? modulosComplexos : [];
+    const modulosVisiveis = deveOcultar
+      ? todosModulos.filter((m) => !modulosComplexos.includes(m))
+      : todosModulos;
+
+    const diasRestantes = deveOcultar ? 7 - diasDesdeAdesao : 0;
+
+    return { modulosVisiveis, modulosOcultos, diasRestantes };
   }
 
   // ── Private Helpers ────────────────────────────────────────────────────────

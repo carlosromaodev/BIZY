@@ -23,7 +23,6 @@ import {
 } from "../api";
 import { CORES_LOGO_BIZY_ESCURA, LogoBizy, NOME_PRODUTO } from "../marca/bizy";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Marquee } from "@/components/ui/marquee";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -45,22 +44,7 @@ type FluxoIdentidade = "criar" | "entrar";
 type ProviderEstudantil = "uor" | "isptec";
 type TipoIdentificador = "studentNumber" | "username";
 
-const EASE: [number, number, number, number] = [0.22, 1, 0.36, 1];
 const CLASSE_CAMPO = "bizy-flow-input";
-const CLASSE_BTN_OUTLINE = "bizy-btn bizy-btn-outline";
-
-const capacidadesCanvas = [
-  "Pedidos automáticos em live",
-  "Loja digital com compra integrada",
-  "CRM multi-canal",
-  "Bizy Market",
-  "Inbox unificado",
-  "Pagamentos e rastreio",
-  "Programa de afiliados",
-  "IA preditiva",
-  "Fornecedores B2B",
-  "Compliance fiscal",
-];
 
 /* ═══════════════════════════════════════════════════════════
    Helpers
@@ -231,90 +215,36 @@ export function PaginaLogin() {
     <main className="bizy-public bizy-auth">
       {/* ══════════ BRAND CANVAS ══════════ */}
       <aside className="bizy-auth-canvas">
-        <div className="bizy-auth-canvas-grain" />
-
-        <motion.div
-          className="bizy-auth-canvas-top"
-          initial={rm ? false : { opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.1, ease: EASE }}
-        >
+        <div className="bizy-auth-canvas-top">
           <LogoBizy cores={CORES_LOGO_BIZY_ESCURA} />
           <span className="bizy-auth-live-badge"><span />Ao vivo agora</span>
-        </motion.div>
+        </div>
 
-        <motion.div
-          className="bizy-auth-canvas-copy"
-          initial={rm ? false : { opacity: 0, y: 28 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.7, delay: 0.25, ease: EASE }}
-        >
+        <div className="bizy-auth-canvas-copy">
           <span className="bizy-auth-canvas-tag">Sistema operativo para comércio social</span>
           <h2>Vende em qualquer canal.{"\n"}Gere <em>tudo</em> a partir daqui.</h2>
-        </motion.div>
-
-        <motion.div
-          className="bizy-auth-canvas-marquee"
-          initial={rm ? false : { opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.6, delay: 0.5 }}
-        >
-          <Marquee pauseOnHover className="[--duration:30s] [--gap:0rem]">
-            {capacidadesCanvas.map((c) => (
-              <span key={c} className="bizy-auth-pill">{c}</span>
-            ))}
-          </Marquee>
-        </motion.div>
-
-        <motion.div
-          className="bizy-auth-canvas-stats"
-          initial={rm ? false : { opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.55, delay: 0.6, ease: EASE }}
-        >
-          <div><strong>+2 400</strong><span>negócios ativos</span></div>
-          <div><strong>98%</strong><span>pedidos sem perda</span></div>
-          <div><strong>5 canais</strong><span>num só inbox</span></div>
-        </motion.div>
+        </div>
       </aside>
 
       {/* ══════════ FORM SIDE ══════════ */}
       <section className="bizy-auth-form">
-        <motion.div
-          className="bizy-auth-form-top"
-          initial={rm ? false : { opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.4, delay: 0.1 }}
-        >
+        <div className="bizy-auth-form-top">
           <span className="bizy-auth-mobile-wordmark">bizy<span>.</span></span>
           <Button asChild variant="ghost" className="bizy-auth-home-link">
-            <Link to="/" style={{ color: "inherit" }}><ArrowLeft size={16} /> Home</Link>
+            <Link to="/" style={{ color: "inherit" }}><ArrowLeft size={14} /> Home</Link>
           </Button>
           <span className="bizy-auth-help">Precisas de ajuda?</span>
-        </motion.div>
+        </div>
 
         <div className="bizy-auth-body">
           {/* ── Heading ── */}
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={fluxoIdentidade}
-              className="bizy-auth-heading"
-              initial={rm ? false : { opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -6 }}
-              transition={{ duration: 0.28, ease: EASE }}
-            >
-              <h1>{tituloFormulario}<span>.</span></h1>
-              <p>{descricaoFormulario}</p>
-            </motion.div>
-          </AnimatePresence>
+          <div className="bizy-auth-heading">
+            <h1>{tituloFormulario}<span>.</span></h1>
+            <p>{descricaoFormulario}</p>
+          </div>
 
           {/* ── Flow toggle (AnimatedTabs as segment) ── */}
-          <motion.div
-            initial={rm ? false : { opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.35, delay: 0.12, ease: EASE }}
-          >
+          <div>
             <AnimatedTabs value={fluxoIdentidade} onValueChange={(v) => alterarFluxo(v as FluxoIdentidade)} className="bizy-auth-flow-tabs">
               <TabsList className="bizy-auth-flow-list" style={{ "--animated-tabs-active-bg": "var(--bizy-surface)", "--animated-tabs-active-ring": "var(--bizy-line)" } as CSSProperties}>
                 <TabsTrigger value="criar" className="bizy-auth-flow-trigger">Criar conta</TabsTrigger>
@@ -326,15 +256,10 @@ export function PaginaLogin() {
                 <TabsContent value="entrar"><span /></TabsContent>
               </TabsContents>
             </AnimatedTabs>
-          </motion.div>
+          </div>
 
           {/* ── Form content ── */}
-          <motion.div
-            className="bizy-auth-form-content"
-            initial={rm ? false : { opacity: 0, y: 14 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.45, delay: 0.2, ease: EASE }}
-          >
+          <div className="bizy-auth-form-content">
             {/* Gmail */}
             <button type="button" className="bizy-gmail-btn" onClick={() => void entrarComGmail()} disabled={carregando}>
               <GoogleIcon className="bizy-gmail-icon" />
@@ -358,7 +283,7 @@ export function PaginaLogin() {
                   <AnimatePresence mode="wait">
                     {etapaTelefone === "telefone" ? (
                       <motion.form key="tel-input" onSubmit={(e: FormEvent) => { e.preventDefault(); void enviarCodigo(); }} className="bizy-auth-fields"
-                        initial={rm ? false : { opacity: 0, x: -6 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 6 }} transition={{ duration: 0.18, ease: EASE }}
+                        initial={rm ? false : { opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}
                       >
                         {estaCriandoConta && (
                           <div className="bizy-auth-field">
@@ -380,7 +305,7 @@ export function PaginaLogin() {
                       </motion.form>
                     ) : (
                       <motion.form key="tel-code" onSubmit={confirmarCodigo} className="bizy-auth-fields"
-                        initial={rm ? false : { opacity: 0, x: 6 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -6 }} transition={{ duration: 0.18, ease: EASE }}
+                        initial={rm ? false : { opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}
                       >
                         <div className="bizy-auth-field">
                           <Label htmlFor="codigoLogin">Código de verificação</Label>
@@ -456,22 +381,13 @@ export function PaginaLogin() {
             </AnimatedTabs>
 
             {/* Alert */}
-            <AnimatePresence>
-              {mensagem && (
-                <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -3 }} transition={{ duration: 0.2, ease: EASE }}>
-                  <Alert className="bizy-auth-alert"><AlertDescription className="text-sm leading-6">{mensagem}</AlertDescription></Alert>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </motion.div>
+            {mensagem && (
+              <Alert className="bizy-auth-alert"><AlertDescription className="text-sm leading-6">{mensagem}</AlertDescription></Alert>
+            )}
+          </div>
 
           {/* ── Footer ── */}
-          <motion.div
-            className="bizy-auth-card-footer"
-            initial={rm ? false : { opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.4, delay: 0.4 }}
-          >
+          <div className="bizy-auth-card-footer">
             <button type="button" className="bizy-testmode-link" onClick={entrarModoTeste}>
               <Bolt size={12} />
               <span>Modo de teste</span> — entrar sem conta
@@ -480,7 +396,7 @@ export function PaginaLogin() {
               <span><ShieldCheck size={11} />Encriptado</span>
               <span><KeyRound size={11} />2 min</span>
             </div>
-          </motion.div>
+          </div>
         </div>
       </section>
     </main>

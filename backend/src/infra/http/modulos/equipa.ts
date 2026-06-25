@@ -182,9 +182,12 @@ export const moduloEquipa: ModuloHttp = {
       const ctx = await resolverContextoComercial(contexto, request, reply);
       if (!ctx) return;
 
-      const { token } = z.object({ token: z.string().uuid() }).parse(request.body ?? {});
+      const { token, termosAceites } = z.object({
+        token: z.string().uuid(),
+        termosAceites: z.boolean().optional()
+      }).parse(request.body ?? {});
       try {
-        const resultado = await contexto.gestaoEquipa.aceitarConvite(token, ctx.usuario.id);
+        const resultado = await contexto.gestaoEquipa.aceitarConvite(token, ctx.usuario.id, termosAceites);
         return reply.code(201).send(resultado);
       } catch (erro: unknown) {
         const mensagem = erro instanceof Error ? erro.message : "Erro ao aceitar convite.";

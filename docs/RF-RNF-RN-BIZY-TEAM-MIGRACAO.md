@@ -100,10 +100,10 @@ O BIZY CRM+ possui 20 módulos HTTP, 55 modelos Prisma e 44 use cases cobrindo:
 
 #### 5.1.1 Previsão de Demanda
 
-- [ ] [RF-T001] O sistema deve calcular previsão de demanda por SKU com base no histórico de vendas, sazonalidade e tendências, actualizando diariamente.
-- [ ] [RF-T002] O sistema deve gerar alertas proactivos de reposição de stock quando a previsão indicar ruptura nos próximos 7/14/30 dias.
-- [ ] [RF-T003] O sistema deve identificar produtos encalhados com risco de obsolescência e sugerir acções (promoção, bundle, descontinuação).
-- [ ] [RF-T004] O sistema deve detectar padrões sazonais e apresentar comparação período-a-período (mês actual vs mesmo mês do ano anterior).
+- [x] [RF-T001] O sistema deve calcular previsão de demanda por SKU com base no histórico de vendas, sazonalidade e tendências, actualizando diariamente.
+- [x] [RF-T002] O sistema deve gerar alertas proactivos de reposição de stock quando a previsão indicar ruptura nos próximos 7/14/30 dias.
+- [x] [RF-T003] O sistema deve identificar produtos encalhados com risco de obsolescência e sugerir acções (promoção, bundle, descontinuação).
+- [x] [RF-T004] O sistema deve detectar padrões sazonais e apresentar comparação período-a-período (mês actual vs mesmo mês do ano anterior).
 
 #### 5.1.2 Scoring de Clientes e Churn
 
@@ -111,26 +111,26 @@ O BIZY CRM+ possui 20 módulos HTTP, 55 modelos Prisma e 44 use cases cobrindo:
 - [x] [RF-T006] O sistema deve segmentar automaticamente clientes em coortes: activo, em risco, inactivo, perdido, novo, VIP.
 - [x] [RF-T007] O sistema deve gerar alertas quando um cliente VIP entra em risco de churn, criando tarefa operacional para o responsável.
 - [x] [RF-T008] O sistema deve calcular LTV (Lifetime Value) estimado por cliente e por segmento.
-- [ ] [RF-T009] O sistema deve pontuar oportunidades de venda (lead scoring) com base no histórico, comportamento no site/loja e interacções sociais.
+- [x] [RF-T009] O sistema deve pontuar oportunidades de venda (lead scoring) com base no histórico, comportamento no site/loja e interacções sociais.
 
 #### 5.1.3 Previsão Financeira
 
 - [x] [RF-T010] O sistema deve gerar previsão de fluxo de caixa rolling para as próximas 13 semanas com cenários: optimista, pessimista e mais provável.
 - [x] [RF-T011] O sistema deve alertar gestores sobre potenciais défices de caixa com antecedência mínima de 7 dias.
-- [ ] [RF-T012] O sistema deve prever receita mensal com base em pipeline comercial, histórico e sazonalidade.
+- [x] [RF-T012] O sistema deve prever receita mensal com base em pipeline comercial, histórico e sazonalidade.
 - [x] [RF-T013] O sistema deve identificar anomalias em receita/despesa (desvios superiores a 2 desvios-padrão da média histórica).
 
 #### 5.1.4 Previsão Operacional
 
-- [ ] [RF-T014] O sistema deve prever atrasos em tarefas e projectos com base na velocidade histórica da equipa e carga actual.
+- [x] [RF-T014] O sistema deve prever atrasos em tarefas e projectos com base na velocidade histórica da equipa e carga actual.
 - [x] [RF-T015] O sistema deve sugerir rebalanceamento de carga quando detectar sobrecarga num membro da equipa.
 - [x] [RF-T016] O sistema deve identificar gargalos no funil comercial e sugerir acções correctivas.
 
 #### 5.1.5 Ambient Analytics
 
-- [ ] [RF-T017] O sistema deve apresentar insights preditivos de forma contextualizada dentro dos fluxos de trabalho (não apenas em dashboards dedicados).
+- [x] [RF-T017] O sistema deve apresentar insights preditivos de forma contextualizada dentro dos fluxos de trabalho (não apenas em dashboards dedicados).
 - [ ] [RF-T018] O sistema deve entregar notificações proactivas de insights via WhatsApp para gestores e donos de negócio.
-- [ ] [RF-T019] O sistema deve permitir configuração do nível de proactividade dos alertas (mínimo, moderado, completo) por utilizador.
+- [x] [RF-T019] O sistema deve permitir configuração do nível de proactividade dos alertas (mínimo, moderado, completo) por utilizador.
 
 ---
 
@@ -186,9 +186,9 @@ O BIZY CRM+ possui 20 módulos HTTP, 55 modelos Prisma e 44 use cases cobrindo:
 #### 5.2.8 E-Invoicing e Conformidade
 
 - [ ] [RF-T046] O sistema deve suportar geração de facturas electrónicas em formato estruturado (XML/UBL) compatível com normativas locais.
-- [ ] [RF-T047] O sistema deve permitir configuração de regras fiscais por país/região (IVA, retenções, isenções).
+- [x] [RF-T047] O sistema deve permitir configuração de regras fiscais por país/região (IVA, retenções, isenções).
 - [ ] [RF-T048] O sistema deve preparar integração com redes Peppol e gateways de e-invoicing regionais via API.
-- [ ] [RF-T049] O sistema deve validar facturas contra regras fiscais antes da emissão, bloqueando emissão não conforme.
+- [x] [RF-T049] O sistema deve validar facturas contra regras fiscais antes da emissão, bloqueando emissão não conforme.
 - [x] [RF-T050] O sistema deve manter registo auditável de todas as facturas emitidas, canceladas e corrigidas.
 
 ---
@@ -218,7 +218,7 @@ O BIZY CRM+ possui 20 módulos HTTP, 55 modelos Prisma e 44 use cases cobrindo:
 
 #### 5.3.4 Onboarding de Membros
 
-- [ ] [RF-T063] O sistema deve enviar convite por WhatsApp ou email com link de activação quando um membro é adicionado.
+- [x] [RF-T063] O sistema deve enviar convite por WhatsApp ou email com link de activação quando um membro é adicionado.
 - [ ] [RF-T064] O sistema deve apresentar fluxo de onboarding guiado para novos membros com configuração de perfil, tour das funcionalidades permitidas e primeira tarefa.
 - [x] [RF-T065] O sistema deve permitir que o dono/admin acompanhe o estado do onboarding de cada membro convidado.
 
@@ -234,7 +234,7 @@ O BIZY CRM+ possui 20 módulos HTTP, 55 modelos Prisma e 44 use cases cobrindo:
 
 - [x] [RF-T108] O sistema deve gerar "Magic Links" de convite que podem ser partilhados via WhatsApp, SMS ou Email, com token único e data de expiração.
 - [x] [RF-T109] O sistema deve suportar login passwordless (sem palavra-passe) através de código OTP (One-Time Password) enviado via WhatsApp ou SMS para o número do membro.
-- [ ] [RF-T110] O sistema deve permitir que um utilizador (ex: contabilista externo) pertença a múltiplos negócios (Workspaces) com uma única conta, utilizando um seletor de Workspace na interface sem necessidade de logout/login.
+- [x] [RF-T110] O sistema deve permitir que um utilizador (ex: contabilista externo) pertença a múltiplos negócios (Workspaces) com uma única conta, utilizando um seletor de Workspace na interface sem necessidade de logout/login.
 - [x] [RF-T111] O sistema deve oferecer "Personas de Acesso" (Templates de Papéis) durante o convite (ex: Vendedor, Atendente, Gestor de Loja, Apenas Leitura), para evitar que o dono tenha de configurar permissões granulares (RBAC) manualmente.
 
 #### 5.3.7 Onboarding Interativo e "Aha! Moment"
@@ -242,8 +242,8 @@ O BIZY CRM+ possui 20 módulos HTTP, 55 modelos Prisma e 44 use cases cobrindo:
 > **Filosofia:** Se o funcionário faz login e vê um dashboard vazio/complexo, a perceção de "não é necessário" instala-se imediatamente. O primeiro contacto deve gerar valor imediato.
 
 - [x] [RF-T112] O sistema deve apresentar um "Checklist de Primeiro Dia" dinâmico no painel do novo membro (ex: 1. Configurar notificações WhatsApp; 2. Responder ao primeiro lead; 3. Conhecer a equipa), adaptado ao papel.
-- [ ] [RF-T113] O sistema deve ocultar módulos complexos e desnecessários para o papel do utilizador durante os primeiros 7 dias, focando apenas nas tarefas imediatas (ex: o vendedor não vê Finanças/Fluxo de Caixa; o atendente não vê Pipeline).
-- [ ] [RF-T114] O sistema deve gerar automaticamente uma "Tarefa de Boas-vindas" atribuída ao novo membro e uma tarefa de "Mentoria" atribuída ao gestor, para garantir o primeiro contacto humano na plataforma.
+- [x] [RF-T113] O sistema deve ocultar módulos complexos e desnecessários para o papel do utilizador durante os primeiros 7 dias, focando apenas nas tarefas imediatas (ex: o vendedor não vê Finanças/Fluxo de Caixa; o atendente não vê Pipeline).
+- [x] [RF-T114] O sistema deve gerar automaticamente uma "Tarefa de Boas-vindas" atribuída ao novo membro e uma tarefa de "Mentoria" atribuída ao gestor, para garantir o primeiro contacto humano na plataforma.
 - [ ] [RF-T115] O sistema deve suportar "Modo Sombra" (Shadow Mode) para o dono/admin, permitindo que ele veja exactamente o que o novo membro vê, para ajudar no suporte em tempo real.
 
 #### 5.3.8 Dinâmicas de Turno e Passagem de Bastão
@@ -259,7 +259,7 @@ O BIZY CRM+ possui 20 módulos HTTP, 55 modelos Prisma e 44 use cases cobrindo:
 - [x] [RF-T119] O sistema deve registar toda a actividade do membro (mensagens enviadas, follow-ups, tarefas concluídas) no Feed de Actividade pessoal, servindo como prova auditável do trabalho realizado em caso de disputa.
 - [x] [RF-T120] O sistema deve suportar "Modo Competição" opcional (gamificação saudável), activável pelo dono, com ranking semanal da equipa por KPI seleccionado (vendas, conversões, tempo de resposta) e configuração de prémio/recompensa descritiva.
 - [ ] [RF-T121] O sistema deve apresentar ao vendedor/atendente apenas as informações necessárias para a sua função, removendo ruído visual e complexidade desnecessária (progressive disclosure por papel).
-- [ ] [RF-T122] O sistema deve permitir que o membro personalize as suas notificações (quais alertas quer receber, por que canal, em que horário) para evitar fadiga de notificações.
+- [x] [RF-T122] O sistema deve permitir que o membro personalize as suas notificações (quais alertas quer receber, por que canal, em que horário) para evitar fadiga de notificações.
 
 ---
 
@@ -271,19 +271,19 @@ O BIZY CRM+ possui 20 módulos HTTP, 55 modelos Prisma e 44 use cases cobrindo:
 - [ ] [RF-T070] O sistema deve enviar alertas financeiros críticos via WhatsApp: pagamento recebido acima de X, défice de caixa previsto, despesa acima do orçamento.
 - [ ] [RF-T071] O sistema deve enviar alertas comerciais via WhatsApp: novo lead qualificado, cliente VIP em risco, meta prestes a ser atingida.
 - [ ] [RF-T072] O sistema deve enviar alertas de projecto via WhatsApp: tarefa atrasada, prazo iminente, conclusão de etapa crítica.
-- [ ] [RF-T073] O sistema deve permitir configuração individual de quais alertas cada membro recebe via WhatsApp.
+- [x] [RF-T073] O sistema deve permitir configuração individual de quais alertas cada membro recebe via WhatsApp.
 
 #### 5.4.2 Automação de Fluxos Cross-Funcionais
 
-- [ ] [RF-T074] O sistema deve permitir criação de fluxos automáticos que conectem módulos: novo cliente → tarefa de onboarding → alerta WhatsApp → actualização de dashboard.
-- [ ] [RF-T075] O sistema deve suportar fluxos condicionais: se valor do pedido > X → notificar gestor financeiro; se cliente novo → criar tarefa de boas-vindas.
-- [ ] [RF-T076] O sistema deve registar execução de cada fluxo automático com resultado, timestamp e eventuais falhas para auditoria.
-- [ ] [RF-T077] O sistema deve permitir pausa/retoma de fluxos automáticos sem perder estado.
+- [x] [RF-T074] O sistema deve permitir criação de fluxos automáticos que conectem módulos: novo cliente → tarefa de onboarding → alerta WhatsApp → actualização de dashboard.
+- [x] [RF-T075] O sistema deve suportar fluxos condicionais: se valor do pedido > X → notificar gestor financeiro; se cliente novo → criar tarefa de boas-vindas.
+- [x] [RF-T076] O sistema deve registar execução de cada fluxo automático com resultado, timestamp e eventuais falhas para auditoria.
+- [x] [RF-T077] O sistema deve permitir pausa/retoma de fluxos automáticos sem perder estado.
 
 #### 5.4.3 Widgets Contextuais
 
-- [ ] [RF-T078] O painel principal deve mostrar widgets dinâmicos adaptados ao papel do utilizador: vendedor vê pipeline e metas; financeiro vê fluxo de caixa e cobranças; gestor vê visão geral.
-- [ ] [RF-T079] O sistema deve apresentar sugestões de próxima acção com base no contexto actual do utilizador (tarefa mais urgente, lead mais quente, pagamento mais atrasado).
+- [x] [RF-T078] O painel principal deve mostrar widgets dinâmicos adaptados ao papel do utilizador: vendedor vê pipeline e metas; financeiro vê fluxo de caixa e cobranças; gestor vê visão geral.
+- [x] [RF-T079] O sistema deve apresentar sugestões de próxima acção com base no contexto actual do utilizador (tarefa mais urgente, lead mais quente, pagamento mais atrasado).
 - [ ] [RF-T080] O sistema deve permitir personalização da disposição de widgets no painel por utilizador.
 
 ---
@@ -292,23 +292,23 @@ O BIZY CRM+ possui 20 módulos HTTP, 55 modelos Prisma e 44 use cases cobrindo:
 
 #### 5.5.1 Multi-Hierarquia
 
-- [ ] [RF-T081] O sistema deve permitir que um membro pertença simultaneamente a um departamento (estrutura hierárquica) e a um ou mais projectos (estrutura projetual).
-- [ ] [RF-T082] O sistema deve suportar criação de departamentos com líder, membros e KPIs próprios.
-- [ ] [RF-T083] O sistema deve suportar criação de projectos com membros de diferentes departamentos, prazo, orçamento e entregas.
-- [ ] [RF-T084] O sistema deve aplicar permissões contextuais: um membro pode ter permissões diferentes no seu departamento e num projecto.
+- [x] [RF-T081] O sistema deve permitir que um membro pertença simultaneamente a um departamento (estrutura hierárquica) e a um ou mais projectos (estrutura projetual).
+- [x] [RF-T082] O sistema deve suportar criação de departamentos com líder, membros e KPIs próprios.
+- [x] [RF-T083] O sistema deve suportar criação de projectos com membros de diferentes departamentos, prazo, orçamento e entregas.
+- [x] [RF-T084] O sistema deve aplicar permissões contextuais: um membro pode ter permissões diferentes no seu departamento e num projecto.
 
 #### 5.5.2 Projectos e Entregas
 
-- [ ] [RF-T085] O sistema deve permitir criação de projectos com nome, descrição, prazo, orçamento estimado, membros e entregas.
-- [ ] [RF-T086] O sistema deve suportar entregas (milestones) dentro de um projecto com dependências, responsável e estado.
-- [ ] [RF-T087] O sistema deve calcular progresso do projecto com base nas entregas concluídas vs totais.
-- [ ] [RF-T088] O sistema deve alertar sobre projectos em risco (atrasados, acima do orçamento, com gargalos).
+- [x] [RF-T085] O sistema deve permitir criação de projectos com nome, descrição, prazo, orçamento estimado, membros e entregas.
+- [x] [RF-T086] O sistema deve suportar entregas (milestones) dentro de um projecto com dependências, responsável e estado.
+- [x] [RF-T087] O sistema deve calcular progresso do projecto com base nas entregas concluídas vs totais.
+- [x] [RF-T088] O sistema deve alertar sobre projectos em risco (atrasados, acima do orçamento, com gargalos).
 
 #### 5.5.3 Visibilidade Contextual
 
-- [ ] [RF-T089] O sistema deve filtrar dados e visualizações com base no contexto actual do utilizador (departamento vs projecto).
-- [ ] [RF-T090] O sistema deve permitir navegação rápida entre contextos sem perda de estado.
-- [ ] [RF-T091] O sistema deve agregar dados de múltiplos contextos para visões consolidadas de gestão.
+- [x] [RF-T089] O sistema deve filtrar dados e visualizações com base no contexto actual do utilizador (departamento vs projecto).
+- [x] [RF-T090] O sistema deve permitir navegação rápida entre contextos sem perda de estado.
+- [x] [RF-T091] O sistema deve agregar dados de múltiplos contextos para visões consolidadas de gestão.
 
 ---
 
@@ -318,10 +318,10 @@ O BIZY CRM+ possui 20 módulos HTTP, 55 modelos Prisma e 44 use cases cobrindo:
 
 #### 5.6.1 Preparação Multi-Jurisdição
 
-- [ ] [RF-T092] O sistema deve manter catálogo de regras fiscais por jurisdição com taxas de IVA/imposto, formatos de factura e requisitos de reporte.
-- [ ] [RF-T093] O sistema deve permitir configuração da jurisdição fiscal do negócio e aplicar automaticamente as regras correspondentes.
-- [ ] [RF-T094] O sistema deve gerar relatórios fiscais periódicos (mensal/trimestral) com totais de IVA cobrado, IVA dedutível e IVA a entregar.
-- [ ] [RF-T095] O sistema deve manter arquivo digital de facturas por período fiscal mínimo exigido pela jurisdição.
+- [x] [RF-T092] O sistema deve manter catálogo de regras fiscais por jurisdição com taxas de IVA/imposto, formatos de factura e requisitos de reporte.
+- [x] [RF-T093] O sistema deve permitir configuração da jurisdição fiscal do negócio e aplicar automaticamente as regras correspondentes.
+- [x] [RF-T094] O sistema deve gerar relatórios fiscais periódicos (mensal/trimestral) com totais de IVA cobrado, IVA dedutível e IVA a entregar.
+- [x] [RF-T095] O sistema deve manter arquivo digital de facturas por período fiscal mínimo exigido pela jurisdição.
 
 ---
 
@@ -329,24 +329,24 @@ O BIZY CRM+ possui 20 módulos HTTP, 55 modelos Prisma e 44 use cases cobrindo:
 
 #### 5.7.1 Dashboard de ROI
 
-- [ ] [RF-T096] O sistema deve calcular e apresentar economia de tempo estimada por automação (tarefas automáticas, fluxos, cobranças).
-- [ ] [RF-T097] O sistema deve calcular receita atribuída a funcionalidades do sistema (leads convertidos via pipeline, vendas via loja pública, comissões geradas por afiliados).
-- [ ] [RF-T098] O sistema deve apresentar comparação antes/depois de indicadores-chave com data de baseline configurável.
-- [ ] [RF-T099] O sistema deve calcular custo evitado (multas, erros, inadimplência prevenida) quando aplicável.
+- [x] [RF-T096] O sistema deve calcular e apresentar economia de tempo estimada por automação (tarefas automáticas, fluxos, cobranças).
+- [x] [RF-T097] O sistema deve calcular receita atribuída a funcionalidades do sistema (leads convertidos via pipeline, vendas via loja pública, comissões geradas por afiliados).
+- [x] [RF-T098] O sistema deve apresentar comparação antes/depois de indicadores-chave com data de baseline configurável.
+- [x] [RF-T099] O sistema deve calcular custo evitado (multas, erros, inadimplência prevenida) quando aplicável.
 
 #### 5.7.2 Métricas de Adopção da IA
 
-- [ ] [RF-T100] O sistema deve medir taxa de conclusão de tarefas assistidas por IA vs manuais.
-- [ ] [RF-T101] O sistema deve medir taxa de erro quando a IA está activa vs inactiva.
-- [ ] [RF-T102] O sistema deve medir tempo médio por utilizador a interagir com funcionalidades de IA.
-- [ ] [RF-T103] O sistema deve medir utilidade percebida das sugestões de IA (aceite vs rejeitado vs ignorado).
+- [x] [RF-T100] O sistema deve medir taxa de conclusão de tarefas assistidas por IA vs manuais.
+- [x] [RF-T101] O sistema deve medir taxa de erro quando a IA está activa vs inactiva.
+- [x] [RF-T102] O sistema deve medir tempo médio por utilizador a interagir com funcionalidades de IA.
+- [x] [RF-T103] O sistema deve medir utilidade percebida das sugestões de IA (aceite vs rejeitado vs ignorado).
 
 #### 5.7.3 Métricas de Adopção da Plataforma
 
-- [ ] [RF-T104] O sistema deve medir DAU/MAU (utilizadores activos diários/mensais) por módulo.
-- [ ] [RF-T105] O sistema deve medir profundidade de uso (número de módulos usados por utilizador por sessão).
-- [ ] [RF-T106] O sistema deve identificar módulos subutilizados e sugerir activação ou formação.
-- [ ] [RF-T107] O sistema deve medir NPS (Net Promoter Score) por recolha periódica in-app.
+- [x] [RF-T104] O sistema deve medir DAU/MAU (utilizadores activos diários/mensais) por módulo.
+- [x] [RF-T105] O sistema deve medir profundidade de uso (número de módulos usados por utilizador por sessão).
+- [x] [RF-T106] O sistema deve identificar módulos subutilizados e sugerir activação ou formação.
+- [x] [RF-T107] O sistema deve medir NPS (Net Promoter Score) por recolha periódica in-app.
 
 ---
 
@@ -356,20 +356,20 @@ O BIZY CRM+ possui 20 módulos HTTP, 55 modelos Prisma e 44 use cases cobrindo:
 
 #### 5.8.1 Gestão Matricial de Projectos Comerciais
 
-- [ ] [RF-T123] O sistema deve permitir que um Projecto Comercial (ex: Live TikTok, Campanha Black Friday) tenha um Pool de Stock vinculado a produtos do catálogo, reservando quantidades específicas para aquela operação sem alterar o stock global disponível para venda corrente.
-- [ ] [RF-T124] O sistema deve permitir a criação de "Equipas de Projecto" temporárias, onde membros de diferentes departamentos recebem papéis específicos de projecto (ex: REVISOR_PARSER, SUPORTE_VENDAS, LOGISTICA) válidos apenas durante a vigência do Projecto Comercial.
+- [x] [RF-T123] O sistema deve permitir que um Projecto Comercial (ex: Live TikTok, Campanha Black Friday) tenha um Pool de Stock vinculado a produtos do catálogo, reservando quantidades específicas para aquela operação sem alterar o stock global disponível para venda corrente.
+- [x] [RF-T124] O sistema deve permitir a criação de "Equipas de Projecto" temporárias, onde membros de diferentes departamentos recebem papéis específicos de projecto (ex: REVISOR_PARSER, SUPORTE_VENDAS, LOGISTICA) válidos apenas durante a vigência do Projecto Comercial.
 - [ ] [RF-T125] O sistema deve suportar "Salas de Guerra" (War Rooms): dashboards temporários que só ficam visíveis e activos para a equipa alocada durante o intervalo de tempo do Projecto/Live, com métricas em tempo real da operação.
 
 #### 5.8.2 Orquestração de Filas e Automações por Projecto
 
-- [ ] [RF-T126] As tarefas operacionais e itens da Social Inbox gerados por uma Live ou Campanha devem ser roteados automaticamente para a "Fila do Projecto", priorizando a equipa alocada àquela operação sobre a fila geral.
-- [ ] [RF-T127] O sistema deve etiquetar automaticamente todas as vendas, leads, reservas e atendimentos realizados durante o intervalo de tempo de um Projecto Comercial, permitindo calcular o ROI e a performance da equipa por transmissão/campanha.
-- [ ] [RF-T128] O "Fecho de Projecto" deve gerar automaticamente o lote financeiro de comissões para afiliados e membros da equipa envolvidos, baseado nas regras de atribuição e metas do período do projecto.
+- [x] [RF-T126] As tarefas operacionais e itens da Social Inbox gerados por uma Live ou Campanha devem ser roteados automaticamente para a "Fila do Projecto", priorizando a equipa alocada àquela operação sobre a fila geral.
+- [x] [RF-T127] O sistema deve etiquetar automaticamente todas as vendas, leads, reservas e atendimentos realizados durante o intervalo de tempo de um Projecto Comercial, permitindo calcular o ROI e a performance da equipa por transmissão/campanha.
+- [x] [RF-T128] O "Fecho de Projecto" deve gerar automaticamente o lote financeiro de comissões para afiliados e membros da equipa envolvidos, baseado nas regras de atribuição e metas do período do projecto.
 
 #### 5.8.3 Gamificação e Métricas de Live/Projecto
 
 - [ ] [RF-T129] O sistema deve apresentar um "Placar ao Vivo" no War Room, mostrando vendas fechadas, reservas confirmadas e stock do Pool consumido em tempo real pela equipa de suporte.
-- [ ] [RF-T130] O sistema deve gerar um "Relatório de Debriefing" automático após o fecho do Projecto, consolidando dados do Studio (audiência) com dados do BIZY Team (vendas da equipa, tempo médio de resposta, tickets de suporte, stock liquidado) e enviá-lo via WhatsApp ao gestor.
+- [x] [RF-T130] O sistema deve gerar um "Relatório de Debriefing" automático após o fecho do Projecto, consolidando dados do Studio (audiência) com dados do BIZY Team (vendas da equipa, tempo médio de resposta, tickets de suporte, stock liquidado) e enviá-lo via WhatsApp ao gestor.
 
 ---
 
@@ -438,131 +438,131 @@ O BIZY CRM+ possui 20 módulos HTTP, 55 modelos Prisma e 44 use cases cobrindo:
 
 ### 7.1 Regras Financeiras
 
-- [ ] [RN-T001] **Princípio de partidas dobradas simplificado:** toda entrada financeira deve ter origem (pedido, recebimento manual, comissão) e toda saída deve ter destino (fornecedor, despesa, imposto, comissão paga). Movimentos sem classificação são bloqueados.
+- [x] [RN-T001] **Princípio de partidas dobradas simplificado:** toda entrada financeira deve ter origem (pedido, recebimento manual, comissão) e toda saída deve ter destino (fornecedor, despesa, imposto, comissão paga). Movimentos sem classificação são bloqueados.
 - [x] [RN-T002] **Imutabilidade de factura emitida:** uma factura emitida não pode ser alterada. Correcções devem ser feitas por nota de crédito vinculada à factura original.
 - [x] [RN-T003] **Numeração fiscal contínua:** a numeração de facturas deve ser sequencial sem lacunas dentro de uma série fiscal. Cancelamentos devem anular (não eliminar) o número.
-- [ ] [RN-T004] **Reconciliação antes de fecho:** o fecho de período mensal só pode ser executado quando todas as entradas e saídas do período estiverem reconciliadas ou explicitamente marcadas como pendentes com justificação.
-- [ ] [RN-T005] **Limite de desconto sem aprovação:** descontos acima do limite configurado pelo negócio (padrão: 15%) exigem aprovação de perfil com permissão `financas:aprovacao` antes de emissão da factura.
-- [ ] [RN-T006] **Reembolso vinculado:** todo reembolso deve estar vinculado a um pedido, factura ou nota de crédito. Reembolsos avulsos são bloqueados.
-- [ ] [RN-T007] **Moeda do negócio:** todas as transacções internas são registadas na moeda base do negócio. Transacções em moeda estrangeira devem registar taxa de câmbio e valor original.
+- [x] [RN-T004] **Reconciliação antes de fecho:** o fecho de período mensal só pode ser executado quando todas as entradas e saídas do período estiverem reconciliadas ou explicitamente marcadas como pendentes com justificação.
+- [x] [RN-T005] **Limite de desconto sem aprovação:** descontos acima do limite configurado pelo negócio (padrão: 15%) exigem aprovação de perfil com permissão `financas:aprovacao` antes de emissão da factura.
+- [x] [RN-T006] **Reembolso vinculado:** todo reembolso deve estar vinculado a um pedido, factura ou nota de crédito. Reembolsos avulsos são bloqueados.
+- [x] [RN-T007] **Moeda do negócio:** todas as transacções internas são registadas na moeda base do negócio. Transacções em moeda estrangeira devem registar taxa de câmbio e valor original.
 - [x] [RN-T008] **IVA configurável:** a taxa de IVA deve ser configurável por produto, categoria ou jurisdição. O sistema deve calcular IVA automaticamente na factura com base na configuração aplicável.
 
 ### 7.2 Regras de Equipa
 
 - [x] [RN-T009] **Papel mínimo obrigatório:** todo membro deve ter pelo menos um papel atribuído. Membros sem papel não acedem ao sistema.
 - [x] [RN-T010] **Dono irremovível:** o papel DONO não pode ser removido enquanto não houver outro DONO activo no negócio. Transferência de propriedade exige confirmação dupla.
-- [ ] [RN-T011] **Meta herdada:** quando uma meta de equipa é definida, cada membro sem meta individual herda quota proporcional (divisão igualitária por padrão, configurável).
-- [ ] [RN-T012] **Turno e atribuição:** conversas e tarefas só são atribuídas automaticamente a membros cujo turno actual esteja activo. Fora do turno, a atribuição vai para a fila geral.
-- [ ] [RN-T013] **Desactivação segura:** desactivar um membro redistribui automaticamente conversas abertas e tarefas pendentes para a fila geral, com notificação ao gestor.
-- [ ] [RN-T014] **Privacidade de desempenho:** o ranking individual só é visível para o próprio membro e para perfis com permissão `equipa:gestao`. Membros com papel VENDEDOR/ATENDENTE não vêem dados de desempenho de outros membros por padrão.
+- [x] [RN-T011] **Meta herdada:** quando uma meta de equipa é definida, cada membro sem meta individual herda quota proporcional (divisão igualitária por padrão, configurável).
+- [x] [RN-T012] **Turno e atribuição:** conversas e tarefas só são atribuídas automaticamente a membros cujo turno actual esteja activo. Fora do turno, a atribuição vai para a fila geral.
+- [x] [RN-T013] **Desactivação segura:** desactivar um membro redistribui automaticamente conversas abertas e tarefas pendentes para a fila geral, com notificação ao gestor.
+- [x] [RN-T014] **Privacidade de desempenho:** o ranking individual só é visível para o próprio membro e para perfis com permissão `equipa:gestao`. Membros com papel VENDEDOR/ATENDENTE não vêem dados de desempenho de outros membros por padrão.
 
 ### 7.3 Regras de Inteligência Preditiva
 
-- [ ] [RN-T015] **Mínimo de dados para previsão:** previsões de demanda/fluxo de caixa/churn só são geradas quando o negócio tem pelo menos 90 dias de dados históricos ou 100 transacções. Antes disso, o sistema apresenta apenas médias e tendências simples.
-- [ ] [RN-T016] **Transparência de confiança:** todo insight preditivo deve apresentar nível de confiança (alta >80%, média 50-80%, baixa <50%) e factores que mais contribuíram para a previsão.
-- [ ] [RN-T017] **Não-automatização de decisões financeiras:** insights preditivos sugerem acções mas nunca executam automaticamente movimentos financeiros (pagamentos, cancelamentos, reembolsos). A acção humana é sempre obrigatória para movimentos de dinheiro.
-- [ ] [RN-T018] **Ciclo de feedback:** quando um utilizador aceita ou rejeita uma sugestão preditiva, o sistema deve registar o feedback para refinar modelos futuros.
-- [ ] [RN-T019] **Isolamento de modelos:** os modelos preditivos são treinados por negócio. Dados de um negócio nunca alimentam modelos de outro, mesmo dentro da mesma rede Bizy.
+- [x] [RN-T015] **Mínimo de dados para previsão:** previsões de demanda/fluxo de caixa/churn só são geradas quando o negócio tem pelo menos 90 dias de dados históricos ou 100 transacções. Antes disso, o sistema apresenta apenas médias e tendências simples.
+- [x] [RN-T016] **Transparência de confiança:** todo insight preditivo deve apresentar nível de confiança (alta >80%, média 50-80%, baixa <50%) e factores que mais contribuíram para a previsão.
+- [x] [RN-T017] **Não-automatização de decisões financeiras:** insights preditivos sugerem acções mas nunca executam automaticamente movimentos financeiros (pagamentos, cancelamentos, reembolsos). A acção humana é sempre obrigatória para movimentos de dinheiro.
+- [x] [RN-T018] **Ciclo de feedback:** quando um utilizador aceita ou rejeita uma sugestão preditiva, o sistema deve registar o feedback para refinar modelos futuros.
+- [x] [RN-T019] **Isolamento de modelos:** os modelos preditivos são treinados por negócio. Dados de um negócio nunca alimentam modelos de outro, mesmo dentro da mesma rede Bizy.
 
 ### 7.4 Regras de Projectos e Estrutura
 
-- [ ] [RN-T020] **Projecto com dono:** todo projecto deve ter pelo menos um membro com papel de gestor de projecto. Projectos sem gestor activo são sinalizados como órfãos.
-- [ ] [RN-T021] **Orçamento de projecto isolado:** o orçamento de um projecto é separado do orçamento departamental. Despesas atribuídas a um projecto são contabilizadas em ambos os contextos mas não duplicadas no total.
-- [ ] [RN-T022] **Visibilidade por contexto:** um membro só vê dados de projectos onde está alocado e do departamento onde está inserido. Dados de outros contextos exigem permissão explícita.
-- [ ] [RN-T023] **Fecho de projecto:** um projecto só pode ser fechado quando todas as entregas estiverem concluídas ou explicitamente canceladas com motivo. O fecho gera relatório final com KPIs, orçamento consumido e lições aprendidas.
+- [x] [RN-T020] **Projecto com dono:** todo projecto deve ter pelo menos um membro com papel de gestor de projecto. Projectos sem gestor activo são sinalizados como órfãos.
+- [x] [RN-T021] **Orçamento de projecto isolado:** o orçamento de um projecto é separado do orçamento departamental. Despesas atribuídas a um projecto são contabilizadas em ambos os contextos mas não duplicadas no total.
+- [x] [RN-T022] **Visibilidade por contexto:** um membro só vê dados de projectos onde está alocado e do departamento onde está inserido. Dados de outros contextos exigem permissão explícita.
+- [x] [RN-T023] **Fecho de projecto:** um projecto só pode ser fechado quando todas as entregas estiverem concluídas ou explicitamente canceladas com motivo. O fecho gera relatório final com KPIs, orçamento consumido e lições aprendidas.
 
 ### 7.5 Regras de Workflow e Automação
 
-- [ ] [RN-T024] **Limite de fluxos activos:** cada negócio tem limite de fluxos automáticos activos conforme plano (padrão: 20). Fluxos além do limite são bloqueados com sugestão de upgrade.
-- [ ] [RN-T025] **Fallback humano:** todo fluxo automático que falhe 3 vezes consecutivas é pausado automaticamente e gera tarefa humana para o gestor com contexto da falha.
-- [ ] [RN-T026] **Rate limit de notificações:** cada membro recebe no máximo 20 notificações WhatsApp por dia do sistema. Além do limite, notificações são consolidadas num resumo diário.
-- [ ] [RN-T027] **Consentimento de notificação:** o membro deve aceitar receber notificações via WhatsApp. O sistema não envia notificações operacionais sem consentimento explícito.
+- [x] [RN-T024] **Limite de fluxos activos:** cada negócio tem limite de fluxos automáticos activos conforme plano (padrão: 20). Fluxos além do limite são bloqueados com sugestão de upgrade.
+- [x] [RN-T025] **Fallback humano:** todo fluxo automático que falhe 3 vezes consecutivas é pausado automaticamente e gera tarefa humana para o gestor com contexto da falha.
+- [x] [RN-T026] **Rate limit de notificações:** cada membro recebe no máximo 20 notificações WhatsApp por dia do sistema. Além do limite, notificações são consolidadas num resumo diário.
+- [x] [RN-T027] **Consentimento de notificação:** o membro deve aceitar receber notificações via WhatsApp. O sistema não envia notificações operacionais sem consentimento explícito.
 
 ### 7.6 Regras de Conformidade
 
-- [ ] [RN-T028] **Arquivo fiscal mínimo:** facturas e documentos fiscais devem ser retidos pelo período mínimo exigido pela jurisdição do negócio (padrão: 10 anos quando não configurado).
-- [ ] [RN-T029] **Validação fiscal pré-emissão:** o sistema deve validar NIF/NUIT/TIN do cliente e dados obrigatórios da factura antes de emitir. Facturas com dados fiscais inválidos são bloqueadas.
-- [ ] [RN-T030] **Selo temporal:** toda factura emitida deve ter selo temporal (timestamp) inalterável para fins de auditoria fiscal.
+- [x] [RN-T028] **Arquivo fiscal mínimo:** facturas e documentos fiscais devem ser retidos pelo período mínimo exigido pela jurisdição do negócio (padrão: 10 anos quando não configurado).
+- [x] [RN-T029] **Validação fiscal pré-emissão:** o sistema deve validar NIF/NUIT/TIN do cliente e dados obrigatórios da factura antes de emitir. Facturas com dados fiscais inválidos são bloqueadas.
+- [x] [RN-T030] **Selo temporal:** toda factura emitida deve ter selo temporal (timestamp) inalterável para fins de auditoria fiscal.
 
 ### 7.7 Regras de ROI e Adopção
 
-- [ ] [RN-T031] **Baseline automático:** o sistema regista automaticamente valores de baseline dos KPIs no momento da activação de cada módulo para permitir comparação antes/depois.
-- [ ] [RN-T032] **Anonimização de métricas:** métricas de adopção agregadas podem ser usadas para benchmarking cross-negócio, mas apenas de forma anonimizada e com consentimento.
+- [x] [RN-T031] **Baseline automático:** o sistema regista automaticamente valores de baseline dos KPIs no momento da activação de cada módulo para permitir comparação antes/depois.
+- [x] [RN-T032] **Anonimização de métricas:** métricas de adopção agregadas podem ser usadas para benchmarking cross-negócio, mas apenas de forma anonimizada e com consentimento.
 
 ### 7.8 Regras de Governança de Equipa e Acesso
 
 - [x] [RN-T033] **Limite de membros por plano:** o número de membros activos (com permissão de escrita) num negócio é limitado pelo plano contratado. Membros em "Modo Sombra" ou "Apenas Leitura" não contam para o limite.
-- [ ] [RN-T034] **Convite e consentimento de dados:** o convite só é formalizado quando o utilizador clica em "Aceitar e Concordar" com os termos de uso e política de dados no ecrã de boas-vindas. Sem aceitação, o acesso é bloqueado.
+- [x] [RN-T034] **Convite e consentimento de dados:** o convite só é formalizado quando o utilizador clica em "Aceitar e Concordar" com os termos de uso e política de dados no ecrã de boas-vindas. Sem aceitação, o acesso é bloqueado.
 - [x] [RN-T035] **Mascaramento de dados sensíveis:** membros com papel de Vendedor ou Atendente não podem ver o número de telemóvel completo do cliente ou dados financeiros sensíveis na interface, apenas os dados necessários para a venda/atendimento (ex: `923 *** ** 12`). O mascaramento é configurável por negócio e por papel.
 - [x] [RN-T036] **Expiração por inactividade:** membros que não fizerem login por 90 dias terão o seu acesso automaticamente suspenso (não eliminado), libertando a vaga do plano e exigindo reactivação pelo dono para segurança.
 - [x] [RN-T037] **Hierarquia de aprovação de convites:** em negócios com mais de 10 membros, a criação de novos convites para papéis sensíveis (ex: GESTOR_FINANCEIRO, ADMIN) exige a aprovação do DONO ou ADMIN.
 - [x] [RN-T038] **Magic Link de uso único:** links de convite são invalidados após o primeiro acesso bem-sucedido ou após 72 horas, o que ocorrer primeiro. Links expirados geram nova emissão automática se o dono solicitar reenvio.
-- [ ] [RN-T039] **Workspace isolado:** ao alternar entre Workspaces, o sistema deve limpar completamente o estado da sessão anterior (dados em memória, cache local, contexto de conversa) para impedir vazamento de dados entre negócios.
+- [x] [RN-T039] **Workspace isolado:** ao alternar entre Workspaces, o sistema deve limpar completamente o estado da sessão anterior (dados em memória, cache local, contexto de conversa) para impedir vazamento de dados entre negócios.
 - [x] [RN-T040] **Gamificação opt-in:** o "Modo Competição" com ranking só é activado pelo dono e cada membro pode optar por não participar (opt-out individual) sem consequências no acesso ou funcionalidades.
 
 ### 7.9 Regras de Integração Operacional (Projectos Comerciais e Lives)
 
-- [ ] [RN-T041] **Prioridade de fila omnichannel:** durante um Projecto/Live activa, as regras de distribuição de conversas do Social Inbox e tarefas de revisão de Parser devem priorizar automaticamente os membros alocados à "Equipa do Projecto" em detrimento da fila geral. Membros não alocados ao projecto só recebem overflow quando a equipa alocada atingir capacidade máxima.
-- [ ] [RN-T042] **Rastreabilidade de receita por projecto:** toda transacção financeira, pedido ou reserva criada durante o intervalo de tempo de um Projecto Comercial (ou via link de afiliado vinculado ao projecto) deve receber uma tag de origem `PROJETO_X` imutável. Esta tag serve para o cálculo de comissões, métricas de ROI e debriefing, não podendo ser alterada ou removida após atribuição.
-- [ ] [RN-T043] **Protecção de contexto (War Room):** o acesso ao War Room Dashboard e às métricas em tempo real do Projecto é estritamente restrito aos membros alocados àquela operação e a perfis com permissão `equipa:gestao`. Dados financeiros globais da empresa não são expostos neste dashboard para evitar distracções e manter foco operacional.
-- [ ] [RN-T044] **Handoff automático pós-projecto:** se um Projecto/Live terminar e houver conversas em aberto ou reservas pendentes vinculadas a ele, o sistema deve manter a atribuição ao membro que estava a atender, mas adicionar um timer de SLA de 15 minutos para resolução. Após o SLA, escalonamento automático para a fila geral do departamento com contexto completo da conversa.
-- [ ] [RN-T045] **Integridade do pool de stock:** o Pool de Stock de um Projecto é um subconjunto do stock real. Se o stock global do produto chegar a zero (por vendas fora do projecto), o sistema deve pausar automaticamente as reservas do Projecto, notificar a Sala de Guerra e bloquear novas vendas daquele produto no contexto do projecto, evitando overselling.
+- [x] [RN-T041] **Prioridade de fila omnichannel:** durante um Projecto/Live activa, as regras de distribuição de conversas do Social Inbox e tarefas de revisão de Parser devem priorizar automaticamente os membros alocados à "Equipa do Projecto" em detrimento da fila geral. Membros não alocados ao projecto só recebem overflow quando a equipa alocada atingir capacidade máxima.
+- [x] [RN-T042] **Rastreabilidade de receita por projecto:** toda transacção financeira, pedido ou reserva criada durante o intervalo de tempo de um Projecto Comercial (ou via link de afiliado vinculado ao projecto) deve receber uma tag de origem `PROJETO_X` imutável. Esta tag serve para o cálculo de comissões, métricas de ROI e debriefing, não podendo ser alterada ou removida após atribuição.
+- [x] [RN-T043] **Protecção de contexto (War Room):** o acesso ao War Room Dashboard e às métricas em tempo real do Projecto é estritamente restrito aos membros alocados àquela operação e a perfis com permissão `equipa:gestao`. Dados financeiros globais da empresa não são expostos neste dashboard para evitar distracções e manter foco operacional.
+- [x] [RN-T044] **Handoff automático pós-projecto:** se um Projecto/Live terminar e houver conversas em aberto ou reservas pendentes vinculadas a ele, o sistema deve manter a atribuição ao membro que estava a atender, mas adicionar um timer de SLA de 15 minutos para resolução. Após o SLA, escalonamento automático para a fila geral do departamento com contexto completo da conversa.
+- [x] [RN-T045] **Integridade do pool de stock:** o Pool de Stock de um Projecto é um subconjunto do stock real. Se o stock global do produto chegar a zero (por vendas fora do projecto), o sistema deve pausar automaticamente as reservas do Projecto, notificar a Sala de Guerra e bloquear novas vendas daquele produto no contexto do projecto, evitando overselling.
 
 ---
 
 ## 8. Priorização de Implementação
 
 ### Fase 0 — Renomeação, Acesso e Base (Semana 1-3)
-- [ ] [RF-T renomeação] Substituir referências BIZY CRM → BIZY Team no código, UI e documentação
-- [ ] [RF-T108-T111] Convite frictionless (Magic Links, OTP, Workspaces, Personas)
+- [x] [RF-T renomeação] Substituir referências BIZY CRM → BIZY Team no código, UI e documentação
+- [x] [RF-T108-T111] Convite frictionless (Magic Links, OTP, Workspaces, Personas)
 - [x] [RF-T051-T054] Dashboard de desempenho por membro (extensão do existente)
 - [x] [RF-T066-T068] Notas internas e feed de actividade (extensão do existente)
-- [ ] [RN-T033-T040] Regras de governança de equipa e acesso
+- [x] [RN-T033-T040] Regras de governança de equipa e acesso
 
 ### Fase 1 — Finanças Core (Semana 4-7)
 - [x] [RF-T020-T023] Fluxo de caixa e DRE
 - [x] [RF-T024-T027] Gestão de despesas
 - [x] [RF-T028-T031] Contas a receber
 - [x] [RF-T035-T039] Facturação e recibos
-- [ ] [RN-T001-T008] Regras financeiras
+- [x] [RN-T001-T008] Regras financeiras
 
 ### Fase 2 — Equipa Avançada e Onboarding (Semana 8-11)
 - [x] [RF-T055-T058] Metas individuais e de equipa
 - [x] [RF-T059-T062] Gestão de turnos
-- [ ] [RF-T063-T065] Onboarding de membros existente
-- [ ] [RF-T112-T115] Onboarding interativo e "Aha! Moment"
-- [ ] [RF-T116-T117] Dinâmicas de turno e passagem de bastão
-- [ ] [RF-T118-T122] Workflow lock-in para a equipa (comissão visível, gamificação, progressive disclosure)
-- [ ] [RN-T009-T014] Regras de equipa
+- [x] [RF-T063-T065] Onboarding de membros existente
+- [x] [RF-T112-T115] Onboarding interativo e "Aha! Moment"
+- [x] [RF-T116-T117] Dinâmicas de turno e passagem de bastão
+- [x] [RF-T118-T122] Workflow lock-in para a equipa (comissão visível, gamificação, progressive disclosure)
+- [x] [RN-T009-T014] Regras de equipa
 
 ### Fase 3 — Inteligência Preditiva (Semana 10-14)
-- [ ] [RF-T005-T009] Scoring de clientes e churn (RFM, LTV)
-- [ ] [RF-T001-T004] Previsão de demanda
-- [ ] [RF-T010-T013] Previsão financeira
-- [ ] [RF-T017-T019] Ambient analytics
-- [ ] [RN-T015-T019] Regras preditivas
+- [x] [RF-T005-T009] Scoring de clientes e churn (RFM, LTV)
+- [x] [RF-T001-T004] Previsão de demanda
+- [x] [RF-T010-T013] Previsão financeira
+- [x] [RF-T017-T019] Ambient analytics
+- [x] [RN-T015-T019] Regras preditivas
 
 ### Fase 4 — Workflow e Notificações (Semana 15-17)
 - [ ] [RF-T069-T073] Notificações proactivas via WhatsApp
-- [ ] [RF-T074-T077] Automação cross-funcional
-- [ ] [RF-T078-T080] Widgets contextuais
-- [ ] [RN-T024-T027] Regras de workflow
+- [x] [RF-T074-T077] Automação cross-funcional
+- [x] [RF-T078-T080] Widgets contextuais
+- [x] [RN-T024-T027] Regras de workflow
 
 ### Fase 5 — Projectos, Estrutura e Integração Operacional (Semana 18-22)
-- [ ] [RF-T081-T084] Multi-hierarquia
-- [ ] [RF-T085-T088] Projectos e entregas
-- [ ] [RF-T089-T091] Visibilidade contextual
-- [ ] [RN-T020-T023] Regras de projectos
-- [ ] [RF-T123-T125] Gestão matricial de projectos comerciais (Pool de Stock, Equipas de Projecto, War Rooms)
-- [ ] [RF-T126-T128] Orquestração de filas e automações por projecto
-- [ ] [RF-T129-T130] Gamificação e métricas de live/projecto (Placar ao Vivo, Debriefing)
-- [ ] [RN-T041-T045] Regras de integração operacional
+- [x] [RF-T081-T084] Multi-hierarquia
+- [x] [RF-T085-T088] Projectos e entregas
+- [x] [RF-T089-T091] Visibilidade contextual
+- [x] [RN-T020-T023] Regras de projectos
+- [x] [RF-T123-T125] Gestão matricial de projectos comerciais (Pool de Stock, Equipas de Projecto, War Rooms)
+- [x] [RF-T126-T128] Orquestração de filas e automações por projecto
+- [x] [RF-T129-T130] Gamificação e métricas de live/projecto (Placar ao Vivo, Debriefing)
+- [x] [RN-T041-T045] Regras de integração operacional
 
 ### Fase 6 — Conformidade e ROI (Semana 23-26)
 - [ ] [RF-T046-T050] E-invoicing
-- [ ] [RF-T092-T095] Multi-jurisdição
-- [ ] [RF-T096-T107] Métricas de ROI e adopção
-- [ ] [RN-T028-T032] Regras de conformidade e ROI
+- [x] [RF-T092-T095] Multi-jurisdição
+- [x] [RF-T096-T107] Métricas de ROI e adopção
+- [x] [RN-T028-T032] Regras de conformidade e ROI
 
 ---
 
@@ -659,9 +659,9 @@ O BIZY CRM+ possui 20 módulos HTTP, 55 modelos Prisma e 44 use cases cobrindo:
 
 - [x] [MIG-001] Os 55 modelos Prisma existentes são mantidos sem alterações destrutivas.
 - [x] [MIG-002] Novos modelos são adicionados com migrations incrementais.
-- [ ] [MIG-003] O módulo `crm` é renomeado para `team-core` com migration de dados em `ModuloNegocio`.
-- [ ] [MIG-004] Os dados financeiros existentes (pedidos, comissões, repasses) alimentam automaticamente o ledger financeiro via migration de bootstrap.
-- [ ] [MIG-005] Os KPIs existentes no Painel servem de baseline para métricas de ROI.
+- [x] [MIG-003] O módulo `crm` é renomeado para `team-core` com migration de dados em `ModuloNegocio`.
+- [x] [MIG-004] Os dados financeiros existentes (pedidos, comissões, repasses) alimentam automaticamente o ledger financeiro via migration de bootstrap.
+- [x] [MIG-005] Os KPIs existentes no Painel servem de baseline para métricas de ROI.
 - [x] [MIG-006] Os papéis existentes são mantidos; novos papéis são adicionados sem afectar os anteriores.
 - [x] [MIG-007] A API existente mantém compatibilidade; novos endpoints são adicionados sob prefixos dedicados (`/financas/*`, `/equipa/*`, `/projectos/*`, `/insights/*`).
 

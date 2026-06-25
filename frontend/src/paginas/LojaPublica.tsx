@@ -870,21 +870,21 @@ export function PaginaLojaPublica() {
 
   return (
     <CrmPageMotion className="loja-admin-shell">
-      <div className="crm-v3-pghead">
+      <div className="team-pghead">
         <div>
           <h1>Studio</h1>
-          <div className="crm-v3-sub">A tua loja digital · configuração e vitrine</div>
+          <div className="team-sub">A tua loja digital · configuração e vitrine</div>
         </div>
-        <div className="crm-v3-pghead-right">
+        <div className="team-pghead-right">
           {lojaConfigurada && urlPublica && (
-            <a href={urlPublica} target="_blank" rel="noreferrer" className="crm-v3-btn crm-v3-btn-ghost">
+            <a href={urlPublica} target="_blank" rel="noreferrer" className="team-btn team-btn-ghost">
               <Eye size={13} />
               Ver loja
             </a>
           )}
           {lojaConfigurada || assistenteAberto ? (
             <>
-              <button type="button" className="crm-v3-btn crm-v3-btn-ghost" onClick={() => abrirAssistente("identidade")}>
+              <button type="button" className="team-btn team-btn-ghost" onClick={() => abrirAssistente("identidade")}>
                 <Settings2 size={13} />
                 Configurar
               </button>
@@ -1042,15 +1042,15 @@ export function PaginaLojaPublica() {
       >
         <div className="loja-admin-command-grid grid min-w-0 grid-cols-1 gap-3 lg:grid-cols-[minmax(0,1fr)_20rem] xl:grid-cols-[minmax(0,1fr)_22rem]">
           <div className="grid gap-3 sm:gap-4">
-            <div className="border border-border/60 bg-background p-3">
+            <div style={{ border: "1px solid var(--studio-line)", background: "var(--studio-surface)", padding: "0.75rem" }}>
               <div className="mb-2 flex items-center justify-between gap-2 sm:gap-3">
-                <span className="text-xs sm:text-sm font-medium text-foreground">Prontidão</span>
-                <span className="text-xs sm:text-sm tabular-nums text-muted-foreground">{prontidao.progresso}%</span>
+                <span className="text-xs sm:text-sm font-medium" style={{ color: "var(--studio-ink)" }}>Prontidão</span>
+                <span className="text-xs sm:text-sm tabular-nums" style={{ color: "var(--studio-muted)" }}>{prontidao.progresso}%</span>
               </div>
-              <div className="h-2 overflow-hidden bg-muted">
+              <div className="h-2 overflow-hidden" style={{ background: "var(--studio-line)" }}>
                 <div
-                  className="h-full bg-foreground transition-all"
-                  style={{ width: `${Math.min(100, Math.max(0, prontidao.progresso))}%` }}
+                  className="h-full transition-all"
+                  style={{ width: `${Math.min(100, Math.max(0, prontidao.progresso))}%`, background: "var(--studio-green)" }}
                 />
               </div>
               <div className="mt-3 grid gap-2">
@@ -1467,49 +1467,49 @@ function StudioMarketPanel({
           <ResumoCompacto titulo="Categorias" valor={marketStudio?.categorias.length ?? 0} detalhe="globais" tom="neutro" />
         </div>
 
-        <div className="bz-market-studio-table mt-4 overflow-hidden border border-border/60 bg-background">
+        <div className="st-table" style={{ marginTop: "1rem" }}>
           {itens.length ? (
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[720px] text-sm">
+            <div style={{ overflowX: "auto", WebkitOverflowScrolling: "touch" }}>
+              <table style={{ minWidth: "720px" }}>
                 <thead>
-                  <tr className="border-b border-border/60 bg-muted/40 text-left text-xs uppercase tracking-[0.08em] text-muted-foreground">
-                    <th className="px-3 py-3">Produto</th>
-                    <th className="px-3 py-3">Categoria</th>
-                    <th className="px-3 py-3">Estado</th>
-                    <th className="px-3 py-3">Pendências</th>
-                    <th className="px-3 py-3 text-right">Ação</th>
+                  <tr>
+                    <th>Produto</th>
+                    <th>Categoria</th>
+                    <th>Estado</th>
+                    <th>Pendências</th>
+                    <th style={{ textAlign: "right" }}>Ação</th>
                   </tr>
                 </thead>
                 <tbody>
                   {itens.map((item) => (
-                    <tr key={item.codigo} className="border-b border-border/40 last:border-0">
-                      <td className="px-3 py-3">
-                        <strong className="block text-foreground">{item.nome}</strong>
-                        <span className="text-xs text-muted-foreground">#{item.codigo}</span>
+                    <tr key={item.codigo}>
+                      <td>
+                        <span className="st-table-name">{item.nome}</span>
+                        <span className="st-table-sub" style={{ display: "block" }}>#{item.codigo}</span>
                       </td>
-                      <td className="px-3 py-3 text-muted-foreground">{item.categoria || item.colecao || "Sem categoria"}</td>
-                      <td className="px-3 py-3">
-                        <Badge variant={item.publicado ? "success" : item.elegivel ? "info" : "warning"}>
+                      <td style={{ color: "var(--studio-muted)" }}>{item.categoria || item.colecao || "Sem categoria"}</td>
+                      <td>
+                        <span className="st-badge" data-tom={item.publicado ? "sucesso" : item.elegivel ? "info" : "atencao"}>
                           {item.publicado ? "Publicado" : item.elegivel ? "Elegível" : "Pendente"}
-                        </Badge>
+                        </span>
                       </td>
-                      <td className="px-3 py-3">
+                      <td>
                         {item.pendencias.length ? (
-                          <span className="text-xs text-muted-foreground">{item.pendencias.join(", ")}</span>
+                          <span className="st-table-sub">{item.pendencias.join(", ")}</span>
                         ) : (
-                          <span className="text-xs text-success">Sem pendências</span>
+                          <span style={{ fontSize: "0.74rem", color: "var(--studio-green)" }}>Sem pendências</span>
                         )}
                       </td>
-                      <td className="px-3 py-3 text-right">
-                        <Button
+                      <td style={{ textAlign: "right" }}>
+                        <button
                           type="button"
-                          size="sm"
-                          variant={item.publicado ? "outline" : "default"}
+                          className={`btn3${item.publicado ? " ghost" : ""}`}
                           onClick={() => onAlternarPublicacao(item)}
                           disabled={carregando || (!item.elegivel && !item.publicado)}
+                          style={{ padding: "0 0.65rem", minHeight: "1.85rem", fontSize: "0.78rem" }}
                         >
                           {item.publicado ? "Despublicar" : "Publicar"}
-                        </Button>
+                        </button>
                       </td>
                     </tr>
                   ))}
@@ -1517,11 +1517,11 @@ function StudioMarketPanel({
               </table>
             </div>
           ) : (
-            <EstadoVazio
-              icone={<PackageSearch />}
-              titulo={carregando ? "A carregar publicação" : "Sem produtos para o Market"}
-              detalhe="Quando o catálogo tiver produtos elegíveis, a publicação aparece aqui."
-            />
+            <div className="st-vazio">
+              <PackageSearch size={24} />
+              <span>{carregando ? "A carregar publicação…" : "Sem produtos para o Market"}</span>
+              <small style={{ color: "var(--studio-muted)" }}>Quando o catálogo tiver produtos elegíveis, a publicação aparece aqui.</small>
+            </div>
           )}
         </div>
       </div>
@@ -1568,29 +1568,29 @@ function StudioSeguidoresPanel() {
 
       {erro && <div className="text-sm text-destructive mb-3">{erro}</div>}
 
-      <div className="overflow-hidden border border-border/60 bg-background">
+      <div className="st-table">
         {carregando ? (
-          <div className="flex items-center justify-center py-12 text-muted-foreground text-sm">A carregar seguidores...</div>
+          <div className="st-vazio" style={{ padding: "3rem 1rem" }}>A carregar seguidores...</div>
         ) : seguidores.length > 0 ? (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[520px] text-sm">
+            <table>
               <thead>
-                <tr className="border-b border-border/60 bg-muted/40 text-left text-xs uppercase tracking-[0.08em] text-muted-foreground">
-                  <th className="px-3 py-3">Identificador</th>
-                  <th className="px-3 py-3">Tipo</th>
-                  <th className="px-3 py-3">Origem</th>
-                  <th className="px-3 py-3">Desde</th>
+                <tr>
+                  <th>Identificador</th>
+                  <th>Tipo</th>
+                  <th>Origem</th>
+                  <th>Desde</th>
                 </tr>
               </thead>
               <tbody>
                 {seguidores.map((seguidor) => (
-                  <tr key={seguidor.id} className="border-b border-border/40 last:border-0">
-                    <td className="px-3 py-3 font-medium text-foreground">{seguidor.identificador}</td>
-                    <td className="px-3 py-3 text-muted-foreground">{seguidor.tipo}</td>
-                    <td className="px-3 py-3">
-                      <Badge variant="outline">{seguidor.origem}</Badge>
+                  <tr key={seguidor.id}>
+                    <td className="st-table-name">{seguidor.identificador}</td>
+                    <td>{seguidor.tipo}</td>
+                    <td>
+                      <span className="st-badge" data-tom="neutro">{seguidor.origem}</span>
                     </td>
-                    <td className="px-3 py-3 text-muted-foreground text-xs">
+                    <td style={{ fontSize: "0.75rem" }}>
                       {new Date(seguidor.criadoEm).toLocaleDateString("pt-AO", { day: "2-digit", month: "short", year: "numeric" })}
                     </td>
                   </tr>
@@ -1670,11 +1670,13 @@ function StudioMetricasPanel() {
       </div>
 
       {metricas?.tracking && (
-        <div className="border border-border/60 bg-background p-4">
-          <h3 className="text-sm font-semibold text-foreground mb-2">Tracking público</h3>
-          <p className="text-xs text-muted-foreground">
-            Dados de visitação e interação com a loja pública. Os eventos são registados automaticamente quando visitantes navegam no perfil e nos produtos.
-          </p>
+        <div className="st-block">
+          <div className="st-block-head">
+            <div className="st-block-text">
+              <strong>Tracking público</strong>
+              <span>Dados de visitação e interação com a loja pública. Os eventos são registados automaticamente quando visitantes navegam no perfil e nos produtos.</span>
+            </div>
+          </div>
         </div>
       )}
     </CrmSection>
@@ -2140,7 +2142,7 @@ function AbaCriarLoja({
           <ResumoCompacto titulo="A rever" valor={catalogo.produtosSemStock + catalogo.produtosBaixoStock} detalhe="stock ou estado" tom={catalogo.produtosSemStock || catalogo.produtosBaixoStock ? "atencao" : "neutro"} />
         </div>
 
-        <div className="mt-4 grid gap-3 border border-border/60 bg-background p-3">
+        <div className="mt-4 grid gap-3 p-3" style={{ border: "1px solid var(--studio-line)", background: "var(--studio-surface)" }}>
           <StatusLinha
             pronto={temVendaveis}
             texto={temVendaveis ? "Produtos vendáveis entram automaticamente quando a loja for criada." : "Ainda não há produtos prontos para aparecer na loja."}
@@ -2220,23 +2222,23 @@ function ModalInicioCriacao({
             <ResumoCompacto titulo="Bloqueados" valor={catalogo.produtosSemStock} detalhe="sem stock" tom={catalogo.produtosSemStock ? "perigo" : "neutro"} />
           </div>
 
-          <section className="grid gap-2 border border-border/60 bg-muted/30 p-3 animate-in fade-in slide-in-from-bottom-2">
-            <div className="flex items-start gap-3">
-              <span className="grid size-9 place-items-center bg-background text-foreground">
+          <section className="st-block animate-in fade-in slide-in-from-bottom-2">
+            <div className="st-block-head">
+              <span className="st-block-icon">
                 <PackageCheck size={18} />
               </span>
-              <div className="min-w-0 flex-1">
-                <h3 className="text-sm font-semibold text-foreground">Produtos da loja</h3>
-                <p className="mt-1 text-xs leading-5 text-muted-foreground">
+              <div className="st-block-text">
+                <strong>Produtos da loja</strong>
+                <span>
                   Produtos disponíveis e com stock entram automaticamente na loja criada. Produtos esgotados ficam fora até serem corrigidos.
-                </p>
+                </span>
               </div>
             </div>
 
             {produtosDestaque.length ? (
-              <div className="grid gap-2">
+              <div className="st-block-body" style={{ display: "grid", gap: "0.5rem" }}>
                 {produtosDestaque.slice(0, 3).map((peca) => (
-                  <div key={peca.id} className="flex items-center gap-3 border border-border/60 bg-background p-2">
+                  <div key={peca.id} className="flex items-center gap-3 p-2" style={{ border: "1px solid var(--studio-line)", background: "var(--studio-surface)" }}>
                     <span className="grid size-10 place-items-center overflow-hidden rounded-lg bg-muted">
                       {peca.fotos?.[0] ? <img src={resolverUrlMedia(peca.fotos[0])} alt="" className="h-full w-full object-cover" /> : <Package size={16} />}
                     </span>
@@ -2331,31 +2333,30 @@ function PassoIdentidade({
                 key={paleta.id}
                 type="button"
                 onClick={() => atualizarSecao("tema", { corPrimaria: paleta.primaria })}
-                className={`border p-3 text-left transition-all ${
-                  ativa ? "border-foreground bg-foreground text-background ring-1 ring-foreground/40" : "border-border/70 bg-background hover:bg-muted/50"
-                }`}
+                className="st-paleta"
+                data-ativa={ativa || undefined}
               >
-                <span className="flex gap-2">
+                <span className="st-paleta-cores">
                   {[paleta.primaria, paleta.secundaria, paleta.acento].map((cor) => (
-                    <span key={cor} className="size-6 border border-black/10" style={{ backgroundColor: cor }} />
+                    <span key={cor} className="st-paleta-cor" style={{ backgroundColor: cor }} />
                   ))}
                 </span>
-                <strong className="mt-3 block text-sm">{paleta.nome}</strong>
-                <span className={`mt-1 block text-xs ${ativa ? "text-background/70" : "text-muted-foreground"}`}>{paleta.detalhe}</span>
+                <span className="st-paleta-nome">{paleta.nome}</span>
+                <span className="st-paleta-desc">{paleta.detalhe}</span>
               </button>
             );
           })}
         </div>
 
         <div className="grid gap-3 md:grid-cols-[.9fr_1.1fr]">
-          <div className="border border-border/60 p-3">
-            <span className="text-sm font-medium text-foreground">Paleta selecionada</span>
-            <div className="mt-3 overflow-hidden border border-border/60">
-              <div className="h-16" style={{ background: `linear-gradient(135deg, ${paletaAtual.primaria}, ${paletaAtual.acento})` }} />
-              <div className="grid gap-2 p-3" style={{ backgroundColor: paletaAtual.secundaria }}>
-                <strong className="text-sm text-foreground">{form.identidade.nomeComercial || "Nome da loja"}</strong>
-                <span className="h-2 w-2/3 bg-black/15" />
-                <span className="h-2 w-1/2 bg-black/10" />
+          <div style={{ border: "1px solid var(--studio-line)", padding: "0.75rem", background: "var(--studio-surface)" }}>
+            <span style={{ fontSize: "0.82rem", fontWeight: 700, color: "var(--studio-ink)" }}>Paleta selecionada</span>
+            <div style={{ marginTop: "0.75rem", overflow: "hidden", border: "1px solid var(--studio-line-soft)" }}>
+              <div style={{ height: "4rem", background: `linear-gradient(135deg, ${paletaAtual.primaria}, ${paletaAtual.acento})` }} />
+              <div style={{ padding: "0.75rem", backgroundColor: paletaAtual.secundaria, display: "grid", gap: "0.4rem" }}>
+                <strong style={{ fontSize: "0.86rem", color: "var(--studio-ink)" }}>{form.identidade.nomeComercial || "Nome da loja"}</strong>
+                <span style={{ height: "0.5rem", width: "66%", background: "rgba(0,0,0,0.12)" }} />
+                <span style={{ height: "0.5rem", width: "45%", background: "rgba(0,0,0,0.08)" }} />
               </div>
             </div>
           </div>
@@ -2376,12 +2377,12 @@ function PassoIdentidade({
           <CampoUploadFoto id="capaUrl" label="Imagem de capa" value={form.tema.capaUrl} onChange={(valor) => atualizarSecao("tema", { capaUrl: valor })} purpose="lojas" aspecto="paisagem" />
         </div>
         {urlPublica && (
-          <div className="flex flex-wrap items-center gap-2 border border-border/60 bg-muted/40 p-3">
-            <span className="min-w-0 flex-1 truncate text-sm text-muted-foreground">{urlPublica}</span>
-            <Button variant="outline" size="sm" onClick={copiarLink}>
+          <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "0.5rem", border: "1px solid var(--studio-line)", background: "var(--studio-paper)", padding: "0.65rem 0.85rem" }}>
+            <span style={{ flex: "1 1 0%", minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: "0.84rem", color: "var(--studio-muted)" }}>{urlPublica}</span>
+            <button type="button" className="btn3 ghost" onClick={copiarLink}>
               <Copy size={14} />
               Copiar
-            </Button>
+            </button>
           </div>
         )}
       </BlocoFormulario>
@@ -2519,23 +2520,24 @@ function EditorExperienciaLoja({
     <section className="grid gap-5">
       <BlocoFormulario icon={<LayoutGrid size={18} />} title="Vitrines e catálogos" detail="Escolha quais blocos aparecem primeiro na loja pública. A ordem abaixo guia a experiência inicial.">
         <div className="grid gap-3 md:grid-cols-5">
-          {modosExperienciaLoja.map((modo) => (
-            <button
-              key={modo.id}
-              type="button"
-              onClick={() => atualizarExperiencia({ modoNegocio: modo.id })}
-              className={`border p-3 text-left transition-colors ${
-                form.experiencia.modoNegocio === modo.id
-                  ? "border-foreground bg-foreground text-background"
-                  : "border-border/70 bg-background hover:bg-muted/60"
-              }`}
-            >
-              <strong className="block text-sm">{modo.titulo}</strong>
-              <span className={`mt-1 block text-xs leading-5 ${form.experiencia.modoNegocio === modo.id ? "text-background/70" : "text-muted-foreground"}`}>
-                {modo.detalhe}
-              </span>
-            </button>
-          ))}
+          {modosExperienciaLoja.map((modo) => {
+            const ativo = form.experiencia.modoNegocio === modo.id;
+            return (
+              <button
+                key={modo.id}
+                type="button"
+                onClick={() => atualizarExperiencia({ modoNegocio: modo.id })}
+                className="st-check"
+                data-ativo={ativo || undefined}
+                style={{ textAlign: "left", cursor: "pointer" }}
+              >
+                <strong className="block text-sm">{modo.titulo}</strong>
+                <span className="mt-1 block text-xs leading-5" style={{ color: ativo ? "var(--studio-green)" : "var(--studio-muted)" }}>
+                  {modo.detalhe}
+                </span>
+              </button>
+            );
+          })}
         </div>
 
         <div className="grid gap-3 md:grid-cols-2">
@@ -2572,28 +2574,29 @@ function EditorExperienciaLoja({
                 const estaOculta = ocultas.includes(nome);
                 const totalProdutos = pecas.filter((p) => p.categoria?.trim() === nome).length;
                 return (
-                  <div key={nome} className={`border border-border/60 text-sm ${estaOculta ? "bg-muted/40 opacity-60" : "bg-background"}`}>
+                  <div key={nome} className="text-sm" style={{ border: "1px solid var(--studio-line)", background: estaOculta ? "var(--studio-paper)" : "var(--studio-surface)", opacity: estaOculta ? 0.6 : 1 }}>
                     <div className="flex items-center gap-3 px-3 py-2">
                       <div className="flex gap-1">
-                        <button type="button" disabled={idx === 0} onClick={() => moverCategoria(nome, -1)} className="text-muted-foreground hover:text-foreground disabled:opacity-30">
+                        <button type="button" disabled={idx === 0} onClick={() => moverCategoria(nome, -1)} style={{ color: "var(--studio-muted)" }} className="disabled:opacity-30">
                           <ChevronUp size={14} />
                         </button>
-                        <button type="button" disabled={idx === lista.length - 1} onClick={() => moverCategoria(nome, 1)} className="text-muted-foreground hover:text-foreground disabled:opacity-30">
+                        <button type="button" disabled={idx === lista.length - 1} onClick={() => moverCategoria(nome, 1)} style={{ color: "var(--studio-muted)" }} className="disabled:opacity-30">
                           <ChevronDown size={14} />
                         </button>
                       </div>
-                      <span className="min-w-0 flex-1 truncate font-medium">{nome}</span>
-                      <span className="text-xs text-muted-foreground">{totalProdutos} prod.</span>
+                      <span className="min-w-0 flex-1 truncate font-medium" style={{ color: "var(--studio-ink)" }}>{nome}</span>
+                      <span className="text-xs" style={{ color: "var(--studio-muted)" }}>{totalProdutos} prod.</span>
                       <button
                         type="button"
                         onClick={() => alternarOculta(nome, !estaOculta)}
-                        className={`flex items-center gap-1 text-xs ${estaOculta ? "text-warning" : "text-muted-foreground hover:text-foreground"}`}
+                        className="flex items-center gap-1 text-xs"
+                        style={{ color: estaOculta ? "#d97706" : "var(--studio-muted)" }}
                       >
                         {estaOculta ? <><EyeOff size={13} /> Oculta</> : <><Eye size={13} /> Visível</>}
                       </button>
                     </div>
                     {!estaOculta && (
-                      <div className="border-t border-border/40 px-3 py-2">
+                      <div className="px-3 py-2" style={{ borderTop: "1px solid var(--studio-line)" }}>
                         <input
                           type="text"
                           placeholder="Mensagem curta para esta colecção…"
@@ -2602,7 +2605,8 @@ function EditorExperienciaLoja({
                           onChange={(e) => atualizarCatalogo({
                             mensagensColecao: { ...form.operacao.catalogo.mensagensColecao, [nome]: e.target.value }
                           })}
-                          className="w-full bg-transparent text-xs text-muted-foreground placeholder:text-muted-foreground/50 outline-none"
+                          className="w-full bg-transparent text-xs outline-none"
+                          style={{ color: "var(--studio-muted)" }}
                         />
                       </div>
                     )}
@@ -2652,12 +2656,12 @@ function EditorExperienciaLoja({
           onChange={(valor) => atualizarExperiencia({ tabelaMedidasTexto: valor })}
           rows={5}
         />
-        <div className="border border-border/60 bg-muted/30 p-3">
-          <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Prévia interpretada</span>
+        <div style={{ border: "1px solid var(--studio-line)", background: "var(--studio-paper)", padding: "0.75rem" }}>
+          <span style={{ fontSize: "0.7rem", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--studio-muted)" }}>Prévia interpretada</span>
           {linhasMedidas.length ? (
             <div className="mt-3 grid gap-2">
               {linhasMedidas.slice(0, 4).map((linha) => (
-                <div key={linha.tamanho} className="grid grid-cols-4 gap-2 bg-background px-3 py-2 text-xs">
+                <div key={linha.tamanho} className="grid grid-cols-4 gap-2 px-3 py-2 text-xs" style={{ background: "var(--studio-surface)", color: "var(--studio-ink)" }}>
                   <strong>{linha.tamanho}</strong>
                   <span>{linha.busto || "-"}</span>
                   <span>{linha.cintura || "-"}</span>
@@ -2666,7 +2670,7 @@ function EditorExperienciaLoja({
               ))}
             </div>
           ) : (
-            <p className="mt-2 text-sm text-muted-foreground">Sem tabela definida; a loja usa os tamanhos cadastrados no produto.</p>
+            <p className="st-vazio" style={{ marginTop: "0.5rem" }}>Sem tabela definida; a loja usa os tamanhos cadastrados no produto.</p>
           )}
         </div>
       </BlocoFormulario>
@@ -2734,13 +2738,11 @@ function EditorCatalogosPersonalizados({
   }
 
   return (
-    <div className="border border-border/60 bg-muted/25 p-3">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <span className="text-sm font-semibold text-foreground">Catálogos personalizados</span>
-          <p className="mt-1 text-xs leading-5 text-muted-foreground">
-            Crie blocos manuais por categoria, coleção, busca ou todos os produtos.
-          </p>
+    <div className="st-block">
+      <div className="st-block-head">
+        <div className="st-block-text">
+          <strong>Catálogos personalizados</strong>
+          <span>Crie blocos manuais por categoria, coleção, busca ou todos os produtos.</span>
         </div>
         <Button type="button" variant="outline" size="sm" onClick={adicionarCatalogo}>
           <PlusCircle size={14} />
@@ -2748,7 +2750,7 @@ function EditorCatalogosPersonalizados({
         </Button>
       </div>
 
-      <div className="mt-3 grid gap-3 lg:grid-cols-[1fr_.9fr]">
+      <div className="st-block-body" style={{ display: "grid", gap: "0.75rem", gridTemplateColumns: "1fr .9fr" }}>
         <CampoArea
           id="catalogosPersonalizadosTexto"
           label="Uma linha por catálogo: Nome | critério | valor | descrição"
@@ -2756,24 +2758,24 @@ function EditorCatalogosPersonalizados({
           onChange={onChange}
           rows={5}
         />
-        <div className="border border-border/60 bg-background p-3">
-          <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Prévia dos blocos</span>
+        <div style={{ border: "1px solid var(--studio-line)", background: "var(--studio-surface)", padding: "0.75rem" }}>
+          <span style={{ fontSize: "0.7rem", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--studio-muted)" }}>Prévia dos blocos</span>
           {catalogos.length ? (
             <div className="mt-3 grid gap-2">
               {catalogos.slice(0, 5).map((catalogo) => (
-                <div key={catalogo.id} className="border border-border/60 p-3">
+                <div key={catalogo.id} style={{ border: "1px solid var(--studio-line)", padding: "0.75rem" }}>
                   <div className="flex items-center justify-between gap-2">
-                    <strong className="truncate text-sm text-foreground">{catalogo.nome}</strong>
-                    <Badge variant="outline">{catalogo.criterio}</Badge>
+                    <strong style={{ fontSize: "0.875rem", color: "var(--studio-ink)" }} className="truncate">{catalogo.nome}</strong>
+                    <span className="st-badge" data-tom="neutro">{catalogo.criterio}</span>
                   </div>
-                  <p className="mt-1 line-clamp-2 text-xs leading-5 text-muted-foreground">
+                  <p className="mt-1 line-clamp-2" style={{ fontSize: "0.75rem", lineHeight: "1.25rem", color: "var(--studio-muted)" }}>
                     {catalogo.valor ? `${catalogo.valor} · ` : ""}{catalogo.descricao || "Sem descrição"}
                   </p>
                 </div>
               ))}
             </div>
           ) : (
-            <p className="mt-3 text-sm text-muted-foreground">Sem catálogo manual. A loja usa categorias e coleções dos produtos.</p>
+            <p className="st-vazio" style={{ marginTop: "0.75rem" }}>Sem catálogo manual. A loja usa categorias e coleções dos produtos.</p>
           )}
         </div>
       </div>
@@ -2928,9 +2930,13 @@ function PassoOperacaoLoja({
           detail="Quando uma função estiver bloqueada, o admin explica o benefício e leva ao plano certo."
           onChange={(checked) => atualizarOperacao("plano", { upgradeContextual: checked })}
         />
-        <div className="grid gap-2 border border-border/60 bg-muted/30 p-3">
-          <span className="text-sm font-semibold text-foreground">Quotas de uso</span>
-          <p className="text-xs leading-5 text-muted-foreground">Encomendas, imagens, WhatsApp e email ficam visíveis para o dono da loja antes de chegar ao limite.</p>
+        <div className="st-block">
+          <div className="st-block-head">
+            <div className="st-block-text">
+              <strong>Quotas de uso</strong>
+              <span>Encomendas, imagens, WhatsApp e email ficam visíveis para o dono da loja antes de chegar ao limite.</span>
+            </div>
+          </div>
         </div>
       </BlocoFormulario>
 
@@ -3045,23 +3051,24 @@ function PassoOperacaoLoja({
 
       <BlocoFormulario icon={<ShieldCheck size={18} />} title="Acesso e fidelização" detail="Escolha como captar dados sem quebrar a navegação e quais incentivos ficam disponíveis para recompra.">
         <div className="grid gap-3 md:grid-cols-4">
-          {opcoesAcessoLoja.map((opcao) => (
-            <button
-              key={opcao.id}
-              type="button"
-              onClick={() => atualizarOperacao("fidelizacao", { acessoLoja: opcao.id })}
-              className={`border p-3 text-left transition-colors ${
-                form.operacao.fidelizacao.acessoLoja === opcao.id
-                  ? "border-foreground bg-foreground text-background"
-                  : "border-border/70 bg-background hover:bg-muted/60"
-              }`}
-            >
-              <strong className="block text-sm">{opcao.titulo}</strong>
-              <span className={`mt-1 block text-xs leading-5 ${form.operacao.fidelizacao.acessoLoja === opcao.id ? "text-background/70" : "text-muted-foreground"}`}>
-                {opcao.detalhe}
-              </span>
-            </button>
-          ))}
+          {opcoesAcessoLoja.map((opcao) => {
+            const ativo = form.operacao.fidelizacao.acessoLoja === opcao.id;
+            return (
+              <button
+                key={opcao.id}
+                type="button"
+                onClick={() => atualizarOperacao("fidelizacao", { acessoLoja: opcao.id })}
+                className="st-check"
+                data-ativo={ativo || undefined}
+                style={{ textAlign: "left", cursor: "pointer" }}
+              >
+                <strong className="block text-sm">{opcao.titulo}</strong>
+                <span className="mt-1 block text-xs leading-5" style={{ color: ativo ? "var(--studio-green)" : "var(--studio-muted)" }}>
+                  {opcao.detalhe}
+                </span>
+              </button>
+            );
+          })}
         </div>
 
         <div className="grid gap-3 md:grid-cols-2">
@@ -3164,7 +3171,7 @@ function PassoOperacaoLoja({
       <BlocoFormulario icon={<Link2 size={18} />} title="Canais conectados" detail="Selecione as origens que a loja deve medir e encaminhar para as áreas certas do CRM.">
         <div className="grid gap-3 md:grid-cols-2">
           {canaisLojaDigital.map((canal) => (
-            <div key={canal.id} className="grid gap-2 border border-border/70 bg-background p-3">
+            <div key={canal.id} className="grid gap-2 p-3" style={{ border: "1px solid var(--studio-line)", background: "var(--studio-surface)" }}>
               <OpcaoMarcavel
                 checked={form.operacao.canais[canal.id]}
                 title={canal.titulo}
@@ -3353,8 +3360,8 @@ function PassoPublicar({
         />
 
         {urlPublica ? (
-          <div className="flex flex-wrap items-center gap-2 border border-border/60 bg-muted/40 p-3">
-            <span className="min-w-0 flex-1 truncate text-sm text-muted-foreground">{urlPublica}</span>
+          <div className="flex flex-wrap items-center gap-2 p-3" style={{ border: "1px solid var(--studio-line)", background: "var(--studio-paper)" }}>
+            <span className="min-w-0 flex-1 truncate text-sm" style={{ color: "var(--studio-muted)" }}>{urlPublica}</span>
             <Button variant="outline" size="sm" onClick={copiarLink}>
               <Copy size={14} />
               Copiar
@@ -3398,8 +3405,8 @@ function PreviewLojaMobile({
   const cor = form.tema.corPrimaria || "#111111";
   return (
     <div className={compacta ? "hidden lg:block" : ""}>
-      <div className="mx-auto w-full max-w-[20rem] rounded-[2rem] border border-neutral-900 bg-neutral-950 p-2 shadow-sm">
-        <div className="overflow-hidden rounded-[1.5rem] bg-white text-neutral-950">
+      <div className="st-phone-frame">
+        <div className="st-phone-screen" style={{ color: "#0a0a0a" }}>
           <div className="relative h-28 bg-neutral-100">
             {form.tema.capaUrl ? (
               <img src={resolverUrlMedia(form.tema.capaUrl)} alt="" className="h-full w-full object-cover" />
@@ -3479,15 +3486,15 @@ function BlocoFormulario({
   title: string;
 }) {
   return (
-    <section className="grid gap-4 border border-border/60 bg-card p-4">
-      <header className="flex items-start gap-3">
-        <span className="grid size-9 place-items-center bg-muted text-foreground">{icon}</span>
-        <div className="min-w-0">
-          <h3 className="font-heading text-base font-semibold text-foreground">{title}</h3>
-          <p className="mt-1 text-xs leading-5 text-muted-foreground">{detail}</p>
+    <section className="st-block">
+      <header className="st-block-head">
+        <span className="st-block-icon">{icon}</span>
+        <div className="st-block-text">
+          <h3>{title}</h3>
+          <p>{detail}</p>
         </div>
       </header>
-      <div className="grid gap-3">{children}</div>
+      <div className="st-block-body">{children}</div>
     </section>
   );
 }
@@ -3508,19 +3515,19 @@ function CampoTexto({
   value: string;
 }) {
   return (
-    <label className="grid gap-2 text-sm font-medium text-foreground" htmlFor={id}>
-      {label}
-      <div className="flex overflow-hidden border border-input bg-background focus-within:ring-3 focus-within:ring-ring/30">
-        {prefixo && <span className="hidden items-center border-r bg-muted px-3 text-xs text-muted-foreground sm:flex">{prefixo}</span>}
+    <div className="st-campo">
+      <label className="st-campo-label" htmlFor={id}>{label}</label>
+      <div className="st-campo-input-wrap">
+        {prefixo && <span className="st-campo-affix">{prefixo}</span>}
         <Input
           id={id}
           value={value}
           onChange={(evento) => onChange(evento.target.value)}
           className="border-0 focus-visible:ring-0"
         />
-        {sufixo && <span className="hidden items-center border-l bg-muted px-3 text-xs text-muted-foreground sm:flex">{sufixo}</span>}
+        {sufixo && <span className="st-campo-affix">{sufixo}</span>}
       </div>
-    </label>
+    </div>
   );
 }
 
@@ -3536,16 +3543,19 @@ function CampoNumero({
   value: number;
 }) {
   return (
-    <label className="grid gap-2 text-sm font-medium text-foreground" htmlFor={id}>
-      {label}
-      <Input
-        id={id}
-        min={0}
-        type="number"
-        value={value}
-        onChange={(evento) => onChange(Number(evento.target.value))}
-      />
-    </label>
+    <div className="st-campo">
+      <label className="st-campo-label" htmlFor={id}>{label}</label>
+      <div className="st-campo-input-wrap">
+        <Input
+          id={id}
+          min={0}
+          type="number"
+          value={value}
+          onChange={(evento) => onChange(Number(evento.target.value))}
+          className="border-0 focus-visible:ring-0"
+        />
+      </div>
+    </div>
   );
 }
 
@@ -3563,10 +3573,10 @@ function CampoArea({
   value: string;
 }) {
   return (
-    <label className="grid gap-2 text-sm font-medium text-foreground" htmlFor={id}>
-      {label}
+    <div className="st-campo">
+      <label className="st-campo-label" htmlFor={id}>{label}</label>
       <Textarea id={id} value={value} onChange={(evento) => onChange(evento.target.value)} rows={rows} />
-    </label>
+    </div>
   );
 }
 
@@ -3582,11 +3592,11 @@ function OpcaoMarcavel({
   title: string;
 }) {
   return (
-    <label className={`flex cursor-pointer items-start gap-3 border p-3 transition-colors ${checked ? "border-foreground bg-foreground text-background" : "border-border/70 bg-background hover:bg-muted/60"}`}>
-      <Checkbox checked={checked} onCheckedChange={(valor) => onChange(valor === true)} className={checked ? "border-background data-checked:bg-background data-checked:text-foreground" : ""} />
-      <span className="min-w-0">
-        <span className="block text-sm font-medium">{title}</span>
-        <span className={`block text-xs leading-5 ${checked ? "text-background/70" : "text-muted-foreground"}`}>{detail}</span>
+    <label className="st-check" data-ativo={checked || undefined}>
+      <Checkbox checked={checked} onCheckedChange={(valor) => onChange(valor === true)} />
+      <span>
+        <span className="st-check-title">{title}</span>
+        <span className="st-check-detail">{detail}</span>
       </span>
     </label>
   );
@@ -3603,28 +3613,20 @@ function ResumoCompacto({
   tom: "neutro" | "principal" | "sucesso" | "atencao" | "perigo";
   valor: ReactNode;
 }) {
-  const classes = {
-    neutro: "border-border/60 bg-background text-muted-foreground",
-    principal: "border-primary/20 bg-primary/5 text-primary",
-    sucesso: "border-success/20 bg-success/5 text-success",
-    atencao: "border-warning/20 bg-warning/5 text-warning",
-    perigo: "border-destructive/20 bg-destructive/5 text-destructive"
-  } satisfies Record<typeof tom, string>;
-
   return (
-    <div className={`border p-3 ${classes[tom]}`}>
-      <span className="block text-xs font-medium opacity-80">{titulo}</span>
-      <strong className="mt-1 block truncate text-xl font-semibold tabular-nums text-foreground">{valor}</strong>
-      <small className="mt-1 block truncate text-xs opacity-80">{detalhe}</small>
+    <div className="st-kpi" data-tom={tom}>
+      <span className="st-kpi-label">{titulo}</span>
+      <strong className="st-kpi-value">{valor}</strong>
+      <small className="st-kpi-detail">{detalhe}</small>
     </div>
   );
 }
 
 function StatusLinha({ pronto, texto }: { pronto: boolean; texto: string }) {
   return (
-    <div className="flex items-center gap-2 border border-border/60 bg-background px-3 py-2 text-sm">
-      {pronto ? <CheckCircle2 className="text-success" size={16} /> : <XCircle className="text-warning" size={16} />}
-      <span className="min-w-0 flex-1 text-foreground">{texto}</span>
+    <div className="st-status" data-pronto={pronto || undefined}>
+      {pronto ? <CheckCircle2 size={16} /> : <XCircle size={16} />}
+      <span>{texto}</span>
     </div>
   );
 }
@@ -3641,13 +3643,12 @@ function AtalhoOperacional({
   to: string;
 }) {
   return (
-    <Link to={to} className="group flex items-center gap-3 border border-border/60 bg-background p-3 transition-colors hover:border-foreground/40 hover:bg-muted/50">
-      <span className="grid size-9 place-items-center bg-muted text-foreground">{icon}</span>
-      <span className="min-w-0 flex-1">
-        <span className="block truncate text-sm font-medium text-foreground">{title}</span>
-        <span className="block truncate text-xs text-muted-foreground">{detail}</span>
+    <Link to={to} className="qa" style={{ textDecoration: "none" }}>
+      {icon}
+      <span>
+        <strong>{title}</strong>
+        <small>{detail}</small>
       </span>
-      <ArrowRight className="text-muted-foreground transition-transform group-hover:translate-x-0.5" size={16} />
     </Link>
   );
 }

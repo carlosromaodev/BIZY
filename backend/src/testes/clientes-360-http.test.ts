@@ -484,7 +484,7 @@ describe("clientes 360 HTTP", () => {
       expect(perfil.statusCode).toBe(200);
       expect(perfil.json().metricas).toEqual(
         expect.objectContaining({
-          totalCompradoEmKwanza: 41_500,
+          totalCompradoEmKwanza: 47_100,
           pedidosPagos: 1,
           pedidosCancelados: 1,
           reservasExpiradas: 1,

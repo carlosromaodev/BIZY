@@ -1183,16 +1183,16 @@ export function PaginaConversas() {
           DESKTOP — Inbox v2 (≥ lg)
           ═══════════════════════════════════════════════════════════════ */}
       <div className="hidden lg:grid gap-5">
-        <div className="crm-v3-pghead">
+        <div className="team-pghead">
           <div>
             <h1>Atendimento</h1>
-            <div className="crm-v3-sub">
+            <div className="team-sub">
               {contagensFiltros.abertas} conversa{contagensFiltros.abertas === 1 ? "" : "s"} aberta{contagensFiltros.abertas === 1 ? "" : "s"} · {conversasFiltradas.length} total
             </div>
           </div>
-          <div className="crm-v3-pghead-right">
-            <span className="crm-v3-bdg" data-tone="green">
-              <span className="crm-v3-bdg-dot" />
+          <div className="team-pghead-right">
+            <span className="team-bdg" data-tone="green">
+              <span className="team-bdg-dot" />
               WhatsApp ligado
             </span>
             <Button variant="outline" size="sm" onClick={() => void carregar()}>

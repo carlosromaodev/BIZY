@@ -25,6 +25,7 @@ import {
   gatilhosPlaybookRecuperacao,
   intencoesSocialInbox,
   modulosNegocioDisponiveis,
+  normalizarModuloNegocio,
   politicasAutomacaoAtendimento,
   prioridadesTarefaOperacional,
   prioridadesConversaAtendimento,
@@ -339,7 +340,10 @@ const VitrineProdutoSchema = z.object({
 }).default({});
 
 export const ModuloNegocioParametroSchema = z.object({
-  modulo: z.enum(modulosNegocioDisponiveis)
+  modulo: z.string().trim().transform(normalizarModuloNegocio).refine(
+    (modulo) => (modulosNegocioDisponiveis as readonly string[]).includes(modulo),
+    "Módulo de negócio inválido."
+  )
 });
 
 export const AtualizarModuloNegocioSchema = z.object({
