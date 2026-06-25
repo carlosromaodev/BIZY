@@ -524,7 +524,7 @@ export function criarContextoAplicacao(logger: FastifyBaseLogger): ContextoAplic
   const prismaDirecto = repositorios.prisma ?? criarPrismaCliente();
 
   const gestaoEquipa = new GestaoEquipaUseCase(prismaDirecto);
-  const gestaoFinancas = new GestaoFinancasUseCase(prismaDirecto);
+  const gestaoFinancas = new GestaoFinancasUseCase(prismaDirecto, eventos);
   const gestaoWorkflow = new GestaoWorkflowUseCase(prismaDirecto);
   const gestaoProjectos = new GestaoProjectosUseCase(prismaDirecto);
   const conformidadeROI = new ConformidadeROIUseCase(prismaDirecto);

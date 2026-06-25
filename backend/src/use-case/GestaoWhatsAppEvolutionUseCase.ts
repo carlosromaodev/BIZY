@@ -1,5 +1,6 @@
 import type { RepositorioInstanciasWhatsApp } from "../dominio/repositorios/contratos.js";
 import type { InstanciaWhatsApp } from "../dominio/tipos.js";
+import { cifrarCredencial, decifrarCredencial } from "../infra/crypto/cifraCredenciais.js";
 import {
   ClienteEvolutionApi,
   extrairMensagemEvolution,
@@ -51,13 +52,14 @@ export class GestaoWhatsAppEvolutionUseCase {
     padrao?: boolean;
   }) {
     const negocioId = dados.negocioId ?? null;
+    const apiKeyLimpa = dados.apiKey?.trim() || null;
     const instancia = await this.repositorio.criar({
       negocioId,
       nome: dados.nome.trim().replace(/\s+/g, "-"),
       etiqueta: dados.etiqueta?.trim() || null,
       telefone: dados.telefone ? this.normalizarNumeroDono(dados.telefone) : null,
       baseUrl: dados.baseUrl?.trim() || null,
-      apiKey: dados.apiKey?.trim() || null,
+      apiKey: apiKeyLimpa ? cifrarCredencial(apiKeyLimpa) : null,
       padrao: dados.padrao
     });
 
@@ -141,9 +143,10 @@ export class GestaoWhatsAppEvolutionUseCase {
   }
 
   private criarCliente(instancia?: InstanciaWhatsApp) {
+    const apiKeyArmazenada = instancia?.apiKey?.trim();
     return new ClienteEvolutionApi({
       baseUrl: instancia?.baseUrl?.trim() || this.opcoes.baseUrl,
-      apiKey: instancia?.apiKey?.trim() || this.opcoes.apiKey
+      apiKey: apiKeyArmazenada ? decifrarCredencial(apiKeyArmazenada) : this.opcoes.apiKey
     });
   }
 

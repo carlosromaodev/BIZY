@@ -1,4 +1,5 @@
 import type { PrismaClient } from "@prisma/client";
+import type { DespachadorEventos } from "../dominio/eventos/DespachadorEventos.js";
 import { buildFacturaHtml, type DadosFacturaPdf } from "../infra/pdf/FacturaPdfTemplate.js";
 import { buildReciboHtml, type DadosReciboPdf } from "../infra/pdf/ReciboPdfTemplate.js";
 import { renderPdfFromHtml } from "../infra/pdf/PdfRenderer.js";
@@ -17,7 +18,10 @@ const CATEGORIAS_PADRAO = [
 ];
 
 export class GestaoFinancasUseCase {
-  constructor(private readonly prisma: PrismaClient) {}
+  constructor(
+    private readonly prisma: PrismaClient,
+    private readonly eventos?: DespachadorEventos
+  ) {}
 
   // ── Categorias ────────────────────────────────────────────────────────────
 
@@ -84,7 +88,7 @@ export class GestaoFinancasUseCase {
       );
     }
 
-    return this.prisma.movimentoFinanceiro.create({
+    const movimento = await this.prisma.movimentoFinanceiro.create({
       data: {
         negocioId,
         tipo: dados.tipo,
@@ -98,6 +102,18 @@ export class GestaoFinancasUseCase {
         observacao: dados.observacao
       }
     });
+
+    this.eventos?.emitir("FINANCAS_MOVIMENTO_CRIADO", {
+      negocioId,
+      movimentoId: movimento.id,
+      tipo: dados.tipo,
+      valor: dados.valor,
+      origemTipo: dados.origemTipo,
+      responsavelId: dados.responsavelId,
+      descricao: dados.descricao
+    });
+
+    return movimento;
   }
 
   async listarMovimentos(
@@ -243,6 +259,13 @@ export class GestaoFinancasUseCase {
       origemId: despesa.id
     });
 
+    this.eventos?.emitir("FINANCAS_DESPESA_CRIADA", {
+      negocioId,
+      despesaId: despesa.id,
+      valor: dados.valor,
+      descricao: dados.descricao
+    });
+
     return despesa;
   }
 
@@ -263,10 +286,18 @@ export class GestaoFinancasUseCase {
   }
 
   async marcarDespesaPaga(id: string, negocioId: string) {
-    return this.prisma.despesa.update({
+    const despesa = await this.prisma.despesa.update({
       where: { id, negocioId },
       data: { pago: true, pagoEm: new Date() }
     });
+
+    this.eventos?.emitir("FINANCAS_DESPESA_PAGA", {
+      negocioId,
+      despesaId: id,
+      valor: despesa.valor
+    });
+
+    return despesa;
   }
 
   // ── Contas a Receber ──────────────────────────────────────────────────────
@@ -342,6 +373,12 @@ export class GestaoFinancasUseCase {
       origemId: id
     });
 
+    this.eventos?.emitir("FINANCAS_CONTA_RECEBIDA", {
+      negocioId,
+      contaId: id,
+      valorPago
+    });
+
     return conta;
   }
 
@@ -388,6 +425,13 @@ export class GestaoFinancasUseCase {
       valor: conta.valor,
       origemTipo: "CONTA_PAGAR",
       origemId: id
+    });
+
+    this.eventos?.emitir("FINANCAS_CONTA_PAGA", {
+      negocioId,
+      contaId: id,
+      valor: conta.valor,
+      fornecedor: conta.fornecedor
     });
 
     return conta;
@@ -467,6 +511,15 @@ export class GestaoFinancasUseCase {
       origemId: factura.id
     });
 
+    this.eventos?.emitir("FINANCAS_FACTURA_EMITIDA", {
+      negocioId,
+      facturaId: factura.id,
+      serie,
+      numero,
+      total,
+      clienteNome: dados.clienteNome
+    });
+
     return factura;
   }
 
@@ -499,10 +552,18 @@ export class GestaoFinancasUseCase {
   }
 
   async anularFactura(id: string, negocioId: string, motivo: string) {
-    return this.prisma.factura.update({
+    const factura = await this.prisma.factura.update({
       where: { id, negocioId },
       data: { estado: "ANULADA", anuladaEm: new Date(), motivoAnulacao: motivo }
     });
+
+    this.eventos?.emitir("FINANCAS_FACTURA_ANULADA", {
+      negocioId,
+      facturaId: id,
+      motivo
+    });
+
+    return factura;
   }
 
   async gerarPdfFactura(id: string, negocioId: string): Promise<Buffer> {
@@ -578,6 +639,14 @@ export class GestaoFinancasUseCase {
       valor: dados.valor,
       origemTipo: "NOTA_CREDITO",
       origemId: nota.id
+    });
+
+    this.eventos?.emitir("FINANCAS_NOTA_CREDITO_EMITIDA", {
+      negocioId,
+      notaCreditoId: nota.id,
+      facturaId: dados.facturaId,
+      valor: dados.valor,
+      motivo: dados.motivo
     });
 
     return nota;
@@ -1135,6 +1204,13 @@ export class GestaoFinancasUseCase {
       data: { dadosOperacionaisJson: JSON.stringify(dadosOp) }
     });
 
+    this.eventos?.emitir("FINANCAS_PERIODO_FECHADO", {
+      negocioId,
+      periodo: chave,
+      mes,
+      ano
+    });
+
     return { periodo: chave, fechadoEm: new Date() };
   }
 
@@ -1202,7 +1278,7 @@ export class GestaoFinancasUseCase {
         ? `Factura: ${dados.facturaId}`
         : `Nota crédito: ${dados.notaCreditoId}`;
 
-    return this.registarMovimento(negocioId, {
+    const movimento = await this.registarMovimento(negocioId, {
       tipo: "SAIDA",
       descricao: dados.descricao || `Reembolso — ${origemDetalhe}`,
       valor: dados.valor,
@@ -1211,6 +1287,16 @@ export class GestaoFinancasUseCase {
       responsavelId: dados.responsavelId,
       observacao: dados.observacao
     });
+
+    this.eventos?.emitir("FINANCAS_REEMBOLSO_REGISTADO", {
+      negocioId,
+      movimentoId: movimento.id,
+      valor: dados.valor,
+      origemDetalhe,
+      responsavelId: dados.responsavelId
+    });
+
+    return movimento;
   }
 
   // ── Movimento Multi-Moeda (RN-T007) ───────────────────────────────────

@@ -169,7 +169,7 @@ export const moduloFinancas: ModuloHttp = {
     /* ── Categorias ──────────────────────────────────────────── */
 
     app.get("/financas/categorias", async (request, reply) => {
-      const ctx = await exigirFinancas(contexto, request, reply, "equipa:ler");
+      const ctx = await exigirFinancas(contexto, request, reply, "financas:leitura");
       if (!ctx) return;
 
       const categorias = await contexto.gestaoFinancas.listarCategorias(ctx.negocio.id);
@@ -177,7 +177,7 @@ export const moduloFinancas: ModuloHttp = {
     });
 
     app.post("/financas/categorias", async (request, reply) => {
-      const ctx = await exigirFinancas(contexto, request, reply, "equipa:gestao");
+      const ctx = await exigirFinancas(contexto, request, reply, "financas:escrita");
       if (!ctx) return;
 
       const dados = CriarCategoriaSchema.parse(request.body ?? {});
@@ -186,7 +186,7 @@ export const moduloFinancas: ModuloHttp = {
     });
 
     app.post("/financas/categorias/inicializar", async (request, reply) => {
-      const ctx = await exigirFinancas(contexto, request, reply, "equipa:gestao");
+      const ctx = await exigirFinancas(contexto, request, reply, "financas:escrita");
       if (!ctx) return;
 
       const resultado = await contexto.gestaoFinancas.inicializarCategoriasPadrao(ctx.negocio.id);
@@ -196,7 +196,7 @@ export const moduloFinancas: ModuloHttp = {
     /* ── Movimentos (Ledger) ─────────────────────────────────── */
 
     app.get("/financas/movimentos", async (request, reply) => {
-      const ctx = await exigirFinancas(contexto, request, reply, "equipa:ler");
+      const ctx = await exigirFinancas(contexto, request, reply, "financas:leitura");
       if (!ctx) return;
 
       const filtros = FiltrosMovimentoSchema.parse(request.query ?? {});
@@ -205,7 +205,7 @@ export const moduloFinancas: ModuloHttp = {
     });
 
     app.post("/financas/movimentos", async (request, reply) => {
-      const ctx = await exigirFinancas(contexto, request, reply, "equipa:gestao");
+      const ctx = await exigirFinancas(contexto, request, reply, "financas:escrita");
       if (!ctx) return;
 
       const dados = CriarMovimentoSchema.parse(request.body ?? {});
@@ -219,7 +219,7 @@ export const moduloFinancas: ModuloHttp = {
     /* ── Fluxo de Caixa ──────────────────────────────────────── */
 
     app.get("/financas/fluxo-caixa", async (request, reply) => {
-      const ctx = await exigirFinancas(contexto, request, reply, "equipa:ler");
+      const ctx = await exigirFinancas(contexto, request, reply, "financas:leitura");
       if (!ctx) return;
 
       const filtros = FiltrosPeriodoSchema.parse(request.query ?? {});
@@ -232,7 +232,7 @@ export const moduloFinancas: ModuloHttp = {
     /* ── DRE ─────────────────────────────────────────────────── */
 
     app.get("/financas/dre", async (request, reply) => {
-      const ctx = await exigirFinancas(contexto, request, reply, "equipa:ler");
+      const ctx = await exigirFinancas(contexto, request, reply, "financas:leitura");
       if (!ctx) return;
 
       const { mes, ano } = MesAnoSchema.parse(request.query ?? {});
@@ -243,7 +243,7 @@ export const moduloFinancas: ModuloHttp = {
     /* ── Despesas ─────────────────────────────────────────────── */
 
     app.get("/financas/despesas", async (request, reply) => {
-      const ctx = await exigirFinancas(contexto, request, reply, "equipa:ler");
+      const ctx = await exigirFinancas(contexto, request, reply, "financas:leitura");
       if (!ctx) return;
 
       const filtros = FiltrosDespesaSchema.parse(request.query ?? {});
@@ -252,7 +252,7 @@ export const moduloFinancas: ModuloHttp = {
     });
 
     app.post("/financas/despesas", async (request, reply) => {
-      const ctx = await exigirFinancas(contexto, request, reply, "equipa:gestao");
+      const ctx = await exigirFinancas(contexto, request, reply, "financas:escrita");
       if (!ctx) return;
 
       const dados = CriarDespesaSchema.parse(request.body ?? {});
@@ -261,7 +261,7 @@ export const moduloFinancas: ModuloHttp = {
     });
 
     app.post("/financas/despesas/:id/pagar", async (request, reply) => {
-      const ctx = await exigirFinancas(contexto, request, reply, "equipa:gestao");
+      const ctx = await exigirFinancas(contexto, request, reply, "financas:escrita");
       if (!ctx) return;
 
       const { id } = ParamIdSchema.parse(request.params);
@@ -272,7 +272,7 @@ export const moduloFinancas: ModuloHttp = {
     /* ── Contas a Receber ─────────────────────────────────────── */
 
     app.get("/financas/contas-receber", async (request, reply) => {
-      const ctx = await exigirFinancas(contexto, request, reply, "equipa:ler");
+      const ctx = await exigirFinancas(contexto, request, reply, "financas:leitura");
       if (!ctx) return;
 
       const filtros = FiltrosEstadoSchema.parse(request.query ?? {});
@@ -281,7 +281,7 @@ export const moduloFinancas: ModuloHttp = {
     });
 
     app.post("/financas/contas-receber", async (request, reply) => {
-      const ctx = await exigirFinancas(contexto, request, reply, "equipa:gestao");
+      const ctx = await exigirFinancas(contexto, request, reply, "financas:escrita");
       if (!ctx) return;
 
       const dados = CriarContaReceberSchema.parse(request.body ?? {});
@@ -290,7 +290,7 @@ export const moduloFinancas: ModuloHttp = {
     });
 
     app.get("/financas/contas-receber/aging", async (request, reply) => {
-      const ctx = await exigirFinancas(contexto, request, reply, "equipa:ler");
+      const ctx = await exigirFinancas(contexto, request, reply, "financas:leitura");
       if (!ctx) return;
 
       const aging = await contexto.gestaoFinancas.obterAgingReceber(ctx.negocio.id);
@@ -298,7 +298,7 @@ export const moduloFinancas: ModuloHttp = {
     });
 
     app.post("/financas/contas-receber/:id/receber", async (request, reply) => {
-      const ctx = await exigirFinancas(contexto, request, reply, "equipa:gestao");
+      const ctx = await exigirFinancas(contexto, request, reply, "financas:escrita");
       if (!ctx) return;
 
       const { id } = ParamIdSchema.parse(request.params);
@@ -310,7 +310,7 @@ export const moduloFinancas: ModuloHttp = {
     /* ── Contas a Pagar ───────────────────────────────────────── */
 
     app.get("/financas/contas-pagar", async (request, reply) => {
-      const ctx = await exigirFinancas(contexto, request, reply, "equipa:ler");
+      const ctx = await exigirFinancas(contexto, request, reply, "financas:leitura");
       if (!ctx) return;
 
       const filtros = FiltrosEstadoSchema.parse(request.query ?? {});
@@ -319,7 +319,7 @@ export const moduloFinancas: ModuloHttp = {
     });
 
     app.post("/financas/contas-pagar", async (request, reply) => {
-      const ctx = await exigirFinancas(contexto, request, reply, "equipa:gestao");
+      const ctx = await exigirFinancas(contexto, request, reply, "financas:escrita");
       if (!ctx) return;
 
       const dados = CriarContaPagarSchema.parse(request.body ?? {});
@@ -328,7 +328,7 @@ export const moduloFinancas: ModuloHttp = {
     });
 
     app.post("/financas/contas-pagar/:id/pagar", async (request, reply) => {
-      const ctx = await exigirFinancas(contexto, request, reply, "equipa:gestao");
+      const ctx = await exigirFinancas(contexto, request, reply, "financas:escrita");
       if (!ctx) return;
 
       const { id } = ParamIdSchema.parse(request.params);
@@ -339,7 +339,7 @@ export const moduloFinancas: ModuloHttp = {
     /* ── Facturação ───────────────────────────────────────────── */
 
     app.get("/financas/facturas", async (request, reply) => {
-      const ctx = await exigirFinancas(contexto, request, reply, "equipa:ler");
+      const ctx = await exigirFinancas(contexto, request, reply, "financas:leitura");
       if (!ctx) return;
 
       const filtros = FiltrosFacturaSchema.parse(request.query ?? {});
@@ -348,7 +348,7 @@ export const moduloFinancas: ModuloHttp = {
     });
 
     app.post("/financas/facturas", async (request, reply) => {
-      const ctx = await exigirFinancas(contexto, request, reply, "equipa:gestao");
+      const ctx = await exigirFinancas(contexto, request, reply, "financas:escrita");
       if (!ctx) return;
 
       const dados = EmitirFacturaSchema.parse(request.body ?? {});
@@ -357,7 +357,7 @@ export const moduloFinancas: ModuloHttp = {
     });
 
     app.get("/financas/facturas/:id", async (request, reply) => {
-      const ctx = await exigirFinancas(contexto, request, reply, "equipa:ler");
+      const ctx = await exigirFinancas(contexto, request, reply, "financas:leitura");
       if (!ctx) return;
 
       const { id } = ParamIdSchema.parse(request.params);
@@ -367,7 +367,7 @@ export const moduloFinancas: ModuloHttp = {
     });
 
     app.post("/financas/facturas/:id/anular", async (request, reply) => {
-      const ctx = await exigirFinancas(contexto, request, reply, "equipa:gestao");
+      const ctx = await exigirFinancas(contexto, request, reply, "financas:aprovacao");
       if (!ctx) return;
 
       const { id } = ParamIdSchema.parse(request.params);
@@ -377,7 +377,7 @@ export const moduloFinancas: ModuloHttp = {
     });
 
     app.get("/financas/facturas/:id/pdf", async (request, reply) => {
-      const ctx = await exigirFinancas(contexto, request, reply, "equipa:ler");
+      const ctx = await exigirFinancas(contexto, request, reply, "financas:leitura");
       if (!ctx) return;
 
       const { id } = ParamIdSchema.parse(request.params);
@@ -392,7 +392,7 @@ export const moduloFinancas: ModuloHttp = {
     /* ── Notas de Crédito ────────────────────────────────────── */
 
     app.post("/financas/notas-credito", async (request, reply) => {
-      const ctx = await exigirFinancas(contexto, request, reply, "equipa:gestao");
+      const ctx = await exigirFinancas(contexto, request, reply, "financas:escrita");
       if (!ctx) return;
 
       const dados = EmitirNotaCreditoSchema.parse(request.body ?? {});
@@ -403,7 +403,7 @@ export const moduloFinancas: ModuloHttp = {
     /* ── Recibos de Pagamento ───────────────────────────────── */
 
     app.post("/financas/recibos", async (request, reply) => {
-      const ctx = await exigirFinancas(contexto, request, reply, "equipa:gestao");
+      const ctx = await exigirFinancas(contexto, request, reply, "financas:escrita");
       if (!ctx) return;
 
       const dados = GerarReciboSchema.parse(request.body ?? {});
@@ -418,7 +418,7 @@ export const moduloFinancas: ModuloHttp = {
     /* ── Alertas de Pagamentos ───────────────────────────────── */
 
     app.get("/financas/alertas-pagamentos", async (request, reply) => {
-      const ctx = await exigirFinancas(contexto, request, reply, "equipa:ler");
+      const ctx = await exigirFinancas(contexto, request, reply, "financas:leitura");
       if (!ctx) return;
 
       const resultado = await contexto.gestaoFinancas.obterAlertasPagamentos(ctx.negocio.id);
@@ -428,7 +428,7 @@ export const moduloFinancas: ModuloHttp = {
     /* ── Despesas Recorrentes ─────────────────────────────────── */
 
     app.post("/financas/despesas-recorrentes/processar", async (request, reply) => {
-      const ctx = await exigirFinancas(contexto, request, reply, "equipa:gestao");
+      const ctx = await exigirFinancas(contexto, request, reply, "financas:escrita");
       if (!ctx) return;
 
       const resultado = await contexto.gestaoFinancas.processarDespesasRecorrentes(ctx.negocio.id);
@@ -438,7 +438,7 @@ export const moduloFinancas: ModuloHttp = {
     /* ── Cobrança Automática (RF-T029) ──────────────────────── */
 
     app.post("/financas/cobrancas/gerar", async (request, reply) => {
-      const ctx = await exigirFinancas(contexto, request, reply, "equipa:gestao");
+      const ctx = await exigirFinancas(contexto, request, reply, "financas:escrita");
       if (!ctx) return;
 
       const resultado = await contexto.gestaoFinancas.gerarCobrancasVencidas(ctx.negocio.id);
@@ -448,7 +448,7 @@ export const moduloFinancas: ModuloHttp = {
     /* ── Taxa de Inadimplência (RF-T030) ─────────────────────── */
 
     app.get("/financas/inadimplencia", async (request, reply) => {
-      const ctx = await exigirFinancas(contexto, request, reply, "equipa:ler");
+      const ctx = await exigirFinancas(contexto, request, reply, "financas:leitura");
       if (!ctx) return;
 
       const filtros = z.object({
@@ -463,7 +463,7 @@ export const moduloFinancas: ModuloHttp = {
     /* ── Risco de Inadimplência (RF-T031) ───────────────────── */
 
     app.get("/financas/risco-inadimplencia", async (request, reply) => {
-      const ctx = await exigirFinancas(contexto, request, reply, "equipa:ler");
+      const ctx = await exigirFinancas(contexto, request, reply, "financas:leitura");
       if (!ctx) return;
 
       const resultado = await contexto.gestaoFinancas.calcularRiscoInadimplencia(ctx.negocio.id);
@@ -473,7 +473,7 @@ export const moduloFinancas: ModuloHttp = {
     /* ── Priorização de Pagamentos (RF-T033) ─────────────────── */
 
     app.get("/financas/pagamentos/priorizacao", async (request, reply) => {
-      const ctx = await exigirFinancas(contexto, request, reply, "equipa:ler");
+      const ctx = await exigirFinancas(contexto, request, reply, "financas:leitura");
       if (!ctx) return;
 
       const resultado = await contexto.gestaoFinancas.priorizarPagamentos(ctx.negocio.id);
@@ -483,7 +483,7 @@ export const moduloFinancas: ModuloHttp = {
     /* ── Fecho de Período (RN-T004) ─────────────────────────── */
 
     app.post("/financas/fechar-periodo", async (request, reply) => {
-      const ctx = await exigirFinancas(contexto, request, reply, "equipa:gestao");
+      const ctx = await exigirFinancas(contexto, request, reply, "financas:aprovacao");
       if (!ctx) return;
 
       const { mes, ano } = MesAnoSchema.parse(request.body ?? {});
@@ -494,7 +494,7 @@ export const moduloFinancas: ModuloHttp = {
     /* ── Validar Desconto (RN-T005) ──────────────────────────── */
 
     app.post("/financas/validar-desconto", async (request, reply) => {
-      const ctx = await exigirFinancas(contexto, request, reply, "equipa:ler");
+      const ctx = await exigirFinancas(contexto, request, reply, "financas:aprovacao");
       if (!ctx) return;
 
       const dados = ValidarDescontoSchema.parse(request.body ?? {});
@@ -509,7 +509,7 @@ export const moduloFinancas: ModuloHttp = {
     /* ── Reembolso (RN-T006) ─────────────────────────────────── */
 
     app.post("/financas/reembolsos", async (request, reply) => {
-      const ctx = await exigirFinancas(contexto, request, reply, "equipa:gestao");
+      const ctx = await exigirFinancas(contexto, request, reply, "financas:escrita");
       if (!ctx) return;
 
       const dados = RegistarReembolsoSchema.parse(request.body ?? {});
@@ -523,7 +523,7 @@ export const moduloFinancas: ModuloHttp = {
     /* ── Movimento Multi-Moeda (RN-T007) ─────────────────────── */
 
     app.post("/financas/movimentos/multi-moeda", async (request, reply) => {
-      const ctx = await exigirFinancas(contexto, request, reply, "equipa:gestao");
+      const ctx = await exigirFinancas(contexto, request, reply, "financas:escrita");
       if (!ctx) return;
 
       const dados = MovimentoMultiMoedaSchema.parse(request.body ?? {});
@@ -537,7 +537,7 @@ export const moduloFinancas: ModuloHttp = {
     /* ── Orçamento ────────────────────────────────────────────── */
 
     app.put("/financas/orcamento", async (request, reply) => {
-      const ctx = await exigirFinancas(contexto, request, reply, "equipa:gestao");
+      const ctx = await exigirFinancas(contexto, request, reply, "financas:escrita");
       if (!ctx) return;
 
       const dados = OrcamentoSchema.parse(request.body ?? {});
@@ -546,7 +546,7 @@ export const moduloFinancas: ModuloHttp = {
     });
 
     app.get("/financas/orcamento/comparativo", async (request, reply) => {
-      const ctx = await exigirFinancas(contexto, request, reply, "equipa:ler");
+      const ctx = await exigirFinancas(contexto, request, reply, "financas:leitura");
       if (!ctx) return;
 
       const { mes, ano } = MesAnoSchema.parse(request.query ?? {});

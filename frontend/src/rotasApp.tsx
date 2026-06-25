@@ -1,5 +1,6 @@
 import {
   BadgeDollarSign,
+  Brain,
   Calendar,
   CheckSquare,
   ClipboardList,
@@ -60,6 +61,7 @@ import { PaginaSequencias } from "./paginas/Sequencias";
 import { PaginaCampanhas } from "./paginas/Campanhas";
 import { PaginaEquipa } from "./paginas/Equipa";
 import { PaginaFinancas } from "./paginas/Financas";
+import { PaginaInteligencia } from "./paginas/Inteligencia";
 import { PaginaSocialInbox } from "./paginas/SocialInbox";
 import { PaginaDiagnosticos } from "./paginas/Diagnosticos";
 import { PaginaAuditoria } from "./paginas/Auditoria";
@@ -141,6 +143,7 @@ export const rotasComerciais: RotaPrivada[] = [
   { caminho: "/app/relatorios", icone: <LineChart size={20} />, rotulo: "Desempenho", secao: "Gestão", elemento: <PaginaRelatorios /> },
   { caminho: "/app/equipa", icone: <UsersRound size={20} />, rotulo: "Equipa", secao: "Gestão", elemento: <PaginaEquipa /> },
   { caminho: "/app/financas", icone: <Wallet size={20} />, rotulo: "Finanças", secao: "Gestão", elemento: <PaginaFinancas /> },
+  { caminho: "/app/inteligencia", icone: <Brain size={20} />, rotulo: "Inteligência", secao: "Gestão", elemento: <PaginaInteligencia /> },
   { caminho: "/app/pagamentos", icone: <CreditCard size={20} />, rotulo: "Pagamentos", secao: "Gestão", elemento: <PaginaPagamentos /> },
   { caminho: "/app/administracao", icone: <Settings size={20} />, rotulo: "Administração", secao: "Gestão", elemento: <PaginaAdministracao /> }
 ];

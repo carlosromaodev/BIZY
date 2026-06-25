@@ -391,19 +391,19 @@ O BIZY CRM+ possui 20 módulos HTTP, 55 modelos Prisma e 44 use cases cobrindo:
 
 ### 6.3 Segurança
 
-- [ ] [RNF-T009] Os dados financeiros devem ser cifrados em repouso e em trânsito (AES-256 / TLS 1.3).
-- [ ] [RNF-T010] O acesso a funcionalidades financeiras deve exigir permissão explícita (`financas:leitura`, `financas:escrita`, `financas:aprovacao`).
-- [ ] [RNF-T011] Todas as operações financeiras (criação, edição, aprovação, cancelamento de factura/despesa/recebimento) devem ser auditadas com utilizador, timestamp e diff.
-- [ ] [RNF-T012] Os modelos preditivos não devem expor dados de um negócio a outro (isolamento estrito multi-tenant).
-- [ ] [RNF-T013] As credenciais de integração (WhatsApp, e-invoicing, bancário) devem ser armazenadas cifradas com referência segura, nunca em plaintext.
+- [ ] [RNF-T009] Os dados financeiros devem ser cifrados em repouso e em trânsito (AES-256 / TLS 1.3). *(parcial: TLS via reverse proxy em produção; cifra de credenciais AES-256-GCM implementada; Postgres sem SSL explícito em dev)*
+- [x] [RNF-T010] O acesso a funcionalidades financeiras deve exigir permissão explícita (`financas:leitura`, `financas:escrita`, `financas:aprovacao`). *(permissões específicas adicionadas a DONO/ADMIN/FINANCEIRO; todos os endpoints financas.ts migrados de equipa:ler/gestao para financas:leitura/escrita/aprovacao; anulação e fecho de período exigem financas:aprovacao)*
+- [x] [RNF-T011] Todas as operações financeiras (criação, edição, aprovação, cancelamento de factura/despesa/recebimento) devem ser auditadas com utilizador, timestamp e diff. *(GestaoFinancasUseCase emite eventos FINANCAS_MOVIMENTO_CRIADO, FINANCAS_FACTURA_EMITIDA/ANULADA, FINANCAS_DESPESA_CRIADA/PAGA, FINANCAS_CONTA_RECEBIDA/PAGA, FINANCAS_NOTA_CREDITO_EMITIDA, FINANCAS_REEMBOLSO_REGISTADO, FINANCAS_PERIODO_FECHADO via DespachadorEventos → AuditoriaEventosUseCase persiste com responsavelId e timestamp)*
+- [x] [RNF-T012] Os modelos preditivos não devem expor dados de um negócio a outro (isolamento estrito multi-tenant). *(todas as queries filtram por negocioId)*
+- [x] [RNF-T013] As credenciais de integração (WhatsApp, e-invoicing, bancário) devem ser armazenadas cifradas com referência segura, nunca em plaintext. *(cifraCredenciais.ts usa AES-256-GCM com scrypt; apiKey WhatsApp cifrada ao criar instância e decifrada ao ler em GestaoWhatsAppEvolutionUseCase; chave derivada de CREDENCIAIS_ENCRYPTION_KEY env)*
 
 ### 6.4 Usabilidade
 
-- [ ] [RNF-T014] A interface financeira deve ser compreensível por utilizadores sem formação contabilística, usando linguagem operacional em vez de técnica.
-- [ ] [RNF-T015] Os insights preditivos devem ser apresentados com linguagem natural e acções sugeridas, não apenas números.
-- [ ] [RNF-T016] O sistema deve funcionar em dispositivos móveis com a mesma completude funcional dos módulos core.
-- [ ] [RNF-T017] A navegação entre contextos (departamento, projecto, visão global) deve ser possível em no máximo 2 cliques.
-- [ ] [RNF-T018] Os dashboards devem adaptar-se ao papel do utilizador sem necessidade de configuração manual inicial.
+- [x] [RNF-T014] A interface financeira deve ser compreensível por utilizadores sem formação contabilística, usando linguagem operacional em vez de técnica. *(usa "Fluxo de caixa", "Despesas", "Facturas", "Contas a receber/pagar" — sem termos técnicos)*
+- [x] [RNF-T015] Os insights preditivos devem ser apresentados com linguagem natural e acções sugeridas, não apenas números. *(página Inteligencia.tsx com insights (título, descrição, acção sugerida, nível confiança), previsão fluxo caixa, anomalias detectadas, alertas churn VIP; feedback aceitar/rejeitar por insight; rota /app/inteligencia na secção Gestão)*
+- [x] [RNF-T016] O sistema deve funcionar em dispositivos móveis com a mesma completude funcional dos módulos core. *(Shell mobile-first com Sheet menu, estados menuMobileAberto, layout responsivo)*
+- [x] [RNF-T017] A navegação entre contextos (departamento, projecto, visão global) deve ser possível em no máximo 2 cliques. *(tabs primárias no Shell + drawer Módulos com secções agrupadas; qualquer módulo acessível em 2 cliques: Módulos → item)*
+- [x] [RNF-T018] Os dashboards devem adaptar-se ao papel do utilizador sem necessidade de configuração manual inicial. *(Painel.tsx adapta KPIs e acções ao papel: DONO/ADMIN vê tudo; VENDEDOR sem receita detalhada; FINANCEIRO sem conversas/live; ATENDENTE sem stock/receita; ENTREGADOR vê apenas envios; Shell filtra rotas por modulosAtivos)*
 
 ### 6.5 Disponibilidade e Resiliência
 

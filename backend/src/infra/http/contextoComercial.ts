@@ -34,7 +34,10 @@ const PERMISSOES_POR_PAPEL: Record<string, string[]> = {
     "pedidos:cancelar",
     "clientes:exportar",
     "equipa:ler",
-    "equipa:gestao"
+    "equipa:gestao",
+    "financas:leitura",
+    "financas:escrita",
+    "financas:aprovacao"
   ],
   ADMIN: [
     "negocio:gerir",
@@ -57,11 +60,14 @@ const PERMISSOES_POR_PAPEL: Record<string, string[]> = {
     "pedidos:cancelar",
     "clientes:exportar",
     "equipa:ler",
-    "equipa:gestao"
+    "equipa:gestao",
+    "financas:leitura",
+    "financas:escrita",
+    "financas:aprovacao"
   ],
   VENDEDOR: ["catalogo:ler", "clientes:ler", "pedidos:gerir", "conversas:gerir", "tarefas:gerir", "relatorios:ver", "tracking:ler", "social-inbox:gerir", "automacoes:ler", "funil:gerir", "equipa:ler"],
   ATENDENTE: ["clientes:ler", "pedidos:ler", "conversas:gerir", "tarefas:gerir", "social-inbox:gerir", "automacoes:ler", "funil:gerir", "equipa:ler"],
-  FINANCEIRO: ["clientes:ler", "pedidos:ler", "pagamentos:gerir", "descontos:aprovar", "relatorios:ver", "equipa:ler"],
+  FINANCEIRO: ["clientes:ler", "pedidos:ler", "pagamentos:gerir", "descontos:aprovar", "relatorios:ver", "equipa:ler", "financas:leitura", "financas:escrita", "financas:aprovacao"],
   ENTREGADOR: ["pedidos:ler", "entregas:gerir"],
   AFILIADO: ["afiliados:ver", "relatorios:ver"],
   CRIADOR: ["afiliados:ver", "relatorios:ver"]

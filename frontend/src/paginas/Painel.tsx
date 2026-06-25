@@ -91,6 +91,16 @@ export function PaginaPainel() {
   const [tarefas, setTarefas] = useState<TarefaOperacional[]>([]);
   const [carregandoInicial, setCarregandoInicial] = useState(true);
   const usuario = obterUsuario();
+  const papel = (usuario?.papel ?? "DONO").toUpperCase();
+
+  /* ── Visibilidade por papel ─────────────────────────────────── */
+  const eGestor = ["DONO", "ADMIN"].includes(papel);
+  const verReceita = eGestor || papel === "FINANCEIRO";
+  const verConversas = eGestor || ["VENDEDOR", "ATENDENTE"].includes(papel);
+  const verStock = eGestor || ["VENDEDOR", "FINANCEIRO"].includes(papel);
+  const verLive = eGestor || papel === "VENDEDOR";
+  const verTarefas = papel !== "ENTREGADOR";
+  const verGrafico = verReceita;
 
   /* ── Derived data ──────────────────────────────────────────── */
 
@@ -287,16 +297,18 @@ export function PaginaPainel() {
 
         {/* ── KPI Strip ─────────────────────────────────────── */}
         <div className="team-kstrip">
-          <div className="team-kbig">
-            <div className="team-kbig-label">Receita reservada hoje</div>
-            <div className="team-kbig-value">
-              {formatarKwanza(receitaReservada).replace(" Kz", "")}
-              <span className="team-kbig-unit">Kz</span>
+          {verReceita && (
+            <div className="team-kbig">
+              <div className="team-kbig-label">Receita reservada hoje</div>
+              <div className="team-kbig-value">
+                {formatarKwanza(receitaReservada).replace(" Kz", "")}
+                <span className="team-kbig-unit">Kz</span>
+              </div>
+              <span className="team-kbig-delta">
+                {resumo.reservasPagas}/{resumo.reservasCriadas || 0} pagas
+              </span>
             </div>
-            <span className="team-kbig-delta">
-              {resumo.reservasPagas}/{resumo.reservasCriadas || 0} pagas
-            </span>
-          </div>
+          )}
           <div className="team-kcard">
             <div className="team-kcard-label">
               <ShoppingBag size={14} />
@@ -317,16 +329,30 @@ export function PaginaPainel() {
               {aguardandoPagamento > 0 ? "comprovativos pendentes" : "tudo confirmado"}
             </div>
           </div>
-          <div className="team-kcard">
-            <div className="team-kcard-label">
-              <AlertTriangle size={14} />
-              Stock em risco
+          {verStock && (
+            <div className="team-kcard">
+              <div className="team-kcard-label">
+                <AlertTriangle size={14} />
+                Stock em risco
+              </div>
+              <div className="team-kcard-value">{produtosStockBaixo}</div>
+              <div className="team-kcard-delta" data-bad={produtosStockBaixo > 0 ? "true" : undefined}>
+                {produtosStockBaixo > 0 ? `${produtosStockBaixo} com ≤ 2 un.` : "stock OK"}
+              </div>
             </div>
-            <div className="team-kcard-value">{produtosStockBaixo}</div>
-            <div className="team-kcard-delta" data-bad={produtosStockBaixo > 0 ? "true" : undefined}>
-              {produtosStockBaixo > 0 ? `${produtosStockBaixo} com ≤ 2 un.` : "stock OK"}
+          )}
+          {verConversas && (
+            <div className="team-kcard">
+              <div className="team-kcard-label">
+                <MessageSquare size={14} />
+                Sem resposta
+              </div>
+              <div className="team-kcard-value">{conversasSemResposta}</div>
+              <div className="team-kcard-delta" data-warn={conversasSemResposta > 0 ? "true" : undefined}>
+                {conversasSemResposta > 0 ? "mensagens pendentes" : "tudo respondido"}
+              </div>
             </div>
-          </div>
+          )}
         </div>
 
         {/* ── Acções prioritárias ──────────────────────────── */}
@@ -334,20 +360,22 @@ export function PaginaPainel() {
           <span>O que fazer agora</span>
         </div>
         <div className="team-ftiles">
-          <Link
-            to="/app/reservas?filtro=a-cobrar"
-            className="team-ftile"
-            data-active={aguardandoPagamento > 0 ? "true" : undefined}
-          >
-            <span className="team-ftile-icon" style={{ background: "var(--em-tint)", color: "var(--em)" }}>
-              <Coins size={17} />
-            </span>
-            <div>
-              <div className="team-ftile-title">Cobranças</div>
-              <div className="team-ftile-desc">a aguardar</div>
-            </div>
-            <span className="team-ftile-count">{aguardandoPagamento}</span>
-          </Link>
+          {verReceita && (
+            <Link
+              to="/app/reservas?filtro=a-cobrar"
+              className="team-ftile"
+              data-active={aguardandoPagamento > 0 ? "true" : undefined}
+            >
+              <span className="team-ftile-icon" style={{ background: "var(--em-tint)", color: "var(--em)" }}>
+                <Coins size={17} />
+              </span>
+              <div>
+                <div className="team-ftile-title">Cobranças</div>
+                <div className="team-ftile-desc">a aguardar</div>
+              </div>
+              <span className="team-ftile-count">{aguardandoPagamento}</span>
+            </Link>
+          )}
           <Link to="/app/reservas?filtro=enviados" className="team-ftile" data-active={entregasPendentes > 0 ? "true" : undefined}>
             <span className="team-ftile-icon" style={{ background: "var(--blue-tint)", color: "var(--blue)" }}>
               <Truck size={17} />
@@ -358,40 +386,46 @@ export function PaginaPainel() {
             </div>
             <span className="team-ftile-count">{entregasPendentes}</span>
           </Link>
-          <Link to="/app/conversas" className="team-ftile" data-active={conversasSemResposta > 0 ? "true" : undefined}>
-            <span className="team-ftile-icon" style={{ background: "var(--violet-tint)", color: "var(--violet)" }}>
-              <MessageSquare size={17} />
-            </span>
-            <div>
-              <div className="team-ftile-title">Mensagens</div>
-              <div className="team-ftile-desc">sem resposta</div>
-            </div>
-            <span className="team-ftile-count">{conversasSemResposta}</span>
-          </Link>
-          <Link to="/app/catalogo" className="team-ftile" data-active={produtosStockBaixo > 0 ? "true" : undefined}>
-            <span className="team-ftile-icon" style={{ background: "var(--amber-tint)", color: "var(--amber)" }}>
-              <Tag size={17} />
-            </span>
-            <div>
-              <div className="team-ftile-title">Produtos</div>
-              <div className="team-ftile-desc">stock baixo</div>
-            </div>
-            <span className="team-ftile-count">{produtosStockBaixo}</span>
-          </Link>
-          <Link to="/app/live" className="team-ftile" data-active={liveAtual ? "true" : undefined}>
-            <span className="team-ftile-icon" style={{ background: "var(--rose-tint)", color: "var(--rose)" }}>
-              <Video size={17} />
-            </span>
-            <div>
-              <div className="team-ftile-title">Live</div>
-              <div className="team-ftile-desc">{liveAtual ? liveAtual.username : "sem live"}</div>
-            </div>
-            <span className="team-ftile-count">{reservasLive}</span>
-          </Link>
+          {verConversas && (
+            <Link to="/app/conversas" className="team-ftile" data-active={conversasSemResposta > 0 ? "true" : undefined}>
+              <span className="team-ftile-icon" style={{ background: "var(--violet-tint)", color: "var(--violet)" }}>
+                <MessageSquare size={17} />
+              </span>
+              <div>
+                <div className="team-ftile-title">Mensagens</div>
+                <div className="team-ftile-desc">sem resposta</div>
+              </div>
+              <span className="team-ftile-count">{conversasSemResposta}</span>
+            </Link>
+          )}
+          {verStock && (
+            <Link to="/app/catalogo" className="team-ftile" data-active={produtosStockBaixo > 0 ? "true" : undefined}>
+              <span className="team-ftile-icon" style={{ background: "var(--amber-tint)", color: "var(--amber)" }}>
+                <Tag size={17} />
+              </span>
+              <div>
+                <div className="team-ftile-title">Produtos</div>
+                <div className="team-ftile-desc">stock baixo</div>
+              </div>
+              <span className="team-ftile-count">{produtosStockBaixo}</span>
+            </Link>
+          )}
+          {verLive && (
+            <Link to="/app/live" className="team-ftile" data-active={liveAtual ? "true" : undefined}>
+              <span className="team-ftile-icon" style={{ background: "var(--rose-tint)", color: "var(--rose)" }}>
+                <Video size={17} />
+              </span>
+              <div>
+                <div className="team-ftile-title">Live</div>
+                <div className="team-ftile-desc">{liveAtual ? liveAtual.username : "sem live"}</div>
+              </div>
+              <span className="team-ftile-count">{reservasLive}</span>
+            </Link>
+          )}
         </div>
 
         {/* ── Tarefas do dia ─────────────────────────────────── */}
-        {tarefasAbertas.length > 0 && (
+        {verTarefas && tarefasAbertas.length > 0 && (
           <div className="cd-tarefas">
             <div className="cd-tarefas-head">
               <span className="cd-tarefas-titulo">Tarefas abertas</span>
@@ -485,7 +519,7 @@ export function PaginaPainel() {
           </div>
 
           {/* Gráfico semanal */}
-          <div className="team-chartcard">
+          {verGrafico && <div className="team-chartcard">
             <div className="team-chartcard-head">
               <span className="team-chartcard-title">Receita semanal</span>
               <span className="team-chartcard-sub">{formatarKwanza(totalSemana)}</span>
@@ -503,7 +537,7 @@ export function PaginaPainel() {
                 </div>
               ))}
             </div>
-          </div>
+          </div>}
         </div>
 
         {/* ── Estado geral — quando tudo está calmo ─────────── */}
