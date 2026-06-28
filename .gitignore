@@ -18,5 +18,6 @@ storage/
 .claude/
 .codex/
 .superpowers/
+.worktrees/
 *.rar
 *.docx
