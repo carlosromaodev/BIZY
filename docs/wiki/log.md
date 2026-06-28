@@ -6,10 +6,16 @@ tags:
   - bizy/wiki
   - bizy/log
 status: ativo
-updated: 2026-06-17
+updated: 2026-06-28
 ---
 
 # Log da Wiki
+
+## [2026-06-28] docs | SDD completo do Bizy
+
+- Criada a camada `docs/sdd/` para organizar o Bizy por dominios.
+- Criados processo, indice mestre, mapa de dominio, roadmap, templates, ADR inicial e 15 dominios SDD.
+- O SDD passa a conectar wiki, requisitos, specs Superpowers, planos e codigo.
 
 ## [2026-06-17] wiki | Conclusao dos MDs Market e Loja Digital
 

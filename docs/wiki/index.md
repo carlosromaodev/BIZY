@@ -7,7 +7,7 @@ tags:
   - bizy/wiki
   - bizy/indice
 status: ativo
-updated: 2026-06-17
+updated: 2026-06-28
 ---
 
 # Indice da Wiki Bizy
@@ -79,8 +79,18 @@ updated: 2026-06-17
 - [[schema|Schema da Wiki]]
 - [[log|Log da Wiki]]
 
+## SDD - Spec-Driven Development
+
+- [`docs/sdd/README.md`](../sdd/README.md)
+- [`docs/sdd/00-processo-sdd-bizy.md`](../sdd/00-processo-sdd-bizy.md)
+- [`docs/sdd/01-indice-mestre-sdd.md`](../sdd/01-indice-mestre-sdd.md)
+- [`docs/sdd/02-mapa-dominio-produto.md`](../sdd/02-mapa-dominio-produto.md)
+- [`docs/sdd/03-roadmap-sdd.md`](../sdd/03-roadmap-sdd.md)
+
 ## Planos e Specs Recentes
 
+- [`docs/superpowers/specs/2026-06-28-sdd-completo-bizy-design.md`](../superpowers/specs/2026-06-28-sdd-completo-bizy-design.md)
+- [`docs/superpowers/plans/2026-06-28-sdd-completo-bizy.md`](../superpowers/plans/2026-06-28-sdd-completo-bizy.md)
 - [`docs/superpowers/specs/2026-06-07-bizy-market-frontend-lojas-design.md`](../superpowers/specs/2026-06-07-bizy-market-frontend-lojas-design.md)
 - [`docs/superpowers/plans/2026-06-07-bizy-market-frontend-lojas.md`](../superpowers/plans/2026-06-07-bizy-market-frontend-lojas.md)
 - [`docs/superpowers/plans/2026-06-07-bizy-market-perfil-loja-backend.md`](../superpowers/plans/2026-06-07-bizy-market-perfil-loja-backend.md)
