@@ -136,6 +136,10 @@ Visitante descobre produto digital -> ve preview seguro
 ```text
 Dono/Gestor Team -> cria produto Learning
      -> define owner, preco, politica, acesso e publicacao
+     -> atribui formacao a membro, perfil, cohort ou comunidade quando aplicavel
+     -> abre cohort/turma com data, vagas, sala e replay
+     -> regista presenca e libera acesso quando a regra permitir
+     -> cria comunidade/membership com regras, moderadores, topicos e posts
      -> acompanha inscritos, receita, progresso, abandono e suporte
      -> acciona mentor, tarefa, mensagem ou campanha quando necessario
 ```
@@ -241,6 +245,13 @@ APIs iniciais:
 - `PATCH /learning/team/perfis/:id/publicacao`
 - `POST /learning/team/produtos`
 - `PATCH /learning/team/produtos/:id/publicacao`
+- `POST /learning/team/programas/:slug/atribuir`
+- `GET /learning/team/cohorts`
+- `POST /learning/team/programas/:slug/cohorts`
+- `POST /learning/team/cohorts/:id/presencas`
+- `GET /learning/team/comunidades`
+- `POST /learning/team/programas/:slug/comunidades`
+- `POST /learning/team/comunidades/:id/posts`
 - `POST /learning/checkout`
 - `POST /learning/produtos/:id/inscrever`
 - `POST /learning/entitlements/:id/revogar`

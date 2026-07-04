@@ -19,6 +19,11 @@ export type FormatoProgramaLearning =
   | "COHORT";
 export type TipoAcessoLearning = "GRATUITO" | "PAGO" | "PRIVADO" | "CONVITE" | "OBRIGATORIO";
 export type ModeloOfertaLearning = "GRATUITO" | "PAGAMENTO_UNICO" | "ASSINATURA" | "BUNDLE" | "ACESSO_MANUAL";
+export type EstadoAtribuicaoLearning = "ATIVA" | "CONCLUIDA" | "ATRASADA" | "REVOGADA";
+export type EstadoCohortLearning = "AGENDADO" | "ABERTO" | "EM_ANDAMENTO" | "CONCLUIDO" | "CANCELADO";
+export type EstadoComunidadeLearning = "ABERTA" | "PRIVADA" | "PAUSADA" | "ARQUIVADA";
+export type AcessoComunidadeLearning = "ABERTO" | "ENTITLEMENT" | "MEMBERSHIP" | "CONVITE";
+export type TipoPostComunidadeLearning = "ANUNCIO" | "PERGUNTA" | "RESPOSTA" | "MATERIAL" | "DESAFIO";
 
 export interface PerfilLearning {
   codigo: string;
@@ -189,6 +194,88 @@ export interface CertificadoLearning {
   estado: "VALIDO" | "REVOGADO";
 }
 
+export interface AtribuicaoLearning {
+  id: string;
+  programaSlug: string;
+  programaTitulo: string;
+  usuarioId?: string | null;
+  perfilAlvo?: string | null;
+  negocioId: string;
+  atribuidoPorId: string;
+  obrigatoria: boolean;
+  prazoAte?: string | null;
+  mensagem?: string | null;
+  estado: EstadoAtribuicaoLearning;
+  entitlementId?: string | null;
+  criadoEm: string;
+}
+
+export interface CohortLearning {
+  id: string;
+  programaSlug: string;
+  programaTitulo: string;
+  titulo: string;
+  estado: EstadoCohortLearning;
+  inicioEm?: string | null;
+  fimEm?: string | null;
+  vagas?: number | null;
+  inscritos: number;
+  presencas: number;
+  salaUrl?: string | null;
+  replayUrl?: string | null;
+  replayDisponivel: boolean;
+  regrasEntrada: string;
+  mensagem?: string | null;
+  criadoPorId: string;
+  criadoEm: string;
+}
+
+export interface PresencaCohortLearning {
+  id: string;
+  cohortId: string;
+  programaSlug: string;
+  usuarioId: string;
+  presente: boolean;
+  notas?: string | null;
+  entitlementId?: string | null;
+  registradoPorId: string;
+  registradoEm: string;
+}
+
+export interface PostComunidadeLearning {
+  id: string;
+  comunidadeId: string;
+  programaSlug: string;
+  tipo: TipoPostComunidadeLearning;
+  titulo?: string | null;
+  conteudo: string;
+  autorId: string;
+  autorNome: string;
+  fixado: boolean;
+  criadoEm: string;
+}
+
+export interface ComunidadeLearning {
+  id: string;
+  programaSlug: string;
+  programaTitulo: string;
+  titulo: string;
+  estado: EstadoComunidadeLearning;
+  acesso: AcessoComunidadeLearning;
+  topicos: string[];
+  regras: string;
+  moderadores: string[];
+  membrosEstimados: number;
+  membros: number;
+  posts: number;
+  anuncios: number;
+  perguntas: number;
+  ultimaAtividade?: string | null;
+  postsRecentes: PostComunidadeLearning[];
+  criadoPorId: string;
+  criadoEm: string;
+}
+
 export interface HomeLearningResposta {
   produto: string;
   tese: string;
@@ -225,10 +312,24 @@ export interface ResumoLearningTeamResposta {
     certificados: number;
     inscritos: number;
     concluidos: number;
+    atribuicoesAtivas: number;
+    formacoesObrigatorias: number;
+    atribuicoesAtrasadas: number;
+    cohortsAtivos: number;
+    vagasCohorts: number;
+    presencasCohorts: number;
+    replaysDisponiveis: number;
+    comunidadesAtivas: number;
+    postsComunidade: number;
+    anunciosComunidade: number;
+    perguntasComunidade: number;
   };
   compras: CompraLearning[];
   entitlements: EntitlementLearning[];
   certificados: CertificadoLearning[];
+  atribuicoes: AtribuicaoLearning[];
+  cohorts: CohortLearning[];
+  comunidades: ComunidadeLearning[];
   chat: ChatInternoLearning;
 }
 
@@ -280,6 +381,47 @@ export interface EnviarMensagemChatLearningInput {
   mencoes?: string[];
 }
 
+export interface AtribuirProgramaLearningInput {
+  usuarioId?: string;
+  perfilAlvo?: string;
+  obrigatoria?: boolean;
+  prazoAte?: string | null;
+  mensagem?: string;
+}
+
+export interface AbrirCohortLearningInput {
+  titulo?: string;
+  inicioEm?: string | null;
+  fimEm?: string | null;
+  vagas?: number | null;
+  salaUrl?: string | null;
+  replayUrl?: string | null;
+  replayDisponivel?: boolean;
+  regrasEntrada?: string;
+  mensagem?: string;
+}
+
+export interface RegistrarPresencaCohortLearningInput {
+  usuarioId?: string;
+  presente?: boolean;
+  notas?: string;
+}
+
+export interface CriarComunidadeLearningInput {
+  titulo?: string;
+  acesso?: AcessoComunidadeLearning;
+  topicos?: string[];
+  regras?: string;
+  moderadores?: string[];
+}
+
+export interface PublicarPostComunidadeLearningInput {
+  tipo?: TipoPostComunidadeLearning;
+  titulo?: string;
+  conteudo: string;
+  fixado?: boolean;
+}
+
 export function obterHomeLearning(): Promise<HomeLearningResposta> {
   return requisitarApi<HomeLearningResposta>("/publico/learning", {}, false);
 }
@@ -308,6 +450,64 @@ export function alterarPublicacaoLearning(
 ): Promise<{ programa: ProgramaLearning }> {
   return requisitarApi<{ programa: ProgramaLearning }>(`/learning/team/programas/${encodeURIComponent(slug)}/publicacao`, {
     method: "PATCH",
+    body: dados
+  });
+}
+
+export function atribuirProgramaLearningTeam(
+  slug: string,
+  dados: AtribuirProgramaLearningInput
+): Promise<{ atribuicao: AtribuicaoLearning; entitlement: EntitlementLearning | null; duplicado: boolean }> {
+  return requisitarApi(`/learning/team/programas/${encodeURIComponent(slug)}/atribuir`, {
+    method: "POST",
+    body: dados
+  });
+}
+
+export function listarCohortsLearningTeam(): Promise<{ cohorts: CohortLearning[] }> {
+  return requisitarApi("/learning/team/cohorts");
+}
+
+export function abrirCohortLearningTeam(
+  slug: string,
+  dados: AbrirCohortLearningInput
+): Promise<{ cohort: CohortLearning; duplicado: boolean }> {
+  return requisitarApi(`/learning/team/programas/${encodeURIComponent(slug)}/cohorts`, {
+    method: "POST",
+    body: dados
+  });
+}
+
+export function registrarPresencaCohortLearning(
+  id: string,
+  dados: RegistrarPresencaCohortLearningInput
+): Promise<{ presenca: PresencaCohortLearning; entitlement: EntitlementLearning | null; duplicado: boolean }> {
+  return requisitarApi(`/learning/team/cohorts/${encodeURIComponent(id)}/presencas`, {
+    method: "POST",
+    body: dados
+  });
+}
+
+export function listarComunidadesLearningTeam(): Promise<{ comunidades: ComunidadeLearning[] }> {
+  return requisitarApi("/learning/team/comunidades");
+}
+
+export function criarComunidadeLearningTeam(
+  slug: string,
+  dados: CriarComunidadeLearningInput
+): Promise<{ comunidade: ComunidadeLearning; duplicado: boolean }> {
+  return requisitarApi(`/learning/team/programas/${encodeURIComponent(slug)}/comunidades`, {
+    method: "POST",
+    body: dados
+  });
+}
+
+export function publicarPostComunidadeLearning(
+  id: string,
+  dados: PublicarPostComunidadeLearningInput
+): Promise<{ post: PostComunidadeLearning; duplicado: boolean }> {
+  return requisitarApi(`/learning/team/comunidades/${encodeURIComponent(id)}/posts`, {
+    method: "POST",
     body: dados
   });
 }

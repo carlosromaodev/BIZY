@@ -90,6 +90,52 @@ const RevogarEntitlementSchema = z.object({
   motivo: z.string().trim().min(3).max(300).optional()
 });
 
+const AtribuirProgramaLearningSchema = z.object({
+  usuarioId: z.string().trim().min(2).max(120).optional(),
+  perfilAlvo: z.string().trim().min(2).max(40).optional(),
+  obrigatoria: z.boolean().optional(),
+  prazoAte: z.string().trim().datetime().nullable().optional(),
+  mensagem: z.string().trim().min(3).max(500).optional()
+}).refine((dados) => Boolean(dados.usuarioId || dados.perfilAlvo), {
+  message: "Informe usuarioId ou perfilAlvo para atribuir o programa Learning."
+});
+
+const AbrirCohortLearningSchema = z.object({
+  titulo: z.string().trim().min(3).max(160).optional(),
+  inicioEm: z.string().trim().datetime().nullable().optional(),
+  fimEm: z.string().trim().datetime().nullable().optional(),
+  vagas: z.coerce.number().int().min(1).max(10_000).nullable().optional(),
+  salaUrl: z.string().trim().url().max(500).nullable().optional(),
+  replayUrl: z.string().trim().url().max(500).nullable().optional(),
+  replayDisponivel: z.boolean().optional(),
+  regrasEntrada: z.string().trim().min(3).max(500).optional(),
+  mensagem: z.string().trim().min(3).max(500).optional()
+});
+
+const RegistrarPresencaCohortLearningSchema = z.object({
+  usuarioId: z.string().trim().min(2).max(120).optional(),
+  presente: z.boolean().optional(),
+  notas: z.string().trim().min(3).max(500).optional()
+});
+
+const AcessoComunidadeLearningSchema = z.enum(["ABERTO", "ENTITLEMENT", "MEMBERSHIP", "CONVITE"]);
+const TipoPostComunidadeLearningSchema = z.enum(["ANUNCIO", "PERGUNTA", "RESPOSTA", "MATERIAL", "DESAFIO"]);
+
+const CriarComunidadeLearningSchema = z.object({
+  titulo: z.string().trim().min(3).max(160).optional(),
+  acesso: AcessoComunidadeLearningSchema.optional(),
+  topicos: z.array(z.string().trim().min(1).max(80)).max(20).optional(),
+  regras: z.string().trim().min(3).max(800).optional(),
+  moderadores: z.array(z.string().trim().min(1).max(80)).max(20).optional()
+});
+
+const PublicarPostComunidadeLearningSchema = z.object({
+  tipo: TipoPostComunidadeLearningSchema.optional(),
+  titulo: z.string().trim().min(3).max(160).optional(),
+  conteudo: z.string().trim().min(1).max(3000),
+  fixado: z.boolean().optional()
+});
+
 const QueryChatLearningSchema = z.object({
   programaSlug: z.string().trim().min(2).max(120).optional()
 });
@@ -171,6 +217,104 @@ export const moduloLearning: ModuloHttp = {
       const { slug } = ParamSlugSchema.parse(request.params);
       const dados = AlterarPublicacaoLearningSchema.parse(request.body ?? {});
       return contexto.bizyLearning.alterarPublicacao(ctx.negocio.id, ctx.usuario.id, slug, dados);
+    });
+
+    app.post("/learning/team/programas/:slug/atribuir", async (request, reply) => {
+      aplicarNoStore(reply);
+      const ctx = await exigirAcessoComercial(contexto, request, reply, {
+        permissao: "learning:administrar",
+        mensagemPermissao: "Sem permissão para atribuir formações do Bizy Learning."
+      });
+      if (!ctx) return;
+
+      const { slug } = ParamSlugSchema.parse(request.params);
+      const dados = AtribuirProgramaLearningSchema.parse(request.body ?? {});
+      const resultado = await contexto.bizyLearning.atribuirProgramaTeam(ctx.negocio.id, ctx.usuario.id, slug, dados);
+      return reply.code(resultado.duplicado ? 200 : 201).send(resultado);
+    });
+
+    app.get("/learning/team/cohorts", async (request, reply) => {
+      aplicarNoStore(reply);
+      const ctx = await exigirAcessoComercial(contexto, request, reply, {
+        permissao: "learning:ler",
+        mensagemPermissao: "Sem permissão para consultar cohorts do Bizy Learning."
+      });
+      if (!ctx) return;
+
+      return { cohorts: await contexto.bizyLearning.listarCohorts(ctx.negocio.id) };
+    });
+
+    app.post("/learning/team/programas/:slug/cohorts", async (request, reply) => {
+      aplicarNoStore(reply);
+      const ctx = await exigirAcessoComercial(contexto, request, reply, {
+        permissao: "learning:administrar",
+        mensagemPermissao: "Sem permissão para abrir cohorts do Bizy Learning."
+      });
+      if (!ctx) return;
+
+      const { slug } = ParamSlugSchema.parse(request.params);
+      const dados = AbrirCohortLearningSchema.parse(request.body ?? {});
+      const resultado = await contexto.bizyLearning.abrirCohortTeam(ctx.negocio.id, ctx.usuario.id, slug, dados);
+      return reply.code(resultado.duplicado ? 200 : 201).send(resultado);
+    });
+
+    app.post("/learning/team/cohorts/:id/presencas", async (request, reply) => {
+      aplicarNoStore(reply);
+      const ctx = await exigirAcessoComercial(contexto, request, reply, {
+        permissao: "learning:administrar",
+        mensagemPermissao: "Sem permissão para registar presença em cohorts do Bizy Learning."
+      });
+      if (!ctx) return;
+
+      const { id } = ParamIdSchema.parse(request.params);
+      const dados = RegistrarPresencaCohortLearningSchema.parse(request.body ?? {});
+      const resultado = await contexto.bizyLearning.registrarPresencaCohort(ctx.negocio.id, ctx.usuario.id, id, dados);
+      return reply.code(resultado.duplicado ? 200 : 201).send(resultado);
+    });
+
+    app.get("/learning/team/comunidades", async (request, reply) => {
+      aplicarNoStore(reply);
+      const ctx = await exigirAcessoComercial(contexto, request, reply, {
+        permissao: "learning:ler",
+        mensagemPermissao: "Sem permissão para consultar comunidades do Bizy Learning."
+      });
+      if (!ctx) return;
+
+      return { comunidades: await contexto.bizyLearning.listarComunidades(ctx.negocio.id) };
+    });
+
+    app.post("/learning/team/programas/:slug/comunidades", async (request, reply) => {
+      aplicarNoStore(reply);
+      const ctx = await exigirAcessoComercial(contexto, request, reply, {
+        permissao: "learning:administrar",
+        mensagemPermissao: "Sem permissão para criar comunidades do Bizy Learning."
+      });
+      if (!ctx) return;
+
+      const { slug } = ParamSlugSchema.parse(request.params);
+      const dados = CriarComunidadeLearningSchema.parse(request.body ?? {});
+      const resultado = await contexto.bizyLearning.criarComunidadeTeam(ctx.negocio.id, ctx.usuario.id, slug, dados);
+      return reply.code(resultado.duplicado ? 200 : 201).send(resultado);
+    });
+
+    app.post("/learning/team/comunidades/:id/posts", async (request, reply) => {
+      aplicarNoStore(reply);
+      const ctx = await exigirAcessoComercial(contexto, request, reply, {
+        permissao: "learning:ler",
+        mensagemPermissao: "Sem permissão para publicar em comunidades do Bizy Learning."
+      });
+      if (!ctx) return;
+
+      const { id } = ParamIdSchema.parse(request.params);
+      const dados = PublicarPostComunidadeLearningSchema.parse(request.body ?? {});
+      const resultado = await contexto.bizyLearning.publicarPostComunidade(
+        ctx.negocio.id,
+        ctx.usuario.id,
+        ctx.usuario.nome,
+        id,
+        dados
+      );
+      return reply.code(resultado.duplicado ? 200 : 201).send(resultado);
     });
 
     app.post("/learning/checkout", async (request, reply) => {

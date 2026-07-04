@@ -23,6 +23,11 @@ export type TipoAcessoLearning = "GRATUITO" | "PAGO" | "PRIVADO" | "CONVITE" | "
 export type ModeloOfertaLearning = "GRATUITO" | "PAGAMENTO_UNICO" | "ASSINATURA" | "BUNDLE" | "ACESSO_MANUAL";
 export type EstadoCompraLearning = "PENDENTE_VALIDACAO" | "CONFIRMADO" | "CANCELADO" | "REEMBOLSADO";
 export type EstadoEntitlementLearning = "ATIVO" | "PENDENTE" | "EXPIRADO" | "REVOGADO";
+export type EstadoAtribuicaoLearning = "ATIVA" | "CONCLUIDA" | "ATRASADA" | "REVOGADA";
+export type EstadoCohortLearning = "AGENDADO" | "ABERTO" | "EM_ANDAMENTO" | "CONCLUIDO" | "CANCELADO";
+export type EstadoComunidadeLearning = "ABERTA" | "PRIVADA" | "PAUSADA" | "ARQUIVADA";
+export type AcessoComunidadeLearning = "ABERTO" | "ENTITLEMENT" | "MEMBERSHIP" | "CONVITE";
+export type TipoPostComunidadeLearning = "ANUNCIO" | "PERGUNTA" | "RESPOSTA" | "MATERIAL" | "DESAFIO";
 
 export interface PerfilLearning {
   codigo: string;
@@ -172,6 +177,88 @@ export interface ProgressoLearning {
   concluido: boolean;
 }
 
+export interface AtribuicaoLearning {
+  id: string;
+  programaSlug: string;
+  programaTitulo: string;
+  usuarioId?: string | null;
+  perfilAlvo?: string | null;
+  negocioId: string;
+  atribuidoPorId: string;
+  obrigatoria: boolean;
+  prazoAte?: string | null;
+  mensagem?: string | null;
+  estado: EstadoAtribuicaoLearning;
+  entitlementId?: string | null;
+  criadoEm: string;
+}
+
+export interface CohortLearning {
+  id: string;
+  programaSlug: string;
+  programaTitulo: string;
+  titulo: string;
+  estado: EstadoCohortLearning;
+  inicioEm?: string | null;
+  fimEm?: string | null;
+  vagas?: number | null;
+  inscritos: number;
+  presencas: number;
+  salaUrl?: string | null;
+  replayUrl?: string | null;
+  replayDisponivel: boolean;
+  regrasEntrada: string;
+  mensagem?: string | null;
+  criadoPorId: string;
+  criadoEm: string;
+}
+
+export interface PresencaCohortLearning {
+  id: string;
+  cohortId: string;
+  programaSlug: string;
+  usuarioId: string;
+  presente: boolean;
+  notas?: string | null;
+  entitlementId?: string | null;
+  registradoPorId: string;
+  registradoEm: string;
+}
+
+export interface ComunidadeLearning {
+  id: string;
+  programaSlug: string;
+  programaTitulo: string;
+  titulo: string;
+  estado: EstadoComunidadeLearning;
+  acesso: AcessoComunidadeLearning;
+  topicos: string[];
+  regras: string;
+  moderadores: string[];
+  membrosEstimados: number;
+  membros: number;
+  posts: number;
+  anuncios: number;
+  perguntas: number;
+  ultimaAtividade?: string | null;
+  postsRecentes: PostComunidadeLearning[];
+  criadoPorId: string;
+  criadoEm: string;
+}
+
+export interface PostComunidadeLearning {
+  id: string;
+  comunidadeId: string;
+  programaSlug: string;
+  tipo: TipoPostComunidadeLearning;
+  titulo?: string | null;
+  conteudo: string;
+  autorId: string;
+  autorNome: string;
+  fixado: boolean;
+  criadoEm: string;
+}
+
 export type TipoMensagemChatLearning = "MENSAGEM" | "DECISAO" | "TAREFA" | "SUPORTE" | "ANUNCIO";
 export type ContextoChatLearning = "PROGRAMA" | "COHORT" | "COMUNIDADE" | "SUPORTE";
 
@@ -259,6 +346,47 @@ export interface EnviarMensagemChatLearningInput {
   tipo?: TipoMensagemChatLearning;
   contexto?: ContextoChatLearning;
   mencoes?: string[];
+}
+
+export interface AtribuirProgramaLearningInput {
+  usuarioId?: string;
+  perfilAlvo?: string;
+  obrigatoria?: boolean;
+  prazoAte?: string | null;
+  mensagem?: string;
+}
+
+export interface AbrirCohortLearningInput {
+  titulo?: string;
+  inicioEm?: string | null;
+  fimEm?: string | null;
+  vagas?: number | null;
+  salaUrl?: string | null;
+  replayUrl?: string | null;
+  replayDisponivel?: boolean;
+  regrasEntrada?: string;
+  mensagem?: string;
+}
+
+export interface RegistrarPresencaCohortLearningInput {
+  usuarioId?: string;
+  presente?: boolean;
+  notas?: string;
+}
+
+export interface CriarComunidadeLearningInput {
+  titulo?: string;
+  acesso?: AcessoComunidadeLearning;
+  topicos?: string[];
+  regras?: string;
+  moderadores?: string[];
+}
+
+export interface PublicarPostComunidadeLearningInput {
+  tipo?: TipoPostComunidadeLearning;
+  titulo?: string;
+  conteudo: string;
+  fixado?: boolean;
 }
 
 const TOPICO_LEARNING = "learning";
@@ -516,6 +644,9 @@ export class BizyLearningUseCase {
     const compras = await this.listarCompras(negocioId);
     const entitlements = await this.listarEntitlements(negocioId);
     const certificados = await this.listarCertificados(negocioId);
+    const atribuicoes = await this.listarAtribuicoes(negocioId);
+    const cohorts = await this.listarCohorts(negocioId);
+    const comunidades = await this.listarComunidades(negocioId);
     const progressoPorSlug = new Map(progresso.programas.map((item) => [item.programaSlug, item]));
     const papelNormalizado = papel.toUpperCase();
     const podeAdministrar = podeAdministrarLearning(papelNormalizado, permissoes);
@@ -525,6 +656,9 @@ export class BizyLearningUseCase {
       .slice(0, 4);
     const publicados = programas.filter((programa) => programa.estado === "PUBLICADO").length;
     const inscritos = progresso.programas.filter((item) => item.inscrito).length;
+    const atribuicoesVisiveis = podeAdministrar
+      ? atribuicoes
+      : atribuicoes.filter((atribuicao) => atribuicao.usuarioId === usuarioId || atribuicao.perfilAlvo === papelNormalizado);
 
     const chat = await this.listarChatInterno(negocioId, usuarioId, papel);
 
@@ -548,11 +682,25 @@ export class BizyLearningUseCase {
         entitlementsAtivos: entitlements.filter((entitlement) => entitlement.estado === "ATIVO").length,
         certificados: certificados.filter((certificado) => certificado.estado === "VALIDO").length,
         inscritos,
-        concluidos: progresso.programas.filter((item) => item.concluido).length
+        concluidos: progresso.programas.filter((item) => item.concluido).length,
+        atribuicoesAtivas: atribuicoes.filter((atribuicao) => atribuicao.estado === "ATIVA").length,
+        formacoesObrigatorias: atribuicoes.filter((atribuicao) => atribuicao.obrigatoria).length,
+        atribuicoesAtrasadas: atribuicoes.filter((atribuicao) => atribuicao.estado === "ATRASADA").length,
+        cohortsAtivos: cohorts.filter((cohort) => cohort.estado === "ABERTO" || cohort.estado === "EM_ANDAMENTO" || cohort.estado === "AGENDADO").length,
+        vagasCohorts: cohorts.reduce((total, cohort) => total + (cohort.vagas ?? 0), 0),
+        presencasCohorts: cohorts.reduce((total, cohort) => total + cohort.presencas, 0),
+        replaysDisponiveis: cohorts.filter((cohort) => cohort.replayDisponivel || cohort.replayUrl).length,
+        comunidadesAtivas: comunidades.filter((comunidade) => comunidade.estado === "ABERTA" || comunidade.estado === "PRIVADA").length,
+        postsComunidade: comunidades.reduce((total, comunidade) => total + comunidade.posts, 0),
+        anunciosComunidade: comunidades.reduce((total, comunidade) => total + comunidade.anuncios, 0),
+        perguntasComunidade: comunidades.reduce((total, comunidade) => total + comunidade.perguntas, 0)
       },
       compras: compras.slice(0, 20),
       entitlements: entitlements.filter((entitlement) => entitlement.usuarioId === usuarioId || podeAdministrar).slice(0, 50),
       certificados: certificados.filter((certificado) => certificado.usuarioId === usuarioId || podeAdministrar).slice(0, 50),
+      atribuicoes: atribuicoesVisiveis.slice(0, 50),
+      cohorts: cohorts.slice(0, 50),
+      comunidades: comunidades.slice(0, 50),
       chat
     };
   }
@@ -635,6 +783,267 @@ export class BizyLearningUseCase {
 
     return {
       programa: programaAtualizado
+    };
+  }
+
+  async atribuirProgramaTeam(negocioId: string, atribuidoPorId: string, slug: string, dados: AtribuirProgramaLearningInput) {
+    const programa = (await this.listarProgramasDoNegocio(negocioId)).find((item) => item.slug === slug);
+    if (!programa) throw new Error("Programa Learning não encontrado para atribuição.");
+    if (programa.estado !== "PUBLICADO") {
+      throw new Error("Atribuição Learning exige produto publicado para evitar acesso a conteúdo incompleto.");
+    }
+
+    const usuarioAlvo = dados.usuarioId?.trim() || null;
+    const perfilAlvo = dados.perfilAlvo?.trim().toUpperCase() || null;
+    if (!usuarioAlvo && !perfilAlvo) {
+      throw new Error("Atribuição Learning exige membro ou perfil Team alvo.");
+    }
+
+    const prazoAte = normalizarPrazoAte(dados.prazoAte);
+    const targetKey = usuarioAlvo ?? `perfil:${perfilAlvo}`;
+    const atribuicaoId = gerarIdAtribuicao(negocioId, programa.slug, targetKey, prazoAte);
+    let entitlement: EntitlementLearning | null = null;
+
+    if (usuarioAlvo) {
+      entitlement = await this.registrarEntitlement(negocioId, usuarioAlvo, programa, "TEAM", atribuicaoId);
+      await this.registrarInscricao(negocioId, usuarioAlvo, programa.slug, "ATRIBUICAO_TEAM");
+    }
+
+    const atribuicao: AtribuicaoLearning = {
+      id: atribuicaoId,
+      programaSlug: programa.slug,
+      programaTitulo: programa.titulo,
+      usuarioId: usuarioAlvo,
+      perfilAlvo,
+      negocioId,
+      atribuidoPorId,
+      obrigatoria: dados.obrigatoria ?? true,
+      prazoAte,
+      mensagem: dados.mensagem?.trim() || null,
+      estado: "ATIVA",
+      entitlementId: entitlement?.id ?? null,
+      criadoEm: new Date().toISOString()
+    };
+
+    const { evento, duplicado } = await this.eventosOperacionais.registrar({
+      negocioId,
+      topico: TOPICO_LEARNING,
+      tipo: "LEARNING_ATRIBUICAO_TEAM_CRIADA",
+      entidadeTipo: "learning_assignment",
+      entidadeId: atribuicao.id,
+      idempotencyKey: `learning:atribuicao:${atribuicao.id}`,
+      payload: { atribuicao, programaResumo: resumoFinanceiroPrograma(programa) },
+      estado: "PROCESSADO"
+    });
+
+    return {
+      atribuicao: extrairAtribuicao(evento) ?? atribuicao,
+      entitlement,
+      duplicado
+    };
+  }
+
+  async abrirCohortTeam(negocioId: string, criadoPorId: string, slug: string, dados: AbrirCohortLearningInput) {
+    const programa = (await this.listarProgramasDoNegocio(negocioId)).find((item) => item.slug === slug);
+    if (!programa) throw new Error("Programa Learning não encontrado para cohort.");
+    if (programa.estado !== "PUBLICADO") {
+      throw new Error("Cohort Learning exige produto publicado para evitar turma sem conteúdo liberado.");
+    }
+
+    const inicioEm = normalizarDataIsoOpcional(dados.inicioEm, "Início do cohort inválido.");
+    const fimEm = normalizarDataIsoOpcional(dados.fimEm, "Fim do cohort inválido.");
+    if (inicioEm && fimEm && new Date(fimEm).getTime() < new Date(inicioEm).getTime()) {
+      throw new Error("Fim do cohort não pode ser anterior ao início.");
+    }
+
+    const criadoEm = new Date().toISOString();
+    const cohort: CohortLearning = {
+      id: gerarIdCohort(negocioId, programa.slug, dados.titulo || programa.titulo, criadoEm),
+      programaSlug: programa.slug,
+      programaTitulo: programa.titulo,
+      titulo: dados.titulo?.trim() || programa.cohort?.titulo || `Turma ${programa.titulo}`,
+      estado: estadoTemporalCohort({
+        estado: inicioEm && new Date(inicioEm).getTime() > Date.now() ? "AGENDADO" : "ABERTO",
+        inicioEm,
+        fimEm
+      }).estado,
+      inicioEm,
+      fimEm,
+      vagas: typeof dados.vagas === "number" ? Math.max(1, Math.trunc(dados.vagas)) : programa.cohort?.vagas ?? null,
+      inscritos: 0,
+      presencas: 0,
+      salaUrl: dados.salaUrl?.trim() || null,
+      replayUrl: dados.replayUrl?.trim() || null,
+      replayDisponivel: dados.replayDisponivel ?? Boolean(dados.replayUrl),
+      regrasEntrada: dados.regrasEntrada?.trim() || regraEntradaPadrao(programa),
+      mensagem: dados.mensagem?.trim() || null,
+      criadoPorId,
+      criadoEm
+    };
+
+    const { evento, duplicado } = await this.eventosOperacionais.registrar({
+      negocioId,
+      topico: TOPICO_LEARNING,
+      tipo: "LEARNING_COHORT_ABERTO",
+      entidadeTipo: "learning_cohort",
+      entidadeId: cohort.id,
+      idempotencyKey: `learning:cohort:${cohort.id}`,
+      payload: { cohort, programaResumo: resumoFinanceiroPrograma(programa) },
+      estado: "PROCESSADO"
+    });
+
+    return {
+      cohort: extrairCohort(evento) ?? cohort,
+      duplicado
+    };
+  }
+
+  async registrarPresencaCohort(
+    negocioId: string,
+    registradoPorId: string,
+    cohortId: string,
+    dados: RegistrarPresencaCohortLearningInput
+  ) {
+    const cohorts = await this.listarCohorts(negocioId);
+    const cohort = cohorts.find((item) => item.id === cohortId);
+    if (!cohort) throw new Error("Cohort Learning não encontrado.");
+    if (cohort.estado === "CANCELADO") throw new Error("Não é possível registar presença em cohort cancelado.");
+
+    const usuarioAlvo = dados.usuarioId?.trim() || registradoPorId;
+    const programa = (await this.listarProgramasDoNegocio(negocioId)).find((item) => item.slug === cohort.programaSlug);
+    if (!programa) throw new Error("Programa do cohort Learning não encontrado.");
+
+    const presencasExistentes = await this.listarPresencasCohort(negocioId, cohort.id);
+    const usuariosInscritos = new Set(presencasExistentes.map((presenca) => presenca.usuarioId));
+    if (!usuariosInscritos.has(usuarioAlvo) && cohort.vagas && usuariosInscritos.size >= cohort.vagas) {
+      throw new Error("Cohort Learning atingiu o limite de vagas.");
+    }
+
+    let entitlement: EntitlementLearning | null = null;
+    if (dados.presente !== false && !(await this.temEntitlementAtivo(negocioId, usuarioAlvo, programa.slug))) {
+      entitlement = await this.registrarEntitlement(negocioId, usuarioAlvo, programa, "TEAM", `cohort:${cohort.id}`);
+      await this.registrarInscricao(negocioId, usuarioAlvo, programa.slug, "COHORT");
+    }
+
+    const registradoEm = new Date().toISOString();
+    const presenca: PresencaCohortLearning = {
+      id: gerarIdPresencaCohort(cohort.id, usuarioAlvo),
+      cohortId: cohort.id,
+      programaSlug: cohort.programaSlug,
+      usuarioId: usuarioAlvo,
+      presente: dados.presente !== false,
+      notas: dados.notas?.trim() || null,
+      entitlementId: entitlement?.id ?? null,
+      registradoPorId,
+      registradoEm
+    };
+
+    const { evento, duplicado } = await this.eventosOperacionais.registrar({
+      negocioId,
+      topico: TOPICO_LEARNING,
+      tipo: "LEARNING_COHORT_PRESENCA_REGISTADA",
+      entidadeTipo: "learning_cohort_presence",
+      entidadeId: presenca.id,
+      idempotencyKey: `learning:cohort:${cohort.id}:presenca:${usuarioAlvo}`,
+      payload: { presenca, cohortResumo: resumoCohort(cohort), programaResumo: resumoFinanceiroPrograma(programa) },
+      estado: "PROCESSADO"
+    });
+
+    return {
+      presenca: extrairPresencaCohort(evento) ?? presenca,
+      entitlement,
+      duplicado
+    };
+  }
+
+  async criarComunidadeTeam(negocioId: string, criadoPorId: string, slug: string, dados: CriarComunidadeLearningInput) {
+    const programa = (await this.listarProgramasDoNegocio(negocioId)).find((item) => item.slug === slug);
+    if (!programa) throw new Error("Programa Learning não encontrado para comunidade.");
+    if (programa.estado === "ARQUIVADO" || programa.estado === "SUSPENSO") {
+      throw new Error("Comunidade Learning não pode ser criada em produto arquivado ou suspenso.");
+    }
+
+    const titulo = dados.titulo?.trim() || programa.comunidade?.titulo || `Comunidade ${programa.titulo}`;
+    const acesso = normalizarAcessoComunidade(dados.acesso, programa);
+    const comunidade: ComunidadeLearning = {
+      id: gerarIdComunidade(negocioId, programa.slug, titulo),
+      programaSlug: programa.slug,
+      programaTitulo: programa.titulo,
+      titulo,
+      estado: acesso === "ABERTO" ? "ABERTA" : "PRIVADA",
+      acesso,
+      topicos: normalizarLista(dados.topicos, programa.comunidade?.topicos?.length ? programa.comunidade.topicos : [programa.categoria]),
+      regras: dados.regras?.trim() || regraComunidadePadrao(programa, acesso),
+      moderadores: normalizarLista(dados.moderadores, [programa.ownerPerfil, "ADMIN"]),
+      membrosEstimados: programa.comunidade?.membrosEstimados ?? 0,
+      membros: 0,
+      posts: 0,
+      anuncios: 0,
+      perguntas: 0,
+      ultimaAtividade: null,
+      postsRecentes: [],
+      criadoPorId,
+      criadoEm: new Date().toISOString()
+    };
+
+    const { evento, duplicado } = await this.eventosOperacionais.registrar({
+      negocioId,
+      topico: TOPICO_LEARNING,
+      tipo: "LEARNING_COMUNIDADE_CRIADA",
+      entidadeTipo: "learning_community",
+      entidadeId: comunidade.id,
+      idempotencyKey: `learning:comunidade:${comunidade.id}`,
+      payload: { comunidade, programaResumo: resumoFinanceiroPrograma(programa) },
+      estado: "PROCESSADO"
+    });
+
+    return {
+      comunidade: extrairComunidade(evento) ?? comunidade,
+      duplicado
+    };
+  }
+
+  async publicarPostComunidade(
+    negocioId: string,
+    autorId: string,
+    autorNome: string,
+    comunidadeId: string,
+    dados: PublicarPostComunidadeLearningInput
+  ) {
+    const comunidades = await this.listarComunidades(negocioId);
+    const comunidade = comunidades.find((item) => item.id === comunidadeId);
+    if (!comunidade) throw new Error("Comunidade Learning não encontrada.");
+    if (comunidade.estado === "PAUSADA" || comunidade.estado === "ARQUIVADA") {
+      throw new Error("Comunidade Learning pausada ou arquivada não aceita novas publicações.");
+    }
+
+    const post: PostComunidadeLearning = {
+      id: randomUUID(),
+      comunidadeId: comunidade.id,
+      programaSlug: comunidade.programaSlug,
+      tipo: normalizarTipoPostComunidade(dados.tipo),
+      titulo: dados.titulo?.trim() || null,
+      conteudo: dados.conteudo.trim(),
+      autorId,
+      autorNome: autorNome.trim() || "Membro Team",
+      fixado: dados.fixado === true,
+      criadoEm: new Date().toISOString()
+    };
+
+    const { evento, duplicado } = await this.eventosOperacionais.registrar({
+      negocioId,
+      topico: TOPICO_LEARNING,
+      tipo: "LEARNING_COMUNIDADE_POST_PUBLICADO",
+      entidadeTipo: "learning_community_post",
+      entidadeId: post.id,
+      idempotencyKey: `learning:comunidade:${comunidade.id}:post:${post.id}`,
+      payload: { post, comunidadeResumo: resumoComunidade(comunidade) },
+      estado: "PROCESSADO"
+    });
+
+    return {
+      post: extrairPostComunidade(evento) ?? post,
+      duplicado
     };
   }
 
@@ -984,6 +1393,140 @@ export class BizyLearningUseCase {
       .sort((a, b) => b.emitidoEm.localeCompare(a.emitidoEm));
   }
 
+  async listarAtribuicoes(negocioId: string): Promise<AtribuicaoLearning[]> {
+    const [eventos, programas] = await Promise.all([
+      this.eventosOperacionais.listar(negocioId, { topico: TOPICO_LEARNING, limite: 1000 }),
+      this.listarProgramasDoNegocio(negocioId)
+    ]);
+    const programasPorSlug = new Map(programas.map((programa) => [programa.slug, programa]));
+    const conclusoesPorUsuarioPrograma = new Map<string, Set<string>>();
+
+    for (const evento of eventos) {
+      if (evento.tipo !== "LEARNING_LICAO_CONCLUIDA") continue;
+      const usuarioId = String(evento.payload.usuarioId ?? "");
+      const programaSlug = String(evento.payload.programaSlug ?? "");
+      const licaoId = String(evento.payload.licaoId ?? "");
+      if (!usuarioId || !programaSlug || !licaoId) continue;
+      const chave = `${usuarioId}:${programaSlug}`;
+      const concluidas = conclusoesPorUsuarioPrograma.get(chave) ?? new Set<string>();
+      concluidas.add(licaoId);
+      conclusoesPorUsuarioPrograma.set(chave, concluidas);
+    }
+
+    const mapa = new Map<string, AtribuicaoLearning>();
+    for (const evento of eventos.reverse()) {
+      if (evento.tipo !== "LEARNING_ATRIBUICAO_TEAM_CRIADA") continue;
+      const atribuicao = extrairAtribuicao(evento);
+      if (!atribuicao) continue;
+      mapa.set(atribuicao.id, estadoTemporalAtribuicao(atribuicao, programasPorSlug, conclusoesPorUsuarioPrograma));
+    }
+
+    return [...mapa.values()].sort((a, b) => b.criadoEm.localeCompare(a.criadoEm));
+  }
+
+  async listarCohorts(negocioId: string): Promise<CohortLearning[]> {
+    const eventos = await this.eventosOperacionais.listar(negocioId, { topico: TOPICO_LEARNING, limite: 1000 });
+    const presencasPorCohort = new Map<string, PresencaCohortLearning[]>();
+
+    for (const evento of eventos) {
+      if (evento.tipo !== "LEARNING_COHORT_PRESENCA_REGISTADA") continue;
+      const presenca = extrairPresencaCohort(evento);
+      if (!presenca) continue;
+      presencasPorCohort.set(presenca.cohortId, [...(presencasPorCohort.get(presenca.cohortId) ?? []), presenca]);
+    }
+
+    return eventos
+      .filter((evento) => evento.tipo === "LEARNING_COHORT_ABERTO")
+      .map(extrairCohort)
+      .filter((cohort): cohort is CohortLearning => Boolean(cohort))
+      .map((cohort) => {
+        const presencas = presencasPorCohort.get(cohort.id) ?? [];
+        return {
+          ...estadoTemporalCohort(cohort),
+          inscritos: new Set(presencas.map((presenca) => presenca.usuarioId)).size,
+          presencas: presencas.filter((presenca) => presenca.presente).length
+        };
+      })
+      .sort((a, b) => (b.inicioEm ?? b.criadoEm).localeCompare(a.inicioEm ?? a.criadoEm));
+  }
+
+  async listarPresencasCohort(negocioId: string, cohortId: string): Promise<PresencaCohortLearning[]> {
+    const eventos = await this.eventosOperacionais.listar(negocioId, {
+      topico: TOPICO_LEARNING,
+      tipo: "LEARNING_COHORT_PRESENCA_REGISTADA",
+      limite: 1000
+    });
+    return eventos
+      .map(extrairPresencaCohort)
+      .filter((presenca): presenca is PresencaCohortLearning => Boolean(presenca))
+      .filter((presenca) => presenca.cohortId === cohortId)
+      .sort((a, b) => b.registradoEm.localeCompare(a.registradoEm));
+  }
+
+  async listarComunidades(negocioId: string): Promise<ComunidadeLearning[]> {
+    const [eventos, programas] = await Promise.all([
+      this.eventosOperacionais.listar(negocioId, { topico: TOPICO_LEARNING, limite: 1000 }),
+      this.listarProgramasDoNegocio(negocioId)
+    ]);
+    const mapa = new Map<string, ComunidadeLearning>();
+
+    for (const programa of programas) {
+      if (!programa.comunidade) continue;
+      const acesso = normalizarAcessoComunidade(undefined, programa);
+      const comunidade: ComunidadeLearning = {
+        id: gerarIdComunidade(negocioId, programa.slug, programa.comunidade.titulo),
+        programaSlug: programa.slug,
+        programaTitulo: programa.titulo,
+        titulo: programa.comunidade.titulo,
+        estado: acesso === "ABERTO" ? "ABERTA" : "PRIVADA",
+        acesso,
+        topicos: programa.comunidade.topicos,
+        regras: regraComunidadePadrao(programa, acesso),
+        moderadores: [programa.ownerPerfil, "ADMIN"],
+        membrosEstimados: programa.comunidade.membrosEstimados,
+        membros: programa.comunidade.membrosEstimados,
+        posts: 0,
+        anuncios: 0,
+        perguntas: 0,
+        ultimaAtividade: null,
+        postsRecentes: [],
+        criadoPorId: programa.criadoPorId ?? "BIZY",
+        criadoEm: programa.criadoEm ?? new Date(0).toISOString()
+      };
+      mapa.set(comunidade.id, comunidade);
+    }
+
+    for (const evento of eventos) {
+      if (evento.tipo !== "LEARNING_COMUNIDADE_CRIADA") continue;
+      const comunidade = extrairComunidade(evento);
+      if (comunidade) mapa.set(comunidade.id, comunidade);
+    }
+
+    const postsPorComunidade = new Map<string, PostComunidadeLearning[]>();
+    for (const evento of eventos) {
+      if (evento.tipo !== "LEARNING_COMUNIDADE_POST_PUBLICADO") continue;
+      const post = extrairPostComunidade(evento);
+      if (!post) continue;
+      postsPorComunidade.set(post.comunidadeId, [...(postsPorComunidade.get(post.comunidadeId) ?? []), post]);
+    }
+
+    return [...mapa.values()]
+      .map((comunidade) => {
+        const posts = (postsPorComunidade.get(comunidade.id) ?? []).sort((a, b) => b.criadoEm.localeCompare(a.criadoEm));
+        const autores = new Set(posts.map((post) => post.autorId));
+        return {
+          ...comunidade,
+          membros: Math.max(comunidade.membrosEstimados, autores.size),
+          posts: posts.length,
+          anuncios: posts.filter((post) => post.tipo === "ANUNCIO").length,
+          perguntas: posts.filter((post) => post.tipo === "PERGUNTA").length,
+          ultimaAtividade: posts[0]?.criadoEm ?? comunidade.ultimaAtividade ?? null,
+          postsRecentes: posts.slice(0, 5)
+        };
+      })
+      .sort((a, b) => (b.ultimaAtividade ?? b.criadoEm).localeCompare(a.ultimaAtividade ?? a.criadoEm));
+  }
+
   private async temEntitlementAtivo(negocioId: string, usuarioId: string, programaSlug: string): Promise<boolean> {
     const entitlements = await this.listarEntitlements(negocioId);
     return entitlements.some((item) => item.usuarioId === usuarioId && item.programaSlug === programaSlug && item.estado === "ATIVO");
@@ -1203,6 +1746,28 @@ function resumoFinanceiroPrograma(programa: ProgramaLearning) {
   };
 }
 
+function resumoCohort(cohort: CohortLearning) {
+  return {
+    id: cohort.id,
+    programaSlug: cohort.programaSlug,
+    titulo: cohort.titulo,
+    estado: cohort.estado,
+    inicioEm: cohort.inicioEm,
+    fimEm: cohort.fimEm,
+    vagas: cohort.vagas
+  };
+}
+
+function resumoComunidade(comunidade: ComunidadeLearning) {
+  return {
+    id: comunidade.id,
+    programaSlug: comunidade.programaSlug,
+    titulo: comunidade.titulo,
+    estado: comunidade.estado,
+    acesso: comunidade.acesso
+  };
+}
+
 function extrairCompra(evento: EventoOperacional): CompraLearning | null {
   const compra = evento.payload.compra;
   if (!compra || typeof compra !== "object") return null;
@@ -1227,6 +1792,97 @@ function extrairCertificado(evento: EventoOperacional): CertificadoLearning | nu
   return candidato;
 }
 
+function extrairAtribuicao(evento: EventoOperacional): AtribuicaoLearning | null {
+  const atribuicao = evento.payload.atribuicao;
+  if (!atribuicao || typeof atribuicao !== "object") return null;
+  const candidato = atribuicao as AtribuicaoLearning;
+  if (!candidato.id || !candidato.programaSlug || !candidato.negocioId || !candidato.atribuidoPorId) return null;
+  return {
+    ...candidato,
+    usuarioId: candidato.usuarioId || null,
+    perfilAlvo: candidato.perfilAlvo ? candidato.perfilAlvo.toUpperCase() : null,
+    obrigatoria: candidato.obrigatoria !== false,
+    prazoAte: candidato.prazoAte || null,
+    mensagem: candidato.mensagem || null,
+    estado: normalizarEstadoAtribuicao(candidato.estado),
+    entitlementId: candidato.entitlementId || null
+  };
+}
+
+function extrairCohort(evento: EventoOperacional): CohortLearning | null {
+  const cohort = evento.payload.cohort;
+  if (!cohort || typeof cohort !== "object") return null;
+  const candidato = cohort as CohortLearning;
+  if (!candidato.id || !candidato.programaSlug || !candidato.programaTitulo || !candidato.criadoPorId) return null;
+  return estadoTemporalCohort({
+    ...candidato,
+    estado: normalizarEstadoCohort(candidato.estado),
+    titulo: candidato.titulo || candidato.programaTitulo,
+    inicioEm: candidato.inicioEm || null,
+    fimEm: candidato.fimEm || null,
+    vagas: typeof candidato.vagas === "number" ? candidato.vagas : null,
+    inscritos: typeof candidato.inscritos === "number" ? candidato.inscritos : 0,
+    presencas: typeof candidato.presencas === "number" ? candidato.presencas : 0,
+    salaUrl: candidato.salaUrl || null,
+    replayUrl: candidato.replayUrl || null,
+    replayDisponivel: candidato.replayDisponivel === true,
+    regrasEntrada: candidato.regrasEntrada || "Entrada conforme entitlement ou atribuição Team.",
+    mensagem: candidato.mensagem || null
+  });
+}
+
+function extrairPresencaCohort(evento: EventoOperacional): PresencaCohortLearning | null {
+  const presenca = evento.payload.presenca;
+  if (!presenca || typeof presenca !== "object") return null;
+  const candidato = presenca as PresencaCohortLearning;
+  if (!candidato.id || !candidato.cohortId || !candidato.programaSlug || !candidato.usuarioId) return null;
+  return {
+    ...candidato,
+    presente: candidato.presente !== false,
+    notas: candidato.notas || null,
+    entitlementId: candidato.entitlementId || null
+  };
+}
+
+function extrairComunidade(evento: EventoOperacional): ComunidadeLearning | null {
+  const comunidade = evento.payload.comunidade;
+  if (!comunidade || typeof comunidade !== "object") return null;
+  const candidato = comunidade as ComunidadeLearning;
+  if (!candidato.id || !candidato.programaSlug || !candidato.programaTitulo || !candidato.titulo) return null;
+  return {
+    ...candidato,
+    estado: normalizarEstadoComunidade(candidato.estado),
+    acesso: normalizarAcessoComunidade(candidato.acesso),
+    topicos: normalizarLista(candidato.topicos, []),
+    regras: candidato.regras || "Participação conforme regras do perfil Learning.",
+    moderadores: normalizarLista(candidato.moderadores, ["ADMIN"]),
+    membrosEstimados: typeof candidato.membrosEstimados === "number" ? Math.max(0, candidato.membrosEstimados) : 0,
+    membros: typeof candidato.membros === "number" ? Math.max(0, candidato.membros) : 0,
+    posts: typeof candidato.posts === "number" ? Math.max(0, candidato.posts) : 0,
+    anuncios: typeof candidato.anuncios === "number" ? Math.max(0, candidato.anuncios) : 0,
+    perguntas: typeof candidato.perguntas === "number" ? Math.max(0, candidato.perguntas) : 0,
+    ultimaAtividade: candidato.ultimaAtividade || null,
+    postsRecentes: Array.isArray(candidato.postsRecentes) ? candidato.postsRecentes.slice(0, 5) : [],
+    criadoPorId: candidato.criadoPorId || "BIZY",
+    criadoEm: candidato.criadoEm || new Date(0).toISOString()
+  };
+}
+
+function extrairPostComunidade(evento: EventoOperacional): PostComunidadeLearning | null {
+  const post = evento.payload.post;
+  if (!post || typeof post !== "object") return null;
+  const candidato = post as PostComunidadeLearning;
+  if (!candidato.id || !candidato.comunidadeId || !candidato.programaSlug || !candidato.conteudo) return null;
+  return {
+    ...candidato,
+    tipo: normalizarTipoPostComunidade(candidato.tipo),
+    titulo: candidato.titulo || null,
+    conteudo: candidato.conteudo,
+    autorNome: candidato.autorNome || "Membro Team",
+    fixado: candidato.fixado === true
+  };
+}
+
 function extrairMensagemChat(evento: EventoOperacional): MensagemChatLearning | null {
   const mensagem = evento.payload.mensagem;
   if (!mensagem || typeof mensagem !== "object") return null;
@@ -1247,9 +1903,56 @@ function estadoTemporalEntitlement(entitlement: EntitlementLearning): Entitlemen
     : entitlement;
 }
 
+function estadoTemporalCohort<T extends Pick<CohortLearning, "estado" | "inicioEm" | "fimEm">>(cohort: T): T & { estado: EstadoCohortLearning } {
+  if (cohort.estado === "CANCELADO") return cohort;
+  const agora = Date.now();
+  const inicio = cohort.inicioEm ? new Date(cohort.inicioEm).getTime() : null;
+  const fim = cohort.fimEm ? new Date(cohort.fimEm).getTime() : null;
+  if (fim && fim < agora) return { ...cohort, estado: "CONCLUIDO" };
+  if (inicio && inicio > agora) return { ...cohort, estado: "AGENDADO" };
+  if (inicio && inicio <= agora) return { ...cohort, estado: "EM_ANDAMENTO" };
+  return { ...cohort, estado: "ABERTO" };
+}
+
+function estadoTemporalAtribuicao(
+  atribuicao: AtribuicaoLearning,
+  programasPorSlug: Map<string, ProgramaLearning>,
+  conclusoesPorUsuarioPrograma: Map<string, Set<string>>
+): AtribuicaoLearning {
+  if (atribuicao.estado === "REVOGADA") return atribuicao;
+
+  const programa = programasPorSlug.get(atribuicao.programaSlug);
+  if (programa && atribuicao.usuarioId) {
+    const concluidas = conclusoesPorUsuarioPrograma.get(`${atribuicao.usuarioId}:${atribuicao.programaSlug}`) ?? new Set<string>();
+    if (programa.licoes.length > 0 && concluidas.size >= programa.licoes.length) {
+      return { ...atribuicao, estado: "CONCLUIDA" };
+    }
+  }
+
+  if (atribuicao.obrigatoria && atribuicao.prazoAte && new Date(atribuicao.prazoAte).getTime() < Date.now()) {
+    return { ...atribuicao, estado: "ATRASADA" };
+  }
+
+  return { ...atribuicao, estado: "ATIVA" };
+}
+
 function adicionarDias(iso: string, dias: number): string {
   const data = new Date(iso);
   data.setUTCDate(data.getUTCDate() + dias);
+  return data.toISOString();
+}
+
+function normalizarPrazoAte(valor?: string | null): string | null {
+  if (!valor) return null;
+  const data = new Date(valor);
+  if (Number.isNaN(data.getTime())) throw new Error("Prazo da atribuição Learning inválido.");
+  return data.toISOString();
+}
+
+function normalizarDataIsoOpcional(valor: string | null | undefined, mensagemErro: string): string | null {
+  if (!valor) return null;
+  const data = new Date(valor);
+  if (Number.isNaN(data.getTime())) throw new Error(mensagemErro);
   return data.toISOString();
 }
 
@@ -1259,6 +1962,58 @@ function gerarCodigoCertificado(negocioId: string, usuarioId: string, programaSl
     .digest("hex")
     .slice(0, 16)
     .toUpperCase();
+}
+
+function gerarIdAtribuicao(negocioId: string, programaSlug: string, targetKey: string, prazoAte: string | null): string {
+  return `la_${createHash("sha256")
+    .update(`${negocioId}:${programaSlug}:${targetKey}:${prazoAte ?? "sem-prazo"}`)
+    .digest("hex")
+    .slice(0, 18)}`;
+}
+
+function gerarIdCohort(negocioId: string, programaSlug: string, titulo: string, criadoEm: string): string {
+  return `lc_${createHash("sha256")
+    .update(`${negocioId}:${programaSlug}:${titulo}:${criadoEm}`)
+    .digest("hex")
+    .slice(0, 18)}`;
+}
+
+function gerarIdPresencaCohort(cohortId: string, usuarioId: string): string {
+  return `lp_${createHash("sha256")
+    .update(`${cohortId}:${usuarioId}`)
+    .digest("hex")
+    .slice(0, 18)}`;
+}
+
+function gerarIdComunidade(negocioId: string, programaSlug: string, titulo: string): string {
+  return `lcm_${createHash("sha256")
+    .update(`${negocioId}:${programaSlug}:${titulo}`)
+    .digest("hex")
+    .slice(0, 18)}`;
+}
+
+function regraEntradaPadrao(programa: ProgramaLearning): string {
+  if (programa.tipoAcesso === "PAGO") return "Entrada exige compra confirmada, atribuição Team ou liberação manual auditada.";
+  if (programa.tipoAcesso === "CONVITE" || programa.tipoAcesso === "PRIVADO") return "Entrada exige convite ou atribuição Team.";
+  return "Entrada permitida para inscritos, membros atribuídos ou participantes aprovados pelo Team.";
+}
+
+function regraComunidadePadrao(programa: ProgramaLearning, acesso: AcessoComunidadeLearning): string {
+  if (acesso === "ENTITLEMENT") return "Participação exige entitlement activo do produto Learning.";
+  if (acesso === "MEMBERSHIP") return "Participação exige membership activo ou liberação manual pelo Team.";
+  if (acesso === "CONVITE") return "Participação por convite, atribuição Team ou aprovação de moderador.";
+  return programa.tipoAcesso === "PAGO"
+    ? "Discussões públicas podem existir, mas materiais e suporte premium exigem entitlement activo."
+    : "Participação aberta com moderação do perfil Learning.";
+}
+
+function normalizarAcessoComunidade(valor: unknown, programa?: ProgramaLearning): AcessoComunidadeLearning {
+  if (valor === "ABERTO" || valor === "ENTITLEMENT" || valor === "MEMBERSHIP" || valor === "CONVITE") return valor;
+  if (!programa) return "ENTITLEMENT";
+  if (programa.formato === "MEMBERSHIP" || programa.formato === "COMUNIDADE") return "MEMBERSHIP";
+  if (programa.tipoAcesso === "PAGO" || programa.tipoAcesso === "OBRIGATORIO") return "ENTITLEMENT";
+  if (programa.tipoAcesso === "CONVITE" || programa.tipoAcesso === "PRIVADO") return "CONVITE";
+  return "ABERTO";
 }
 
 function slugify(valor: string): string {
@@ -1300,4 +2055,24 @@ function extrairPrograma(evento: EventoOperacional): ProgramaLearning | null {
 function normalizarEstado(valor: unknown, fallback: EstadoProgramaLearning): EstadoProgramaLearning {
   if (valor === "RASCUNHO" || valor === "EM_REVISAO" || valor === "PUBLICADO" || valor === "PAUSADO" || valor === "ARQUIVADO" || valor === "SUSPENSO") return valor;
   return fallback;
+}
+
+function normalizarEstadoAtribuicao(valor: unknown): EstadoAtribuicaoLearning {
+  if (valor === "CONCLUIDA" || valor === "ATRASADA" || valor === "REVOGADA") return valor;
+  return "ATIVA";
+}
+
+function normalizarEstadoCohort(valor: unknown): EstadoCohortLearning {
+  if (valor === "AGENDADO" || valor === "EM_ANDAMENTO" || valor === "CONCLUIDO" || valor === "CANCELADO") return valor;
+  return "ABERTO";
+}
+
+function normalizarEstadoComunidade(valor: unknown): EstadoComunidadeLearning {
+  if (valor === "PRIVADA" || valor === "PAUSADA" || valor === "ARQUIVADA") return valor;
+  return "ABERTA";
+}
+
+function normalizarTipoPostComunidade(valor: unknown): TipoPostComunidadeLearning {
+  if (valor === "PERGUNTA" || valor === "RESPOSTA" || valor === "MATERIAL" || valor === "DESAFIO") return valor;
+  return "ANUNCIO";
 }

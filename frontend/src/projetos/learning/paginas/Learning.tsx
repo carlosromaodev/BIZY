@@ -1,8 +1,10 @@
 import {
+  AlertTriangle,
   ArrowRight,
   BadgeCheck,
   BookOpenCheck,
   BriefcaseBusiness,
+  CalendarClock,
   CheckCircle2,
   Clock3,
   Compass,
@@ -11,13 +13,18 @@ import {
   GraduationCap,
   Layers3,
   LockKeyhole,
+  Megaphone,
   MessageCircle,
+  MessageSquareText,
+  PlayCircle,
   Plus,
   RefreshCcw,
   Search,
   Send,
   ShieldCheck,
   Sparkles,
+  UserCheck,
+  UserPlus,
   UsersRound
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -36,8 +43,11 @@ import {
 } from "../../../componentes/BizyDesignSystem";
 import {
   alterarPublicacaoLearning,
+  abrirCohortLearningTeam,
+  atribuirProgramaLearningTeam,
   checkoutLearning,
   concluirLicaoLearning,
+  criarComunidadeLearningTeam,
   criarProdutoLearningTeam,
   emitirCertificadoLearning,
   enviarMensagemChatLearning,
@@ -45,16 +55,23 @@ import {
   listarChatInternoLearning,
   obterHomeLearning,
   obterResumoLearningTeam,
+  publicarPostComunidadeLearning,
+  registrarPresencaCohortLearning,
+  type AcessoComunidadeLearning,
   type ChatInternoLearning,
   type ContextoChatLearning,
   type CriarProgramaLearningInput,
+  type EstadoAtribuicaoLearning,
+  type EstadoCohortLearning,
+  type EstadoComunidadeLearning,
   type FormatoProgramaLearning,
   type HomeLearningResposta,
   type NivelLearning,
   type ProgramaLearning,
   type ResumoLearningTeamResposta,
   type TipoAcessoLearning,
-  type TipoMensagemChatLearning
+  type TipoMensagemChatLearning,
+  type TipoPostComunidadeLearning
 } from "../api";
 
 const PERFIS_PADRAO = ["DONO", "ADMIN", "GESTOR", "VENDEDOR", "ATENDENTE", "FINANCEIRO", "AFILIADO", "CRIADOR"];
@@ -294,6 +311,47 @@ export function PaginaLearningTeam() {
     contexto: "PROGRAMA" as ContextoChatLearning,
     conteudo: ""
   });
+  const [atribuicaoForm, setAtribuicaoForm] = useState({
+    programaSlug: "",
+    usuarioId: "",
+    perfilAlvo: "GESTOR",
+    obrigatoria: true,
+    prazoAte: "",
+    mensagem: ""
+  });
+  const [cohortForm, setCohortForm] = useState({
+    programaSlug: "",
+    titulo: "",
+    inicioEm: "",
+    fimEm: "",
+    vagas: "20",
+    salaUrl: "",
+    replayUrl: "",
+    replayDisponivel: false,
+    regrasEntrada: "",
+    mensagem: ""
+  });
+  const [presencaForm, setPresencaForm] = useState({
+    cohortId: "",
+    usuarioId: "",
+    presente: true,
+    notas: ""
+  });
+  const [comunidadeForm, setComunidadeForm] = useState({
+    programaSlug: "",
+    titulo: "",
+    acesso: "ENTITLEMENT" as AcessoComunidadeLearning,
+    topicos: "perguntas, materiais, desafios",
+    regras: "",
+    moderadores: "ADMIN,GESTOR"
+  });
+  const [postComunidadeForm, setPostComunidadeForm] = useState({
+    comunidadeId: "",
+    tipo: "ANUNCIO" as TipoPostComunidadeLearning,
+    titulo: "",
+    conteudo: "",
+    fixado: true
+  });
 
   async function carregar() {
     setCarregando(true);
@@ -305,6 +363,26 @@ export function PaginaLearningTeam() {
       setChatForm((actual) => ({
         ...actual,
         programaSlug: actual.programaSlug || resumo.programas[0]?.slug || ""
+      }));
+      setAtribuicaoForm((actual) => ({
+        ...actual,
+        programaSlug: actual.programaSlug || resumo.programas[0]?.slug || ""
+      }));
+      setCohortForm((actual) => ({
+        ...actual,
+        programaSlug: actual.programaSlug || resumo.programas[0]?.slug || ""
+      }));
+      setPresencaForm((actual) => ({
+        ...actual,
+        cohortId: actual.cohortId || resumo.cohorts[0]?.id || ""
+      }));
+      setComunidadeForm((actual) => ({
+        ...actual,
+        programaSlug: actual.programaSlug || resumo.programas[0]?.slug || ""
+      }));
+      setPostComunidadeForm((actual) => ({
+        ...actual,
+        comunidadeId: actual.comunidadeId || resumo.comunidades[0]?.id || ""
       }));
     } catch (falha) {
       setErro(falha instanceof Error ? falha.message : "Não foi possível carregar o Bizy Learning.");
@@ -423,6 +501,96 @@ export function PaginaLearningTeam() {
     });
   }
 
+  async function atribuirPrograma(evento: FormEvent<HTMLFormElement>) {
+    evento.preventDefault();
+    const programaSlug = atribuicaoForm.programaSlug || programas[0]?.slug;
+    const usuarioId = atribuicaoForm.usuarioId.trim();
+    const perfilAlvo = atribuicaoForm.perfilAlvo.trim().toUpperCase();
+    if (!programaSlug || (!usuarioId && !perfilAlvo)) return;
+
+    await executarAcao(`atribuir-${programaSlug}`, async () => {
+      await atribuirProgramaLearningTeam(programaSlug, {
+        usuarioId: usuarioId || undefined,
+        perfilAlvo: usuarioId ? undefined : perfilAlvo,
+        obrigatoria: atribuicaoForm.obrigatoria,
+        prazoAte: dataLocalParaIso(atribuicaoForm.prazoAte),
+        mensagem: atribuicaoForm.mensagem.trim() || undefined
+      });
+      setAtribuicaoForm((actual) => ({ ...actual, usuarioId: "", mensagem: "" }));
+    });
+  }
+
+  async function abrirCohort(evento: FormEvent<HTMLFormElement>) {
+    evento.preventDefault();
+    const programaSlug = cohortForm.programaSlug || programas[0]?.slug;
+    if (!programaSlug) return;
+
+    await executarAcao(`cohort-${programaSlug}`, async () => {
+      const resposta = await abrirCohortLearningTeam(programaSlug, {
+        titulo: cohortForm.titulo.trim() || undefined,
+        inicioEm: dataHoraLocalParaIso(cohortForm.inicioEm),
+        fimEm: dataHoraLocalParaIso(cohortForm.fimEm),
+        vagas: cohortForm.vagas ? Number(cohortForm.vagas) : null,
+        salaUrl: cohortForm.salaUrl.trim() || null,
+        replayUrl: cohortForm.replayUrl.trim() || null,
+        replayDisponivel: cohortForm.replayDisponivel || Boolean(cohortForm.replayUrl.trim()),
+        regrasEntrada: cohortForm.regrasEntrada.trim() || undefined,
+        mensagem: cohortForm.mensagem.trim() || undefined
+      });
+      setPresencaForm((actual) => ({ ...actual, cohortId: resposta.cohort.id || actual.cohortId }));
+      setCohortForm((actual) => ({ ...actual, titulo: "", inicioEm: "", fimEm: "", salaUrl: "", replayUrl: "", mensagem: "" }));
+    });
+  }
+
+  async function registrarPresenca(evento: FormEvent<HTMLFormElement>) {
+    evento.preventDefault();
+    const cohortId = presencaForm.cohortId || dados?.cohorts[0]?.id;
+    if (!cohortId) return;
+
+    await executarAcao(`presenca-${cohortId}`, async () => {
+      await registrarPresencaCohortLearning(cohortId, {
+        usuarioId: presencaForm.usuarioId.trim() || undefined,
+        presente: presencaForm.presente,
+        notas: presencaForm.notas.trim() || undefined
+      });
+      setPresencaForm((actual) => ({ ...actual, usuarioId: "", notas: "" }));
+    });
+  }
+
+  async function criarComunidade(evento: FormEvent<HTMLFormElement>) {
+    evento.preventDefault();
+    const programaSlug = comunidadeForm.programaSlug || programas[0]?.slug;
+    if (!programaSlug) return;
+
+    await executarAcao(`comunidade-${programaSlug}`, async () => {
+      const resposta = await criarComunidadeLearningTeam(programaSlug, {
+        titulo: comunidadeForm.titulo.trim() || undefined,
+        acesso: comunidadeForm.acesso,
+        topicos: comunidadeForm.topicos.split(",").map((item) => item.trim()).filter(Boolean),
+        regras: comunidadeForm.regras.trim() || undefined,
+        moderadores: comunidadeForm.moderadores.split(",").map((item) => item.trim().toUpperCase()).filter(Boolean)
+      });
+      setPostComunidadeForm((actual) => ({ ...actual, comunidadeId: resposta.comunidade.id || actual.comunidadeId }));
+      setComunidadeForm((actual) => ({ ...actual, titulo: "", regras: "" }));
+    });
+  }
+
+  async function publicarPostComunidade(evento: FormEvent<HTMLFormElement>) {
+    evento.preventDefault();
+    const comunidadeId = postComunidadeForm.comunidadeId || dados?.comunidades[0]?.id;
+    if (!comunidadeId || !postComunidadeForm.conteudo.trim()) return;
+
+    await executarAcao(`post-comunidade-${comunidadeId}`, async () => {
+      await publicarPostComunidadeLearning(comunidadeId, {
+        tipo: postComunidadeForm.tipo,
+        titulo: postComunidadeForm.titulo.trim() || undefined,
+        conteudo: postComunidadeForm.conteudo,
+        fixado: postComunidadeForm.fixado
+      });
+      setPostComunidadeForm((actual) => ({ ...actual, titulo: "", conteudo: "" }));
+    });
+  }
+
   async function executarAcao(chave: string, fn: () => Promise<void>) {
     setAcao(chave);
     setErro("");
@@ -463,6 +631,14 @@ export function PaginaLearningTeam() {
         <KpiCard icone={CreditCard} cor="green" rotulo="Receita Learning" valor={formatarKwanzaCompacto(metricas?.receitaLearning ?? 0)} delta={`${metricas?.comprasConfirmadas ?? 0} compras`} deltaPositivo />
         <KpiCard icone={LockKeyhole} cor="blue" rotulo="Acessos ativos" valor={metricas?.entitlementsAtivos ?? "-"} />
         <KpiCard icone={BadgeCheck} cor="green" rotulo="Certificados" valor={metricas?.certificados ?? "-"} />
+        <KpiCard icone={UserPlus} cor="blue" rotulo="Atribuições" valor={metricas?.atribuicoesAtivas ?? "-"} />
+        <KpiCard icone={CalendarClock} cor="amber" rotulo="Obrigatórias" valor={metricas?.formacoesObrigatorias ?? "-"} />
+        <KpiCard icone={AlertTriangle} cor="amber" rotulo="Atrasadas" valor={metricas?.atribuicoesAtrasadas ?? "-"} />
+        <KpiCard icone={UsersRound} cor="blue" rotulo="Cohorts" valor={metricas?.cohortsAtivos ?? "-"} />
+        <KpiCard icone={UserCheck} cor="green" rotulo="Presenças" valor={metricas?.presencasCohorts ?? "-"} delta={`${metricas?.vagasCohorts ?? 0} vagas`} />
+        <KpiCard icone={PlayCircle} cor="green" rotulo="Replays" valor={metricas?.replaysDisponiveis ?? "-"} />
+        <KpiCard icone={MessageSquareText} cor="blue" rotulo="Comunidades" valor={metricas?.comunidadesAtivas ?? "-"} />
+        <KpiCard icone={Megaphone} cor="amber" rotulo="Posts" valor={metricas?.postsComunidade ?? "-"} delta={`${metricas?.perguntasComunidade ?? 0} perguntas`} />
         <KpiCard icone={Layers3} cor="amber" rotulo="Rascunhos" valor={metricas?.rascunhos ?? "-"} />
         <KpiCard icone={UsersRound} cor="blue" rotulo="Inscrições" valor={metricas?.inscritos ?? "-"} />
         <KpiCard icone={CheckCircle2} cor="green" rotulo="Concluídos" valor={metricas?.concluidos ?? "-"} />
@@ -575,6 +751,533 @@ export function PaginaLearningTeam() {
               </div>
             </div>
           </form>
+        </div>
+      </PanelCard>
+
+      <PanelCard
+        titulo="Atribuições e formação obrigatória"
+        descricao="Transforma produto Learning em obrigação operacional do Team, com prazo, alvo e entitlement quando houver membro definido."
+      >
+        <div className="grid gap-4 xl:grid-cols-[minmax(320px,0.5fr)_minmax(0,1fr)]">
+          <form onSubmit={(evento) => void atribuirPrograma(evento)} className="rounded-lg border bg-background p-4">
+            <div className="flex items-center gap-2 text-sm font-semibold">
+              <UserPlus size={16} />
+              Atribuir formação
+            </div>
+            <div className="mt-4 grid gap-3">
+              <label className="grid gap-1.5">
+                <span className="text-xs font-medium text-muted-foreground">Programa</span>
+                <select
+                  value={atribuicaoForm.programaSlug}
+                  onChange={(evento) => setAtribuicaoForm((actual) => ({ ...actual, programaSlug: evento.target.value }))}
+                  disabled={!dados?.podeAdministrar || Boolean(acao) || carregando}
+                  className="h-10 rounded-md border bg-background px-3 text-sm outline-none focus:border-primary"
+                >
+                  {programas.map((programa) => <option key={programa.slug} value={programa.slug}>{programa.titulo}</option>)}
+                </select>
+              </label>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <label className="grid gap-1.5">
+                  <span className="text-xs font-medium text-muted-foreground">Membro</span>
+                  <input
+                    value={atribuicaoForm.usuarioId}
+                    onChange={(evento) => setAtribuicaoForm((actual) => ({ ...actual, usuarioId: evento.target.value }))}
+                    disabled={!dados?.podeAdministrar || Boolean(acao)}
+                    className="h-10 rounded-md border bg-background px-3 text-sm outline-none focus:border-primary"
+                    placeholder="ID do membro"
+                  />
+                </label>
+                <label className="grid gap-1.5">
+                  <span className="text-xs font-medium text-muted-foreground">Perfil se não houver membro</span>
+                  <select
+                    value={atribuicaoForm.perfilAlvo}
+                    onChange={(evento) => setAtribuicaoForm((actual) => ({ ...actual, perfilAlvo: evento.target.value }))}
+                    disabled={!dados?.podeAdministrar || Boolean(acao) || Boolean(atribuicaoForm.usuarioId.trim())}
+                    className="h-10 rounded-md border bg-background px-3 text-sm outline-none focus:border-primary disabled:opacity-60"
+                  >
+                    {PERFIS_PADRAO.map((item) => <option key={item} value={item}>{item}</option>)}
+                  </select>
+                </label>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-end">
+                <label className="grid gap-1.5">
+                  <span className="text-xs font-medium text-muted-foreground">Prazo</span>
+                  <input
+                    type="date"
+                    value={atribuicaoForm.prazoAte}
+                    onChange={(evento) => setAtribuicaoForm((actual) => ({ ...actual, prazoAte: evento.target.value }))}
+                    disabled={!dados?.podeAdministrar || Boolean(acao)}
+                    className="h-10 rounded-md border bg-background px-3 text-sm outline-none focus:border-primary"
+                  />
+                </label>
+                <label className="inline-flex h-10 items-center gap-2 rounded-md border px-3 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={atribuicaoForm.obrigatoria}
+                    onChange={(evento) => setAtribuicaoForm((actual) => ({ ...actual, obrigatoria: evento.target.checked }))}
+                    disabled={!dados?.podeAdministrar || Boolean(acao)}
+                    className="size-4"
+                  />
+                  Obrigatória
+                </label>
+              </div>
+              <label className="grid gap-1.5">
+                <span className="text-xs font-medium text-muted-foreground">Mensagem</span>
+                <textarea
+                  value={atribuicaoForm.mensagem}
+                  onChange={(evento) => setAtribuicaoForm((actual) => ({ ...actual, mensagem: evento.target.value }))}
+                  disabled={!dados?.podeAdministrar || Boolean(acao)}
+                  rows={3}
+                  className="resize-none rounded-md border bg-background px-3 py-2 text-sm outline-none focus:border-primary"
+                  placeholder="Ex.: concluir antes de assumir vendas do Market."
+                />
+              </label>
+              <BotaoBizy
+                tipo="submit"
+                icone={UserPlus}
+                disabled={!dados?.podeAdministrar || Boolean(acao) || !atribuicaoForm.programaSlug || (!atribuicaoForm.usuarioId.trim() && !atribuicaoForm.perfilAlvo.trim())}
+              >
+                Atribuir no Team
+              </BotaoBizy>
+            </div>
+          </form>
+
+          <div className="grid gap-3">
+            {(dados?.atribuicoes ?? []).slice(0, 8).map((atribuicao) => (
+              <article key={atribuicao.id} className="rounded-lg border bg-background p-4">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <StatusBadge cor={corAtribuicao(atribuicao.estado)}>{atribuicao.estado.toLowerCase()}</StatusBadge>
+                      {atribuicao.obrigatoria && <StatusBadge cor="amber">obrigatória</StatusBadge>}
+                      {atribuicao.entitlementId && <StatusBadge cor="blue">acesso liberado</StatusBadge>}
+                    </div>
+                    <h3 className="mt-2 text-sm font-semibold text-foreground">{atribuicao.programaTitulo}</h3>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Alvo {atribuicao.usuarioId ? `membro ${atribuicao.usuarioId}` : `perfil ${atribuicao.perfilAlvo ?? "Team"}`}
+                      {atribuicao.prazoAte ? ` · prazo ${formatarDataCurta(atribuicao.prazoAte)}` : " · sem prazo"}
+                    </p>
+                  </div>
+                  <CalendarClock size={18} className="text-muted-foreground" />
+                </div>
+                {atribuicao.mensagem && <p className="mt-3 rounded-md bg-muted/60 p-3 text-sm leading-6 text-muted-foreground">{atribuicao.mensagem}</p>}
+              </article>
+            ))}
+            {!(dados?.atribuicoes ?? []).length && (
+              <p className="rounded-lg border bg-background p-4 text-sm text-muted-foreground">
+                Sem formações atribuídas. Use este painel para transformar cursos, cohorts ou certificações em trabalho acompanhado pelo Team.
+              </p>
+            )}
+          </div>
+        </div>
+      </PanelCard>
+
+      <PanelCard
+        titulo="Cohorts, lives e presenças"
+        descricao="Abre turmas operacionais com vagas, sala, replay e presença ligada a acesso Learning."
+      >
+        <div className="grid gap-4 xl:grid-cols-[minmax(320px,0.55fr)_minmax(0,1fr)]">
+          <div className="grid gap-4">
+            <form onSubmit={(evento) => void abrirCohort(evento)} className="rounded-lg border bg-background p-4">
+              <div className="flex items-center gap-2 text-sm font-semibold">
+                <CalendarClock size={16} />
+                Abrir cohort
+              </div>
+              <div className="mt-4 grid gap-3">
+                <label className="grid gap-1.5">
+                  <span className="text-xs font-medium text-muted-foreground">Programa</span>
+                  <select
+                    value={cohortForm.programaSlug}
+                    onChange={(evento) => setCohortForm((actual) => ({ ...actual, programaSlug: evento.target.value }))}
+                    disabled={!dados?.podeAdministrar || Boolean(acao) || carregando}
+                    className="h-10 rounded-md border bg-background px-3 text-sm outline-none focus:border-primary"
+                  >
+                    {programas.map((programa) => <option key={programa.slug} value={programa.slug}>{programa.titulo}</option>)}
+                  </select>
+                </label>
+                <label className="grid gap-1.5">
+                  <span className="text-xs font-medium text-muted-foreground">Título da turma</span>
+                  <input
+                    value={cohortForm.titulo}
+                    onChange={(evento) => setCohortForm((actual) => ({ ...actual, titulo: evento.target.value }))}
+                    disabled={!dados?.podeAdministrar || Boolean(acao)}
+                    className="h-10 rounded-md border bg-background px-3 text-sm outline-none focus:border-primary"
+                    placeholder="Ex.: Turma live de sábado"
+                  />
+                </label>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <label className="grid gap-1.5">
+                    <span className="text-xs font-medium text-muted-foreground">Início</span>
+                    <input
+                      type="datetime-local"
+                      value={cohortForm.inicioEm}
+                      onChange={(evento) => setCohortForm((actual) => ({ ...actual, inicioEm: evento.target.value }))}
+                      disabled={!dados?.podeAdministrar || Boolean(acao)}
+                      className="h-10 rounded-md border bg-background px-3 text-sm outline-none focus:border-primary"
+                    />
+                  </label>
+                  <label className="grid gap-1.5">
+                    <span className="text-xs font-medium text-muted-foreground">Fim</span>
+                    <input
+                      type="datetime-local"
+                      value={cohortForm.fimEm}
+                      onChange={(evento) => setCohortForm((actual) => ({ ...actual, fimEm: evento.target.value }))}
+                      disabled={!dados?.podeAdministrar || Boolean(acao)}
+                      className="h-10 rounded-md border bg-background px-3 text-sm outline-none focus:border-primary"
+                    />
+                  </label>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-[120px_1fr]">
+                  <label className="grid gap-1.5">
+                    <span className="text-xs font-medium text-muted-foreground">Vagas</span>
+                    <input
+                      value={cohortForm.vagas}
+                      onChange={(evento) => setCohortForm((actual) => ({ ...actual, vagas: evento.target.value.replace(/\D/g, "") }))}
+                      disabled={!dados?.podeAdministrar || Boolean(acao)}
+                      inputMode="numeric"
+                      className="h-10 rounded-md border bg-background px-3 text-sm outline-none focus:border-primary"
+                    />
+                  </label>
+                  <label className="grid gap-1.5">
+                    <span className="text-xs font-medium text-muted-foreground">Sala</span>
+                    <input
+                      value={cohortForm.salaUrl}
+                      onChange={(evento) => setCohortForm((actual) => ({ ...actual, salaUrl: evento.target.value }))}
+                      disabled={!dados?.podeAdministrar || Boolean(acao)}
+                      className="h-10 rounded-md border bg-background px-3 text-sm outline-none focus:border-primary"
+                      placeholder="https://..."
+                    />
+                  </label>
+                </div>
+                <label className="grid gap-1.5">
+                  <span className="text-xs font-medium text-muted-foreground">Replay</span>
+                  <input
+                    value={cohortForm.replayUrl}
+                    onChange={(evento) => setCohortForm((actual) => ({ ...actual, replayUrl: evento.target.value }))}
+                    disabled={!dados?.podeAdministrar || Boolean(acao)}
+                    className="h-10 rounded-md border bg-background px-3 text-sm outline-none focus:border-primary"
+                    placeholder="https://..."
+                  />
+                </label>
+                <label className="grid gap-1.5">
+                  <span className="text-xs font-medium text-muted-foreground">Regras de entrada</span>
+                  <textarea
+                    value={cohortForm.regrasEntrada}
+                    onChange={(evento) => setCohortForm((actual) => ({ ...actual, regrasEntrada: evento.target.value }))}
+                    disabled={!dados?.podeAdministrar || Boolean(acao)}
+                    rows={3}
+                    className="resize-none rounded-md border bg-background px-3 py-2 text-sm outline-none focus:border-primary"
+                    placeholder="Ex.: compra confirmada ou atribuição Team."
+                  />
+                </label>
+                <label className="inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={cohortForm.replayDisponivel}
+                    onChange={(evento) => setCohortForm((actual) => ({ ...actual, replayDisponivel: evento.target.checked }))}
+                    disabled={!dados?.podeAdministrar || Boolean(acao)}
+                    className="size-4"
+                  />
+                  Replay disponível
+                </label>
+                <BotaoBizy tipo="submit" icone={CalendarClock} disabled={!dados?.podeAdministrar || Boolean(acao) || !cohortForm.programaSlug}>
+                  Abrir turma
+                </BotaoBizy>
+              </div>
+            </form>
+
+            <form onSubmit={(evento) => void registrarPresenca(evento)} className="rounded-lg border bg-background p-4">
+              <div className="flex items-center gap-2 text-sm font-semibold">
+                <UserCheck size={16} />
+                Registar presença
+              </div>
+              <div className="mt-4 grid gap-3">
+                <label className="grid gap-1.5">
+                  <span className="text-xs font-medium text-muted-foreground">Cohort</span>
+                  <select
+                    value={presencaForm.cohortId}
+                    onChange={(evento) => setPresencaForm((actual) => ({ ...actual, cohortId: evento.target.value }))}
+                    disabled={!dados?.podeAdministrar || Boolean(acao) || !(dados?.cohorts ?? []).length}
+                    className="h-10 rounded-md border bg-background px-3 text-sm outline-none focus:border-primary"
+                  >
+                    {(dados?.cohorts ?? []).map((cohort) => <option key={cohort.id} value={cohort.id}>{cohort.titulo}</option>)}
+                  </select>
+                </label>
+                <label className="grid gap-1.5">
+                  <span className="text-xs font-medium text-muted-foreground">Membro</span>
+                  <input
+                    value={presencaForm.usuarioId}
+                    onChange={(evento) => setPresencaForm((actual) => ({ ...actual, usuarioId: evento.target.value }))}
+                    disabled={!dados?.podeAdministrar || Boolean(acao)}
+                    className="h-10 rounded-md border bg-background px-3 text-sm outline-none focus:border-primary"
+                    placeholder="ID do membro"
+                  />
+                </label>
+                <label className="grid gap-1.5">
+                  <span className="text-xs font-medium text-muted-foreground">Notas</span>
+                  <textarea
+                    value={presencaForm.notas}
+                    onChange={(evento) => setPresencaForm((actual) => ({ ...actual, notas: evento.target.value }))}
+                    disabled={!dados?.podeAdministrar || Boolean(acao)}
+                    rows={3}
+                    className="resize-none rounded-md border bg-background px-3 py-2 text-sm outline-none focus:border-primary"
+                    placeholder="Ex.: participou e pediu apoio no módulo financeiro."
+                  />
+                </label>
+                <label className="inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={presencaForm.presente}
+                    onChange={(evento) => setPresencaForm((actual) => ({ ...actual, presente: evento.target.checked }))}
+                    disabled={!dados?.podeAdministrar || Boolean(acao)}
+                    className="size-4"
+                  />
+                  Presente
+                </label>
+                <BotaoBizy tipo="submit" icone={UserCheck} disabled={!dados?.podeAdministrar || Boolean(acao) || !presencaForm.cohortId}>
+                  Guardar presença
+                </BotaoBizy>
+              </div>
+            </form>
+          </div>
+
+          <div className="grid gap-3">
+            {(dados?.cohorts ?? []).slice(0, 8).map((cohort) => (
+              <article key={cohort.id} className="rounded-lg border bg-background p-4">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <StatusBadge cor={corCohort(cohort.estado)}>{cohort.estado.toLowerCase()}</StatusBadge>
+                      {cohort.replayDisponivel && <StatusBadge cor="green">replay</StatusBadge>}
+                      {cohort.salaUrl && <StatusBadge cor="blue">sala</StatusBadge>}
+                    </div>
+                    <h3 className="mt-2 text-sm font-semibold text-foreground">{cohort.titulo}</h3>
+                    <p className="mt-1 text-xs text-muted-foreground">{cohort.programaTitulo}</p>
+                  </div>
+                  <UsersRound size={18} className="text-muted-foreground" />
+                </div>
+                <div className="mt-3 grid gap-2 text-xs text-muted-foreground sm:grid-cols-3">
+                  <span className="rounded-md bg-muted px-2 py-2">{cohort.inscritos}/{cohort.vagas ?? "sem limite"} inscritos</span>
+                  <span className="rounded-md bg-muted px-2 py-2">{cohort.presencas} presenças</span>
+                  <span className="rounded-md bg-muted px-2 py-2">{cohort.inicioEm ? formatarDataCurta(cohort.inicioEm) : "sem data"}</span>
+                </div>
+                <p className="mt-3 rounded-md bg-muted/60 p-3 text-sm leading-6 text-muted-foreground">{cohort.regrasEntrada}</p>
+                {cohort.mensagem && <p className="mt-2 text-sm leading-6 text-muted-foreground">{cohort.mensagem}</p>}
+              </article>
+            ))}
+            {!(dados?.cohorts ?? []).length && (
+              <p className="rounded-lg border bg-background p-4 text-sm text-muted-foreground">
+                Sem cohorts abertas. Abra turmas para lives, workshops, mentorias ou certificações com vagas e presença rastreáveis.
+              </p>
+            )}
+          </div>
+        </div>
+      </PanelCard>
+
+      <PanelCard
+        titulo="Comunidades e memberships"
+        descricao="Cria espaços de discussão, anúncios e materiais ligados a programas, cohorts ou memberships sem misturar com atendimento externo."
+      >
+        <div className="grid gap-4 xl:grid-cols-[minmax(320px,0.55fr)_minmax(0,1fr)]">
+          <div className="grid gap-4">
+            <form onSubmit={(evento) => void criarComunidade(evento)} className="rounded-lg border bg-background p-4">
+              <div className="flex items-center gap-2 text-sm font-semibold">
+                <MessageSquareText size={16} />
+                Criar comunidade
+              </div>
+              <div className="mt-4 grid gap-3">
+                <label className="grid gap-1.5">
+                  <span className="text-xs font-medium text-muted-foreground">Programa</span>
+                  <select
+                    value={comunidadeForm.programaSlug}
+                    onChange={(evento) => setComunidadeForm((actual) => ({ ...actual, programaSlug: evento.target.value }))}
+                    disabled={!dados?.podeAdministrar || Boolean(acao) || carregando}
+                    className="h-10 rounded-md border bg-background px-3 text-sm outline-none focus:border-primary"
+                  >
+                    {programas.map((programa) => <option key={programa.slug} value={programa.slug}>{programa.titulo}</option>)}
+                  </select>
+                </label>
+                <label className="grid gap-1.5">
+                  <span className="text-xs font-medium text-muted-foreground">Nome</span>
+                  <input
+                    value={comunidadeForm.titulo}
+                    onChange={(evento) => setComunidadeForm((actual) => ({ ...actual, titulo: evento.target.value }))}
+                    disabled={!dados?.podeAdministrar || Boolean(acao)}
+                    className="h-10 rounded-md border bg-background px-3 text-sm outline-none focus:border-primary"
+                    placeholder="Ex.: Comunidade Fornecedores Market"
+                  />
+                </label>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <label className="grid gap-1.5">
+                    <span className="text-xs font-medium text-muted-foreground">Acesso</span>
+                    <select
+                      value={comunidadeForm.acesso}
+                      onChange={(evento) => setComunidadeForm((actual) => ({ ...actual, acesso: evento.target.value as AcessoComunidadeLearning }))}
+                      disabled={!dados?.podeAdministrar || Boolean(acao)}
+                      className="h-10 rounded-md border bg-background px-3 text-sm outline-none focus:border-primary"
+                    >
+                      <option value="ABERTO">Aberto</option>
+                      <option value="ENTITLEMENT">Entitlement</option>
+                      <option value="MEMBERSHIP">Membership</option>
+                      <option value="CONVITE">Convite</option>
+                    </select>
+                  </label>
+                  <label className="grid gap-1.5">
+                    <span className="text-xs font-medium text-muted-foreground">Moderadores</span>
+                    <input
+                      value={comunidadeForm.moderadores}
+                      onChange={(evento) => setComunidadeForm((actual) => ({ ...actual, moderadores: evento.target.value }))}
+                      disabled={!dados?.podeAdministrar || Boolean(acao)}
+                      className="h-10 rounded-md border bg-background px-3 text-sm outline-none focus:border-primary"
+                      placeholder="ADMIN,GESTOR"
+                    />
+                  </label>
+                </div>
+                <label className="grid gap-1.5">
+                  <span className="text-xs font-medium text-muted-foreground">Tópicos</span>
+                  <input
+                    value={comunidadeForm.topicos}
+                    onChange={(evento) => setComunidadeForm((actual) => ({ ...actual, topicos: evento.target.value }))}
+                    disabled={!dados?.podeAdministrar || Boolean(acao)}
+                    className="h-10 rounded-md border bg-background px-3 text-sm outline-none focus:border-primary"
+                    placeholder="perguntas, materiais, desafios"
+                  />
+                </label>
+                <label className="grid gap-1.5">
+                  <span className="text-xs font-medium text-muted-foreground">Regras</span>
+                  <textarea
+                    value={comunidadeForm.regras}
+                    onChange={(evento) => setComunidadeForm((actual) => ({ ...actual, regras: evento.target.value }))}
+                    disabled={!dados?.podeAdministrar || Boolean(acao)}
+                    rows={3}
+                    className="resize-none rounded-md border bg-background px-3 py-2 text-sm outline-none focus:border-primary"
+                    placeholder="Ex.: materiais premium exigem acesso activo; dúvidas públicas recebem moderação."
+                  />
+                </label>
+                <BotaoBizy tipo="submit" icone={MessageSquareText} disabled={!dados?.podeAdministrar || Boolean(acao) || !comunidadeForm.programaSlug}>
+                  Criar comunidade
+                </BotaoBizy>
+              </div>
+            </form>
+
+            <form onSubmit={(evento) => void publicarPostComunidade(evento)} className="rounded-lg border bg-background p-4">
+              <div className="flex items-center gap-2 text-sm font-semibold">
+                <Megaphone size={16} />
+                Publicar tópico
+              </div>
+              <div className="mt-4 grid gap-3">
+                <label className="grid gap-1.5">
+                  <span className="text-xs font-medium text-muted-foreground">Comunidade</span>
+                  <select
+                    value={postComunidadeForm.comunidadeId}
+                    onChange={(evento) => setPostComunidadeForm((actual) => ({ ...actual, comunidadeId: evento.target.value }))}
+                    disabled={Boolean(acao) || !(dados?.comunidades ?? []).length}
+                    className="h-10 rounded-md border bg-background px-3 text-sm outline-none focus:border-primary"
+                  >
+                    {(dados?.comunidades ?? []).map((comunidade) => <option key={comunidade.id} value={comunidade.id}>{comunidade.titulo}</option>)}
+                  </select>
+                </label>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <label className="grid gap-1.5">
+                    <span className="text-xs font-medium text-muted-foreground">Tipo</span>
+                    <select
+                      value={postComunidadeForm.tipo}
+                      onChange={(evento) => setPostComunidadeForm((actual) => ({ ...actual, tipo: evento.target.value as TipoPostComunidadeLearning }))}
+                      disabled={Boolean(acao)}
+                      className="h-10 rounded-md border bg-background px-3 text-sm outline-none focus:border-primary"
+                    >
+                      <option value="ANUNCIO">Anúncio</option>
+                      <option value="PERGUNTA">Pergunta</option>
+                      <option value="RESPOSTA">Resposta</option>
+                      <option value="MATERIAL">Material</option>
+                      <option value="DESAFIO">Desafio</option>
+                    </select>
+                  </label>
+                  <label className="inline-flex h-10 items-center gap-2 rounded-md border px-3 text-sm sm:self-end">
+                    <input
+                      type="checkbox"
+                      checked={postComunidadeForm.fixado}
+                      onChange={(evento) => setPostComunidadeForm((actual) => ({ ...actual, fixado: evento.target.checked }))}
+                      disabled={Boolean(acao)}
+                      className="size-4"
+                    />
+                    Fixar
+                  </label>
+                </div>
+                <label className="grid gap-1.5">
+                  <span className="text-xs font-medium text-muted-foreground">Título</span>
+                  <input
+                    value={postComunidadeForm.titulo}
+                    onChange={(evento) => setPostComunidadeForm((actual) => ({ ...actual, titulo: evento.target.value }))}
+                    disabled={Boolean(acao)}
+                    className="h-10 rounded-md border bg-background px-3 text-sm outline-none focus:border-primary"
+                    placeholder="Ex.: Materiais da live de sábado"
+                  />
+                </label>
+                <label className="grid gap-1.5">
+                  <span className="text-xs font-medium text-muted-foreground">Conteúdo</span>
+                  <textarea
+                    value={postComunidadeForm.conteudo}
+                    onChange={(evento) => setPostComunidadeForm((actual) => ({ ...actual, conteudo: evento.target.value }))}
+                    disabled={Boolean(acao)}
+                    rows={4}
+                    className="resize-none rounded-md border bg-background px-3 py-2 text-sm outline-none focus:border-primary"
+                    placeholder="Escreva o anúncio, pergunta, material ou desafio para a comunidade."
+                  />
+                </label>
+                <BotaoBizy tipo="submit" icone={Megaphone} disabled={Boolean(acao) || !postComunidadeForm.comunidadeId || !postComunidadeForm.conteudo.trim()}>
+                  Publicar
+                </BotaoBizy>
+              </div>
+            </form>
+          </div>
+
+          <div className="grid gap-3">
+            {(dados?.comunidades ?? []).slice(0, 8).map((comunidade) => (
+              <article key={comunidade.id} className="rounded-lg border bg-background p-4">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <StatusBadge cor={corComunidade(comunidade.estado)}>{comunidade.estado.toLowerCase()}</StatusBadge>
+                      <StatusBadge cor={comunidade.acesso === "ABERTO" ? "green" : "blue"}>{comunidade.acesso.toLowerCase()}</StatusBadge>
+                      {comunidade.posts > 0 && <StatusBadge cor="amber">{comunidade.posts} post(s)</StatusBadge>}
+                    </div>
+                    <h3 className="mt-2 text-sm font-semibold text-foreground">{comunidade.titulo}</h3>
+                    <p className="mt-1 text-xs text-muted-foreground">{comunidade.programaTitulo}</p>
+                  </div>
+                  <MessageSquareText size={18} className="text-muted-foreground" />
+                </div>
+                <div className="mt-3 grid gap-2 text-xs text-muted-foreground sm:grid-cols-4">
+                  <span className="rounded-md bg-muted px-2 py-2">{comunidade.membros} membros</span>
+                  <span className="rounded-md bg-muted px-2 py-2">{comunidade.anuncios} anúncios</span>
+                  <span className="rounded-md bg-muted px-2 py-2">{comunidade.perguntas} perguntas</span>
+                  <span className="rounded-md bg-muted px-2 py-2">{comunidade.ultimaAtividade ? formatarDataCurta(comunidade.ultimaAtividade) : "sem atividade"}</span>
+                </div>
+                <p className="mt-3 rounded-md bg-muted/60 p-3 text-sm leading-6 text-muted-foreground">{comunidade.regras}</p>
+                <div className="mt-3 flex flex-wrap gap-2 text-xs text-muted-foreground">
+                  {comunidade.topicos.map((topico) => <span key={topico} className="rounded-full bg-muted px-2.5 py-1">{topico}</span>)}
+                </div>
+                {comunidade.postsRecentes.length > 0 && (
+                  <div className="mt-3 grid gap-2">
+                    {comunidade.postsRecentes.slice(0, 2).map((post) => (
+                      <div key={post.id} className="rounded-md border bg-background p-3 text-sm">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <strong>{post.titulo || post.tipo.toLowerCase()}</strong>
+                          <span className="text-xs text-muted-foreground">{post.autorNome} · {formatarDataCurta(post.criadoEm)}</span>
+                        </div>
+                        <p className="mt-1 line-clamp-2 text-muted-foreground">{post.conteudo}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </article>
+            ))}
+            {!(dados?.comunidades ?? []).length && (
+              <p className="rounded-lg border bg-background p-4 text-sm text-muted-foreground">
+                Sem comunidades activas. Crie espaços para memberships, cohorts, perguntas e materiais pós-live.
+              </p>
+            )}
+          </div>
         </div>
       </PanelCard>
 
@@ -951,6 +1654,39 @@ function rotuloPreco(programa: ProgramaLearning): string {
     ? programa.oferta.valorPromocional
     : programa.oferta.valor;
   return formatarKwanza(valor, programa.oferta.moeda);
+}
+
+function dataLocalParaIso(valor: string): string | null {
+  if (!valor) return null;
+  const data = new Date(`${valor}T23:59:59.000`);
+  return Number.isNaN(data.getTime()) ? null : data.toISOString();
+}
+
+function dataHoraLocalParaIso(valor: string): string | null {
+  if (!valor) return null;
+  const data = new Date(valor);
+  return Number.isNaN(data.getTime()) ? null : data.toISOString();
+}
+
+function corAtribuicao(estado: EstadoAtribuicaoLearning): "green" | "amber" | "mute" | "blue" {
+  if (estado === "CONCLUIDA") return "green";
+  if (estado === "ATRASADA") return "amber";
+  if (estado === "REVOGADA") return "mute";
+  return "blue";
+}
+
+function corCohort(estado: EstadoCohortLearning): "green" | "amber" | "mute" | "blue" {
+  if (estado === "EM_ANDAMENTO" || estado === "ABERTO") return "green";
+  if (estado === "AGENDADO") return "blue";
+  if (estado === "CANCELADO") return "mute";
+  return "amber";
+}
+
+function corComunidade(estado: EstadoComunidadeLearning): "green" | "amber" | "mute" | "blue" {
+  if (estado === "ABERTA") return "green";
+  if (estado === "PRIVADA") return "blue";
+  if (estado === "PAUSADA") return "amber";
+  return "mute";
 }
 
 function formatarKwanza(valor: number, moeda = "AOA"): string {

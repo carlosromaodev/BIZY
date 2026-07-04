@@ -8,6 +8,16 @@ Status: especificacao viva com implementacao incremental em curso
 
 ---
 
+## 0. Implementacao Incremental Atual
+
+- 2026-07-04: `/app/learning` passou a suportar atribuição Team de produto Learning a membro (`usuarioId`) ou perfil, com obrigação, prazo, mensagem operacional e métricas de atribuições activas/atrasadas.
+- Quando a atribuição tem membro definido, o backend cria entitlement de origem `TEAM`, inscrição rastreável e evento `LEARNING_ATRIBUICAO_TEAM_CRIADA`.
+- Esta entrega cobre parcialmente RF-L045/RF-L046. Ainda faltam atribuições por departamento, projecto, turma/cohort real, políticas avançadas de revogação e notificações.
+- 2026-07-04: `/app/learning` passou a suportar abertura de cohorts/turmas por programa publicado, com data, vagas, sala, replay, regras de entrada e registo de presença. Presença de membro pode gerar entitlement de origem `TEAM` e inscrição rastreável.
+- Esta entrega cobre parcialmente RF-L057/RF-L060. Ainda faltam calendário avançado, presença por QR/check-in, tarefas pós-evento, replay protegido por entitlement e cohorts recorrentes.
+- 2026-07-04: `/app/learning` passou a suportar comunidades/memberships administradas pelo Team, com criação por programa, acesso aberto/entitlement/membership/convite, regras, moderadores, tópicos e posts do tipo anúncio, pergunta, resposta, material ou desafio.
+- Esta entrega cobre parcialmente RF-L058/RF-L059/RF-L030. Ainda faltam página pública de comunidade, permissões finas por membro, denúncias/moderação formal, anexos reais e protecção de materiais premium por entitlement.
+
 ## 1. Objetivo do Documento
 
 Este documento formaliza o Bizy Learning como um sistema proprio do ecossistema Bizy para produtos digitais, aprendizagem operacional, comunidades, mentorias, certificacoes e monetizacao de conhecimento.
