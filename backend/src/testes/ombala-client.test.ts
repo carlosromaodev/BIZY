@@ -10,6 +10,7 @@ import {
 
 describe("OmbalaClient", () => {
   afterEach(() => {
+    vi.useRealTimers();
     vi.unstubAllGlobals();
   });
 
@@ -78,5 +79,31 @@ describe("OmbalaClient", () => {
     expect(resultado.ok).toBe(false);
     expect(resultado.payload).toEqual({ message: "OMBALA_API_TOKEN não configurado." });
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("aborta chamada ao provider quando excede o timeout configurado", async () => {
+    vi.useFakeTimers();
+    const fetchMock = vi.fn((_url: string, init?: RequestInit) => new Promise<Response>((_resolve, reject) => {
+      init?.signal?.addEventListener("abort", () => {
+        reject(Object.assign(new Error("aborted"), { name: "AbortError" }));
+      });
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const client = new OmbalaClient({ baseUrl: "https://sms.local", token: "token", timeoutMs: 250 });
+    const envio = client.sendMessage({
+      from: "EMEU",
+      to: "+244937624786",
+      message: "Código 123456"
+    });
+
+    await vi.advanceTimersByTimeAsync(250);
+    const resultado = await envio;
+
+    expect(resultado.ok).toBe(false);
+    expect(resultado.status).toBe(0);
+    expect(resultado.payload).toEqual({
+      message: "Tempo limite de 250ms excedido ao comunicar com o Ombala."
+    });
   });
 });

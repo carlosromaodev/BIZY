@@ -91,6 +91,7 @@ export class ContratosPlataformaUseCase {
           "/publico/lojas/:slug",
           "/publico/lojas/:slug/produtos/:codigo",
           "/publico/lojas/:slug/checkout",
+          "/publico/lojas/:slug/formularios/lead",
           "/publico/lojas/:slug/whatsapp",
           "/publico/tracking/eventos"
         ],

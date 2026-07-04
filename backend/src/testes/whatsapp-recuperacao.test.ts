@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { DespachadorEventos } from "../dominio/eventos/DespachadorEventos.js";
 import type { MensagemWhatsApp, ProvedorWhatsApp, ResultadoEnvioWhatsApp } from "../dominio/provedores/ProvedorWhatsApp.js";
 import { RecuperacaoMensagensWhatsAppUseCase } from "../use-case/RecuperacaoMensagensWhatsAppUseCase.js";
@@ -76,5 +76,65 @@ describe("RecuperacaoMensagensWhatsAppUseCase", () => {
     );
 
     await recuperacao.fechar();
+  });
+
+  it("RNF-T003: expõe degradação quando a outbox WhatsApp viola o SLO de 60s", async () => {
+    const repositorio = new RepositorioAuditoriaMemoria();
+
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(new Date("2026-05-22T10:00:00.000Z"));
+      const pendente = await repositorio.criarMensagemWhatsAppPendente({
+        telefone: "923456789",
+        tipo: "ALERTA_PROACTIVO",
+        conteudo: "Alerta financeiro crítico"
+      });
+      const envioLento = await repositorio.criarMensagemWhatsAppPendente({
+        telefone: "923456780",
+        tipo: "RESUMO_DIARIO",
+        conteudo: "Resumo diário"
+      });
+      const falhaFinal = await repositorio.criarMensagemWhatsAppPendente({
+        telefone: "923456781",
+        tipo: "CAMPANHA_WHATSAPP",
+        conteudo: "Campanha"
+      });
+
+      vi.setSystemTime(new Date("2026-05-22T10:01:05.000Z"));
+      await repositorio.marcarMensagemWhatsAppEnviada(envioLento.id, {
+        provider: "evolution",
+        idExterno: "msg_lenta",
+        enviadaEm: new Date()
+      });
+      await repositorio.marcarMensagemWhatsAppFalha(
+        falhaFinal.id,
+        "Provider rejeitou a mensagem",
+        new Date("2026-05-22T10:05:00.000Z"),
+        { falhaFinal: true }
+      );
+
+      const resumo = await repositorio.resumirMensagensWhatsAppOutbox();
+
+      expect(pendente.status).toBe("PENDENTE");
+      expect(resumo).toEqual(
+        expect.objectContaining({
+          total: 3,
+          pendentes: 1,
+          enviadas: 1,
+          falhadas: 1,
+          estado: "INDISPONIVEL",
+          sloEntregaMs: 60_000,
+          idadePendenteMaisAntigaMs: 65_000,
+          maiorLatenciaEnvioMs: 65_000,
+          mediaLatenciaEnvioMs: 65_000,
+          enviosRecentesAmostrados: 1,
+          enviosRecentesForaSlo: 1,
+          pendentesForaSlo: 1,
+          ultimaFalha: "Provider rejeitou a mensagem"
+        })
+      );
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

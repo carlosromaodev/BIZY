@@ -18,12 +18,14 @@ import type {
   FiltrosPedidos,
   NovoPedido,
   NovaTarefaOperacional,
+  PaginacaoOffset,
   Pedido,
   ReciboPedido,
   RegistroComprovativoPagamentoPedido,
   RejeicaoPagamentoPedido,
   Reserva
 } from "../dominio/tipos.js";
+import { montarPaginacaoOffset, normalizarLimitePaginacao, normalizarOffsetPaginacao } from "./utils/paginacao.js";
 
 const estadosQueConsomemStock = new Set<Pedido["estado"]>([
   "NOVO",
@@ -100,6 +102,10 @@ export class GestaoPedidosUseCase {
       negocioId: pedido.negocioId,
       pedidoId: pedido.id,
       clienteNegocioId: pedido.clienteNegocioId,
+      clienteNome: cliente.nome ?? null,
+      clienteTelefone: cliente.telefone ?? null,
+      clienteEmail: cliente.email ?? null,
+      clienteEndereco: enderecoEntrega ?? null,
       totalEmKwanza: pedido.totalEmKwanza
     });
     await this.registrarMovimentosFunilPedido(pedido, this.movimentosFunilPedidoCriado(pedido));
@@ -133,8 +139,23 @@ export class GestaoPedidosUseCase {
     return { reserva, pedido, convertido: true };
   }
 
-  async listarPedidos(negocioId: string, filtros: FiltrosPedidos = {}) {
-    return { pedidos: await this.pedidos.listar(negocioId, filtros) };
+  async listarPedidos(
+    negocioId: string,
+    filtros: FiltrosPedidos = {}
+  ): Promise<{ pedidos: Pedido[]; paginacao: PaginacaoOffset }> {
+    const limite = normalizarLimitePaginacao(filtros.limite, 100, 1000);
+    const offset = normalizarOffsetPaginacao(filtros.offset);
+    const filtrosPaginados = { ...filtros, limite, offset };
+    const filtrosTotal = { ...filtros, limite: 100_000, offset: 0 };
+    const [pedidos, todosPedidos] = await Promise.all([
+      this.pedidos.listar(negocioId, filtrosPaginados),
+      this.pedidos.listar(negocioId, filtrosTotal)
+    ]);
+
+    return {
+      pedidos,
+      paginacao: montarPaginacaoOffset(todosPedidos.length, limite, offset)
+    };
   }
 
   async obterPedidoPublico(numero: number, negocioId: string): Promise<{
@@ -269,7 +290,10 @@ export class GestaoPedidosUseCase {
       negocioId,
       pedidoId: pedido.id,
       clienteNegocioId: pedido.clienteNegocioId,
-      totalEmKwanza: pedido.totalEmKwanza
+      totalEmKwanza: pedido.totalEmKwanza,
+      comprovativoPagamentoUrl: pedido.comprovativoPagamentoUrl ?? dados.comprovativoPagamentoUrl ?? null,
+      metodoPagamento: dados.metodoPagamento ?? null,
+      referenciaPagamento: dados.referenciaPagamento ?? null
     });
     await this.registrarMovimentosFunilPedido(pedido, [
       { etapa: "PAGO", motivo: "Pagamento confirmado." }

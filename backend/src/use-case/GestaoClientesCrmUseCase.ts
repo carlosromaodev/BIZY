@@ -17,9 +17,11 @@ import type {
   MetricasCliente360,
   NovoEnderecoCliente,
   Pedido,
+  PaginacaoOffset,
   Reserva
 } from "../dominio/tipos.js";
 import { lerBooleano, lerLista, parseCsv } from "./utils/csv.js";
+import { montarPaginacaoOffset, normalizarLimitePaginacao, normalizarOffsetPaginacao } from "./utils/paginacao.js";
 
 const estadosReservaAtiva = ["PENDING", "RESERVED", "WAITING_PAYMENT", "WAITLISTED"];
 const camposClienteImportacao = new Set([
@@ -135,8 +137,15 @@ export class GestaoClientesCrmUseCase {
   async listarClientes(
     negocioId: string,
     filtros: FiltrosClientes360 = {}
-  ): Promise<{ clientes: Cliente360ComMetricas[] }> {
-    const clientes = await this.clientes.listar(negocioId, filtros);
+  ): Promise<{ clientes: Cliente360ComMetricas[]; paginacao: PaginacaoOffset }> {
+    const limite = normalizarLimitePaginacao(filtros.limite);
+    const offset = normalizarOffsetPaginacao(filtros.offset);
+    const filtrosPaginados = { ...filtros, limite, offset };
+    const filtrosTotal = { ...filtros, limite: 100_000, offset: 0 };
+    const [clientes, todosClientes] = await Promise.all([
+      this.clientes.listar(negocioId, filtrosPaginados),
+      this.clientes.listar(negocioId, filtrosTotal)
+    ]);
     const [reservas, conversas, pecas, pedidos] = await Promise.all([
       this.reservas.listar(negocioId),
       this.atendimento.listarConversasComMensagens(1000, negocioId),
@@ -149,7 +158,8 @@ export class GestaoClientesCrmUseCase {
       clientes: clientes.map((cliente) => ({
         ...cliente,
         metricas: this.calcularMetricas(cliente, reservas, conversas, precoPorCodigo, pedidos)
-      }))
+      })),
+      paginacao: montarPaginacaoOffset(todosClientes.length, limite, offset)
     };
   }
 

@@ -29,7 +29,7 @@ const link: LinkAfiliado = {
   slugLoja: null,
   codigoProduto: null,
   canal: "whatsapp",
-  origemConteudo: "crm-afiliados",
+  origemConteudo: "team-afiliados",
   ativo: true,
   expiraEm: null,
   criadoEm: "2026-05-31T08:00:00.000Z"
@@ -50,14 +50,15 @@ describe("página de Afiliados", () => {
 
   it("tem estrutura mobile para ações e grids da página", () => {
     const afiliados = source("src/paginas/Afiliados.tsx");
-    const crm = source("src/componentes/CrmInterno21st.tsx");
     const css = source("src/estilos.css");
 
-    expect(afiliados).toContain('className="pagina-afiliados"');
     expect(afiliados).toContain("normalizarLinksAfiliados");
-    expect(crm).toContain("crm21-item-actions flex shrink-0 flex-wrap");
-    expect(css).toContain(".crm21-item-actions");
-    expect(css).toContain("grid-template-columns: repeat(2, minmax(0, 1fr));");
-    expect(css).toContain(".pagina-afiliados .afiliados-grid");
+    expect(afiliados).toContain("PageHead");
+    expect(afiliados).toContain("KpiGrid");
+    expect(afiliados).toContain("TableCard");
+    expect(afiliados).toContain("bz-aff-link");
+    expect(afiliados).toContain('origemConteudo: "team-afiliados"');
+    expect(css).toContain(".bz-aff-link");
+    expect(css).toContain(".bz-minibar-cell");
   });
 });

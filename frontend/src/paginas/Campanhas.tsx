@@ -139,7 +139,10 @@ export function PaginaCampanhas() {
             onChange={(id) => setFiltro(id as EstadoCampanha | "TODAS")}
           />
 
-          <TableCard>
+          <TableCard
+            titulo="Campanhas"
+            descricao="Controle envio, pausa e confirmação sem sair da lista."
+          >
             <Table>
               <TableHead>
                 <Th>Campanha</Th>
@@ -199,7 +202,10 @@ export function PaginaCampanhas() {
       )}
 
       {abaAtiva === "templates" && (
-        <TableCard>
+        <TableCard
+          titulo="Templates WhatsApp"
+          descricao="Apenas templates aprovados devem ser usados em disparos comerciais."
+        >
           <Table>
             <TableHead>
               <Th>Template</Th>

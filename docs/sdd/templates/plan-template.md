@@ -4,6 +4,8 @@
 
 **Goal:** Uma frase descrevendo o resultado implementavel.
 
+**Meta global:** Capacidade melhorada: descoberta | conversao | execucao | retencao | controlo.
+
 **Architecture:** Duas ou tres frases sobre a abordagem, fronteiras e integracoes.
 
 **Tech Stack:** Tecnologias, bibliotecas e ferramentas afetadas.

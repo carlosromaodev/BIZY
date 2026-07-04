@@ -1,8 +1,10 @@
+import { createHash } from "node:crypto";
 import type { PrismaClient } from "@prisma/client";
 import type { DespachadorEventos } from "../dominio/eventos/DespachadorEventos.js";
 import { buildFacturaHtml, type DadosFacturaPdf } from "../infra/pdf/FacturaPdfTemplate.js";
 import { buildReciboHtml, type DadosReciboPdf } from "../infra/pdf/ReciboPdfTemplate.js";
 import { renderPdfFromHtml } from "../infra/pdf/PdfRenderer.js";
+import { parseCsv } from "./utils/csv.js";
 
 const CATEGORIAS_PADRAO = [
   { nome: "Vendas", tipo: "RECEITA" },
@@ -16,6 +18,46 @@ const CATEGORIAS_PADRAO = [
   { nome: "Taxas e impostos", tipo: "DESPESA" },
   { nome: "Outros custos", tipo: "DESPESA" }
 ];
+
+const ORIGENS_ENTRADA = ["PEDIDO", "RECEBIMENTO_MANUAL", "COMISSAO", "FACTURA", "CONTA_RECEBER", "RECIBO"];
+const ORIGENS_SAIDA = [
+  "FORNECEDOR",
+  "DESPESA",
+  "IMPOSTO",
+  "COMISSAO_PAGA",
+  "NOTA_CREDITO",
+  "CONTA_PAGAR",
+  "REEMBOLSO",
+  "PROJECTO",
+  "PROJETO"
+];
+const MENSAGEM_ORIGEM_FINANCEIRA =
+  "RN-T001: Todo movimento financeiro deve ter origem classificada (origemTipo). Entradas: PEDIDO, RECEBIMENTO_MANUAL, COMISSAO, FACTURA, CONTA_RECEBER, RECIBO. Saídas: FORNECEDOR, DESPESA, IMPOSTO, COMISSAO_PAGA, NOTA_CREDITO, CONTA_PAGAR, REEMBOLSO, PROJECTO.";
+const JANELA_CONCILIACAO_MS = 3 * 24 * 60 * 60 * 1000;
+const TAMANHO_CHUNK_VALORES_CONCILIACAO = 1000;
+
+type FormatoExtratoBancario = "CSV" | "OFX";
+type TipoMovimentoBancario = "CREDITO" | "DEBITO";
+type EstadoConciliacaoBancaria = "PENDENTE" | "CONCILIADO" | "IGNORADO";
+
+type LinhaExtratoBancario = {
+  dataMovimento: Date;
+  descricao: string;
+  valor: number;
+  tipo: TipoMovimentoBancario;
+  referencia?: string | null;
+  linha?: number;
+};
+
+type MovimentoFinanceiroSugestao = {
+  id: string;
+  descricao: string;
+  valor: number;
+  tipo: string;
+  dataMovimento: Date;
+  origemTipo: string | null;
+  origemId: string | null;
+};
 
 export class GestaoFinancasUseCase {
   constructor(
@@ -64,28 +106,22 @@ export class GestaoFinancasUseCase {
       origemId?: string;
       responsavelId?: string;
       dataMovimento?: Date;
+      metodoPagamento?: string;
+      referenciaPagamento?: string;
+      comprovativoUrl?: string;
       observacao?: string;
     }
   ) {
     // RN-T001: todo movimento financeiro deve ter origem classificada
     if (!dados.origemTipo) {
-      throw new Error(
-        "RN-T001: Todo movimento financeiro deve ter origem classificada (origemTipo). Entradas: PEDIDO, RECEBIMENTO_MANUAL, COMISSAO. Saídas: FORNECEDOR, DESPESA, IMPOSTO, COMISSAO_PAGA."
-      );
+      throw new Error(MENSAGEM_ORIGEM_FINANCEIRA);
     }
 
-    const origensEntrada = ["PEDIDO", "RECEBIMENTO_MANUAL", "COMISSAO", "FACTURA", "CONTA_RECEBER", "RECIBO"];
-    const origensSaida = ["FORNECEDOR", "DESPESA", "IMPOSTO", "COMISSAO_PAGA", "NOTA_CREDITO", "CONTA_PAGAR", "REEMBOLSO"];
-
-    if (dados.tipo === "ENTRADA" && !origensEntrada.includes(dados.origemTipo)) {
-      throw new Error(
-        "RN-T001: Todo movimento financeiro deve ter origem classificada (origemTipo). Entradas: PEDIDO, RECEBIMENTO_MANUAL, COMISSAO. Saídas: FORNECEDOR, DESPESA, IMPOSTO, COMISSAO_PAGA."
-      );
+    if (dados.tipo === "ENTRADA" && !ORIGENS_ENTRADA.includes(dados.origemTipo)) {
+      throw new Error(MENSAGEM_ORIGEM_FINANCEIRA);
     }
-    if (dados.tipo === "SAIDA" && !origensSaida.includes(dados.origemTipo)) {
-      throw new Error(
-        "RN-T001: Todo movimento financeiro deve ter origem classificada (origemTipo). Entradas: PEDIDO, RECEBIMENTO_MANUAL, COMISSAO. Saídas: FORNECEDOR, DESPESA, IMPOSTO, COMISSAO_PAGA."
-      );
+    if (dados.tipo === "SAIDA" && !ORIGENS_SAIDA.includes(dados.origemTipo)) {
+      throw new Error(MENSAGEM_ORIGEM_FINANCEIRA);
     }
 
     const movimento = await this.prisma.movimentoFinanceiro.create({
@@ -99,6 +135,9 @@ export class GestaoFinancasUseCase {
         origemId: dados.origemId,
         responsavelId: dados.responsavelId,
         dataMovimento: dados.dataMovimento ?? new Date(),
+        metodoPagamento: dados.metodoPagamento,
+        referenciaPagamento: dados.referenciaPagamento,
+        comprovativoUrl: dados.comprovativoUrl,
         observacao: dados.observacao
       }
     });
@@ -138,46 +177,496 @@ export class GestaoFinancasUseCase {
     });
   }
 
+  // ── Reconciliação Bancária ───────────────────────────────────────────────
+
+  async importarExtratoBancario(
+    negocioId: string,
+    dados: { nomeArquivo: string; formato: FormatoExtratoBancario; conteudo: string; criadoPorId?: string }
+  ) {
+    const linhas = this.parseExtratoBancario(dados.formato, dados.conteudo);
+    if (linhas.length === 0) {
+      throw new Error("RF-T043: O extracto bancário não contém movimentos válidos para importar.");
+    }
+
+    const sugestoesPorLinha = await this.sugerirConciliacoesExtrato(negocioId, linhas);
+
+    const { importacao, movimentos } = await this.prisma.$transaction(async (tx) => {
+      const importacaoCriada = await tx.importacaoExtratoBancario.create({
+        data: {
+          negocioId,
+          nomeArquivo: dados.nomeArquivo,
+          formato: dados.formato,
+          totalLinhas: linhas.length,
+          criadoPorId: dados.criadoPorId
+        }
+      });
+
+      await tx.movimentoBancario.createMany({
+        data: linhas.map((linha, indice) => ({
+          negocioId,
+          importacaoId: importacaoCriada.id,
+          dataMovimento: linha.dataMovimento,
+          descricao: linha.descricao,
+          valor: linha.valor,
+          tipo: linha.tipo,
+          referencia: linha.referencia,
+          sugestoesJson: JSON.stringify(sugestoesPorLinha[indice])
+        }))
+      });
+
+      const movimentosCriados = await tx.movimentoBancario.findMany({
+        where: { importacaoId: importacaoCriada.id },
+        orderBy: [{ dataMovimento: "asc" }, { criadoEm: "asc" }]
+      });
+
+      return { importacao: importacaoCriada, movimentos: movimentosCriados };
+    });
+
+    return {
+      importacao,
+      movimentos,
+      total: movimentos.length,
+      pendentes: movimentos.filter((movimento) => movimento.estadoConciliacao === "PENDENTE").length,
+      comSugestoes: movimentos.filter((movimento) => JSON.parse(movimento.sugestoesJson).length > 0).length
+    };
+  }
+
+  async listarImportacoesExtratoBancario(negocioId: string, limite?: number) {
+    return this.prisma.importacaoExtratoBancario.findMany({
+      where: { negocioId },
+      include: { _count: { select: { movimentos: true } } },
+      orderBy: { criadoEm: "desc" },
+      take: limite ?? 50
+    });
+  }
+
+  async listarMovimentosBancarios(
+    negocioId: string,
+    filtros?: { estadoConciliacao?: EstadoConciliacaoBancaria; importacaoId?: string; limite?: number }
+  ) {
+    return this.prisma.movimentoBancario.findMany({
+      where: {
+        negocioId,
+        ...(filtros?.estadoConciliacao ? { estadoConciliacao: filtros.estadoConciliacao } : {}),
+        ...(filtros?.importacaoId ? { importacaoId: filtros.importacaoId } : {})
+      },
+      include: {
+        movimentoFinanceiro: {
+          select: { id: true, descricao: true, valor: true, tipo: true, dataMovimento: true, origemTipo: true }
+        }
+      },
+      orderBy: [{ dataMovimento: "desc" }, { criadoEm: "desc" }],
+      take: filtros?.limite ?? 200
+    });
+  }
+
+  async conciliarMovimentoBancario(
+    negocioId: string,
+    movimentoBancarioId: string,
+    movimentoFinanceiroId: string
+  ) {
+    const movimentoBancario = await this.prisma.movimentoBancario.findFirst({
+      where: { id: movimentoBancarioId, negocioId }
+    });
+    if (!movimentoBancario) {
+      throw new Error("RF-T045: Movimento bancário não encontrado para este negócio.");
+    }
+    if (movimentoBancario.estadoConciliacao === "CONCILIADO") {
+      throw new Error("RF-T045: Movimento bancário já está reconciliado.");
+    }
+
+    const movimentoFinanceiro = await this.prisma.movimentoFinanceiro.findFirst({
+      where: { id: movimentoFinanceiroId, negocioId }
+    });
+    if (!movimentoFinanceiro) {
+      throw new Error("RF-T045: Movimento financeiro interno não encontrado para este negócio.");
+    }
+    if (movimentoFinanceiro.reconciliado) {
+      throw new Error("RF-T045: Movimento financeiro interno já está reconciliado.");
+    }
+
+    const tipoEsperado = movimentoBancario.tipo === "CREDITO" ? "ENTRADA" : "SAIDA";
+    if (movimentoFinanceiro.tipo !== tipoEsperado) {
+      throw new Error("RF-T044: O tipo do movimento bancário não corresponde ao movimento financeiro interno.");
+    }
+    if (movimentoFinanceiro.valor !== movimentoBancario.valor) {
+      throw new Error("RF-T044: O valor do movimento bancário não corresponde ao movimento financeiro interno.");
+    }
+
+    const [bancario, financeiro] = await this.prisma.$transaction([
+      this.prisma.movimentoBancario.update({
+        where: { id: movimentoBancario.id },
+        data: {
+          estadoConciliacao: "CONCILIADO",
+          movimentoFinanceiroId: movimentoFinanceiro.id,
+          conciliadoEm: new Date()
+        },
+        include: {
+          movimentoFinanceiro: {
+            select: { id: true, descricao: true, valor: true, tipo: true, dataMovimento: true, origemTipo: true }
+          }
+        }
+      }),
+      this.prisma.movimentoFinanceiro.update({
+        where: { id: movimentoFinanceiro.id },
+        data: { reconciliado: true }
+      })
+    ]);
+
+    return { movimentoBancario: bancario, movimentoFinanceiro: financeiro };
+  }
+
+  async ignorarMovimentoBancario(negocioId: string, movimentoBancarioId: string) {
+    const movimentoBancario = await this.prisma.movimentoBancario.findFirst({
+      where: { id: movimentoBancarioId, negocioId }
+    });
+    if (!movimentoBancario) {
+      throw new Error("RF-T045: Movimento bancário não encontrado para este negócio.");
+    }
+    if (movimentoBancario.estadoConciliacao === "CONCILIADO") {
+      throw new Error("RF-T045: Movimento já reconciliado não pode ser ignorado.");
+    }
+
+    return this.prisma.movimentoBancario.update({
+      where: { id: movimentoBancario.id },
+      data: { estadoConciliacao: "IGNORADO" }
+    });
+  }
+
+  private async sugerirConciliacoesExtrato(negocioId: string, linhas: LinhaExtratoBancario[]) {
+    const candidatos = await this.buscarCandidatosConciliacaoEmLote(negocioId, linhas);
+    const candidatosPorChave = new Map<string, MovimentoFinanceiroSugestao[]>();
+
+    for (const candidato of candidatos) {
+      const chave = this.chaveCandidatoConciliacao(candidato.tipo, candidato.valor);
+      const lista = candidatosPorChave.get(chave) ?? [];
+      lista.push(candidato);
+      candidatosPorChave.set(chave, lista);
+    }
+
+    return linhas.map((linha) => {
+      const tipoInterno = linha.tipo === "CREDITO" ? "ENTRADA" : "SAIDA";
+      const candidatosDaLinha = candidatosPorChave.get(this.chaveCandidatoConciliacao(tipoInterno, linha.valor)) ?? [];
+      return this.montarSugestoesConciliacao(linha, candidatosDaLinha);
+    });
+  }
+
+  private montarSugestoesConciliacao(linha: LinhaExtratoBancario, candidatos: MovimentoFinanceiroSugestao[]) {
+    return candidatos
+      .filter((candidato) => Math.abs(candidato.dataMovimento.getTime() - linha.dataMovimento.getTime()) <= JANELA_CONCILIACAO_MS)
+      .map((candidato) => ({
+        movimentoFinanceiroId: candidato.id,
+        descricao: candidato.descricao,
+        valor: candidato.valor,
+        tipo: candidato.tipo,
+        origemTipo: candidato.origemTipo,
+        origemId: candidato.origemId,
+        dataMovimento: candidato.dataMovimento.toISOString(),
+        pontuacao: this.calcularPontuacaoConciliacao(linha, candidato)
+      }))
+      .sort((a, b) => b.pontuacao - a.pontuacao)
+      .slice(0, 5);
+  }
+
+  private async buscarCandidatosConciliacaoEmLote(negocioId: string, linhas: LinhaExtratoBancario[]) {
+    if (linhas.length === 0) return [];
+
+    const datas = linhas.map((linha) => linha.dataMovimento.getTime());
+    const inicio = new Date(Math.min(...datas) - JANELA_CONCILIACAO_MS);
+    const fim = new Date(Math.max(...datas) + JANELA_CONCILIACAO_MS);
+    const valoresPorTipo = {
+      ENTRADA: [...new Set(linhas.filter((linha) => linha.tipo === "CREDITO").map((linha) => linha.valor))],
+      SAIDA: [...new Set(linhas.filter((linha) => linha.tipo === "DEBITO").map((linha) => linha.valor))]
+    };
+
+    const consultas: Array<Promise<MovimentoFinanceiroSugestao[]>> = [];
+    for (const [tipo, valores] of Object.entries(valoresPorTipo)) {
+      for (const chunk of this.dividirEmChunks(valores, TAMANHO_CHUNK_VALORES_CONCILIACAO)) {
+        if (chunk.length === 0) continue;
+        consultas.push(this.prisma.movimentoFinanceiro.findMany({
+          where: {
+            negocioId,
+            tipo,
+            valor: { in: chunk },
+            reconciliado: false,
+            dataMovimento: { gte: inicio, lte: fim }
+          },
+          select: {
+            id: true,
+            descricao: true,
+            valor: true,
+            tipo: true,
+            dataMovimento: true,
+            origemTipo: true,
+            origemId: true
+          },
+          orderBy: [{ dataMovimento: "desc" }, { criadoEm: "desc" }]
+        }));
+      }
+    }
+
+    const resultados = await Promise.all(consultas);
+    return resultados.flat();
+  }
+
+  private chaveCandidatoConciliacao(tipo: string, valor: number) {
+    return `${tipo}:${valor}`;
+  }
+
+  private dividirEmChunks<T>(itens: T[], tamanho: number) {
+    const chunks: T[][] = [];
+    for (let indice = 0; indice < itens.length; indice += tamanho) {
+      chunks.push(itens.slice(indice, indice + tamanho));
+    }
+    return chunks;
+  }
+
+  private calcularPontuacaoConciliacao(linha: LinhaExtratoBancario, candidato: MovimentoFinanceiroSugestao) {
+    let pontuacao = 60; // Valor e tipo já foram filtrados de forma exacta.
+    const diferencaDias = Math.abs(
+      linha.dataMovimento.getTime() - candidato.dataMovimento.getTime()
+    ) / (24 * 60 * 60 * 1000);
+
+    if (diferencaDias < 0.5) pontuacao += 20;
+    else if (diferencaDias <= 1) pontuacao += 15;
+    else if (diferencaDias <= 3) pontuacao += 8;
+
+    const descricaoBanco = this.tokenizarTexto(linha.descricao);
+    const descricaoInterna = this.tokenizarTexto(candidato.descricao);
+    const comuns = [...descricaoBanco].filter((token) => descricaoInterna.has(token)).length;
+    pontuacao += Math.min(15, comuns * 5);
+
+    if (linha.referencia && this.normalizarTexto(candidato.descricao).includes(this.normalizarTexto(linha.referencia))) {
+      pontuacao += 5;
+    }
+
+    return Math.min(100, pontuacao);
+  }
+
+  private parseExtratoBancario(formato: FormatoExtratoBancario, conteudo: string): LinhaExtratoBancario[] {
+    if (formato === "OFX") return this.parseExtratoOfx(conteudo);
+    return this.parseExtratoCsv(conteudo);
+  }
+
+  private parseExtratoCsv(conteudo: string): LinhaExtratoBancario[] {
+    return parseCsv(conteudo).map((linha) => {
+      const dataTexto = this.obterCampo(linha.dados, ["data_movimento", "data", "date", "dtposted"]);
+      if (!dataTexto) throw new Error(`RF-T043: Linha ${linha.numero} sem data de movimento.`);
+
+      const valorCredito = this.obterValorMonetario(linha.dados, ["credito", "credit", "entrada", "deposito"]);
+      const valorDebito = this.obterValorMonetario(linha.dados, ["debito", "debit", "saida", "levantamento"]);
+      const valorPrincipal = this.obterValorMonetario(linha.dados, ["valor", "amount", "montante", "quantia", "trnamt"]);
+      const tipoTexto = this.obterCampo(linha.dados, ["tipo", "type", "trntype"]);
+
+      let valor: number | undefined;
+      let tipo: TipoMovimentoBancario | undefined = this.parseTipoMovimentoBancario(tipoTexto);
+
+      if (valorCredito !== undefined && valorCredito > 0) {
+        valor = valorCredito;
+        tipo = "CREDITO";
+      } else if (valorDebito !== undefined && valorDebito > 0) {
+        valor = valorDebito;
+        tipo = "DEBITO";
+      } else if (valorPrincipal !== undefined) {
+        valor = Math.abs(valorPrincipal);
+        tipo = tipo ?? (valorPrincipal < 0 ? "DEBITO" : "CREDITO");
+      }
+
+      if (valor === undefined || valor <= 0 || !tipo) {
+        throw new Error(`RF-T043: Linha ${linha.numero} sem valor/tipo bancário válido.`);
+      }
+
+      return {
+        dataMovimento: this.parseDataMovimento(dataTexto, `linha ${linha.numero}`),
+        descricao: this.obterCampo(linha.dados, ["descricao", "description", "historico", "memo", "name"]) ?? "Movimento bancário",
+        valor,
+        tipo,
+        referencia: this.obterCampo(linha.dados, ["referencia", "reference", "fitid", "documento"]) ?? null,
+        linha: linha.numero
+      };
+    });
+  }
+
+  private parseExtratoOfx(conteudo: string): LinhaExtratoBancario[] {
+    const blocos = [...conteudo.matchAll(/<STMTTRN>([\s\S]*?)(?=<\/STMTTRN>|<STMTTRN>|<\/BANKTRANLIST>|$)/gi)];
+
+    return blocos.map((bloco, indice) => {
+      const corpo = bloco[1] ?? "";
+      const valorBruto = this.extrairTagOfx(corpo, "TRNAMT");
+      const dataTexto = this.extrairTagOfx(corpo, "DTPOSTED");
+      const valorNumerico = this.converterValorMonetario(valorBruto);
+      const tipoOfx = this.parseTipoMovimentoBancario(this.extrairTagOfx(corpo, "TRNTYPE"));
+
+      if (!dataTexto || valorNumerico === undefined || valorNumerico === 0) {
+        throw new Error(`RF-T043: Transacção OFX ${indice + 1} sem data ou valor válido.`);
+      }
+
+      const descricao =
+        this.extrairTagOfx(corpo, "NAME") ??
+        this.extrairTagOfx(corpo, "MEMO") ??
+        "Movimento bancário";
+
+      return {
+        dataMovimento: this.parseDataMovimento(dataTexto, `transacção OFX ${indice + 1}`),
+        descricao,
+        valor: Math.abs(valorNumerico),
+        tipo: tipoOfx ?? (valorNumerico < 0 ? "DEBITO" : "CREDITO"),
+        referencia: this.extrairTagOfx(corpo, "FITID") ?? null,
+        linha: indice + 1
+      };
+    });
+  }
+
+  private obterCampo(dados: Record<string, string>, aliases: string[]) {
+    for (const alias of aliases) {
+      const valor = dados[alias]?.trim();
+      if (valor) return valor;
+    }
+    return undefined;
+  }
+
+  private obterValorMonetario(dados: Record<string, string>, aliases: string[]) {
+    const valor = this.obterCampo(dados, aliases);
+    return this.converterValorMonetario(valor);
+  }
+
+  private converterValorMonetario(valor?: string | null) {
+    if (!valor) return undefined;
+    let normalizado = valor.trim().replace(/\s+/g, "").replace(/[^\d,.-]/g, "");
+    if (!normalizado || normalizado === "-") return undefined;
+
+    const ultimaVirgula = normalizado.lastIndexOf(",");
+    const ultimoPonto = normalizado.lastIndexOf(".");
+    if (ultimaVirgula >= 0 && ultimoPonto >= 0) {
+      normalizado = ultimaVirgula > ultimoPonto
+        ? normalizado.replace(/\./g, "").replace(",", ".")
+        : normalizado.replace(/,/g, "");
+    } else if (ultimaVirgula >= 0) {
+      normalizado = normalizado.replace(",", ".");
+    } else if (ultimoPonto >= 0) {
+      const decimais = normalizado.length - ultimoPonto - 1;
+      if (decimais > 2) normalizado = normalizado.replace(/\./g, "");
+    }
+
+    const numero = Number(normalizado);
+    return Number.isFinite(numero) ? Math.trunc(numero) : undefined;
+  }
+
+  private parseTipoMovimentoBancario(valor?: string | null): TipoMovimentoBancario | undefined {
+    const normalizado = this.normalizarTexto(valor ?? "");
+    if (!normalizado) return undefined;
+    if (
+      normalizado === "c" ||
+      ["credito", "credit", "entrada", "deposit", "deposito"].some((token) => normalizado.includes(token))
+    ) {
+      return "CREDITO";
+    }
+    if (
+      normalizado === "d" ||
+      ["debito", "debit", "saida", "withdrawal", "levantamento"].some((token) => normalizado.includes(token))
+    ) {
+      return "DEBITO";
+    }
+    return undefined;
+  }
+
+  private parseDataMovimento(valor: string, contexto: string) {
+    const texto = valor.trim();
+    let data: Date;
+
+    const iso = texto.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (iso) {
+      data = new Date(`${iso[1]}-${iso[2]}-${iso[3]}T00:00:00.000Z`);
+    } else {
+      const ofx = texto.match(/^(\d{4})(\d{2})(\d{2})/);
+      const pt = texto.match(/^(\d{2})[/-](\d{2})[/-](\d{4})/);
+      if (ofx) data = new Date(Date.UTC(Number(ofx[1]), Number(ofx[2]) - 1, Number(ofx[3])));
+      else if (pt) data = new Date(Date.UTC(Number(pt[3]), Number(pt[2]) - 1, Number(pt[1])));
+      else data = new Date(texto);
+    }
+
+    if (Number.isNaN(data.getTime())) {
+      throw new Error(`RF-T043: Data inválida no extracto bancário (${contexto}).`);
+    }
+
+    return data;
+  }
+
+  private extrairTagOfx(conteudo: string, tag: string) {
+    return conteudo.match(new RegExp(`<${tag}>([^\\r\\n<]+)`, "i"))?.[1]?.trim();
+  }
+
+  private tokenizarTexto(valor: string) {
+    return new Set(
+      this.normalizarTexto(valor)
+        .split(/\s+/)
+        .filter((token) => token.length >= 3)
+    );
+  }
+
+  private normalizarTexto(valor: string) {
+    return valor
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, " ")
+      .trim();
+  }
+
   // ── Fluxo de Caixa e DRE ─────────────────────────────────────────────────
 
   async obterFluxoCaixa(negocioId: string, de: Date, ate: Date) {
-    const movimentos = await this.prisma.movimentoFinanceiro.findMany({
-      where: { negocioId, dataMovimento: { gte: de, lte: ate } },
-      include: { categoria: { select: { nome: true, tipo: true } } },
-      orderBy: { dataMovimento: "asc" }
+    const where = { negocioId, dataMovimento: { gte: de, lte: ate } };
+    const [totaisPorTipo, porDiaBruto, porCategoriaBruto] = await Promise.all([
+      this.prisma.movimentoFinanceiro.groupBy({
+        by: ["tipo"],
+        where,
+        _sum: { valor: true }
+      }),
+      this.prisma.$queryRaw<Array<{ dia: Date | string; tipo: string; total: bigint | number }>>`
+        SELECT DATE("dataMovimento") AS dia, "tipo", COALESCE(SUM("valor"), 0)::bigint AS total
+        FROM "MovimentoFinanceiro"
+        WHERE "negocioId" = ${negocioId}
+          AND "dataMovimento" >= ${de}
+          AND "dataMovimento" <= ${ate}
+        GROUP BY DATE("dataMovimento"), "tipo"
+        ORDER BY dia ASC
+      `,
+      this.prisma.movimentoFinanceiro.groupBy({
+        by: ["categoriaId", "tipo"],
+        where,
+        _sum: { valor: true }
+      })
+    ]);
+
+    const totalEntradas = this.somarGrupoFinanceiro(totaisPorTipo, "ENTRADA");
+    const totalSaidas = this.somarGrupoFinanceiro(totaisPorTipo, "SAIDA");
+    const saldo = totalEntradas - totalSaidas;
+    const categorias = await this.prisma.categoriaFinanceira.findMany({
+      where: {
+        negocioId,
+        id: { in: porCategoriaBruto.map((grupo) => grupo.categoriaId).filter((id): id is string => Boolean(id)) }
+      },
+      select: { id: true, nome: true, tipo: true }
     });
-
-    let saldo = 0;
-    const entradas = movimentos.filter((m) => m.tipo === "ENTRADA");
-    const saidas = movimentos.filter((m) => m.tipo === "SAIDA");
-    const totalEntradas = entradas.reduce((s, m) => s + m.valor, 0);
-    const totalSaidas = saidas.reduce((s, m) => s + m.valor, 0);
-    saldo = totalEntradas - totalSaidas;
-
-    // agrupar por dia
-    const porDia: Record<string, { entradas: number; saidas: number }> = {};
-    for (const m of movimentos) {
-      const dia = m.dataMovimento.toISOString().slice(0, 10);
-      if (!porDia[dia]) porDia[dia] = { entradas: 0, saidas: 0 };
-      if (m.tipo === "ENTRADA") porDia[dia].entradas += m.valor;
-      else porDia[dia].saidas += m.valor;
-    }
-
-    // agrupar por categoria
-    const porCategoria: Record<string, { tipo: string; total: number }> = {};
-    for (const m of movimentos) {
-      const cat = m.categoria?.nome ?? "Sem categoria";
-      if (!porCategoria[cat]) porCategoria[cat] = { tipo: m.tipo, total: 0 };
-      porCategoria[cat].total += m.valor;
-    }
+    const categoriasPorId = new Map(categorias.map((categoria) => [categoria.id, categoria]));
+    const porDia = this.normalizarFluxoPorDia(porDiaBruto);
+    const porCategoria = porCategoriaBruto.map((grupo) => {
+      const categoria = grupo.categoriaId ? categoriasPorId.get(grupo.categoriaId) : null;
+      return {
+        categoria: categoria?.nome ?? "Sem categoria",
+        tipo: categoria?.tipo ?? grupo.tipo,
+        total: Number(grupo._sum.valor ?? 0)
+      };
+    });
 
     return {
       saldo,
       totalEntradas,
       totalSaidas,
       periodo: { de, ate },
-      porDia: Object.entries(porDia).map(([dia, v]) => ({ dia, ...v })),
-      porCategoria: Object.entries(porCategoria).map(([categoria, v]) => ({ categoria, ...v }))
+      porDia,
+      porCategoria
     };
   }
 
@@ -185,27 +674,40 @@ export class GestaoFinancasUseCase {
     const de = new Date(ano, mes - 1, 1);
     const ate = new Date(ano, mes, 0, 23, 59, 59);
 
-    const movimentos = await this.prisma.movimentoFinanceiro.findMany({
+    const movimentosPorCategoria = await this.prisma.movimentoFinanceiro.groupBy({
+      by: ["categoriaId", "tipo"],
       where: { negocioId, dataMovimento: { gte: de, lte: ate } },
-      include: { categoria: { select: { nome: true, tipo: true } } }
+      _sum: { valor: true }
     });
+    const categorias = await this.prisma.categoriaFinanceira.findMany({
+      where: {
+        negocioId,
+        id: { in: movimentosPorCategoria.map((grupo) => grupo.categoriaId).filter((id): id is string => Boolean(id)) }
+      },
+      select: { id: true, nome: true, tipo: true }
+    });
+    const categoriasPorId = new Map(categorias.map((categoria) => [categoria.id, categoria]));
 
-    const receitaBruta = movimentos
-      .filter((m) => m.tipo === "ENTRADA")
-      .reduce((s, m) => s + m.valor, 0);
+    let receitaBruta = 0;
+    let custosVariaveis = 0;
+    let custosFixos = 0;
+    let totalSaidas = 0;
+    for (const grupo of movimentosPorCategoria) {
+      const valor = Number(grupo._sum.valor ?? 0);
+      if (grupo.tipo === "ENTRADA") {
+        receitaBruta += valor;
+        continue;
+      }
+      totalSaidas += valor;
+      const categoriaNome = grupo.categoriaId ? categoriasPorId.get(grupo.categoriaId)?.nome ?? "" : "";
+      if (["Fornecedores", "Logística/Entregas", "Comissões pagas"].includes(categoriaNome)) {
+        custosVariaveis += valor;
+      } else if (["Salários", "Aluguer", "Taxas e impostos"].includes(categoriaNome)) {
+        custosFixos += valor;
+      }
+    }
 
-    const custosVariaveis = movimentos
-      .filter((m) => m.tipo === "SAIDA" && ["Fornecedores", "Logística/Entregas", "Comissões pagas"].includes(m.categoria?.nome ?? ""))
-      .reduce((s, m) => s + m.valor, 0);
-
-    const custosFixos = movimentos
-      .filter((m) => m.tipo === "SAIDA" && ["Salários", "Aluguer", "Taxas e impostos"].includes(m.categoria?.nome ?? ""))
-      .reduce((s, m) => s + m.valor, 0);
-
-    const outrosCustos = movimentos
-      .filter((m) => m.tipo === "SAIDA")
-      .reduce((s, m) => s + m.valor, 0) - custosVariaveis - custosFixos;
-
+    const outrosCustos = totalSaidas - custosVariaveis - custosFixos;
     const margemContribuicao = receitaBruta - custosVariaveis;
     const resultadoOperacional = margemContribuicao - custosFixos - outrosCustos;
 
@@ -218,6 +720,25 @@ export class GestaoFinancasUseCase {
       outrosCustos,
       resultadoOperacional
     };
+  }
+
+  private somarGrupoFinanceiro(grupos: Array<{ tipo: string; _sum: { valor: number | null } }>, tipo: string) {
+    return Number(grupos.find((grupo) => grupo.tipo === tipo)?._sum.valor ?? 0);
+  }
+
+  private normalizarFluxoPorDia(linhas: Array<{ dia: Date | string; tipo: string; total: bigint | number }>) {
+    const porDia = new Map<string, { entradas: number; saidas: number }>();
+    for (const linha of linhas) {
+      const dia = linha.dia instanceof Date
+        ? linha.dia.toISOString().slice(0, 10)
+        : String(linha.dia).slice(0, 10);
+      const actual = porDia.get(dia) ?? { entradas: 0, saidas: 0 };
+      const total = Number(linha.total);
+      if (linha.tipo === "ENTRADA") actual.entradas += total;
+      else actual.saidas += total;
+      porDia.set(dia, actual);
+    }
+    return [...porDia.entries()].map(([dia, valores]) => ({ dia, ...valores }));
   }
 
   // ── Despesas ──────────────────────────────────────────────────────────────
@@ -285,10 +806,21 @@ export class GestaoFinancasUseCase {
     });
   }
 
-  async marcarDespesaPaga(id: string, negocioId: string) {
+  async marcarDespesaPaga(
+    id: string,
+    negocioId: string,
+    dados: { metodoPagamento?: string; referenciaPagamento?: string; comprovativoUrl?: string; observacao?: string } = {}
+  ) {
     const despesa = await this.prisma.despesa.update({
       where: { id, negocioId },
-      data: { pago: true, pagoEm: new Date() }
+      data: {
+        pago: true,
+        pagoEm: new Date(),
+        metodoPagamento: dados.metodoPagamento,
+        referenciaPagamento: dados.referenciaPagamento,
+        comprovativoUrl: dados.comprovativoUrl,
+        observacao: dados.observacao ?? undefined
+      }
     });
 
     this.eventos?.emitir("FINANCAS_DESPESA_PAGA", {
@@ -310,6 +842,7 @@ export class GestaoFinancasUseCase {
       descricao: string;
       valor: number;
       dataVencimento: Date;
+      facturaId?: string;
       observacao?: string;
     }
   ) {
@@ -318,6 +851,7 @@ export class GestaoFinancasUseCase {
         negocioId,
         clienteId: dados.clienteId,
         pedidoId: dados.pedidoId,
+        facturaId: dados.facturaId,
         descricao: dados.descricao,
         valor: dados.valor,
         dataVencimento: dados.dataVencimento,
@@ -359,19 +893,55 @@ export class GestaoFinancasUseCase {
     return aging;
   }
 
-  async receberPagamento(id: string, negocioId: string, valorPago: number) {
+  async receberPagamento(
+    id: string,
+    negocioId: string,
+    dados: {
+      valorPago?: number;
+      metodoPagamento?: string;
+      referenciaPagamento?: string;
+      comprovativoUrl?: string;
+      observacao?: string;
+    }
+  ) {
+    const contaOriginal = await this.prisma.contaReceber.findFirstOrThrow({
+      where: { id, negocioId }
+    });
+    const valorRecebido = dados.valorPago ?? Math.max(0, contaOriginal.valor - (contaOriginal.valorPago ?? 0));
+    const valorPago = Math.min(contaOriginal.valor, (contaOriginal.valorPago ?? 0) + valorRecebido);
     const conta = await this.prisma.contaReceber.update({
       where: { id, negocioId },
-      data: { estado: "PAGO", pagoEm: new Date(), valorPago }
+      data: {
+        estado: valorPago >= contaOriginal.valor ? "PAGO" : "A_VENCER",
+        pagoEm: valorPago >= contaOriginal.valor ? new Date() : null,
+        valorPago,
+        metodoPagamento: dados.metodoPagamento,
+        referenciaPagamento: dados.referenciaPagamento,
+        comprovativoPagamentoUrl: dados.comprovativoUrl,
+        observacao: dados.observacao ?? undefined
+      }
     });
 
     await this.registarMovimento(negocioId, {
       tipo: "ENTRADA",
       descricao: `Recebimento: ${conta.descricao}`,
-      valor: valorPago,
+      valor: valorRecebido,
       origemTipo: "CONTA_RECEBER",
-      origemId: id
+      origemId: id,
+      metodoPagamento: dados.metodoPagamento,
+      referenciaPagamento: dados.referenciaPagamento,
+      comprovativoUrl: dados.comprovativoUrl,
+      observacao: dados.observacao
     });
+
+    if (conta.facturaId) {
+      await this.marcarFacturaPagaPorRecebimento(conta.facturaId, negocioId, {
+        valorPago: valorRecebido,
+        metodoPagamento: dados.metodoPagamento,
+        referenciaPagamento: dados.referenciaPagamento,
+        comprovativoUrl: dados.comprovativoUrl
+      });
+    }
 
     this.eventos?.emitir("FINANCAS_CONTA_RECEBIDA", {
       negocioId,
@@ -413,10 +983,21 @@ export class GestaoFinancasUseCase {
     });
   }
 
-  async pagarConta(id: string, negocioId: string) {
+  async pagarConta(
+    id: string,
+    negocioId: string,
+    dados: { metodoPagamento?: string; referenciaPagamento?: string; comprovativoUrl?: string; observacao?: string } = {}
+  ) {
     const conta = await this.prisma.contaPagar.update({
       where: { id, negocioId },
-      data: { estado: "PAGO", pagoEm: new Date() }
+      data: {
+        estado: "PAGO",
+        pagoEm: new Date(),
+        metodoPagamento: dados.metodoPagamento,
+        referenciaPagamento: dados.referenciaPagamento,
+        comprovativoPagamentoUrl: dados.comprovativoUrl,
+        observacao: dados.observacao ?? undefined
+      }
     });
 
     await this.registarMovimento(negocioId, {
@@ -424,7 +1005,11 @@ export class GestaoFinancasUseCase {
       descricao: `Pagamento: ${conta.descricao} — ${conta.fornecedor}`,
       valor: conta.valor,
       origemTipo: "CONTA_PAGAR",
-      origemId: id
+      origemId: id,
+      metodoPagamento: dados.metodoPagamento,
+      referenciaPagamento: dados.referenciaPagamento,
+      comprovativoUrl: dados.comprovativoUrl,
+      observacao: dados.observacao
     });
 
     this.eventos?.emitir("FINANCAS_CONTA_PAGA", {
@@ -446,13 +1031,44 @@ export class GestaoFinancasUseCase {
       clienteNif?: string;
       clienteEndereco?: string;
       pedidoId?: string;
+      movimentoOrigemId?: string;
+      tipoDocumento?: "FACTURA" | "FACTURA_RECIBO";
       serie?: string;
       ivaPercentual?: number;
+      dataVencimento?: Date;
+      metodoPagamento?: string;
+      referenciaPagamento?: string;
+      comprovativoUrl?: string;
       observacao?: string;
       itens: { descricao: string; quantidade: number; precoUnitario: number }[];
     }
   ) {
-    const serie = dados.serie ?? "FT";
+    const movimentoOrigem = dados.movimentoOrigemId
+      ? await this.prisma.movimentoFinanceiro.findFirst({ where: { id: dados.movimentoOrigemId, negocioId } })
+      : null;
+    if (dados.movimentoOrigemId && !movimentoOrigem) {
+      throw new Error("Movimento financeiro de origem não encontrado para relacionar com a factura.");
+    }
+    if (movimentoOrigem && movimentoOrigem.tipo !== "ENTRADA") {
+      throw new Error("Apenas movimentos de entrada podem ser relacionados com factura-recibo.");
+    }
+    if (movimentoOrigem?.origemTipo === "RECIBO" && movimentoOrigem.origemId) {
+      throw new Error("Este movimento já está relacionado com uma factura-recibo.");
+    }
+
+    if (dados.pedidoId) {
+      const facturaExistente = await this.prisma.factura.findFirst({
+        where: { negocioId, pedidoId: dados.pedidoId },
+        include: { itens: true }
+      });
+
+      if (facturaExistente) {
+        return facturaExistente;
+      }
+    }
+
+    const tipoDocumento = dados.tipoDocumento ?? "FACTURA";
+    const serie = dados.serie ?? (tipoDocumento === "FACTURA_RECIBO" ? "FR" : "FT");
     const anoFiscal = new Date().getFullYear();
     const ivaPerc = dados.ivaPercentual ?? 14;
 
@@ -474,6 +1090,32 @@ export class GestaoFinancasUseCase {
     const subtotal = itensCalc.reduce((s, i) => s + i.subtotal, 0);
     const ivaValor = itensCalc.reduce((s, i) => s + i.ivaValor, 0);
     const total = subtotal + ivaValor;
+    if (movimentoOrigem && tipoDocumento !== "FACTURA_RECIBO") {
+      throw new Error("Movimento financeiro só pode ser relacionado diretamente com factura-recibo.");
+    }
+    if (movimentoOrigem && movimentoOrigem.valor !== total) {
+      throw new Error("O valor do movimento deve coincidir com o total da factura-recibo para evitar divergência no caixa.");
+    }
+    const dataVencimento = dados.dataVencimento ?? new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+    const emitidaEm = new Date();
+    const codigoValidacao = gerarCodigoValidacaoDocumento(negocioId, serie, numero, anoFiscal, total);
+    const hashDocumento = gerarHashDocumento({
+      negocioId,
+      serie,
+      numero,
+      anoFiscal,
+      total,
+      clienteNome: dados.clienteNome,
+      emitidaEm
+    });
+    const qrCode = gerarPayloadQrDocumento({
+      tipoDocumento,
+      serie,
+      numero,
+      anoFiscal,
+      codigoValidacao,
+      total
+    });
 
     const factura = await this.prisma.factura.create({
       data: {
@@ -482,14 +1124,26 @@ export class GestaoFinancasUseCase {
         clienteNome: dados.clienteNome,
         clienteNif: dados.clienteNif,
         clienteEndereco: dados.clienteEndereco,
+        tipoDocumento,
         serie,
         numero,
         anoFiscal,
+        estadoPagamento: tipoDocumento === "FACTURA_RECIBO" ? "PAGO" : "PENDENTE",
         subtotal,
         ivaPercentual: ivaPerc,
         ivaValor,
         total,
+        valorPago: tipoDocumento === "FACTURA_RECIBO" ? total : 0,
+        dataVencimento: tipoDocumento === "FACTURA_RECIBO" ? emitidaEm : dataVencimento,
+        pagoEm: tipoDocumento === "FACTURA_RECIBO" ? emitidaEm : undefined,
+        metodoPagamento: tipoDocumento === "FACTURA_RECIBO" ? dados.metodoPagamento ?? movimentoOrigem?.metodoPagamento ?? undefined : undefined,
+        referenciaPagamento: tipoDocumento === "FACTURA_RECIBO" ? dados.referenciaPagamento ?? movimentoOrigem?.referenciaPagamento ?? undefined : undefined,
+        comprovativoPagamentoUrl: tipoDocumento === "FACTURA_RECIBO" ? dados.comprovativoUrl ?? movimentoOrigem?.comprovativoUrl ?? undefined : undefined,
+        codigoValidacao,
+        qrCode,
+        hashDocumento,
         observacao: dados.observacao,
+        emitidaEm,
         itens: { create: itensCalc.map((i) => ({
           descricao: i.descricao,
           quantidade: i.quantidade,
@@ -502,14 +1156,41 @@ export class GestaoFinancasUseCase {
       include: { itens: true }
     });
 
-    // registar movimento de entrada
-    await this.registarMovimento(negocioId, {
-      tipo: "ENTRADA",
-      descricao: `Factura ${serie} ${String(numero).padStart(4, "0")}/${anoFiscal}`,
-      valor: total,
-      origemTipo: "FACTURA",
-      origemId: factura.id
-    });
+    if (tipoDocumento === "FACTURA_RECIBO") {
+      if (movimentoOrigem) {
+        await this.prisma.movimentoFinanceiro.update({
+          where: { id: movimentoOrigem.id },
+          data: {
+            origemTipo: "RECIBO",
+            origemId: factura.id,
+            metodoPagamento: dados.metodoPagamento ?? movimentoOrigem.metodoPagamento,
+            referenciaPagamento: dados.referenciaPagamento ?? movimentoOrigem.referenciaPagamento,
+            comprovativoUrl: dados.comprovativoUrl ?? movimentoOrigem.comprovativoUrl,
+            observacao: dados.observacao ?? movimentoOrigem.observacao
+          }
+        });
+      } else {
+        await this.registarMovimento(negocioId, {
+          tipo: "ENTRADA",
+          descricao: `Factura-recibo ${serie} ${String(numero).padStart(4, "0")}/${anoFiscal}`,
+          valor: total,
+          origemTipo: "RECIBO",
+          origemId: factura.id,
+          metodoPagamento: dados.metodoPagamento,
+          referenciaPagamento: dados.referenciaPagamento,
+          comprovativoUrl: dados.comprovativoUrl
+        });
+      }
+    } else {
+      await this.criarContaReceber(negocioId, {
+        pedidoId: dados.pedidoId,
+        facturaId: factura.id,
+        descricao: `Factura ${serie} ${String(numero).padStart(4, "0")}/${anoFiscal} — ${dados.clienteNome}`,
+        valor: total,
+        dataVencimento,
+        observacao: "Gerado automaticamente pela emissão da factura."
+      });
+    }
 
     this.eventos?.emitir("FINANCAS_FACTURA_EMITIDA", {
       negocioId,
@@ -525,12 +1206,13 @@ export class GestaoFinancasUseCase {
 
   async listarFacturas(
     negocioId: string,
-    filtros?: { estado?: string; de?: Date; ate?: Date; limite?: number }
+    filtros?: { estado?: string; de?: Date; ate?: Date; limite?: number; pedidoId?: string }
   ) {
     return this.prisma.factura.findMany({
       where: {
         negocioId,
         ...(filtros?.estado ? { estado: filtros.estado } : {}),
+        ...(filtros?.pedidoId ? { pedidoId: filtros.pedidoId } : {}),
         ...(filtros?.de || filtros?.ate ? {
           emitidaEm: {
             ...(filtros?.de ? { gte: filtros.de } : {}),
@@ -552,9 +1234,22 @@ export class GestaoFinancasUseCase {
   }
 
   async anularFactura(id: string, negocioId: string, motivo: string) {
+    const actual = await this.prisma.factura.findFirstOrThrow({
+      where: { id, negocioId },
+      select: { estadoPagamento: true }
+    });
+    if (actual.estadoPagamento === "PAGO") {
+      throw new Error("Factura paga não deve ser anulada directamente; emita uma nota de crédito para manter rasto contabilístico.");
+    }
+
     const factura = await this.prisma.factura.update({
       where: { id, negocioId },
-      data: { estado: "ANULADA", anuladaEm: new Date(), motivoAnulacao: motivo }
+      data: { estado: "ANULADA", estadoPagamento: "PENDENTE", anuladaEm: new Date(), motivoAnulacao: motivo }
+    });
+
+    await this.prisma.contaReceber.updateMany({
+      where: { negocioId, facturaId: id, estado: { not: "PAGO" } },
+      data: { estado: "CANCELADO", observacao: `Cancelada pela anulação da factura: ${motivo}` }
     });
 
     this.eventos?.emitir("FINANCAS_FACTURA_ANULADA", {
@@ -576,8 +1271,12 @@ export class GestaoFinancasUseCase {
       serie: factura.serie,
       numero: factura.numero,
       anoFiscal: factura.anoFiscal,
+      tipoDocumento: factura.tipoDocumento,
       estado: factura.estado,
+      estadoPagamento: factura.estadoPagamento,
       emitidaEm: factura.emitidaEm,
+      dataVencimento: factura.dataVencimento,
+      pagoEm: factura.pagoEm,
       nomeComercial: factura.negocio.nomeComercial,
       nif: factura.negocio.nif,
       telefone: factura.negocio.telefone,
@@ -591,6 +1290,12 @@ export class GestaoFinancasUseCase {
       ivaPercentual: factura.ivaPercentual,
       ivaValor: factura.ivaValor,
       total: factura.total,
+      valorPago: factura.valorPago,
+      metodoPagamento: factura.metodoPagamento,
+      referenciaPagamento: factura.referenciaPagamento,
+      codigoValidacao: factura.codigoValidacao,
+      qrCode: factura.qrCode,
+      hashDocumento: factura.hashDocumento,
       observacao: factura.observacao,
       itens: factura.itens.map((i) => ({
         descricao: i.descricao,
@@ -613,6 +1318,20 @@ export class GestaoFinancasUseCase {
     dados: { facturaId: string; motivo: string; valor: number }
   ) {
     const anoFiscal = new Date().getFullYear();
+    const factura = await this.prisma.factura.findFirstOrThrow({
+      where: { id: dados.facturaId, negocioId },
+      include: { notasCredito: true }
+    });
+    if (factura.estado === "ANULADA") {
+      throw new Error("Não é possível emitir nota de crédito para factura anulada.");
+    }
+    const creditoEmitido = factura.notasCredito
+      .filter((nota) => nota.estado === "EMITIDA")
+      .reduce((total, nota) => total + nota.valor, 0);
+    const saldoCreditavel = factura.total - creditoEmitido;
+    if (dados.valor > saldoCreditavel) {
+      throw new Error("Valor da nota de crédito excede o saldo creditável da factura.");
+    }
 
     const ultima = await this.prisma.notaCredito.findFirst({
       where: { negocioId, anoFiscal },
@@ -630,6 +1349,11 @@ export class GestaoFinancasUseCase {
         motivo: dados.motivo,
         valor: dados.valor
       }
+    });
+
+    await this.prisma.factura.update({
+      where: { id: dados.facturaId, negocioId },
+      data: { estado: dados.valor >= saldoCreditavel ? "CORRIGIDA" : "EMITIDA" }
     });
 
     // registar movimento de saída (devolução)
@@ -718,6 +1442,7 @@ export class GestaoFinancasUseCase {
       valorPago: number;
       metodoPagamento?: string;
       referencia?: string;
+      comprovativoUrl?: string;
       facturaId?: string;
       observacao?: string;
     }
@@ -744,9 +1469,16 @@ export class GestaoFinancasUseCase {
     if (dados.facturaId) {
       const factura = await this.prisma.factura.findFirst({
         where: { id: dados.facturaId, negocioId },
-        select: { serie: true, numero: true, anoFiscal: true }
+        select: { serie: true, numero: true, anoFiscal: true, total: true, valorPago: true, estadoPagamento: true }
       });
       if (factura) {
+        const pendente = Math.max(0, factura.total - factura.valorPago);
+        if (pendente <= 0 || factura.estadoPagamento === "PAGO") {
+          throw new Error("Factura já está paga; não é possível gerar novo recibo para o mesmo documento.");
+        }
+        if (dados.valorPago > pendente) {
+          throw new Error("Valor recebido excede o saldo pendente da factura.");
+        }
         facturaRef = `${factura.serie} ${String(factura.numero).padStart(4, "0")}/${factura.anoFiscal}`;
       }
     }
@@ -757,8 +1489,21 @@ export class GestaoFinancasUseCase {
       descricao: `RC ${String(numero).padStart(4, "0")}/${anoFiscal} — ${dados.clienteNome}`,
       valor: dados.valorPago,
       origemTipo: "RECIBO",
-      origemId: dados.facturaId
+      origemId: dados.facturaId,
+      metodoPagamento: dados.metodoPagamento,
+      referenciaPagamento: dados.referencia,
+      comprovativoUrl: dados.comprovativoUrl,
+      observacao: dados.observacao
     });
+
+    if (dados.facturaId) {
+      await this.marcarFacturaPagaPorRecebimento(dados.facturaId, negocioId, {
+        valorPago: dados.valorPago,
+        metodoPagamento: dados.metodoPagamento,
+        referenciaPagamento: dados.referencia,
+        comprovativoUrl: dados.comprovativoUrl
+      });
+    }
 
     // gerar PDF
     const dadosPdf: DadosReciboPdf = {
@@ -776,6 +1521,7 @@ export class GestaoFinancasUseCase {
       valorPago: dados.valorPago,
       metodoPagamento: dados.metodoPagamento,
       referencia: dados.referencia,
+      comprovativoUrl: dados.comprovativoUrl,
       facturaRef,
       observacao: dados.observacao
     };
@@ -786,6 +1532,40 @@ export class GestaoFinancasUseCase {
       numero,
       anoFiscal
     };
+  }
+
+  private async marcarFacturaPagaPorRecebimento(
+    facturaId: string,
+    negocioId: string,
+    dados: {
+      valorPago: number;
+      metodoPagamento?: string;
+      referenciaPagamento?: string;
+      comprovativoUrl?: string;
+    }
+  ) {
+    const factura = await this.prisma.factura.findFirstOrThrow({
+      where: { id: facturaId, negocioId },
+      select: { total: true, valorPago: true }
+    });
+    const valorPagoAcumulado = Math.min(factura.total, factura.valorPago + dados.valorPago);
+    const estadoPagamento = valorPagoAcumulado >= factura.total
+      ? "PAGO"
+      : valorPagoAcumulado > 0
+        ? "PARCIAL"
+        : "PENDENTE";
+
+    return this.prisma.factura.update({
+      where: { id: facturaId, negocioId },
+      data: {
+        estadoPagamento,
+        valorPago: valorPagoAcumulado,
+        pagoEm: estadoPagamento === "PAGO" ? new Date() : null,
+        metodoPagamento: dados.metodoPagamento,
+        referenciaPagamento: dados.referenciaPagamento,
+        comprovativoPagamentoUrl: dados.comprovativoUrl
+      }
+    });
   }
 
   // ── Despesas Recorrentes (RF-T025) ───────────────────────────────────────
@@ -1385,4 +2165,57 @@ export class GestaoFinancasUseCase {
     // RN-T002: factura emitida não pode ser editada, apenas anulada via nota de crédito ou anulação
     return factura;
   }
+}
+
+function gerarCodigoValidacaoDocumento(
+  negocioId: string,
+  serie: string,
+  numero: number,
+  anoFiscal: number,
+  total: number
+) {
+  return createHash("sha256")
+    .update(`${negocioId}:${serie}:${numero}:${anoFiscal}:${total}`)
+    .digest("hex")
+    .slice(0, 16)
+    .toUpperCase();
+}
+
+function gerarHashDocumento(dados: {
+  negocioId: string;
+  serie: string;
+  numero: number;
+  anoFiscal: number;
+  total: number;
+  clienteNome: string;
+  emitidaEm: Date;
+}) {
+  return createHash("sha256")
+    .update(JSON.stringify({
+      negocioId: dados.negocioId,
+      serie: dados.serie,
+      numero: dados.numero,
+      anoFiscal: dados.anoFiscal,
+      total: dados.total,
+      clienteNome: dados.clienteNome,
+      emitidaEm: dados.emitidaEm.toISOString()
+    }))
+    .digest("hex");
+}
+
+function gerarPayloadQrDocumento(dados: {
+  tipoDocumento: string;
+  serie: string;
+  numero: number;
+  anoFiscal: number;
+  codigoValidacao: string;
+  total: number;
+}) {
+  return JSON.stringify({
+    emissor: "BIZY",
+    tipo: dados.tipoDocumento,
+    documento: `${dados.serie} ${String(dados.numero).padStart(4, "0")}/${dados.anoFiscal}`,
+    codigo: dados.codigoValidacao,
+    total: dados.total
+  });
 }

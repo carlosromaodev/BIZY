@@ -7,7 +7,7 @@ const source = (path: string) => readFileSync(resolve(process.cwd(), path), "utf
 describe("frontend das lojas digitais", () => {
   it("suporta rota direta de produto e abre o detalhe sem depender só da grelha", () => {
     const rotas = source("src/rotasApp.tsx");
-    const loja = source("src/paginas/LojaDigitalPublica.tsx");
+    const loja = source("src/projetos/market/paginas/LojaDigitalPublica.tsx");
 
     expect(rotas).toContain('/lojas/:slug/produtos/:codigo');
     expect(loja).toContain("codigoRota");
@@ -16,7 +16,7 @@ describe("frontend das lojas digitais", () => {
   });
 
   it("mantém tabs acessíveis e bottom nav mobile com sobreposição nativa verde Bizy", () => {
-    const loja = source("src/paginas/LojaDigitalPublica.tsx");
+    const loja = source("src/projetos/market/paginas/LojaDigitalPublica.tsx");
     const css = source("src/estilos.css");
 
     expect(loja).toContain('role="tablist"');
@@ -31,7 +31,7 @@ describe("frontend das lojas digitais", () => {
   });
 
   it("refatora o produto da loja como PDP premium com galeria, painel sticky e seleção acessível", () => {
-    const loja = source("src/paginas/LojaDigitalPublica.tsx");
+    const loja = source("src/projetos/market/paginas/LojaDigitalPublica.tsx");
     const css = source("src/estilos.css");
 
     expect(loja).toContain("loja-pdp-gallery");

@@ -12,7 +12,7 @@ export const moduloPainel: ModuloHttp = {
         permissao: "relatorios:ver",
         modulo: "crm",
         mensagemPermissao: "Sem permissão para consultar o painel.",
-        mensagemModulo: "CRM desativado para este negócio."
+        mensagemModulo: "Módulo comercial desativado para este negócio."
       });
       if (!contextoComercial) return;
 
@@ -29,7 +29,7 @@ export const moduloPainel: ModuloHttp = {
         permissao: "relatorios:ver",
         modulo: "crm",
         mensagemPermissao: "Sem permissão para consultar relatórios.",
-        mensagemModulo: "CRM desativado para este negócio."
+        mensagemModulo: "Módulo comercial desativado para este negócio."
       });
       if (!contextoComercial) return;
 
@@ -42,7 +42,7 @@ export const moduloPainel: ModuloHttp = {
         permissao: "relatorios:ver",
         modulo: "crm",
         mensagemPermissao: "Sem permissão para consultar resumo diário.",
-        mensagemModulo: "CRM desativado para este negócio."
+        mensagemModulo: "Módulo comercial desativado para este negócio."
       });
       if (!contextoComercial) return;
 
@@ -55,7 +55,7 @@ export const moduloPainel: ModuloHttp = {
         permissao: "relatorios:ver",
         modulo: "crm",
         mensagemPermissao: "Sem permissão para consultar série temporal.",
-        mensagemModulo: "CRM desativado para este negócio."
+        mensagemModulo: "Módulo comercial desativado para este negócio."
       });
       if (!contextoComercial) return;
 
@@ -71,7 +71,7 @@ export const moduloPainel: ModuloHttp = {
         permissao: "relatorios:ver",
         modulo: "crm",
         mensagemPermissao: "Sem permissão para consultar relatório social.",
-        mensagemModulo: "CRM desativado para este negócio."
+        mensagemModulo: "Módulo comercial desativado para este negócio."
       });
       if (!contextoComercial) return;
 
@@ -83,7 +83,7 @@ export const moduloPainel: ModuloHttp = {
         permissao: "relatorios:ver",
         modulo: "crm",
         mensagemPermissao: "Sem permissão para exportar relatórios.",
-        mensagemModulo: "CRM desativado para este negócio."
+        mensagemModulo: "Módulo comercial desativado para este negócio."
       });
       if (!contextoComercial) return;
 
@@ -107,7 +107,7 @@ export const moduloPainel: ModuloHttp = {
         permissao: "relatorios:ver",
         modulo: "crm",
         mensagemPermissao: "Sem permissão para exportar relatórios.",
-        mensagemModulo: "CRM desativado para este negócio."
+        mensagemModulo: "Módulo comercial desativado para este negócio."
       });
       if (!contextoComercial) return;
 

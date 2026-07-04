@@ -32,6 +32,7 @@ import {
 import type {
   Cliente360,
   EstadoRelacionamentoCliente,
+  PaginacaoOffset,
   RespostaClientes360,
 } from "../tipos";
 import { formatarDataHoraCurta, formatarKwanza } from "../utilidades";
@@ -166,16 +167,25 @@ export function PaginaClientes() {
   const [busca, setBusca] = useState("");
   const [filtro, setFiltro] = useState<Filtro>("todos");
   const [pagina, setPagina] = useState(1);
+  const [paginacao, setPaginacao] = useState<PaginacaoOffset | null>(null);
   const [clienteDetalhe, setClienteDetalhe] = useState<Cliente360 | null>(null);
 
   async function carregar() {
     setCarregando(true);
     try {
-      const rc = await requisitarApi<RespostaClientes360>("/clientes?limite=500");
+      const params = new URLSearchParams();
+      params.set("limite", String(POR_PAGINA));
+      params.set("offset", String((pagina - 1) * POR_PAGINA));
+      if (busca.trim()) params.set("busca", busca.trim());
+      if (filtro !== "todos") params.set("estadoRelacionamento", filtro);
+
+      const rc = await requisitarApi<RespostaClientes360>(`/clientes?${params.toString()}`);
       setClientes(rc.clientes ?? []);
+      setPaginacao(rc.paginacao ?? null);
       setMensagem("");
     } catch (e) {
       setClientes([]);
+      setPaginacao(null);
       setMensagem(e instanceof Error ? e.message : "Erro ao carregar clientes.");
     } finally {
       setCarregando(false);
@@ -184,30 +194,13 @@ export function PaginaClientes() {
 
   useEffect(() => {
     void carregar();
-  }, []);
-  useEffect(() => {
-    setPagina(1);
-  }, [busca, filtro]);
+  }, [busca, filtro, pagina]);
 
   /* ── Derived data ──────────────────────────────────────────── */
 
-  const clientesFiltrados = useMemo(() => {
-    const t = busca.trim().toLowerCase();
-    return clientes.filter((c) => {
-      if (filtro !== "todos" && c.estadoRelacionamento !== filtro) return false;
-      if (!t) return true;
-      return (
-        (c.nome ?? "").toLowerCase().includes(t) ||
-        (c.username ?? "").toLowerCase().includes(t) ||
-        (c.telefone ?? "").includes(t) ||
-        (c.email ?? "").toLowerCase().includes(t) ||
-        c.tags.some((tag) => tag.toLowerCase().includes(t))
-      );
-    });
-  }, [busca, clientes, filtro]);
-
-  const totalPaginas = Math.max(1, Math.ceil(clientesFiltrados.length / POR_PAGINA));
-  const clientesPagina = clientesFiltrados.slice((pagina - 1) * POR_PAGINA, pagina * POR_PAGINA);
+  const totalClientes = paginacao?.total ?? clientes.length;
+  const totalPaginas = Math.max(1, Math.ceil(totalClientes / POR_PAGINA));
+  const clientesPagina = clientes;
 
   const compradores = useMemo(() => clientes.filter((c) => c.metricas.reservasPagas > 0).length, [clientes]);
   const valorTotal = useMemo(() => clientes.reduce((t, c) => t + c.metricas.totalCompradoEmKwanza, 0), [clientes]);
@@ -228,9 +221,14 @@ export function PaginaClientes() {
     contagem: contas[f.id] ?? 0,
   }));
 
+  function selecionarFiltro(proximo: Filtro) {
+    setFiltro(proximo);
+    setPagina(1);
+  }
+
   function exportar() {
-    baixarArquivo("clientes-bizy.csv", toCsv(clientesFiltrados));
-    setMensagem(`${clientesFiltrados.length} clientes exportados.`);
+    baixarArquivo("clientes-bizy.csv", toCsv(clientesPagina));
+    setMensagem(`${clientesPagina.length} clientes exportados desta página.`);
   }
 
   async function acaoRapida(cliente: Cliente360, tipo: "COBRANCA" | "RECOMPRA" | "CONSENTIMENTO") {
@@ -246,7 +244,7 @@ export function PaginaClientes() {
               : tipo === "RECOMPRA"
                 ? "Ativar recompra"
                 : "Atualizar consentimento",
-          observacao: "Criado no CRM.",
+          observacao: "Criado no Team.",
           prioridade: tipo === "COBRANCA" ? "ALTA" : "NORMAL",
           contexto: {
             origem: "clientes-360",
@@ -292,7 +290,7 @@ export function PaginaClientes() {
           <div>
             <h1>Clientes</h1>
             <div className="team-sub">
-              {clientes.length} clientes · {novosEsteMes} novos este mês
+              {totalClientes} clientes · {novosEsteMes} novos nesta página
             </div>
           </div>
           <div className="team-pghead-right">
@@ -312,7 +310,7 @@ export function PaginaClientes() {
             type="button"
             className="team-ftile"
             data-active={filtro === "todos" ? "true" : undefined}
-            onClick={() => setFiltro("todos")}
+            onClick={() => selecionarFiltro("todos")}
           >
             <span className="team-ftile-icon" style={{ background: "var(--em-tint)", color: "var(--em)" }}>
               <Users size={17} />
@@ -321,13 +319,13 @@ export function PaginaClientes() {
               <div className="team-ftile-title">Todos</div>
               <div className="team-ftile-desc">base completa</div>
             </div>
-            <span className="team-ftile-count">{clientes.length}</span>
+            <span className="team-ftile-count">{totalClientes}</span>
           </button>
           <button
             type="button"
             className="team-ftile"
             data-active={filtro === "VIP" ? "true" : undefined}
-            onClick={() => setFiltro("VIP")}
+            onClick={() => selecionarFiltro("VIP")}
           >
             <span className="team-ftile-icon" style={{ background: "var(--violet-tint)", color: "var(--violet)" }}>
               <CheckCircle2 size={17} />
@@ -342,7 +340,7 @@ export function PaginaClientes() {
             type="button"
             className="team-ftile"
             data-active={filtro === "ATIVO" ? "true" : undefined}
-            onClick={() => setFiltro("ATIVO")}
+            onClick={() => selecionarFiltro("ATIVO")}
           >
             <span className="team-ftile-icon" style={{ background: "var(--blue-tint)", color: "var(--blue)" }}>
               <Bolt size={17} />
@@ -357,7 +355,7 @@ export function PaginaClientes() {
             type="button"
             className="team-ftile"
             data-active={filtro === "INATIVO" ? "true" : undefined}
-            onClick={() => setFiltro("INATIVO")}
+            onClick={() => selecionarFiltro("INATIVO")}
           >
             <span className="team-ftile-icon" style={{ background: "var(--amber-tint)", color: "var(--amber)" }}>
               <Clock size={17} />
@@ -495,7 +493,7 @@ export function PaginaClientes() {
             <EstadoVazio
               icone={<Users />}
               titulo={carregando ? "A carregar clientes" : "Sem clientes neste filtro"}
-              detalhe={carregando ? "A consultar o CRM..." : "Ajuste a busca ou aguarde novas interações."}
+              detalhe={carregando ? "A consultar o Team..." : "Ajuste a busca ou aguarde novas interações."}
             />
           )}
         </motion.div>
@@ -505,22 +503,22 @@ export function PaginaClientes() {
       {totalPaginas > 1 && (
         <div className="bz-pagination">
           <span className="bz-pag-info">
-            {Math.min((pagina - 1) * POR_PAGINA + 1, clientesFiltrados.length)}–
-            {Math.min(pagina * POR_PAGINA, clientesFiltrados.length)} de {clientesFiltrados.length}
+            {Math.min((pagina - 1) * POR_PAGINA + 1, totalClientes)}–
+            {Math.min(pagina * POR_PAGINA, totalClientes)} de {totalClientes}
           </span>
           <div className="bz-pag-btns">
             <button
               className="bz-pag-btn"
-              disabled={pagina === 1}
-              onClick={() => setPagina((p) => p - 1)}
+              disabled={!(paginacao?.temAnterior ?? pagina > 1)}
+              onClick={() => setPagina((p) => Math.max(1, p - 1))}
             >
               ←
             </button>
             <span className="bz-pag-current">{pagina} / {totalPaginas}</span>
             <button
               className="bz-pag-btn"
-              disabled={pagina === totalPaginas}
-              onClick={() => setPagina((p) => p + 1)}
+              disabled={!(paginacao?.temProxima ?? pagina < totalPaginas)}
+              onClick={() => setPagina((p) => Math.min(totalPaginas, p + 1))}
             >
               →
             </button>

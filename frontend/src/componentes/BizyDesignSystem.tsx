@@ -1,13 +1,12 @@
 /**
- * BizyDesignSystem.tsx — Componentes reutilizáveis da identidade visual v2
+ * BizyDesignSystem.tsx — Componentes reutilizáveis da identidade visual Bizy
  *
- * Orgânico · amigável · comercial
- * Hierarquia de cor: green (marca), amber (pendente), blue (em curso),
- *                    rose (urgente), violet (VIP)
+ * Base operacional inspirada em Carbon Design System:
+ * layers planas, comandos claros, tabelas operaveis e estados com proxima acao.
  */
-import { type ReactNode, useState } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { type LucideIcon, ArrowUpRight, Search, ChevronDown } from "lucide-react";
+import { type LucideIcon, ArrowRight, ArrowUpRight, Search, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 /* ── Semantic color type ──────────────────────────────────────── */
@@ -26,6 +25,10 @@ export function KpiCard({
   deltaPositivo,
   rodape,
   hero = false,
+  acaoTexto,
+  acaoRota,
+  onAcao,
+  className,
 }: {
   icone: LucideIcon;
   cor?: CorSemantica;
@@ -36,11 +39,17 @@ export function KpiCard({
   deltaPositivo?: boolean;
   rodape?: ReactNode;
   hero?: boolean;
+  acaoTexto?: string;
+  acaoRota?: string;
+  onAcao?: () => void;
+  className?: string;
 }) {
+  const accao = acaoTexto && (acaoRota || onAcao);
+
   return (
-    <div className={cn("bz-kpi", hero && "bz-kpi-hero")}>
+    <div className={cn("bz-kpi", hero && "bz-kpi-hero", accao && "bz-kpi-actionable", className)}>
       <div className={cn("bz-kpi-chip", !hero && `chip-${cor}`)}>
-        <Icone size={19} />
+        <Icone size={19} aria-hidden="true" />
       </div>
       <div className="bz-kpi-body">
         <span className="bz-kpi-label">{rotulo}</span>
@@ -60,6 +69,17 @@ export function KpiCard({
           </span>
         )}
         {rodape && <div className="bz-kpi-foot">{rodape}</div>}
+        {accao && (
+          acaoRota ? (
+            <Link className="bz-kpi-action" to={acaoRota}>
+              {acaoTexto} <ArrowRight size={14} aria-hidden="true" />
+            </Link>
+          ) : (
+            <button type="button" className="bz-kpi-action" onClick={onAcao}>
+              {acaoTexto} <ArrowRight size={14} aria-hidden="true" />
+            </button>
+          )
+        )}
       </div>
     </div>
   );
@@ -75,26 +95,56 @@ export function KpiGrid({ children, className }: { children: ReactNode; classNam
 
 export function PanelCard({
   titulo,
+  descricao,
   linkTexto,
   linkRota,
+  acaoTexto,
+  acaoRota,
+  onAcao,
+  acaoIcone: AcaoIcone,
   children,
   className,
 }: {
   titulo: string;
+  descricao?: string;
   linkTexto?: string;
   linkRota?: string;
+  acaoTexto?: string;
+  acaoRota?: string;
+  onAcao?: () => void;
+  acaoIcone?: LucideIcon;
   children: ReactNode;
   className?: string;
 }) {
+  const temAcao = acaoTexto && (acaoRota || onAcao);
+
   return (
     <div className={cn("bz-panel", className)}>
       <div className="bz-panel-head">
-        <span className="bz-panel-title">{titulo}</span>
-        {linkTexto && linkRota && (
-          <Link to={linkRota} className="bz-panel-link">
-            {linkTexto} <ArrowUpRight size={13} />
-          </Link>
-        )}
+        <div className="bz-panel-heading">
+          <span className="bz-panel-title">{titulo}</span>
+          {descricao && <span className="bz-panel-desc">{descricao}</span>}
+        </div>
+        <div className="bz-panel-actions">
+          {linkTexto && linkRota && (
+            <Link to={linkRota} className="bz-panel-link">
+              {linkTexto} <ArrowUpRight size={13} aria-hidden="true" />
+            </Link>
+          )}
+          {temAcao && (
+            acaoRota ? (
+              <Link to={acaoRota} className="bz-panel-action">
+                {AcaoIcone && <AcaoIcone size={14} aria-hidden="true" />}
+                {acaoTexto}
+              </Link>
+            ) : (
+              <button type="button" className="bz-panel-action" onClick={onAcao}>
+                {AcaoIcone && <AcaoIcone size={14} aria-hidden="true" />}
+                {acaoTexto}
+              </button>
+            )
+          )}
+        </div>
       </div>
       {children}
     </div>
@@ -117,7 +167,7 @@ export function IconChip({
       className={cn("bz-icon-chip", `chip-${cor}`)}
       style={{ width: tamanho, height: tamanho }}
     >
-      <Icone size={Math.round(tamanho * 0.47)} />
+      <Icone size={Math.round(tamanho * 0.47)} aria-hidden="true" />
     </span>
   );
 }
@@ -208,7 +258,7 @@ export function AttentionRow({
   return (
     <div className="bz-att-row">
       <span className={cn("bz-att-icon", `chip-${cor}`)}>
-        <Icone size={18} />
+        <Icone size={18} aria-hidden="true" />
       </span>
       <div className="bz-att-body">
         <div className="bz-att-title">{titulo}</div>
@@ -294,11 +344,13 @@ export function TabsBizy({
   onChange: (id: string) => void;
 }) {
   return (
-    <div className="bz-tabs">
+    <div className="bz-tabs" role="tablist" aria-label="Secoes">
       {tabs.map((t) => (
         <button
           key={t.id}
           type="button"
+          role="tab"
+          aria-selected={activo === t.id}
           className={cn("bz-tab", activo === t.id && "active")}
           onClick={() => onChange(t.id)}
         >
@@ -319,6 +371,7 @@ export function ToolbarBizy({
   selectOpcoes,
   selectValor,
   onSelectChange,
+  children,
 }: {
   placeholder?: string;
   valorBusca: string;
@@ -326,6 +379,7 @@ export function ToolbarBizy({
   selectOpcoes?: { id: string; rotulo: string }[];
   selectValor?: string;
   onSelectChange?: (v: string) => void;
+  children?: ReactNode;
 }) {
   return (
     <div className="bz-toolbar">
@@ -350,17 +404,43 @@ export function ToolbarBizy({
               <option key={o.id} value={o.id}>{o.rotulo}</option>
             ))}
           </select>
-          <ChevronDown size={15} />
+          <ChevronDown size={15} aria-hidden="true" />
         </div>
       )}
+      {children && <div className="bz-toolbar-actions">{children}</div>}
     </div>
   );
 }
 
 /* ── Data Table ───────────────────────────────────────────────── */
 
-export function TableCard({ children, className }: { children: ReactNode; className?: string }) {
-  return <div className={cn("bz-tablecard", className)}>{children}</div>;
+export function TableCard({
+  children,
+  className,
+  titulo,
+  descricao,
+  acoes,
+}: {
+  children: ReactNode;
+  className?: string;
+  titulo?: string;
+  descricao?: string;
+  acoes?: ReactNode;
+}) {
+  return (
+    <div className={cn("bz-tablecard", className)}>
+      {(titulo || descricao || acoes) && (
+        <div className="bz-tablecard-head">
+          <div>
+            {titulo && <h2 className="bz-tablecard-title">{titulo}</h2>}
+            {descricao && <p className="bz-tablecard-desc">{descricao}</p>}
+          </div>
+          {acoes && <div className="bz-tablecard-actions">{acoes}</div>}
+        </div>
+      )}
+      {children}
+    </div>
+  );
 }
 
 export function Table({ children }: { children: ReactNode }) {
@@ -408,21 +488,31 @@ export function BotaoBizy({
   onClick,
   className,
   tipo = "button",
+  disabled,
+  ariaLabel,
 }: {
   children: ReactNode;
-  variante?: "primary" | "ghost";
+  variante?: "primary" | "secondary" | "tertiary" | "ghost" | "danger";
   icone?: LucideIcon;
   onClick?: () => void;
   className?: string;
   tipo?: "button" | "submit";
+  disabled?: boolean;
+  ariaLabel?: string;
 }) {
   return (
     <button
       type={tipo}
-      className={cn("bz-btn", variante === "ghost" && "bz-btn-ghost", className)}
+      className={cn(
+        "bz-btn",
+        variante !== "primary" && `bz-btn-${variante}`,
+        className,
+      )}
       onClick={onClick}
+      disabled={disabled}
+      aria-label={ariaLabel}
     >
-      {Icone && <Icone size={16} />}
+      {Icone && <Icone size={16} aria-hidden="true" />}
       {children}
     </button>
   );
@@ -447,11 +537,13 @@ export function IconButton({
   solid,
   onClick,
   titulo,
+  disabled,
 }: {
   icone: LucideIcon;
   solid?: boolean;
   onClick?: () => void;
   titulo?: string;
+  disabled?: boolean;
 }) {
   return (
     <button
@@ -459,8 +551,10 @@ export function IconButton({
       className={cn("bz-iconbtn", solid && "bz-iconbtn-solid")}
       onClick={onClick}
       title={titulo}
+      aria-label={titulo}
+      disabled={disabled}
     >
-      <Icone size={16} />
+      <Icone size={16} aria-hidden="true" />
     </button>
   );
 }
@@ -491,21 +585,67 @@ export function TwoUp({
 export function PageHead({
   eyebrow,
   titulo,
+  descricao,
   tamanhoTitulo = "normal",
   children,
 }: {
   eyebrow: string;
   titulo: string;
+  descricao?: string;
   tamanhoTitulo?: "normal" | "sm";
   children?: ReactNode;
 }) {
   return (
     <div className="bz-page-head">
-      <div>
+      <div className="bz-page-head-copy">
         <p className="bz-eyebrow"><span className="bz-pip" />{eyebrow}</p>
         <h1 className={cn("bz-title", tamanhoTitulo === "sm" && "bz-title-sm")}>{titulo}</h1>
+        {descricao && <p className="bz-page-desc">{descricao}</p>}
       </div>
       {children && <div className="bz-head-aside">{children}</div>}
+    </div>
+  );
+}
+
+/* ── Empty State ─────────────────────────────────────────────── */
+
+export function EmptyStateBizy({
+  icone,
+  titulo,
+  detalhe,
+  acaoTexto,
+  acaoRota,
+  onAcao,
+  className,
+}: {
+  icone: ReactNode;
+  titulo: string;
+  detalhe: string;
+  acaoTexto?: string;
+  acaoRota?: string;
+  onAcao?: () => void;
+  className?: string;
+}) {
+  const temAcao = acaoTexto && (acaoRota || onAcao);
+
+  return (
+    <div className={cn("bz-empty-state", className)}>
+      <span className="bz-empty-icon" aria-hidden="true">{icone}</span>
+      <div className="bz-empty-copy">
+        <strong>{titulo}</strong>
+        <span>{detalhe}</span>
+      </div>
+      {temAcao && (
+        acaoRota ? (
+          <Link className="bz-empty-action" to={acaoRota}>
+            {acaoTexto} <ArrowRight size={14} aria-hidden="true" />
+          </Link>
+        ) : (
+          <button type="button" className="bz-empty-action" onClick={onAcao}>
+            {acaoTexto} <ArrowRight size={14} aria-hidden="true" />
+          </button>
+        )
+      )}
     </div>
   );
 }
@@ -527,18 +667,33 @@ export function Money({
   );
 }
 
-export function AvisoPrivacidade({ texto }: { texto?: string | null }) {
+export function AvisoPrivacidade({
+  escopo = "publico",
+  texto,
+}: {
+  escopo?: string;
+  texto?: string | null;
+}) {
+  const chave = `bizy_privacidade_aceite_${escopo.replace(/[^a-z0-9_-]/gi, "_")}`;
   const [aceite, setAceite] = useState(() => {
     if (typeof window === "undefined") return true;
-    return window.localStorage.getItem("bizy_privacidade_aceite") === "1";
+    return window.localStorage.getItem(chave) === "1";
   });
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    setAceite(window.localStorage.getItem(chave) === "1");
+  }, [chave]);
 
   if (aceite) return null;
 
   function aceitar() {
-    window.localStorage.setItem("bizy_privacidade_aceite", "1");
+    window.localStorage.setItem(chave, "1");
     setAceite(true);
   }
+
+  const textoBase =
+    "Esta experiencia usa tracking anonimo para medir origem, produtos vistos e compras iniciadas. Dados pessoais so entram quando ajudam a finalizar a compra; eventos de marketing dependem de consentimento explicito.";
 
   return (
     <div
@@ -548,7 +703,7 @@ export function AvisoPrivacidade({ texto }: { texto?: string | null }) {
     >
       <div className="mx-auto flex max-w-2xl flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-xs leading-relaxed text-neutral-600">
-          {texto || "Este site utiliza dados mínimos (sessão e preferências) para melhorar a experiência de compra. Nenhum dado pessoal é partilhado com terceiros."}
+          {texto ? `${texto} ${textoBase}` : textoBase}
         </p>
         <button
           type="button"

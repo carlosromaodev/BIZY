@@ -98,6 +98,7 @@ model Reserva {
   estadoPagamento   String   @default("AGUARDANDO_COMPROVATIVO")
   comentarioOriginal String
   liveId            String
+  origem            String?
   expiraEm          DateTime?
   enderecoEntrega   String?
   comprovativoPagamentoUrl String?
@@ -109,6 +110,7 @@ model Reserva {
   @@index([telefoneCliente, codigoPeca])
   @@index([negocioId, codigoPeca, estado])
   @@index([negocioId, telefoneCliente, codigoPeca])
+  @@index([negocioId, origem])
   @@index([clienteNegocioId])
 }
 
@@ -534,6 +536,8 @@ model Negocio {
   registosPresenca      RegistoPresenca[]
   categoriasFinanceiras CategoriaFinanceira[]
   movimentosFinanceiros MovimentoFinanceiro[]
+  importacoesExtratoBancario ImportacaoExtratoBancario[]
+  movimentosBancarios   MovimentoBancario[]
   despesas              Despesa[]
   contasReceber         ContaReceber[]
   contasPagar           ContaPagar[]
@@ -544,6 +548,8 @@ model Negocio {
   insightsPreditivos    InsightPreditivo[]
   fluxosAutomaticos     FluxoAutomatico[]
   configuracaoNotificacoes ConfiguracaoNotificacao[]
+  configuracoesAlertasProactivos ConfiguracaoAlertaProactivo[]
+  preferenciasWidgetPainel PreferenciaWidgetPainel[]
   departamentos         Departamento[]
   projectos             Projecto[]
   projetosComerciais    ProjetoComercial[]
@@ -1024,10 +1030,12 @@ model MembroNegocio {
   turnos              TurnoMembro[]
   registosPresenca    RegistoPresenca[]
   configuracaoNotificacoes ConfiguracaoNotificacao[]
+  preferenciasWidgetPainel PreferenciaWidgetPainel[]
 
   @@unique([negocioId, usuarioId])
   @@index([usuarioId])
   @@index([negocioId, papel, status])
+  @@index([negocioId, status, criadoEm])
 }
 
 model ClienteGlobal {
@@ -1568,14 +1576,61 @@ model MovimentoFinanceiro {
   responsavelId   String?
   dataMovimento   DateTime @default(now())
   reconciliado    Boolean  @default(false)
+  metodoPagamento String?
+  referenciaPagamento String?
+  comprovativoUrl String?
   observacao      String?
   criadoEm        DateTime @default(now())
   atualizadoEm    DateTime @updatedAt
+  movimentosBancarios MovimentoBancario[]
 
+  @@index([negocioId, dataMovimento])
   @@index([negocioId, tipo, dataMovimento])
   @@index([negocioId, categoriaId, dataMovimento])
   @@index([negocioId, reconciliado])
+  @@index([negocioId, reconciliado, dataMovimento])
   @@index([origemTipo, origemId])
+  @@index([negocioId, origemTipo, origemId])
+}
+
+model ImportacaoExtratoBancario {
+  id              String   @id @default(uuid())
+  negocioId       String
+  negocio         Negocio  @relation(fields: [negocioId], references: [id])
+  nomeArquivo     String
+  formato         String   @default("CSV") // CSV | OFX
+  totalLinhas     Int      @default(0)
+  criadoPorId     String?
+  criadoEm        DateTime @default(now())
+  movimentos      MovimentoBancario[]
+
+  @@index([negocioId, criadoEm])
+  @@index([negocioId, formato])
+}
+
+model MovimentoBancario {
+  id                    String   @id @default(uuid())
+  negocioId             String
+  negocio               Negocio  @relation(fields: [negocioId], references: [id])
+  importacaoId          String
+  importacao            ImportacaoExtratoBancario @relation(fields: [importacaoId], references: [id], onDelete: Cascade)
+  dataMovimento         DateTime
+  descricao             String
+  valor                 Int
+  tipo                  String   // CREDITO | DEBITO
+  referencia            String?
+  estadoConciliacao     String   @default("PENDENTE") // PENDENTE | CONCILIADO | IGNORADO
+  movimentoFinanceiroId String?
+  movimentoFinanceiro   MovimentoFinanceiro? @relation(fields: [movimentoFinanceiroId], references: [id])
+  sugestoesJson         String   @default("[]")
+  conciliadoEm          DateTime?
+  criadoEm              DateTime @default(now())
+  atualizadoEm          DateTime @updatedAt
+
+  @@index([negocioId, estadoConciliacao, dataMovimento])
+  @@index([negocioId, valor, dataMovimento])
+  @@index([movimentoFinanceiroId])
+  @@index([importacaoId])
 }
 
 model Despesa {
@@ -1592,6 +1647,8 @@ model Despesa {
   dataVencimento  DateTime?
   pago            Boolean  @default(false)
   pagoEm          DateTime?
+  metodoPagamento String?
+  referenciaPagamento String?
   observacao      String?
   criadoEm        DateTime @default(now())
   atualizadoEm    DateTime @updatedAt
@@ -1607,18 +1664,23 @@ model ContaReceber {
   negocio         Negocio  @relation(fields: [negocioId], references: [id])
   clienteId       String?
   pedidoId        String?
+  facturaId       String?
   descricao       String
   valor           Int
   dataVencimento  DateTime
   estado          String   @default("A_VENCER") // A_VENCER | VENCIDO | PAGO | CANCELADO
   pagoEm          DateTime?
   valorPago       Int?
+  metodoPagamento String?
+  referenciaPagamento String?
+  comprovativoPagamentoUrl String?
   observacao      String?
   criadoEm        DateTime @default(now())
   atualizadoEm    DateTime @updatedAt
 
   @@index([negocioId, estado, dataVencimento])
   @@index([negocioId, clienteId])
+  @@index([negocioId, facturaId])
 }
 
 model ContaPagar {
@@ -1631,6 +1693,9 @@ model ContaPagar {
   dataVencimento  DateTime
   estado          String   @default("A_VENCER") // A_VENCER | VENCIDO | PAGO
   pagoEm          DateTime?
+  metodoPagamento String?
+  referenciaPagamento String?
+  comprovativoPagamentoUrl String?
   observacao      String?
   criadoEm        DateTime @default(now())
   atualizadoEm    DateTime @updatedAt
@@ -1664,14 +1729,25 @@ model Factura {
   clienteNome       String
   clienteNif        String?
   clienteEndereco   String?
+  tipoDocumento     String        @default("FACTURA") // FACTURA | FACTURA_RECIBO
   serie             String        @default("FT")
   numero            Int
   anoFiscal         Int
   estado            String        @default("EMITIDA") // EMITIDA | ANULADA | CORRIGIDA
+  estadoPagamento   String        @default("PENDENTE") // PENDENTE | PARCIAL | PAGO
   subtotal          Int
   ivaPercentual     Float         @default(14)
   ivaValor          Int           @default(0)
   total             Int
+  valorPago         Int           @default(0)
+  dataVencimento    DateTime?
+  pagoEm            DateTime?
+  metodoPagamento   String?
+  referenciaPagamento String?
+  comprovativoPagamentoUrl String?
+  codigoValidacao   String?
+  qrCode            String?
+  hashDocumento     String?
   observacao        String?
   anuladaEm         DateTime?
   motivoAnulacao    String?
@@ -1684,6 +1760,7 @@ model Factura {
 
   @@unique([negocioId, serie, numero, anoFiscal])
   @@index([negocioId, estado, emitidaEm])
+  @@index([negocioId, estadoPagamento, dataVencimento])
   @@index([negocioId, pedidoId])
 }
 
@@ -1935,6 +2012,37 @@ model ConfiguracaoNotificacao {
   @@index([negocioId, membroId])
 }
 
+model ConfiguracaoAlertaProactivo {
+  id              String   @id @default(uuid())
+  negocioId       String
+  negocio         Negocio  @relation(fields: [negocioId], references: [id])
+  tipo            String
+  canal           String   @default("WHATSAPP")
+  ativo           Boolean  @default(true)
+  valorMinimo     Int?
+  criadoEm        DateTime @default(now())
+  atualizadoEm    DateTime @updatedAt
+
+  @@unique([negocioId, tipo, canal])
+  @@index([negocioId, ativo, tipo])
+}
+
+model PreferenciaWidgetPainel {
+  id              String   @id @default(uuid())
+  negocioId       String
+  negocio         Negocio  @relation(fields: [negocioId], references: [id])
+  membroId        String
+  membro          MembroNegocio @relation(fields: [membroId], references: [id], onDelete: Cascade)
+  contexto        String
+  layoutJson      String   @default("{}")
+  criadoEm        DateTime @default(now())
+  atualizadoEm    DateTime @updatedAt
+
+  @@unique([negocioId, membroId, contexto])
+  @@index([negocioId, contexto])
+  @@index([membroId])
+}
+
 model ContadorNotificacaoDiaria {
   id              String   @id @default(uuid())
   negocioId       String
@@ -1984,6 +2092,7 @@ model Projecto {
   membrosProjecto MembroProjecto[]
 
   @@index([negocioId, estado])
+  @@index([negocioId, estado, criadoEm])
   @@index([negocioId, departamentoId])
 }
 
@@ -2037,7 +2146,9 @@ model ProjetoComercial {
   debriefing      DebriefingProjeto?
 
   @@index([negocioId, estado])
+  @@index([negocioId, estado, criadoEm])
   @@index([negocioId, tipo, estado])
+  @@index([negocioId, tipo, estado, criadoEm])
 }
 
 model PoolStockProjeto {

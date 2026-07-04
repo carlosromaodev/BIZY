@@ -114,7 +114,7 @@ describe("pedidos HTTP", () => {
           enderecoEntrega: "Talatona, Rua 1",
           origem: "manual",
           canal: "whatsapp",
-          observacao: "Pedido criado no CRM"
+          observacao: "Pedido criado no Team"
         }
       });
 
@@ -341,6 +341,76 @@ describe("pedidos HTTP", () => {
             })
           })
         ])
+      );
+    } finally {
+      await app.close();
+    }
+  });
+
+  it("pagina pedidos com metadados padronizados para operacao com volume", async () => {
+    const app = await criarAplicacao();
+
+    try {
+      const loja = await autenticar(app, "923222030", "Loja Pedidos Paginados");
+      await criarPeca(app, loja, "PAG-1", 100, 7_500);
+      const cliente = await criarCliente(app, loja, {
+        telefone: "937626030",
+        nome: "Cliente Pedidos Paginados",
+        email: "cliente.paginado@example.com"
+      });
+
+      for (let indice = 0; indice < 23; indice += 1) {
+        const pedido = await app.inject({
+          method: "POST",
+          url: "/pedidos",
+          headers: loja,
+          payload: {
+            clienteId: cliente.id,
+            itens: [{ codigoPeca: "PAG-1", quantidade: 1 }],
+            origem: "team",
+            canal: indice % 2 === 0 ? "whatsapp" : "loja",
+            observacao: `Pedido paginado ${indice + 1}`
+          }
+        });
+        expect(pedido.statusCode).toBe(201);
+      }
+
+      const paginaIntermedia = await app.inject({
+        method: "GET",
+        url: "/pedidos?limite=7&offset=14",
+        headers: loja
+      });
+
+      expect(paginaIntermedia.statusCode).toBe(200);
+      expect(paginaIntermedia.json().pedidos).toHaveLength(7);
+      expect(paginaIntermedia.json().paginacao).toEqual({
+        total: 23,
+        limite: 7,
+        offset: 14,
+        temProxima: true,
+        temAnterior: true,
+        proximoOffset: 21,
+        anteriorOffset: 7
+      });
+
+      const ultimaPagina = await app.inject({
+        method: "GET",
+        url: "/pedidos?limite=7&offset=21",
+        headers: loja
+      });
+
+      expect(ultimaPagina.statusCode).toBe(200);
+      expect(ultimaPagina.json().pedidos).toHaveLength(2);
+      expect(ultimaPagina.json().paginacao).toEqual(
+        expect.objectContaining({
+          total: 23,
+          limite: 7,
+          offset: 21,
+          temProxima: false,
+          temAnterior: true,
+          proximoOffset: null,
+          anteriorOffset: 14
+        })
       );
     } finally {
       await app.close();
@@ -597,7 +667,7 @@ describe("pedidos HTTP", () => {
         payload: {
           taxaEntregaEmKwanza: 1_500,
           enderecoEntrega: "Benfica, Rua da Live",
-          observacao: "Reserva da live convertida no CRM."
+          observacao: "Reserva da live convertida no Team."
         }
       });
       expect(conversao.statusCode).toBe(200);
@@ -786,7 +856,7 @@ describe("pedidos HTTP", () => {
           enderecoEntregaId: endereco.json().endereco.id,
           itens: [{ codigoPeca: "END-1", quantidade: 1 }],
           taxaEntregaEmKwanza: 1_000,
-          origem: "crm",
+          origem: "team",
           canal: "whatsapp"
         }
       });
@@ -822,7 +892,7 @@ describe("pedidos HTTP", () => {
           clienteId: cliente.id,
           itens: [{ codigoPeca: "PAY-1", quantidade: 1 }],
           taxaEntregaEmKwanza: 2_000,
-          origem: "crm",
+          origem: "team",
           canal: "whatsapp"
         }
       });

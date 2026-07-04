@@ -1,25 +1,28 @@
-import { describe, expect, it } from "vitest";
+import type { PrismaClient } from "@prisma/client";
+import { describe, expect, it, vi } from "vitest";
+import { GestaoEquipaUseCase } from "../use-case/GestaoEquipaUseCase.js";
 
 describe("GestaoEquipaUseCase — lógica pura", () => {
   it("instancia o use case", async () => {
-    const modulo = await import("../use-case/GestaoEquipaUseCase.js");
-    const uc = new modulo.GestaoEquipaUseCase(null as never);
+    const uc = new GestaoEquipaUseCase(null as never);
     expect(uc).toBeDefined();
   });
 
-  it("itens de onboarding padrão incluem as 4 etapas", () => {
+  it("itens de onboarding padrão incluem o fluxo guiado do membro", () => {
     const ITENS = [
-      { item: "EXPLORAR_PAINEL", descricao: "Visitar o painel principal" },
-      { item: "PRIMEIRA_VENDA", descricao: "Registar o primeiro pedido" },
-      { item: "PERFIL_COMPLETO", descricao: "Completar perfil com foto e contacto" },
+      { item: "PERFIL_COMPLETO", descricao: "Completar perfil com nome, foto e contacto" },
+      { item: "CONFIGURAR_NOTIFICACOES", descricao: "Configurar alertas pessoais de WhatsApp, email ou push" },
+      { item: "TOUR_MODULOS_PERMITIDOS", descricao: "Conhecer os módulos disponíveis para o seu papel" },
+      { item: "PRIMEIRA_TAREFA", descricao: "Concluir a primeira tarefa atribuída" },
       { item: "ENVIAR_MENSAGEM", descricao: "Enviar primeira mensagem a um cliente" }
     ];
 
-    expect(ITENS).toHaveLength(4);
+    expect(ITENS).toHaveLength(5);
     expect(ITENS.map((i) => i.item)).toEqual([
-      "EXPLORAR_PAINEL",
-      "PRIMEIRA_VENDA",
       "PERFIL_COMPLETO",
+      "CONFIGURAR_NOTIFICACOES",
+      "TOUR_MODULOS_PERMITIDOS",
+      "PRIMEIRA_TAREFA",
       "ENVIAR_MENSAGEM"
     ]);
   });
@@ -64,6 +67,125 @@ describe("GestaoEquipaUseCase — lógica pura", () => {
     expect(Math.round((totalMinutos / 60) * 10) / 10).toBe(8.5);
   });
 
+  it("RF-T117: regista check-in via WhatsApp a partir do comando Iniciar", async () => {
+    const membroNegocio = {
+      findMany: vi.fn().mockResolvedValue([
+        {
+          id: "membro-1",
+          negocioId: "negocio-1",
+          usuarioId: "usuario-1",
+          papel: "VENDEDOR",
+          status: "ATIVO",
+          usuario: { id: "usuario-1", nome: "Ana", telefone: "+244 923 000 111" }
+        }
+      ])
+    };
+    const registoPresenca = {
+      create: vi.fn().mockResolvedValue({
+        id: "presenca-1",
+        negocioId: "negocio-1",
+        membroId: "membro-1",
+        tipo: "CHECK_IN",
+        metodo: "WHATSAPP"
+      })
+    };
+    const feedActividade = {
+      create: vi.fn().mockResolvedValue({ id: "feed-1" })
+    };
+    const prisma = { membroNegocio, registoPresenca, feedActividade } as unknown as PrismaClient;
+    const uc = new GestaoEquipaUseCase(prisma);
+
+    const resultado = await uc.registarPresencaViaWhatsApp({
+      negocioId: "negocio-1",
+      telefone: "244923000111",
+      texto: "Iniciar turno"
+    });
+
+    expect(resultado).toEqual(
+      expect.objectContaining({
+        reconhecido: true,
+        aplicado: true,
+        tipo: "CHECK_IN",
+        membroId: "membro-1"
+      })
+    );
+    expect(registoPresenca.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        negocioId: "negocio-1",
+        membroId: "membro-1",
+        tipo: "CHECK_IN",
+        metodo: "WHATSAPP",
+        observacao: expect.stringContaining("Iniciar turno")
+      })
+    });
+    expect(feedActividade.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          tipo: "CHECK_IN",
+          resumo: expect.stringContaining("WHATSAPP")
+        })
+      })
+    );
+  });
+
+  it("RF-T064: devolve onboarding guiado com tour de módulos e primeira tarefa", async () => {
+    const membro = {
+      id: "membro-vendedor",
+      negocioId: "negocio-1",
+      usuarioId: "usuario-vendedor",
+      papel: "VENDEDOR",
+      status: "ATIVO",
+      criadoEm: new Date("2026-06-30T09:00:00.000Z"),
+      usuario: {
+        id: "usuario-vendedor",
+        nome: "Vendedor",
+        email: "vendedor@bizy.test",
+        telefone: "923000222",
+        avatarUrl: null
+      }
+    };
+    const membroNegocio = {
+      findFirstOrThrow: vi.fn().mockResolvedValue(membro)
+    };
+    const checklistOnboarding = {
+      findMany: vi.fn().mockResolvedValue([
+        { item: "PERFIL_COMPLETO", descricao: "Completar perfil", concluido: true, concluidoEm: new Date("2026-06-30T10:00:00.000Z") },
+        { item: "TOUR_MODULOS_PERMITIDOS", descricao: "Conhecer módulos", concluido: false, concluidoEm: null }
+      ])
+    };
+    const conviteEquipa = {
+      findFirst: vi.fn().mockResolvedValue(null)
+    };
+    const tarefaOperacional = {
+      findFirst: vi.fn().mockResolvedValue({
+        id: "tarefa-onboarding",
+        titulo: "Completar primeiro passo no BIZY Team",
+        origem: "ONBOARDING_MEMBRO",
+        responsavelId: "usuario-vendedor"
+      })
+    };
+    const prisma = {
+      membroNegocio,
+      checklistOnboarding,
+      conviteEquipa,
+      tarefaOperacional
+    } as unknown as PrismaClient;
+    const uc = new GestaoEquipaUseCase(prisma);
+
+    const resultado = await uc.obterOnboardingGuiado("negocio-1", "membro-vendedor");
+
+    expect(resultado.progresso).toEqual({ total: 5, concluidos: 1, percentagem: 20 });
+    expect(resultado.passos.map((passo) => passo.tipo)).toEqual([
+      "PERFIL",
+      "NOTIFICACOES",
+      "TOUR",
+      "TAREFA",
+      "COMUNICACAO"
+    ]);
+    expect(resultado.tour.modulosOcultos).toEqual(["FINANCAS", "PIPELINE", "RELATORIOS", "CAMPANHAS"]);
+    expect(resultado.primeiraTarefa).toEqual(expect.objectContaining({ id: "tarefa-onboarding" }));
+  });
+
   it("verifica disponibilidade actual baseada em horário do turno", () => {
     const turnos = [
       { membroId: "m1", nome: "Ana", horaInicio: "08:00", horaFim: "12:00" },
@@ -95,6 +217,54 @@ describe("GestaoEquipaUseCase — lógica pura", () => {
     expect(PAPEIS_SENSIVEIS.includes("ATENDENTE")).toBe(false);
   });
 
+  it("RF-T115: resolve membro alvo e audita consulta em Modo Sombra", async () => {
+    const membroNegocio = {
+      findFirst: vi.fn().mockResolvedValue({
+        id: "membro-vendedor",
+        negocioId: "negocio-1",
+        usuarioId: "usuario-vendedor",
+        papel: "VENDEDOR",
+        status: "ATIVO",
+        usuario: {
+          id: "usuario-vendedor",
+          nome: "Vendedor",
+          email: "vendedor@bizy.test",
+          telefone: "923000222",
+          avatarUrl: null
+        }
+      })
+    };
+    const feedActividade = {
+      create: vi.fn().mockResolvedValue({ id: "feed-modo-sombra" })
+    };
+    const prisma = { membroNegocio, feedActividade } as unknown as PrismaClient;
+    const uc = new GestaoEquipaUseCase(prisma);
+
+    const membro = await uc.obterMembroDetalhado("negocio-1", "membro-vendedor");
+    await uc.registarVisualizacaoModoSombra("negocio-1", "membro-vendedor", "usuario-gestor");
+
+    expect(membro).toEqual(
+      expect.objectContaining({
+        id: "membro-vendedor",
+        papel: "VENDEDOR",
+        usuario: expect.objectContaining({ nome: "Vendedor" })
+      })
+    );
+    expect(membroNegocio.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "membro-vendedor", negocioId: "negocio-1" }
+      })
+    );
+    expect(feedActividade.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        negocioId: "negocio-1",
+        autorId: "usuario-gestor",
+        tipo: "MODO_SOMBRA_CONSULTADO",
+        entidadeId: "membro-vendedor"
+      })
+    });
+  });
+
   it("ranking ordena por receita descrescente", () => {
     const kpis = [
       { nome: "Ana", receitaTotal: 50000 },
@@ -118,6 +288,113 @@ describe("GestaoEquipaUseCase — lógica pura", () => {
     const taxaConversao = totalVendas > 0 ? Math.round((pedidosPagos / totalVendas) * 100) : 0;
 
     expect(taxaConversao).toBe(75);
+  });
+
+  it("RNF-T004: lista até 500 membros com paginação e filtros no banco", async () => {
+    const membros = Array.from({ length: 500 }, (_, indice) => ({
+      id: `membro-${indice}`,
+      negocioId: "negocio-1",
+      usuarioId: `usuario-${indice}`,
+      papel: "VENDEDOR",
+      status: "ATIVO",
+      criadoEm: new Date("2026-07-01T00:00:00.000Z"),
+      atualizadoEm: new Date("2026-07-01T00:00:00.000Z"),
+      usuario: {
+        id: `usuario-${indice}`,
+        nome: `Vendedor ${indice}`,
+        telefone: `923000${String(indice).padStart(3, "0")}`,
+        email: `vendedor${indice}@bizy.test`,
+        avatarUrl: null,
+        papel: "USUARIO"
+      }
+    }));
+    const membroNegocio = {
+      findMany: vi.fn().mockResolvedValue(membros),
+      count: vi.fn().mockResolvedValue(500)
+    };
+    const prisma = { membroNegocio } as unknown as PrismaClient;
+    const uc = new GestaoEquipaUseCase(prisma);
+
+    const resultado = await uc.listarMembros("negocio-1", {
+      limite: 800,
+      offset: 0,
+      status: "ATIVO",
+      busca: "Vendedor"
+    });
+
+    expect(resultado.membros).toHaveLength(500);
+    expect(resultado.paginacao).toEqual({
+      total: 500,
+      limite: 500,
+      offset: 0,
+      temProxima: false,
+      temAnterior: false,
+      proximoOffset: null,
+      anteriorOffset: null
+    });
+    expect(membroNegocio.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        take: 500,
+        skip: 0,
+        where: expect.objectContaining({
+          negocioId: "negocio-1",
+          status: "ATIVO",
+          OR: expect.any(Array)
+        })
+      })
+    );
+  });
+
+  it("RNF-T004: calcula desempenho de 500 membros com consultas agregadas por coleção", async () => {
+    const membros = Array.from({ length: 500 }, (_, indice) => ({
+      id: `membro-${indice}`,
+      papel: "VENDEDOR",
+      usuario: {
+        id: `usuario-${indice}`,
+        nome: `Vendedor ${indice}`,
+        avatarUrl: null,
+        papel: "USUARIO"
+      }
+    }));
+    const membroNegocio = {
+      findMany: vi.fn().mockResolvedValue(membros)
+    };
+    const pedido = {
+      findMany: vi.fn().mockResolvedValue([
+        { responsavelId: "usuario-7", totalEmKwanza: 20000, estadoPagamento: "CONFIRMADO" }
+      ])
+    };
+    const conversaAtendimento = {
+      findMany: vi.fn().mockResolvedValue([{ responsavelId: "usuario-7", estado: "RESOLVIDA" }])
+    };
+    const tarefaOperacional = {
+      findMany: vi.fn().mockResolvedValue([
+        {
+          responsavelId: "usuario-7",
+          estado: "CONCLUIDA",
+          concluidaEm: new Date("2026-07-01T10:00:00.000Z"),
+          prazoEm: new Date("2026-07-01T12:00:00.000Z")
+        }
+      ])
+    };
+    const prisma = { membroNegocio, pedido, conversaAtendimento, tarefaOperacional } as unknown as PrismaClient;
+    const uc = new GestaoEquipaUseCase(prisma);
+
+    const resultado = await uc.obterDesempenhoEquipa("negocio-1", {
+      de: new Date("2026-07-01T00:00:00.000Z"),
+      ate: new Date("2026-07-31T23:59:59.999Z")
+    });
+
+    expect(resultado.ranking).toHaveLength(500);
+    expect(resultado.ranking[0]).toEqual(
+      expect.objectContaining({
+        usuarioId: "usuario-7",
+        kpis: expect.objectContaining({ receitaTotal: 20000, totalConversas: 1, tarefasConcluidas: 1 })
+      })
+    );
+    expect(pedido.findMany).toHaveBeenCalledTimes(1);
+    expect(conversaAtendimento.findMany).toHaveBeenCalledTimes(1);
+    expect(tarefaOperacional.findMany).toHaveBeenCalledTimes(1);
   });
 
   it("alerta de meta quando abaixo de 50% com mais de 50% do tempo", () => {

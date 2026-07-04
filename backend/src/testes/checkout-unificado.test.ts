@@ -66,6 +66,33 @@ async function publicarLoja(
   expect(resposta.statusCode).toBe(200);
 }
 
+async function configurarEntregaLoja(
+  app: Awaited<ReturnType<typeof criarAplicacao>>,
+  headers: Record<string, string>,
+  telefone: string,
+  entrega: Record<string, unknown>
+) {
+  const resposta = await app.inject({
+    method: "POST",
+    url: "/onboarding/negocio",
+    headers,
+    payload: {
+      nomeComercial: `Loja Entrega ${telefone}`,
+      segmento: "Moda",
+      tipo: "LOJA",
+      telefone,
+      whatsapp: telefone,
+      provincia: "Luanda",
+      municipio: "Luanda",
+      endereco: "Rua da loja",
+      canaisVenda: ["site", "market"],
+      metodosPagamento: ["transferencia"],
+      entrega
+    }
+  });
+  expect(resposta.statusCode).toBe(201);
+}
+
 describe("Checkout Unificado multi-loja", () => {
   beforeEach(() => {
     process.env = {
@@ -133,7 +160,177 @@ describe("Checkout Unificado multi-loja", () => {
     }
   });
 
-  it("RF-054/RF-067: confirma pagamento unificado e propaga para filhos", async () => {
+  it("RF-055: calcula entrega por loja usando zona, taxa padrão e regra de gratuidade", async () => {
+    const app = await criarAplicacao();
+    try {
+      const lojaA = await autenticar(app, "923700011", "Fornecedor Entrega A");
+      const lojaB = await autenticar(app, "923700012", "Fornecedor Entrega B");
+
+      await configurarEntregaLoja(app, lojaA, "923700011", {
+        taxaPadraoEmKwanza: 2500,
+        entregaGratisAcimaDeKwanza: 50_000,
+        zonas: [
+          { municipio: "Talatona", bairro: "Centro", taxaEmKwanza: 1500, prazo: "Hoje" },
+          { municipio: "Viana", taxaEmKwanza: 3500, prazo: "24h" }
+        ]
+      });
+      await configurarEntregaLoja(app, lojaB, "923700012", {
+        taxaPadraoEmKwanza: 3000,
+        entregaGratisAcimaDeKwanza: 20_000
+      });
+
+      await criarProduto(app, lojaA, "PROD-ENT-A", "Produto Entrega A", 10_000);
+      await criarProduto(app, lojaB, "PROD-ENT-B", "Produto Entrega B", 25_000);
+      await publicarLoja(app, lojaA, "fornecedor-entrega-a");
+      await publicarLoja(app, lojaB, "fornecedor-entrega-b");
+
+      const checkout = await app.inject({
+        method: "POST",
+        url: "/publico/market/checkout",
+        payload: {
+          compradorTelefone: "923800011",
+          compradorNome: "Comprador Entrega",
+          entrega: {
+            tipo: "ENTREGA",
+            provincia: "Luanda",
+            municipio: "Talatona",
+            bairro: "Centro",
+            endereco: "Condomínio teste"
+          },
+          itens: [
+            { slugLoja: "fornecedor-entrega-a", codigoPeca: "PROD-ENT-A", quantidade: 1 },
+            { slugLoja: "fornecedor-entrega-b", codigoPeca: "PROD-ENT-B", quantidade: 1 }
+          ],
+          origem: "MARKET"
+        }
+      });
+
+      expect(checkout.statusCode).toBe(201);
+      const pedidos = checkout.json().pedidosFilho;
+      const pedidoA = pedidos.find((pedido: any) => pedido.subtotalEmKwanza === 10_000);
+      const pedidoB = pedidos.find((pedido: any) => pedido.subtotalEmKwanza === 25_000);
+
+      expect(pedidoA).toEqual(expect.objectContaining({
+        taxaEntregaEmKwanza: 1500,
+        totalEmKwanza: 12_900
+      }));
+      expect(pedidoB).toEqual(expect.objectContaining({
+        taxaEntregaEmKwanza: 0,
+        totalEmKwanza: 28_500
+      }));
+      expect(checkout.json().compra.taxaEntregaTotalEmKwanza).toBe(1500);
+      expect(checkout.json().compra.totalEmKwanza).toBe(41_400);
+    } finally {
+      await app.close();
+    }
+  });
+
+  it("RNF-007: reaproveita a mesma compra quando checkout unificado recebe idempotencyKey repetida", async () => {
+    const app = await criarAplicacao();
+    try {
+      const loja = await autenticar(app, "923700009", "Fornecedor Idempotente");
+
+      await criarProduto(app, loja, "PROD-IDEMP-1", "Produto Idempotente", 11_000);
+      await publicarLoja(app, loja, "fornecedor-idempotente");
+
+      const payload = {
+        idempotencyKey: "checkout-unificado-retry-1",
+        compradorTelefone: "923800009",
+        compradorNome: "Comprador Retry",
+        itens: [
+          { slugLoja: "fornecedor-idempotente", codigoPeca: "PROD-IDEMP-1", quantidade: 2 }
+        ],
+        enderecoEntrega: "Rua do Retry, Luanda",
+        origem: "MARKET"
+      };
+
+      const primeiro = await app.inject({
+        method: "POST",
+        url: "/publico/market/checkout",
+        payload
+      });
+      const segundo = await app.inject({
+        method: "POST",
+        url: "/publico/market/checkout",
+        payload
+      });
+
+      expect(primeiro.statusCode).toBe(201);
+      expect(segundo.statusCode).toBe(201);
+      expect(segundo.json().compra.id).toBe(primeiro.json().compra.id);
+      expect(segundo.json().compra.numero).toBe(primeiro.json().compra.numero);
+      expect(segundo.json().pedidosFilho[0].pedidoId).toBe(primeiro.json().pedidosFilho[0].pedidoId);
+
+      const repasses = await app.inject({
+        method: "GET",
+        url: "/market/fornecedor/repasses",
+        headers: loja
+      });
+      expect(repasses.statusCode).toBe(200);
+      expect(repasses.json()).toHaveLength(1);
+    } finally {
+      await app.close();
+    }
+  });
+
+  it("RF-062: comprador acompanha estado da compra e recebe 404 para link inexistente", async () => {
+    const app = await criarAplicacao();
+    try {
+      const loja = await autenticar(app, "923700010", "Fornecedor Status");
+
+      await criarProduto(app, loja, "PROD-STATUS-1", "Produto Status", 13_000);
+      await publicarLoja(app, loja, "fornecedor-status");
+
+      const checkout = await app.inject({
+        method: "POST",
+        url: "/publico/market/checkout",
+        payload: {
+          idempotencyKey: "checkout-status-1",
+          compradorTelefone: "923800010",
+          compradorNome: "Comprador Status",
+          itens: [
+            { slugLoja: "fornecedor-status", codigoPeca: "PROD-STATUS-1", quantidade: 1 }
+          ],
+          origem: "MARKET"
+        }
+      });
+      expect(checkout.statusCode).toBe(201);
+
+      const detalhe = await app.inject({
+        method: "GET",
+        url: `/publico/market/compras/${checkout.json().compra.id}`
+      });
+
+      expect(detalhe.statusCode).toBe(200);
+      expect(detalhe.json().compra).toEqual(expect.objectContaining({
+        id: checkout.json().compra.id,
+        numero: checkout.json().compra.numero,
+        estado: "ABERTA",
+        estadoPagamento: "PENDENTE"
+      }));
+      expect(detalhe.json().compra).not.toHaveProperty("compradorTelefone");
+      expect(detalhe.json().compra).not.toHaveProperty("compradorEmail");
+      expect(detalhe.json().compra).not.toHaveProperty("idempotencyKey");
+      expect(detalhe.json().pedidosFilho).toHaveLength(1);
+      expect(detalhe.json().pedidosFilho[0]).toEqual(expect.objectContaining({
+        estado: "AGUARDANDO_PAGAMENTO",
+        estadoPagamento: "PENDENTE",
+        totalEmKwanza: 14_820
+      }));
+      expect(detalhe.json().pedidosFilho[0]).not.toHaveProperty("negocioId");
+      expect(detalhe.json().pedidosFilho[0]).not.toHaveProperty("pedidoId");
+
+      const inexistente = await app.inject({
+        method: "GET",
+        url: "/publico/market/compras/compra-inexistente"
+      });
+      expect(inexistente.statusCode).toBe(404);
+    } finally {
+      await app.close();
+    }
+  });
+
+  it("RF-058/RF-059/RF-067: recebe comprovativo sem confirmar pagamento automaticamente", async () => {
     const app = await criarAplicacao();
     try {
       const lojaA = await autenticar(app, "923700003", "Fornecedor C");
@@ -159,16 +356,25 @@ describe("Checkout Unificado multi-loja", () => {
       expect(checkout.statusCode).toBe(201);
       const compraId = checkout.json().compra.id;
 
-      // Confirmar pagamento
+      // Comprador envia comprovativo; validação/confirmação final continua com a loja.
       const pagamento = await app.inject({
         method: "POST",
         url: `/publico/market/compras/${compraId}/pagamento`,
         payload: { comprovativoUrl: "https://example.com/comprovativo.jpg" }
       });
       expect(pagamento.statusCode).toBe(200);
-      const compraPaga = pagamento.json();
-      expect(compraPaga.estado).toBe("PAGA");
-      expect(compraPaga.estadoPagamento).toBe("CONFIRMADO");
+      const estadoPagamento = pagamento.json();
+      expect(estadoPagamento.compra.estado).toBe("AGUARDANDO_PAGAMENTO");
+      expect(estadoPagamento.compra.estadoPagamento).toBe("COMPROVATIVO_RECEBIDO");
+      expect(estadoPagamento.compra).not.toHaveProperty("comprovativoPagamentoUrl");
+      expect(estadoPagamento.compra).not.toHaveProperty("compradorTelefone");
+      expect(estadoPagamento.compra).not.toHaveProperty("compradorEmail");
+      expect(estadoPagamento.pedidosFilho).toHaveLength(2);
+      expect(estadoPagamento.pedidosFilho.every((pedido: { estadoPagamento: string }) =>
+        pedido.estadoPagamento === "COMPROVATIVO_RECEBIDO"
+      )).toBe(true);
+      expect(estadoPagamento.pedidosFilho[0]).not.toHaveProperty("negocioId");
+      expect(estadoPagamento.pedidosFilho[0]).not.toHaveProperty("pedidoId");
 
       // Verificar estado separado (RF-067)
       const detalhe = await app.inject({
@@ -177,8 +383,43 @@ describe("Checkout Unificado multi-loja", () => {
       });
       expect(detalhe.statusCode).toBe(200);
       const detalhes = detalhe.json();
-      expect(detalhes.compra.estado).toBe("PAGA");
+      expect(detalhes.compra.estado).toBe("AGUARDANDO_PAGAMENTO");
+      expect(detalhes.compra.estadoPagamento).toBe("COMPROVATIVO_RECEBIDO");
       expect(detalhes.pedidosFilho).toHaveLength(2);
+      expect(detalhes.pedidosFilho.every((pedido: { estadoPagamento: string }) =>
+        pedido.estadoPagamento === "COMPROVATIVO_RECEBIDO"
+      )).toBe(true);
+    } finally {
+      await app.close();
+    }
+  });
+
+  it("RF-058: rejeita comprovativo público sem HTTPS", async () => {
+    const app = await criarAplicacao();
+    try {
+      const loja = await autenticar(app, "923700013", "Fornecedor HTTPS");
+
+      await criarProduto(app, loja, "PROD-HTTPS", "Produto HTTPS", 4_000);
+      await publicarLoja(app, loja, "fornecedor-https");
+
+      const checkout = await app.inject({
+        method: "POST",
+        url: "/publico/market/checkout",
+        payload: {
+          compradorTelefone: "923800013",
+          itens: [{ slugLoja: "fornecedor-https", codigoPeca: "PROD-HTTPS", quantidade: 1 }]
+        }
+      });
+      expect(checkout.statusCode).toBe(201);
+      const compraId = checkout.json().compra.id;
+
+      const pagamento = await app.inject({
+        method: "POST",
+        url: `/publico/market/compras/${compraId}/pagamento`,
+        payload: { comprovativoUrl: "http://example.com/comprovativo.jpg" }
+      });
+
+      expect(pagamento.statusCode).toBe(400);
     } finally {
       await app.close();
     }

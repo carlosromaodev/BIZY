@@ -1,0 +1,250 @@
+import type { ProdutoMarketNormalizado } from "./tiposLojas";
+
+export const CHAVE_CARRINHO_BIZY = "bizy_checkout_unificado_v1";
+export const CHAVE_IDEMPOTENCIA_CHECKOUT_BIZY = "bizy_checkout_idempotencia_v1";
+
+export interface ItemCarrinhoCheckoutBizy {
+  id: string;
+  slugLoja: string;
+  codigoProduto: string;
+  nomeProduto: string;
+  nomeFornecedor: string;
+  quantidade: number;
+  precoUnitarioEmKwanza: number;
+  fotoUrl?: string | null;
+  urlProduto?: string | null;
+  urlLoja?: string | null;
+  variantes?: Record<string, string>;
+  origem?: string;
+  adicionadoEm: string;
+}
+
+export interface GrupoCheckoutBizy {
+  slugLoja: string;
+  nomeFornecedor: string;
+  itens: ItemCarrinhoCheckoutBizy[];
+  subtotalEmKwanza: number;
+  urlLoja?: string | null;
+}
+
+export interface TotaisCheckoutBizy {
+  quantidadeItens: number;
+  subtotalEmKwanza: number;
+  totalLojas: number;
+}
+
+type ItemEntradaCheckoutBizy = Omit<ItemCarrinhoCheckoutBizy, "adicionadoEm" | "id"> & { id?: string };
+
+interface ChaveIdempotenciaCheckoutBizy {
+  assinatura: string;
+  chave: string;
+  criadoEm: string;
+}
+
+function ambienteComStorage(): Storage | null {
+  if (typeof window === "undefined") return null;
+  return window.localStorage;
+}
+
+function chaveItemCheckout(item: Pick<ItemCarrinhoCheckoutBizy, "codigoProduto" | "slugLoja" | "variantes">): string {
+  const variantes = Object.entries(item.variantes ?? {})
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([nome, valor]) => `${nome}:${valor}`)
+    .join("|");
+  return `${item.slugLoja}:${item.codigoProduto}:${variantes}`;
+}
+
+function normalizarQuantidade(quantidade: number): number {
+  if (!Number.isFinite(quantidade)) return 1;
+  return Math.max(1, Math.min(99, Math.round(quantidade)));
+}
+
+function serializarVariantes(variantes?: Record<string, string>): string {
+  return Object.entries(variantes ?? {})
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([nome, valor]) => `${nome}:${valor}`)
+    .join("|");
+}
+
+function assinarCheckoutBizy(itens: ItemCarrinhoCheckoutBizy[], compradorTelefone: string, escopo = ""): string {
+  const itensAssinados = itens
+    .map((item) => [
+      item.slugLoja.trim(),
+      item.codigoProduto.trim(),
+      normalizarQuantidade(item.quantidade),
+      serializarVariantes(item.variantes)
+    ].join(":"))
+    .sort()
+    .join(";");
+  return [compradorTelefone.trim(), itensAssinados, escopo.trim()].join("::");
+}
+
+function gerarChaveIdempotenciaCheckoutBizy(): string {
+  return `checkout-bizy-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function normalizarItemCheckoutBizy(item: ItemEntradaCheckoutBizy): ItemCarrinhoCheckoutBizy {
+  const normalizado = {
+    ...item,
+    quantidade: normalizarQuantidade(item.quantidade),
+    precoUnitarioEmKwanza: Math.max(0, Math.round(item.precoUnitarioEmKwanza || 0)),
+    slugLoja: item.slugLoja.trim(),
+    codigoProduto: item.codigoProduto.trim(),
+    nomeProduto: item.nomeProduto.trim() || item.codigoProduto.trim(),
+    nomeFornecedor: item.nomeFornecedor.trim() || "Loja Bizy",
+    variantes: item.variantes ?? {},
+    adicionadoEm: new Date().toISOString()
+  };
+
+  return {
+    ...normalizado,
+    id: item.id || chaveItemCheckout(normalizado)
+  };
+}
+
+export function carregarCarrinhoCheckoutBizy(): ItemCarrinhoCheckoutBizy[] {
+  const storage = ambienteComStorage();
+  if (!storage) return [];
+
+  try {
+    const bruto = storage.getItem(CHAVE_CARRINHO_BIZY);
+    if (!bruto) return [];
+    const itens = JSON.parse(bruto);
+    if (!Array.isArray(itens)) return [];
+
+    return itens
+      .map((item) => normalizarItemCheckoutBizy(item as ItemEntradaCheckoutBizy))
+      .filter((item) => item.slugLoja && item.codigoProduto);
+  } catch {
+    return [];
+  }
+}
+
+export function guardarCarrinhoCheckoutBizy(itens: ItemCarrinhoCheckoutBizy[]): void {
+  const storage = ambienteComStorage();
+  if (!storage) return;
+  storage.setItem(CHAVE_CARRINHO_BIZY, JSON.stringify(itens));
+}
+
+export function adicionarItemCheckoutBizy(item: ItemEntradaCheckoutBizy): ItemCarrinhoCheckoutBizy[] {
+  const novoItem = normalizarItemCheckoutBizy(item);
+  const atuais = carregarCarrinhoCheckoutBizy();
+  const indiceExistente = atuais.findIndex((atual) => atual.id === novoItem.id);
+
+  const proximos =
+    indiceExistente >= 0
+      ? atuais.map((atual, indice) =>
+          indice === indiceExistente
+            ? {
+                ...atual,
+                quantidade: normalizarQuantidade(atual.quantidade + novoItem.quantidade),
+                adicionadoEm: novoItem.adicionadoEm
+              }
+            : atual
+        )
+      : [...atuais, novoItem];
+
+  guardarCarrinhoCheckoutBizy(proximos);
+  return proximos;
+}
+
+export function removerItemCheckoutBizy(id: string): ItemCarrinhoCheckoutBizy[] {
+  const proximos = carregarCarrinhoCheckoutBizy().filter((item) => item.id !== id);
+  guardarCarrinhoCheckoutBizy(proximos);
+  return proximos;
+}
+
+export function atualizarQuantidadeItemCheckoutBizy(id: string, quantidade: number): ItemCarrinhoCheckoutBizy[] {
+  const proximos = carregarCarrinhoCheckoutBizy().map((item) =>
+    item.id === id ? { ...item, quantidade: normalizarQuantidade(quantidade) } : item
+  );
+  guardarCarrinhoCheckoutBizy(proximos);
+  return proximos;
+}
+
+export function limparCarrinhoCheckoutBizy(): void {
+  const storage = ambienteComStorage();
+  storage?.removeItem(CHAVE_CARRINHO_BIZY);
+}
+
+export function obterChaveIdempotenciaCheckoutBizy(
+  itens: ItemCarrinhoCheckoutBizy[],
+  compradorTelefone: string,
+  escopo = ""
+): string {
+  const assinatura = assinarCheckoutBizy(itens, compradorTelefone, escopo);
+  const storage = ambienteComStorage();
+  if (!storage) return gerarChaveIdempotenciaCheckoutBizy();
+
+  try {
+    const bruto = storage.getItem(CHAVE_IDEMPOTENCIA_CHECKOUT_BIZY);
+    if (bruto) {
+      const existente = JSON.parse(bruto) as ChaveIdempotenciaCheckoutBizy;
+      if (existente.assinatura === assinatura && existente.chave) return existente.chave;
+    }
+  } catch {
+    // Se a chave antiga estiver corrompida, gera-se uma nova abaixo.
+  }
+
+  const proxima: ChaveIdempotenciaCheckoutBizy = {
+    assinatura,
+    chave: gerarChaveIdempotenciaCheckoutBizy(),
+    criadoEm: new Date().toISOString()
+  };
+  storage.setItem(CHAVE_IDEMPOTENCIA_CHECKOUT_BIZY, JSON.stringify(proxima));
+  return proxima.chave;
+}
+
+export function limparChaveIdempotenciaCheckoutBizy(): void {
+  const storage = ambienteComStorage();
+  storage?.removeItem(CHAVE_IDEMPOTENCIA_CHECKOUT_BIZY);
+}
+
+export function agruparItensCheckoutPorLoja(itens: ItemCarrinhoCheckoutBizy[]): GrupoCheckoutBizy[] {
+  const grupos = new Map<string, GrupoCheckoutBizy>();
+
+  for (const item of itens) {
+    const grupo = grupos.get(item.slugLoja) ?? {
+      slugLoja: item.slugLoja,
+      nomeFornecedor: item.nomeFornecedor,
+      itens: [],
+      subtotalEmKwanza: 0,
+      urlLoja: item.urlLoja
+    };
+
+    grupo.itens.push(item);
+    grupo.subtotalEmKwanza += item.precoUnitarioEmKwanza * item.quantidade;
+    grupos.set(item.slugLoja, grupo);
+  }
+
+  return Array.from(grupos.values());
+}
+
+export function calcularTotaisCheckoutBizy(itens: ItemCarrinhoCheckoutBizy[]): TotaisCheckoutBizy {
+  const grupos = agruparItensCheckoutPorLoja(itens);
+  return {
+    quantidadeItens: itens.reduce((total, item) => total + item.quantidade, 0),
+    subtotalEmKwanza: itens.reduce((total, item) => total + item.precoUnitarioEmKwanza * item.quantidade, 0),
+    totalLojas: grupos.length
+  };
+}
+
+export function criarItemCheckoutDeProdutoMarket(
+  produto: ProdutoMarketNormalizado,
+  quantidade = 1,
+  origem = "market"
+): ItemEntradaCheckoutBizy {
+  return {
+    slugLoja: produto.slugLoja,
+    codigoProduto: produto.codigo,
+    nomeProduto: produto.nome,
+    nomeFornecedor: produto.nomeFornecedor,
+    quantidade,
+    precoUnitarioEmKwanza: produto.precoFinalEmKwanza,
+    fotoUrl: produto.fotoPrincipal,
+    urlProduto: produto.urlProduto,
+    urlLoja: produto.urlLoja,
+    variantes: {},
+    origem
+  };
+}

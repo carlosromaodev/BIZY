@@ -36,7 +36,24 @@ describe("AutenticacaoTelefoneUseCase", () => {
     });
 
     expect(solicitacao.telefone).toBe("923456789");
+    expect(solicitacao).toEqual(
+      expect.objectContaining({
+        latenciaEnvioMs: expect.any(Number),
+        sloEnvioMs: 10_000,
+        dentroSloEnvio: true
+      })
+    );
     expect(provedor.ultimaMensagem?.conteudo).toContain("codigo de acesso");
+    const codigoPersistido = await repositorio.buscarCodigoSmsValido("923456789", new Date());
+    expect(JSON.parse(codigoPersistido?.providerResponseJson ?? "{}")).toEqual(
+      expect.objectContaining({
+        metricasOtp: expect.objectContaining({
+          latenciaEnvioMs: expect.any(Number),
+          sloEnvioMs: 10_000,
+          dentroSloEnvio: true
+        })
+      })
+    );
 
     const confirmacao = await useCase.confirmarCodigo({
       telefone: "923456789",

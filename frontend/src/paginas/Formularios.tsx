@@ -127,7 +127,7 @@ export function PaginaFormularios() {
           acoes={[
             { titulo: "Sequenciar leads", detalhe: "Entradas viram automacao", destino: "/app/sequencias", icone: <Users size={14} />, rotuloAcao: "Sequência" },
             { titulo: "Copiar link", detalhe: "Distribuir formulario", destino: "/app/formularios", icone: <Copy size={14} />, rotuloAcao: "Copiar" },
-            { titulo: "Ver clientes", detalhe: "Leads criados no CRM", destino: "/app/clientes", icone: <ExternalLink size={14} />, rotuloAcao: "Clientes" }
+            { titulo: "Ver clientes", detalhe: "Leads criados no Team", destino: "/app/clientes", icone: <ExternalLink size={14} />, rotuloAcao: "Clientes" }
           ]}
         />
 

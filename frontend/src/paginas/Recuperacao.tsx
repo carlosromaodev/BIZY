@@ -136,12 +136,31 @@ export function PaginaRecuperacao() {
     }
   }
 
+  async function gerarTarefasRotina() {
+    setMensagem("A gerar tarefas de recuperação...");
+    try {
+      const resposta = await requisitarApi<{ criadas: number; ignoradasPorDuplicidade: number }>("/tarefas/automaticas/rotina", {
+        method: "POST",
+        body: { idadeMinutos: 60, prioridadePadrao: "ALTA", limite: 100 }
+      });
+      await carregar();
+      setMensagem(`${resposta.criadas} tarefa${resposta.criadas !== 1 ? "s" : ""} criada${resposta.criadas !== 1 ? "s" : ""}. ${resposta.ignoradasPorDuplicidade} duplicada${resposta.ignoradasPorDuplicidade !== 1 ? "s" : ""} ignorada${resposta.ignoradasPorDuplicidade !== 1 ? "s" : ""}.`);
+    } catch (erro) {
+      setMensagem(erro instanceof Error ? erro.message : "Não foi possível gerar tarefas de recuperação.");
+    }
+  }
+
   const itensTabela = itensDoSegmento();
 
   return (
     <CrmPageMotion>
-      <PageHead eyebrow="Vendas a um passo de se perderem" titulo="Recuperação" tamanhoTitulo="sm">
-        <BotaoBizy icone={Send} onClick={() => void 0}>Lembrete em massa</BotaoBizy>
+      <PageHead
+        eyebrow="Vendas a um passo de se perderem"
+        titulo="Recuperação"
+        tamanhoTitulo="sm"
+        descricao="Transforme reservas expiradas, pagamentos em atraso e carrinhos abandonados em tarefas humanas de contacto."
+      >
+        <BotaoBizy icone={Send} onClick={() => void gerarTarefasRotina()} disabled={carregando}>Gerar tarefas</BotaoBizy>
         <button type="button" className="bz-iconbtn" onClick={() => void carregar()} disabled={carregando} title="Atualizar">
           <RefreshCcw size={16} />
         </button>
@@ -167,7 +186,10 @@ export function PaginaRecuperacao() {
       </div>
 
       {/* ── Recovery table ── */}
-      <TableCard>
+      <TableCard
+        titulo="Oportunidades do segmento"
+        descricao="Use a sugestão para ligar, enviar lembrete ou colocar a oportunidade em atendimento."
+      >
         <Table>
           <TableHead>
             <Th>Cliente</Th>

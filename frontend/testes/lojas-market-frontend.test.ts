@@ -21,8 +21,8 @@ describe("frontend do Bizy Market e Studio", () => {
   });
 
   it("implementa shopping center com busca, filtros sincronizados e fornecedor visível", () => {
-    expect(exists("src/paginas/Market.tsx")).toBe(true);
-    const market = source("src/paginas/Market.tsx");
+    expect(exists("src/projetos/market/paginas/Market.tsx")).toBe(true);
+    const market = source("src/projetos/market/paginas/Market.tsx");
 
     expect(market).toContain("listarProdutosMarket");
     expect(market).toContain("listarCategoriasMarket");
@@ -37,10 +37,10 @@ describe("frontend do Bizy Market e Studio", () => {
     expect(market).toContain("market-ecom-shell");
     expect(market).toContain("market-ecom-search");
     expect(market).toContain("market-ecom-dept");
-    expect(market).toContain("SecaoPromocoesRelampago");
+    expect(market).toContain("SecaoProdutosEmDestaque");
     expect(market).toContain("SecaoCategoriasMarket");
     expect(market).toContain("heroX");
-    expect(market).toContain("Semana da Moda Luanda");
+    expect(market).toContain("Produtos de lojas reais, fornecedor sempre visível.");
     expect(market).toContain("market-wordmark-text");
     expect(market).toContain("market-commerce-stores");
     expect(market).toContain("PaginaDiretorioLojasMarket");
@@ -49,21 +49,21 @@ describe("frontend do Bizy Market e Studio", () => {
     expect(market).toContain("ROTAS_LOJAS.lojasMarket");
     expect(market).toContain("ROTAS_LOJAS.checkout");
     expect(market).toContain("market-product-supplier");
-    expect(market).toContain("market-product-rating");
+    expect(market).toContain("market-product-signal");
     expect(market).toContain("market-product-meta");
     expect(market).toContain("market-empty-state");
     expect(market).toContain("NativeBottomNav");
   });
 
   it("implementa detalhe do produto no Market com fornecedor e similares sem ambiguidade", () => {
-    expect(exists("src/paginas/ProdutoMarket.tsx")).toBe(true);
-    const produto = source("src/paginas/ProdutoMarket.tsx");
+    expect(exists("src/projetos/market/paginas/ProdutoMarket.tsx")).toBe(true);
+    const produto = source("src/projetos/market/paginas/ProdutoMarket.tsx");
 
     expect(produto).toContain("obterProdutoMarket");
     expect(produto).toContain("listarProdutosSimilaresMarket");
     expect(produto).toContain("market-pdp-breadcrumb");
     expect(produto).toContain("market-pdp-supplier-card");
-    expect(produto).toContain("market-pdp-rating");
+    expect(produto).toContain("market-pdp-signal");
     expect(produto).toContain("market-pdp-delivery-lines");
     expect(produto).toContain("Outras lojas podem ter produtos parecidos");
     expect(produto).toContain("normalizarProdutoMarket");
@@ -71,7 +71,7 @@ describe("frontend do Bizy Market e Studio", () => {
   });
 
   it("fecha pendências do produto da loja: badge do fornecedor, accordions e link ao Market", () => {
-    const loja = source("src/paginas/LojaDigitalPublica.tsx");
+    const loja = source("src/projetos/market/paginas/LojaDigitalPublica.tsx");
 
     expect(loja).toContain("loja-pdp-store-badge");
     expect(loja).toContain("loja-pdp-accordions");
@@ -85,7 +85,7 @@ describe("frontend do Bizy Market e Studio", () => {
   });
 
   it("completa Studio com resumo do Market, publicação individual e publicação em massa", () => {
-    const studio = source("src/paginas/LojaPublica.tsx");
+    const studio = source("src/projetos/market/paginas/StudioLoja.tsx");
 
     expect(studio).toContain("obterResumoMarketLoja");
     expect(studio).toContain("atualizarPublicacaoProdutoMarket");
@@ -118,10 +118,10 @@ describe("frontend do Bizy Market e Studio", () => {
 
   it("não usa mock data nas páginas conectadas do Market e Studio", () => {
     const fontes = [
-      source("src/paginas/Market.tsx"),
-      source("src/paginas/ProdutoMarket.tsx"),
-      source("src/paginas/LojaDigitalPublica.tsx"),
-      source("src/paginas/LojaPublica.tsx")
+      source("src/projetos/market/paginas/Market.tsx"),
+      source("src/projetos/market/paginas/ProdutoMarket.tsx"),
+      source("src/projetos/market/paginas/LojaDigitalPublica.tsx"),
+      source("src/projetos/market/paginas/StudioLoja.tsx")
     ].join("\n");
 
     expect(fontes).not.toMatch(/mockData|dadosFalsos|produtosMock|lojasMock|const\s+\w*Mock/i);

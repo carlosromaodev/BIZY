@@ -21,6 +21,7 @@ export interface DadosReciboPdf {
   valorPago: number;
   metodoPagamento?: string | null;
   referencia?: string | null;
+  comprovativoUrl?: string | null;
   facturaRef?: string | null;
   observacao?: string | null;
 }
@@ -35,10 +36,10 @@ const BG       = "#faf8f4";
 const GREEN    = "#16A07A";
 const BRAND_BG = "#0B1014";
 
-function fmtValor(centavos: number, moeda: string) {
-  const valor = (centavos / 100).toLocaleString("pt-AO", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
+function fmtValor(valorInteiro: number, moeda: string) {
+  const valor = valorInteiro.toLocaleString("pt-AO", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
   });
   return `${valor} ${moeda}`;
 }
@@ -347,6 +348,10 @@ export function buildReciboHtml(dados: DadosReciboPdf): string {
       ${dados.referencia ? `<div class="recibo-linha">
         <span class="rl-label">Referência</span>
         <span class="rl-valor">${escapeHtml(dados.referencia)}</span>
+      </div>` : ""}
+      ${dados.comprovativoUrl ? `<div class="recibo-linha">
+        <span class="rl-label">Comprovativo digital</span>
+        <span class="rl-valor">${escapeHtml(dados.comprovativoUrl)}</span>
       </div>` : ""}
       <div class="recibo-total">
         <span class="rl-label">Valor recebido</span>

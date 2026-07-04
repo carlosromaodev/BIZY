@@ -110,3 +110,4 @@ Parser, reservas, fila, expiracao, pagamento, comprovativo, recibo e conversao e
 - Spec de war room de live.
 - Spec de telemetria live -> pedido.
 - Spec de revisao visual de comentarios.
+d

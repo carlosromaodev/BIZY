@@ -28,6 +28,7 @@ DATABASE_URL="${BACKUP_DATABASE_URL:-${DATABASE_URL:-}}"
 BACKUP_DIR="${BACKUP_DIR:-$PROJECT_ROOT/backups/postgres}"
 BACKUP_ENV="${BACKUP_ENV:-${BIZY_BOOTSTRAP_ENV:-${NODE_ENV:-local}}}"
 MEDIA_STORAGE_DIR="${MEDIA_STORAGE_DIR:-storage/media}"
+BACKUP_RETENTION_DAYS="${BACKUP_RETENTION_DAYS:-365}"
 
 if [ -z "$DATABASE_URL" ]; then
   echo "DATABASE_URL não definido. Configure DATABASE_URL ou BACKUP_DATABASE_URL."
@@ -62,6 +63,16 @@ if [ -d "$media_dir" ]; then
     sha256sum "$media_arquivo" > "$media_arquivo.sha256"
   fi
   echo "Backup de media criado: $media_arquivo"
+fi
+
+if [[ "$BACKUP_RETENTION_DAYS" =~ ^[0-9]+$ ]] && [ "$BACKUP_RETENTION_DAYS" -gt 0 ]; then
+  find "$BACKUP_DIR" -type f \
+    \( -name "bizy-${BACKUP_ENV}-*.dump" \
+    -o -name "bizy-${BACKUP_ENV}-*.dump.sha256" \
+    -o -name "bizy-media-${BACKUP_ENV}-*.tar.gz" \
+    -o -name "bizy-media-${BACKUP_ENV}-*.tar.gz.sha256" \) \
+    -mtime +"$BACKUP_RETENTION_DAYS" \
+    -print -delete
 fi
 
 echo "Backup criado: $arquivo"

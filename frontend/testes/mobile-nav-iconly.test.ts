@@ -7,7 +7,7 @@ const source = (path: string) => readFileSync(resolve(process.cwd(), path), "utf
 describe("navegação mobile nativa", () => {
   it("usa um componente compartilhado com Motion para CRM e loja", () => {
     const shell = source("src/componentes/Shell.tsx");
-    const loja = source("src/paginas/LojaDigitalPublica.tsx");
+    const loja = source("src/projetos/market/paginas/LojaDigitalPublica.tsx");
 
     expect(shell).toContain("NativeBottomNav");
     expect(loja).toContain("NativeBottomNav");
@@ -32,7 +32,7 @@ describe("navegação mobile nativa", () => {
   });
 
   it("aplica a mesma linguagem visual na loja digital pública", () => {
-    const loja = source("src/paginas/LojaDigitalPublica.tsx");
+    const loja = source("src/projetos/market/paginas/LojaDigitalPublica.tsx");
     const css = source("src/estilos.css");
 
     ["Home", "Compass", "ShoppingBag", "Heart", "User"].forEach((icone) => {

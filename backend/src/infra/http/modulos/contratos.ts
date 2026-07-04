@@ -10,7 +10,7 @@ export const moduloContratos: ModuloHttp = {
         permissao: "configuracoes:gerir",
         modulo: "crm",
         mensagemPermissao: "Sem permissão para consultar contratos técnicos.",
-        mensagemModulo: "CRM desativado para este negócio."
+        mensagemModulo: "Módulo comercial desativado para este negócio."
       });
       if (!contextoComercial) return;
 

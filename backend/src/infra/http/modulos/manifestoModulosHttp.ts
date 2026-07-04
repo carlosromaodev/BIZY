@@ -1,6 +1,6 @@
 import { moduloAdminGovernanca } from "./adminGovernanca.js";
 import { moduloAfiliados } from "./afiliados.js";
-import { moduloCheckoutUnificado } from "./checkoutUnificado.js";
+import { moduloCheckoutUnificado } from "../../../projetos/market/infra/http/moduloCheckoutUnificado.js";
 import { moduloAutenticacao } from "./autenticacao.js";
 import { moduloCampanhas } from "./campanhas.js";
 import { moduloCatalogo } from "./catalogo.js";
@@ -8,16 +8,17 @@ import { moduloClientes } from "./clientes.js";
 import { moduloContratos } from "./contratos.js";
 import { moduloApoioComercial } from "./apoioComercial.js";
 import { moduloDiagnosticos } from "./diagnosticos.js";
-import { moduloEquipa } from "./equipa.js";
+import { moduloEquipa } from "../../../projetos/team/infra/http/moduloEquipa.js";
 import { moduloFinancas } from "./financas.js";
 import { moduloInteligencia } from "./inteligencia.js";
 import { moduloIntegracoes } from "./integracoes.js";
 import { moduloWorkflow } from "./workflow.js";
-import { moduloProjectos } from "./projectos.js";
+import { moduloProjectos } from "../../../projetos/team/infra/http/moduloProjectos.js";
 import { moduloConformidade } from "./conformidade.js";
 import { moduloLives } from "./lives.js";
-import { moduloLojaPublica } from "./lojaPublica.js";
-import { moduloMarket } from "./market.js";
+import { moduloLojaPublica } from "../../../projetos/market/infra/http/moduloLojaPublica.js";
+import { moduloLearning } from "../../../projetos/learning/infra/http/moduloLearning.js";
+import { moduloMarket } from "../../../projetos/market/infra/http/moduloMarket.js";
 import { moduloMedia } from "./media.js";
 import type { ModuloHttp } from "./ModuloHttp.js";
 import { moduloN8n } from "./n8n.js";
@@ -37,6 +38,7 @@ export const modulosHttp = [
   moduloApoioComercial,
   moduloContratos,
   moduloLojaPublica,
+  moduloLearning,
   moduloMarket,
   moduloAfiliados,
   moduloDiagnosticos,

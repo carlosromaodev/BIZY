@@ -56,7 +56,7 @@ export const moduloOperacional: ModuloHttp = {
         permissao: "automacoes:ler",
         modulo: "crm",
         mensagemPermissao: "Sem permissão para consultar auditoria operacional.",
-        mensagemModulo: "CRM desativado para este negócio."
+        mensagemModulo: "Módulo comercial desativado para este negócio."
       });
       if (!contextoComercial) return;
 
@@ -130,7 +130,7 @@ export const moduloOperacional: ModuloHttp = {
         permissao: "configuracoes:gerir",
         modulo: "crm",
         mensagemPermissao: "Sem permissão para consultar auditoria operacional.",
-        mensagemModulo: "CRM desativado para este negócio."
+        mensagemModulo: "Módulo comercial desativado para este negócio."
       });
       if (!contextoComercial) return;
 
@@ -171,7 +171,7 @@ export const moduloOperacional: ModuloHttp = {
         permissao: "tarefas:ler",
         modulo: "crm",
         mensagemPermissao: "Sem permissão para consultar tarefas.",
-        mensagemModulo: "CRM desativado para este negócio."
+        mensagemModulo: "Módulo comercial desativado para este negócio."
       });
       if (!contextoComercial) return;
 
@@ -196,7 +196,7 @@ export const moduloOperacional: ModuloHttp = {
         permissao: "tarefas:gerir",
         modulo: "crm",
         mensagemPermissao: "Sem permissão para criar tarefas.",
-        mensagemModulo: "CRM desativado para este negócio."
+        mensagemModulo: "Módulo comercial desativado para este negócio."
       });
       if (!contextoComercial) return;
 
@@ -214,7 +214,7 @@ export const moduloOperacional: ModuloHttp = {
         permissao: "tarefas:gerir",
         modulo: "crm",
         mensagemPermissao: "Sem permissão para gerar tarefas automáticas.",
-        mensagemModulo: "CRM desativado para este negócio."
+        mensagemModulo: "Módulo comercial desativado para este negócio."
       });
       if (!contextoComercial) return;
 
@@ -231,7 +231,7 @@ export const moduloOperacional: ModuloHttp = {
         permissao: "tarefas:ler",
         modulo: "crm",
         mensagemPermissao: "Sem permissão para consultar tarefas.",
-        mensagemModulo: "CRM desativado para este negócio."
+        mensagemModulo: "Módulo comercial desativado para este negócio."
       });
       if (!contextoComercial) return;
 
@@ -245,7 +245,7 @@ export const moduloOperacional: ModuloHttp = {
         permissao: "tarefas:gerir",
         modulo: "crm",
         mensagemPermissao: "Sem permissão para atualizar tarefas.",
-        mensagemModulo: "CRM desativado para este negócio."
+        mensagemModulo: "Módulo comercial desativado para este negócio."
       });
       if (!contextoComercial) return;
 
@@ -1040,24 +1040,28 @@ export const moduloOperacional: ModuloHttp = {
       return contexto.consultaOperacional.gerarRelatorioLivePiloto(liveId || undefined);
     });
 
-    app.get("/relatorios/crm-pos-live", async (request, reply) => {
-      const usuario = await exigirUsuarioAutenticado(contexto, request, reply, "Faça login para consultar relatórios.");
-      if (!usuario) return;
+    for (const rota of ["/relatorios/team-pos-live", "/relatorios/crm-pos-live"]) {
+      app.get(rota, async (request, reply) => {
+        const usuario = await exigirUsuarioAutenticado(contexto, request, reply, "Faça login para consultar relatórios.");
+        if (!usuario) return;
 
-      const { liveId } = QueryLiveIdSchema.parse(request.query);
-      return contexto.consultaOperacional.gerarRelatorioCrmPosLive(liveId || undefined);
-    });
+        const { liveId } = QueryLiveIdSchema.parse(request.query);
+        return contexto.consultaOperacional.gerarRelatorioCrmPosLive(liveId || undefined);
+      });
+    }
 
-    app.get("/relatorios/crm-pos-live.csv", async (request, reply) => {
-      const usuario = await exigirUsuarioAutenticado(contexto, request, reply, "Faça login para exportar relatórios.");
-      if (!usuario) return;
+    for (const rota of ["/relatorios/team-pos-live.csv", "/relatorios/crm-pos-live.csv"]) {
+      app.get(rota, async (request, reply) => {
+        const usuario = await exigirUsuarioAutenticado(contexto, request, reply, "Faça login para exportar relatórios.");
+        if (!usuario) return;
 
-      const { liveId } = QueryLiveIdSchema.parse(request.query);
-      const csv = await contexto.consultaOperacional.exportarCrmPosLiveCsv(liveId || undefined);
-      reply.header("Content-Type", "text/csv; charset=utf-8");
-      reply.header("Content-Disposition", 'attachment; filename="crm-pos-live-emeu.csv"');
-      return reply.send(csv);
-    });
+        const { liveId } = QueryLiveIdSchema.parse(request.query);
+        const csv = await contexto.consultaOperacional.exportarCrmPosLiveCsv(liveId || undefined);
+        reply.header("Content-Type", "text/csv; charset=utf-8");
+        reply.header("Content-Disposition", 'attachment; filename="team-pos-live-bizy.csv"');
+        return reply.send(csv);
+      });
+    }
   }
 };
 

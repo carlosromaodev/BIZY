@@ -3,6 +3,18 @@
 Status: ativo
 Criado em: 2026-06-28
 
+## Meta Global
+
+O roadmap deve seguir a meta global definida em `../superpowers/specs/2026-06-30-meta-global-bizy.md`: Bizy como sistema operacional comercial para pequenos negocios.
+
+Toda prioridade precisa melhorar pelo menos uma capacidade:
+
+- descoberta;
+- conversao;
+- execucao;
+- retencao;
+- controlo.
+
 ## 1. P0
 
 P0 bloqueia lancamento ou experiencia minima aceitavel:
@@ -29,6 +41,7 @@ P1 melhora primeira operacao comercial:
 - textos operacionais para vendedora nao tecnica;
 - prioridade visual para VIP, reclamacao e pagamento pendente;
 - resultados de campanha por webhook/status.
+- Bizy Learning separado como learning commerce engine, com home publica tipo Market, backoffice Team e Studio capaz de activar Market, Learning ou ambos.
 
 ## 3. P2
 
@@ -47,6 +60,7 @@ P2 depende de feedback, escala ou integracao madura:
 - recomendacoes avancadas;
 - war rooms de projectos comerciais;
 - teste de carga.
+- checkout digital Learning, entitlement, certificados, comunidades pagas, bundles, memberships e mentorias.
 
 ## 4. Por Dominio
 
@@ -67,6 +81,7 @@ P2 depende de feedback, escala ou integracao madura:
 | 12 Frontend/UX | Auditar rotas para design v2, estados vazios e mobile 360px. |
 | 13 Operacao | Documentar runbooks de incidentes, backup, restore e deploy continuo. |
 | 14 Seguranca | Expandir testes de isolamento multi-tenant, auditoria e minimizacao de dados. |
+| 15 Learning | Consolidar RF/RNF/RN do Learning; depois implementar Studio Market/Learning/Ambos, produto digital, checkout digital, entitlement, certificados, comunidade, mentorias e low-data mode. |
 
 ## 5. Regra de Priorizacao
 
@@ -74,9 +89,10 @@ Priorizar nesta ordem:
 
 1. Funcionalidade que impede venda, atendimento, pagamento ou entrega.
 2. Risco de privacidade, dinheiro, permissoes ou auditoria.
-3. Experiencia publica de comprador.
-4. Operacao diaria da equipa.
-5. Escala, automacao e inteligencia.
+3. Iniciativa que melhora descoberta, conversao, execucao, retencao ou controlo de forma mensuravel.
+4. Experiencia publica de comprador.
+5. Operacao diaria da equipa.
+6. Escala, automacao e inteligencia.
 
 ## 6. Como Atualizar
 

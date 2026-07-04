@@ -327,8 +327,19 @@ export interface Cliente360 {
   metricas: MetricasCliente360;
 }
 
+export interface PaginacaoOffset {
+  total: number;
+  limite: number;
+  offset: number;
+  temProxima: boolean;
+  temAnterior: boolean;
+  proximoOffset: number | null;
+  anteriorOffset: number | null;
+}
+
 export interface RespostaClientes360 {
   clientes: Cliente360[];
+  paginacao?: PaginacaoOffset;
 }
 
 export interface SegmentoCliente360 {
@@ -406,6 +417,7 @@ export interface Pedido {
 
 export interface RespostaPedidos {
   pedidos: Pedido[];
+  paginacao?: PaginacaoOffset;
 }
 
 export interface RespostaPreparacaoPedidos {
@@ -838,6 +850,83 @@ export interface PapelNegocio {
 
 export interface RespostaMembros {
   membros: MembroNegocio[];
+  paginacao?: PaginacaoOffset;
+}
+
+export interface ModoSombraEquipa {
+  modo: "SOMBRA";
+  contexto: "PAINEL" | "PEDIDOS" | "CONVERSAS" | "FINANCAS";
+  membro: {
+    id: string;
+    usuarioId: string;
+    nome: string;
+    email: string | null;
+    telefone: string | null;
+    avatarUrl: string | null;
+    papel: string;
+    status: string;
+    criadoEm: string;
+  };
+  modulos: {
+    modulosVisiveis: string[];
+    modulosOcultos: string[];
+    diasRestantes: number;
+  };
+  widgets: {
+    contexto: string;
+    widgets: Record<string, number>;
+    layout?: {
+      ordem: string[];
+      ocultos: string[];
+      visiveis: string[];
+    };
+    progressiveDisclosure?: {
+      papel: string;
+      widgetsOcultadosPorPapel: string[];
+    };
+  };
+  checklist: Array<{
+    id: string;
+    item: string;
+    descricao: string;
+    concluido: boolean;
+  }>;
+  simulacao: {
+    actorId: string;
+    alteraSessao: boolean;
+    geradoEm: string;
+  };
+}
+
+export interface OnboardingGuiadoEquipa {
+  membro: {
+    id: string;
+    usuarioId: string;
+    nome: string;
+    email: string | null;
+    telefone: string | null;
+    avatarUrl: string | null;
+    papel: string;
+    status: string;
+  };
+  progresso: {
+    total: number;
+    concluidos: number;
+    percentagem: number;
+  };
+  passos: Array<{
+    item: string;
+    descricao: string;
+    concluido: boolean;
+    concluidoEm: string | null;
+    tipo: "PERFIL" | "NOTIFICACOES" | "TOUR" | "TAREFA" | "COMUNICACAO";
+  }>;
+  tour: {
+    modulosPermitidos: string[];
+    modulosOcultos: string[];
+    diasRestantes: number;
+  };
+  primeiraTarefa: TarefaOperacional | null;
 }
 
 export interface RespostaPapeis {

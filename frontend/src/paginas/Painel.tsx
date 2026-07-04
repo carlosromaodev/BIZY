@@ -25,6 +25,7 @@ import {
   type RespostaTarefasOperacionais,
   type ResumoPainel,
   type TarefaOperacional,
+  type OnboardingGuiadoEquipa,
   resumoInicial,
   estadosReservaAtiva,
 } from "../tipos";
@@ -89,6 +90,7 @@ export function PaginaPainel() {
   const [mensagem, setMensagem] = useState("");
   const [conversas, setConversas] = useState<RespostaConversas["conversas"]>([]);
   const [tarefas, setTarefas] = useState<TarefaOperacional[]>([]);
+  const [onboardingGuiado, setOnboardingGuiado] = useState<OnboardingGuiadoEquipa | null>(null);
   const [carregandoInicial, setCarregandoInicial] = useState(true);
   const usuario = obterUsuario();
   const papel = (usuario?.papel ?? "DONO").toUpperCase();
@@ -211,10 +213,11 @@ export function PaginaPainel() {
   /* ── Data fetching ─────────────────────────────────────────── */
 
   async function carregarResumo() {
-    const [respostaResumo, respostaConversas, respostaTarefas] = await Promise.allSettled([
+    const [respostaResumo, respostaConversas, respostaTarefas, respostaOnboarding] = await Promise.allSettled([
       requisitarApi<ResumoPainel>("/painel/resumo"),
       requisitarApi<RespostaConversas>("/atendimento/conversas"),
       requisitarApi<RespostaTarefasOperacionais>("/tarefas?limite=30"),
+      requisitarApi<OnboardingGuiadoEquipa>("/equipa/onboarding-guiado"),
     ]);
 
     if (respostaResumo.status === "rejected") throw respostaResumo.reason;
@@ -222,6 +225,11 @@ export function PaginaPainel() {
     setResumo(respostaResumo.value);
     setConversas(respostaConversas.status === "fulfilled" ? respostaConversas.value.conversas : []);
     setTarefas(respostaTarefas.status === "fulfilled" ? respostaTarefas.value.tarefas : []);
+    setOnboardingGuiado(
+      respostaOnboarding.status === "fulfilled" && respostaOnboarding.value.progresso.percentagem < 100
+        ? respostaOnboarding.value
+        : null
+    );
   }
 
   useEffect(() => {
@@ -249,6 +257,8 @@ export function PaginaPainel() {
   if (carregandoInicial) return <CrmPageMotion><SkeletonPagina /></CrmPageMotion>;
 
   const colTemplate = "108px 1.5fr 1.6fr 110px 150px";
+  const passosPendentesOnboarding = onboardingGuiado?.passos.filter((passo) => !passo.concluido) ?? [];
+  const modulosTourOnboarding = onboardingGuiado?.tour.modulosPermitidos.slice(0, 6) ?? [];
 
   return (
     <CrmPageMotion>
@@ -291,6 +301,39 @@ export function PaginaPainel() {
                 <Video size={13} />
                 Live activa: <strong>{liveAtual.username}</strong> — {reservasLive} pedido{reservasLive !== 1 ? "s" : ""} hoje
               </div>
+            )}
+          </div>
+        )}
+
+        {onboardingGuiado && (
+          <div className="cd-briefing">
+            <div className="cd-briefing-head">
+              <CheckCircle2 size={15} />
+              <span className="cd-briefing-titulo">Primeiro dia · {onboardingGuiado.progresso.percentagem}%</span>
+            </div>
+            <ul className="cd-briefing-lista">
+              {passosPendentesOnboarding.slice(0, 3).map((passo) => (
+                <li key={passo.item}>
+                  <Circle size={5} />
+                  {passo.descricao}
+                </li>
+              ))}
+            </ul>
+            {modulosTourOnboarding.length > 0 && (
+              <div className="cd-briefing-live">
+                <Eye size={13} />
+                {modulosTourOnboarding.map((modulo) => (
+                  <span key={modulo} className="team-bdg" data-tone="blue">
+                    <span className="team-bdg-dot" />
+                    {modulo}
+                  </span>
+                ))}
+              </div>
+            )}
+            {onboardingGuiado.primeiraTarefa && (
+              <Link to="/app/tarefas" className="cd-tarefas-link">
+                {onboardingGuiado.primeiraTarefa.titulo} <ArrowRight size={12} />
+              </Link>
             )}
           </div>
         )}
@@ -553,11 +596,7 @@ export function PaginaPainel() {
       </div>
 
       {mensagem && (
-        <footer
-          className="rounded-lg border bg-card px-4 py-3 text-sm text-muted-foreground"
-          style={{ margin: "16px 26px" }}
-          aria-live="polite"
-        >
+        <footer className="bz-footer-msg" aria-live="polite">
           {mensagem}
         </footer>
       )}

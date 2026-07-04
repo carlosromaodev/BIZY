@@ -511,7 +511,7 @@ export const moduloApoioComercial: ModuloHttp = {
       if (!contextoComercial) return;
 
       const limite = limiteQuery(request.query, 50);
-      const formularios = montarFormulariosPadrao(contextoComercial);
+      const formularios = await montarFormulariosPadrao(contexto, contextoComercial);
       return { formularios: formularios.slice(0, limite) };
     });
 
@@ -914,10 +914,10 @@ function tituloEvento(evento: EventoOperacional) {
   return evento.tipo.replaceAll("_", " ").toLowerCase();
 }
 
-function montarFormulariosPadrao(contextoComercial: ContextoComercialHttp) {
+async function montarFormulariosPadrao(contexto: ContextoAplicacao, contextoComercial: ContextoComercialHttp) {
   const slug = contextoComercial.negocio.slugPublico ?? `negocio-${contextoComercial.negocio.id.slice(0, 8)}`;
   const base = process.env.PUBLIC_STORE_BASE_URL ?? "https://usebizy.com";
-  return [
+  const formularios = [
     {
       id: "form-lead-rapido",
       titulo: "Captação rápida de lead",
@@ -931,6 +931,29 @@ function montarFormulariosPadrao(contextoComercial: ContextoComercialHttp) {
       atualizadoEm: contextoComercial.negocio.atualizadoEm.toISOString()
     }
   ];
+
+  return Promise.all(
+    formularios.map(async (formulario) => {
+      const eventos = formulario.tagAutomatica
+        ? await contexto.gestaoGovernancaCrm.listarEventos(contextoComercial.negocio.id, {
+            topico: "crm_apoio",
+            tipo: "FORMULARIO_SUBMETIDO",
+            limite: 10_000
+          })
+        : [];
+      const totalSubmissoes = formulario.tagAutomatica
+        ? eventos.filter((evento) =>
+            evento.payload.formularioSlug === contextoComercial.negocio.slugPublico &&
+            evento.payload.tagAutomatica === formulario.tagAutomatica
+          ).length
+        : 0;
+
+      return {
+        ...formulario,
+        totalSubmissoes
+      };
+    })
+  );
 }
 
 async function listarSequencias(contexto: ContextoAplicacao, negocioId: string) {

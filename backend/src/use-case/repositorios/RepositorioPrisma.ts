@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { Prisma, type PrismaClient } from "@prisma/client";
 import type {
   RepositorioComentarios,
@@ -1102,13 +1103,23 @@ export class RepositorioJobsOperacionaisPrisma implements RepositorioJobsOperaci
 export class RepositorioMembrosNegocioPrisma implements RepositorioMembrosNegocio {
   constructor(private readonly prisma: PrismaClient) {}
 
-  async listar(negocioId: string): Promise<MembroNegocioOperacional[]> {
+  async listar(negocioId: string, filtros: { limite?: number; offset?: number; status?: string; busca?: string } = {}): Promise<MembroNegocioOperacional[]> {
+    const limite = typeof filtros.limite === "number" ? Math.max(1, Math.min(Math.trunc(filtros.limite), 500)) : 500;
+    const offset = typeof filtros.offset === "number" ? Math.max(0, Math.trunc(filtros.offset)) : 0;
     const membros = await this.prisma.membroNegocio.findMany({
-      where: { negocioId },
+      where: this.montarWhereMembros(negocioId, filtros),
       include: { usuario: true },
-      orderBy: { criadoEm: "asc" }
+      orderBy: { criadoEm: "asc" },
+      take: limite,
+      skip: offset
     });
     return membros.map((membro) => this.mapear(membro));
+  }
+
+  contar(negocioId: string, filtros: { status?: string; busca?: string } = {}): Promise<number> {
+    return this.prisma.membroNegocio.count({
+      where: this.montarWhereMembros(negocioId, filtros)
+    });
   }
 
   async criar(dados: NovoMembroNegocioOperacional): Promise<MembroNegocioOperacional> {
@@ -1192,6 +1203,26 @@ export class RepositorioMembrosNegocioPrisma implements RepositorioMembrosNegoci
       permissoes: this.lerLista(membro.permissoesJson),
       criadoEm: membro.criadoEm,
       atualizadoEm: membro.atualizadoEm
+    };
+  }
+
+  private montarWhereMembros(
+    negocioId: string,
+    filtros: { status?: string; busca?: string } = {}
+  ): Prisma.MembroNegocioWhereInput {
+    const busca = filtros.busca?.trim();
+    return {
+      negocioId,
+      ...(filtros.status ? { status: filtros.status } : {}),
+      ...(busca
+        ? {
+            OR: [
+              { usuario: { nome: { contains: busca, mode: "insensitive" } } },
+              { usuario: { telefone: { contains: busca, mode: "insensitive" } } },
+              { usuario: { email: { contains: busca, mode: "insensitive" } } }
+            ]
+          }
+        : {})
     };
   }
 
@@ -1918,6 +1949,7 @@ export class RepositorioReservasPrisma implements RepositorioReservas {
         estadoPagamento: dados.estadoPagamento ?? "AGUARDANDO_COMPROVATIVO",
         comentarioOriginal: dados.comentarioOriginal,
         liveId: dados.liveId,
+        origem: dados.origem ?? null,
         expiraEm: dados.expiraEm,
         enderecoEntrega: dados.enderecoEntrega ?? null,
         comprovativoPagamentoUrl: dados.comprovativoPagamentoUrl ?? null
@@ -1981,6 +2013,7 @@ export class RepositorioReservasPrisma implements RepositorioReservas {
               estadoPagamento: "AGUARDANDO_COMPROVATIVO",
               comentarioOriginal: dados.comentarioOriginal,
               liveId: dados.liveId,
+              origem: dados.origem ?? null,
               expiraEm: temStockLivre ? dados.expiraEmReserva : null
             }
           });
@@ -2141,6 +2174,7 @@ export class RepositorioReservasPrisma implements RepositorioReservas {
     estadoPagamento: string;
     comentarioOriginal: string;
     liveId: string;
+    origem: string | null;
     expiraEm: Date | null;
     enderecoEntrega: string | null;
     comprovativoPagamentoUrl: string | null;
@@ -2837,6 +2871,11 @@ export class RepositorioAutenticacaoPrisma implements RepositorioAutenticacao {
 
   async buscarUsuarioPorId(id: string): Promise<UsuarioSistema | null> {
     return this.prisma.usuarioSistema.findUnique({ where: { id } });
+  }
+
+  async buscarNegocioPorId(negocioId: string): Promise<NegocioBizy | null> {
+    const negocio = await this.prisma.negocio.findUnique({ where: { id: negocioId } });
+    return negocio ? this.mapearNegocio(negocio) : null;
   }
 
   async criarOuAtualizarUsuarioPorIdentidade(dados: DadosIdentidadeAutenticacao): Promise<UsuarioSistema> {
@@ -5209,6 +5248,7 @@ export class RepositorioFunilComercialPrisma implements RepositorioFunilComercia
   async registrarMovimento(dados: NovoMovimentoFunilComercial): Promise<MovimentoFunilComercial> {
     const linhas = await this.prisma.$queryRaw<LinhaMovimentoFunilComercial[]>`
       INSERT INTO "MovimentoFunilComercial" (
+        "id",
         "negocioId",
         "entidadeTipo",
         "entidadeId",
@@ -5219,6 +5259,7 @@ export class RepositorioFunilComercialPrisma implements RepositorioFunilComercia
         "autorId",
         "contextoJson"
       ) VALUES (
+        ${randomUUID()},
         ${dados.negocioId},
         ${dados.entidadeTipo},
         ${dados.entidadeId},
@@ -5878,7 +5919,21 @@ export class RepositorioAuditoriaPrisma implements RepositorioAuditoria {
 
   async resumirMensagensWhatsAppOutbox(negocioId?: string | null): Promise<ResumoOutboxMensagemWhatsApp> {
     const filtroNegocio = this.filtroNegocioOutboxWhatsApp(negocioId);
-    const [total, pendentes, enviadas, falhadas, proximo, ultimaFalha, ultimoAtualizado] = await Promise.all([
+    const agora = new Date();
+    const sloEntregaMs = 60_000;
+    const limitePendenteSlo = new Date(agora.getTime() - sloEntregaMs);
+    const [
+      total,
+      pendentes,
+      enviadas,
+      falhadas,
+      proximo,
+      ultimaFalha,
+      ultimoAtualizado,
+      pendenteAntigo,
+      pendentesForaSlo,
+      enviosRecentes
+    ] = await Promise.all([
       this.prisma.outboxMensagemWhatsApp.count({ where: filtroNegocio }),
       this.prisma.outboxMensagemWhatsApp.count({ where: { ...filtroNegocio, status: "PENDENTE" } }),
       this.prisma.outboxMensagemWhatsApp.count({ where: { ...filtroNegocio, status: "ENVIADA" } }),
@@ -5897,14 +5952,46 @@ export class RepositorioAuditoriaPrisma implements RepositorioAuditoria {
         where: filtroNegocio,
         orderBy: { atualizadoEm: "desc" },
         select: { atualizadoEm: true }
+      }),
+      this.prisma.outboxMensagemWhatsApp.findFirst({
+        where: { ...filtroNegocio, status: "PENDENTE" },
+        orderBy: { criadoEm: "asc" },
+        select: { criadoEm: true }
+      }),
+      this.prisma.outboxMensagemWhatsApp.count({
+        where: { ...filtroNegocio, status: "PENDENTE", criadoEm: { lt: limitePendenteSlo } }
+      }),
+      this.prisma.outboxMensagemWhatsApp.findMany({
+        where: { ...filtroNegocio, status: "ENVIADA", enviadaEm: { not: null } },
+        orderBy: { enviadaEm: "desc" },
+        take: 500,
+        select: { criadoEm: true, enviadaEm: true }
       })
     ]);
+    const latenciasEnvioMs = enviosRecentes
+      .map((mensagem) => Math.max(0, (mensagem.enviadaEm ?? agora).getTime() - mensagem.criadoEm.getTime()));
+    const maiorLatenciaEnvioMs = latenciasEnvioMs.sort((a, b) => b - a)[0] ?? null;
+    const mediaLatenciaEnvioMs = latenciasEnvioMs.length
+      ? Math.round(latenciasEnvioMs.reduce((totalLatencia, valor) => totalLatencia + valor, 0) / latenciasEnvioMs.length)
+      : null;
+    const enviosRecentesForaSlo = latenciasEnvioMs.filter((valor) => valor > sloEntregaMs).length;
+    const idadePendenteMaisAntigaMs = pendenteAntigo
+      ? Math.max(0, agora.getTime() - pendenteAntigo.criadoEm.getTime())
+      : null;
 
     return {
       total,
       pendentes,
       enviadas,
       falhadas,
+      estado: falhadas > 0 ? "INDISPONIVEL" : enviosRecentesForaSlo > 0 || pendentesForaSlo > 0 ? "DEGRADADO" : "OK",
+      sloEntregaMs,
+      idadePendenteMaisAntigaMs,
+      maiorLatenciaEnvioMs,
+      mediaLatenciaEnvioMs,
+      enviosRecentesAmostrados: latenciasEnvioMs.length,
+      enviosRecentesForaSlo,
+      pendentesForaSlo,
       proximaTentativaEm: proximo?.proximaTentativaEm ?? null,
       ultimaFalha: ultimaFalha?.ultimoErro ?? null,
       atualizadoEm: ultimoAtualizado?.atualizadoEm ?? null

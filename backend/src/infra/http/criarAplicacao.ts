@@ -1,6 +1,7 @@
 import cookie from "@fastify/cookie";
 import cors from "@fastify/cors";
 import helmet from "@fastify/helmet";
+import { timingSafeEqual } from "node:crypto";
 import Fastify, { type FastifyInstance } from "fastify";
 import type { ComentarioLive } from "../../dominio/tipos.js";
 import { criarContextoAplicacao, criarProviderLive, type ContextoAplicacao, type SessaoLive } from "./ContextoAplicacao.js";
@@ -11,6 +12,18 @@ import { criarRateLimit } from "./rateLimit.js";
 import { exigirUsuarioAutenticado } from "./seguranca.js";
 import { isPrivateStoredMediaUrl } from "../media/MediaStorage.js";
 import { resolverOrigemCors } from "./corsOrigens.js";
+
+export function compararTokenSeguro(recebido: string | string[] | undefined, esperado: string): boolean {
+  const valor = Array.isArray(recebido) ? recebido[0] : recebido;
+  if (!valor || typeof valor !== "string") return false;
+  const bufRecebido = Buffer.from(valor);
+  const bufEsperado = Buffer.from(esperado);
+  if (bufRecebido.length !== bufEsperado.length) {
+    timingSafeEqual(bufEsperado, bufEsperado);
+    return false;
+  }
+  return timingSafeEqual(bufRecebido, bufEsperado);
+}
 
 export async function criarAplicacao(): Promise<FastifyInstance> {
   const app = Fastify({
@@ -29,7 +42,14 @@ export async function criarAplicacao(): Promise<FastifyInstance> {
   });
 
   await app.register(helmet, {
-    contentSecurityPolicy: false,
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'none'"],
+        scriptSrc: ["'none'"],
+        objectSrc: ["'none'"],
+        frameAncestors: ["'none'"]
+      }
+    },
     crossOriginResourcePolicy: { policy: "same-site" }
   });
 
@@ -67,7 +87,7 @@ export async function criarAplicacao(): Promise<FastifyInstance> {
     const tokenConfigurado = process.env.N8N_BACKEND_TOKEN;
     const tokenRecebido = request.headers["x-emeu-n8n-token"];
 
-    if (tokenConfigurado && tokenRecebido !== tokenConfigurado) {
+    if (tokenConfigurado && !compararTokenSeguro(tokenRecebido, tokenConfigurado)) {
       return reply.code(401).send({ erro: "NAO_AUTORIZADO", mensagem: "Token do n8n inválido." });
     }
   });
@@ -227,7 +247,7 @@ async function persistirSessaoRestaurada(
 
 function deveExigirSessaoOperacional(url: string): boolean {
   const caminho = url.split("?")[0];
-  const rotasPublicas = ["/", "/saude"];
+  const rotasPublicas = ["/", "/saude", "/financas/saude"];
 
   if (rotasPublicas.includes(caminho)) return false;
   if (caminho.startsWith("/auth/")) return false;

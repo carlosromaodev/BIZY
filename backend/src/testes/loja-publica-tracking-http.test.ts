@@ -116,6 +116,93 @@ describe("loja pública, catálogo digital e tracking HTTP", () => {
     }
   });
 
+  it("submete formulário público de lead e atualiza o contador de respostas do Team", async () => {
+    const app = await criarAplicacao();
+
+    try {
+      const headers = await autenticar(app, "923444888", "Loja Formulários");
+
+      const publicar = await app.inject({
+        method: "PUT",
+        url: "/loja-publica/configuracao",
+        headers,
+        payload: {
+          slug: "loja-formularios",
+          descricaoPublica: "Captação de leads por formulário público.",
+          publicada: true
+        }
+      });
+      expect(publicar.statusCode).toBe(200);
+
+      const antes = await app.inject({
+        method: "GET",
+        url: "/formularios?limite=5",
+        headers
+      });
+      expect(antes.statusCode).toBe(200);
+      expect(antes.json().formularios[0].totalSubmissoes).toBe(0);
+
+      const tarefasAntes = await app.inject({
+        method: "GET",
+        url: "/tarefas?tipo=LEAD_FORMULARIO&estado=ABERTA",
+        headers
+      });
+      expect(tarefasAntes.statusCode).toBe(200);
+      expect(tarefasAntes.json().tarefas).toHaveLength(0);
+
+      const submissao = await app.inject({
+        method: "POST",
+        url: "/publico/lojas/loja-formularios/formularios/lead",
+        payload: {
+          nome: "Ana Lead",
+          telefone: "923444555",
+          email: "ana.lead@example.com",
+          produtoInteresse: "Vestido azul",
+          mensagem: "Quero saber mais sobre disponibilidade.",
+          consentimentoDados: true,
+          consentimentoMarketing: false
+        }
+      });
+      expect(submissao.statusCode).toBe(201);
+      expect(submissao.json()).toEqual(
+        expect.objectContaining({
+          clienteId: expect.any(String),
+          tagAutomatica: "lead-formulario"
+        })
+      );
+
+      const depois = await app.inject({
+        method: "GET",
+        url: "/formularios?limite=5",
+        headers
+      });
+      expect(depois.statusCode).toBe(200);
+      expect(depois.json().formularios[0].totalSubmissoes).toBe(1);
+
+      const tarefasDepois = await app.inject({
+        method: "GET",
+        url: "/tarefas?tipo=LEAD_FORMULARIO&estado=ABERTA",
+        headers
+      });
+      expect(tarefasDepois.statusCode).toBe(200);
+      expect(tarefasDepois.json().tarefas).toHaveLength(1);
+      expect(tarefasDepois.json().tarefas[0]).toEqual(
+        expect.objectContaining({
+          tipo: "LEAD_FORMULARIO",
+          origem: "FORMULARIO_PUBLICO",
+          clienteId: expect.any(String),
+          entidadeTipo: "cliente",
+          contexto: expect.objectContaining({
+            formularioSlug: "loja-formularios",
+            tagAutomatica: "lead-formulario"
+          })
+        })
+      );
+    } finally {
+      await app.close();
+    }
+  });
+
   it("guarda configuração detalhada da loja digital e mantém dados ligados ao checkout", async () => {
     const app = await criarAplicacao();
 

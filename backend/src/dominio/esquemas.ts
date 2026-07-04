@@ -440,7 +440,7 @@ export const ComentarioLiveSchema = z.object({
   userId: TextoPerfilOpcionalSchema,
   displayName: z.string().default(""),
   avatarUrl: AvatarPerfilOpcionalSchema,
-  commentText: z.string().min(1),
+  commentText: z.string().min(1).max(2000),
   timestamp: z.coerce.date(),
   perfilUsuario: JsonLivreSchema,
   eventoBruto: JsonLivreSchema
@@ -844,7 +844,7 @@ export const ComentarioManualSchema = z.object({
   userId: TextoPerfilOpcionalSchema,
   displayName: z.string().trim().default("Cliente"),
   avatarUrl: AvatarPerfilOpcionalSchema,
-  commentText: z.string().trim().min(1),
+  commentText: z.string().trim().min(1).max(2000),
   provider: z.string().trim().default("manual"),
   perfilUsuario: JsonLivreSchema,
   eventoBruto: JsonLivreSchema
@@ -855,7 +855,7 @@ export const ComentarioManualSessaoSchema = z.object({
   userId: TextoPerfilOpcionalSchema,
   displayName: z.string().trim().default("Cliente"),
   avatarUrl: AvatarPerfilOpcionalSchema,
-  commentText: z.string().trim().min(1),
+  commentText: z.string().trim().min(1).max(2000),
   perfilUsuario: JsonLivreSchema,
   eventoBruto: JsonLivreSchema
 });
@@ -1358,7 +1358,14 @@ export const AprovarDescontoPedidoSchema = z.object({
 });
 
 export const ConfirmarPagamentoPedidoSchema = z.object({
-  comprovativoPagamentoUrl: z.string().trim().url().max(2048).nullable().optional().transform((valor) => valor ?? null),
+  comprovativoPagamentoUrl: z
+    .preprocess(
+      (valor) => (typeof valor === "string" && valor.trim() === "" ? null : valor),
+      UrlOuDataUrlSchema.nullable().optional()
+    )
+    .transform((valor) => valor ?? null),
+  metodoPagamento: TextoPerfilOpcionalSchema,
+  referenciaPagamento: TextoPerfilOpcionalSchema,
   observacao: z.string().trim().max(1000).nullable().optional().transform((valor) => valor ?? null)
 });
 

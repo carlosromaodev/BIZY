@@ -229,4 +229,111 @@ describe("InterpretadorComentario", () => {
     expect(resultado.phone).toBe("923456789");
     expect(resultado.productCodes).toEqual(["01", "02", "03"]);
   });
+
+  /* ── Correcções: telefone concatenado com texto ── */
+  it("extrai telefone colado a texto sem espaço (bug fix)", () => {
+    const resultado = interpretador.interpretar("quero923456789 4");
+
+    expect(resultado.intent).toBe("BUY");
+    expect(resultado.phone).toBe("923456789");
+    expect(resultado.productCode).toBe("4");
+    expect(resultado.requiresManualReview).toBe(false);
+  });
+
+  it("extrai telefone com indicativo colado a texto", () => {
+    const resultado = interpretador.interpretar("quero+244923456789 peca 01");
+
+    expect(resultado.intent).toBe("BUY");
+    expect(resultado.phone).toBe("923456789");
+    expect(resultado.productCode).toBe("01");
+  });
+
+  it("extrai telefone quando dígitos aparecem depois do texto sem espaço", () => {
+    const resultado = interpretador.interpretar("923456789peca 3");
+
+    expect(resultado.intent).toBe("BUY");
+    expect(resultado.phone).toBe("923456789");
+    expect(resultado.productCode).toBe("3");
+  });
+
+  /* ── Erros ortográficos comuns em mobile ── */
+  it("reconhece 'kero' como variação de 'quero'", () => {
+    const resultado = interpretador.interpretar("kero 923456789 peca 3");
+
+    expect(resultado.intent).toBe("BUY");
+    expect(resultado.phone).toBe("923456789");
+    expect(resultado.productCode).toBe("3");
+    expect(resultado.requiresManualReview).toBe(false);
+  });
+
+  it("reconhece 'reserba' como variação de 'reserva'", () => {
+    const resultado = interpretador.interpretar("reserba peca 2 923456789");
+
+    expect(resultado.intent).toBe("BUY");
+    expect(resultado.phone).toBe("923456789");
+    expect(resultado.productCode).toBe("2");
+    expect(resultado.requiresManualReview).toBe(false);
+  });
+
+  it("reconhece 'kompro' como variação de 'compro'", () => {
+    const resultado = interpretador.interpretar("kompro 923456789 01");
+
+    expect(resultado.intent).toBe("BUY");
+    expect(resultado.phone).toBe("923456789");
+    expect(resultado.productCode).toBe("01");
+  });
+
+  /* ── Gíria angolana ── */
+  it("reconhece 'bué quero' como gíria angolana de intenção", () => {
+    const resultado = interpretador.interpretar("bué quero 923456789 peca 1");
+
+    expect(resultado.intent).toBe("BUY");
+    expect(resultado.phone).toBe("923456789");
+    expect(resultado.productCode).toBe("1");
+    expect(resultado.requiresManualReview).toBe(false);
+  });
+
+  it("reconhece 'mano pega' como gíria angolana de intenção", () => {
+    const resultado = interpretador.interpretar("mano pega 923456789 artigo 5");
+
+    expect(resultado.intent).toBe("BUY");
+    expect(resultado.phone).toBe("923456789");
+    expect(resultado.productCode).toBe("5");
+  });
+
+  /* ── Contacto como intenção implícita ── */
+  it("detecta 'meu contacto' como intenção implícita de compra", () => {
+    const resultado = interpretador.interpretar("meu contacto 923456789 artigo 5");
+
+    expect(resultado.intent).toBe("BUY");
+    expect(resultado.phone).toBe("923456789");
+    expect(resultado.productCode).toBe("5");
+    expect(resultado.requiresManualReview).toBe(false);
+  });
+
+  /* ── Rótulos expandidos ── */
+  it("reconhece 'modelo' como rótulo de código de peça", () => {
+    const resultado = interpretador.interpretar("quero modelo XR7 923456789");
+
+    expect(resultado.intent).toBe("BUY");
+    expect(resultado.phone).toBe("923456789");
+    expect(resultado.productCode).toBe("XR7");
+  });
+
+  it("reconhece 'num' como rótulo de código de peça", () => {
+    const resultado = interpretador.interpretar("quero num 42 923456789");
+
+    expect(resultado.intent).toBe("BUY");
+    expect(resultado.phone).toBe("923456789");
+    expect(resultado.productCode).toBe("42");
+  });
+
+  /* ── Código embebido (sem espaço entre palavra e número) ── */
+  it("extrai código de peça colado a palavra de intenção", () => {
+    const resultado = interpretador.interpretar("923456789 quero4");
+
+    expect(resultado.intent).toBe("BUY");
+    expect(resultado.phone).toBe("923456789");
+    expect(resultado.productCode).toBe("4");
+  });
 });

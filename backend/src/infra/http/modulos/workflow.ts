@@ -23,6 +23,23 @@ const ConfigNotificacaoSchema = z.object({
   horarioFim: z.string().trim().max(5).optional()
 });
 
+const ConfigAlertaProactivoSchema = z.object({
+  tipo: z.enum(["PAGAMENTO_ALTO"]),
+  canal: z.literal("WHATSAPP").optional(),
+  ativo: z.boolean().optional(),
+  valorMinimo: z.number().int().positive().optional()
+});
+
+const ExecutarNotificacoesProactivasSchema = z.object({
+  tipo: z.enum(["RESUMO_DIARIO", "ALERTAS", "TODOS"]).default("TODOS"),
+  origem: z.enum(["MANUAL", "N8N", "CRON", "SISTEMA"]).default("MANUAL")
+});
+
+const LayoutWidgetsSchema = z.object({
+  ordem: z.array(z.string().trim().min(1).max(80)).max(30),
+  ocultos: z.array(z.string().trim().min(1).max(80)).max(30).optional()
+});
+
 async function exigirWorkflow(
   contexto: ContextoAplicacao,
   request: import("fastify").FastifyRequest,
@@ -122,7 +139,24 @@ export const moduloWorkflow: ModuloHttp = {
       const { contexto: ctxWidget } = z.object({
         contexto: z.enum(["PAINEL", "PEDIDOS", "CONVERSAS", "FINANCAS"])
       }).parse(request.params);
-      return contexto.gestaoWorkflow.obterWidgetsContextuais(ctx.negocio.id, ctxWidget);
+      const membro = await contexto.gestaoEquipa.obterMembroPorUsuario(ctx.negocio.id, ctx.usuario.id);
+      return contexto.gestaoWorkflow.obterWidgetsContextuais(ctx.negocio.id, ctxWidget, membro?.id);
+    });
+
+    app.put("/workflow/widgets/:contexto/layout", async (request, reply) => {
+      const ctx = await exigirWorkflow(contexto, request, reply, "equipa:ler");
+      if (!ctx) return;
+      const { contexto: ctxWidget } = z.object({
+        contexto: z.enum(["PAINEL", "PEDIDOS", "CONVERSAS", "FINANCAS"])
+      }).parse(request.params);
+      const dados = LayoutWidgetsSchema.parse(request.body);
+      const membro = await contexto.gestaoEquipa.obterMembroPorUsuario(ctx.negocio.id, ctx.usuario.id);
+      if (!membro) return reply.status(404).send({ erro: "Membro não encontrado." });
+      return contexto.gestaoWorkflow.configurarLayoutWidgets(ctx.negocio.id, membro.id, {
+        contexto: ctxWidget,
+        ordem: dados.ordem,
+        ocultos: dados.ocultos
+      });
     });
 
     app.put("/workflow/notificacoes/configurar", async (request, reply) => {
@@ -132,6 +166,38 @@ export const moduloWorkflow: ModuloHttp = {
       const membro = await contexto.gestaoEquipa.obterMembroPorUsuario(ctx.negocio.id, ctx.usuario.id);
       if (!membro) return reply.status(404).send({ erro: "Membro não encontrado." });
       return contexto.gestaoWorkflow.configurarNotificacao(ctx.negocio.id, membro.id, dados);
+    });
+
+    app.post("/workflow/notificacoes/proactivas/resumo-diario", async (request, reply) => {
+      const ctx = await exigirWorkflow(contexto, request, reply, "negocio:gerir");
+      if (!ctx) return;
+      return contexto.gestaoWorkflow.enviarResumoDiarioWhatsApp(ctx.negocio.id);
+    });
+
+    app.post("/workflow/notificacoes/proactivas/alertas", async (request, reply) => {
+      const ctx = await exigirWorkflow(contexto, request, reply, "negocio:gerir");
+      if (!ctx) return;
+      return contexto.gestaoWorkflow.enviarAlertasProactivosWhatsApp(ctx.negocio.id);
+    });
+
+    app.get("/workflow/notificacoes/proactivas/configuracoes", async (request, reply) => {
+      const ctx = await exigirWorkflow(contexto, request, reply, "negocio:gerir");
+      if (!ctx) return;
+      return contexto.gestaoWorkflow.listarConfiguracoesAlertasProactivos(ctx.negocio.id);
+    });
+
+    app.put("/workflow/notificacoes/proactivas/configuracoes", async (request, reply) => {
+      const ctx = await exigirWorkflow(contexto, request, reply, "negocio:gerir");
+      if (!ctx) return;
+      const dados = ConfigAlertaProactivoSchema.parse(request.body);
+      return contexto.gestaoWorkflow.configurarAlertaProactivo(ctx.negocio.id, dados);
+    });
+
+    app.post("/workflow/notificacoes/proactivas/executar", async (request, reply) => {
+      const ctx = await exigirWorkflow(contexto, request, reply, "negocio:gerir");
+      if (!ctx) return;
+      const dados = ExecutarNotificacoesProactivasSchema.parse(request.body ?? {});
+      return contexto.gestaoWorkflow.executarRotinaNotificacoesProactivas(ctx.negocio.id, dados);
     });
 
     /* ── RF-T019 — Nível de Proactividade ─────────────── */

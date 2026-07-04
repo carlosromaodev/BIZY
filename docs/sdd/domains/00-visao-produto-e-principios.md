@@ -2,12 +2,26 @@
 
 Status: ativo
 Owner logico: Produto
-Fontes: `docs/wiki/pages/memoria-projeto-bizy.md`, `docs/wiki/pages/visao-produto-bizy.md`, `docs/wiki/pages/dores-e-qualidades-bizy.md`
-Ultima atualizacao: 2026-06-28
+Fontes: `docs/wiki/pages/memoria-projeto-bizy.md`, `docs/wiki/pages/visao-produto-bizy.md`, `docs/wiki/pages/dores-e-qualidades-bizy.md`, `docs/superpowers/specs/2026-06-30-meta-global-bizy.md`
+Ultima atualizacao: 2026-06-30
 
 ## 1. Proposito
 
-Definir a visao que orienta todo o Bizy: um sistema operacional de social commerce que evoluiu de automacao de live para CRM+, Bizy Market e Bizy Team.
+Definir a visao e a meta global que orientam todo o Bizy: um sistema operacional de social commerce que evoluiu de automacao de live para CRM+, Bizy Market e Bizy Team.
+
+### 1.1 Meta Global Oficial
+
+O Bizy deve ser o sistema operacional comercial para pequenos negocios: trazer clientes, vender, atender, cobrar, entregar, medir e repetir crescimento sem o dono da loja sair do Bizy.
+
+Essa meta vem da spec `docs/superpowers/specs/2026-06-30-meta-global-bizy.md` e deve orientar qualquer nova spec, plano ou decisao de produto.
+
+Toda iniciativa deve melhorar pelo menos uma capacidade:
+
+- descoberta;
+- conversao;
+- execucao;
+- retencao;
+- controlo.
 
 ## 2. Escopo
 
@@ -41,6 +55,7 @@ Cliente -> Produto -> Pedido -> Pagamento -> Entrega
 - Manter live, WhatsApp, loja, Market e Social Inbox como canais de entrada.
 - Manter CRM/Team como centro de execucao.
 - Orientar novas specs pela frase: vender, atender, cobrar, entregar, recuperar, medir, gerir equipa ou controlar dinheiro.
+- Validar specs novas contra as cinco capacidades da meta global: descoberta, conversao, execucao, retencao e controlo.
 
 ## 7. Regras de Negocio
 
@@ -65,13 +80,15 @@ Este dominio orienta todas as APIs e telas, mas nao define endpoints proprios.
 ## 10. Guardrails
 
 - Nao reduzir Bizy a chatbot, marketplace ou dashboard.
+- Nao criar feature que nao melhore descoberta, conversao, execucao, retencao ou controlo.
+- Nao deixar o Market substituir o Team: Market gera descoberta; Team controla execucao.
 - Nao transformar deploy, n8n ou Evolution no centro da memoria.
 - Nao criar modulo sem fluxo operacional real.
 - Nao prometer automacao perigosa como diferencial.
 
 ## 11. Estado Atual
 
-A visao esta documentada na wiki e consolidada na spec SDD. O produto ja cobre CRM+, Market, Team, financas, inteligencia, workflow e operacao.
+A visao esta documentada na wiki, consolidada no SDD e estabelecida como meta global na spec `docs/superpowers/specs/2026-06-30-meta-global-bizy.md`. O produto ja cobre CRM+, Market, Team, financas, inteligencia, workflow e operacao.
 
 ## 12. Lacunas
 
@@ -82,6 +99,7 @@ A visao esta documentada na wiki e consolidada na spec SDD. O produto ja cobre C
 ## 13. Testes e Verificacao
 
 - Revisar specs novas contra a frase norteadora.
+- Revisar specs novas contra a meta global oficial.
 - Verificar se toda tela tem acao operacional.
 - Verificar se nova automacao possui fallback humano quando sensivel.
 

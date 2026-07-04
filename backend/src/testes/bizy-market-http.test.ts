@@ -182,7 +182,7 @@ describe("Bizy Market público HTTP", () => {
     }
   }, 30_000);
 
-  it("expõe categorias, detalhe, similares e controla publicação no Market pelo CRM", async () => {
+  it("expõe categorias, detalhe, similares e controla publicação no Market pelo Team", async () => {
     const app = await criarAplicacao();
 
     try {
@@ -286,7 +286,7 @@ describe("Bizy Market público HTTP", () => {
 
       const resumo = await app.inject({
         method: "GET",
-        url: "/crm/loja/market/resumo",
+        url: "/team/loja/market/resumo",
         headers: lojaA
       });
       expect(resumo.statusCode).toBe(200);
@@ -304,13 +304,13 @@ describe("Bizy Market público HTTP", () => {
 
       const despublicar = await app.inject({
         method: "PUT",
-        url: "/crm/loja/produtos/VESTIDO-DETALHE/publicacao",
+        url: "/team/loja/produtos/VESTIDO-DETALHE/publicacao",
         headers: lojaA,
         payload: { publicado: false }
       });
       expect(despublicar.statusCode).toBe(200);
       expect(despublicar.json().produto.vitrine.publicacaoMarket).toEqual(
-        expect.objectContaining({ publicado: false, origem: "crm" })
+        expect.objectContaining({ publicado: false, origem: "team" })
       );
 
       const detalheDespublicado = await app.inject({

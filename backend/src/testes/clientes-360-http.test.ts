@@ -254,6 +254,71 @@ describe("clientes 360 HTTP", () => {
     }
   });
 
+  it("pagina clientes com metadados padronizados para bases com volume", async () => {
+    const app = await criarAplicacao();
+
+    try {
+      const loja = await autenticar(app, "923111130", "Loja Clientes Paginados");
+
+      for (let indice = 0; indice < 25; indice += 1) {
+        const cliente = await app.inject({
+          method: "POST",
+          url: "/clientes",
+          headers: loja,
+          payload: {
+            telefone: `937625${String(indice).padStart(3, "0")}`,
+            nome: `Cliente Volume ${String(indice + 1).padStart(2, "0")}`,
+            origem: indice % 2 === 0 ? "instagram" : "whatsapp",
+            tags: indice % 3 === 0 ? ["volume", "vip"] : ["volume"],
+            consentimentoDados: true,
+            consentimentoMarketing: indice % 2 === 0
+          }
+        });
+        expect(cliente.statusCode).toBe(201);
+      }
+
+      const paginaIntermedia = await app.inject({
+        method: "GET",
+        url: "/clientes?limite=10&offset=10&tag=volume",
+        headers: loja
+      });
+
+      expect(paginaIntermedia.statusCode).toBe(200);
+      expect(paginaIntermedia.json().clientes).toHaveLength(10);
+      expect(paginaIntermedia.json().paginacao).toEqual({
+        total: 25,
+        limite: 10,
+        offset: 10,
+        temProxima: true,
+        temAnterior: true,
+        proximoOffset: 20,
+        anteriorOffset: 0
+      });
+
+      const ultimaPagina = await app.inject({
+        method: "GET",
+        url: "/clientes?limite=10&offset=20&tag=volume",
+        headers: loja
+      });
+
+      expect(ultimaPagina.statusCode).toBe(200);
+      expect(ultimaPagina.json().clientes).toHaveLength(5);
+      expect(ultimaPagina.json().paginacao).toEqual(
+        expect.objectContaining({
+          total: 25,
+          limite: 10,
+          offset: 20,
+          temProxima: false,
+          temAnterior: true,
+          proximoOffset: null,
+          anteriorOffset: 10
+        })
+      );
+    } finally {
+      await app.close();
+    }
+  });
+
   it("exporta clientes filtrados para operação e marketing autorizado", async () => {
     const app = await criarAplicacao();
 

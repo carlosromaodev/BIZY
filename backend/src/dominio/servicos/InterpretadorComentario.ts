@@ -19,48 +19,225 @@ interface ContextoInterpretadorComentario {
   dicionario?: DicionarioParserComentario | null;
 }
 
+/**
+ * Cria regex de intenção com fronteira baseada apenas em letras.
+ * Usa (?<![a-z])...(?![a-z]) em vez de \b para permitir que
+ * "quero4" detecte "quero" mesmo colado a dígitos.
+ */
+function criarPadraoIntencao(texto: string): RegExp {
+  const normalizado = texto
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^\w\s#+.-]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!normalizado) return /(?!)/;
+  const corpo = normalizado
+    .replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+    .replace(/\s+/g, "[\\s.\\-]+");
+  return new RegExp(`(?<![a-z])${corpo}(?![a-z])`);
+}
+
 export class InterpretadorComentario {
   private readonly normalizadorTelefone = new NormalizadorTelefone();
 
-  private readonly padroesIntencaoCompra = [
-    /\beu\s+quero\b/,
-    /\beu\s+queri\b/,
-    /\beu\s+qro\b/,
-    /\bquero\b/,
-    /\bqro\b/,
-    /\bqr\b/,
-    /\bmeu\b/,
-    /\be\s+meu\b/,
-    /\beh\s+meu\b/,
-    /\bpega\b/,
-    /\breserva\b/,
-    /\bguarda\b/,
-    /\bfica\s+pra\s+mim\b/,
-    /\bfica\s+para\s+mim\b/,
-    /\bleva\b/,
-    /\bsepara\b/,
-    /\bme\s+da\b/,
-    /\bme\s+guarda\b/,
-    /\bme\s+reserva\b/,
-    /\bme\s+separa\b/,
-    /\bquero\s+esse\b/,
-    /\bquero\s+essa\b/,
-    /\bquero\s+este\b/,
-    /\bquero\s+esta\b/,
-    /\bvou\s+levar\b/,
-    /\bvou\s+querer\b/,
-    /\beh\s+meu\b/,
-    /\be\s+meu\b/,
-    /\bpode\s+guardar\b/,
-    /\bpode\s+separar\b/,
-    /\bpode\s+reservar\b/,
-    /\bcompro\b/,
-    /\bcomprar\b/,
-    /\bfico\s+com\b/
+  // ═══════════════════════════════════════════════════════════════════
+  // DICIONÁRIO DE INTENÇÕES DE COMPRA
+  // Cobre português angolano, brasileiro e europeu, erros ortográficos
+  // comuns em teclado mobile, gírias de live commerce e abreviações.
+  // ═══════════════════════════════════════════════════════════════════
+  private readonly padroesIntencaoCompra: RegExp[] = [
+    // ── QUERO e todas as variações / erros de digitação ──
+    criarPadraoIntencao("eu quero"), criarPadraoIntencao("eu kero"), criarPadraoIntencao("eu qero"),
+    criarPadraoIntencao("eu qro"), criarPadraoIntencao("eu queri"), criarPadraoIntencao("eu queiro"),
+    criarPadraoIntencao("quero"), criarPadraoIntencao("qero"), criarPadraoIntencao("kero"),
+    criarPadraoIntencao("queiro"), criarPadraoIntencao("queor"), criarPadraoIntencao("quro"),
+    criarPadraoIntencao("qro"), criarPadraoIntencao("qr"), criarPadraoIntencao("qiero"),
+    criarPadraoIntencao("queroo"), criarPadraoIntencao("querp"), criarPadraoIntencao("quer0"),
+    criarPadraoIntencao("qeru"), criarPadraoIntencao("keroo"), criarPadraoIntencao("wuero"),
+    criarPadraoIntencao("qureo"), criarPadraoIntencao("qeuro"), criarPadraoIntencao("quuero"),
+    criarPadraoIntencao("qqero"), criarPadraoIntencao("qwero"), criarPadraoIntencao("kerop"),
+    criarPadraoIntencao("querop"), criarPadraoIntencao("qerop"),
+    criarPadraoIntencao("quero esse"), criarPadraoIntencao("quero essa"),
+    criarPadraoIntencao("quero este"), criarPadraoIntencao("quero esta"),
+    criarPadraoIntencao("quero isso"), criarPadraoIntencao("quero aquele"),
+    criarPadraoIntencao("quero aquela"),
+    criarPadraoIntencao("kero esse"), criarPadraoIntencao("kero essa"),
+    criarPadraoIntencao("kero este"), criarPadraoIntencao("kero esta"),
+    criarPadraoIntencao("qro esse"), criarPadraoIntencao("qro essa"),
+    criarPadraoIntencao("quero um"), criarPadraoIntencao("quero uma"),
+    criarPadraoIntencao("kero um"), criarPadraoIntencao("kero uma"),
+    criarPadraoIntencao("quero muito"), criarPadraoIntencao("kero muito"),
+    criarPadraoIntencao("quero demais"), criarPadraoIntencao("amei quero"),
+    criarPadraoIntencao("gostei quero"),
+    criarPadraoIntencao("quero dois"), criarPadraoIntencao("quero tres"),
+    criarPadraoIntencao("quero duas"), criarPadraoIntencao("kero dois"),
+
+    // ── MEU / É MEU ──
+    criarPadraoIntencao("e meu"), criarPadraoIntencao("eh meu"),
+    criarPadraoIntencao("e mew"), criarPadraoIntencao("eh mew"),
+    criarPadraoIntencao("meu"), criarPadraoIntencao("mew"), criarPadraoIntencao("meo"), criarPadraoIntencao("meuu"),
+
+    // ── PEGA / PEGAR ──
+    criarPadraoIntencao("pega"), criarPadraoIntencao("pga"), criarPadraoIntencao("pegaa"),
+    criarPadraoIntencao("pegar"), criarPadraoIntencao("pega la"), criarPadraoIntencao("pega ai"),
+    criarPadraoIntencao("pega esse"), criarPadraoIntencao("pega essa"),
+    criarPadraoIntencao("pega dois"), criarPadraoIntencao("pega tres"),
+
+    // ── RESERVA / RESERVAR ──
+    criarPadraoIntencao("reserva"), criarPadraoIntencao("reserba"), criarPadraoIntencao("rezeva"),
+    criarPadraoIntencao("rezerva"), criarPadraoIntencao("rserva"), criarPadraoIntencao("reservaa"),
+    criarPadraoIntencao("reservo"), criarPadraoIntencao("rezzerva"), criarPadraoIntencao("reseeva"),
+    criarPadraoIntencao("rseerva"), criarPadraoIntencao("resreva"), criarPadraoIntencao("reseva"),
+    criarPadraoIntencao("me reserva"), criarPadraoIntencao("me reserba"),
+    criarPadraoIntencao("pode reservar"), criarPadraoIntencao("pode reserba"),
+    criarPadraoIntencao("reserva pra mim"), criarPadraoIntencao("reserva para mim"),
+
+    // ── GUARDA / GUARDAR ──
+    criarPadraoIntencao("guarda"), criarPadraoIntencao("gwarda"), criarPadraoIntencao("guardaa"),
+    criarPadraoIntencao("garda"), criarPadraoIntencao("guardo"), criarPadraoIntencao("gaurdaa"),
+    criarPadraoIntencao("guaarda"), criarPadraoIntencao("grauad"), criarPadraoIntencao("gaurad"),
+    criarPadraoIntencao("me guarda"), criarPadraoIntencao("me gwarda"),
+    criarPadraoIntencao("pode guardar"), criarPadraoIntencao("pode gwarda"),
+    criarPadraoIntencao("guarda pra mim"), criarPadraoIntencao("guarda para mim"),
+
+    // ── LEVA / LEVAR ──
+    criarPadraoIntencao("leva"), criarPadraoIntencao("levaa"), criarPadraoIntencao("lvea"),
+    criarPadraoIntencao("levo"), criarPadraoIntencao("levar"), criarPadraoIntencao("leva la"),
+    criarPadraoIntencao("leav"), criarPadraoIntencao("elva"),
+    criarPadraoIntencao("vou levar"), criarPadraoIntencao("vou leva"),
+    criarPadraoIntencao("vo levar"), criarPadraoIntencao("vo leva"),
+    criarPadraoIntencao("vou lvar"), criarPadraoIntencao("vo lvar"),
+    criarPadraoIntencao("leva esse"), criarPadraoIntencao("leva essa"),
+    criarPadraoIntencao("leva dois"), criarPadraoIntencao("leva tres"),
+
+    // ── SEPARA / SEPARAR ──
+    criarPadraoIntencao("separa"), criarPadraoIntencao("separaa"), criarPadraoIntencao("sepra"),
+    criarPadraoIntencao("separo"), criarPadraoIntencao("separar"),
+    criarPadraoIntencao("sapera"), criarPadraoIntencao("saepra"), criarPadraoIntencao("seppara"),
+    criarPadraoIntencao("me separa"), criarPadraoIntencao("me sepra"),
+    criarPadraoIntencao("pode separar"), criarPadraoIntencao("pode sepra"),
+    criarPadraoIntencao("separa pra mim"), criarPadraoIntencao("separa para mim"),
+
+    // ── COMPRA / COMPRAR / COMPRO ──
+    criarPadraoIntencao("compro"), criarPadraoIntencao("compru"), criarPadraoIntencao("kompro"),
+    criarPadraoIntencao("comproo"), criarPadraoIntencao("comprar"), criarPadraoIntencao("komprar"),
+    criarPadraoIntencao("compra"), criarPadraoIntencao("kompra"),
+    criarPadraoIntencao("copro"), criarPadraoIntencao("comrpo"), criarPadraoIntencao("compor"),
+    criarPadraoIntencao("compr"), criarPadraoIntencao("ocmpro"),
+    criarPadraoIntencao("vou comprar"), criarPadraoIntencao("vo comprar"),
+    criarPadraoIntencao("como compro"), criarPadraoIntencao("como comprar"),
+
+    // ── FICO COM ──
+    criarPadraoIntencao("fico com"), criarPadraoIntencao("fiko com"), criarPadraoIntencao("fico kon"),
+    criarPadraoIntencao("fiku com"), criarPadraoIntencao("fico cm"),
+    criarPadraoIntencao("fica pra mim"), criarPadraoIntencao("fica para mim"),
+    criarPadraoIntencao("fica pra mi"), criarPadraoIntencao("fica comigo"),
+    criarPadraoIntencao("fica cmg"),
+
+    // ── ME + verbo ──
+    criarPadraoIntencao("me da"), criarPadraoIntencao("me daa"),
+    criarPadraoIntencao("me manda"), criarPadraoIntencao("me envia"),
+    criarPadraoIntencao("me mete"), criarPadraoIntencao("me poe"),
+    criarPadraoIntencao("me arranja"), criarPadraoIntencao("me traz"),
+
+    // ── VOU + verbo ──
+    criarPadraoIntencao("vou querer"), criarPadraoIntencao("vou kerer"),
+    criarPadraoIntencao("vo querer"), criarPadraoIntencao("vo kerer"),
+    criarPadraoIntencao("vou pegar"), criarPadraoIntencao("vou pega"),
+    criarPadraoIntencao("vo pegar"), criarPadraoIntencao("vo pega"),
+
+    // ── MANDA / ENVIA ──
+    criarPadraoIntencao("manda"), criarPadraoIntencao("envia"), criarPadraoIntencao("envie"),
+    criarPadraoIntencao("manda ai"), criarPadraoIntencao("manda la"),
+    criarPadraoIntencao("envia ai"), criarPadraoIntencao("envia la"),
+    criarPadraoIntencao("mandaa"), criarPadraoIntencao("enviaa"),
+    criarPadraoIntencao("manda pra mim"), criarPadraoIntencao("manda para mim"),
+    criarPadraoIntencao("envia pra mim"), criarPadraoIntencao("envia para mim"),
+    criarPadraoIntencao("manda vir"), criarPadraoIntencao("mete ai"),
+
+    // ── PRECISO / NECESSITO ──
+    criarPadraoIntencao("preciso"), criarPadraoIntencao("precizo"), criarPadraoIntencao("prsciso"),
+    criarPadraoIntencao("presiso"), criarPadraoIntencao("necessito"), criarPadraoIntencao("necesito"),
+    criarPadraoIntencao("preciso desse"), criarPadraoIntencao("preciso dessa"),
+
+    // ── CONFIRMO / CONFIRMA ──
+    criarPadraoIntencao("confirmo"), criarPadraoIntencao("confirmado"), criarPadraoIntencao("confirmaa"),
+    criarPadraoIntencao("konfirmo"), criarPadraoIntencao("confirma"), criarPadraoIntencao("confimo"),
+    criarPadraoIntencao("confirmei"),
+
+    // ── ACEITO / ACEITA ──
+    criarPadraoIntencao("aceito"), criarPadraoIntencao("aceitu"), criarPadraoIntencao("asseito"),
+    criarPadraoIntencao("aceita"),
+
+    // ── INTERESSE ──
+    criarPadraoIntencao("interessado"), criarPadraoIntencao("interessada"),
+    criarPadraoIntencao("interesso"), criarPadraoIntencao("interesse"),
+    criarPadraoIntencao("interesado"), criarPadraoIntencao("interesada"),
+    criarPadraoIntencao("tenho interesse"), criarPadraoIntencao("tenho interese"),
+    criarPadraoIntencao("tou interessado"), criarPadraoIntencao("to interessado"),
+    criarPadraoIntencao("tou interessada"), criarPadraoIntencao("to interessada"),
+
+    // ── CONTACTO / NÚMERO (intenção implícita — quem dá o contacto quer comprar) ──
+    criarPadraoIntencao("meu contacto"), criarPadraoIntencao("meu contato"),
+    criarPadraoIntencao("meu numero"), criarPadraoIntencao("meu nro"),
+    criarPadraoIntencao("meu nr"), criarPadraoIntencao("meu cel"),
+    criarPadraoIntencao("meu celular"), criarPadraoIntencao("meu fone"),
+    criarPadraoIntencao("meu telefone"), criarPadraoIntencao("meu tel"),
+    criarPadraoIntencao("o meu contacto"), criarPadraoIntencao("o meu contato"),
+    criarPadraoIntencao("o meu numero"), criarPadraoIntencao("o meu telefone"),
+    criarPadraoIntencao("contacto"), criarPadraoIntencao("contato"),
+    criarPadraoIntencao("fala comigo"), criarPadraoIntencao("fala cmg"),
+    criarPadraoIntencao("liga pra mim"), criarPadraoIntencao("liga para mim"),
+    criarPadraoIntencao("chama no whatsapp"), criarPadraoIntencao("chama no zap"),
+    criarPadraoIntencao("chama no wpp"),
+    criarPadraoIntencao("meu zap"), criarPadraoIntencao("meu wpp"),
+    criarPadraoIntencao("meu whatsapp"),
+
+    // ── GÍRIA ANGOLANA ──
+    criarPadraoIntencao("bue quero"), criarPadraoIntencao("bue kero"), criarPadraoIntencao("bue qro"),
+    criarPadraoIntencao("man pega"), criarPadraoIntencao("mano pega"), criarPadraoIntencao("mana pega"),
+    criarPadraoIntencao("man quero"), criarPadraoIntencao("mano quero"),
+    criarPadraoIntencao("man kero"), criarPadraoIntencao("mano kero"),
+    criarPadraoIntencao("man reserva"), criarPadraoIntencao("mano reserva"),
+    criarPadraoIntencao("man guarda"), criarPadraoIntencao("mano guarda"),
+    criarPadraoIntencao("man leva"), criarPadraoIntencao("mano leva"),
+    criarPadraoIntencao("man separa"), criarPadraoIntencao("mano separa"),
+    criarPadraoIntencao("man compra"), criarPadraoIntencao("mano compra"),
+    criarPadraoIntencao("tou a querer"), criarPadraoIntencao("to a querer"),
+    criarPadraoIntencao("tou a kerer"), criarPadraoIntencao("to a kerer"),
+    criarPadraoIntencao("quero bue"), criarPadraoIntencao("kero bue"),
+
+    // ── QUERI / QUERIA / GOSTARIA ──
+    criarPadraoIntencao("queri"), criarPadraoIntencao("queria"), criarPadraoIntencao("keria"),
+    criarPadraoIntencao("queria esse"), criarPadraoIntencao("queria essa"),
+    criarPadraoIntencao("gostaria"), criarPadraoIntencao("gostava"),
+
+    // ── PODE + verbo (pedido educado) ──
+    criarPadraoIntencao("pode me dar"), criarPadraoIntencao("pode me mandar"),
+    criarPadraoIntencao("pode me enviar"), criarPadraoIntencao("pode me ajudar"),
+    criarPadraoIntencao("por favor"),
+
+    // ── COLOCA / ADICIONA ──
+    criarPadraoIntencao("coloca"), criarPadraoIntencao("adiciona"), criarPadraoIntencao("poe"),
+    criarPadraoIntencao("coloca ai"), criarPadraoIntencao("adiciona ai"),
+
+    // ── PREÇO / VALOR (interesse implícito) ──
+    criarPadraoIntencao("quanto custa"), criarPadraoIntencao("quanto e"),
+    criarPadraoIntencao("qual o preco"), criarPadraoIntencao("qual preco"),
+    criarPadraoIntencao("onde compro"), criarPadraoIntencao("onde comprar"),
+
+    // ── TIRA / TIRO (coloquial para "levo") ──
+    criarPadraoIntencao("tira"), criarPadraoIntencao("tiro"),
+
+    // ── DA-ME ──
+    criarPadraoIntencao("dai"), criarPadraoIntencao("da ai"), criarPadraoIntencao("da me"),
   ];
 
   interpretar(textoOriginal: string, contexto: ContextoInterpretadorComentario = {}): ResultadoInterpretacaoComentario {
-    const texto = this.normalizarTexto(textoOriginal);
+    const textoNormalizado = this.normalizarTexto(textoOriginal);
+    const texto = this.separarTokensConcatenados(textoNormalizado);
     const motivos: string[] = [];
     const dicionario = this.normalizarDicionario(contexto.dicionario);
     const temIntencaoCompra =
@@ -126,6 +303,17 @@ export class InterpretadorComentario {
       .trim();
   }
 
+  /**
+   * Separa tokens concatenados inserindo espaço entre letras e sequências
+   * longas de dígitos (≥9). Corrige o bug onde "quero923456789" não era
+   * detectado porque o telefone ficava colado ao texto.
+   */
+  private separarTokensConcatenados(texto: string): string {
+    return texto
+      .replace(/([a-z])(\d{9,})/g, "$1 $2")
+      .replace(/(\d{9,})([a-z])/g, "$1 $2");
+  }
+
   private normalizarDicionario(dicionario?: DicionarioParserComentario | null): Required<DicionarioParserComentario> {
     return {
       termosIntencaoCompra: this.listaNormalizada(dicionario?.termosIntencaoCompra),
@@ -141,7 +329,7 @@ export class InterpretadorComentario {
     return this.removerDuplicados(
       valores
         .map((valor) => (typeof valor === "string" ? this.normalizarTexto(valor) : ""))
-        .filter((valor) => valor.length >= 2)
+        .filter((valor) => valor.length >= 2 && valor.length <= 40)
         .slice(0, 80)
     );
   }
@@ -164,8 +352,14 @@ export class InterpretadorComentario {
     return termos.some((termo) => this.criarPadraoTexto(termo)?.test(texto));
   }
 
+  /**
+   * Extrai telefone angolano do texto. O lookbehind (?<![a-z0-9]) impede
+   * falsos positivos em códigos de peça como "X99". O pré-processamento
+   * separarTokensConcatenados() garante que telefones colados a palavras
+   * (ex: "quero923456789") já estão separados quando chegam aqui.
+   */
   private extrairTelefone(texto: string): TrechoEncontrado | null {
-    const padraoTelefone = /(?<![a-z0-9])(?:(?:\+?244|00244)[\s.-]*)?9(?:1|2|3|4|5|9)(?:[\s.-]*\d){7}/g;
+    const padraoTelefone = /(?<![a-z0-9])(?:(?:\+?244|00244)[\s.-]*)?9[1-59](?:[\s.-]*\d){7}/g;
     const encontrado = padraoTelefone.exec(texto);
 
     if (!encontrado) {
@@ -206,15 +400,16 @@ export class InterpretadorComentario {
 
   private extrairCodigosPecaRotulados(texto: string, rotulosExtras: string[] = []): TrechoEncontrado[] {
     const rotulos = this.removerDuplicados([
-      "peca",
+      "peca", "pc",
       "produto",
       "item",
       "artigo",
-      "ref",
-      "referencia",
-      "codigo",
-      "cod",
+      "ref", "referencia",
+      "codigo", "cod",
       "id",
+      "num", "numero", "nr", "nro",
+      "modelo", "mod",
+      "lote",
       ...rotulosExtras
     ]);
     const rotulosRegex = rotulos.map((rotulo) => this.escaparRegex(rotulo).replace(/\s+/g, "\\s+")).join("|");
@@ -240,8 +435,10 @@ export class InterpretadorComentario {
   }
 
   private extrairCodigosPecaLivres(texto: string, telefone: TrechoEncontrado | null): TrechoEncontrado[] {
-    const padraoNumero = /\b[a-z]?\d{1,6}\b/g;
     const candidatos: TrechoEncontrado[] = [];
+
+    // Padrão principal: números soltos ou com prefixo de 1 letra (ex: "01", "A5")
+    const padraoNumero = /\b[a-z]?\d{1,6}\b/g;
     let encontrado: RegExpExecArray | null;
 
     while ((encontrado = padraoNumero.exec(texto)) !== null) {
@@ -257,6 +454,28 @@ export class InterpretadorComentario {
       }
 
       candidatos.push({ inicio, fim, valor: this.normalizarCodigoPeca(encontrado[0]) });
+    }
+
+    // Padrão complementar: dígitos colados ao final de palavras (ex: "quero4" → "4")
+    const padraoEmbedido = /[a-z]{3,}(\d{1,6})(?!\d)/g;
+
+    while ((encontrado = padraoEmbedido.exec(texto)) !== null) {
+      const valor = encontrado[1];
+      const inicio = encontrado.index + encontrado[0].length - valor.length;
+      const fim = encontrado.index + encontrado[0].length;
+
+      if (telefone && this.trechosSobrepostos({ inicio, fim, valor }, telefone)) {
+        continue;
+      }
+
+      if (valor === "244") {
+        continue;
+      }
+
+      const trecho = { inicio, fim, valor: this.normalizarCodigoPeca(valor) };
+      if (!candidatos.some((c) => this.trechosSobrepostos(c, trecho))) {
+        candidatos.push(trecho);
+      }
     }
 
     return candidatos;

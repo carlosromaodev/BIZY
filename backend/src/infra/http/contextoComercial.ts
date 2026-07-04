@@ -35,6 +35,8 @@ const PERMISSOES_POR_PAPEL: Record<string, string[]> = {
     "clientes:exportar",
     "equipa:ler",
     "equipa:gestao",
+    "learning:ler",
+    "learning:administrar",
     "financas:leitura",
     "financas:escrita",
     "financas:aprovacao"
@@ -61,16 +63,18 @@ const PERMISSOES_POR_PAPEL: Record<string, string[]> = {
     "clientes:exportar",
     "equipa:ler",
     "equipa:gestao",
+    "learning:ler",
+    "learning:administrar",
     "financas:leitura",
     "financas:escrita",
     "financas:aprovacao"
   ],
-  VENDEDOR: ["catalogo:ler", "clientes:ler", "pedidos:gerir", "conversas:gerir", "tarefas:gerir", "relatorios:ver", "tracking:ler", "social-inbox:gerir", "automacoes:ler", "funil:gerir", "equipa:ler"],
-  ATENDENTE: ["clientes:ler", "pedidos:ler", "conversas:gerir", "tarefas:gerir", "social-inbox:gerir", "automacoes:ler", "funil:gerir", "equipa:ler"],
-  FINANCEIRO: ["clientes:ler", "pedidos:ler", "pagamentos:gerir", "descontos:aprovar", "relatorios:ver", "equipa:ler", "financas:leitura", "financas:escrita", "financas:aprovacao"],
+  VENDEDOR: ["catalogo:ler", "clientes:ler", "pedidos:gerir", "conversas:gerir", "tarefas:gerir", "relatorios:ver", "tracking:ler", "social-inbox:gerir", "automacoes:ler", "funil:gerir", "equipa:ler", "learning:ler"],
+  ATENDENTE: ["clientes:ler", "pedidos:ler", "conversas:gerir", "tarefas:gerir", "social-inbox:gerir", "automacoes:ler", "funil:gerir", "equipa:ler", "learning:ler"],
+  FINANCEIRO: ["clientes:ler", "pedidos:ler", "pagamentos:gerir", "descontos:aprovar", "relatorios:ver", "equipa:ler", "learning:ler", "financas:leitura", "financas:escrita", "financas:aprovacao"],
   ENTREGADOR: ["pedidos:ler", "entregas:gerir"],
-  AFILIADO: ["afiliados:ver", "relatorios:ver"],
-  CRIADOR: ["afiliados:ver", "relatorios:ver"]
+  AFILIADO: ["afiliados:ver", "relatorios:ver", "learning:ler"],
+  CRIADOR: ["afiliados:ver", "relatorios:ver", "learning:ler"]
 };
 
 export const PERMISSOES_POR_PAPEL_PUBLICAS: Record<string, string[]> = Object.freeze(

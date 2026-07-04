@@ -7,7 +7,7 @@ tags:
   - bizy/produto
   - bizy/visao
 status: ativo
-updated: 2026-06-07
+updated: 2026-06-30
 ---
 
 # Visao de Produto do Bizy
@@ -30,6 +30,20 @@ Ser o sistema operacional de vendas para negocios que vendem em canais sociais e
 - campanhas;
 - afiliados e criadores;
 - atendimento humano com apoio de automacao.
+
+## Meta Global
+
+A meta oficial do Bizy e ser o sistema operacional comercial para pequenos negocios: trazer clientes, vender, atender, cobrar, entregar, medir e repetir crescimento sem o dono da loja sair do Bizy.
+
+Fonte de decisao: [`docs/superpowers/specs/2026-06-30-meta-global-bizy.md`](../../superpowers/specs/2026-06-30-meta-global-bizy.md).
+
+Toda iniciativa deve melhorar pelo menos uma destas capacidades:
+
+- descoberta;
+- conversao;
+- execucao;
+- retencao;
+- controlo.
 
 ## Expansao: Bizy Market
 

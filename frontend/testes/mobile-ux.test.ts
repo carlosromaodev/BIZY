@@ -13,10 +13,10 @@ describe("experiência mobile-first", () => {
     expect(shell).toContain("@/components/ui/button");
     expect(shell).toContain("@/components/ui/scroll-area");
     expect(shell).toContain("SheetContent");
-    expect(shell).toContain('side="left"');
-    expect(shell).toContain("rotasMobilePrincipais");
-    expect(shell).toContain("InteractiveMenu");
-    expect(shell).toContain("app-mobile-menu-dock");
+    expect(shell).toContain('side="bottom"');
+    expect(shell).toContain("rotasPrimariasCrmV3");
+    expect(shell).toContain("team-mob-bottom");
+    expect(shell).toContain("team-mob-modulos-grid");
     expect(shell).toContain("app-conteudo");
     expect(shell).toContain("app-cabecalho");
     expect(shell).toContain("app-cabecalho-acoes");
@@ -29,14 +29,31 @@ describe("experiência mobile-first", () => {
     const css = source("src/estilos.css");
 
     expect(shell).toContain('Card size="sm"');
-    expect(shell).toContain("grid-cols-[2rem_minmax(0,1fr)]");
     expect(shell).toContain("export function ResumoIndicadores");
     expect(shell).toContain("grid-cols-2 sm:grid-cols-4");
     expect(shell).toContain("grid-cols-3");
-    expect(shell).toContain("hidden text-xs leading-snug");
+    expect(shell).toContain("crm21-summary");
     expect(css).toContain(".app-conteudo");
     expect(css).toContain('[data-slot="card"]');
-    expect(css).toContain(".app-mobile-dock");
+    expect(css).toContain(".team-mob-bottom");
+  });
+
+  it("RNF-T031 mantém rotas core do Team acessíveis no mobile e evita overflow do shell", () => {
+    const shell = source("src/componentes/Shell.tsx");
+    const rotas = source("src/rotasApp.tsx");
+    const css = source("src/estilos.css");
+
+    expect(rotas).toContain('"/app/tarefas"');
+    expect(rotas).toContain('"/app/metas"');
+    expect(rotas).toContain('"/app/equipa"');
+    expect(rotas).toContain('"/app/projectos"');
+    expect(rotas).toContain('"/app/financas"');
+    expect(shell).toContain('path: "/app/tarefas"');
+    expect(css).toContain(".team-tabs-inner::-webkit-scrollbar");
+    expect(css).toContain("RNF-T031");
+    expect(css).toContain("@media (max-width: 420px)");
+    expect(css).toContain("flex-basis: 48px");
+    expect(css).toContain("text-overflow: ellipsis");
   });
 
   it("mantém Conversas em fluxo lista-detalhe no mobile", () => {
@@ -64,7 +81,8 @@ describe("experiência mobile-first", () => {
     const shell = source("src/componentes/Shell.tsx");
     const css = source("src/estilos.css");
 
-    expect(css).toContain("--component-active-color-default: var(--emerald-ink);");
+    expect(css).toContain(".team-mob-bottom-item[data-active=\"true\"]");
+    expect(css).toContain("border-top-color: var(--em, #0e8c68);");
     expect(shell).not.toContain('accentColor="#ffffff"');
   });
 
@@ -85,7 +103,9 @@ describe("experiência mobile-first", () => {
 
     expect(css).toContain(".app-mobile-dock");
     expect(css).toContain(".app-mobile-nav-item");
-    expect(css).toContain(".app-desktop-sidebar .app-nav-link");
+    expect(css).toContain(".app-desktop-sidebar");
+    expect(css).toContain(".team-mob-bottom-item");
+    expect(css).toContain(".team-mob-modulos-item");
     expect(css).toContain(".app-mobile-sheet-nav .app-nav-link");
     expect(css).toContain(".app-mobile-menu-dock .menu__text");
     expect(css).toContain("color: #ffffff !important;");
@@ -115,9 +135,9 @@ describe("experiência mobile-first", () => {
     const reservas = source("src/paginas/Reservas.tsx");
 
     expect(catalogo).not.toContain("tabela-catalogo");
-    expect(reservas).toContain("reservasVisiveis");
+    expect(reservas).toContain("pedidosVisiveis");
     expect(reservas).toContain("Ver mais pedidos");
-    expect(reservas).toContain('aria-label="Buscar pedidos"');
+    expect(reservas).toContain("ped-filters");
     expect(reservas).not.toContain("tabela-reservas");
   });
 
@@ -128,7 +148,7 @@ describe("experiência mobile-first", () => {
   });
 
   it("mantém Minha loja responsiva na admin com ações e assistente mobile-first", () => {
-    const loja = source("src/paginas/LojaPublica.tsx");
+    const loja = source("src/projetos/market/paginas/StudioLoja.tsx");
 
     expect(loja).toContain("loja-admin-shell");
     expect(loja).toContain("loja-admin-command-grid");

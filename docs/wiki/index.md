@@ -7,7 +7,7 @@ tags:
   - bizy/wiki
   - bizy/indice
 status: ativo
-updated: 2026-06-28
+updated: 2026-06-30
 ---
 
 # Indice da Wiki Bizy
@@ -21,6 +21,7 @@ updated: 2026-06-28
 - [[guia-para-ia-bizy|Guia para IA no Bizy]]
 - [[protocolo-atualizacao-memoria-bizy|Protocolo de Atualizacao da Memoria]]
 - [[visao-produto-bizy|Visao de Produto]]
+- [`Meta Global Bizy`](../superpowers/specs/2026-06-30-meta-global-bizy.md)
 - [[dores-e-qualidades-bizy|Dores e Qualidades]]
 - [[mapa-de-modulos-bizy|Mapa de Modulos]]
 - [[dominio-e-entidades-bizy|Dominio e Entidades]]
@@ -89,6 +90,7 @@ updated: 2026-06-28
 
 ## Planos e Specs Recentes
 
+- [`docs/superpowers/specs/2026-06-30-meta-global-bizy.md`](../superpowers/specs/2026-06-30-meta-global-bizy.md)
 - [`docs/superpowers/specs/2026-06-28-sdd-completo-bizy-design.md`](../superpowers/specs/2026-06-28-sdd-completo-bizy-design.md)
 - [`docs/superpowers/plans/2026-06-28-sdd-completo-bizy.md`](../superpowers/plans/2026-06-28-sdd-completo-bizy.md)
 - [`docs/superpowers/specs/2026-06-07-bizy-market-frontend-lojas-design.md`](../superpowers/specs/2026-06-07-bizy-market-frontend-lojas-design.md)

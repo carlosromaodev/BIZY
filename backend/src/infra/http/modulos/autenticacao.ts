@@ -193,6 +193,8 @@ export const moduloAutenticacao: ModuloHttp = {
           nomeComercial: n.nomeComercial,
           segmento: n.segmento,
           tipo: n.tipo,
+          moeda: n.moeda,
+          fusoHorario: n.fusoHorario,
           slugPublico: n.slugPublico,
           papel: n.usuarioPapel ?? null,
           principal: n.id === principal?.id
@@ -401,7 +403,11 @@ function verificarEstadoGoogle(valor: string): { redirect: string } | null {
 }
 
 function obterSegredoAuth() {
-  return process.env.AUTH_SECRET ?? process.env.N8N_WEBHOOK_SECRET ?? "emeu-dev-secret";
+  const segredo = process.env.AUTH_SECRET;
+  if (!segredo) {
+    throw new Error("AUTH_SECRET não configurado. Defina a variável de ambiente.");
+  }
+  return segredo;
 }
 
 async function obterPerfilGoogle(code: string): Promise<{

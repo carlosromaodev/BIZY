@@ -849,8 +849,8 @@ Esta secção formaliza módulos identificados na análise do cofre Obsidian com
 |---|---|---|---|
 | RF329 | [~] O dono deve poder criar formulários simples de captação com nome, telefone e produto de interesse. | Alta | Parcial — formulário padrão de captação gerado; falta endpoint de criação de formulários personalizados |
 | RF330 | [x] Formulário deve gerar link partilhável por WhatsApp, Instagram bio ou site. | Alta | Implementado — linkPublico gerado por slug com botão de cópia na UI |
-| RF331 | [~] Submissão do formulário deve criar cliente automaticamente no CRM com tag por formulário de origem. | Alta | Parcial — modelo prevê tagAutomatica; falta endpoint de submissão que cria cliente |
-| RF332 | [ ] O sistema deve notificar o vendedor quando um lead novo entrar por formulário. | Alta | Planeado |
+| RF331 | [x] Submissão do formulário deve criar cliente automaticamente no CRM com tag por formulário de origem. | Alta | Implementado — endpoint público cria/atualiza cliente no CRM e aplica a tag `lead-formulario` |
+| RF332 | [x] O sistema deve notificar o vendedor quando um lead novo entrar por formulário. | Alta | Implementado — submissão cria tarefa operacional `LEAD_FORMULARIO` atribuída ao dono/admin/vendedor activo |
 | RF333 | [ ] O dono deve poder criar múltiplos formulários por negócio com campos e tags diferentes. | Média | Planeado |
 | RF334 | [ ] Lead sem follow-up dentro do prazo configurado deve virar tarefa automática. | Média | Planeado |
 

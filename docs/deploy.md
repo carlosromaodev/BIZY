@@ -30,7 +30,7 @@ TIKTOK_LIVE_USERNAME=@sua_loja_tiktok
 
 Notas:
 
-- `DATABASE_URL` é a fonte de verdade do Prisma.
+- `DATABASE_URL` é a fonte de verdade do Prisma. Em produção, o backend acrescenta `sslmode=require` automaticamente em URLs PostgreSQL sem `sslmode`; quando o provider exigir validação completa de certificado, configure `DATABASE_SSL_MODE=verify-full`.
 - `N8N_WEBHOOK_SECRET` assina eventos enviados do backend para o n8n.
 - `N8N_BACKEND_TOKEN` deve ser configurado no n8n e enviado no header `X-EMEU-N8N-TOKEN`.
 - `EVOLUTION_WEBHOOK_TOKEN` protege `POST /webhooks/evolution`.
@@ -74,7 +74,17 @@ Configure uma rotina externa, como cron do servidor, para executar backups frequ
 BACKUP_ENV=production npm run backup:postgres
 ```
 
-Os backups são gravados por padrão em `backups/postgres` usando `pg_dump --format=custom`, com `--no-owner`, `--no-privileges`, permissões restritas e checksum quando disponível. Quando `MEDIA_STORAGE_DIR` existir, o script também cria um `.tar.gz` da pasta de media/comprovativos. Para enviar para armazenamento externo, sincronize essa pasta com o provider escolhido pela operação.
+Os backups são gravados por padrão em `backups/postgres` usando `pg_dump --format=custom`, com `--no-owner`, `--no-privileges`, permissões restritas e checksum quando disponível. Quando `MEDIA_STORAGE_DIR` existir, o script também cria um `.tar.gz` da pasta de media/comprovativos. A retenção padrão é de 365 dias e pode ser ajustada com `BACKUP_RETENTION_DAYS`; ficheiros mais antigos do mesmo `BACKUP_ENV` são removidos no fim da execução. Para enviar para armazenamento externo, sincronize essa pasta com o provider escolhido pela operação.
+
+Para recuperação incremental/PITR, configure o PostgreSQL com WAL archive em produção e aponte `archive_command` para o script versionado:
+
+```conf
+wal_level = replica
+archive_mode = on
+archive_command = 'BACKUP_ENV=production WAL_ARCHIVE_DIR=/opt/bizy/backups/postgres/wal /opt/bizy/scripts/archive-postgres-wal.sh %p %f'
+```
+
+O script `archive-postgres-wal.sh` é idempotente, grava segmentos WAL com permissão restrita, gera checksum quando `sha256sum` estiver disponível e aplica retenção padrão de 365 dias via `WAL_ARCHIVE_RETENTION_DAYS`. Para PITR real, mantenha também um backup base periódico e sincronize `backups/postgres` para armazenamento externo.
 
 Teste restore apenas em ambiente controlado:
 
@@ -86,6 +96,29 @@ CONFIRM_RESTORE=SIM \
 ```
 
 O restore usa `pg_restore --clean --if-exists --exit-on-error`, por isso exige `CONFIRM_RESTORE=SIM`.
+
+Para validar os RNFs operacionais em staging/producao, use os comandos versionados do repositorio:
+
+```bash
+# Disponibilidade financeira: grave uma linha JSONL por probe e use o exit code no monitor.
+BIZY_BASE_URL=https://api.seu-dominio.com \
+  PROBE_LOG_FILE=/var/log/bizy/financas-saude.jsonl \
+  npm run ops:probe-financas
+
+# Benchmarks nao destrutivos de dashboards financeiros e listagem de projectos.
+BIZY_BASE_URL=https://api.seu-dominio.com \
+  BIZY_TOKEN=token_operacional \
+  ITERACOES=10 \
+  BENCHMARK_LOG_FILE=/var/log/bizy/benchmark-team-rnfs.jsonl \
+  npm run benchmark:team-rnfs
+
+# Transporte cifrado: TLS 1.3 no proxy e, com psql instalado, SSL na sessao PostgreSQL.
+TLS_TARGET_URL=https://api.seu-dominio.com \
+  DATABASE_URL="postgresql://emeu:senha_forte@host:5432/emeu?schema=public&sslmode=require" \
+  npm run ops:verificar-transporte
+```
+
+O benchmark HTTP exige token com `financas:leitura` e `equipa:ler`. Ele nao cria dados; para provar RNF-T005 de reconciliacao com 10.000 linhas, execute o teste local e um ensaio controlado em staging com massa descartavel antes de aplicar em producao.
 
 Se estiver a migrar uma base antiga que já foi criada com `prisma db push`, faça backup e marque a primeira migration como baseline apenas se a estrutura atual já corresponder ao schema Prisma:
 

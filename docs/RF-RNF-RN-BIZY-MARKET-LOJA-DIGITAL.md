@@ -222,7 +222,7 @@ Inclui:
 
 ### 5.7 Checkout Unificado Bizy
 
-- [x] **RF-049**: O Bizy deve oferecer checkout unificado para produtos comprados no perfil da loja ou no Bizy Market. MVP progressivo implementado em `/checkout`; multi-loja completo continua em RF-053.
+- [x] **RF-049**: O Bizy deve oferecer checkout unificado para produtos comprados no perfil da loja ou no Bizy Market. `/checkout` suporta carrinho de uma loja pelo endpoint da loja e carrinho multi-loja pelo checkout unificado do Market.
 - [x] **RF-050**: O comprador deve conseguir adicionar produtos ao carrinho a partir de varias origens.
 - [x] **RF-051**: O checkout deve identificar a loja fornecedora de cada item.
 - [x] **RF-052**: Quando o carrinho tiver produtos de uma unica loja, o sistema deve criar um pedido principal para essa loja.
@@ -448,7 +448,7 @@ Inclui:
 ### Fase 1 - Perfil de Loja Evoluido
 
 - transformar loja publica em perfil comercial com hero, avatar, descricao, seguidores e colecoes clicaveis;
-- manter checkout atual, mas preparar contratos para checkout unificado;
+- manter compatibilidade com checkout da loja e encaminhar carrinho multi-loja para o checkout unificado;
 - melhorar studio no CRM para personalizacao;
 - preservar subdominios e SEO.
 
@@ -499,9 +499,9 @@ Mapa detalhado: `docs/wiki/pages/bizy-market-rotas-roadmap.md`.
 - [x] `GET /publico/market/categorias`: categorias globais com contagem e URLs publicas.
 - [x] `GET /publico/market/produtos/:codigo`: detalhe publico de produto descoberto no Market.
 - [x] `GET /publico/market/produtos/:codigo/similares`: alternativas de outros fornecedores.
-- [x] `GET /crm/loja/market/resumo`: estado de publicacao, pendencias e metricas basicas no CRM.
-- [x] `PUT /crm/loja/produtos/:codigo/publicacao`: publicar/despublicar produto no Market.
-- [x] `PUT /crm/loja/produtos/publicacao-em-massa`: publicacao em massa dentro do CRM.
+- [x] `GET /team/loja/market/resumo`: estado de publicacao, pendencias e metricas basicas no Team.
+- [x] `PUT /team/loja/produtos/:codigo/publicacao`: publicar/despublicar produto no Market.
+- [x] `PUT /team/loja/produtos/publicacao-em-massa`: publicacao em massa dentro do Team.
 
 #### Primeira sequencia frontend
 
@@ -517,20 +517,21 @@ Mapa detalhado: `docs/wiki/pages/bizy-market-rotas-roadmap.md`.
 
 #### Sequencia posterior
 
-- [x] Entrada progressiva do checkout com carrinho local, fornecedor por item, origens loja/Market, consentimento e finalizacao segura para carrinho de uma loja.
-- [x] Checkout unificado com carrinho, entrega, pagamento, comprovativo e acompanhamento.
+- [x] Checkout com carrinho local, fornecedor por item, origens loja/Market, consentimento e finalizacao segura.
+- [x] Checkout unificado multi-loja com carrinho, entrega, pagamento, comprovativo e acompanhamento.
 - [x] Pedidos filhos por fornecedor no CRM.
 - [x] Seguidores, similares avancados, ranking e tracking de recomendacao.
 - [x] Admin Bizy para categorias, suspensoes, patrocinados, denuncias, relatorios e repasses.
 
-## 9. Decisoes em Aberto
+## 9. Decisoes Fechadas
 
 - [x] Dominio principal do Market definido como `market.usebizy.space`, mantendo `/market` como fallback local e compatibilidade.
-- A compra multi-loja entra no MVP do checkout unificado ou primeiro entra apenas checkout unificado para uma loja por vez?
-- O Bizy centralizara pagamento desde o primeiro MVP ou comecara com comprovativo/transferencia e conciliacao manual?
-- O Market tera avaliacao publica de compradores no MVP ou apenas selos operacionais internos?
-- O social graph tera perfis de compradores autenticados ou apenas seguir loja com telefone/identificacao simples?
-- Quais categorias globais iniciais entram no Market: moda, beleza, comida, tecnologia, casa, servicos, digitais?
+- [x] Compra multi-loja implementada no checkout unificado por `POST /publico/market/checkout`, com pedidos filhos por fornecedor.
+- [x] Pagamento inicial opera com transferencia/comprovativo, dinheiro na entrega ou metodo combinado; provider online entra como evolucao.
+- [x] O MVP nao inventa avaliacao publica de compradores. A UI mostra selos operacionais reais ou estado vazio.
+- [x] Social graph atual usa seguir loja com identificacao simples; perfil autenticado completo do comprador e evolucao futura.
+- [x] Categorias globais iniciais: moda, beleza, comida, tecnologia, casa e servicos.
+- [x] Prefixo operacional canonico da loja e `/team/loja`; `/crm/loja` fica somente como alias legado.
 
 ## 10. Guardrails de Produto
 

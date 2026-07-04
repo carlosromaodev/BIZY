@@ -7,15 +7,18 @@ export interface ResultadoOmbala {
 export interface ConfiguracaoOmbala {
   baseUrl: string;
   token?: string | null;
+  timeoutMs?: number;
 }
 
 export class OmbalaClient {
   private readonly baseUrl: string;
   private readonly token: string | null;
+  private readonly timeoutMs: number;
 
   constructor(configuracao: ConfiguracaoOmbala) {
     this.baseUrl = configuracao.baseUrl.replace(/\/$/, "");
     this.token = configuracao.token?.trim() || null;
+    this.timeoutMs = configuracao.timeoutMs && configuracao.timeoutMs > 0 ? configuracao.timeoutMs : 9_000;
   }
 
   get isConfigured() {
@@ -109,9 +112,13 @@ export class OmbalaClient {
       };
     }
 
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), this.timeoutMs);
+
     try {
       const resposta = await fetch(`${this.baseUrl}${path}`, {
         ...init,
+        signal: init?.signal ?? controller.signal,
         headers: {
           Authorization: `Token ${this.token}`,
           ...(init?.headers ?? {})
@@ -125,13 +132,19 @@ export class OmbalaClient {
         payload
       };
     } catch (erro) {
+      const timeoutMessage =
+        erro instanceof Error && erro.name === "AbortError"
+          ? `Tempo limite de ${this.timeoutMs}ms excedido ao comunicar com o Ombala.`
+          : null;
       return {
         ok: false,
         status: 0,
         payload: {
-          message: erro instanceof Error ? erro.message : "Falha de rede ao comunicar com o Ombala."
+          message: timeoutMessage ?? (erro instanceof Error ? erro.message : "Falha de rede ao comunicar com o Ombala.")
         }
       };
+    } finally {
+      clearTimeout(timeout);
     }
   }
 }

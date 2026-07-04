@@ -416,6 +416,7 @@ export interface Reserva {
   estadoPagamento: EstadoPagamento;
   comentarioOriginal: string;
   liveId: string;
+  origem: string | null;
   expiraEm: Date | null;
   enderecoEntrega: string | null;
   comprovativoPagamentoUrl: string | null;
@@ -437,6 +438,7 @@ export interface NovaReserva {
   estadoPagamento?: EstadoPagamento;
   comentarioOriginal: string;
   liveId: string;
+  origem?: string | null;
   expiraEm: Date | null;
   enderecoEntrega?: string | null;
   comprovativoPagamentoUrl?: string | null;
@@ -454,6 +456,7 @@ export interface DadosCriacaoReservaComControleStock {
   avatarUrlCliente?: string | null;
   comentarioOriginal: string;
   liveId: string;
+  origem?: string | null;
   expiraEmReserva: Date;
 }
 
@@ -510,6 +513,7 @@ export interface ResumoOutboxEventoN8n {
 }
 
 export type StatusOutboxMensagemWhatsApp = "PENDENTE" | "ENVIADA" | "FALHOU";
+export type EstadoSaudeOutboxWhatsApp = "OK" | "DEGRADADO" | "INDISPONIVEL";
 
 export interface RegistroOutboxMensagemWhatsApp {
   id: string;
@@ -546,6 +550,14 @@ export interface ResumoOutboxMensagemWhatsApp {
   pendentes: number;
   enviadas: number;
   falhadas: number;
+  estado: EstadoSaudeOutboxWhatsApp;
+  sloEntregaMs: number;
+  idadePendenteMaisAntigaMs: number | null;
+  maiorLatenciaEnvioMs: number | null;
+  mediaLatenciaEnvioMs: number | null;
+  enviosRecentesAmostrados: number;
+  enviosRecentesForaSlo: number;
+  pendentesForaSlo: number;
   proximaTentativaEm: Date | null;
   ultimaFalha: string | null;
   atualizadoEm: Date | null;
@@ -1488,6 +1500,16 @@ export interface FiltrosClientes360 {
   offset?: number;
 }
 
+export interface PaginacaoOffset {
+  total: number;
+  limite: number;
+  offset: number;
+  temProxima: boolean;
+  temAnterior: boolean;
+  proximoOffset: number | null;
+  anteriorOffset: number | null;
+}
+
 export interface MetricasCliente360 {
   totalReservas: number;
   reservasAtivas: number;
@@ -1679,6 +1701,8 @@ export interface AtualizacaoItensPedidoResolvida {
 
 export interface ConfirmacaoPagamentoPedido {
   comprovativoPagamentoUrl?: string | null;
+  metodoPagamento?: string | null;
+  referenciaPagamento?: string | null;
   observacao?: string | null;
 }
 
@@ -1754,6 +1778,13 @@ export interface MembroNegocioOperacional {
   permissoes: string[];
   criadoEm: Date;
   atualizadoEm: Date;
+}
+
+export interface FiltrosMembrosNegocio {
+  limite?: number;
+  offset?: number;
+  status?: StatusMembroNegocio;
+  busca?: string;
 }
 
 export interface NovoMembroNegocioOperacional {
@@ -1842,7 +1873,8 @@ export const modulosNegocioDisponiveis = [
   "stock",
   "checkout",
   "catalogo-digital",
-  "market"
+  "market",
+  "learning"
 ] as const;
 export type ModuloNegocioCodigo = (typeof modulosNegocioDisponiveis)[number];
 
@@ -1990,6 +2022,13 @@ export const catalogoModulosNegocio: DefinicaoModuloNegocio[] = [
     nome: "Entregas",
     descricao: "Separação, rota, estado de entrega e responsáveis.",
     categoria: "OPERACAO",
+    obrigatorio: false
+  },
+  {
+    modulo: "learning",
+    nome: "Bizy Learning",
+    descricao: "Academia, comunidade, cohorts e certificações administradas pelo Team.",
+    categoria: "CRESCIMENTO",
     obrigatorio: false
   },
   {
@@ -2586,6 +2625,7 @@ export type EstadoCompraUnificada = (typeof estadosCompraUnificada)[number];
 export interface CompraUnificada {
   id: string;
   numero: number;
+  idempotencyKey: string | null;
   compradorTelefone: string;
   compradorNome: string | null;
   compradorEmail: string | null;
@@ -2606,6 +2646,7 @@ export interface CompraUnificada {
 }
 
 export interface NovaCompraUnificada {
+  idempotencyKey?: string | null;
   compradorTelefone: string;
   compradorNome?: string | null;
   compradorEmail?: string | null;
@@ -2615,6 +2656,13 @@ export interface NovaCompraUnificada {
     varianteSelecionada?: Record<string, string> | null;
     quantidade: number;
   }>;
+  entrega?: {
+    tipo: "ENTREGA" | "RETIRADA" | "ORCAMENTO";
+    provincia?: string | null;
+    municipio?: string | null;
+    bairro?: string | null;
+    endereco?: string | null;
+  } | null;
   metodoPagamento?: string | null;
   comprovativoPagamentoUrl?: string | null;
   enderecoEntrega?: string | null;

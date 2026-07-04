@@ -3,10 +3,22 @@ import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
 const source = (path: string) => readFileSync(resolve(process.cwd(), path), "utf8");
+const fonteLojaPublica = () =>
+  [
+    source("src/projetos/market/paginas/LojaDigitalPublica.tsx"),
+    source("src/projetos/market/loja-publica/helpers.ts"),
+    source("src/projetos/market/loja-publica/tipos.ts")
+  ].join("\n");
+const fonteStudioLoja = () =>
+  [
+    source("src/projetos/market/paginas/StudioLoja.tsx"),
+    source("src/projetos/market/studio-loja/modelo.ts"),
+    source("src/projetos/market/studio-loja/tipos.ts")
+  ].join("\n");
 
 describe("loja pública e-commerce fase 1", () => {
   it("usa tracking anónimo, profiling progressivo e checkout assistido antes do WhatsApp", () => {
-    const pagina = source("src/paginas/LojaDigitalPublica.tsx");
+    const pagina = fonteLojaPublica();
 
     expect(pagina).toContain("obterTrackingIdLoja");
     expect(pagina).toContain("registrarEventoTrackingPublico");
@@ -18,20 +30,20 @@ describe("loja pública e-commerce fase 1", () => {
     expect(pagina).toContain("calcularEntregaCheckout");
     expect(pagina).toContain("/entrega/calcular");
     expect(pagina).toContain("selecoesVariantes");
-    expect(pagina).toContain("SecaoSobreLoja");
-    expect(pagina).toContain("VitrineOrganizada");
-    expect(pagina).toContain("Quer uma loja como esta?");
+    expect(pagina).toContain("PerfilLojaSocial");
+    expect(pagina).toContain("montarVitrinesOrganizadas");
+    expect(pagina).toContain("loja-profile-shell");
   });
 
   it("continua a loja pública com catálogos, confiança e navegação personalizada", () => {
-    const pagina = source("src/paginas/LojaDigitalPublica.tsx");
+    const pagina = fonteLojaPublica();
 
-    expect(pagina).toContain("CatalogosPorBlocos");
-    expect(pagina).toContain("TopProdutosLoja");
+    expect(pagina).toContain("montarCatalogosPorBlocos");
+    expect(pagina).toContain("calcularTopProdutos");
     expect(pagina).toContain("ProdutosVistosRecentemente");
     expect(pagina).toContain("HistoricoEncomendasCliente");
-    expect(pagina).toContain("PoliticasLoja");
-    expect(pagina).toContain("TabelaMedidas");
+    expect(pagina).toContain("politicaTroca");
+    expect(pagina).toContain("LinhaTabelaMedidasLoja");
     expect(pagina).toContain("resolverModoNegocio");
     expect(pagina).toContain("modoNegocio");
     expect(pagina).toContain("calcularTopProdutos");
@@ -39,9 +51,9 @@ describe("loja pública e-commerce fase 1", () => {
     expect(pagina).toContain("catálogos");
   });
 
-  it("oferece editor CRM para experiência pública da loja", () => {
-    const configuracao = source("src/paginas/LojaPublica.tsx");
-    const publica = source("src/paginas/LojaDigitalPublica.tsx");
+  it("oferece editor Team para experiência pública da loja", () => {
+    const configuracao = fonteStudioLoja();
+    const publica = fonteLojaPublica();
 
     expect(configuracao).toContain("PassoExperienciaLoja");
     expect(configuracao).toContain("EditorExperienciaLoja");
@@ -55,8 +67,8 @@ describe("loja pública e-commerce fase 1", () => {
     expect(publica).toContain("politicaTroca");
   });
 
-  it("fecha a experiência pública com cupom, confiança e regras editáveis do CRM", () => {
-    const pagina = source("src/paginas/LojaDigitalPublica.tsx");
+  it("fecha a experiência pública com cupom, confiança e regras editáveis do Team", () => {
+    const pagina = source("src/projetos/market/paginas/LojaDigitalPublica.tsx");
 
     expect(pagina).toContain("SeloCupomLoja");
     expect(pagina).toContain("SinaisConfiancaLoja");
@@ -68,8 +80,8 @@ describe("loja pública e-commerce fase 1", () => {
   });
 
   it("permite personalização avançada sem tema genérico", () => {
-    const configuracao = source("src/paginas/LojaPublica.tsx");
-    const publica = source("src/paginas/LojaDigitalPublica.tsx");
+    const configuracao = fonteStudioLoja();
+    const publica = fonteLojaPublica();
 
     expect(configuracao).toContain("paletasTemaLoja");
     expect(configuracao).toContain("Paletas de marca");
@@ -80,16 +92,16 @@ describe("loja pública e-commerce fase 1", () => {
     expect(publica).toContain("resolverPaletaLoja");
     expect(publica).toContain("montarCatalogosPersonalizados");
     expect(publica).toContain("capaUrl");
-    expect(publica).toContain("Perfil da loja");
+    expect(publica).toContain("PerfilLojaSocial");
   });
 
-  it("organiza a admin da loja em fluxos operacionais ligados ao CRM", () => {
-    const configuracao = source("src/paginas/LojaPublica.tsx");
-    const publica = source("src/paginas/LojaDigitalPublica.tsx");
+  it("organiza a admin da loja em fluxos operacionais ligados ao Team", () => {
+    const configuracao = fonteStudioLoja();
+    const publica = fonteLojaPublica();
 
     expect(configuracao).toContain("PassoOperacaoLoja");
     expect(configuracao).toContain("Fluxos operacionais");
-    expect(configuracao).toContain("Checkout inteligente");
+    expect(configuracao).toContain("Regras de compra");
     expect(configuracao).toContain("Acesso e fidelização");
     expect(configuracao).toContain("Automações comerciais");
     expect(configuracao).toContain("Canais conectados");
@@ -102,20 +114,20 @@ describe("loja pública e-commerce fase 1", () => {
   });
 
   it("mantém loja pública polida, legível e sem textos técnicos", () => {
-    const pagina = source("src/paginas/LojaDigitalPublica.tsx");
+    const pagina = source("src/projetos/market/paginas/LojaDigitalPublica.tsx");
 
     expect(pagina).toContain("loja-modal-responsivo");
     expect(pagina).toContain("BotaoComprarLoja");
     expect(pagina).toContain("Destaques da loja");
-    expect(pagina).toContain("Loja criada com Bizy");
-    expect(pagina).toContain("Ver planos");
+    expect(pagina).toContain("loja-profile-action-row");
+    expect(pagina).toContain("trends");
     expect(pagina).not.toContain("Powered by Bizy");
     expect(pagina).not.toContain("tracking num CRM");
     expect(pagina).not.toContain("Dados com finalidade");
   });
 
   it("inicia a nova experiência social-comercial inspirada no Bizy Market", () => {
-    const pagina = source("src/paginas/LojaDigitalPublica.tsx");
+    const pagina = fonteLojaPublica();
     const estilos = source("src/estilos.css");
 
     expect(pagina).toContain("obterLojaPublica");
@@ -124,9 +136,10 @@ describe("loja pública e-commerce fase 1", () => {
     expect(pagina).toContain("loja-profile-shell");
     expect(pagina).toContain("loja-profile-cover");
     expect(pagina).toContain("loja-profile-avatar");
-    expect(pagina).toContain("loja-profile-stats");
+    expect(pagina).toContain("loja-profile-badges");
     expect(pagina).toContain("--loja-accent");
-    expect(pagina).toContain("Ver similares no Bizy Market");
+    expect(pagina).toContain("reviewsReais");
+    expect(pagina).toContain("Ainda sem avaliações públicas");
     expect(pagina).toContain("motion.section");
     expect(pagina).not.toContain("bg-neutral-950 py-1.5 pl-1.5 pr-4 text-white");
     expect(estilos).toContain("--loja-action: var(--green)");
@@ -135,7 +148,7 @@ describe("loja pública e-commerce fase 1", () => {
   });
 
   it("liga os catálogos do perfil à grelha de produtos sem sair da loja", () => {
-    const pagina = source("src/paginas/LojaDigitalPublica.tsx");
+    const pagina = fonteLojaPublica();
 
     expect(pagina).toContain("CatalogoFiltroAtivo");
     expect(pagina).toContain("catalogoAtivo");

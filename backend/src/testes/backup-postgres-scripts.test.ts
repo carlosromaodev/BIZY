@@ -15,6 +15,29 @@ describe("scripts de backup e recuperação PostgreSQL", () => {
     expect(script).toContain("umask 077");
     expect(script).toContain("MEDIA_STORAGE_DIR");
     expect(script).toContain("tar -C");
+    expect(script).toContain("BACKUP_RETENTION_DAYS");
+    expect(script).toContain('BACKUP_RETENTION_DAYS:-365');
+    expect(script).toContain('find "$BACKUP_DIR" -type f');
+    expect(script).toContain('-mtime +"$BACKUP_RETENTION_DAYS"');
+    expect(script).toContain("-print -delete");
+  });
+
+  it("RNF-T022: arquivo WAL incremental é idempotente, retém 365 dias e gera checksum", () => {
+    const script = readFileSync(resolve(process.cwd(), "../scripts/archive-postgres-wal.sh"), "utf8");
+
+    expect(script).toContain("archive_command");
+    expect(script).toContain("WAL_SEGMENT_PATH");
+    expect(script).toContain("WAL_SEGMENT_NAME");
+    expect(script).toContain("WAL_ARCHIVE_DIR");
+    expect(script).toContain("WAL_ARCHIVE_RETENTION_DAYS");
+    expect(script).toContain("WAL_ARCHIVE_RETENTION_DAYS:-365");
+    expect(script).toContain("cmp -s");
+    expect(script).toContain("mktemp");
+    expect(script).toContain("chmod 600");
+    expect(script).toContain("sha256sum");
+    expect(script).toContain('find "$WAL_ARCHIVE_DIR" -type f');
+    expect(script).toContain('-mtime +"$WAL_ARCHIVE_RETENTION_DAYS"');
+    expect(script).toContain("-print -delete");
   });
 
   it("restore exige confirmação explícita antes de limpar objetos existentes", () => {

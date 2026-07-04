@@ -17,6 +17,7 @@ export interface AcaoCrmPlus {
   detalhe: string;
   destino?: string;
   icone?: ReactNode;
+  onClick?: () => void;
   prioridade?: "alta" | "media" | "baixa";
   rotuloAcao?: string;
   titulo: string;
@@ -82,14 +83,19 @@ export function CrmPainelOperacional({
             <h3>{proximaAcao.titulo}</h3>
             <p>{proximaAcao.detalhe}</p>
           </div>
-          {proximaAcao.destino && (
+          {proximaAcao.destino ? (
             <Button asChild variant="default" size="sm" className="crm-plus-next-action">
               <Link to={proximaAcao.destino}>
                 {proximaAcao.rotuloAcao ?? "Abrir"}
                 <ArrowRight size={14} />
               </Link>
             </Button>
-          )}
+          ) : proximaAcao.onClick ? (
+            <Button type="button" variant="default" size="sm" className="crm-plus-next-action" onClick={proximaAcao.onClick}>
+              {proximaAcao.rotuloAcao ?? "Abrir"}
+              <ArrowRight size={14} />
+            </Button>
+          ) : null}
         </article>
       </div>
 
@@ -134,8 +140,13 @@ export function CrmPainelOperacional({
                     {acao.rotuloAcao ?? acao.titulo}
                   </Link>
                 </Button>
+              ) : acao.onClick ? (
+                <Button key={acao.titulo} type="button" variant="outline" size="sm" onClick={acao.onClick}>
+                  {acao.icone ?? <CalendarClock size={14} />}
+                  {acao.rotuloAcao ?? acao.titulo}
+                </Button>
               ) : (
-                <Button key={acao.titulo} type="button" variant="outline" size="sm">
+                <Button key={acao.titulo} type="button" variant="outline" size="sm" disabled title="Ação sem fluxo configurado">
                   {acao.icone ?? <CalendarClock size={14} />}
                   {acao.rotuloAcao ?? acao.titulo}
                 </Button>

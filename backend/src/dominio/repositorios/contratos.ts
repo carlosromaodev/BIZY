@@ -83,6 +83,7 @@ import type {
   EventoTrackingComercial,
   FiltrosCampanhasCrm,
   FiltrosEventosOperacionais,
+  FiltrosMembrosNegocio,
   FiltrosPlaybookRecuperacao,
   FiltrosTarefasOperacionais,
   FiltrosSocialInbox,
@@ -186,7 +187,8 @@ export interface RepositorioJobsOperacionais {
 }
 
 export interface RepositorioMembrosNegocio {
-  listar(negocioId: string): Promise<MembroNegocioOperacional[]>;
+  listar(negocioId: string, filtros?: FiltrosMembrosNegocio): Promise<MembroNegocioOperacional[]>;
+  contar(negocioId: string, filtros?: Omit<FiltrosMembrosNegocio, "limite" | "offset">): Promise<number>;
   criar(dados: NovoMembroNegocioOperacional): Promise<MembroNegocioOperacional>;
   atualizar(
     id: string,
@@ -434,6 +436,7 @@ export interface RepositorioAutenticacao {
   criarOuAtualizarUsuarioPorIdentidade(dados: DadosIdentidadeAutenticacao): Promise<UsuarioSistema>;
   salvarPerfilEstudantil(dados: DadosPerfilEstudantil): Promise<PerfilEstudantilUsuario>;
   buscarNegocioPrincipalPorUsuario(usuarioId: string): Promise<NegocioBizy | null>;
+  buscarNegocioPorId(negocioId: string): Promise<NegocioBizy | null>;
   buscarNegocioPorUsuario(usuarioId: string, negocioId: string): Promise<NegocioBizy | null>;
   listarNegociosPorUsuario(usuarioId: string): Promise<NegocioBizy[]>;
   salvarNegocioUsuario(usuarioId: string, dados: DadosNegocioBizy): Promise<NegocioBizy>;
@@ -569,9 +572,19 @@ export interface RepositorioComprasUnificadas {
   criar(dados: NovaCompraUnificada, pedidosFilho: PedidoFilho[]): Promise<CompraUnificada>;
   buscarPorId(id: string): Promise<CompraUnificada | null>;
   buscarPorNumero(numero: number): Promise<CompraUnificada | null>;
+  buscarPorIdempotencyKey(idempotencyKey: string, compradorTelefone?: string): Promise<CompraUnificada | null>;
   listarPedidosFilho(compraUnificadaId: string): Promise<PedidoFilho[]>;
   atualizarEstado(id: string, estado: CompraUnificada["estado"]): Promise<CompraUnificada | null>;
-  atualizarEstadoPagamento(id: string, estadoPagamento: CompraUnificada["estadoPagamento"]): Promise<CompraUnificada | null>;
+  atualizarEstadoPagamento(
+    id: string,
+    estadoPagamento: CompraUnificada["estadoPagamento"],
+    comprovativoPagamentoUrl?: string | null
+  ): Promise<CompraUnificada | null>;
+  atualizarPedidoFilhoEstado(
+    compraUnificadaId: string,
+    pedidoId: string,
+    dados: Partial<Pick<PedidoFilho, "estado" | "estadoPagamento" | "estadoEntrega">>
+  ): Promise<PedidoFilho | null>;
 }
 
 export interface RepositorioRepassesFinanceiros {
@@ -579,6 +592,10 @@ export interface RepositorioRepassesFinanceiros {
   listar(negocioId: string, filtros?: {
     estado?: RepasseFinanceiro["estado"];
     pedidoId?: string;
+    limite?: number;
+  }): Promise<RepasseFinanceiro[]>;
+  listarTodos(filtros?: {
+    estado?: RepasseFinanceiro["estado"];
     limite?: number;
   }): Promise<RepasseFinanceiro[]>;
   buscarPorId(id: string, negocioId: string): Promise<RepasseFinanceiro | null>;

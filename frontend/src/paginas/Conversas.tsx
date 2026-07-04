@@ -173,6 +173,7 @@ export function PaginaConversas() {
   const clienteIdUrl = searchParams.get("clienteId");
   const telefoneUrl = searchParams.get("telefone");
   const conversaIdUrl = searchParams.get("conversaId");
+  const buscaUrl = searchParams.get("busca");
 
   const carregar = useCallback(async () => {
     try {
@@ -252,10 +253,10 @@ export function PaginaConversas() {
   }, [carregar, carregarDadosApoio]);
 
   useEffect(() => {
-    if (!clienteIdUrl && !telefoneUrl && !conversaIdUrl) return;
+    if (!clienteIdUrl && !telefoneUrl && !conversaIdUrl && !buscaUrl) return;
     if (!conversas.length) return;
 
-    const contextoUrlKey = `${clienteIdUrl ?? ""}|${telefoneUrl ?? ""}|${conversaIdUrl ?? ""}`;
+    const contextoUrlKey = `${clienteIdUrl ?? ""}|${telefoneUrl ?? ""}|${conversaIdUrl ?? ""}|${buscaUrl ?? ""}`;
     if (contextoUrlAplicadoRef.current === contextoUrlKey) return;
 
     const telefoneCliente =
@@ -277,8 +278,14 @@ export function PaginaConversas() {
     if (telefoneCliente) {
       setBusca(telefoneCliente);
       contextoUrlAplicadoRef.current = contextoUrlKey;
+      return;
     }
-  }, [clienteIdUrl, clientes, conversaIdUrl, conversas, telefoneUrl]);
+
+    if (buscaUrl) {
+      setBusca(buscaUrl);
+      contextoUrlAplicadoRef.current = contextoUrlKey;
+    }
+  }, [buscaUrl, clienteIdUrl, clientes, conversaIdUrl, conversas, telefoneUrl]);
 
   async function executar(acao: () => Promise<unknown>, sucesso: string) {
     setCarregando(true);
@@ -509,7 +516,7 @@ export function PaginaConversas() {
           body: { politica: formCrm.politicaAutomacao }
         });
       }
-    }, "Conversa atualizada no CRM.");
+    }, "Conversa atualizada no Team.");
   }
 
   async function guardarNotaInterna(e: FormEvent) {
@@ -1065,115 +1072,104 @@ export function PaginaConversas() {
                 onCriado={() => void carregarDadosApoio()}
               />
 
-              {mensagem && <footer className="market-feedback rounded-lg border bg-card px-4 py-3 text-sm text-muted-foreground" role="status" aria-live="polite" aria-atomic="true">{mensagem}</footer>}
+              {mensagem && <footer className="bz-footer-msg" role="status" aria-live="polite">{mensagem}</footer>}
             </motion.div>
           ) : (
             <motion.div
               key="list-view"
-              className="chat-social-list-view grid gap-4"
+              className="chat-social-list-view"
               initial={{ opacity: 0, x: "-30%" }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: "-30%" }}
               transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
             >
-              <div className="flex items-center justify-between gap-3">
+              <div className="team-pghead">
                 <div>
-                  <p className="app-rotulo text-xs font-semibold uppercase tracking-widest text-muted-foreground">Atendimento</p>
-                  <h1 className="app-titulo font-heading text-2xl font-semibold">Conversas</h1>
+                  <h1>Atendimento</h1>
+                  <div className="team-sub">
+                    {contagensFiltros.abertas} conversa{contagensFiltros.abertas === 1 ? "" : "s"} aberta{contagensFiltros.abertas === 1 ? "" : "s"}
+                  </div>
                 </div>
-                <Button variant="outline" size="icon-lg" onClick={() => void carregar()}>
-                  <RefreshCcw className="size-4" />
-                </Button>
-              </div>
-
-              <div className="grid gap-2.5">
-                <CampoBusca placeholder="Buscar cliente, telefone ou peça..." value={busca} onChange={setBusca} />
-                <div className="flex items-center gap-2">
-                  <UserRound className="size-4 shrink-0 text-muted-foreground" />
-                  <Select value={filtroResponsavel} onValueChange={setFiltroResponsavel}>
-                    <SelectTrigger className="flex-1 max-w-xs">
-                      <SelectValue placeholder="Responsável" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="todos">Todos os responsáveis</SelectItem>
-                      <SelectItem value="sem-responsavel">Sem responsável</SelectItem>
-                      {responsaveis.map((r) => <SelectItem key={r} value={r}>{r}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Zap className="size-4 shrink-0 text-muted-foreground" />
-                  <Select value={filtroCanal} onValueChange={(v) => setFiltroCanal(v as FiltroCanal)}>
-                    <SelectTrigger className="flex-1 max-w-xs">
-                      <SelectValue placeholder="Canal" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="todos">Todos os canais</SelectItem>
-                      <SelectItem value="whatsapp">WhatsApp</SelectItem>
-                      <SelectItem value="instagram">Instagram</SelectItem>
-                      <SelectItem value="tiktok">TikTok</SelectItem>
-                      <SelectItem value="sms">SMS</SelectItem>
-                      <SelectItem value="outro">Outros</SelectItem>
-                    </SelectContent>
-                  </Select>
+                <div className="team-pghead-right">
+                  <button type="button" className="team-btn team-btn-ghost" onClick={() => void carregar()}>
+                    <RefreshCcw size={13} />
+                  </button>
                 </div>
               </div>
 
-              <div className="rounded-xl border bg-card overflow-hidden shadow-xs">
-                {conversasFiltradas.length ? (
-                  conversasFiltradas.map((conversa, idx) => (
+              <div className="bz-conv-tabs">
+                {FILTROS_RAPIDOS.map((f) => (
+                  <button
+                    key={f.valor}
+                    type="button"
+                    className={`bz-conv-tab${filtroRapido === f.valor ? " active" : ""}`}
+                    onClick={() => setFiltroRapido(f.valor)}
+                  >
+                    {f.rotulo}
+                    {contagensFiltros[f.valor] > 0 && <span className="c">{contagensFiltros[f.valor]}</span>}
+                  </button>
+                ))}
+              </div>
+
+              <div className="bz-conv-search">
+                <Search size={14} />
+                <input
+                  type="text"
+                  placeholder="Buscar cliente, telefone ou peça…"
+                  value={busca}
+                  onChange={(e) => setBusca(e.target.value)}
+                />
+              </div>
+
+              <div className="bz-conv-list">
+                {conversasDesktop.length ? (
+                  conversasDesktop.map((conversa) => (
                     <button
-                      type="button"
                       key={conversa.id}
-                      className={`atendimento-item w-full text-left outline-none transition-colors active:bg-(--color-surface-warm) focus-visible:bg-(--color-surface-warm) ${idx > 0 ? "border-t border-border/40" : ""}`}
+                      type="button"
+                      className="bz-conv"
                       onClick={() => abrirConversa(conversa.id)}
                     >
-                      <div className="flex min-w-0 items-center gap-3 px-4 py-3.5">
-                        <div className="relative shrink-0">
-                          <Avatar className="h-11 w-11">
-                            {conversa.avatarUrlCliente && <AvatarImage src={conversa.avatarUrlCliente} alt="" />}
-                            <AvatarFallback className="text-sm font-semibold">{conversa.nomeCliente[0]?.toUpperCase() ?? "C"}</AvatarFallback>
-                          </Avatar>
-                          {conversa.mensagensNaoLidas > 0 && (
-                            <span className="absolute -right-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full bg-primary px-1 text-[0.6rem] font-bold text-primary-foreground">
-                              {conversa.mensagensNaoLidas}
+                      <div className="av">
+                        <AvatarBizy
+                          iniciais={obterIniciais(conversa.nomeCliente)}
+                          cor={obterCorAvatar(conversa.nomeCliente)}
+                          tamanho={38}
+                          src={conversa.avatarUrlCliente}
+                          alt={conversa.nomeCliente}
+                        />
+                        {conversa.mensagensNaoLidas > 0 && <span className="bn">{conversa.mensagensNaoLidas}</span>}
+                      </div>
+                      <div className="bd">
+                        <div className="top">
+                          <span className="nm">{conversa.nomeCliente}</span>
+                          <span className="tm">{formatarHora(conversa.ultimaAtualizacao)}</span>
+                        </div>
+                        <div className="msg">{conversa.ultimaMensagem || "Sem mensagens"}</div>
+                        <div className="meta">
+                          {conversa.origemPrincipal && (
+                            <span className="tagm bz-inline-channel">
+                              <IconeOrigem origem={conversa.origemPrincipal} />
+                              {NOME_CANAL[conversa.origemPrincipal] ?? conversa.origemPrincipal}
                             </span>
                           )}
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-baseline justify-between gap-2">
-                            <span className={`truncate text-sm ${conversa.mensagensNaoLidas > 0 ? "font-semibold text-foreground" : "font-medium text-foreground"}`}>
-                              {conversa.nomeCliente}
-                            </span>
-                            <span className="shrink-0 text-[0.7rem] tabular-nums text-muted-foreground">{formatarHora(conversa.ultimaAtualizacao)}</span>
-                          </div>
-                          <p className={`atendimento-item-message mt-0.5 text-xs ${conversa.mensagensNaoLidas > 0 ? "font-medium text-foreground/80" : "text-muted-foreground"}`}>
-                            {conversa.ultimaMensagem || "Sem mensagens"}
-                          </p>
-                          <div className="mt-1.5 flex flex-wrap gap-1">
-                            {conversa.origemPrincipal && (
-                              <Badge variant="outline" className="h-4 gap-0.5 px-1.5 text-[0.6rem]">
-                                <IconeOrigem origem={conversa.origemPrincipal} />
-                                {NOME_CANAL[conversa.origemPrincipal] ?? conversa.origemPrincipal}
-                              </Badge>
-                            )}
-                            <Badge variant={obterVarianteEstadoCrm(conversa.estadoCrm)} className="h-4 px-1.5 text-[0.6rem]">{traduzirEstadoCrm(conversa.estadoCrm)}</Badge>
-                            {["ALTA", "URGENTE"].includes(conversa.prioridade) && (
-                              <Badge variant={obterVariantePrioridade(conversa.prioridade)} className="h-4 px-1.5 text-[0.6rem]">{traduzirPrioridade(conversa.prioridade)}</Badge>
-                            )}
-                            {conversa.pecaRelacionada && <Badge variant="outline" className="h-4 px-1.5 text-[0.6rem]">{conversa.pecaRelacionada}</Badge>}
-                          </div>
+                          <span className={`tagm ${corEstadoCrmTag(conversa.estadoCrm)}`}>{traduzirEstadoCrm(conversa.estadoCrm)}</span>
+                          {["ALTA", "URGENTE"].includes(conversa.prioridade) && (
+                            <span className="tagm b-rose">{traduzirPrioridade(conversa.prioridade)}</span>
+                          )}
+                          {conversa.pecaRelacionada && <span className="tagm prod">{conversa.pecaRelacionada}</span>}
                         </div>
                       </div>
                     </button>
                   ))
                 ) : (
-                  <div className="p-4">
-                    <EstadoVazio icone={<MessageCircle />} titulo="Sem conversas" detalhe="Comentários com telefone e reservas aparecem aqui." />
+                  <div className="bz-conv-vazio">
+                    <MessageCircle size={20} />
+                    <span>Sem conversas neste filtro</span>
                   </div>
                 )}
               </div>
-              {mensagem && <footer className="market-feedback rounded-lg border bg-card px-4 py-3 text-sm text-muted-foreground" role="status" aria-live="polite" aria-atomic="true">{mensagem}</footer>}
+              {mensagem && <footer className="bz-footer-msg" role="status" aria-live="polite">{mensagem}</footer>}
             </motion.div>
           )}
         </AnimatePresence>
@@ -1591,7 +1587,7 @@ export function PaginaConversas() {
 
       {/* Feedback toast */}
       {mensagem && (
-        <div className="fixed bottom-4 right-4 z-50 hidden lg:flex items-center gap-3 bz-panel bz-toast px-4 py-3 text-sm shadow-lg" aria-live="polite">
+        <div className="fixed bottom-4 right-4 z-50 hidden lg:flex items-center gap-3 bz-panel bz-toast px-4 py-3 text-sm" aria-live="polite">
           {mensagem}
           <button type="button" onClick={() => setMensagem("")} className="bz-iconbtn bz-toast-close">
             <X size={14} />
@@ -1670,7 +1666,7 @@ function PainelContextoComercial({
   onEnviarTexto: (texto: string) => void;
 }) {
   return (
-    <div className="market-context-panel grid max-h-[38dvh] gap-3 overflow-y-auto rounded-lg border bg-muted/20 p-3 shadow-xs lg:max-h-[50dvh]">
+    <div className="market-context-panel grid max-h-[38dvh] gap-3 overflow-y-auto rounded-lg border bg-muted/20 p-3 lg:max-h-[50dvh]">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="min-w-0">
           <p className="text-xs font-bold uppercase tracking-wide text-primary">Consulta comercial</p>
@@ -1750,7 +1746,7 @@ function MensagemLinha({
   const mensagemFalhou = enviadaPelaLoja && mensagem.status === "FAILED";
   const classeBalao = enviadaPelaLoja
     ? mensagemFalhou
-      ? "max-w-[85%] rounded-2xl rounded-br-sm border border-destructive/30 bg-destructive/5 p-3 text-foreground shadow-xs"
+      ? "max-w-[85%] rounded-2xl rounded-br-sm border border-destructive/30 bg-destructive/5 p-3 text-foreground"
       : "max-w-[85%] rounded-2xl rounded-br-sm bg-primary p-3 text-primary-foreground"
     : "max-w-[85%] rounded-2xl rounded-bl-sm border bg-background p-3";
 

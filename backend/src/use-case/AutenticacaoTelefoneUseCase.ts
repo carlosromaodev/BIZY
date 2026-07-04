@@ -1,4 +1,5 @@
 import { createHash, randomInt, randomUUID } from "node:crypto";
+import { performance } from "node:perf_hooks";
 import type { ProvedorSms } from "../dominio/provedores/ProvedorSms.js";
 import type { RepositorioAutenticacao } from "../dominio/repositorios/contratos.js";
 import { NormalizadorTelefone } from "../dominio/servicos/NormalizadorTelefone.js";
@@ -14,6 +15,7 @@ export interface OpcoesAutenticacaoTelefone {
 }
 
 export class AutenticacaoTelefoneUseCase {
+  private static readonly sloEnvioOtpMs = 10_000;
   private readonly normalizadorTelefone = new NormalizadorTelefone();
   private readonly minutosExpiracaoCodigo: number;
   private readonly diasExpiracaoSessao: number;
@@ -42,6 +44,8 @@ export class AutenticacaoTelefoneUseCase {
       throw new Error("Integração SMS não configurada.");
     }
 
+    // RNF-T030: a latência do provider fica exposta para operação e auditoria do SLO OTP.
+    const inicioEnvioMs = performance.now();
     const resultadoEnvio = this.provedorSms.configurado
       ? await this.provedorSms.enviarMensagem({
           telefone,
@@ -56,6 +60,8 @@ export class AutenticacaoTelefoneUseCase {
           resposta: { message: "SMS dev mode", code: codigo },
           erro: null
         };
+    const latenciaEnvioMs = Math.round(performance.now() - inicioEnvioMs);
+    const dentroSloEnvio = latenciaEnvioMs <= AutenticacaoTelefoneUseCase.sloEnvioOtpMs;
 
     const statusEnvio = resultadoEnvio.provider === "dev-console" ? "DEV" : resultadoEnvio.ok ? "SENT" : "FAILED";
     const registro = await this.repositorio.criarCodigoSms({
@@ -66,7 +72,14 @@ export class AutenticacaoTelefoneUseCase {
       statusEnvio,
       provider: resultadoEnvio.provider,
       providerMessageId: resultadoEnvio.idExterno,
-      providerResponseJson: this.serializar(resultadoEnvio.resposta),
+      providerResponseJson: this.serializar({
+        resposta: resultadoEnvio.resposta,
+        metricasOtp: {
+          latenciaEnvioMs,
+          sloEnvioMs: AutenticacaoTelefoneUseCase.sloEnvioOtpMs,
+          dentroSloEnvio
+        }
+      }),
       usuarioId: usuario.id
     });
 
@@ -81,6 +94,9 @@ export class AutenticacaoTelefoneUseCase {
       expiraEm,
       minutosExpiracao: this.minutosExpiracaoCodigo,
       statusEnvio,
+      latenciaEnvioMs,
+      sloEnvioMs: AutenticacaoTelefoneUseCase.sloEnvioOtpMs,
+      dentroSloEnvio,
       codigoDev: this.opcoes.exporCodigoDev ? codigo : undefined
     };
   }

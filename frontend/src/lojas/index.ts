@@ -1,4 +1,1 @@
-export * from "./apiLojas";
-export * from "./checkoutUnificado";
-export * from "./rotasLojas";
-export * from "./tiposLojas";
+export * from "../projetos/market/api";

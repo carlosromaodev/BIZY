@@ -3,6 +3,35 @@ import type { ContextoAplicacao } from "../ContextoAplicacao.js";
 import { exigirAcessoComercial } from "../contextoComercial.js";
 import type { ModuloHttp } from "./ModuloHttp.js";
 
+const IndicadorExternoSchema = z.object({
+  fonte: z.string().trim().min(2).max(80).optional(),
+  chave: z.string().trim().min(1).max(80),
+  periodo: z.string().trim().min(4).max(40),
+  valor: z.number(),
+  unidade: z.string().trim().max(40).optional(),
+  segmento: z.string().trim().max(80).optional(),
+  metadados: z.record(z.string(), z.unknown()).optional()
+});
+
+const ImportarFontesExternasSchema = z.object({
+  fonte: z.string().trim().min(2).max(80),
+  indicadores: z.array(IndicadorExternoSchema).max(500).optional(),
+  conteudoCsv: z.string().max(200_000).optional()
+}).refine((dados) => (dados.indicadores?.length ?? 0) > 0 || Boolean(dados.conteudoCsv?.trim()), {
+  message: "Informe indicadores JSON ou conteudoCsv."
+});
+
+const OpcoesRecalculoPreditivoSchema = z.object({
+  semanasDemanda: z.number().int().min(1).max(12).optional(),
+  semanasCaixa: z.number().int().min(4).max(26).optional(),
+  mesesReceita: z.number().int().min(1).max(12).optional()
+});
+
+const RecalculoPreditivoLoteSchema = OpcoesRecalculoPreditivoSchema.extend({
+  negocioIds: z.array(z.string().uuid()).min(1).max(100),
+  concorrencia: z.number().int().min(1).max(20).optional()
+});
+
 export const moduloInteligencia: ModuloHttp = {
   nome: "inteligencia",
   descricao: "Motor de inteligência preditiva — RFM, segmentação, LTV, previsão fluxo caixa, anomalias, carga equipa, funil.",
@@ -53,6 +82,35 @@ export const moduloInteligencia: ModuloHttp = {
       return resultado;
     });
 
+    /* ── Fontes Externas Preditivas (RNF-T024) ─────────────── */
+
+    app.post("/inteligencia/fontes-externas", async (request, reply) => {
+      const ctx = await exigirInteligencia(contexto, request, reply, "negocio:gerir");
+      if (!ctx) return;
+
+      const dados = ImportarFontesExternasSchema.parse(request.body);
+      const resultado = await contexto.inteligenciaPreditiva.importarFontesExternasPreditivas(ctx.negocio.id, {
+        ...dados,
+        criadoPorId: ctx.usuario.id
+      });
+      reply.code(201);
+      return resultado;
+    });
+
+    app.get("/inteligencia/fontes-externas", async (request, reply) => {
+      const ctx = await exigirInteligencia(contexto, request, reply, "equipa:ler");
+      if (!ctx) return;
+
+      const filtros = z.object({
+        fonte: z.string().trim().max(80).optional(),
+        chave: z.string().trim().max(80).optional(),
+        segmento: z.string().trim().max(80).optional(),
+        limite: z.coerce.number().int().min(1).max(500).optional()
+      }).parse(request.query ?? {});
+
+      return contexto.inteligenciaPreditiva.listarFontesExternasPreditivas(ctx.negocio.id, filtros);
+    });
+
     /* ── Detecção de Anomalias (RF-T013) ────────────────────── */
 
     app.get("/inteligencia/anomalias", async (request, reply) => {
@@ -101,6 +159,59 @@ export const moduloInteligencia: ModuloHttp = {
       if (!ctx) return;
 
       return contexto.inteligenciaPreditiva.obterAlertasReposicaoStock(ctx.negocio.id);
+    });
+
+    app.post("/inteligencia/recalcular", async (request, reply) => {
+      const ctx = await exigirInteligencia(contexto, request, reply, "negocio:gerir");
+      if (!ctx) return;
+
+      const opcoes = OpcoesRecalculoPreditivoSchema.parse(request.body ?? {});
+
+      return contexto.inteligenciaPreditiva.recalcularPrevisoesComDegradacao(ctx.negocio.id, opcoes);
+    });
+
+    app.post("/inteligencia/recalcular/async", async (request, reply) => {
+      const ctx = await exigirInteligencia(contexto, request, reply, "negocio:gerir");
+      if (!ctx) return;
+
+      const opcoes = OpcoesRecalculoPreditivoSchema.parse(request.body ?? {});
+
+      const resultado = await contexto.inteligenciaPreditiva.enfileirarRecalculoPreditivo(ctx.negocio.id, {
+        ...opcoes,
+        solicitadoPorId: ctx.usuario.id
+      });
+      return reply.code(202).send(resultado);
+    });
+
+    app.post("/inteligencia/recalcular/lote/async", async (request, reply) => {
+      const ctx = await exigirInteligencia(contexto, request, reply, "negocio:gerir");
+      if (!ctx) return;
+
+      const dados = RecalculoPreditivoLoteSchema.parse(request.body ?? {});
+      const negocioIds = [...new Set(dados.negocioIds)];
+      const acessos = await Promise.all(
+        negocioIds.map(async (negocioId) => ({
+          negocioId,
+          negocio: await contexto.repositorios.autenticacao.buscarNegocioPorUsuario(ctx.usuario.id, negocioId)
+        }))
+      );
+      const bloqueados = acessos.filter((acesso) => !acesso.negocio).map((acesso) => acesso.negocioId);
+      if (bloqueados.length > 0) {
+        return reply.code(403).send({
+          erro: "NEGOCIOS_NAO_AUTORIZADOS",
+          mensagem: "Existem negócios fora do teu acesso.",
+          negocioIds: bloqueados
+        });
+      }
+
+      const resultado = await contexto.inteligenciaPreditiva.enfileirarRecalculoPreditivoLote(negocioIds, {
+        semanasDemanda: dados.semanasDemanda,
+        semanasCaixa: dados.semanasCaixa,
+        mesesReceita: dados.mesesReceita,
+        concorrencia: dados.concorrencia,
+        solicitadoPorId: ctx.usuario.id
+      });
+      return reply.code(202).send(resultado);
     });
 
     /* ── Scores Persistidos (ScoreCliente) ──────────────────── */

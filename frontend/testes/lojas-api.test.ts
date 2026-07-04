@@ -1,9 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   atualizarPublicacaoProdutoMarket,
+  listarPedidosMarketTeam,
   listarProdutosSimilaresLojaPublica,
   listarProdutosMarket,
+  listarRepassesTeam,
+  listarSeguidoresTeam,
   normalizarProdutoMarket,
+  obterMetricasLojaTeam,
   obterLojaPublica,
   obterProdutoLojaPublica,
   obterResumoMarketLoja,
@@ -109,7 +113,7 @@ describe("API frontend das lojas e Bizy Market", () => {
 
     expect(fetchMock).toHaveBeenNthCalledWith(
       1,
-      "/crm/loja/market/resumo",
+      "/team/loja/market/resumo",
       expect.objectContaining({
         credentials: "include",
         headers: {}
@@ -117,13 +121,49 @@ describe("API frontend das lojas e Bizy Market", () => {
     );
     expect(fetchMock).toHaveBeenNthCalledWith(
       2,
-      "/crm/loja/produtos/SKU%201/publicacao",
+      "/team/loja/produtos/SKU%201/publicacao",
       expect.objectContaining({
         body: JSON.stringify({ publicado: true }),
         credentials: "include",
         headers: { "Content-Type": "application/json" },
         method: "PUT"
       })
+    );
+  });
+
+  it("usa APIs canonicas do Team para Studio, pedidos e repasses", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(jsonResponse({ seguidores: [], total: 0 }))
+      .mockResolvedValueOnce(jsonResponse({ perfil: { publicada: true, seguidores: 0, totalProdutos: 0 } }))
+      .mockResolvedValueOnce(jsonResponse({ pedidos: [], total: 0 }))
+      .mockResolvedValueOnce(jsonResponse([]));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await listarSeguidoresTeam({ limite: 50, origem: "market" });
+    await obterMetricasLojaTeam();
+    await listarPedidosMarketTeam({ estado: "CRIADO", busca: "pedido", limite: 20 });
+    await listarRepassesTeam({ estado: "PENDENTE", limite: 10 });
+
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      1,
+      "/team/loja/seguidores?limite=50&origem=market",
+      expect.objectContaining({ credentials: "include" })
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      "/team/loja/metricas",
+      expect.objectContaining({ credentials: "include" })
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      3,
+      "/team/loja/pedidos-market?estado=CRIADO&busca=pedido&limite=20",
+      expect.objectContaining({ credentials: "include" })
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      4,
+      "/team/loja/repasses?estado=PENDENTE&limite=10",
+      expect.objectContaining({ credentials: "include" })
     );
   });
 

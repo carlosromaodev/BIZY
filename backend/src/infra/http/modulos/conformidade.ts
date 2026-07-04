@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { ParamIdSchema } from "../../../dominio/esquemas.js";
 import type { ContextoAplicacao } from "../ContextoAplicacao.js";
 import { exigirAcessoComercial, resolverContextoComercial } from "../contextoComercial.js";
 import type { ModuloHttp } from "./ModuloHttp.js";
@@ -21,6 +22,22 @@ const MetricaAdopcaoSchema = z.object({
   dau: z.number().int().min(0),
   mau: z.number().int().min(0),
   profundidadeJson: z.string().max(2000).optional()
+});
+
+const EInvoicingQuerySchema = z.object({
+  formato: z.enum(["UBL_21", "PEPPOL_BIS_BILLING_3"]).optional(),
+  idioma: z.string().trim().min(2).max(16).optional(),
+  jurisdicao: z.string().trim().min(2).max(5).optional(),
+  download: z.coerce.boolean().optional()
+});
+
+const EnvioEInvoicingSchema = z.object({
+  adaptadorId: z.enum(["UBL_21", "PEPPOL_BIS_BILLING_3", "API_GOV_REGIONAL"]).default("UBL_21"),
+  formato: z.enum(["UBL_21", "PEPPOL_BIS_BILLING_3"]).optional(),
+  credencialRef: z.string().trim().min(3).max(200).optional(),
+  endpointUrl: z.string().trim().url().max(500).optional(),
+  idioma: z.string().trim().min(2).max(16).optional(),
+  jurisdicao: z.string().trim().min(2).max(5).optional()
 });
 
 async function exigirConformidade(
@@ -68,6 +85,49 @@ export const moduloConformidade: ModuloHttp = {
       const ctx = await exigirConformidade(contexto, request, reply, "equipa:ler");
       if (!ctx) return;
       return contexto.conformidadeROI.verificarRetencaoFiscal(ctx.negocio.id);
+    });
+
+    // ── E-invoicing ───────────────────────────────────────────────
+
+    app.get("/conformidade/e-invoicing/adaptadores", async (request, reply) => {
+      const ctx = await exigirConformidade(contexto, request, reply, "pagamentos:gerir");
+      if (!ctx) return;
+      return contexto.conformidadeROI.listarAdaptadoresEInvoicing();
+    });
+
+    app.get("/conformidade/e-invoicing/templates", async (request, reply) => {
+      const ctx = await exigirConformidade(contexto, request, reply, "pagamentos:gerir");
+      if (!ctx) return;
+      return contexto.conformidadeROI.listarTemplatesFactura();
+    });
+
+    app.get("/conformidade/facturas/:id/e-invoicing", async (request, reply) => {
+      const ctx = await exigirConformidade(contexto, request, reply, "pagamentos:gerir");
+      if (!ctx) return;
+      const { id } = ParamIdSchema.parse(request.params);
+      const { formato, idioma, jurisdicao, download } = EInvoicingQuerySchema.parse(request.query ?? {});
+      const resultado = await contexto.conformidadeROI.gerarFacturaEletronica(ctx.negocio.id, id, formato, {
+        idioma,
+        jurisdicao
+      });
+
+      if (download) {
+        return reply
+          .header("Content-Type", resultado.mimeType)
+          .header("Content-Disposition", `attachment; filename="${resultado.nomeArquivo}"`)
+          .send(resultado.xml);
+      }
+
+      return resultado;
+    });
+
+    app.post("/conformidade/facturas/:id/e-invoicing/enviar", async (request, reply) => {
+      const ctx = await exigirConformidade(contexto, request, reply, "pagamentos:gerir");
+      if (!ctx) return;
+      const { id } = ParamIdSchema.parse(request.params);
+      const dados = EnvioEInvoicingSchema.parse(request.body ?? {});
+      const resultado = await contexto.conformidadeROI.prepararEnvioFacturaEletronica(ctx.negocio.id, id, dados);
+      return reply.code(202).send(resultado);
     });
 
     // ── Multi-Jurisdição ───────────────────────────────────────────

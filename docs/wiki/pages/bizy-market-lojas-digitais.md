@@ -8,28 +8,28 @@ tags:
   - bizy/market
   - bizy/loja-digital
   - bizy/produto
-  - bizy/crm
-status: ativo
-updated: 2026-06-19
+  - bizy/team
+status: implementado
+updated: 2026-07-02
 ---
 
 # Bizy Market e Lojas Digitais
 
-Status: ativo
-Ultima atualizacao: 2026-06-19
-Fontes principais: `docs/RF-RNF-RN-BIZY-MARKET-LOJA-DIGITAL.md`, conversa de produto de 2026-06-07, [[loja-digital-operacao-crm]], [[visao-produto-bizy]], [[bizy-market-rotas-roadmap]]
+Status: implementado
+Ultima atualizacao: 2026-07-02
+Fontes principais: `docs/RF-RNF-RN-BIZY-MARKET-LOJA-DIGITAL.md`, [[requisitos-bizy-market]], [[bizy-market-rotas-roadmap]], codigo em `frontend/src/lojas`, `backend/src/infra/http/modulos/market.ts` e `backend/src/infra/http/modulos/checkoutUnificado.ts`.
 
 > [!abstract] Decisao
-> A loja digital atual deve evoluir para um ramo maior do Bizy: perfis de loja autonomos + shopping center central + checkout unificado + toda operacao controlada dentro do CRM.
+> A loja digital do Bizy e um ramo composto por perfis publicos de loja, shopping center central, checkout unificado e execucao operacional dentro do Team. O prefixo API canonico e `/team/loja`; `/crm/loja` existe apenas como alias legado.
 
 ## Tese
 
-O Bizy deve ser as duas coisas ao mesmo tempo:
+O Bizy deve ser duas coisas ao mesmo tempo:
 
-- uma loja independente para cada cliente, com identidade propria e link pessoal como `minhaloja.bizy.space`;
+- uma loja independente para cada cliente, com identidade propria, link publico e catalogos partilhaveis;
 - um shopping center central onde compradores encontram produtos de varias lojas, com categorias, busca, similares e checkout unificado.
 
-O Market nao substitui o perfil da loja. Ele aumenta descoberta. O perfil mantem identidade, confianca e relacionamento.
+O Market nao substitui o perfil da loja. Ele aumenta descoberta. O perfil preserva identidade, confianca e relacionamento.
 
 ## Componentes
 
@@ -41,152 +41,161 @@ Inclui:
 
 - capa/hero personalizavel;
 - avatar/logo;
-- descricao;
-- localizacao;
-- seguidores e seguindo;
-- colecoes clicaveis;
-- grelha de produtos que muda por colecao;
-- botao de seguir, contacto e checkout;
-- subdominio proprio.
+- descricao, localizacao e contactos;
+- seguidores reais;
+- colecoes e catalogos clicaveis;
+- grelha de produtos filtravel por colecao/categoria;
+- CTA de seguir, contacto, produto e checkout;
+- subdominio ou URL publica propria.
 
 ### Bizy Market
 
-Shopping center dos produtos cadastrados pelos clientes Bizy.
+Shopping center dos produtos publicados pelos clientes Bizy.
 
 Inclui:
 
 - busca global;
 - categorias globais;
 - produtos similares;
-- lojas em destaque;
-- promocoes, novidades e mais vendidos;
-- filtros por preco, localizacao, entrega, disponibilidade e loja;
-- ranking por relevancia, confianca, disponibilidade e desempenho.
+- diretorio e perfil de lojas no contexto Market;
+- produtos em destaque, novidades e produtos em promocao quando existirem dados reais;
+- filtros por preco, localizacao, disponibilidade e loja;
+- ranking por relevancia, disponibilidade, qualidade de dados, confianca, desempenho e sinais administrados.
 
 ### Bizy Checkout
 
 Checkout unificado do Bizy.
 
-Regra central:
+Regras atuais:
 
-- carrinho de uma loja gera pedido para essa loja;
-- carrinho de varias lojas gera uma compra unificada para o comprador e pedidos filhos por fornecedor;
-- cada fornecedor ve apenas a parte dele no CRM;
-- o comprador acompanha a compra inteira numa experiencia unica.
+- carrinho de uma loja pode finalizar pelo checkout da propria loja;
+- carrinho de varias lojas usa `POST /publico/market/checkout`;
+- uma compra multi-loja cria compra unificada para o comprador e pedidos filhos por fornecedor;
+- cada fornecedor ve apenas a sua parte no Team;
+- o comprador acompanha a compra inteira por `GET /publico/market/compras/:id`;
+- pagamento/comprovativo centralizado propaga estado aos pedidos filhos.
 
 ### Bizy Studio
 
-Central de controlo da loja dentro do CRM.
+Central de controlo da loja dentro do Team.
 
 Inclui:
 
 - identidade do perfil;
-- colecoes;
+- colecoes/catalogos;
 - publicacao no Market;
 - produtos em destaque;
-- checkout;
-- pagamentos;
-- entrega;
-- SEO;
-- metricas;
-- campanhas.
+- checkout, pagamentos, entrega e SEO;
+- seguidores e metricas;
+- pedidos Market e repasses.
 
 ## Mudanca de Produto
 
 Antes, a loja digital era principalmente uma vitrine publica ligada ao CRM.
 
-Agora, a direcao passa a ser:
+Agora, a direcao implementada e:
 
 - perfil social-comercial da loja;
 - marketplace de descoberta entre lojas;
 - checkout Bizy como camada central;
-- CRM como fonte de verdade da operacao.
+- Team como fonte de verdade da operacao comercial.
 
 ## Regras Essenciais
 
-- A loja pode ter perfil publico sem estar no Market.
+- A loja pode ter perfil publico sem participar do Market.
 - Produto so entra no Market se tiver imagem, preco, categoria global, loja ativa e disponibilidade.
-- Categoria global e do Bizy; colecao local e da loja.
-- Produtos similares podem sugerir outros fornecedores, mas nao devem apagar a identidade da loja atual.
+- Categoria global e do Bizy; colecao/catalogo local e da loja.
+- Produtos similares podem sugerir outros fornecedores, mas nao podem apagar a identidade da loja atual.
 - Checkout unificado cria uma experiencia unica para o comprador e pedidos separados por fornecedor quando necessario.
 - Dados privados de uma loja nao podem vazar para outra loja.
-- Toda central de controlo fica dentro do CRM, nao num painel separado.
-- O Market deve gerar descoberta, mas a execucao comercial acontece no CRM.
+- Toda central de controlo fica dentro do Team, nao num painel separado.
+- O Market gera descoberta; o Team executa pedido, pagamento, entrega, atendimento e repasse.
+- A UI publica nao pode inventar avaliacoes, seguidores, vendidos, reviews, tempo de resposta ou prova social. Se o backend nao envia o dado real, a UI deve mostrar estado neutro.
 
-## Impacto no Sistema Atual
+## Contratos Canônicos
 
-Ver requisitos completos em [`docs/RF-RNF-RN-BIZY-MARKET-LOJA-DIGITAL.md`](../../RF-RNF-RN-BIZY-MARKET-LOJA-DIGITAL.md).
+### Publicos
 
-Ver mapa de rotas e sequencia de implementacao em [[bizy-market-rotas-roadmap]].
+- `GET /publico/market/produtos`
+- `GET /publico/market/categorias`
+- `GET /publico/market/lojas`
+- `GET /publico/market/lojas/:slug`
+- `GET /publico/market/produtos/:codigo`
+- `GET /publico/market/produtos/:codigo/similares`
+- `POST /publico/market/checkout`
+- `GET /publico/market/compras/:id`
+- `POST /publico/market/compras/:id/pagamento`
+- `GET /publico/lojas/:slug`
+- `GET /publico/lojas/:slug/catalogos/:catalogo`
+- `GET /publico/lojas/:slug/produtos/:codigo`
+- `GET /publico/lojas/:slug/produtos/:codigo/similares`
+- `POST /publico/lojas/:slug/seguir`
+- `DELETE /publico/lojas/:slug/seguir`
+- `POST /publico/tracking/eventos`
+- `POST /publico/recomendacoes/eventos`
 
-Impactos principais:
+### Team
 
-- [[loja-digital-operacao-crm]] deixa de ser apenas loja publica operacional e passa a ser base para Bizy Loja + Bizy Studio.
-- [[bizy-market-frontend-lojas]] passa a ser a nota de referencia para implementar apenas as telas de loja, sem refazer o CRM inteiro.
-- [[mapa-de-modulos-bizy]] precisa tratar Bizy Market como modulo/servico proprio.
-- [[visao-produto-bizy]] passa a incluir shopping center e perfis de loja como expansao natural do CRM+.
-- [[dominio-e-entidades-bizy]] futuramente deve modelar entidades como Market, PerfilLoja, ColecaoPublica, CompraUnificada, PedidoFornecedor, SeguidorLoja, RepasseMarket e CategoriaGlobal.
-- [[fluxos-operacionais-bizy]] futuramente deve detalhar busca, compra multi-loja, pagamento, repasse e pos-venda.
+- `GET /team/loja/market/resumo`
+- `PUT /team/loja/produtos/:codigo/publicacao`
+- `PUT /team/loja/produtos/publicacao-em-massa`
+- `GET /team/loja/catalogos`
+- `POST /team/loja/catalogos`
+- `PUT /team/loja/catalogos/:id`
+- `DELETE /team/loja/catalogos/:id`
+- `GET /team/loja/seguidores`
+- `GET /team/loja/metricas`
+- `GET /team/loja/pedidos-market`
+- `GET /team/loja/repasses`
+
+`/crm/loja/*` continua registrado no backend como alias legado para nao quebrar clientes antigos, mas codigo e documentacao novos devem apontar para `/team/loja/*`.
 
 ## Progresso de Implementacao
 
-- [x] RF/RNF/RN do documento formal convertidos para checklist.
-- [x] Primeiro endpoint backend criado: `GET /publico/market/produtos`.
-- [x] `BizyMarketUseCase` criado para listar produtos elegiveis de lojas publicadas.
+- [x] RF/RNF/RN do documento formal convertidos para checklist em [[requisitos-bizy-market]].
+- [x] Produtos elegiveis do Market expostos em `GET /publico/market/produtos`.
+- [x] `BizyMarketUseCase` lista produtos elegiveis de lojas publicadas.
 - [x] Resposta publica inclui fornecedor sanitizado e URLs para loja/produto.
 - [x] Produtos sem foto, sem categoria, sem stock, vendidos, esgotados, arquivados ou de loja nao publicada ficam fora do Market.
-- [x] Teste de contrato criado em `backend/src/testes/bizy-market-http.test.ts`.
-- [x] Perfil publico estilo social com hero, avatar, bio, localizacao, contadores sociais iniciais e colecoes/categorias clicaveis.
-- [x] Slugs reservados como `market`, `shop`, `checkout`, `api`, `www`, `n8n`, `wa` e `suporte` ficam bloqueados no backend.
-- [x] Perfil publico ganhou CTA para explorar similares no Bizy Market sem substituir a loja atual.
-- [x] Mapa de rotas e sequencia tecnica documentados em [[bizy-market-rotas-roadmap]].
-- [x] Dominio proprio do Market definido como `market.usebizy.space`, separado dos subdominios das lojas e com `/market` mantido como fallback.
-- [x] Categorias globais do Market expostas em `GET /publico/market/categorias`.
-- [x] Detalhe publico de produto do Market exposto em `GET /publico/market/produtos/:codigo`.
-- [x] Produtos similares de outros fornecedores expostos em `GET /publico/market/produtos/:codigo/similares`.
-- [x] Controlo CRM de publicacao no Market exposto em `GET /crm/loja/market/resumo`, `PUT /crm/loja/produtos/:codigo/publicacao` e `PUT /crm/loja/produtos/publicacao-em-massa`.
-- [x] Spec frontend das telas de loja criada em `docs/superpowers/specs/2026-06-07-bizy-market-frontend-lojas-design.md`.
-- [x] Plano frontend das telas de loja criado em `docs/superpowers/plans/2026-06-07-bizy-market-frontend-lojas.md`.
-- [x] Nota de memoria frontend criada em [[bizy-market-frontend-lojas]].
-- [x] Camada frontend `frontend/src/lojas` criada com tipos, rotas, helpers API e normalizadores.
-- [x] Teste de contrato frontend criado em `frontend/testes/lojas-api.test.ts`.
-- [x] Bizy Studio completo dentro do CRM no escopo de configuracao, tracking e publicacao no Market.
-- [x] Entrada `/checkout` criada com carrinho unificado local, fornecedor por item, origem loja/Market, consentimento e finalizacao real para compras de uma loja.
-- [x] Wiki de requisitos completa: [[requisitos-bizy-market]], [[requisitos-funcionais-bizy]], [[requisitos-nao-funcionais-bizy]] e [[regras-de-negocio-bizy]] criadas com cobertura total dos documentos fonte.
-- [x] Indice da wiki atualizado com seccao de Requisitos e Fontes Principais.
-- [x] Fase 2 concluida: `GET /publico/market/lojas`, `GET /publico/market/lojas/:slug` e `POST /publico/recomendacoes/eventos` implementados com backend, frontend e testes de contrato.
-- [x] Fase 3 concluida: CRUD de catalogos (`GET/POST/PUT/DELETE /crm/loja/catalogos`), seguidores (`GET /crm/loja/seguidores`) e metricas (`GET /crm/loja/metricas`) implementados no backend e no frontend (Bizy Studio).
-- [x] Diretorio de lojas do Market (`/market/lojas`) e perfil de loja no Market (`/market/lojas/:slug`) implementados no frontend.
-- [x] Bizy Studio estendido com paineis de Seguidores e Metricas consumindo endpoints reais.
-- [x] Bug corrigido em `salvarCatalogosNegocio`: passava apenas `entrega` para `salvarNegocio`, causando erro no `normalizarNegocio`.
-- [x] Teste de contrato Fase 2+3 criado em `backend/src/testes/bizy-market-fase2-3.test.ts` cobrindo lojas Market, tracking, catalogos CRUD, seguidores e metricas.
-- [x] Checkout multi-loja com compra unificada, pedidos filhos por fornecedor, pagamento centralizado e acompanhamento.
-- [x] Pedidos no CRM por loja com origem Market (`GET /crm/loja/pedidos-market`).
-- [ ] Seguidores, social graph e perfil de comprador.
-- [x] Repasses financeiros com taxas Bizy, cancelamentos parciais, reembolsos e conciliacao (`GET /crm/loja/repasses`).
-- [ ] Ranking avancado, boost e recomendacoes comportamentais.
+- [x] Perfil publico estilo social-comercial com hero, avatar, bio, localizacao, colecoes/categorias clicaveis e CTAs.
+- [x] Slugs reservados como `market`, `shop`, `checkout`, `api`, `www`, `n8n`, `wa` e `suporte` bloqueados no backend.
+- [x] CTA para similares no Bizy Market preserva a loja atual.
+- [x] Dominio canonico do Market definido como `market.usebizy.space`, com `/market` como fallback local.
+- [x] Categorias globais expostas em `GET /publico/market/categorias`.
+- [x] Produto Market exposto em `GET /publico/market/produtos/:codigo`.
+- [x] Similares expostos em `GET /publico/market/produtos/:codigo/similares` e `GET /publico/lojas/:slug/produtos/:codigo/similares`.
+- [x] Controlo Team de publicacao no Market exposto em `/team/loja/market/resumo`, `/team/loja/produtos/:codigo/publicacao` e `/team/loja/produtos/publicacao-em-massa`.
+- [x] Camada frontend `frontend/src/lojas` centraliza tipos, rotas, helpers API, normalizadores e checkout.
+- [x] Market home, categoria, detalhe do produto, diretorio de lojas e perfil de loja no Market implementados no frontend.
+- [x] Bizy Studio em `/app/loja` implementado para configuracao, tracking, publicacao, seguidores e metricas.
+- [x] Catalogos personalizados por loja implementados no backend e frontend.
+- [x] Checkout unificado multi-loja implementado em `POST /publico/market/checkout`.
+- [x] Compra unificada cria pedidos filhos por fornecedor, taxa Bizy, IVA, repasses e acompanhamento.
+- [x] Pedidos Market no Team por loja em `GET /team/loja/pedidos-market`.
+- [x] Repasses financeiros no Team em `GET /team/loja/repasses`.
+- [x] Seguidores reais com follow/unfollow publico e listagem/metricas no Team.
+- [x] Ranking, boost e recomendacoes operacionais implementados com score, eventos e sinais administrados; recomendacao comportamental avancada fica evolucao futura, nao bloqueio de MVP.
 - [x] Admin Bizy para categorias, suspensoes, patrocinados, denuncias, repasses e relatorios.
-- [x] Catalogo digital partilhavel: `GET /publico/lojas/:slug/catalogos/:catalogo` com filtro por criterio (categoria, colecao, busca, todos) e pagina frontend em `/lojas/:slug/catalogos/:catalogo`.
-- [x] Experiencia mobile sem scroll horizontal: `overflow-x: hidden` nas superficies CRM+, loja publica, Market e checkout.
+- [x] Catalogo digital partilhavel em `GET /publico/lojas/:slug/catalogos/:catalogo` e `/lojas/:slug/catalogos/:catalogo`.
+- [x] Experiencia mobile sem scroll horizontal nas superficies Team, loja publica, Market e checkout.
+- [x] UI Market/loja revisada para remover prova social simulada: ratings, vendidos, reviews, tempo de resposta e badges nao enviados pelo backend.
 
-## Decisoes em Aberto
+## Decisoes Fechadas
 
-- [x] Dominio principal do Market definido como `market.usebizy.space`, com `/market` como fallback local.
-- [x] MVP do checkout comeca com checkout unificado para uma loja por vez; carrinho multi-loja fica para fase seguinte.
-- [x] Pagamento comeca com comprovativo/transferencia e conciliacao manual; provider online entra depois.
-- Como sera a autenticacao do comprador que segue lojas.
-- Categorias globais iniciais.
-- Politica de destaque patrocinado e comissao por venda.
+- Dominio principal do Market: `market.usebizy.space`, com `/market` como fallback local.
+- Checkout multi-loja entra no fluxo atual pelo endpoint unificado do Market.
+- Pagamento inicial opera com transferencia/comprovativo, dinheiro na entrega ou metodo combinado; providers online entram como evolucao.
+- Avaliacao publica de compradores nao deve ser simulada. No MVP, a UI mostra selos operacionais reais e estados vazios quando nao ha reviews.
+- Social graph atual usa follow/unfollow e identificacao simples; perfil autenticado completo de comprador e evolucao futura.
+- Categorias globais iniciais: Moda, Beleza, Comida, Tecnologia, Casa e Servicos.
+- Patrocinio/destaque nao pode contornar elegibilidade, suspensao ou regras de seguranca.
 
 ## Ligacoes
 
 - [[requisitos-bizy-market]] — RF/RNF/RN completos do Market e Lojas
-- [[requisitos-funcionais-bizy]] — RFs do CRM base
-- [[requisitos-nao-funcionais-bizy]] — RNFs do CRM base
-- [[regras-de-negocio-bizy]] — RNs do CRM base
-- [[loja-digital-operacao-crm]]
 - [[bizy-market-rotas-roadmap]]
 - [[bizy-market-frontend-lojas]]
+- [[loja-digital-operacao-crm]]
 - [[visao-produto-bizy]]
 - [[mapa-de-modulos-bizy]]
 - [[fluxos-operacionais-bizy]]

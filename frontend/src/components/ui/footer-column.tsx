@@ -18,7 +18,7 @@ const dadosFooter = {
   empresa: {
     nome: NOME_PRODUTO,
     descricao:
-      "CRM+ para lojas, criadores e afiliados venderem por WhatsApp, live, catálogo e loja online com pedidos, stock, clientes e relatórios no mesmo lugar."
+      "Team para lojas, criadores e afiliados venderem por WhatsApp, live, catálogo e loja online com pedidos, stock, clientes e relatórios no mesmo lugar."
   },
   contacto: {
     email: "suporte@bizy.ao",

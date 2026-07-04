@@ -1,3 +1,4 @@
+import { z } from "zod";
 import {
   AtualizarTemplateWhatsAppSchema,
   ConfirmarCampanhaSchema,
@@ -19,6 +20,13 @@ import type { MembroNegocioOperacional } from "../../../dominio/tipos.js";
 import { montarAlteracoes, registrarAuditoriaCritica } from "../auditoriaOperacional.js";
 import { PERMISSOES_POR_PAPEL_PUBLICAS, exigirAcessoComercial } from "../contextoComercial.js";
 import type { ModuloHttp } from "./ModuloHttp.js";
+
+const FiltrosMembrosNegocioQuerySchema = z.object({
+  limite: z.coerce.number().int().min(1).max(500).optional(),
+  offset: z.coerce.number().int().min(0).optional(),
+  status: z.enum(["ATIVO", "SUSPENSO", "REMOVIDO"]).optional(),
+  busca: z.string().trim().min(1).max(120).optional()
+});
 
 export const moduloCampanhas: ModuloHttp = {
   nome: "campanhas-governanca",
@@ -148,7 +156,7 @@ export const moduloCampanhas: ModuloHttp = {
         permissao: "configuracoes:gerir",
         modulo: "crm",
         mensagemPermissao: "Sem permissão para consultar papéis.",
-        mensagemModulo: "CRM desativado para este negócio."
+        mensagemModulo: "Módulo comercial desativado para este negócio."
       });
       if (!contextoComercial) return;
 
@@ -162,11 +170,13 @@ export const moduloCampanhas: ModuloHttp = {
         permissao: "configuracoes:gerir",
         modulo: "crm",
         mensagemPermissao: "Sem permissão para consultar membros.",
-        mensagemModulo: "CRM desativado para este negócio."
+        mensagemModulo: "Módulo comercial desativado para este negócio."
       });
       if (!contextoComercial) return;
 
-      const membros = await contexto.gestaoGovernancaCrm.listarMembros(contextoComercial.negocio.id);
+      const filtros = FiltrosMembrosNegocioQuerySchema.parse(request.query ?? {});
+      const resultado = await contexto.gestaoGovernancaCrm.listarMembrosPaginado(contextoComercial.negocio.id, filtros);
+      const membrosSemDuplicarActual = resultado.membros.filter((membro) => membro.usuarioId !== contextoComercial.usuario.id);
       return {
         membros: [
           {
@@ -183,8 +193,9 @@ export const moduloCampanhas: ModuloHttp = {
             criadoEm: contextoComercial.usuario.criadoEm,
             atualizadoEm: contextoComercial.usuario.atualizadoEm
           },
-          ...membros
-        ]
+          ...membrosSemDuplicarActual
+        ].slice(0, resultado.paginacao.limite),
+        paginacao: resultado.paginacao
       };
     });
 
@@ -193,7 +204,7 @@ export const moduloCampanhas: ModuloHttp = {
         permissao: "configuracoes:gerir",
         modulo: "crm",
         mensagemPermissao: "Sem permissão para criar membros.",
-        mensagemModulo: "CRM desativado para este negócio."
+        mensagemModulo: "Módulo comercial desativado para este negócio."
       });
       if (!contextoComercial) return;
 
@@ -224,7 +235,7 @@ export const moduloCampanhas: ModuloHttp = {
         permissao: "configuracoes:gerir",
         modulo: "crm",
         mensagemPermissao: "Sem permissão para atualizar membros.",
-        mensagemModulo: "CRM desativado para este negócio."
+        mensagemModulo: "Módulo comercial desativado para este negócio."
       });
       if (!contextoComercial) return;
 
@@ -254,7 +265,7 @@ export const moduloCampanhas: ModuloHttp = {
         permissao: "automacoes:gerir",
         modulo: "crm",
         mensagemPermissao: "Sem permissão para registrar eventos operacionais.",
-        mensagemModulo: "CRM desativado para este negócio."
+        mensagemModulo: "Módulo comercial desativado para este negócio."
       });
       if (!contextoComercial) return;
 
@@ -271,7 +282,7 @@ export const moduloCampanhas: ModuloHttp = {
         permissao: "automacoes:gerir",
         modulo: "crm",
         mensagemPermissao: "Sem permissão para consultar eventos operacionais.",
-        mensagemModulo: "CRM desativado para este negócio."
+        mensagemModulo: "Módulo comercial desativado para este negócio."
       });
       if (!contextoComercial) return;
 
@@ -285,7 +296,7 @@ export const moduloCampanhas: ModuloHttp = {
         permissao: "clientes:gerir",
         modulo: "crm",
         mensagemPermissao: "Sem permissão para importar clientes.",
-        mensagemModulo: "CRM desativado para este negócio."
+        mensagemModulo: "Módulo comercial desativado para este negócio."
       });
       if (!contextoComercial) return;
 
@@ -325,7 +336,7 @@ export const moduloCampanhas: ModuloHttp = {
         permissao: "clientes:gerir",
         modulo: "crm",
         mensagemPermissao: "Sem permissão para exportar clientes.",
-        mensagemModulo: "CRM desativado para este negócio."
+        mensagemModulo: "Módulo comercial desativado para este negócio."
       });
       if (!contextoComercial) return;
 

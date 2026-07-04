@@ -147,7 +147,7 @@ export function PaginaAgenda() {
         }
       });
       await carregar();
-      setMensagem("Lembrete criado na agenda CRM.");
+      setMensagem("Lembrete criado na agenda Team.");
     } catch (e) {
       setMensagem(e instanceof Error ? e.message : "Erro ao criar lembrete.");
       throw e;
@@ -350,7 +350,7 @@ export function PaginaAgenda() {
           <EstadoVazio
             icone={<Bell />}
             titulo="Agenda limpa"
-            detalhe="Sem lembretes pendentes. O botão Novo lembrete cria follow-ups, cobranças ou entregas ligados ao CRM."
+            detalhe="Sem lembretes pendentes. O botão Novo lembrete cria follow-ups, cobranças ou entregas ligados ao Team."
           />
         )}
 

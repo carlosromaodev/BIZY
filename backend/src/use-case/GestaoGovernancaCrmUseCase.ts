@@ -7,10 +7,15 @@ import { normalizarTelefone } from "../dominio/servicos/normalizarContato.js";
 import type {
   AtualizacaoMembroNegocioOperacional,
   FiltrosEventosOperacionais,
+  FiltrosMembrosNegocio,
   NovoMembroNegocioOperacional,
   NovoEventoOperacional,
-  NovoJobOperacional
+  NovoJobOperacional,
+  PaginacaoOffset
 } from "../dominio/tipos.js";
+import { montarPaginacaoOffset, normalizarLimitePaginacao, normalizarOffsetPaginacao } from "./utils/paginacao.js";
+
+const LIMITE_MEMBROS_NEGOCIO = 500;
 
 export class GestaoGovernancaCrmUseCase {
   constructor(
@@ -19,8 +24,23 @@ export class GestaoGovernancaCrmUseCase {
     private readonly jobs: RepositorioJobsOperacionais
   ) {}
 
-  listarMembros(negocioId: string) {
-    return this.membros.listar(negocioId);
+  listarMembros(negocioId: string, filtros: FiltrosMembrosNegocio = {}) {
+    return this.membros.listar(negocioId, filtros);
+  }
+
+  async listarMembrosPaginado(
+    negocioId: string,
+    filtros: FiltrosMembrosNegocio = {}
+  ): Promise<{ membros: Awaited<ReturnType<RepositorioMembrosNegocio["listar"]>>; paginacao: PaginacaoOffset }> {
+    const limite = normalizarLimitePaginacao(filtros.limite, LIMITE_MEMBROS_NEGOCIO, LIMITE_MEMBROS_NEGOCIO);
+    const offset = normalizarOffsetPaginacao(filtros.offset);
+    const filtrosNormalizados = { ...filtros, limite, offset };
+    const filtrosTotal = { status: filtros.status, busca: filtros.busca };
+    const [membros, total] = await Promise.all([
+      this.membros.listar(negocioId, filtrosNormalizados),
+      this.membros.contar(negocioId, filtrosTotal)
+    ]);
+    return { membros, paginacao: montarPaginacaoOffset(total, limite, offset) };
   }
 
   criarMembro(dados: NovoMembroNegocioOperacional) {

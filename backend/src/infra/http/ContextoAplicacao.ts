@@ -43,9 +43,10 @@ import { AuditoriaEventosUseCase } from "../../use-case/AuditoriaEventosUseCase.
 import { AtendimentoCrmUseCase } from "../../use-case/AtendimentoCrmUseCase.js";
 import { AutenticacaoEstudantilUseCase, UorConnectAuthProvider } from "../../use-case/AutenticacaoEstudantilUseCase.js";
 import { AutenticacaoTelefoneUseCase } from "../../use-case/AutenticacaoTelefoneUseCase.js";
-import { BizyMarketUseCase } from "../../use-case/BizyMarketUseCase.js";
-import { CheckoutUnificadoUseCase } from "../../use-case/CheckoutUnificadoUseCase.js";
-import { RepassesFinanceirosUseCase } from "../../use-case/RepassesFinanceirosUseCase.js";
+import { BizyLearningUseCase } from "../../projetos/learning/aplicacao/BizyLearningUseCase.js";
+import { BizyMarketUseCase } from "../../projetos/market/aplicacao/BizyMarketUseCase.js";
+import { CheckoutUnificadoUseCase } from "../../projetos/market/aplicacao/CheckoutUnificadoUseCase.js";
+import { RepassesFinanceirosUseCase } from "../../projetos/market/aplicacao/RepassesFinanceirosUseCase.js";
 import { ConsultaAtendimentoN8n } from "../../use-case/ConsultaAtendimentoN8n.js";
 import { ConsultaAtendimentoOperacionalUseCase } from "../../use-case/ConsultaAtendimentoOperacionalUseCase.js";
 import { ConsultaIntegracoesUseCase } from "../../use-case/ConsultaIntegracoesUseCase.js";
@@ -56,10 +57,10 @@ import { GestaoAfiliadosUseCase } from "../../use-case/GestaoAfiliadosUseCase.js
 import { GestaoCampanhasCrmUseCase } from "../../use-case/GestaoCampanhasCrmUseCase.js";
 import { GestaoClientesCrmUseCase } from "../../use-case/GestaoClientesCrmUseCase.js";
 import { GestaoCompartilhamentoClientesUseCase } from "../../use-case/GestaoCompartilhamentoClientesUseCase.js";
-import { GestaoEquipaUseCase } from "../../use-case/GestaoEquipaUseCase.js";
+import { GestaoEquipaUseCase } from "../../projetos/team/aplicacao/GestaoEquipaUseCase.js";
 import { GestaoFinancasUseCase } from "../../use-case/GestaoFinancasUseCase.js";
 import { GestaoWorkflowUseCase } from "../../use-case/GestaoWorkflowUseCase.js";
-import { GestaoProjectosUseCase } from "../../use-case/GestaoProjectosUseCase.js";
+import { GestaoProjectosUseCase } from "../../projetos/team/aplicacao/GestaoProjectosUseCase.js";
 import { ConformidadeROIUseCase } from "../../use-case/ConformidadeROIUseCase.js";
 import { InteligenciaPreditivaUseCase } from "../../use-case/InteligenciaPreditivaUseCase.js";
 import { GestaoFunilComercialUseCase } from "../../use-case/GestaoFunilComercialUseCase.js";
@@ -75,7 +76,7 @@ import { GestaoTarefasOperacionaisUseCase } from "../../use-case/GestaoTarefasOp
 import { GestaoWhatsAppEvolutionUseCase } from "../../use-case/GestaoWhatsAppEvolutionUseCase.js";
 import { GerarReciboReservaUseCase } from "../../use-case/GerarReciboReservaUseCase.js";
 import { LimparDadosComunicacaoUseCase } from "../../use-case/LimparDadosComunicacaoUseCase.js";
-import { LojaPublicaUseCase } from "../../use-case/LojaPublicaUseCase.js";
+import { LojaPublicaUseCase } from "../../projetos/market/aplicacao/LojaPublicaUseCase.js";
 import { MonitorReservasUseCase } from "../../use-case/MonitorReservasUseCase.js";
 import { OnboardingBizyUseCase } from "../../use-case/OnboardingBizyUseCase.js";
 import { MotorReservas } from "../../use-case/MotorReservas.js";
@@ -262,6 +263,7 @@ export interface ContextoAplicacao {
   recuperacaoMensagensWhatsApp: RecuperacaoMensagensWhatsAppUseCase;
   limparDadosComunicacao: LimparDadosComunicacaoUseCase;
   lojaPublica: LojaPublicaUseCase;
+  bizyLearning: BizyLearningUseCase;
   bizyMarket: BizyMarketUseCase;
   checkoutUnificado: CheckoutUnificadoUseCase;
   repassesFinanceiros: RepassesFinanceirosUseCase;
@@ -311,12 +313,12 @@ export function criarContextoAplicacao(logger: FastifyBaseLogger): ContextoAplic
     }
   );
   const autenticacaoTelefone = new AutenticacaoTelefoneUseCase(repositorios.autenticacao, provedorSms, {
-    segredo: process.env.AUTH_SECRET ?? process.env.N8N_WEBHOOK_SECRET ?? "emeu-dev-secret",
+    segredo: process.env.AUTH_SECRET ?? (() => { throw new Error("AUTH_SECRET não configurado."); })(),
     remetenteSms: process.env.OMBALA_SMS_DEFAULT_SENDER ?? "BIZY",
     minutosExpiracaoCodigo: Number(process.env.LOGIN_SMS_MINUTOS_EXPIRACAO ?? 10),
     diasExpiracaoSessao: Number(process.env.LOGIN_SESSAO_DIAS_EXPIRACAO ?? 7),
-    permitirSmsDev: process.env.LOGIN_SMS_DEV_MODE === "true" || process.env.NODE_ENV !== "production",
-    exporCodigoDev: process.env.LOGIN_SMS_EXPOR_CODIGO_DEV === "true" || process.env.NODE_ENV !== "production"
+    permitirSmsDev: process.env.LOGIN_SMS_DEV_MODE === "true",
+    exporCodigoDev: process.env.LOGIN_SMS_EXPOR_CODIGO_DEV === "true"
   });
   const gestaoWhatsAppEvolution = new GestaoWhatsAppEvolutionUseCase(repositorios.instanciasWhatsApp, {
     baseUrl: process.env.EVOLUTION_API_URL ?? "http://localhost:8080",
@@ -499,11 +501,15 @@ export function criarContextoAplicacao(logger: FastifyBaseLogger): ContextoAplic
     repositorios.oportunidadesRecuperacao,
     repositorios.eventosOperacionais,
     repositorios.funilComercial,
-    repositorios.seguidoresLoja
+    repositorios.seguidoresLoja,
+    gestaoGovernancaCrm,
+    gestaoTarefas
   );
   const bizyMarket = new BizyMarketUseCase(repositorios.autenticacao, repositorios.pecas);
+  const bizyLearning = new BizyLearningUseCase(repositorios.eventosOperacionais);
 
   const checkoutUnificado = new CheckoutUnificadoUseCase({
+    autenticacao: repositorios.autenticacao,
     comprasUnificadas: repositorios.comprasUnificadas,
     pecas: repositorios.pecas,
     pedidos: repositorios.pedidos,
@@ -544,6 +550,15 @@ export function criarContextoAplicacao(logger: FastifyBaseLogger): ContextoAplic
     ativo: process.env.N8N_EVENTOS_ATIVOS !== "false",
     repositorioAuditoria: repositorios.auditoria,
     logger
+  });
+
+  registarFacturaAutomatica({
+    eventos,
+    logger,
+    gestaoPedidos,
+    gestaoFinancas,
+    comprasUnificadas: repositorios.comprasUnificadas,
+    ativo: Boolean(repositorios.prisma)
   });
 
   return {
@@ -593,6 +608,7 @@ export function criarContextoAplicacao(logger: FastifyBaseLogger): ContextoAplic
     recuperacaoMensagensWhatsApp,
     limparDadosComunicacao,
     lojaPublica,
+    bizyLearning,
     bizyMarket,
     checkoutUnificado,
     repassesFinanceiros: repassesFinanceirosUseCase,
@@ -605,6 +621,190 @@ export function criarContextoAplicacao(logger: FastifyBaseLogger): ContextoAplic
     assistenteIA,
     sessoesLive: new Map()
   };
+}
+
+function registarFacturaAutomatica(dependencias: {
+  eventos: DespachadorEventos;
+  logger: FastifyBaseLogger;
+  gestaoPedidos: GestaoPedidosUseCase;
+  gestaoFinancas: GestaoFinancasUseCase;
+  comprasUnificadas: RepositorioComprasUnificadas;
+  ativo: boolean;
+}) {
+  if (!dependencias.ativo) return;
+
+  dependencias.eventos.aoReceber("ORDER_CREATED", (evento) => {
+    void emitirFacturaAutomaticaPedido(dependencias, evento).catch((erro) => {
+      dependencias.logger.warn(
+        {
+          erro: erro instanceof Error ? erro.message : String(erro),
+          negocioId: typeof evento.dados.negocioId === "string" ? evento.dados.negocioId : null,
+          pedidoId: typeof evento.dados.pedidoId === "string" ? evento.dados.pedidoId : null
+        },
+        "Não foi possível emitir a factura automática do pedido."
+      );
+    });
+  });
+
+  dependencias.eventos.aoReceber("ORDER_PAYMENT_CONFIRMED", (evento) => {
+    void liquidarFacturaAutomaticaPedido(dependencias, evento).catch((erro) => {
+      dependencias.logger.warn(
+        {
+          erro: erro instanceof Error ? erro.message : String(erro),
+          negocioId: typeof evento.dados.negocioId === "string" ? evento.dados.negocioId : null,
+          pedidoId: typeof evento.dados.pedidoId === "string" ? evento.dados.pedidoId : null
+        },
+        "Não foi possível liquidar automaticamente a factura do pedido."
+      );
+    });
+  });
+
+  dependencias.eventos.aoReceber("COMPRA_UNIFICADA_CRIADA", (evento) => {
+    void emitirFacturasAutomaticasCompraUnificada(dependencias, evento).catch((erro) => {
+      dependencias.logger.warn(
+        {
+          erro: erro instanceof Error ? erro.message : String(erro),
+          compraId: typeof evento.dados.compraId === "string" ? evento.dados.compraId : null
+        },
+        "Não foi possível emitir as facturas automáticas da compra unificada."
+      );
+    });
+  });
+}
+
+async function liquidarFacturaAutomaticaPedido(
+  dependencias: {
+    gestaoPedidos: GestaoPedidosUseCase;
+    gestaoFinancas: GestaoFinancasUseCase;
+  },
+  evento: { dados: Record<string, unknown> }
+) {
+  const negocioId = typeof evento.dados.negocioId === "string" ? evento.dados.negocioId : null;
+  const pedidoId = typeof evento.dados.pedidoId === "string" ? evento.dados.pedidoId : null;
+  if (!negocioId || !pedidoId) return;
+
+  let [factura] = await dependencias.gestaoFinancas.listarFacturas(negocioId, { pedidoId, limite: 1 });
+  if (!factura) {
+    await emitirFacturaAutomaticaPedido(dependencias, evento);
+    [factura] = await dependencias.gestaoFinancas.listarFacturas(negocioId, { pedidoId, limite: 1 });
+  }
+  if (!factura || factura.estadoPagamento === "PAGO") return;
+
+  const detalhePedido = await dependencias.gestaoPedidos.obterPedido(pedidoId, negocioId);
+  if (!detalhePedido) return;
+
+  const clienteNome =
+    escolherTextoEvento(evento.dados, "clienteNome") ??
+    detalhePedido.cliente?.nome?.trim() ??
+    "Cliente final";
+  const clienteNif = escolherTextoEvento(evento.dados, "clienteNif") ?? undefined;
+  const metodoPagamento =
+    escolherTextoEvento(evento.dados, "metodoPagamento") ??
+    "Confirmado no pedido";
+  const referencia =
+    escolherTextoEvento(evento.dados, "referenciaPagamento") ??
+    `PED-${detalhePedido.pedido.numero}`;
+  const comprovativoUrl =
+    escolherTextoEvento(evento.dados, "comprovativoPagamentoUrl") ??
+    detalhePedido.pedido.comprovativoPagamentoUrl ??
+    undefined;
+
+  // Integra Pedidos -> Finanças: confirmar pagamento gera recibo, movimento de entrada e baixa da factura.
+  await dependencias.gestaoFinancas.gerarReciboPagamento(negocioId, {
+    facturaId: factura.id,
+    clienteNome: clienteNome.trim() || "Cliente final",
+    clienteNif,
+    valorPago: detalhePedido.pedido.totalEmKwanza,
+    metodoPagamento,
+    referencia,
+    comprovativoUrl,
+    observacao: `Recibo automático gerado pela confirmação do pedido #${detalhePedido.pedido.numero}.`
+  });
+}
+
+async function emitirFacturaAutomaticaPedido(
+  dependencias: {
+    gestaoPedidos: GestaoPedidosUseCase;
+    gestaoFinancas: GestaoFinancasUseCase;
+  },
+  evento: { dados: Record<string, unknown> }
+) {
+  const negocioId = typeof evento.dados.negocioId === "string" ? evento.dados.negocioId : null;
+  const pedidoId = typeof evento.dados.pedidoId === "string" ? evento.dados.pedidoId : null;
+  if (!negocioId || !pedidoId) return;
+
+  const existentes = await dependencias.gestaoFinancas.listarFacturas(negocioId, { pedidoId, limite: 1 });
+  if (existentes.length > 0) return;
+
+  const detalhePedido = await dependencias.gestaoPedidos.obterPedido(pedidoId, negocioId);
+  if (!detalhePedido) return;
+
+  const clienteNome =
+    escolherTextoEvento(evento.dados, "clienteNome") ??
+    detalhePedido.cliente?.nome?.trim() ??
+    "Cliente final";
+  const clienteEndereco =
+    escolherTextoEvento(evento.dados, "clienteEndereco") ??
+    detalhePedido.pedido.enderecoEntrega ??
+    undefined;
+  const clienteNif = escolherTextoEvento(evento.dados, "clienteNif") ?? undefined;
+  const observacao =
+    escolherTextoEvento(evento.dados, "facturaObservacao") ??
+    `Factura automática gerada para o pedido #${detalhePedido.pedido.numero}.`;
+
+  await dependencias.gestaoFinancas.emitirFactura(negocioId, {
+    pedidoId,
+    clienteNome: clienteNome.trim() || "Cliente final",
+    clienteEndereco,
+    clienteNif,
+    observacao,
+    itens: detalhePedido.pedido.itens.map((item) => ({
+      descricao: item.nomeProduto,
+      quantidade: item.quantidade,
+      precoUnitario: item.precoUnitarioEmKwanza
+    }))
+  });
+}
+
+async function emitirFacturasAutomaticasCompraUnificada(
+  dependencias: {
+    gestaoPedidos: GestaoPedidosUseCase;
+    gestaoFinancas: GestaoFinancasUseCase;
+    comprasUnificadas: RepositorioComprasUnificadas;
+  },
+  evento: { dados: Record<string, unknown> }
+) {
+  const compraId = typeof evento.dados.compraId === "string" ? evento.dados.compraId : null;
+  if (!compraId) return;
+
+  const compra = await dependencias.comprasUnificadas.buscarPorId(compraId);
+  if (!compra) return;
+
+  const pedidosFilho = await dependencias.comprasUnificadas.listarPedidosFilho(compraId);
+  for (const filho of pedidosFilho) {
+    const existentes = await dependencias.gestaoFinancas.listarFacturas(filho.negocioId, { pedidoId: filho.pedidoId, limite: 1 });
+    if (existentes.length > 0) continue;
+
+    const detalhePedido = await dependencias.gestaoPedidos.obterPedido(filho.pedidoId, filho.negocioId);
+    if (!detalhePedido) continue;
+
+    await dependencias.gestaoFinancas.emitirFactura(filho.negocioId, {
+      pedidoId: filho.pedidoId,
+      clienteNome: compra.compradorNome?.trim() || compra.compradorTelefone || "Cliente final",
+      clienteEndereco: compra.enderecoEntrega ?? detalhePedido.pedido.enderecoEntrega ?? undefined,
+      observacao: `Factura automática gerada para a compra unificada #${compra.numero}.`,
+      itens: detalhePedido.pedido.itens.map((item) => ({
+        descricao: item.nomeProduto,
+        quantidade: item.quantidade,
+        precoUnitario: item.precoUnitarioEmKwanza
+      }))
+    });
+  }
+}
+
+function escolherTextoEvento(dados: Record<string, unknown>, chave: string): string | null {
+  const valor = dados[chave];
+  return typeof valor === "string" && valor.trim() ? valor : null;
 }
 
 export function criarProviderLive(nome: string): LiveCommentProvider {
@@ -769,7 +969,8 @@ function normalizarIntervaloWhatsApp(valor: string | undefined, padrao: number):
 function criarProvedorSms() {
   return new ProvedorSmsOmbala({
     baseUrl: process.env.OMBALA_API_BASE_URL ?? "https://api.ombala.ao",
-    token: process.env.OMBALA_API_TOKEN
+    token: process.env.OMBALA_API_TOKEN,
+    timeoutMs: Number(process.env.OMBALA_TIMEOUT_MS ?? 9000)
   });
 }
 

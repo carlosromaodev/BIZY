@@ -6,6 +6,7 @@ Criado em: 2026-06-28
 ## Entrada Rapida
 
 - Processo: `00-processo-sdd-bizy.md`
+- Meta global: `../superpowers/specs/2026-06-30-meta-global-bizy.md`
 - Mapa de dominios: `02-mapa-dominio-produto.md`
 - Roadmap: `03-roadmap-sdd.md`
 - Templates: `templates/`
@@ -30,11 +31,14 @@ Criado em: 2026-06-28
 | 12 | `domains/12-frontend-ux-design-system.md` | Identidade visual, rotas, UX, mobile-first, componentes e testes frontend. |
 | 13 | `domains/13-operacao-deploy-observabilidade.md` | Docker, deploy, migrations, backup, restore, saude, logs e observabilidade. |
 | 14 | `domains/14-seguranca-privacidade-auditoria.md` | Sessoes, RBAC, auditoria, privacidade, consentimento, tracking e cifra de credenciais. |
+| 15 | `domains/15-bizy-learning-academia-comunidade.md` | Sistema proprio de produtos digitais, learning commerce, comunidade, cohorts, certificacao e backoffice Team. |
 
 ## Relacao com Superpowers
 
 Specs de iniciativa ficam em `../superpowers/specs/`.
 Planos executaveis ficam em `../superpowers/plans/`.
+
+A meta global em `../superpowers/specs/2026-06-30-meta-global-bizy.md` e o filtro estrategico antes de qualquer spec: toda iniciativa precisa melhorar descoberta, conversao, execucao, retencao ou controlo.
 
 Fluxo recomendado:
 

@@ -398,16 +398,24 @@ export class ConsultaAtendimentoOperacionalUseCase {
 
   private obterNomeDeMensagemCrm(mensagens: MensagemAtendimento[]): string | null {
     for (const mensagem of mensagens) {
-      const direto = mensagem.contexto.nomeCliente;
-      if (typeof direto === "string" && direto.trim()) return direto;
+      const contexto = mensagem.contexto;
+      if (!contexto || typeof contexto !== "object" || Array.isArray(contexto)) continue;
 
-      const data = mensagem.contexto.data;
+      const direto = this.obterStringDoContexto(contexto, "nomeCliente");
+      if (direto) return direto;
+
+      const data = contexto.data;
       if (data && typeof data === "object" && !Array.isArray(data)) {
-        const pushName = (data as { pushName?: unknown }).pushName;
-        if (typeof pushName === "string" && pushName.trim()) return pushName;
+        const pushName = this.obterStringDoContexto(data as Record<string, unknown>, "pushName");
+        if (pushName) return pushName;
       }
     }
 
     return null;
+  }
+
+  private obterStringDoContexto(contexto: Record<string, unknown>, chave: string): string | null {
+    const valor = contexto[chave];
+    return typeof valor === "string" && valor.trim() ? valor : null;
   }
 }

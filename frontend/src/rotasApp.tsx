@@ -6,6 +6,7 @@ import {
   ClipboardList,
   CreditCard,
   FileText,
+  GraduationCap,
   Inbox,
   Kanban,
   LayoutDashboard,
@@ -38,20 +39,24 @@ import { PaginaClientes } from "./paginas/Clientes";
 import { PaginaComentarios } from "./paginas/Comentarios";
 import { PaginaConversas } from "./paginas/Conversas";
 import { PaginaCotacoes } from "./paginas/Cotacoes";
-import { PaginaCheckoutBizy } from "./paginas/CheckoutBizy";
+import { PaginaCheckoutBizy } from "./projetos/market/paginas/CheckoutBizy";
+import { PaginaCompraUnificada } from "./projetos/market/paginas/CompraUnificada";
+import { PaginaFormularioLeadPublico } from "./projetos/market/paginas/FormularioLeadPublico";
 import { PaginaFormularios } from "./paginas/Formularios";
 import { PaginaHome } from "./paginas/Home";
 import { PaginaLive } from "./paginas/Live";
+import { PaginaLearning, PaginaLearningTeam } from "./projetos/learning/paginas/Learning";
 import { PaginaLogin } from "./paginas/Login";
-import { PaginaCatalogoPublico } from "./paginas/CatalogoPublico";
-import { PaginaLojaDigitalPublica } from "./paginas/LojaDigitalPublica";
-import { PaginaLojaPublica } from "./paginas/LojaPublica";
-import { PaginaDiretorioLojasMarket, PaginaLojaMarket, PaginaMarket } from "./paginas/Market";
+import { PaginaCatalogoPublico } from "./projetos/market/paginas/CatalogoPublico";
+import { PaginaLojaDigitalPublica } from "./projetos/market/paginas/LojaDigitalPublica";
+import { PaginaLojaPublica } from "./projetos/market/paginas/StudioLoja";
+import { PaginaDiretorioLojasMarket, PaginaLojaMarket, PaginaMarket } from "./projetos/market/paginas/Market";
 import { PaginaMetas } from "./paginas/Metas";
 import { PaginaOnboarding } from "./paginas/Onboarding";
 import { PaginaPainel } from "./paginas/Painel";
 import { PaginaPipeline } from "./paginas/Pipeline";
-import { PaginaProdutoMarket } from "./paginas/ProdutoMarket";
+import { PaginaProdutoMarket } from "./projetos/market/paginas/ProdutoMarket";
+import { PaginaProjectos } from "./projetos/team/paginas/Projectos";
 import { PaginaRecuperacao } from "./paginas/Recuperacao";
 import { PaginaRelatorios } from "./paginas/Relatorios";
 import { PaginaRespostasRapidas } from "./paginas/RespostasRapidas";
@@ -59,15 +64,15 @@ import { PaginaReservas } from "./paginas/Reservas";
 import { PaginaTarefas } from "./paginas/Tarefas";
 import { PaginaSequencias } from "./paginas/Sequencias";
 import { PaginaCampanhas } from "./paginas/Campanhas";
-import { PaginaEquipa } from "./paginas/Equipa";
+import { PaginaEquipa } from "./projetos/team/paginas/Equipa";
 import { PaginaFinancas } from "./paginas/Financas";
 import { PaginaInteligencia } from "./paginas/Inteligencia";
 import { PaginaSocialInbox } from "./paginas/SocialInbox";
 import { PaginaDiagnosticos } from "./paginas/Diagnosticos";
 import { PaginaAuditoria } from "./paginas/Auditoria";
 import { PaginaPagamentos } from "./paginas/Pagamentos";
-import { temSubdominioLojaPublica } from "./lojaSubdominio";
-import { temDominioMarketPublico } from "./marketDominio";
+import { temSubdominioLojaPublica } from "./projetos/market/dominio/lojaSubdominio";
+import { temDominioMarketPublico } from "./projetos/market/dominio/marketDominio";
 
 export type SecaoNavegacao = "Hoje" | "Vendas" | "Comercial" | "Vitrine" | "Gestão" | "Admin/Sistema";
 
@@ -96,6 +101,8 @@ export const rotasPublicas: RotaPublica[] = [
   { caminho: "/", elemento: <PaginaEntradaPublica /> },
   { caminho: "/login", elemento: <PaginaLogin /> },
   { caminho: "/checkout", elemento: <PaginaCheckoutBizy /> },
+  { caminho: "/compras/:id", elemento: <PaginaCompraUnificada /> },
+  { caminho: "/f/:slug/lead", elemento: <PaginaFormularioLeadPublico /> },
   { caminho: "/produtos/:codigo", elemento: <PaginaProdutoMarket /> },
   { caminho: "/lojas", elemento: <PaginaDiretorioLojasMarket /> },
   { caminho: "/categorias/:categoria", elemento: <PaginaMarket /> },
@@ -105,6 +112,7 @@ export const rotasPublicas: RotaPublica[] = [
   { caminho: "/lojas-market/:slug", elemento: <PaginaLojaMarket /> },
   { caminho: "/market/categorias/:categoria", elemento: <PaginaMarket /> },
   { caminho: "/market", elemento: <PaginaMarket /> },
+  { caminho: "/learning", elemento: <PaginaLearning /> },
   { caminho: "/lojas/:slug/catalogos/:catalogo", elemento: <PaginaCatalogoPublico /> },
   { caminho: "/lojas/:slug/produtos/:codigo", elemento: <PaginaLojaDigitalPublica /> },
   { caminho: "/lojas/:slug", elemento: <PaginaLojaDigitalPublica /> }
@@ -142,6 +150,8 @@ export const rotasComerciais: RotaPrivada[] = [
   // ── Gestão ──
   { caminho: "/app/relatorios", icone: <LineChart size={20} />, rotulo: "Desempenho", secao: "Gestão", elemento: <PaginaRelatorios /> },
   { caminho: "/app/equipa", icone: <UsersRound size={20} />, rotulo: "Equipa", secao: "Gestão", elemento: <PaginaEquipa /> },
+  { caminho: "/app/learning", icone: <GraduationCap size={20} />, rotulo: "Learning", secao: "Gestão", elemento: <PaginaLearningTeam /> },
+  { caminho: "/app/projectos", icone: <Workflow size={20} />, rotulo: "Projectos", secao: "Gestão", elemento: <PaginaProjectos /> },
   { caminho: "/app/financas", icone: <Wallet size={20} />, rotulo: "Finanças", secao: "Gestão", elemento: <PaginaFinancas /> },
   { caminho: "/app/inteligencia", icone: <Brain size={20} />, rotulo: "Inteligência", secao: "Gestão", elemento: <PaginaInteligencia /> },
   { caminho: "/app/pagamentos", icone: <CreditCard size={20} />, rotulo: "Pagamentos", secao: "Gestão", elemento: <PaginaPagamentos /> },
@@ -154,8 +164,8 @@ export const rotasAdminSistema: RotaPrivada[] = [
   { caminho: "/app/auditoria", icone: <Shield size={20} />, rotulo: "Auditoria", secao: "Admin/Sistema", elemento: <PaginaAuditoria />, requerAdminSistema: true },
 ];
 
-export const caminhosCrmV3Principais = ["/app", "/app/reservas", "/app/conversas", "/app/clientes", "/app/live", "/app/loja", "/app/relatorios"] as const;
-export const rotulosCrmV3Principais = ["Início", "Pedidos", "Atendimento", "Clientes", "Live", "Studio", "Relatórios"] as const;
+export const caminhosCrmV3Principais = ["/app", "/app/reservas", "/app/conversas", "/app/tarefas", "/app/clientes", "/app/metas", "/app/equipa", "/app/learning", "/app/projectos", "/app/financas", "/app/live", "/app/loja", "/app/relatorios"] as const;
+export const rotulosCrmV3Principais = ["Início", "Pedidos", "Atendimento", "Tarefas", "Clientes", "Metas", "Equipa", "Learning", "Projectos", "Finanças", "Live", "Studio", "Relatórios"] as const;
 
 export const rotasCrmV3Principais: RotaPrivada[] = caminhosCrmV3Principais.reduce<RotaPrivada[]>((rotas, caminho, indice) => {
   const rota = rotasComerciais.find((item) => item.caminho === caminho);

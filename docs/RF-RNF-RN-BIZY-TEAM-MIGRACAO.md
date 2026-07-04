@@ -50,7 +50,7 @@ O BIZY CRM+ possui 20 módulos HTTP, 55 modelos Prisma e 44 use cases cobrindo:
 - Sem orçamento por período
 - Sem contas a receber/pagar além de pedidos
 - Sem previsão financeira
-- Sem reconciliação bancária
+- Reconciliação bancária por importação CSV/OFX implementada; integração bancária directa ainda não incluída.
 
 **Inteligência Preditiva:**
 - Sem previsão de demanda
@@ -60,7 +60,7 @@ O BIZY CRM+ possui 20 módulos HTTP, 55 modelos Prisma e 44 use cases cobrindo:
 - Sem insights proactivos na interface
 
 **Conformidade Regulatória:**
-- Sem suporte a e-invoicing
+- Geração de e-invoicing XML/UBL implementada; submissão Peppol/API governamental depende de credenciais externas.
 - Sem conformidade fiscal automatizada
 - Sem integração com portais governamentais
 
@@ -77,7 +77,7 @@ O BIZY CRM+ possui 20 módulos HTTP, 55 modelos Prisma e 44 use cases cobrindo:
 | Módulo `crm` (obrigatório) | Módulo `team-core` (obrigatório) |
 | Papéis CRM (VENDEDOR, ATENDENTE) | Mantidos + novos papéis |
 | `crmApoio` | `apoioComercial` ✅ |
-| Referências a "CRM" no código | Substituídas por "Team" onde aplicável ✅ |
+| Referências a "CRM" no código | Substituídas por "Team" onde aplicável; aliases técnicos legados permanecem para compatibilidade ✅ |
 
 ---
 
@@ -129,7 +129,7 @@ O BIZY CRM+ possui 20 módulos HTTP, 55 modelos Prisma e 44 use cases cobrindo:
 #### 5.1.5 Ambient Analytics
 
 - [x] [RF-T017] O sistema deve apresentar insights preditivos de forma contextualizada dentro dos fluxos de trabalho (não apenas em dashboards dedicados).
-- [ ] [RF-T018] O sistema deve entregar notificações proactivas de insights via WhatsApp para gestores e donos de negócio.
+- [x] [RF-T018] O sistema deve entregar notificações proactivas de insights via WhatsApp para gestores e donos de negócio. *(implementado em `POST /workflow/notificacoes/proactivas/alertas`: inclui insights preditivos de alta confiança no alerta WhatsApp aos gestores)*
 - [x] [RF-T019] O sistema deve permitir configuração do nível de proactividade dos alertas (mínimo, moderado, completo) por utilizador.
 
 ---
@@ -179,15 +179,15 @@ O BIZY CRM+ possui 20 módulos HTTP, 55 modelos Prisma e 44 use cases cobrindo:
 
 #### 5.2.7 Reconciliação
 
-- [ ] [RF-T043] O sistema deve permitir importação de extracto bancário (CSV/OFX) para reconciliação manual assistida.
-- [ ] [RF-T044] O sistema deve sugerir correspondências automáticas entre movimentos bancários e registos internos (pedidos, despesas, comissões).
-- [ ] [RF-T045] O sistema deve marcar itens reconciliados e destacar itens sem correspondência para resolução manual.
+- [x] [RF-T043] O sistema deve permitir importação de extracto bancário (CSV/OFX) para reconciliação manual assistida. *(implementado: `POST /financas/reconciliacao/importar` persiste importação e movimentos bancários)*
+- [x] [RF-T044] O sistema deve sugerir correspondências automáticas entre movimentos bancários e registos internos (pedidos, despesas, comissões). *(implementado: matching por tipo/valor/data/descrição com sugestões em `sugestoesJson`)*
+- [x] [RF-T045] O sistema deve marcar itens reconciliados e destacar itens sem correspondência para resolução manual. *(implementado: conciliação marca movimento bancário e ledger; itens pendentes/ignorados ficam filtráveis)*
 
 #### 5.2.8 E-Invoicing e Conformidade
 
-- [ ] [RF-T046] O sistema deve suportar geração de facturas electrónicas em formato estruturado (XML/UBL) compatível com normativas locais.
+- [x] [RF-T046] O sistema deve suportar geração de facturas electrónicas em formato estruturado (XML/UBL) compatível com normativas locais. *(implementado: `GET /conformidade/facturas/:id/e-invoicing` gera XML UBL 2.1/Peppol BIS)*
 - [x] [RF-T047] O sistema deve permitir configuração de regras fiscais por país/região (IVA, retenções, isenções).
-- [ ] [RF-T048] O sistema deve preparar integração com redes Peppol e gateways de e-invoicing regionais via API.
+- [x] [RF-T048] O sistema deve preparar integração com redes Peppol e gateways de e-invoicing regionais via API. *(implementado: catálogo de adaptadores UBL/Peppol/API regional e `POST /conformidade/facturas/:id/e-invoicing/enviar` prepara despacho assíncrono via outbox n8n com referência de credencial cifrada)*
 - [x] [RF-T049] O sistema deve validar facturas contra regras fiscais antes da emissão, bloqueando emissão não conforme.
 - [x] [RF-T050] O sistema deve manter registo auditável de todas as facturas emitidas, canceladas e corrigidas.
 
@@ -219,7 +219,7 @@ O BIZY CRM+ possui 20 módulos HTTP, 55 modelos Prisma e 44 use cases cobrindo:
 #### 5.3.4 Onboarding de Membros
 
 - [x] [RF-T063] O sistema deve enviar convite por WhatsApp ou email com link de activação quando um membro é adicionado.
-- [ ] [RF-T064] O sistema deve apresentar fluxo de onboarding guiado para novos membros com configuração de perfil, tour das funcionalidades permitidas e primeira tarefa.
+- [x] [RF-T064] O sistema deve apresentar fluxo de onboarding guiado para novos membros com configuração de perfil, tour das funcionalidades permitidas e primeira tarefa. *(implementado: checklist orientado por membro, primeira tarefa `ONBOARDING_MEMBRO`, endpoint `/equipa/onboarding-guiado` e cartão no Painel com passos pendentes e módulos permitidos)*
 - [x] [RF-T065] O sistema deve permitir que o dono/admin acompanhe o estado do onboarding de cada membro convidado.
 
 #### 5.3.5 Comunicação Interna
@@ -244,12 +244,12 @@ O BIZY CRM+ possui 20 módulos HTTP, 55 modelos Prisma e 44 use cases cobrindo:
 - [x] [RF-T112] O sistema deve apresentar um "Checklist de Primeiro Dia" dinâmico no painel do novo membro (ex: 1. Configurar notificações WhatsApp; 2. Responder ao primeiro lead; 3. Conhecer a equipa), adaptado ao papel.
 - [x] [RF-T113] O sistema deve ocultar módulos complexos e desnecessários para o papel do utilizador durante os primeiros 7 dias, focando apenas nas tarefas imediatas (ex: o vendedor não vê Finanças/Fluxo de Caixa; o atendente não vê Pipeline).
 - [x] [RF-T114] O sistema deve gerar automaticamente uma "Tarefa de Boas-vindas" atribuída ao novo membro e uma tarefa de "Mentoria" atribuída ao gestor, para garantir o primeiro contacto humano na plataforma.
-- [ ] [RF-T115] O sistema deve suportar "Modo Sombra" (Shadow Mode) para o dono/admin, permitindo que ele veja exactamente o que o novo membro vê, para ajudar no suporte em tempo real.
+- [x] [RF-T115] O sistema deve suportar "Modo Sombra" (Shadow Mode) para o dono/admin, permitindo que ele veja exactamente o que o novo membro vê, para ajudar no suporte em tempo real. *(implementado: `GET /equipa/membros/:id/modo-sombra` devolve módulos, widgets filtrados por papel e checklist do membro alvo; página Equipa abre painel de simulação auditado)*
 
 #### 5.3.8 Dinâmicas de Turno e Passagem de Bastão
 
 - [x] [RF-T116] O sistema deve gerar automaticamente um "Relatório de Passagem de Turno" no final do horário de um membro, resumindo conversas abertas, tarefas pendentes e clientes quentes, enviando-o para o membro do turno seguinte ou para a fila geral.
-- [ ] [RF-T117] O sistema deve permitir "Check-in de Turno" via WhatsApp (o membro envia "Iniciar" no bot do BIZY e o sistema activa o seu turno no painel web).
+- [x] [RF-T117] O sistema deve permitir "Check-in de Turno" via WhatsApp (o membro envia "Iniciar" no bot do BIZY e o sistema activa o seu turno no painel web). *(implementado: webhook Evolution interpreta comandos de turno e regista `RegistoPresenca` com método `WHATSAPP`)*
 
 #### 5.3.9 Workflow Lock-in para a Equipa (Empoderamento do Funcionário)
 
@@ -258,7 +258,7 @@ O BIZY CRM+ possui 20 módulos HTTP, 55 modelos Prisma e 44 use cases cobrindo:
 - [x] [RF-T118] O painel do vendedor deve apresentar widget de "Comissão Estimada Hoje/Mês" em tempo real, calculado com base nas vendas atribuídas e metas atingidas, para que o vendedor veja quanto vai ganhar e abra o sistema todos os dias.
 - [x] [RF-T119] O sistema deve registar toda a actividade do membro (mensagens enviadas, follow-ups, tarefas concluídas) no Feed de Actividade pessoal, servindo como prova auditável do trabalho realizado em caso de disputa.
 - [x] [RF-T120] O sistema deve suportar "Modo Competição" opcional (gamificação saudável), activável pelo dono, com ranking semanal da equipa por KPI seleccionado (vendas, conversões, tempo de resposta) e configuração de prémio/recompensa descritiva.
-- [ ] [RF-T121] O sistema deve apresentar ao vendedor/atendente apenas as informações necessárias para a sua função, removendo ruído visual e complexidade desnecessária (progressive disclosure por papel).
+- [x] [RF-T121] O sistema deve apresentar ao vendedor/atendente apenas as informações necessárias para a sua função, removendo ruído visual e complexidade desnecessária (progressive disclosure por papel). *(implementado: widgets contextuais são filtrados por papel antes da resposta da API, incluindo ocultação financeira para vendedor/atendente/entregador)*
 - [x] [RF-T122] O sistema deve permitir que o membro personalize as suas notificações (quais alertas quer receber, por que canal, em que horário) para evitar fadiga de notificações.
 
 ---
@@ -267,10 +267,10 @@ O BIZY CRM+ possui 20 módulos HTTP, 55 modelos Prisma e 44 use cases cobrindo:
 
 #### 5.4.1 Notificações Proactivas via WhatsApp
 
-- [ ] [RF-T069] O sistema deve enviar resumo diário matinal via WhatsApp ao dono/gestor com: vendas do dia anterior, pagamentos pendentes, tarefas atrasadas, alertas de stock e saldo de caixa.
-- [ ] [RF-T070] O sistema deve enviar alertas financeiros críticos via WhatsApp: pagamento recebido acima de X, défice de caixa previsto, despesa acima do orçamento.
-- [ ] [RF-T071] O sistema deve enviar alertas comerciais via WhatsApp: novo lead qualificado, cliente VIP em risco, meta prestes a ser atingida.
-- [ ] [RF-T072] O sistema deve enviar alertas de projecto via WhatsApp: tarefa atrasada, prazo iminente, conclusão de etapa crítica.
+- [x] [RF-T069] O sistema deve enviar resumo diário matinal via WhatsApp ao dono/gestor com: vendas do dia anterior, pagamentos pendentes, tarefas atrasadas, alertas de stock e saldo de caixa. *(implementado: `POST /workflow/notificacoes/proactivas/resumo-diario`, respeitando consentimento e limite diário)*
+- [x] [RF-T070] O sistema deve enviar alertas financeiros críticos via WhatsApp: pagamento recebido acima de X, défice de caixa previsto, despesa acima do orçamento. *(implementado: threshold configurável em `/workflow/notificacoes/proactivas/configuracoes`, alerta de pagamento alto, défice previsto e orçamento excedido)*
+- [x] [RF-T071] O sistema deve enviar alertas comerciais via WhatsApp: novo lead qualificado, cliente VIP em risco, meta prestes a ser atingida. *(implementado em `POST /workflow/notificacoes/proactivas/alertas`)*
+- [x] [RF-T072] O sistema deve enviar alertas de projecto via WhatsApp: tarefa atrasada, prazo iminente, conclusão de etapa crítica. *(implementado: tarefas/projectos fora do prazo e detecção de entregas concluídas com marcador crítico/marco/go-live/homologação/aprovação)*
 - [x] [RF-T073] O sistema deve permitir configuração individual de quais alertas cada membro recebe via WhatsApp.
 
 #### 5.4.2 Automação de Fluxos Cross-Funcionais
@@ -284,7 +284,7 @@ O BIZY CRM+ possui 20 módulos HTTP, 55 modelos Prisma e 44 use cases cobrindo:
 
 - [x] [RF-T078] O painel principal deve mostrar widgets dinâmicos adaptados ao papel do utilizador: vendedor vê pipeline e metas; financeiro vê fluxo de caixa e cobranças; gestor vê visão geral.
 - [x] [RF-T079] O sistema deve apresentar sugestões de próxima acção com base no contexto actual do utilizador (tarefa mais urgente, lead mais quente, pagamento mais atrasado).
-- [ ] [RF-T080] O sistema deve permitir personalização da disposição de widgets no painel por utilizador.
+- [x] [RF-T080] O sistema deve permitir personalização da disposição de widgets no painel por utilizador. *(implementado: `PUT /workflow/widgets/:contexto/layout` persiste ordem/ocultação por membro em `PreferenciaWidgetPainel`)*
 
 ---
 
@@ -358,7 +358,7 @@ O BIZY CRM+ possui 20 módulos HTTP, 55 modelos Prisma e 44 use cases cobrindo:
 
 - [x] [RF-T123] O sistema deve permitir que um Projecto Comercial (ex: Live TikTok, Campanha Black Friday) tenha um Pool de Stock vinculado a produtos do catálogo, reservando quantidades específicas para aquela operação sem alterar o stock global disponível para venda corrente.
 - [x] [RF-T124] O sistema deve permitir a criação de "Equipas de Projecto" temporárias, onde membros de diferentes departamentos recebem papéis específicos de projecto (ex: REVISOR_PARSER, SUPORTE_VENDAS, LOGISTICA) válidos apenas durante a vigência do Projecto Comercial.
-- [ ] [RF-T125] O sistema deve suportar "Salas de Guerra" (War Rooms): dashboards temporários que só ficam visíveis e activos para a equipa alocada durante o intervalo de tempo do Projecto/Live, com métricas em tempo real da operação.
+- [x] [RF-T125] O sistema deve suportar "Salas de Guerra" (War Rooms): dashboards temporários que só ficam visíveis e activos para a equipa alocada durante o intervalo de tempo do Projecto/Live, com métricas em tempo real da operação. *(implementado: backend `/projectos/comerciais/:id/war-room` com acesso restrito e UI dedicada em `/app/projectos`)*
 
 #### 5.8.2 Orquestração de Filas e Automações por Projecto
 
@@ -368,7 +368,7 @@ O BIZY CRM+ possui 20 módulos HTTP, 55 modelos Prisma e 44 use cases cobrindo:
 
 #### 5.8.3 Gamificação e Métricas de Live/Projecto
 
-- [ ] [RF-T129] O sistema deve apresentar um "Placar ao Vivo" no War Room, mostrando vendas fechadas, reservas confirmadas e stock do Pool consumido em tempo real pela equipa de suporte.
+- [x] [RF-T129] O sistema deve apresentar um "Placar ao Vivo" no War Room, mostrando vendas fechadas, reservas confirmadas e stock do Pool consumido em tempo real pela equipa de suporte. *(implementado: placar backend expõe vendas fechadas, receita, reservas e stock consumido; UI mostra placar e actualização manual em `/app/projectos`)*
 - [x] [RF-T130] O sistema deve gerar um "Relatório de Debriefing" automático após o fecho do Projecto, consolidando dados do Studio (audiência) com dados do BIZY Team (vendas da equipa, tempo médio de resposta, tickets de suporte, stock liquidado) e enviá-lo via WhatsApp ao gestor.
 
 ---
@@ -377,21 +377,21 @@ O BIZY CRM+ possui 20 módulos HTTP, 55 modelos Prisma e 44 use cases cobrindo:
 
 ### 6.1 Desempenho
 
-- [ ] [RNF-T001] Os dashboards financeiros e preditivos devem carregar em menos de 2 segundos para períodos até 90 dias.
-- [ ] [RNF-T002] Os cálculos preditivos (demanda, churn, fluxo de caixa) devem executar em background sem bloquear a interface do utilizador.
-- [ ] [RNF-T003] As notificações WhatsApp proactivas devem ser entregues em menos de 60 segundos após o evento trigger.
-- [ ] [RNF-T004] O sistema deve suportar até 500 membros por negócio sem degradação perceptível de performance.
-- [ ] [RNF-T005] A reconciliação bancária deve processar ficheiros CSV até 10.000 linhas em menos de 30 segundos.
+- [~] [RNF-T001] Os dashboards financeiros e preditivos devem carregar em menos de 2 segundos para períodos até 90 dias. *(parcial: fluxo de caixa/DRE usam agregações (`groupBy` e série diária agregada) em vez de carregar movimentos completos; teste local mede guarda <2s e verifica que não há `findMany` de movimentos no dashboard; índices de período já existem para ledger/previsões; `npm run benchmark:team-rnfs` mede `/financas/fluxo-caixa` e `/financas/dre` contra o SLO em staging/produção; falta executar benchmark em base real/staging com 90 dias de dados para provar o SLA de 2s)*
+- [x] [RNF-T002] Os cálculos preditivos (demanda, churn, fluxo de caixa) devem executar em background sem bloquear a interface do utilizador. *(implementado: `POST /inteligencia/recalcular/async` cria evento `PREDICTIVE_RECALCULO_SOLICITADO` em `OutboxEventoN8n` e devolve `202`; a execução pesada fica desacoplada para worker/n8n chamar `/inteligencia/recalcular`)*
+- [~] [RNF-T003] As notificações WhatsApp proactivas devem ser entregues em menos de 60 segundos após o evento trigger. *(parcial: o trigger HTTP/cron/n8n enfileira imediatamente em `OutboxMensagemWhatsApp`; `/automacoes/whatsapp/outbox/saude` expõe `estado`, `sloEntregaMs`, pendentes acima de 60s e latência dos envios recentes; falta worker/provider em produção comprovar entrega real dentro de 60s)*
+- [x] [RNF-T004] O sistema deve suportar até 500 membros por negócio sem degradação perceptível de performance. *(implementado: limite de negócio ajustado para 500 membros activos, listagens de equipa paginadas até 500, filtros por status/busca, índice `MembroNegocio(negocioId,status,criadoEm)` e KPIs agregados por responsável para evitar filtragem repetida por membro)*
+- [~] [RNF-T005] A reconciliação bancária deve processar ficheiros CSV até 10.000 linhas em menos de 30 segundos. *(parcial: importação CSV usa `createMany` e sugestões em lote por chunks de 1.000 valores; teste local de 10.000 linhas mede guarda <30s e confirma 10 consultas de matching por chunks de 1.000; falta benchmark em base real/staging para confirmar o SLA de 30s)*
 
 ### 6.2 Escalabilidade
 
-- [ ] [RNF-T006] O motor preditivo deve escalar horizontalmente, permitindo processamento paralelo de múltiplos negócios.
-- [ ] [RNF-T007] O ledger financeiro deve suportar até 100.000 movimentos por negócio por ano sem degradação de consulta.
-- [ ] [RNF-T008] O sistema de projectos deve suportar até 200 projectos activos por negócio.
+- [x] [RNF-T006] O motor preditivo deve escalar horizontalmente, permitindo processamento paralelo de múltiplos negócios. *(implementado: `enfileirarRecalculoPreditivoLote` cria um evento `PREDICTIVE_RECALCULO_SOLICITADO` independente por negócio, com `loteId`, `chaveParticao` e `concorrenciaSugerida`, e rota `POST /inteligencia/recalcular/lote/async` valida acesso aos workspaces antes de enfileirar)*
+- [~] [RNF-T007] O ledger financeiro deve suportar até 100.000 movimentos por negócio por ano sem degradação de consulta. *(parcial: migration `20260701143000_indices_performance_financas_projectos` adiciona índices por negócio/período, reconciliação e origem; teste estático garante presença dos índices críticos; `npm run benchmark:team-rnfs` mede as consultas financeiras autenticadas contra SLO configurável; falta teste de carga real com 100k movimentos/ano)*
+- [~] [RNF-T008] O sistema de projectos deve suportar até 200 projectos activos por negócio. *(parcial: migration `20260701143000_indices_performance_financas_projectos` adiciona índices por negócio/estado/criação para `Projecto` e `ProjetoComercial`; teste local lista 200 projectos activos com `take: 200` e filtro indexável; `npm run benchmark:team-rnfs` mede `/projectos?estado=ATIVO&limite=200`; falta benchmark com 200 projectos activos em base real/staging)*
 
 ### 6.3 Segurança
 
-- [ ] [RNF-T009] Os dados financeiros devem ser cifrados em repouso e em trânsito (AES-256 / TLS 1.3). *(parcial: TLS via reverse proxy em produção; cifra de credenciais AES-256-GCM implementada; Postgres sem SSL explícito em dev)*
+- [~] [RNF-T009] Os dados financeiros devem ser cifrados em repouso e em trânsito (AES-256 / TLS 1.3). *(parcial: TLS via reverse proxy em produção; Prisma acrescenta `sslmode=require` em produção quando a `DATABASE_URL` PostgreSQL não define SSL e aceita `DATABASE_SSL_MODE=verify-full`; credenciais usam AES-256-GCM; `npm run ops:verificar-transporte` confirma TLS 1.3 público e SSL PostgreSQL quando `psql` está disponível; ainda falta prova de cifra completa de volume/base em repouso e validação TLS 1.3 do proxy/DB em produção)*
 - [x] [RNF-T010] O acesso a funcionalidades financeiras deve exigir permissão explícita (`financas:leitura`, `financas:escrita`, `financas:aprovacao`). *(permissões específicas adicionadas a DONO/ADMIN/FINANCEIRO; todos os endpoints financas.ts migrados de equipa:ler/gestao para financas:leitura/escrita/aprovacao; anulação e fecho de período exigem financas:aprovacao)*
 - [x] [RNF-T011] Todas as operações financeiras (criação, edição, aprovação, cancelamento de factura/despesa/recebimento) devem ser auditadas com utilizador, timestamp e diff. *(GestaoFinancasUseCase emite eventos FINANCAS_MOVIMENTO_CRIADO, FINANCAS_FACTURA_EMITIDA/ANULADA, FINANCAS_DESPESA_CRIADA/PAGA, FINANCAS_CONTA_RECEBIDA/PAGA, FINANCAS_NOTA_CREDITO_EMITIDA, FINANCAS_REEMBOLSO_REGISTADO, FINANCAS_PERIODO_FECHADO via DespachadorEventos → AuditoriaEventosUseCase persiste com responsavelId e timestamp)*
 - [x] [RNF-T012] Os modelos preditivos não devem expor dados de um negócio a outro (isolamento estrito multi-tenant). *(todas as queries filtram por negocioId)*
@@ -407,29 +407,29 @@ O BIZY CRM+ possui 20 módulos HTTP, 55 modelos Prisma e 44 use cases cobrindo:
 
 ### 6.5 Disponibilidade e Resiliência
 
-- [ ] [RNF-T019] O sistema financeiro deve ter disponibilidade mínima de 99,5% durante horário comercial.
-- [ ] [RNF-T020] As previsões preditivas devem ser recalculadas mesmo com falha parcial de dados (graceful degradation).
-- [ ] [RNF-T021] Os fluxos automáticos devem usar outbox pattern para garantir execução even-after-crash.
-- [ ] [RNF-T022] O sistema deve manter backup incremental diário dos dados financeiros com retenção mínima de 365 dias.
+- [~] [RNF-T019] O sistema financeiro deve ter disponibilidade mínima de 99,5% durante horário comercial. *(parcial: `GET /financas/saude` é público para probes de uptime, valida banco/ledger financeiro, latência do probe e backlog da outbox n8n com resposta 503 quando dependência crítica cai; `npm run ops:probe-financas` grava JSONL e exit codes para monitor/cron; falta monitoramento externo/staging contabilizar uptime real em horário comercial para provar 99,5%)*
+- [x] [RNF-T020] As previsões preditivas devem ser recalculadas mesmo com falha parcial de dados (graceful degradation). *(implementado: `POST /inteligencia/recalcular` executa demanda, fluxo de caixa, receita e scores com `Promise.allSettled`, devolvendo estado `PARCIAL` e erros por fonte sem bloquear cálculos restantes)*
+- [x] [RNF-T021] Os fluxos automáticos devem usar outbox pattern para garantir execução even-after-crash. *(implementado: `executarFluxo` cria `ExecucaoFluxo` e `OutboxEventoN8n` em transação antes dos passos; sucesso/falha actualizam o outbox com `execucaoId`, estado e erro para reprocessamento externo)*
+- [~] [RNF-T022] O sistema deve manter backup incremental diário dos dados financeiros com retenção mínima de 365 dias. *(parcial: `backup-postgres.sh` gera dump PostgreSQL custom, media opcional, checksum e limpeza com `BACKUP_RETENTION_DAYS=365`; `archive-postgres-wal.sh` suporta WAL archive incremental/PITR idempotente com checksum e `WAL_ARCHIVE_RETENTION_DAYS=365`; ainda falta activar `archive_mode`/`archive_command`, backup base periódico e agendamento/monitorização geridos pela infra)*
 
 ### 6.6 Integrabilidade
 
-- [ ] [RNF-T023] A plataforma financeira deve expor API REST documentada para integração com sistemas de contabilidade externos.
-- [ ] [RNF-T024] O motor preditivo deve aceitar dados de fontes externas (indicadores macroeconómicos, dados de mercado) via API ou importação.
-- [ ] [RNF-T025] O sistema de e-invoicing deve suportar múltiplos protocolos (Peppol, APIs governamentais regionais) via adaptadores plugáveis.
-- [ ] [RNF-T026] Os fluxos automáticos devem ser compatíveis com n8n para extensões customizadas.
+- [x] [RNF-T023] A plataforma financeira deve expor API REST documentada para integração com sistemas de contabilidade externos. *(implementado: `GET /financas/openapi.json` expõe contrato OpenAPI com endpoints, permissões, parâmetros e campos de request para integrações contabilísticas)*
+- [x] [RNF-T024] O motor preditivo deve aceitar dados de fontes externas (indicadores macroeconómicos, dados de mercado) via API ou importação. *(implementado: `POST /inteligencia/fontes-externas` aceita indicadores JSON ou CSV, persiste por fonte/chave/período em `fontesDadosJson` e `GET /inteligencia/fontes-externas` expõe os factores para uso nas previsões)*
+- [x] [RNF-T025] O sistema de e-invoicing deve suportar múltiplos protocolos (Peppol, APIs governamentais regionais) via adaptadores plugáveis. *(implementado: adaptadores UBL, Peppol e API regional com despacho assíncrono por outbox n8n e exigência de `credencialRef` para adaptadores credenciados)*
+- [x] [RNF-T026] Os fluxos automáticos devem ser compatíveis com n8n para extensões customizadas. *(implementado: outbox `OutboxEventoN8n`, rotas operacionais n8n e `POST /workflow/notificacoes/proactivas/executar` com origem `N8N`/`CRON`)*
 
 ### 6.7 Internacionalização
 
-- [ ] [RNF-T027] O sistema financeiro deve suportar múltiplas moedas com taxa de câmbio configurável.
-- [ ] [RNF-T028] As facturas devem suportar múltiplos idiomas com template por jurisdição.
-- [ ] [RNF-T029] Os formatos de data, número e moeda devem adaptar-se à locale do negócio.
+- [x] [RNF-T027] O sistema financeiro deve suportar múltiplas moedas com taxa de câmbio configurável. *(implementado: `/financas/movimentos/multi-moeda` aceita moeda original, valor original e taxa de câmbio, convertendo para a moeda do negócio e registando detalhe do câmbio no movimento)*
+- [x] [RNF-T028] As facturas devem suportar múltiplos idiomas com template por jurisdição. *(implementado: catálogo `/conformidade/e-invoicing/templates`, geração XML com `idioma`/`jurisdicao` e nota fiscal localizada por template de Angola em pt-AO/en-US/fr-FR)*
+- [x] [RNF-T029] Os formatos de data, número e moeda devem adaptar-se à locale do negócio. *(implementado: `/workspaces` expõe moeda/fuso do negócio activo, o Shell configura a locale por workspace e os helpers centrais `formatarKwanza`, `formatarDataCurta` e `formatarDataHoraCurta` usam `Intl` com locale/moeda/fuso do negócio, com fallback por moeda)*
 
 ### 6.8 Acesso e Onboarding
 
-- [ ] [RNF-T030] O tempo de autenticação via OTP (WhatsApp/SMS) não deve exceder 10 segundos, garantindo experiência de login inferior a 15 segundos no total.
-- [ ] [RNF-T031] A interface web do BIZY Team deve ser totalmente responsiva e optimizada para navegadores móveis (Chrome/Safari no Android/iOS), permitindo que membros de campo ou vendedores usem o sistema 100% pelo telemóvel sem perder funcionalidades core.
-- [ ] [RNF-T032] O seletor de Workspaces (para utilizadores multi-negócio) deve alternar entre contextos em menos de 1 segundo sem recarregar a página (usando state management reactivo).
+- [~] [RNF-T030] O tempo de autenticação via OTP (WhatsApp/SMS) não deve exceder 10 segundos, garantindo experiência de login inferior a 15 segundos no total. *(parcial: cliente Ombala tem timeout configurável com padrão 9s; `/auth/telefone/solicitar-codigo` devolve `latenciaEnvioMs`, `sloEnvioMs` e `dentroSloEnvio`, também persistidos em `providerResponseJson`; teste SLO local garante OTP <10s/login <15s em modo dev; falta métrica de entrega real por provider em produção)*
+- [~] [RNF-T031] A interface web do BIZY Team deve ser totalmente responsiva e optimizada para navegadores móveis (Chrome/Safari no Android/iOS), permitindo que membros de campo ou vendedores usem o sistema 100% pelo telemóvel sem perder funcionalidades core. *(parcial: shell mobile com Sheet mantém todos os módulos, abas principais incluem Tarefas, Metas, Equipa, Projectos e Finanças, dock inferior compacta em 320px e CSS evita overflow horizontal; QA local em Chromium mobile 320x740 e 390x844 passou em `/app`, `/app/tarefas`, `/app/metas`, `/app/equipa`, `/app/projectos` e `/app/financas` sem overflow/respostas >=400; falta QA visual real em Chrome/Safari Android/iOS antes de marcar como 100%)*
+- [x] [RNF-T032] O seletor de Workspaces (para utilizadores multi-negócio) deve alternar entre contextos em menos de 1 segundo sem recarregar a página (usando state management reactivo). *(implementado: Shell carrega `/workspaces`, valida `/workspaces/alternar`, actualiza `bizy_negocio_actual_id`, emite `bizy:workspace-alterado` e remonta o conteúdo por chave de workspace sem `window.location.reload`)*
 - [x] [RNF-T033] Links de convite (Magic Links) devem ter validade de 72 horas e ser de uso único (invalidados após o primeiro acesso bem-sucedido) por motivos de segurança.
 
 ---
@@ -513,7 +513,7 @@ O BIZY CRM+ possui 20 módulos HTTP, 55 modelos Prisma e 44 use cases cobrindo:
 ## 8. Priorização de Implementação
 
 ### Fase 0 — Renomeação, Acesso e Base (Semana 1-3)
-- [x] [RF-T renomeação] Substituir referências BIZY CRM → BIZY Team no código, UI e documentação
+- [x] [RF-T renomeação] Substituir referências BIZY CRM → BIZY Team no código, UI e documentação. *(rotas operacionais canónicas usam `/team/loja/*` e `/relatorios/team-pos-live`; helpers/tipos frontend usam nomes `Team`; `/crm/loja/*`, `/relatorios/crm-pos-live` e exports `Crm` ficam como aliases legados para compatibilidade)*
 - [x] [RF-T108-T111] Convite frictionless (Magic Links, OTP, Workspaces, Personas)
 - [x] [RF-T051-T054] Dashboard de desempenho por membro (extensão do existente)
 - [x] [RF-T066-T068] Notas internas e feed de actividade (extensão do existente)
@@ -524,6 +524,7 @@ O BIZY CRM+ possui 20 módulos HTTP, 55 modelos Prisma e 44 use cases cobrindo:
 - [x] [RF-T024-T027] Gestão de despesas
 - [x] [RF-T028-T031] Contas a receber
 - [x] [RF-T035-T039] Facturação e recibos
+- [x] [RF-T040-T045] Orçamento e reconciliação bancária assistida
 - [x] [RN-T001-T008] Regras financeiras
 
 ### Fase 2 — Equipa Avançada e Onboarding (Semana 8-11)
@@ -543,7 +544,7 @@ O BIZY CRM+ possui 20 módulos HTTP, 55 modelos Prisma e 44 use cases cobrindo:
 - [x] [RN-T015-T019] Regras preditivas
 
 ### Fase 4 — Workflow e Notificações (Semana 15-17)
-- [ ] [RF-T069-T073] Notificações proactivas via WhatsApp
+- [x] [RF-T069-T073] Notificações proactivas via WhatsApp (resumo diário, alertas comerciais, financeiros configuráveis, insights preditivos e etapas críticas de projecto)
 - [x] [RF-T074-T077] Automação cross-funcional
 - [x] [RF-T078-T080] Widgets contextuais
 - [x] [RN-T024-T027] Regras de workflow
@@ -553,13 +554,13 @@ O BIZY CRM+ possui 20 módulos HTTP, 55 modelos Prisma e 44 use cases cobrindo:
 - [x] [RF-T085-T088] Projectos e entregas
 - [x] [RF-T089-T091] Visibilidade contextual
 - [x] [RN-T020-T023] Regras de projectos
-- [x] [RF-T123-T125] Gestão matricial de projectos comerciais (Pool de Stock, Equipas de Projecto, War Rooms)
+- [x] [RF-T123-T125] Gestão matricial de projectos comerciais (Pool de Stock, Equipas e War Room implementados)
 - [x] [RF-T126-T128] Orquestração de filas e automações por projecto
-- [x] [RF-T129-T130] Gamificação e métricas de live/projecto (Placar ao Vivo, Debriefing)
+- [x] [RF-T129-T130] Gamificação e métricas de live/projecto (Placar ao Vivo e Debriefing implementados)
 - [x] [RN-T041-T045] Regras de integração operacional
 
 ### Fase 6 — Conformidade e ROI (Semana 23-26)
-- [ ] [RF-T046-T050] E-invoicing
+- [x] [RF-T046-T050] E-invoicing (XML/UBL, validação fiscal e preparação de despacho externo Peppol/API regional via outbox n8n)
 - [x] [RF-T092-T095] Multi-jurisdição
 - [x] [RF-T096-T107] Métricas de ROI e adopção
 - [x] [RN-T028-T032] Regras de conformidade e ROI
@@ -578,8 +579,8 @@ O BIZY CRM+ possui 20 módulos HTTP, 55 modelos Prisma e 44 use cases cobrindo:
 - `ItemFactura` — itens de cada factura
 - `NotaCredito` — notas de crédito vinculadas
 - `OrcamentoPeriodo` — orçamento por categoria e período
-- `ReconciliacaoBancaria` — sessões de reconciliação
-- `ItemReconciliacao` — correspondências automáticas e manuais
+- `ImportacaoExtratoBancario` — lote de extrato importado para reconciliação
+- `MovimentoBancario` — linha bancária conciliável com movimentos financeiros
 - `RegraFiscal` — regras fiscais por jurisdição
 
 ### 9.2 Equipa, Acesso e Onboarding
@@ -620,6 +621,8 @@ O BIZY CRM+ possui 20 módulos HTTP, 55 modelos Prisma e 44 use cases cobrindo:
 - `PassoFluxo` — passos com condições e acções
 - `ExecucaoFluxo` — execuções com resultado e auditoria
 - `ConfiguracaoNotificacao` — preferências de alerta por membro
+- `ConfiguracaoAlertaProactivo` — thresholds e regras de alertas proactivos por negócio/canal
+- `PreferenciaWidgetPainel` — ordem e ocultação de widgets por membro/contexto
 
 ### 9.7 Integração Operacional (Projectos Comerciais e Lives)
 - `ProjetoComercial` — nome, descrição, data início/fim, estado (PLANEADO, EM_ANDAMENTO, FECHADO), tipo (LIVE, CAMPANHA, LANCAMENTO), vinculado a Negocio

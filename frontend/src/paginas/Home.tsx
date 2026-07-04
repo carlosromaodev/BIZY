@@ -57,7 +57,7 @@ import { LogoBizy, NOME_PRODUTO } from "../marca/bizy";
 const beneficiosPrincipais = [
   { icone: Store, titulo: "Loja digital completa", texto: "Catálogo com variantes, fotos, stock e preços. Loja pública com subdomínio próprio, checkout integrado e perfil profissional. Do produto à venda — tudo pronto.", tom: "azul" as const },
   { icone: ShoppingCart, titulo: "Bizy Market — marketplace", texto: "Os teus produtos aparecem no marketplace. Pesquisa por localização, categoria e preço. Checkout multi-loja para o comprador comprar de várias lojas num só pedido.", tom: "verde" as const },
-  { icone: Users, titulo: "CRM e gestão de clientes", texto: "Cada cliente com histórico de compras, conversas, notas e tags. Funil de vendas, pipeline comercial, score de fiabilidade e perfil enriquecido automaticamente.", tom: "violeta" as const },
+  { icone: Users, titulo: "Team e gestão de clientes", texto: "Cada cliente com histórico de compras, conversas, notas e tags. Funil de vendas, pipeline comercial, score de fiabilidade e perfil enriquecido automaticamente.", tom: "violeta" as const },
   { icone: MessageCircle, titulo: "Inbox omnicanal", texto: "WhatsApp, Instagram e TikTok — todas as conversas num único inbox. Respostas rápidas, sequências automáticas e histórico completo por cliente.", tom: "ambar" as const },
   { icone: Zap, titulo: "Lives que vendem sozinhas", texto: "Cada comentário com palavra-chave vira pedido automático. Stock actualizado em tempo real, checkout preparado e notificação ao comprador — tu focas na câmara.", tom: "rosa" as const },
   { icone: CreditCard, titulo: "Finanças e facturação", texto: "Contas a receber e pagar, cobranças automáticas, risco de inadimplência por cliente, priorização de pagamentos e orçamento mensal. Facturação com recibos PDF.", tom: "azul" as const },
@@ -70,7 +70,7 @@ const beneficiosPrincipais = [
 const modulosPlataforma: { icone: LucideIcon; titulo: string; itens: string[] }[] = [
   { icone: Store, titulo: "Loja digital", itens: ["Catálogo com variantes e stock", "Loja pública com slug", "Colecções manuais e automáticas", "Compra assistida por WhatsApp", "Cupões e promoções", "SEO por loja e produto", "Sistema de seguidores"] },
   { icone: Globe, titulo: "Bizy Market", itens: ["Marketplace multi-loja", "Pesquisa por localização e preço", "Compra unificada multi-fornecedor", "Produtos patrocinados e destaques", "Repasses financeiros automáticos", "Reembolsos parciais e totais", "Denúncias e moderação"] },
-  { icone: Users, titulo: "CRM completo", itens: ["Ficha de cliente com histórico", "Fluxo e funil de vendas", "Tags, notas e segmentação", "Score de fiabilidade privado", "Partilha de perfil com consentimento", "Recuperação de clientes inativos", "Playbooks automáticos"] },
+  { icone: Users, titulo: "Team comercial completo", itens: ["Ficha de cliente com histórico", "Fluxo e funil de vendas", "Tags, notas e segmentação", "Score de fiabilidade privado", "Partilha de perfil com consentimento", "Recuperação de clientes inativos", "Playbooks automáticos"] },
   { icone: Receipt, titulo: "Finanças e facturação", itens: ["Contas a receber e pagar", "Cobranças automáticas de vencidos", "Risco de inadimplência por cliente", "Priorização de pagamentos", "Orçamento mensal por categoria", "Recibos e facturas em PDF", "Metas de vendas com comissões"] },
   { icone: BarChart3, titulo: "Inteligência preditiva", itens: ["Scoring RFM de clientes", "Alertas de churn VIP", "Previsão de fluxo de caixa", "Detecção de anomalias", "Análise de carga da equipa", "Funil comercial com sugestões", "LTV por cliente"] },
   { icone: CalendarCheck, titulo: "Equipa e operação", itens: ["Turnos e registo de presenças", "Metas com alertas e bónus", "Passagem de turno automática", "Feed de actividade da equipa", "Comissão estimada diária/mensal", "Convites e papéis por membro", "Notas com menções e notificações"] },
@@ -102,7 +102,7 @@ const linksNavegacao = [
 const capacidades = [
   "Loja digital com checkout",
   "Bizy Market — marketplace",
-  "CRM e perfil de cliente",
+  "Team e perfil de cliente",
   "Inbox WhatsApp + Instagram",
   "Lives com captura automática",
   "Finanças e facturação",
@@ -136,16 +136,16 @@ const canaisVenda = [
 
 const testemunhos = [
   { texto: "Antes perdia metade dos pedidos na live. Agora o Bizy captura tudo e eu foco em apresentar os produtos.", nome: "Marlene K.", papel: "Vendedora de moda, Luanda", iniciais: "MK", cor: "#7A63C9" },
-  { texto: "O CRM mostrou-me que 40% dos meus clientes eram recorrentes. Comecei a fazer ofertas e as vendas dispararam.", nome: "Zeca A.", papel: "Electrónica e acessórios", iniciais: "ZA", cor: "#D98E2B" },
+  { texto: "O Team mostrou-me que 40% dos meus clientes eram recorrentes. Comecei a fazer ofertas e as vendas dispararam.", nome: "Zeca A.", papel: "Electrónica e acessórios", iniciais: "ZA", cor: "#D98E2B" },
   { texto: "Configurei a loja num sábado à noite e na segunda já estava a receber pedidos pelo link. Simples assim.", nome: "Keyla L.", papel: "Cosmética natural, Viana", iniciais: "KL", cor: "#0E8C68" },
   { texto: "O marketplace trouxe-me clientes que nunca teria encontrado sozinha. E o checkout multi-loja é genial para o comprador.", nome: "Beatriz Y.", papel: "Artesanato, Benguela", iniciais: "BY", cor: "#C9564A" },
   { texto: "O programa de afiliados criou-me uma rede de vendedores que promovem os meus produtos. Comissão automática, sem stress.", nome: "Fábio S.", papel: "Suplementos e fitness", iniciais: "FS", cor: "#3d7bc0" },
 ];
 
 const perguntasFrequentes: [string, string][] = [
-  ["O Bizy serve apenas para lives?", "De todo. O Bizy é uma plataforma completa: loja digital, marketplace, CRM, finanças, inteligência preditiva, gestão de equipa com turnos e metas, facturação PDF, afiliados e relatórios. As lives são apenas um dos canais de venda."],
+  ["O Bizy serve apenas para lives?", "De todo. O Bizy é uma plataforma completa: loja digital, marketplace, Team, finanças, inteligência preditiva, gestão de equipa com turnos e metas, facturação PDF, afiliados e relatórios. As lives são apenas um dos canais de venda."],
   ["O que é o Bizy Market?", "É o marketplace integrado onde os teus produtos ficam visíveis a milhares de compradores. Funciona como um shopping digital — o comprador pode comprar de várias lojas num único checkout, com pagamento unificado e repasse automático a cada fornecedor."],
-  ["Como funciona o CRM?", "Cada cliente tem uma ficha completa: histórico de compras, conversas, notas privadas, tags e score de fiabilidade. O pipeline de vendas acompanha cada oportunidade. Quando um cliente fica inactivo, o sistema sugere playbooks de recuperação."],
+  ["Como funciona o Team comercial?", "Cada cliente tem uma ficha completa: histórico de compras, conversas, notas privadas, tags e score de fiabilidade. O pipeline de vendas acompanha cada oportunidade. Quando um cliente fica inactivo, o sistema sugere playbooks de recuperação."],
   ["O que é a inteligência preditiva?", "O motor analisa os teus dados e gera scoring RFM dos clientes, alertas de churn VIP, previsão de fluxo de caixa com cenários, detecção de anomalias em receitas e despesas, análise de carga da equipa e funil comercial com sugestões."],
   ["Como funciona a gestão de equipa?", "Crias membros com papéis e permissões, defines turnos e registos de presença, estabeleces metas de vendas com alertas automáticos e bónus por atingimento. O sistema calcula comissões estimadas e gera passagens de turno com resumo."],
   ["Como funcionam as finanças?", "Contas a receber e pagar, cobranças automáticas de vencidos, risco de inadimplência por cliente, priorização de pagamentos, orçamento mensal por categoria, recibos e facturas em PDF — tudo com auditoria completa."],
@@ -164,7 +164,7 @@ const passos = [
 
 const diferenciais = [
   { icone: Globe, titulo: "Multi-canal nativo", texto: "Não é um plugin — cada canal (loja, market, WhatsApp, Instagram, live) está integrado de raiz." },
-  { icone: UserCheck, titulo: "CRM com identidade", texto: "Um cliente, um perfil global. Cada loja tem a sua relação privada — dados protegidos por design." },
+  { icone: UserCheck, titulo: "Team com identidade", texto: "Um cliente, um perfil global. Cada loja tem a sua relação privada — dados protegidos por design." },
   { icone: BarChart3, titulo: "Inteligência preditiva", texto: "RFM, churn VIP, previsão de caixa e detecção de anomalias — o sistema antecipa problemas antes que aconteçam." },
   { icone: Search, titulo: "Descoberta no Market", texto: "Os teus produtos aparecem a compradores que ainda não te conhecem. SEO, filtros e destaques." },
   { icone: CalendarCheck, titulo: "Equipa organizada", texto: "Turnos, presenças, metas de vendas com bónus, comissões estimadas e passagem de turno com resumo automático." },
@@ -281,7 +281,7 @@ export function PaginaHome() {
             initial={rm ? false : { opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.45, delay: 0.08, ease: [0.22, 1, 0.36, 1] }}
-          >Loja + Marketplace + CRM + Finanças + Inteligência + Equipa</motion.p>
+          >Loja + Marketplace + Team + Finanças + Inteligência + Equipa</motion.p>
 
           <motion.h1
             className="bizy-hero-h1"
@@ -298,7 +298,7 @@ export function PaginaHome() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.22, ease: [0.22, 1, 0.36, 1] }}
           >
-            Loja digital, marketplace, CRM, finanças com cobranças automáticas, inteligência preditiva, gestão de equipa com turnos e metas, facturação PDF, afiliados e relatórios — tudo integrado numa única plataforma feita para Angola.
+            Loja digital, marketplace, Team, finanças com cobranças automáticas, inteligência preditiva, gestão de equipa com turnos e metas, facturação PDF, afiliados e relatórios — tudo integrado numa única plataforma feita para Angola.
           </motion.p>
 
           <motion.div
@@ -420,7 +420,7 @@ export function PaginaHome() {
           <div className="bizy-section-head">
             <span>Plataforma completa</span>
             <h2>Tudo o que o {NOME_PRODUTO} faz <em>por ti</em></h2>
-            <p>Loja, marketplace, CRM, finanças, inteligência preditiva, gestão de equipa, facturação, afiliados e muito mais — integrado de raiz.</p>
+            <p>Loja, marketplace, Team, finanças, inteligência preditiva, gestão de equipa, facturação, afiliados e muito mais — integrado de raiz.</p>
           </div>
         </Reveal>
         <div className="bizy-feature-grid">
@@ -561,7 +561,7 @@ export function PaginaHome() {
         <section className="bizy-home-band">
           <div>
             <h2>O teu negócio merece mais do que um caderno e o WhatsApp.</h2>
-            <p>Loja, marketplace, CRM, pagamentos, relatórios e muito mais — tudo pronto para começares hoje. Grátis.</p>
+            <p>Loja, marketplace, Team, pagamentos, relatórios e muito mais — tudo pronto para começares hoje. Grátis.</p>
           </div>
           <Link className="bizy-btn bizy-btn-lime bizy-btn-large" to="/login">
             Começar grátis agora <ArrowRight size={17} />
@@ -592,7 +592,7 @@ export function PaginaHome() {
         <div className="bizy-footer-main">
           <div className="bizy-footer-brand">
             <LogoBizy />
-            <p>A plataforma completa de comércio para empreendedores angolanos — loja, marketplace, CRM, finanças, inteligência e equipa.</p>
+            <p>A plataforma completa de comércio para empreendedores angolanos — loja, marketplace, Team, finanças, inteligência e equipa.</p>
             <Link className="bizy-btn bizy-btn-primary" to="/login">Começar agora <ArrowRight size={16} /></Link>
           </div>
           <nav aria-label="Plataforma">
@@ -607,7 +607,7 @@ export function PaginaHome() {
             <strong>Produto</strong>
             <span>Loja digital</span>
             <span>Bizy Market</span>
-            <span>CRM e clientes</span>
+            <span>Team e clientes</span>
             <span>Finanças e facturação</span>
             <span>Inteligência preditiva</span>
             <span>Gestão de equipa</span>
@@ -616,7 +616,7 @@ export function PaginaHome() {
             <strong>Contacto</strong>
             <span>Luanda, Angola</span>
             <a href="mailto:suporte@bizy.ao">suporte@bizy.ao</a>
-            <span>Loja, marketplace, CRM, finanças, inteligência — tudo num lugar.</span>
+            <span>Loja, marketplace, Team, finanças, inteligência — tudo num lugar.</span>
           </div>
         </div>
         <div className="bizy-footer-bottom">

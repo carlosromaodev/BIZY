@@ -69,7 +69,7 @@ describe("SLO operacional do piloto", () => {
     }
   });
 
-  it("responde ao pedido de código de login dentro da janela operacional de 30s", async () => {
+  it("responde OTP em até 10s e conclui login em até 15s no modo dev", async () => {
     const app = await criarAplicacao();
 
     try {
@@ -79,11 +79,28 @@ describe("SLO operacional do piloto", () => {
         url: "/auth/telefone/solicitar-codigo",
         payload: { telefone: "923000099", nome: "Vendedor SLO" }
       });
-      const duracaoMs = performance.now() - inicio;
+      const duracaoOtpMs = performance.now() - inicio;
 
       expect(respostaCodigo.statusCode).toBe(202);
       expect(respostaCodigo.json().statusEnvio).toBe("DEV");
-      expect(duracaoMs).toBeLessThan(30_000);
+      expect(respostaCodigo.json()).toEqual(
+        expect.objectContaining({
+          latenciaEnvioMs: expect.any(Number),
+          sloEnvioMs: 10_000,
+          dentroSloEnvio: true
+        })
+      );
+      expect(duracaoOtpMs).toBeLessThan(10_000);
+
+      const respostaSessao = await app.inject({
+        method: "POST",
+        url: "/auth/telefone/confirmar-codigo",
+        payload: { telefone: "923000099", codigo: respostaCodigo.json().codigoDev }
+      });
+      const duracaoTotalMs = performance.now() - inicio;
+
+      expect(respostaSessao.statusCode).toBe(200);
+      expect(duracaoTotalMs).toBeLessThan(15_000);
     } finally {
       await app.close();
     }

@@ -91,6 +91,38 @@ describe("Tratativa de erros de infraestrutura", () => {
     }
   });
 
+  it("RNF-T019: expõe indisponibilidade financeira sem exigir sessão quando o banco cai", async () => {
+    const app = await criarAplicacao();
+
+    try {
+      const resposta = await app.inject({ method: "GET", url: "/financas/saude" });
+
+      expect(resposta.statusCode).toBe(503);
+      expect(resposta.json()).toEqual(
+        expect.objectContaining({
+          ok: false,
+          estado: "INDISPONIVEL",
+          modulo: "financas",
+          alvoSlo: expect.objectContaining({
+            disponibilidadeMinimaPercentual: 99.5
+          }),
+          dependencias: expect.objectContaining({
+            banco: expect.objectContaining({
+              estado: "INDISPONIVEL",
+              mensagem: "Base de dados indisponível. Verifique se o Postgres está em execução e tente novamente."
+            }),
+            ledgerFinanceiro: expect.objectContaining({
+              estado: "INDISPONIVEL"
+            })
+          })
+        })
+      );
+      expect(resposta.body).not.toContain("127.0.0.1:1");
+    } finally {
+      await app.close();
+    }
+  });
+
   it("mantém a raiz pública para validação rápida do túnel", async () => {
     const app = await criarAplicacao();
 

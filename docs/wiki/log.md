@@ -6,10 +6,16 @@ tags:
   - bizy/wiki
   - bizy/log
 status: ativo
-updated: 2026-06-28
+updated: 2026-06-30
 ---
 
 # Log da Wiki
+
+## [2026-06-30] produto | Meta global do Bizy estabelecida
+
+- Criada a spec estrategica `docs/superpowers/specs/2026-06-30-meta-global-bizy.md`.
+- SDD atualizado para usar a meta global como filtro antes de novas specs, planos e decisoes de produto.
+- `visao-produto-bizy.md` e `index.md` atualizados para expor a meta como entrada principal.
 
 ## [2026-06-28] docs | SDD completo do Bizy
 

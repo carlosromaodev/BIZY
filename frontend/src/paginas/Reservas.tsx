@@ -1,26 +1,23 @@
 import {
   AlertCircle,
-  AlertTriangle,
   Check,
   ClipboardList,
-  Clock,
-  Eye,
   Kanban,
   List,
   MessageSquare,
   PackageCheck,
   Plus,
   ReceiptText,
-  ShoppingBag,
   Truck,
   Wrench,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { criarFonteEventosAutenticada, requisitarApi } from "../api";
 import { EstadoVazio } from "../componentes/Shell";
 import { SkeletonPagina } from "../componentes/SkeletonBlocks";
 import { CrmPageMotion } from "../componentes/CrmInterno21st";
+import { Input } from "@/components/ui/input";
 import type {
   Cliente360,
   EstadoEntregaPedido,
@@ -41,7 +38,6 @@ import {
   PanelCard,
   Money,
   TabsBizy,
-  IconButton,
   type CorSemantica,
 } from "../componentes/BizyDesignSystem";
 
@@ -65,6 +61,7 @@ function obterIniciais(nome: string): string {
 /* ── Component ──────────────────────────────────────────────────── */
 
 export function PaginaReservas() {
+  const [searchParams] = useSearchParams();
   const [pedidos, setPedidos] = useState<Pedido[]>([]);
   const [clientes, setClientes] = useState<Cliente360[]>([]);
   const [preparacao, setPreparacao] = useState<RespostaPreparacaoPedidos>({ pedidos: [], produtos: [] });
@@ -77,6 +74,13 @@ export function PaginaReservas() {
   const [vistaFunil, setVistaFunil] = useState<VistaFunil>("lista");
   const [aba, setAba] = useState("fluxo");
   const [limitePedidos, setLimitePedidos] = useState(12);
+  const [pedidoPagamento, setPedidoPagamento] = useState<Pedido | null>(null);
+  const [pagamentoMetodo, setPagamentoMetodo] = useState("Transferência");
+  const [pagamentoReferencia, setPagamentoReferencia] = useState("");
+  const [pagamentoComprovativoUrl, setPagamentoComprovativoUrl] = useState("");
+
+  const pedidoIdParametro = searchParams.get("pedidoId");
+  const filtroParametro = searchParams.get("filtro");
 
   /* ── Data fetching ─────────────────────────────────────────── */
 
@@ -117,23 +121,75 @@ export function PaginaReservas() {
     return () => eventos.close();
   }, []);
 
-  async function executar(acao: () => Promise<unknown>, sucesso: string) {
+  useEffect(() => {
+    if (pedidoIdParametro) {
+      setAba("fluxo");
+      setFiltroFunil("todos");
+      return;
+    }
+    if (ehFiltroFunil(filtroParametro)) {
+      setAba("fluxo");
+      setFiltroFunil(filtroParametro);
+    }
+  }, [filtroParametro, pedidoIdParametro]);
+
+  async function executar(acao: () => Promise<unknown>, sucesso: string): Promise<boolean> {
     setCarregando(true);
     setMensagem("A processar...");
     try {
       await acao();
       await carregar();
       setMensagem(sucesso);
+      return true;
     } catch (e) {
       setMensagem(e instanceof Error ? e.message : "Erro.");
+      return false;
     } finally {
       setCarregando(false);
     }
   }
 
+  function abrirConfirmacaoPagamento(pedido: Pedido) {
+    setPedidoPagamento(pedido);
+    setPagamentoMetodo("Transferência");
+    setPagamentoReferencia(`PED-${pedido.numero}`);
+    setPagamentoComprovativoUrl(pedido.comprovativoPagamentoUrl ?? "");
+    setMensagem("");
+  }
+
+  async function confirmarPagamentoSelecionado() {
+    if (!pedidoPagamento) return;
+    try {
+      validarComprovativoDigital(pagamentoComprovativoUrl);
+    } catch (erro) {
+      setMensagem(erro instanceof Error ? erro.message : "Comprovativo inválido.");
+      return;
+    }
+
+    const pedido = pedidoPagamento;
+    const confirmado = await executar(
+      () =>
+        requisitarApi(`/pedidos/${pedido.id}/confirmar-pagamento`, {
+          method: "POST",
+          body: {
+            metodoPagamento: pagamentoMetodo.trim() || undefined,
+            referenciaPagamento: pagamentoReferencia.trim() || undefined,
+            comprovativoPagamentoUrl: pagamentoComprovativoUrl.trim() || undefined,
+            observacao: "Confirmado no Team Bizy."
+          },
+      }),
+      "Pagamento confirmado, recibo gerado e Finanças sincronizadas.",
+    );
+    if (!confirmado) return;
+    setPedidoPagamento(null);
+    setPagamentoReferencia("");
+    setPagamentoComprovativoUrl("");
+  }
+
   /* ── Derived data ──────────────────────────────────────────── */
 
   const clientesPorId = useMemo(() => new Map(clientes.map((c) => [c.id, c])), [clientes]);
+  const clientePedidoPagamento = pedidoPagamento ? clientesPorId.get(pedidoPagamento.clienteNegocioId) : undefined;
 
   const aguardandoPagamento = pedidos.filter(
     (p) => p.estadoPagamento === "PENDENTE" || p.estado === "AGUARDANDO_PAGAMENTO",
@@ -158,6 +214,7 @@ export function PaginaReservas() {
   );
 
   const pedidosFiltrados = useMemo(() => {
+    if (pedidoIdParametro) return pedidos.filter((pedido) => pedido.id === pedidoIdParametro);
     switch (filtroFunil) {
       case "a-cobrar": return aguardandoPagamento;
       case "pagos": return pagos;
@@ -165,7 +222,7 @@ export function PaginaReservas() {
       case "em-atraso": return emAtraso;
       default: return pedidos;
     }
-  }, [filtroFunil, pedidos, aguardandoPagamento, pagos, enviados, emAtraso]);
+  }, [filtroFunil, pedidoIdParametro, pedidos, aguardandoPagamento, pagos, enviados, emAtraso]);
 
   const pedidosVisiveis = pedidosFiltrados.slice(0, limitePedidos);
   const existemMais = pedidosVisiveis.length < pedidosFiltrados.length;
@@ -186,7 +243,7 @@ export function PaginaReservas() {
             </div>
           </div>
           <div className="team-pghead-right">
-            <Link to="/app/reservas" className="team-btn team-btn-primary">
+            <Link to="/app/conversas" className="team-btn team-btn-primary">
               <Plus size={16} />
               Novo pedido
             </Link>
@@ -224,6 +281,50 @@ export function PaginaReservas() {
           activo={aba}
           onChange={setAba}
         />
+
+        {pedidoPagamento && (
+          <PanelCard titulo={`Confirmar pagamento #${pedidoPagamento.numero}`}>
+            <div className="grid gap-3" style={{ maxWidth: 760 }}>
+              <div className="grid gap-3 sm:grid-cols-[1fr_auto]">
+                <div>
+                  <div className="bz-att-title">
+                    {clientePedidoPagamento?.nome ?? clientePedidoPagamento?.telefone ?? "Cliente"}
+                  </div>
+                  <div className="bz-att-detail">
+                    {formatarKwanza(pedidoPagamento.totalEmKwanza)} · {pedidoPagamento.itens.length} item{pedidoPagamento.itens.length === 1 ? "" : "s"}
+                  </div>
+                </div>
+                <Link to={`/app/financas?pedidoId=${pedidoPagamento.id}`} className="team-btn team-btn-secondary">
+                  <ReceiptText size={16} />
+                  Factura
+                </Link>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-[180px_1fr_1fr]">
+                <select
+                  className="bz-toolbar-select-input"
+                  value={pagamentoMetodo}
+                  onChange={(e) => setPagamentoMetodo(e.target.value)}
+                >
+                  <option>Transferência</option>
+                  <option>TPA</option>
+                  <option>Multicaixa Express</option>
+                  <option>Dinheiro</option>
+                  <option>Outro</option>
+                </select>
+                <Input value={pagamentoReferencia} onChange={(e) => setPagamentoReferencia(e.target.value)} placeholder="Referência do pagamento" />
+                <Input value={pagamentoComprovativoUrl} onChange={(e) => setPagamentoComprovativoUrl(e.target.value)} placeholder="Link do comprovativo digital" />
+              </div>
+              <div className="flex gap-2">
+                <BotaoBizy icone={Check} onClick={() => void confirmarPagamentoSelecionado()} disabled={carregando}>
+                  Confirmar pagamento
+                </BotaoBizy>
+                <BotaoBizy variante="ghost" onClick={() => setPedidoPagamento(null)} disabled={carregando}>
+                  Cancelar
+                </BotaoBizy>
+              </div>
+            </div>
+          </PanelCard>
+        )}
 
         {/* ── Fluxo de vendas Tab ────────────────────────────── */}
         {aba === "fluxo" && (
@@ -267,6 +368,7 @@ export function PaginaReservas() {
                 clientesPorId={clientesPorId}
                 carregando={carregando}
                 onExecutar={executar}
+                onConfirmarPagamento={abrirConfirmacaoPagamento}
               />
             )}
 
@@ -327,6 +429,13 @@ export function PaginaReservas() {
                         >
                           <MessageSquare size={14} />
                         </Link>
+                        <Link
+                          to={`/app/financas?pedidoId=${pedido.id}`}
+                          className="ped-action-btn"
+                          title="Factura e finanças"
+                        >
+                          <ReceiptText size={14} />
+                        </Link>
                         {pedido.estado === "AGUARDANDO_PAGAMENTO" && (
                           <button
                             type="button"
@@ -334,16 +443,7 @@ export function PaginaReservas() {
                             data-hot="true"
                             title="Confirmar pagamento"
                             disabled={carregando}
-                            onClick={() =>
-                              void executar(
-                                () =>
-                                  requisitarApi(`/pedidos/${pedido.id}/confirmar-pagamento`, {
-                                    method: "POST",
-                                    body: { observacao: "Confirmado no CRM Bizy." },
-                                  }),
-                                "Pagamento confirmado.",
-                              )
-                            }
+                            onClick={() => abrirConfirmacaoPagamento(pedido)}
                           >
                             <Check size={14} />
                           </button>
@@ -388,13 +488,6 @@ export function PaginaReservas() {
                             >
                               <PackageCheck size={14} />
                             </button>
-                            <Link
-                              to={`/app/reservas/${pedido.id}`}
-                              className="ped-action-btn"
-                              title="Ver detalhes"
-                            >
-                              <Eye size={14} />
-                            </Link>
                           </>
                         )}
                       </span>
@@ -475,6 +568,9 @@ export function PaginaReservas() {
                         {traduzirEntregaPedido(pedido.estadoEntrega)}
                       </StatusBadge>
                       <Money valor={pedido.totalEmKwanza} />
+                      <Link to={`/app/financas?pedidoId=${pedido.id}`} className="bz-iconbtn" title="Factura e finanças">
+                        <ReceiptText size={14} />
+                      </Link>
                       {pedido.estadoEntrega !== "ENVIADO" && pedido.estadoEntrega !== "ENTREGUE" && (
                         <BotaoBizy
                           variante="ghost"
@@ -616,11 +712,13 @@ function FunilKanban({
   clientesPorId,
   carregando,
   onExecutar,
+  onConfirmarPagamento,
 }: {
   pedidos: Pedido[];
   clientesPorId: Map<string, Cliente360>;
   carregando: boolean;
-  onExecutar: (acao: () => Promise<unknown>, sucesso: string) => Promise<void>;
+  onExecutar: (acao: () => Promise<unknown>, sucesso: string) => Promise<unknown>;
+  onConfirmarPagamento: (pedido: Pedido) => void;
 }) {
   const porEstado = useMemo(() => {
     const mapa = new Map<EstadoPedido, Pedido[]>();
@@ -662,9 +760,12 @@ function FunilKanban({
                       <Link to={`/app/conversas?clienteId=${pedido.clienteNegocioId}&pedidoId=${pedido.id}`} className="bz-iconbtn" title="Conversa">
                         <MessageSquare size={12} />
                       </Link>
+                      <Link to={`/app/financas?pedidoId=${pedido.id}`} className="bz-iconbtn" title="Factura e finanças">
+                        <ReceiptText size={12} />
+                      </Link>
                       {pedido.estado === "AGUARDANDO_PAGAMENTO" && (
                         <button type="button" className="bz-iconbtn" title="Confirmar pagamento" disabled={carregando}
-                          onClick={() => void onExecutar(() => requisitarApi(`/pedidos/${pedido.id}/confirmar-pagamento`, { method: "POST", body: { observacao: "Confirmado no CRM Bizy." } }), "Pagamento confirmado.")}>
+                          onClick={() => onConfirmarPagamento(pedido)}>
                           <Check size={12} />
                         </button>
                       )}
@@ -750,4 +851,19 @@ function corEntrega(estado: EstadoEntregaPedido): CorSemantica {
   if (estado === "FALHOU" || estado === "DEVOLVIDO") return "rose";
   if (["PENDENTE", "EM_PREPARACAO", "PRONTO", "RETIRADA_LOJA"].includes(estado)) return "amber";
   return "mute";
+}
+
+function ehFiltroFunil(valor: string | null): valor is FiltroFunil {
+  return valor === "todos" || valor === "a-cobrar" || valor === "pagos" || valor === "enviados" || valor === "em-atraso";
+}
+
+function validarComprovativoDigital(valor: string): void {
+  const limpo = valor.trim();
+  if (!limpo || limpo.startsWith("data:") || limpo.startsWith("/media/files/")) return;
+  try {
+    const url = new URL(limpo);
+    if (!["http:", "https:"].includes(url.protocol)) throw new Error();
+  } catch {
+    throw new Error("Comprovativo digital deve ser um link http(s), ficheiro carregado ou data URL válido.");
+  }
 }

@@ -4,8 +4,12 @@ export interface DadosFacturaPdf {
   serie: string;
   numero: number;
   anoFiscal: number;
+  tipoDocumento: string;
   estado: string;
+  estadoPagamento: string;
   emitidaEm: Date;
+  dataVencimento?: Date | null;
+  pagoEm?: Date | null;
 
   // Emitente
   nomeComercial: string;
@@ -25,6 +29,12 @@ export interface DadosFacturaPdf {
   ivaPercentual: number;
   ivaValor: number;
   total: number;
+  valorPago: number;
+  metodoPagamento?: string | null;
+  referenciaPagamento?: string | null;
+  codigoValidacao?: string | null;
+  qrCode?: string | null;
+  hashDocumento?: string | null;
   observacao?: string | null;
 
   // Itens
@@ -68,10 +78,10 @@ const BG       = "#faf8f4";
 const GREEN    = "#16A07A";
 const BRAND_BG = "#0B1014";
 
-function fmtValor(centavos: number, moeda: string) {
-  const valor = (centavos / 100).toLocaleString("pt-AO", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
+function fmtValor(valorInteiro: number, moeda: string) {
+  const valor = valorInteiro.toLocaleString("pt-AO", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
   });
   return `${valor} ${moeda}`;
 }
@@ -94,8 +104,12 @@ function corEstado(estado: string): { bg: string; cor: string } {
 export function buildFacturaHtml(dados: DadosFacturaPdf): string {
   const ref = `${dados.serie} ${String(dados.numero).padStart(4, "0")}/${dados.anoFiscal}`;
   const dataEmissao = fmtData(dados.emitidaEm);
+  const dataVencimento = dados.dataVencimento ? fmtData(dados.dataVencimento) : null;
+  const dataPagamento = dados.pagoEm ? fmtData(dados.pagoEm) : null;
   const moeda = dados.moeda || "AOA";
   const est = corEstado(dados.estado);
+  const rotuloDocumento = dados.tipoDocumento === "FACTURA_RECIBO" ? "Factura-recibo" : "Factura";
+  const saldoPendente = Math.max(0, dados.total - dados.valorPago);
 
   const linhasItens = dados.itens
     .map(
@@ -115,7 +129,7 @@ export function buildFacturaHtml(dados: DadosFacturaPdf): string {
 <html lang="pt">
 <head>
 <meta charset="utf-8" />
-<title>Factura ${escapeHtml(ref)}</title>
+<title>${escapeHtml(rotuloDocumento)} ${escapeHtml(ref)}</title>
 <style>
   @page { size: A4; margin: 0; }
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -351,6 +365,66 @@ export function buildFacturaHtml(dados: DadosFacturaPdf): string {
     letter-spacing: 0.06em;
   }
 
+  .doc-meta {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 3mm;
+    margin-top: 6mm;
+  }
+  .doc-meta-item {
+    border: 1px solid ${LINE};
+    background: ${BG};
+    padding: 3mm;
+  }
+  .doc-meta-label {
+    display: block;
+    font-size: 7.5px;
+    color: ${INK_3};
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+  .doc-meta-value {
+    display: block;
+    margin-top: 1.2mm;
+    font-size: 10px;
+    color: ${INK};
+    font-weight: 650;
+    line-height: 1.35;
+    word-break: break-word;
+  }
+
+  .validacao {
+    margin-top: 8mm;
+    border: 1px solid ${LINE};
+    display: grid;
+    grid-template-columns: 30mm 1fr;
+  }
+  .validacao-code {
+    min-height: 30mm;
+    display: grid;
+    place-items: center;
+    background: ${BRAND_BG};
+    color: #fff;
+    font-size: 8px;
+    text-align: center;
+    padding: 3mm;
+    word-break: break-word;
+    line-height: 1.45;
+  }
+  .validacao-copy {
+    padding: 4mm;
+    font-size: 9px;
+    color: ${INK_2};
+    line-height: 1.5;
+  }
+  .validacao-copy strong {
+    display: block;
+    color: ${INK};
+    font-size: 10px;
+    margin-bottom: 1mm;
+  }
+
   /* ── Footer ── */
   .footer {
     position: absolute;
@@ -395,7 +469,7 @@ export function buildFacturaHtml(dados: DadosFacturaPdf): string {
         </div>
       </div>
       <div class="doc-ref">
-        <span class="label">Factura</span>
+        <span class="label">${escapeHtml(rotuloDocumento)}</span>
         <span class="value">${escapeHtml(ref)}</span>
         <span class="estado">${escapeHtml(dados.estado)}</span>
       </div>
@@ -416,6 +490,22 @@ export function buildFacturaHtml(dados: DadosFacturaPdf): string {
         ${dados.clienteNif ? `<div class="parte-detalhe">NIF: ${escapeHtml(dados.clienteNif)}</div>` : ""}
         ${dados.clienteEndereco ? `<div class="parte-detalhe">${escapeHtml(dados.clienteEndereco)}</div>` : ""}
         <div class="parte-data">Emissão: <strong>${escapeHtml(dataEmissao)}</strong></div>
+        ${dataVencimento ? `<div class="parte-data">Vencimento: <strong>${escapeHtml(dataVencimento)}</strong></div>` : ""}
+      </div>
+    </div>
+
+    <div class="doc-meta">
+      <div class="doc-meta-item">
+        <span class="doc-meta-label">Estado de pagamento</span>
+        <span class="doc-meta-value">${escapeHtml(dados.estadoPagamento)}</span>
+      </div>
+      <div class="doc-meta-item">
+        <span class="doc-meta-label">Valor pago</span>
+        <span class="doc-meta-value">${fmtValor(dados.valorPago, moeda)}</span>
+      </div>
+      <div class="doc-meta-item">
+        <span class="doc-meta-label">Saldo pendente</span>
+        <span class="doc-meta-value">${fmtValor(saldoPendente, moeda)}</span>
       </div>
     </div>
 
@@ -449,8 +539,23 @@ export function buildFacturaHtml(dados: DadosFacturaPdf): string {
           <span class="label">Total</span>
           <span class="valor">${fmtValor(dados.total, moeda)}</span>
         </div>
+        ${dados.valorPago > 0 ? `<div class="totais-row">
+          <span class="label">Pago</span>
+          <span class="valor">${fmtValor(dados.valorPago, moeda)}</span>
+        </div>` : ""}
+        ${saldoPendente > 0 ? `<div class="totais-row">
+          <span class="label">Pendente</span>
+          <span class="valor">${fmtValor(saldoPendente, moeda)}</span>
+        </div>` : ""}
       </div>
     </div>
+
+    ${dados.metodoPagamento || dados.referenciaPagamento || dataPagamento ? `<div class="observacao">
+      <strong>Pagamento</strong>
+      ${dataPagamento ? `Pago em ${escapeHtml(dataPagamento)}. ` : ""}
+      ${dados.metodoPagamento ? `Método: ${escapeHtml(dados.metodoPagamento)}. ` : ""}
+      ${dados.referenciaPagamento ? `Referência: ${escapeHtml(dados.referenciaPagamento)}.` : ""}
+    </div>` : ""}
 
     ${
       dados.observacao
@@ -461,8 +566,18 @@ export function buildFacturaHtml(dados: DadosFacturaPdf): string {
         : ""
     }
 
+    <div class="validacao">
+      <div class="validacao-code">${escapeHtml(dados.codigoValidacao ?? "SEM CODIGO")}</div>
+      <div class="validacao-copy">
+        <strong>Validação interna Bizy</strong>
+        Código: ${escapeHtml(dados.codigoValidacao ?? "não gerado")}. Hash:
+        ${escapeHtml((dados.hashDocumento ?? "não gerado").slice(0, 32))}.
+        Este documento representa o registo interno do Bizy. A validade fiscal electrónica depende de software certificado e integração com a AGT quando aplicável.
+      </div>
+    </div>
+
     <div class="footer">
-      <span><strong>${escapeHtml(dados.nomeComercial)}</strong> · Factura ${escapeHtml(ref)}</span>
+      <span><strong>${escapeHtml(dados.nomeComercial)}</strong> · ${escapeHtml(rotuloDocumento)} ${escapeHtml(ref)}</span>
       <span>
         Emitido por <span class="footer-bizy">bizy<span class="footer-bizy-dot">.</span></span>
         · ${escapeHtml(dataEmissao)}

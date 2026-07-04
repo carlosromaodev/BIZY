@@ -42,6 +42,19 @@ describe("identidade do cliente entre live, clientes e pedidos", () => {
     expect(clientes).toContain("renderizarObjetoResumo");
   });
 
+  it("consome paginação padronizada do backend na aba Clientes", () => {
+    const tipos = source("src/tipos.ts");
+    const clientes = source("src/paginas/Clientes.tsx");
+
+    expect(tipos).toContain("export interface PaginacaoOffset");
+    expect(tipos).toContain("paginacao?: PaginacaoOffset");
+    expect(clientes).toContain('params.set("limite", String(POR_PAGINA))');
+    expect(clientes).toContain('params.set("offset", String((pagina - 1) * POR_PAGINA))');
+    expect(clientes).toContain("paginacao?.temProxima");
+    expect(clientes).toContain("selecionarFiltro");
+    expect(clientes).not.toContain("/clientes?limite=500");
+  });
+
   it("faz o ícone de SMS em Pedidos abrir Conversas no contexto do cliente", () => {
     const pedidos = source("src/paginas/Reservas.tsx");
     const conversas = source("src/paginas/Conversas.tsx");

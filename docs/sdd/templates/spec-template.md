@@ -3,11 +3,14 @@
 Status: rascunho
 Data: AAAA-MM-DD
 Dominio SDD: CAMINHO_DO_DOMINIO
+Capacidade da meta global: descoberta | conversao | execucao | retencao | controlo
 Owner logico: PAPEL_OU_AREA_RESPONSAVEL
 
 ## 1. Objetivo
 
 Descrever em uma ou duas frases o que esta iniciativa entrega e por que ela importa para o Bizy.
+
+Explicar como a iniciativa melhora a capacidade declarada da meta global em `docs/superpowers/specs/2026-06-30-meta-global-bizy.md`.
 
 ## 2. Contexto
 

@@ -235,7 +235,7 @@ describe("Bizy Market Fase 2+3 HTTP", () => {
     }
   }, 30_000);
 
-  it("CRUD de catálogos da loja no CRM com limites e duplicatas", async () => {
+  it("CRUD de catálogos da loja no Team com alias CRM legado", async () => {
     const app = await criarAplicacao();
 
     try {
@@ -245,7 +245,7 @@ describe("Bizy Market Fase 2+3 HTTP", () => {
       // --- Criar catálogo ---
       const criar = await app.inject({
         method: "POST",
-        url: "/crm/loja/catalogos",
+        url: "/team/loja/catalogos",
         headers: loja,
         payload: { nome: "Novidades", descricao: "Últimos lançamentos", criterio: "colecao", valor: "Novidades" }
       });
@@ -261,7 +261,7 @@ describe("Bizy Market Fase 2+3 HTTP", () => {
       );
 
       // --- Listar catálogos ---
-      const listar = await app.inject({ method: "GET", url: "/crm/loja/catalogos", headers: loja });
+      const listar = await app.inject({ method: "GET", url: "/team/loja/catalogos", headers: loja });
       expect(listar.statusCode).toBe(200);
       expect(listar.json().catalogos).toHaveLength(1);
       expect(listar.json().catalogos[0].id).toBe("novidades");
@@ -279,7 +279,7 @@ describe("Bizy Market Fase 2+3 HTTP", () => {
       // --- Atualizar catálogo ---
       const atualizar = await app.inject({
         method: "PUT",
-        url: "/crm/loja/catalogos/novidades",
+        url: "/team/loja/catalogos/novidades",
         headers: loja,
         payload: { nome: "Lançamentos", descricao: "Atualizado" }
       });
@@ -290,14 +290,14 @@ describe("Bizy Market Fase 2+3 HTTP", () => {
       // --- Atualizar catálogo inexistente ---
       const atualizarInexistente = await app.inject({
         method: "PUT",
-        url: "/crm/loja/catalogos/inexistente",
+        url: "/team/loja/catalogos/inexistente",
         headers: loja,
         payload: { nome: "X" }
       });
       expect(atualizarInexistente.statusCode).toBe(404);
 
       // --- Remover catálogo ---
-      const remover = await app.inject({ method: "DELETE", url: "/crm/loja/catalogos/novidades", headers: loja });
+      const remover = await app.inject({ method: "DELETE", url: "/team/loja/catalogos/novidades", headers: loja });
       expect(remover.statusCode).toBe(200);
       expect(remover.json().ok).toBe(true);
 
@@ -306,14 +306,14 @@ describe("Bizy Market Fase 2+3 HTTP", () => {
       expect(removerInexistente.statusCode).toBe(404);
 
       // --- Lista vazia após remoção ---
-      const listarVazio = await app.inject({ method: "GET", url: "/crm/loja/catalogos", headers: loja });
+      const listarVazio = await app.inject({ method: "GET", url: "/team/loja/catalogos", headers: loja });
       expect(listarVazio.json().catalogos).toHaveLength(0);
     } finally {
       await app.close();
     }
   }, 30_000);
 
-  it("seguidores da loja no CRM com follow público e listagem autenticada", async () => {
+  it("seguidores da loja no Team com follow público e listagem autenticada", async () => {
     const app = await criarAplicacao();
 
     try {
@@ -336,8 +336,8 @@ describe("Bizy Market Fase 2+3 HTTP", () => {
       });
       expect(seguir2.statusCode).toBe(201);
 
-      // --- Listar seguidores via CRM ---
-      const listar = await app.inject({ method: "GET", url: "/crm/loja/seguidores", headers: loja });
+      // --- Listar seguidores via Team ---
+      const listar = await app.inject({ method: "GET", url: "/team/loja/seguidores", headers: loja });
       expect(listar.statusCode).toBe(200);
       expect(listar.json().total).toBe(2);
       expect(listar.json().seguidores).toHaveLength(2);
@@ -351,13 +351,13 @@ describe("Bizy Market Fase 2+3 HTTP", () => {
       );
 
       // --- Filtro por origem ---
-      const filtroOrigem = await app.inject({ method: "GET", url: "/crm/loja/seguidores?origem=market", headers: loja });
+      const filtroOrigem = await app.inject({ method: "GET", url: "/team/loja/seguidores?origem=market", headers: loja });
       expect(filtroOrigem.statusCode).toBe(200);
       expect(filtroOrigem.json().total).toBe(1);
       expect(filtroOrigem.json().seguidores[0].identificador).toBe("comprador-002");
 
       // --- Limite e offset ---
-      const paginado = await app.inject({ method: "GET", url: "/crm/loja/seguidores?limite=1&offset=1", headers: loja });
+      const paginado = await app.inject({ method: "GET", url: "/team/loja/seguidores?limite=1&offset=1", headers: loja });
       expect(paginado.statusCode).toBe(200);
       expect(paginado.json().seguidores).toHaveLength(1);
       expect(paginado.json().total).toBe(2);
@@ -366,7 +366,7 @@ describe("Bizy Market Fase 2+3 HTTP", () => {
     }
   }, 30_000);
 
-  it("métricas da loja no CRM com dados reais de produtos, seguidores e pedidos", async () => {
+  it("métricas da loja no Team com dados reais de produtos, seguidores e pedidos", async () => {
     const app = await criarAplicacao();
 
     try {
@@ -382,8 +382,8 @@ describe("Bizy Market Fase 2+3 HTTP", () => {
         payload: { identificador: "cliente-metricas-001", tipo: "telefone", origem: "perfil" }
       });
 
-      // --- GET /crm/loja/metricas ---
-      const metricas = await app.inject({ method: "GET", url: "/crm/loja/metricas", headers: loja });
+      // --- GET /team/loja/metricas ---
+      const metricas = await app.inject({ method: "GET", url: "/team/loja/metricas", headers: loja });
       expect(metricas.statusCode).toBe(200);
       const corpo = metricas.json();
 

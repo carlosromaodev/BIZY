@@ -1,6 +1,83 @@
 import type { PrismaClient } from "@prisma/client";
+import { randomUUID } from "node:crypto";
 
 const RETENCAO_FISCAL_ANOS_PADRAO = 10;
+const ADAPTADORES_EINVOICING = [
+  {
+    id: "UBL_21",
+    nome: "UBL 2.1 XML",
+    protocolo: "XML_UBL",
+    estado: "ATIVO",
+    formatos: ["UBL_21"],
+    requerCredenciais: false,
+    despachoAssincrono: true
+  },
+  {
+    id: "PEPPOL_BIS_BILLING_3",
+    nome: "Peppol BIS Billing 3",
+    protocolo: "PEPPOL",
+    estado: "PREPARADO",
+    formatos: ["PEPPOL_BIS_BILLING_3"],
+    requerCredenciais: true,
+    despachoAssincrono: true
+  },
+  {
+    id: "API_GOV_REGIONAL",
+    nome: "API governamental regional",
+    protocolo: "API_REST",
+    estado: "PREPARADO",
+    formatos: ["UBL_21"],
+    requerCredenciais: true,
+    despachoAssincrono: true
+  }
+] as const;
+
+const TEMPLATES_FACTURA_JURISDICAO = [
+  {
+    jurisdicao: "AO",
+    nome: "Factura fiscal Angola",
+    idiomas: {
+      pt_AO: {
+        idioma: "pt-AO",
+        locale: "pt-AO",
+        titulo: "Factura",
+        dataEmissao: "Data de emissão",
+        subtotal: "Subtotal",
+        imposto: "IVA",
+        total: "Total a pagar",
+        rodapeFiscal: "Documento fiscal emitido conforme regras fiscais de Angola."
+      },
+      en_US: {
+        idioma: "en-US",
+        locale: "en-US",
+        titulo: "Invoice",
+        dataEmissao: "Issue date",
+        subtotal: "Subtotal",
+        imposto: "VAT",
+        total: "Total due",
+        rodapeFiscal: "Tax document issued under Angola fiscal rules."
+      },
+      fr_FR: {
+        idioma: "fr-FR",
+        locale: "fr-FR",
+        titulo: "Facture",
+        dataEmissao: "Date d'emission",
+        subtotal: "Sous-total",
+        imposto: "TVA",
+        total: "Total a payer",
+        rodapeFiscal: "Document fiscal emis selon les regles fiscales de l'Angola."
+      }
+    }
+  }
+] as const;
+
+type FormatoEInvoicing = "UBL_21" | "PEPPOL_BIS_BILLING_3";
+type AdaptadorEInvoicingId = typeof ADAPTADORES_EINVOICING[number]["id"];
+type OpcoesFacturaEletronica = { idioma?: string; jurisdicao?: string };
+type TemplateFacturaLocalizado = typeof TEMPLATES_FACTURA_JURISDICAO[number]["idiomas"][keyof typeof TEMPLATES_FACTURA_JURISDICAO[number]["idiomas"]] & {
+  jurisdicao: string;
+  nome: string;
+};
 
 export class ConformidadeROIUseCase {
   constructor(private readonly prisma: PrismaClient) {}
@@ -44,6 +121,150 @@ export class ConformidadeROIUseCase {
     });
 
     return { taxa: regra?.taxa ?? 14, jurisdicao: regra?.jurisdicao ?? "AO" };
+  }
+
+  // ── RF-T046/RNF-T025 — E-invoicing estruturado ───────────────────────────
+
+  listarAdaptadoresEInvoicing() {
+    return {
+      adaptadores: ADAPTADORES_EINVOICING,
+      formatosSuportados: ["UBL_21", "PEPPOL_BIS_BILLING_3"],
+      observacao: "Adaptadores externos usam despacho assíncrono por outbox n8n e referência a credenciais cifradas; o XML UBL local também pode ser gerado sem credenciais externas."
+    };
+  }
+
+  listarTemplatesFactura() {
+    return {
+      templates: TEMPLATES_FACTURA_JURISDICAO.map((template) => ({
+        jurisdicao: template.jurisdicao,
+        nome: template.nome,
+        idiomas: Object.values(template.idiomas).map((idioma) => ({
+          idioma: idioma.idioma,
+          locale: idioma.locale,
+          titulo: idioma.titulo
+        }))
+      }))
+    };
+  }
+
+  async gerarFacturaEletronica(
+    negocioId: string,
+    facturaId: string,
+    formato: FormatoEInvoicing = "UBL_21",
+    opcoes?: OpcoesFacturaEletronica
+  ) {
+    const factura = await this.prisma.factura.findFirstOrThrow({
+      where: { id: facturaId, negocioId },
+      include: {
+        itens: true,
+        negocio: {
+          select: {
+            nomeComercial: true,
+            nif: true,
+            telefone: true,
+            email: true,
+            endereco: true,
+            moeda: true
+          }
+        }
+      }
+    });
+
+    const validacao = this.validarDadosFiscaisFactura({
+      clienteNome: factura.clienteNome,
+      clienteNif: factura.clienteNif ?? undefined,
+      itens: factura.itens.map((item) => ({ descricao: item.descricao, quantidade: item.quantidade }))
+    });
+
+    const avisos: string[] = [];
+    if (!factura.negocio.nif) avisos.push("Emitente sem NIF configurado no perfil do negócio.");
+    if (!factura.clienteNif) avisos.push("Cliente sem NIF; XML emitido com identificador genérico.");
+
+    const template = this.resolverTemplateFactura(opcoes);
+    const xml = this.montarFacturaUbl(factura, formato, template);
+    const adaptador = ADAPTADORES_EINVOICING.find((item) => item.id === formato) ?? ADAPTADORES_EINVOICING[0];
+
+    return {
+      facturaId: factura.id,
+      formato,
+      protocolo: adaptador.protocolo,
+      nomeArquivo: `factura-${factura.serie}-${String(factura.numero).padStart(4, "0")}-${factura.anoFiscal}.xml`,
+      mimeType: "application/xml",
+      xml,
+      validacoes: {
+        valida: validacao.valido,
+        seloTemporal: validacao.seloTemporal,
+        avisos
+      },
+      template: {
+        jurisdicao: template.jurisdicao,
+        idioma: template.idioma,
+        locale: template.locale,
+        nome: template.nome
+      },
+      adaptador
+    };
+  }
+
+  async prepararEnvioFacturaEletronica(
+    negocioId: string,
+    facturaId: string,
+    dados: {
+      adaptadorId?: AdaptadorEInvoicingId;
+      formato?: FormatoEInvoicing;
+      credencialRef?: string;
+      endpointUrl?: string;
+      idioma?: string;
+      jurisdicao?: string;
+    }
+  ) {
+    const adaptador = ADAPTADORES_EINVOICING.find((item) => item.id === (dados.adaptadorId ?? "UBL_21"));
+    if (!adaptador) {
+      throw new Error("RF-T048: Adaptador de e-invoicing não suportado.");
+    }
+    if (adaptador.requerCredenciais && !dados.credencialRef) {
+      throw new Error("RF-T048: Este adaptador exige referência de credencial cifrada.");
+    }
+
+    const formato = dados.formato ?? adaptador.formatos[0];
+    const documento = await this.gerarFacturaEletronica(negocioId, facturaId, formato as FormatoEInvoicing, {
+      idioma: dados.idioma,
+      jurisdicao: dados.jurisdicao
+    });
+    const evento = await this.prisma.outboxEventoN8n.create({
+      data: {
+        negocioId,
+        eventoId: randomUUID(),
+        tipo: "EINVOICING_ENVIO_SOLICITADO",
+        payloadJson: JSON.stringify({
+          negocioId,
+          facturaId,
+          adaptadorId: adaptador.id,
+          protocolo: adaptador.protocolo,
+          formato,
+          credencialRef: dados.credencialRef ?? null,
+          endpointUrl: dados.endpointUrl ?? null,
+          nomeArquivo: documento.nomeArquivo,
+          mimeType: documento.mimeType,
+          template: documento.template,
+          xml: documento.xml,
+          validacoes: documento.validacoes,
+          solicitadoEm: new Date().toISOString()
+        }),
+        status: "PENDENTE",
+        proximaTentativaEm: new Date()
+      },
+      select: { id: true, eventoId: true, status: true }
+    });
+
+    return {
+      facturaId,
+      adaptador,
+      formato,
+      estado: "PENDENTE_ENVIO",
+      eventoN8n: evento,
+      validacoes: documento.validacoes
+    };
   }
 
   // ── RN-T029 — Validação Fiscal Pré-Emissão ───────────────────────────────
@@ -219,12 +440,15 @@ export class ConformidadeROIUseCase {
       return { modulo, semBaseline: true, metricas: [] };
     }
 
-    const metricas = baselines.map((b) => ({
-      kpi: b.kpi,
-      baseline: b.valorBaseline,
-      actual: b.valorBaseline, // placeholder — seria calculado a partir de dados actuais
-      melhoriaPercentual: 0,
-      registadoEm: b.registadoEm
+    const metricas = await Promise.all(baselines.map(async (b) => {
+      const actual = await this.calcularValorActualKPI(negocioId, b.kpi, b.valorBaseline);
+      return {
+        kpi: b.kpi,
+        baseline: b.valorBaseline,
+        actual,
+        melhoriaPercentual: this.calcularVariacaoPercentual(b.valorBaseline, actual),
+        registadoEm: b.registadoEm
+      };
     }));
 
     return { modulo, semBaseline: false, metricas };
@@ -441,33 +665,9 @@ export class ConformidadeROIUseCase {
       return { modulo, semBaseline: true, comparacoes: [] };
     }
 
-    // Para cada baseline, calcular valor actual
     const comparacoes = await Promise.all(baselines.map(async (b) => {
-      let valorActual = b.valorBaseline; // fallback
-
-      // Calcular valor actual conforme KPI
-      const agora = new Date();
-      const inicio30d = new Date(agora.getTime() - 30 * 24 * 60 * 60 * 1000);
-
-      if (b.kpi === "pedidos_mensais") {
-        valorActual = await this.prisma.pedido.count({ where: { negocioId, criadoEm: { gte: inicio30d } } });
-      } else if (b.kpi === "receita_mensal") {
-        const agg = await this.prisma.pedido.aggregate({
-          where: { negocioId, estadoPagamento: "CONFIRMADO", criadoEm: { gte: inicio30d } },
-          _sum: { totalEmKwanza: true }
-        });
-        valorActual = agg._sum.totalEmKwanza ?? 0;
-      } else if (b.kpi === "clientes_activos") {
-        valorActual = await this.prisma.clienteNegocio.count({ where: { negocioId } });
-      } else if (b.kpi === "tarefas_concluidas") {
-        valorActual = await this.prisma.tarefaOperacional.count({
-          where: { negocioId, estado: "CONCLUIDA", concluidaEm: { gte: inicio30d } }
-        });
-      }
-
-      const variacao = b.valorBaseline > 0
-        ? Math.round(((valorActual - b.valorBaseline) / b.valorBaseline) * 100)
-        : 0;
+      const valorActual = await this.calcularValorActualKPI(negocioId, b.kpi, b.valorBaseline);
+      const variacao = this.calcularVariacaoPercentual(b.valorBaseline, valorActual);
 
       return {
         kpi: b.kpi,
@@ -480,6 +680,39 @@ export class ConformidadeROIUseCase {
     }));
 
     return { modulo, semBaseline: false, comparacoes };
+  }
+
+  private async calcularValorActualKPI(negocioId: string, kpi: string, fallback: number) {
+    const agora = new Date();
+    const inicio30d = new Date(agora.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+    if (kpi === "pedidos_mensais") {
+      return this.prisma.pedido.count({ where: { negocioId, criadoEm: { gte: inicio30d } } });
+    }
+
+    if (kpi === "receita_mensal") {
+      const agregado = await this.prisma.pedido.aggregate({
+        where: { negocioId, estadoPagamento: "CONFIRMADO", criadoEm: { gte: inicio30d } },
+        _sum: { totalEmKwanza: true }
+      });
+      return agregado._sum.totalEmKwanza ?? 0;
+    }
+
+    if (kpi === "clientes_activos") {
+      return this.prisma.clienteNegocio.count({ where: { negocioId } });
+    }
+
+    if (kpi === "tarefas_concluidas") {
+      return this.prisma.tarefaOperacional.count({
+        where: { negocioId, estado: "CONCLUIDA", concluidaEm: { gte: inicio30d } }
+      });
+    }
+
+    return fallback;
+  }
+
+  private calcularVariacaoPercentual(baseline: number, actual: number) {
+    return baseline > 0 ? Math.round(((actual - baseline) / baseline) * 100) : 0;
   }
 
   // ── RF-T099 — Custo Evitado ───────────────────────────────────────────────
@@ -712,5 +945,195 @@ export class ConformidadeROIUseCase {
       totalModulos: modulos.length,
       totalSubutilizados: subutilizados.length
     };
+  }
+
+  private montarFacturaUbl(
+    factura: {
+      serie: string;
+      numero: number;
+      anoFiscal: number;
+      clienteNome: string;
+      clienteNif: string | null;
+      clienteEndereco: string | null;
+      subtotal: number;
+      ivaPercentual: number;
+      ivaValor: number;
+      total: number;
+      emitidaEm: Date;
+      negocio: {
+        nomeComercial: string;
+        nif: string | null;
+        telefone: string | null;
+        email: string | null;
+        endereco: string | null;
+        moeda: string;
+      };
+      itens: Array<{
+        descricao: string;
+        quantidade: number;
+        precoUnitario: number;
+        subtotal: number;
+        ivaPercentual: number;
+        ivaValor: number;
+      }>;
+    },
+    formato: FormatoEInvoicing,
+    template: TemplateFacturaLocalizado
+  ) {
+    const moeda = factura.negocio.moeda || "AOA";
+    const profileId = formato === "PEPPOL_BIS_BILLING_3" ? "PEPPOL_BIS_BILLING_3" : "BIZY_UBL_21";
+    const facturaId = `${factura.serie} ${String(factura.numero).padStart(4, "0")}/${factura.anoFiscal}`;
+    const supplierNif = factura.negocio.nif ?? "NAO_CONFIGURADO";
+    const customerNif = factura.clienteNif ?? "CONSUMIDOR_FINAL";
+    const linhas = factura.itens.map((item, indice) => this.montarLinhaFacturaUbl(item, indice + 1, moeda)).join("\n");
+
+    return [
+      "<?xml version=\"1.0\" encoding=\"UTF-8\"?>",
+      "<Invoice xmlns=\"urn:oasis:names:specification:ubl:schema:xsd:Invoice-2\" xmlns:cac=\"urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2\" xmlns:cbc=\"urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2\">",
+      `  <cbc:CustomizationID>urn:bizy:e-invoicing:ubl:1</cbc:CustomizationID>`,
+      `  <cbc:ProfileID>${this.escapeXml(profileId)}</cbc:ProfileID>`,
+      `  <cbc:ID>${this.escapeXml(facturaId)}</cbc:ID>`,
+      `  <cbc:IssueDate>${factura.emitidaEm.toISOString().slice(0, 10)}</cbc:IssueDate>`,
+      "  <cbc:InvoiceTypeCode>380</cbc:InvoiceTypeCode>",
+      `  <cbc:Note languageID=\"${this.escapeXml(template.idioma)}\">${this.escapeXml(this.montarNotaFacturaLocalizada(factura, moeda, template))}</cbc:Note>`,
+      `  <cbc:DocumentCurrencyCode>${this.escapeXml(moeda)}</cbc:DocumentCurrencyCode>`,
+      "  <cac:AccountingSupplierParty>",
+      "    <cac:Party>",
+      `      <cbc:EndpointID schemeID=\"NIF\">${this.escapeXml(supplierNif)}</cbc:EndpointID>`,
+      `      <cac:PartyName><cbc:Name>${this.escapeXml(factura.negocio.nomeComercial)}</cbc:Name></cac:PartyName>`,
+      "      <cac:PartyTaxScheme>",
+      `        <cbc:CompanyID>${this.escapeXml(supplierNif)}</cbc:CompanyID>`,
+      "        <cac:TaxScheme><cbc:ID>IVA</cbc:ID></cac:TaxScheme>",
+      "      </cac:PartyTaxScheme>",
+      `      <cac:PostalAddress><cbc:StreetName>${this.escapeXml(factura.negocio.endereco ?? "")}</cbc:StreetName></cac:PostalAddress>`,
+      "    </cac:Party>",
+      "  </cac:AccountingSupplierParty>",
+      "  <cac:AccountingCustomerParty>",
+      "    <cac:Party>",
+      `      <cbc:EndpointID schemeID=\"NIF\">${this.escapeXml(customerNif)}</cbc:EndpointID>`,
+      `      <cac:PartyName><cbc:Name>${this.escapeXml(factura.clienteNome)}</cbc:Name></cac:PartyName>`,
+      "      <cac:PartyTaxScheme>",
+      `        <cbc:CompanyID>${this.escapeXml(customerNif)}</cbc:CompanyID>`,
+      "        <cac:TaxScheme><cbc:ID>IVA</cbc:ID></cac:TaxScheme>",
+      "      </cac:PartyTaxScheme>",
+      `      <cac:PostalAddress><cbc:StreetName>${this.escapeXml(factura.clienteEndereco ?? "")}</cbc:StreetName></cac:PostalAddress>`,
+      "    </cac:Party>",
+      "  </cac:AccountingCustomerParty>",
+      "  <cac:TaxTotal>",
+      `    <cbc:TaxAmount currencyID=\"${this.escapeXml(moeda)}\">${this.formatarValorFiscal(factura.ivaValor)}</cbc:TaxAmount>`,
+      "    <cac:TaxSubtotal>",
+      `      <cbc:TaxableAmount currencyID=\"${this.escapeXml(moeda)}\">${this.formatarValorFiscal(factura.subtotal)}</cbc:TaxableAmount>`,
+      `      <cbc:TaxAmount currencyID=\"${this.escapeXml(moeda)}\">${this.formatarValorFiscal(factura.ivaValor)}</cbc:TaxAmount>`,
+      "      <cac:TaxCategory>",
+      `        <cbc:Percent>${factura.ivaPercentual.toFixed(2)}</cbc:Percent>`,
+      "        <cac:TaxScheme><cbc:ID>IVA</cbc:ID></cac:TaxScheme>",
+      "      </cac:TaxCategory>",
+      "    </cac:TaxSubtotal>",
+      "  </cac:TaxTotal>",
+      "  <cac:LegalMonetaryTotal>",
+      `    <cbc:LineExtensionAmount currencyID=\"${this.escapeXml(moeda)}\">${this.formatarValorFiscal(factura.subtotal)}</cbc:LineExtensionAmount>`,
+      `    <cbc:TaxExclusiveAmount currencyID=\"${this.escapeXml(moeda)}\">${this.formatarValorFiscal(factura.subtotal)}</cbc:TaxExclusiveAmount>`,
+      `    <cbc:TaxInclusiveAmount currencyID=\"${this.escapeXml(moeda)}\">${this.formatarValorFiscal(factura.total)}</cbc:TaxInclusiveAmount>`,
+      `    <cbc:PayableAmount currencyID=\"${this.escapeXml(moeda)}\">${this.formatarValorFiscal(factura.total)}</cbc:PayableAmount>`,
+      "  </cac:LegalMonetaryTotal>",
+      linhas,
+      "</Invoice>"
+    ].join("\n");
+  }
+
+  private montarLinhaFacturaUbl(
+    item: {
+      descricao: string;
+      quantidade: number;
+      precoUnitario: number;
+      subtotal: number;
+      ivaPercentual: number;
+      ivaValor: number;
+    },
+    indice: number,
+    moeda: string
+  ) {
+    return [
+      "  <cac:InvoiceLine>",
+      `    <cbc:ID>${indice}</cbc:ID>`,
+      `    <cbc:InvoicedQuantity unitCode=\"EA\">${item.quantidade}</cbc:InvoicedQuantity>`,
+      `    <cbc:LineExtensionAmount currencyID=\"${this.escapeXml(moeda)}\">${this.formatarValorFiscal(item.subtotal)}</cbc:LineExtensionAmount>`,
+      "    <cac:TaxTotal>",
+      `      <cbc:TaxAmount currencyID=\"${this.escapeXml(moeda)}\">${this.formatarValorFiscal(item.ivaValor)}</cbc:TaxAmount>`,
+      "      <cac:TaxSubtotal>",
+      `        <cbc:TaxableAmount currencyID=\"${this.escapeXml(moeda)}\">${this.formatarValorFiscal(item.subtotal)}</cbc:TaxableAmount>`,
+      `        <cbc:TaxAmount currencyID=\"${this.escapeXml(moeda)}\">${this.formatarValorFiscal(item.ivaValor)}</cbc:TaxAmount>`,
+      "        <cac:TaxCategory>",
+      `          <cbc:Percent>${item.ivaPercentual.toFixed(2)}</cbc:Percent>`,
+      "          <cac:TaxScheme><cbc:ID>IVA</cbc:ID></cac:TaxScheme>",
+      "        </cac:TaxCategory>",
+      "      </cac:TaxSubtotal>",
+      "    </cac:TaxTotal>",
+      "    <cac:Item>",
+      `      <cbc:Description>${this.escapeXml(item.descricao)}</cbc:Description>`,
+      `      <cbc:Name>${this.escapeXml(item.descricao.slice(0, 80))}</cbc:Name>`,
+      "    </cac:Item>",
+      "    <cac:Price>",
+      `      <cbc:PriceAmount currencyID=\"${this.escapeXml(moeda)}\">${this.formatarValorFiscal(item.precoUnitario)}</cbc:PriceAmount>`,
+      "    </cac:Price>",
+      "  </cac:InvoiceLine>"
+    ].join("\n");
+  }
+
+  private escapeXml(valor: string) {
+    return valor
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&apos;");
+  }
+
+  private formatarValorFiscal(valor: number) {
+    return valor.toFixed(2);
+  }
+
+  private resolverTemplateFactura(opcoes?: OpcoesFacturaEletronica): TemplateFacturaLocalizado {
+    const jurisdicao = (opcoes?.jurisdicao ?? "AO").trim().toUpperCase();
+    const idioma = this.normalizarIdiomaFactura(opcoes?.idioma);
+    const template = TEMPLATES_FACTURA_JURISDICAO.find((item) => item.jurisdicao === jurisdicao) ?? TEMPLATES_FACTURA_JURISDICAO[0];
+    const localizado = template.idiomas[idioma as keyof typeof template.idiomas] ?? template.idiomas.pt_AO;
+    return { ...localizado, jurisdicao: template.jurisdicao, nome: template.nome };
+  }
+
+  private normalizarIdiomaFactura(idioma?: string) {
+    return (idioma ?? "pt_AO").trim().replace("-", "_");
+  }
+
+  private montarNotaFacturaLocalizada(
+    factura: {
+      subtotal: number;
+      ivaValor: number;
+      total: number;
+      emitidaEm: Date;
+    },
+    moeda: string,
+    template: TemplateFacturaLocalizado
+  ) {
+    return [
+      template.titulo,
+      `${template.dataEmissao}: ${this.formatarDataLocalizada(factura.emitidaEm, template.locale)}`,
+      `${template.subtotal}: ${this.formatarMoedaLocalizada(factura.subtotal, moeda, template.locale)}`,
+      `${template.imposto}: ${this.formatarMoedaLocalizada(factura.ivaValor, moeda, template.locale)}`,
+      `${template.total}: ${this.formatarMoedaLocalizada(factura.total, moeda, template.locale)}`,
+      template.rodapeFiscal
+    ].join(" | ");
+  }
+
+  private formatarDataLocalizada(data: Date, locale: string) {
+    return new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeZone: "UTC" }).format(data);
+  }
+
+  private formatarMoedaLocalizada(valor: number, moeda: string, locale: string) {
+    return new Intl.NumberFormat(locale, {
+      style: "currency",
+      currency: moeda,
+      maximumFractionDigits: 2
+    }).format(valor);
   }
 }

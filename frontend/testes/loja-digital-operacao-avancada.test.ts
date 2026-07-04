@@ -3,10 +3,16 @@ import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
 const source = (path: string) => readFileSync(resolve(process.cwd(), path), "utf8");
+const fonteStudioLoja = () =>
+  [
+    source("src/projetos/market/paginas/StudioLoja.tsx"),
+    source("src/projetos/market/studio-loja/modelo.ts"),
+    source("src/projetos/market/studio-loja/tipos.ts")
+  ].join("\n");
 
 describe("loja digital operacao avancada", () => {
   it("centraliza no admin as opcoes avancadas do CRM e da loja", () => {
-    const pagina = source("src/paginas/LojaPublica.tsx");
+    const pagina = source("src/projetos/market/paginas/StudioLoja.tsx");
 
     expect(pagina).toContain("Gestão de plano");
     expect(pagina).toContain("Quotas de uso");
@@ -32,7 +38,7 @@ describe("loja digital operacao avancada", () => {
   });
 
   it("envia a configuracao avancada no payload persistido", () => {
-    const pagina = source("src/paginas/LojaPublica.tsx");
+    const pagina = fonteStudioLoja();
 
     [
       "plano",

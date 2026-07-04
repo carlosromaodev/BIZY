@@ -8,10 +8,11 @@ Criado em: 2026-06-28
 ```text
 Cliente -> Produto -> Pedido -> Pagamento -> Entrega
         -> Conversa -> Tarefa -> Recuperacao -> Relatorio
-        -> Equipa -> Financas -> Auditoria
+        -> Equipa -> Learning -> Financas -> Auditoria
 ```
 
-Live, WhatsApp, loja publica, Bizy Market, Social Inbox, campanhas, afiliados e formularios sao canais de entrada. Eles alimentam o mesmo nucleo operacional.
+Live, WhatsApp, loja publica, Bizy Market, Bizy Learning, Social Inbox, campanhas, afiliados e formularios sao canais de entrada. Eles alimentam o mesmo nucleo operacional.
+Bizy Learning e um sistema proprio de produtos digitais, activacao, formacao, comunidade e monetizacao de conhecimento. Ele tem home publica propria como o Bizy Market, mas o backstage de perfis, owners, produtos digitais, precos, publicacao, entitlements, cohorts, progresso e certificados e administrado pelo Team. O Bizy Studio deve orientar o negocio a activar presenca em Market, Learning ou ambos.
 
 ## 2. Mapa de Dominios
 
@@ -32,6 +33,7 @@ Live, WhatsApp, loja publica, Bizy Market, Social Inbox, campanhas, afiliados e 
 | 12 Frontend/UX | Shell, paginas, design system | tipos frontend e componentes | `frontend/src/rotasApp.tsx`, paginas React | identidade visual v2 |
 | 13 Operacao | Deploy, Docker, backup, observabilidade | jobs, logs, scripts | `/saude`, scripts, Docker Compose | docs deploy |
 | 14 Seguranca | RBAC, privacidade, auditoria | `EventoOperacional`, `Auditoria*`, sessoes | guardas HTTP, auditoria, rate limit | guardrails seguranca |
+| 15 Learning | Produtos digitais, academias, comunidade, cohorts, entitlements, certificados, perfis Team | `LearningProfile`, `LearningDigitalProduct`, `LearningOffer`, `LearningEntitlement`, `LearningProgress`, `LearningCohort`, `LearningCertificate` | `/learning`, `/app/learning`, `/app/loja`, `/publico/learning` | `docs/RF-RNF-RN-BIZY-LEARNING.md`, deep research Learning |
 
 ## 3. Fronteiras Criticas
 
@@ -43,6 +45,7 @@ Live, WhatsApp, loja publica, Bizy Market, Social Inbox, campanhas, afiliados e 
 - n8n, Evolution, Cloud API, IA e conectores sociais sao suporte operacional.
 - Market gera descoberta; CRM/Team controla execucao.
 - Financas devem estar ligadas a origem operacional auditavel.
+- Learning deve ser separado do Market: Market controla stock, entrega e pedidos fisicos; Learning controla acesso, entitlement, progresso, certificados, comunidades e produtos digitais. Ambos podem ser geridos pelo Studio e administrados no Team conforme permissao.
 
 ## 4. Relacao com Codigo
 
@@ -65,6 +68,7 @@ Arquivos de entrada:
 - Guardrails: `docs/wiki/pages/arquitetura-e-guardrails-bizy.md`
 - Market: `docs/wiki/pages/bizy-market-lojas-digitais.md`
 - Team: `docs/RF-RNF-RN-BIZY-TEAM-MIGRACAO.md`
+- Learning: `docs/RF-RNF-RN-BIZY-LEARNING.md`
 
 ## 6. Como Usar Este Mapa
 

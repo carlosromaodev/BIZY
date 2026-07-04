@@ -21,7 +21,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { formatarDataHoraCurta } from "../utilidades";
 
-interface ClienteRelatorioCrm {
+interface ClienteRelatorioTeam {
   telefone: string;
   nomeCliente: string;
   reservas: number;
@@ -31,7 +31,7 @@ interface ClienteRelatorioCrm {
   statusOportunidade?: string;
 }
 
-interface RelatorioCrm {
+interface RelatorioTeam {
   liveId: string | null;
   metricas: {
     clientesAtendidos: number;
@@ -46,7 +46,7 @@ interface RelatorioCrm {
     reservasCanceladas: number;
     mensagensFalhadas: number;
   };
-  clientes: ClienteRelatorioCrm[];
+  clientes: ClienteRelatorioTeam[];
 }
 
 interface EntregaRelatorio {
@@ -79,7 +79,7 @@ function formatarTempoResposta(segundos: number | null): string {
 }
 
 export function PaginaRelatorios() {
-  const [crm, setCrm] = useState<RelatorioCrm | null>(null);
+  const [team, setTeam] = useState<RelatorioTeam | null>(null);
   const [entregas, setEntregas] = useState<EntregaRelatorio[]>([]);
   const [serieReceita, setSerieReceita] = useState<PontoSerieReceita[]>([]);
   const [carregando, setCarregando] = useState(true);
@@ -88,12 +88,12 @@ export function PaginaRelatorios() {
   async function carregar() {
     setCarregando(true);
     try {
-      const [relatorioCrm, relatorioEntregas, serie] = await Promise.all([
-        requisitarApi<RelatorioCrm>("/relatorios/crm-pos-live"),
+      const [relatorioTeam, relatorioEntregas, serie] = await Promise.all([
+        requisitarApi<RelatorioTeam>("/relatorios/team-pos-live"),
         requisitarApi<RelatorioEntregas>("/relatorios/entregas"),
         requisitarApi<{ serie: PontoSerieReceita[] }>("/relatorios/serie-receita").catch(() => ({ serie: [] }))
       ]);
-      setCrm(relatorioCrm);
+      setTeam(relatorioTeam);
       setEntregas(relatorioEntregas.entregas);
       setSerieReceita(serie.serie);
       setMensagem("");
@@ -106,18 +106,18 @@ export function PaginaRelatorios() {
 
   useEffect(() => { void carregar(); }, []);
 
-  const metricas = crm?.metricas;
-  const oportunidades = crm?.oportunidadesPerdidas;
+  const metricas = team?.metricas;
+  const oportunidades = team?.oportunidadesPerdidas;
   const perdas =
     (oportunidades?.comentariosComIntencaoSemReserva ?? 0) +
     (oportunidades?.reservasExpiradas ?? 0) +
     (oportunidades?.reservasCanceladas ?? 0) +
     (oportunidades?.mensagensFalhadas ?? 0);
-  const topClientes = [...(crm?.clientes ?? [])]
+  const topClientes = [...(team?.clientes ?? [])]
     .sort((a, b) => b.reservasPagas - a.reservasPagas || b.reservas - a.reservas)
     .slice(0, 6);
 
-  if (carregando && !crm) return <CrmPageMotion><SkeletonPagina /></CrmPageMotion>;
+  if (carregando && !team) return <CrmPageMotion><SkeletonPagina /></CrmPageMotion>;
 
   return (
     <CrmPageMotion>

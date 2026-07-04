@@ -1,5 +1,5 @@
 import { AlertTriangle, CheckCircle2, CheckSquare, Clock, ListChecks, Package, Plus, Square } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { requisitarApi } from "../api";
 import { CrmPageMotion } from "../componentes/CrmInterno21st";
@@ -8,6 +8,8 @@ import {
   KpiGrid,
   KpiCard,
   BotaoBizy,
+  EmptyStateBizy,
+  PanelCard,
   AvatarBizy,
   obterCorAvatar,
   obterIniciais,
@@ -53,17 +55,62 @@ function traduzirPrioridadeTag(prioridade: string): string {
 export function PaginaTarefas() {
   const [tarefas, setTarefas] = useState<TarefaOperacional[]>([]);
   const [carregando, setCarregando] = useState(true);
+  const [mostrarForm, setMostrarForm] = useState(false);
+  const [novoTitulo, setNovoTitulo] = useState("");
+  const [novaPrioridade, setNovaPrioridade] = useState<TarefaOperacional["prioridade"]>("NORMAL");
+  const [novoPrazo, setNovoPrazo] = useState("");
+  const [mensagem, setMensagem] = useState("");
 
-  useEffect(() => {
+  async function carregar() {
+    setCarregando(true);
     requisitarApi<RespostaTarefasOperacionais>("/tarefas")
       .then((r) => setTarefas(r?.tarefas ?? []))
       .catch(() => setTarefas([]))
       .finally(() => setCarregando(false));
-  }, []);
+  }
+
+  useEffect(() => { void carregar(); }, []);
+
+  async function criarTarefaManual(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!novoTitulo.trim()) {
+      setMensagem("Escreva o que precisa ser feito.");
+      return;
+    }
+
+    setMensagem("A criar tarefa...");
+    try {
+      const resposta = await requisitarApi<{ tarefa: TarefaOperacional }>("/tarefas", {
+        method: "POST",
+        body: {
+          tipo: "MANUAL",
+          titulo: novoTitulo.trim(),
+          descricao: "",
+          prioridade: novaPrioridade,
+          origem: "manual",
+          prazoEm: novoPrazo ? new Date(novoPrazo).toISOString() : null,
+          contexto: { origemUi: "tarefas" }
+        }
+      });
+      setTarefas((prev) => [resposta.tarefa, ...prev]);
+      setNovoTitulo("");
+      setNovaPrioridade("NORMAL");
+      setNovoPrazo("");
+      setMostrarForm(false);
+      setMensagem("Tarefa criada e adicionada ao quadro.");
+    } catch (erro) {
+      setMensagem(erro instanceof Error ? erro.message : "Não foi possível criar a tarefa.");
+    }
+  }
 
   async function concluir(id: string) {
-    await requisitarApi(`/tarefas/${id}/estado`, { method: "PATCH", body: JSON.stringify({ estado: "CONCLUIDA" }) });
-    setTarefas((prev) => prev.map((t) => (t.id === id ? { ...t, estado: "CONCLUIDA", concluidaEm: new Date().toISOString() } : t)));
+    try {
+      const resposta = await requisitarApi<{ tarefa: TarefaOperacional }>(`/tarefas/${id}`, { method: "PATCH", body: { estado: "CONCLUIDA" } });
+      setTarefas((prev) => prev.map((t) => (t.id === id ? resposta.tarefa : t)));
+      setMensagem("Tarefa concluída.");
+    } catch (erro) {
+      setMensagem(erro instanceof Error ? erro.message : "Não foi possível concluir a tarefa.");
+    }
   }
 
   /* ── Cálculos para KPIs ── */
@@ -96,9 +143,42 @@ export function PaginaTarefas() {
 
   return (
     <CrmPageMotion>
-      <PageHead eyebrow="Operação · o que fazer a seguir" titulo="Tarefas" tamanhoTitulo="sm">
-        <BotaoBizy icone={Plus} onClick={() => void 0}>Nova tarefa</BotaoBizy>
+      <PageHead
+        eyebrow="Operação · o que fazer a seguir"
+        titulo="Tarefas"
+        tamanhoTitulo="sm"
+        descricao="Crie, acompanhe e conclua trabalho humano ligado a vendas, atendimento, cobrança e entrega."
+      >
+        <BotaoBizy icone={Plus} onClick={() => setMostrarForm(true)}>Nova tarefa</BotaoBizy>
       </PageHead>
+
+      {mostrarForm && (
+        <PanelCard titulo="Criar tarefa" descricao="Registe uma acção curta que a equipa consiga concluir no turno.">
+          <form className="bz-form-grid" onSubmit={criarTarefaManual}>
+            <label className="bz-field">
+              <span>Tarefa</span>
+              <input value={novoTitulo} onChange={(e) => setNovoTitulo(e.target.value)} placeholder="Ex.: ligar ao cliente do pedido #123" autoFocus />
+            </label>
+            <label className="bz-field">
+              <span>Prioridade</span>
+              <select value={novaPrioridade} onChange={(e) => setNovaPrioridade(e.target.value as TarefaOperacional["prioridade"])}>
+                <option value="NORMAL">Normal</option>
+                <option value="ALTA">Alta</option>
+                <option value="URGENTE">Urgente</option>
+                <option value="BAIXA">Baixa</option>
+              </select>
+            </label>
+            <label className="bz-field">
+              <span>Prazo</span>
+              <input type="datetime-local" value={novoPrazo} onChange={(e) => setNovoPrazo(e.target.value)} />
+            </label>
+            <div className="bz-form-actions">
+              <BotaoBizy tipo="submit" icone={Plus}>Criar</BotaoBizy>
+              <BotaoBizy variante="tertiary" onClick={() => setMostrarForm(false)}>Cancelar</BotaoBizy>
+            </div>
+          </form>
+        </PanelCard>
+      )}
 
       <KpiGrid>
         <KpiCard
@@ -135,13 +215,15 @@ export function PaginaTarefas() {
       </KpiGrid>
 
       {carregando ? (
-        <p className="bz-empty-msg">A carregar tarefas...</p>
+        <EmptyStateBizy icone={<ListChecks />} titulo="A carregar tarefas" detalhe="Estamos a montar o quadro operacional do turno." />
       ) : abertas.length === 0 && concluidas.length === 0 ? (
-        <div className="bz-empty-msg">
-          <ListChecks size={24} style={{ opacity: 0.5 }} />
-          <strong>Sem tarefas</strong>
-          <span>Quando pedidos ou conversas exigirem acção, tudo aparece aqui.</span>
-        </div>
+        <EmptyStateBizy
+          icone={<ListChecks />}
+          titulo="Sem tarefas"
+          detalhe="Crie a primeira tarefa manual ou deixe pedidos, conversas e automações gerarem trabalho para a equipa."
+          acaoTexto="Criar tarefa"
+          onAcao={() => setMostrarForm(true)}
+        />
       ) : (
         <div className="bz-board">
           <ColunaKanban
@@ -164,6 +246,8 @@ export function PaginaTarefas() {
           />
         </div>
       )}
+
+      {mensagem && <footer className="bz-panel" style={{ padding: "12px 18px", fontSize: 13.5, color: "var(--ink-2)" }} aria-live="polite">{mensagem}</footer>}
     </CrmPageMotion>
   );
 }

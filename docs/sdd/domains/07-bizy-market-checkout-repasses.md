@@ -1,27 +1,27 @@
 # SDD Dominio 07 - Bizy Market, Checkout e Repasses
 
-Status: ativo
+Status: implementado
 Owner logico: Produto Market
 Fontes: `docs/wiki/pages/bizy-market-lojas-digitais.md`, `docs/wiki/pages/requisitos-bizy-market.md`, `docs/wiki/pages/bizy-market-rotas-roadmap.md`
-Ultima atualizacao: 2026-06-28
+Ultima atualizacao: 2026-07-02
 
 ## 1. Proposito
 
-Organizar o Bizy Market como camada de descoberta central, mantendo perfis independentes de loja, checkout unificado e execucao operacional dentro do CRM/Team.
+Organizar o Bizy Market como camada de descoberta central, mantendo perfis independentes de loja, checkout unificado e execucao operacional dentro do Team.
 
 ## 2. Escopo
 
-Entra: Bizy Loja, Bizy Market, categorias globais, similares, checkout unificado, compra multi-loja, pedidos filhos, repasses, reembolsos, seguidores, denuncias e Admin Bizy.
+Entra: Bizy Loja, Bizy Market, categorias globais, similares, checkout unificado, compra multi-loja, pedidos filhos, repasses, reembolsos, seguidores, denuncias, boost/patrocinados e Admin Bizy.
 
-Fica fora: catalogo base da loja, coberto no dominio 06, e financeiro geral, coberto no dominio 10.
+Fica fora: catalogo base da loja, coberto no dominio 06, financeiro geral fora de repasses Market, coberto no dominio 10, e perfil autenticado completo do comprador, evolucao futura do social graph.
 
 ## 3. Atores e Permissoes
 
-- Visitante/comprador: explora Market, loja e produtos.
-- Dono da loja: configura perfil e publicacao.
-- Fornecedor: ve apenas pedidos/repasses da sua loja.
-- Admin Bizy: gere categorias, denuncias, suspensoes e patrocinados.
-- Sistema: separa compra unificada em pedidos por fornecedor.
+- Visitante/comprador: explora Market, loja e produtos, inicia checkout e acompanha compra.
+- Dono da loja: configura perfil, catalogos, publicacao, entrega e pagamentos.
+- Fornecedor: ve apenas pedidos e repasses da sua loja.
+- Admin Bizy: gere categorias, denuncias, suspensoes, destaques e patrocinados.
+- Sistema: separa compra unificada em pedidos por fornecedor, calcula taxas e mantem isolamento.
 
 ## 4. Entidades e Dados
 
@@ -41,8 +41,8 @@ Dados sensiveis do comprador nao podem vazar entre fornecedores.
 
 ```text
 Comprador -> Market/Loja -> Produto -> Carrinho
-          -> Checkout unificado -> Compra
-          -> Pedidos filhos -> CRM de cada loja
+          -> Checkout unificado -> Compra unificada
+          -> Pedidos filhos -> Team de cada loja
           -> Pagamento/Entrega/Repasses
 ```
 
@@ -53,16 +53,20 @@ Comprador -> Market/Loja -> Produto -> Carrinho
 - Buscar e filtrar por categoria, loja, localizacao e disponibilidade.
 - Exibir similares sem confundir fornecedor.
 - Criar compra unificada e pedidos filhos.
-- Controlar repasses, taxas e reembolsos.
-- Permitir governanca de categorias, denuncias e suspensoes.
+- Acompanhar estado da compra e de cada fornecedor.
+- Controlar repasses, taxas, cancelamentos e reembolsos.
+- Permitir governanca de categorias, denuncias, suspensoes, destaques e patrocinados.
+- Expor seguidores e metricas reais no Team.
 
 ## 7. Regras de Negocio
 
 - Loja pode existir sem participar do Market.
 - Produto no Market exige loja ativa, imagem, preco, categoria global e disponibilidade.
-- Categoria global e do Bizy; colecao local e da loja.
+- Categoria global e do Bizy; colecao/catalogo local e da loja.
 - Cada fornecedor ve apenas sua parte.
-- Market gera descoberta; CRM/Team executa.
+- Market gera descoberta; Team executa.
+- Produto patrocinado nao pode contornar suspensao, inelegibilidade ou falta de seguranca.
+- Prova social publica deve vir de dados reais; a UI nao deve fabricar ratings, reviews, vendidos, seguidores ou tempo de resposta.
 
 ## 8. Requisitos Nao Funcionais
 
@@ -71,31 +75,55 @@ Comprador -> Market/Loja -> Produto -> Carrinho
 - Checkout idempotente.
 - Dados pessoais minimizados.
 - Cache seguro para paginas publicas.
-- Observabilidade de compra e falhas.
+- Observabilidade de compra, pagamento, repasse e falhas.
+- Sem scroll horizontal em telas publicas e Team.
 
 ## 9. APIs, Telas e Integracoes
 
-APIs: `/publico/market/produtos`, `/publico/market/categorias`, `/publico/market/lojas`, `/publico/market/produtos/:codigo/similares`, `/checkout`, `/crm/loja/pedidos-market`, `/crm/loja/repasses`.
+APIs publicas principais:
 
-Telas: Market Home, Categoria, Produto Market, Perfil da Loja, Checkout, Bizy Studio, Admin Bizy.
+- `/publico/market/produtos`
+- `/publico/market/categorias`
+- `/publico/market/lojas`
+- `/publico/market/produtos/:codigo/similares`
+- `/publico/market/checkout`
+- `/publico/market/compras/:id`
+- `/publico/market/compras/:id/pagamento`
+- `/publico/lojas/:slug`
+- `/publico/lojas/:slug/catalogos/:catalogo`
+
+APIs Team principais:
+
+- `/team/loja/market/resumo`
+- `/team/loja/catalogos`
+- `/team/loja/seguidores`
+- `/team/loja/metricas`
+- `/team/loja/pedidos-market`
+- `/team/loja/repasses`
+
+`/crm/loja/*` e alias legado, nao contrato novo.
+
+Telas: Market Home, Categoria, Produto Market, Diretorio de Lojas, Perfil da Loja, Catalogo Publico, Checkout, Compra Unificada, Bizy Studio e Admin Bizy.
 
 ## 10. Guardrails
 
 - Nao apagar identidade da loja.
 - Nao mostrar similares agressivamente dentro da loja.
-- Nao criar pedido impossivel de operar no CRM.
+- Nao criar pedido impossivel de operar no Team.
 - Nao expor dados privados de outra loja.
 - Nao permitir patrocinio que contorne bloqueio.
+- Nao inventar dados sociais ou comerciais publicos.
 
 ## 11. Estado Atual
 
-Market possui endpoints de produtos, categorias, lojas, detalhes, similares, Studio e varias fases de checkout/repasses em evolucao. Frontend publico e Studio existem em progresso.
+Market possui endpoints publicos de produtos, categorias, lojas, detalhes, similares, tracking, checkout multi-loja, compra unificada e comprovativo. O Team possui publicacao, catalogos, seguidores, metricas, pedidos Market e repasses. Admin Bizy possui governanca de categorias, suspensoes, denuncias, patrocinados, relatorios e repasses. Frontend publico, checkout, acompanhamento e Studio estao implementados.
 
-## 12. Lacunas
+## 12. Lacunas Residuais
 
-- P0: checkout visual e privacidade publica.
-- P1: acompanhamento do comprador e UX de repasses.
-- P2: social graph, ranking avancado, patrocinados e recomendacoes comportamentais.
+- Validar em staging o fluxo completo multi-loja com dados reais de pagamento/entrega.
+- Ligar provider de pagamento online quando houver decisao comercial; comprovativo/transferencia e dinheiro na entrega seguem como fluxo operacional.
+- Evoluir perfil autenticado do comprador e recomendacao comportamental avancada sem simular dados no MVP.
+- Ampliar observabilidade com dashboards de falhas por etapa de checkout, pagamento e repasse.
 
 ## 13. Testes e Verificacao
 
@@ -103,10 +131,13 @@ Market possui endpoints de produtos, categorias, lojas, detalhes, similares, Stu
 - Testes de contrato frontend.
 - Testes de checkout unificado.
 - Testes de isolamento por fornecedor.
+- Testes de repasses e reembolsos.
 - Testes mobile sem scroll horizontal.
+- Varredura de UI publica para evitar ratings/reviews/vendidos simulados.
 
 ## 14. Proximos Planos
 
-- Spec de checkout multi-loja completo.
-- Spec de acompanhamento do comprador.
-- Spec de governanca Admin Bizy.
+- Validacao staging ponta a ponta: Market -> checkout -> compra -> pedidos filhos -> repasses.
+- Observabilidade operacional de checkout, pagamento e repasse.
+- Provider de pagamento online com idempotencia e conciliacao.
+- Perfil autenticado do comprador e recomendacao avancada baseada em consentimento.

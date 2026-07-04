@@ -76,7 +76,7 @@ const objetivos: Array<{
   {
     id: "crm",
     titulo: "Gerir clientes e vendas",
-    texto: "CRM multi-canal com pedidos, pagamentos, conversas e relatórios.",
+    texto: "Team multi-canal com pedidos, pagamentos, conversas e relatórios.",
     tom: "azul",
     icone: ShoppingBag
   },

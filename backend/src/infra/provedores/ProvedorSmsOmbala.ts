@@ -9,6 +9,7 @@ import {
 interface OpcoesProvedorSmsOmbala {
   baseUrl: string;
   token?: string | null;
+  timeoutMs?: number;
 }
 
 export class ProvedorSmsOmbala implements ProvedorSms {

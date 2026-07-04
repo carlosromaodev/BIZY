@@ -1,4 +1,7 @@
-import { describe, expect, it } from "vitest";
+import { performance } from "node:perf_hooks";
+import type { PrismaClient } from "@prisma/client";
+import { describe, expect, it, vi } from "vitest";
+import { GestaoFinancasUseCase } from "../use-case/GestaoFinancasUseCase.js";
 
 describe("GestaoFinancasUseCase — lógica pura", () => {
   it("CATEGORIAS_PADRAO contém receitas e despesas", async () => {
@@ -49,6 +52,81 @@ describe("GestaoFinancasUseCase — lógica pura", () => {
     expect(totalEntradas).toBe(80000);
     expect(totalSaidas).toBe(35000);
     expect(saldo).toBe(45000);
+  });
+
+  it("RNF-T001: calcula fluxo de caixa e DRE por agregações para dashboards de até 90 dias", async () => {
+    const movimentoFinanceiro = {
+      groupBy: vi
+        .fn()
+        .mockResolvedValueOnce([
+          { tipo: "ENTRADA", _sum: { valor: 120000 } },
+          { tipo: "SAIDA", _sum: { valor: 45000 } }
+        ])
+        .mockResolvedValueOnce([
+          { categoriaId: "cat-vendas", tipo: "ENTRADA", _sum: { valor: 120000 } },
+          { categoriaId: "cat-fornecedor", tipo: "SAIDA", _sum: { valor: 30000 } },
+          { categoriaId: "cat-aluguer", tipo: "SAIDA", _sum: { valor: 15000 } }
+        ])
+        .mockResolvedValueOnce([
+          { categoriaId: "cat-vendas", tipo: "ENTRADA", _sum: { valor: 120000 } },
+          { categoriaId: "cat-fornecedor", tipo: "SAIDA", _sum: { valor: 30000 } },
+          { categoriaId: "cat-aluguer", tipo: "SAIDA", _sum: { valor: 15000 } }
+        ]),
+      findMany: vi.fn()
+    };
+    const categoriaFinanceira = {
+      findMany: vi.fn().mockResolvedValue([
+        { id: "cat-vendas", nome: "Vendas", tipo: "RECEITA" },
+        { id: "cat-fornecedor", nome: "Fornecedores", tipo: "DESPESA" },
+        { id: "cat-aluguer", nome: "Aluguer", tipo: "DESPESA" }
+      ])
+    };
+    const prisma = {
+      movimentoFinanceiro,
+      categoriaFinanceira,
+      $queryRaw: vi.fn().mockResolvedValue([
+        { dia: new Date("2026-07-01T00:00:00.000Z"), tipo: "ENTRADA", total: 120000n },
+        { dia: new Date("2026-07-01T00:00:00.000Z"), tipo: "SAIDA", total: 45000n }
+      ])
+    } as unknown as PrismaClient;
+    const useCase = new GestaoFinancasUseCase(prisma);
+
+    const inicio = performance.now();
+    const fluxo = await useCase.obterFluxoCaixa(
+      "negocio-1",
+      new Date("2026-05-01T00:00:00.000Z"),
+      new Date("2026-07-30T23:59:59.999Z")
+    );
+    const dre = await useCase.obterDRE("negocio-1", 7, 2026);
+    const duracaoMs = performance.now() - inicio;
+
+    expect(fluxo).toEqual(
+      expect.objectContaining({
+        saldo: 75000,
+        totalEntradas: 120000,
+        totalSaidas: 45000,
+        porDia: [{ dia: "2026-07-01", entradas: 120000, saidas: 45000 }]
+      })
+    );
+    expect(fluxo.porCategoria).toEqual(
+      expect.arrayContaining([
+        { categoria: "Vendas", tipo: "RECEITA", total: 120000 },
+        { categoria: "Fornecedores", tipo: "DESPESA", total: 30000 }
+      ])
+    );
+    expect(dre).toEqual(
+      expect.objectContaining({
+        receitaBruta: 120000,
+        custosVariaveis: 30000,
+        custosFixos: 15000,
+        outrosCustos: 0,
+        resultadoOperacional: 75000
+      })
+    );
+    expect(duracaoMs).toBeLessThan(2_000);
+    expect(movimentoFinanceiro.findMany).not.toHaveBeenCalled();
+    expect(movimentoFinanceiro.groupBy).toHaveBeenCalledTimes(3);
+    expect(prisma.$queryRaw).toHaveBeenCalledTimes(1);
   });
 
   it("calcula DRE separando custos variáveis e fixos", () => {
@@ -178,6 +256,76 @@ describe("GestaoFinancasUseCase — lógica pura", () => {
     // segunda factura
     const numero2 = (1) + 1;
     expect(numero2).toBe(2);
+  });
+
+  it("relaciona factura-recibo com movimento existente sem duplicar entrada no ledger", async () => {
+    const movimentoOrigem = {
+      id: "movimento-entrada-1",
+      negocioId: "negocio-1",
+      tipo: "ENTRADA",
+      descricao: "Transferência do cliente",
+      valor: 25000,
+      origemTipo: "RECEBIMENTO_MANUAL",
+      origemId: null,
+      metodoPagamento: "TPA",
+      referenciaPagamento: "TPA-123",
+      comprovativoUrl: "https://exemplo.local/comprovativo.pdf",
+      observacao: null
+    };
+    const facturaCriada = {
+      id: "factura-recibo-1",
+      negocioId: "negocio-1",
+      serie: "FR",
+      numero: 1,
+      anoFiscal: new Date().getFullYear(),
+      tipoDocumento: "FACTURA_RECIBO",
+      total: 25000,
+      itens: []
+    };
+    const movimentoFinanceiro = {
+      findFirst: vi.fn().mockResolvedValue(movimentoOrigem),
+      update: vi.fn().mockResolvedValue({ ...movimentoOrigem, origemTipo: "RECIBO", origemId: facturaCriada.id }),
+      create: vi.fn()
+    };
+    const factura = {
+      findFirst: vi.fn().mockResolvedValue(null),
+      create: vi.fn().mockResolvedValue(facturaCriada)
+    };
+    const contaReceber = { create: vi.fn() };
+    const prisma = { movimentoFinanceiro, factura, contaReceber } as unknown as PrismaClient;
+    const useCase = new GestaoFinancasUseCase(prisma);
+
+    const resultado = await useCase.emitirFactura("negocio-1", {
+      clienteNome: "Cliente com pagamento prévio",
+      movimentoOrigemId: movimentoOrigem.id,
+      tipoDocumento: "FACTURA_RECIBO",
+      ivaPercentual: 0,
+      itens: [{ descricao: movimentoOrigem.descricao, quantidade: 1, precoUnitario: movimentoOrigem.valor }]
+    });
+
+    expect(resultado).toBe(facturaCriada);
+    expect(factura.create).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({
+        tipoDocumento: "FACTURA_RECIBO",
+        total: movimentoOrigem.valor,
+        valorPago: movimentoOrigem.valor,
+        metodoPagamento: movimentoOrigem.metodoPagamento,
+        referenciaPagamento: movimentoOrigem.referenciaPagamento,
+        comprovativoPagamentoUrl: movimentoOrigem.comprovativoUrl
+      })
+    }));
+    expect(movimentoFinanceiro.update).toHaveBeenCalledWith({
+      where: { id: movimentoOrigem.id },
+      data: expect.objectContaining({
+        origemTipo: "RECIBO",
+        origemId: facturaCriada.id,
+        metodoPagamento: movimentoOrigem.metodoPagamento,
+        referenciaPagamento: movimentoOrigem.referenciaPagamento,
+        comprovativoUrl: movimentoOrigem.comprovativoUrl
+      })
+    });
+    expect(movimentoFinanceiro.create).not.toHaveBeenCalled();
+    expect(contaReceber.create).not.toHaveBeenCalled();
   });
 
   it("calcula taxa de inadimplência", () => {

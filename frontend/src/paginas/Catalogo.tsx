@@ -121,7 +121,7 @@ export function PaginaCatalogo() {
           prioridade: formPeca.prioridade,
           publicacaoMarket: {
             publicado: formPeca.visibilidade === "market",
-            origem: "crm"
+            origem: "team"
           },
           visibilidade: formPeca.visibilidade
         }

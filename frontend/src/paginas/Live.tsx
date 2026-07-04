@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { type FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
+import { Link } from "react-router-dom";
 import { criarFonteEventosAutenticada, requisitarApi } from "../api";
 import { notificarSite } from "../componentes/Notificacoes";
 import { ConfirmarAcao } from "../componentes/ConfirmarAcao";
@@ -24,7 +25,6 @@ import {
   AvatarBizy,
   obterCorAvatar,
   obterIniciais,
-  IconButton,
 } from "../componentes/BizyDesignSystem";
 import { Input } from "@/components/ui/input";
 import {
@@ -76,6 +76,13 @@ interface FeedEvento {
   produto?: string;
   preco?: number;
   variante?: string;
+}
+
+function criarUrlAtendimentoLive(evento: FeedEvento): string {
+  const params = new URLSearchParams();
+  const termo = evento.username || evento.displayName;
+  if (termo) params.set("busca", termo);
+  return `/app/conversas${params.size ? `?${params.toString()}` : ""}`;
 }
 
 export function PaginaLive() {
@@ -532,7 +539,9 @@ export function PaginaLive() {
                       perguntou <b>{`"${evento.texto.split('"')[1] ?? evento.texto.slice(0, 40)}"`}</b>
                     </div>
                   </div>
-                  <IconButton icone={MessageSquare} titulo="Responder" />
+                  <Link to={criarUrlAtendimentoLive(evento)} className="bz-iconbtn" title="Responder" aria-label="Responder">
+                    <MessageSquare size={16} aria-hidden="true" />
+                  </Link>
                 </motion.div>
               ))}
             </AnimatePresence>

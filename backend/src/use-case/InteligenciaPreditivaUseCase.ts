@@ -1,4 +1,30 @@
+import { randomUUID } from "node:crypto";
 import type { PrismaClient } from "@prisma/client";
+
+type IndicadorExternoPreditivoEntrada = {
+  fonte?: string;
+  chave: string;
+  periodo: string;
+  valor: number;
+  unidade?: string;
+  segmento?: string;
+  metadados?: Record<string, unknown>;
+};
+
+type IndicadorExternoPreditivo = IndicadorExternoPreditivoEntrada & {
+  id: string;
+  fonte: string;
+  recebidoEm: string;
+  criadoPorId?: string;
+};
+
+type FontesDadosPreditivas = {
+  preditivo?: {
+    actualizadoEm?: string;
+    fontesExternas?: IndicadorExternoPreditivo[];
+  };
+  [chave: string]: unknown;
+};
 
 export class InteligenciaPreditivaUseCase {
   constructor(private readonly prisma: PrismaClient) {}
@@ -868,6 +894,7 @@ export class InteligenciaPreditivaUseCase {
   async preverReceitaMensal(negocioId: string, meses = 3) {
     const agora = new Date();
     const inicio12m = new Date(agora.getFullYear() - 1, agora.getMonth(), 1);
+    const factoresExternos = await this.listarFontesExternasPreditivas(negocioId, { limite: 20 });
 
     const pedidos = await this.prisma.pedido.findMany({
       where: { negocioId, estadoPagamento: "CONFIRMADO", criadoEm: { gte: inicio12m } },
@@ -883,7 +910,8 @@ export class InteligenciaPreditivaUseCase {
         previsoes: [],
         dadosInsuficientes: true,
         mensagem: "Menos de 30 transacções confirmadas. Previsão detalhada requer mais dados.",
-        mediaSimplesPorTransaccao: mediaSimples
+        mediaSimplesPorTransaccao: mediaSimples,
+        factoresExternos
       };
     }
 
@@ -937,8 +965,257 @@ export class InteligenciaPreditivaUseCase {
       dadosInsuficientes: false,
       historico: mesesHistorico.map(([mes, valor]) => ({ mes, valor })),
       mediaMensal: Math.round(media),
-      tendenciaMensal: Math.round(pendente)
+      tendenciaMensal: Math.round(pendente),
+      factoresExternos
     };
+  }
+
+  // ── RNF-T020 — Graceful degradation no recálculo preditivo ──────────────
+
+  async recalcularPrevisoesComDegradacao(
+    negocioId: string,
+    opcoes?: { semanasDemanda?: number; semanasCaixa?: number; mesesReceita?: number }
+  ) {
+    const tarefas = [
+      {
+        chave: "demanda",
+        executar: () => this.preverDemandaPorSKU(negocioId, opcoes?.semanasDemanda ?? 4)
+      },
+      {
+        chave: "fluxoCaixa",
+        executar: () => this.preverFluxoCaixa(negocioId, opcoes?.semanasCaixa ?? 13)
+      },
+      {
+        chave: "receita",
+        executar: () => this.preverReceitaMensal(negocioId, opcoes?.mesesReceita ?? 3)
+      },
+      {
+        chave: "scoresClientes",
+        executar: () => this.persistirScoresClientes(negocioId)
+      }
+    ];
+
+    const resultados = await Promise.allSettled(tarefas.map((tarefa) => tarefa.executar()));
+    const concluidas: Record<string, unknown> = {};
+    const falhas: Array<{ chave: string; erro: string }> = [];
+
+    resultados.forEach((resultado, indice) => {
+      const chave = tarefas[indice].chave;
+      if (resultado.status === "fulfilled") {
+        concluidas[chave] = resultado.value;
+      } else {
+        falhas.push({
+          chave,
+          erro: resultado.reason instanceof Error ? resultado.reason.message : String(resultado.reason)
+        });
+      }
+    });
+
+    return {
+      estado: falhas.length === 0 ? "CONCLUIDO" : concluidas && Object.keys(concluidas).length > 0 ? "PARCIAL" : "FALHADO",
+      concluidas,
+      falhas,
+      recalculadoEm: new Date().toISOString()
+    };
+  }
+
+  async enfileirarRecalculoPreditivo(
+    negocioId: string,
+    opcoes?: { semanasDemanda?: number; semanasCaixa?: number; mesesReceita?: number; solicitadoPorId?: string }
+  ) {
+    const evento = await this.criarEventoRecalculoPreditivo(negocioId, opcoes);
+
+    return {
+      estado: "ENFILEIRADO",
+      eventoN8n: evento
+    };
+  }
+
+  async enfileirarRecalculoPreditivoLote(
+    negocioIds: string[],
+    opcoes?: {
+      semanasDemanda?: number;
+      semanasCaixa?: number;
+      mesesReceita?: number;
+      solicitadoPorId?: string;
+      concorrencia?: number;
+    }
+  ) {
+    const idsUnicos = [...new Set(negocioIds.map((id) => id.trim()).filter(Boolean))];
+    if (idsUnicos.length === 0) {
+      throw new Error("Informe pelo menos um negócio para recálculo preditivo.");
+    }
+
+    const loteId = randomUUID();
+    const concorrenciaSugerida = Math.max(1, Math.min(opcoes?.concorrencia ?? 4, idsUnicos.length, 20));
+    const resultados = await Promise.allSettled(
+      idsUnicos.map((negocioId, indice) =>
+        this.criarEventoRecalculoPreditivo(negocioId, {
+          ...opcoes,
+          loteId,
+          indiceLote: indice,
+          totalNegocios: idsUnicos.length,
+          concorrenciaSugerida,
+          chaveParticao: negocioId
+        })
+      )
+    );
+
+    const eventos = resultados.flatMap((resultado, indice) =>
+      resultado.status === "fulfilled"
+        ? [{ negocioId: idsUnicos[indice], eventoN8n: resultado.value }]
+        : []
+    );
+    const falhas = resultados.flatMap((resultado, indice) =>
+      resultado.status === "rejected"
+        ? [{
+            negocioId: idsUnicos[indice],
+            erro: resultado.reason instanceof Error ? resultado.reason.message : String(resultado.reason)
+          }]
+        : []
+    );
+
+    return {
+      estado: falhas.length === 0 ? "ENFILEIRADO" : eventos.length > 0 ? "PARCIAL" : "FALHADO",
+      loteId,
+      totalNegocios: idsUnicos.length,
+      enfileirados: eventos.length,
+      concorrenciaSugerida,
+      eventos,
+      falhas
+    };
+  }
+
+  private criarEventoRecalculoPreditivo(
+    negocioId: string,
+    opcoes?: {
+      semanasDemanda?: number;
+      semanasCaixa?: number;
+      mesesReceita?: number;
+      solicitadoPorId?: string;
+      loteId?: string;
+      indiceLote?: number;
+      totalNegocios?: number;
+      concorrenciaSugerida?: number;
+      chaveParticao?: string;
+    }
+  ) {
+    return this.prisma.outboxEventoN8n.create({
+      data: {
+        negocioId,
+        eventoId: randomUUID(),
+        tipo: "PREDICTIVE_RECALCULO_SOLICITADO",
+        payloadJson: JSON.stringify({
+          negocioId,
+          semanasDemanda: opcoes?.semanasDemanda ?? 4,
+          semanasCaixa: opcoes?.semanasCaixa ?? 13,
+          mesesReceita: opcoes?.mesesReceita ?? 3,
+          solicitadoPorId: opcoes?.solicitadoPorId ?? null,
+          endpointExecucao: "/inteligencia/recalcular",
+          loteId: opcoes?.loteId ?? null,
+          indiceLote: opcoes?.indiceLote ?? null,
+          totalNegocios: opcoes?.totalNegocios ?? 1,
+          concorrenciaSugerida: opcoes?.concorrenciaSugerida ?? 1,
+          chaveParticao: opcoes?.chaveParticao ?? negocioId,
+          solicitadoEm: new Date().toISOString()
+        }),
+        status: "PENDENTE",
+        proximaTentativaEm: new Date()
+      },
+      select: { id: true, eventoId: true, status: true }
+    });
+  }
+
+  // ── RNF-T024 — Fontes externas para o motor preditivo ───────────────────
+
+  async importarFontesExternasPreditivas(
+    negocioId: string,
+    dados: {
+      fonte: string;
+      indicadores?: IndicadorExternoPreditivoEntrada[];
+      conteudoCsv?: string;
+      criadoPorId?: string;
+    }
+  ) {
+    const indicadores = [
+      ...(dados.indicadores ?? []),
+      ...this.parseIndicadoresExternosCsv(dados.conteudoCsv ?? "", dados.fonte)
+    ].map((indicador) => this.normalizarIndicadorExterno(indicador, dados.fonte, dados.criadoPorId));
+
+    if (indicadores.length === 0) {
+      throw new Error("Informe pelo menos um indicador externo em JSON ou CSV.");
+    }
+
+    const negocio = await this.prisma.negocio.findUnique({
+      where: { id: negocioId },
+      select: { fontesDadosJson: true }
+    });
+    if (!negocio) throw new Error("Negócio não encontrado.");
+
+    const fontesDados = this.lerFontesDadosPreditivas(negocio.fontesDadosJson);
+    const existentes = fontesDados.preditivo?.fontesExternas ?? [];
+    const porChave = new Map<string, IndicadorExternoPreditivo>();
+    for (const indicador of existentes) {
+      porChave.set(this.chaveIndicadorExterno(indicador), indicador);
+    }
+    for (const indicador of indicadores) {
+      porChave.set(this.chaveIndicadorExterno(indicador), indicador);
+    }
+
+    const fontesExternas = [...porChave.values()]
+      .sort((a, b) => b.recebidoEm.localeCompare(a.recebidoEm))
+      .slice(0, 500);
+
+    const actualizado: FontesDadosPreditivas = {
+      ...fontesDados,
+      preditivo: {
+        ...(fontesDados.preditivo ?? {}),
+        actualizadoEm: new Date().toISOString(),
+        fontesExternas
+      }
+    };
+
+    await this.prisma.negocio.update({
+      where: { id: negocioId },
+      data: { fontesDadosJson: JSON.stringify(actualizado) }
+    });
+
+    return {
+      importados: indicadores.length,
+      totalFontesExternas: fontesExternas.length,
+      indicadores: indicadores.map((indicador) => ({
+        id: indicador.id,
+        fonte: indicador.fonte,
+        chave: indicador.chave,
+        periodo: indicador.periodo,
+        valor: indicador.valor,
+        unidade: indicador.unidade ?? null,
+        segmento: indicador.segmento ?? null
+      }))
+    };
+  }
+
+  async listarFontesExternasPreditivas(
+    negocioId: string,
+    filtros?: { fonte?: string; chave?: string; segmento?: string; limite?: number }
+  ) {
+    const negocio = await this.prisma.negocio.findUnique({
+      where: { id: negocioId },
+      select: { fontesDadosJson: true }
+    });
+    if (!negocio) return [];
+
+    const fontesDados = this.lerFontesDadosPreditivas(negocio.fontesDadosJson);
+    const fonteFiltro = filtros?.fonte?.trim().toUpperCase();
+    const chaveFiltro = filtros?.chave?.trim().toLowerCase();
+    const segmentoFiltro = filtros?.segmento?.trim().toLowerCase();
+
+    return (fontesDados.preditivo?.fontesExternas ?? [])
+      .filter((indicador) => !fonteFiltro || indicador.fonte.toUpperCase() === fonteFiltro)
+      .filter((indicador) => !chaveFiltro || indicador.chave.toLowerCase() === chaveFiltro)
+      .filter((indicador) => !segmentoFiltro || indicador.segmento?.toLowerCase() === segmentoFiltro)
+      .sort((a, b) => b.periodo.localeCompare(a.periodo) || b.recebidoEm.localeCompare(a.recebidoEm))
+      .slice(0, filtros?.limite ?? 100);
   }
 
   // ── Previsão de Atrasos em Projectos (RF-T014) ─────────────────────────
@@ -955,6 +1232,10 @@ export class InteligenciaPreditivaUseCase {
     });
 
     if (projectos.length === 0) return { projectos: [], total: 0 };
+    const despesasPorProjecto = await this.calcularDespesasPorProjecto(
+      negocioId,
+      projectos.map((projecto) => projecto.id)
+    );
 
     // Calcular velocidade histórica: entregas concluídas por semana
     const entregasConcluidas = projectos
@@ -989,11 +1270,13 @@ export class InteligenciaPreditivaUseCase {
       ).length;
 
       // Verificar orçamento
-      const acimaDoProjeccaoOrcamento = false; // placeholder sem dados de despesas por projecto
+      const despesaProjecto = despesasPorProjecto.get(p.id) ?? 0;
+      const orcamentoExcedido = !!p.orcamento && p.orcamento > 0 && despesaProjecto > p.orcamento;
 
       let risco: "ALTO" | "MEDIO" | "BAIXO";
-      if (diasAtraso > 14 || entregasAtrasadas > 2) risco = "ALTO";
-      else if (diasAtraso > 0 || entregasAtrasadas > 0) risco = "MEDIO";
+      if (diasAtraso > 14 || entregasAtrasadas > 2 || (orcamentoExcedido && despesaProjecto > (p.orcamento ?? 0) * 1.2)) {
+        risco = "ALTO";
+      } else if (diasAtraso > 0 || entregasAtrasadas > 0 || orcamentoExcedido) risco = "MEDIO";
       else risco = "BAIXO";
 
       return {
@@ -1008,6 +1291,9 @@ export class InteligenciaPreditivaUseCase {
         dataEstimadaConclusao: dataEstimadaConclusao.toISOString().slice(0, 10),
         diasAtrasoEstimado: Math.max(0, diasAtraso),
         risco,
+        orcamento: p.orcamento ?? null,
+        despesaProjecto,
+        orcamentoExcedido,
         membros: p.membrosProjecto.length
       };
     });
@@ -1020,6 +1306,135 @@ export class InteligenciaPreditivaUseCase {
       velocidadeSemanalEquipa: Math.round(velocidadeSemanal * 10) / 10,
       emRisco: analises.filter((a) => a.risco !== "BAIXO").length
     };
+  }
+
+  private async calcularDespesasPorProjecto(negocioId: string, projectoIds: string[]) {
+    if (!projectoIds.length) return new Map<string, number>();
+
+    const despesas = await this.prisma.movimentoFinanceiro.groupBy({
+      by: ["origemId"],
+      where: {
+        negocioId,
+        tipo: "SAIDA",
+        origemTipo: { in: ["PROJECTO", "PROJETO"] },
+        origemId: { in: projectoIds }
+      },
+      _sum: { valor: true }
+    });
+
+    return new Map(
+      despesas.flatMap((despesa) => (despesa.origemId ? [[despesa.origemId, despesa._sum.valor ?? 0]] : []))
+    );
+  }
+
+  private normalizarIndicadorExterno(
+    indicador: IndicadorExternoPreditivoEntrada,
+    fontePadrao: string,
+    criadoPorId?: string
+  ): IndicadorExternoPreditivo {
+    const fonte = (indicador.fonte ?? fontePadrao).trim().toUpperCase();
+    const chave = indicador.chave.trim().toLowerCase();
+    const periodo = indicador.periodo.trim();
+    const valor = Number(indicador.valor);
+
+    if (!fonte) throw new Error("Fonte externa é obrigatória.");
+    if (!chave) throw new Error("Chave do indicador externo é obrigatória.");
+    if (!periodo) throw new Error("Período do indicador externo é obrigatório.");
+    if (!Number.isFinite(valor)) throw new Error(`Valor inválido para o indicador externo ${chave}.`);
+
+    return {
+      id: randomUUID(),
+      fonte,
+      chave,
+      periodo,
+      valor,
+      unidade: indicador.unidade?.trim() || undefined,
+      segmento: indicador.segmento?.trim() || undefined,
+      metadados: indicador.metadados,
+      recebidoEm: new Date().toISOString(),
+      criadoPorId
+    };
+  }
+
+  private parseIndicadoresExternosCsv(conteudo: string, fontePadrao: string): IndicadorExternoPreditivoEntrada[] {
+    const linhas = conteudo
+      .split(/\r?\n/)
+      .map((linha) => linha.trim())
+      .filter(Boolean);
+    if (linhas.length === 0) return [];
+
+    const separador = linhas[0].includes(";") ? ";" : ",";
+    const cabecalho = this.dividirLinhaCsv(linhas[0], separador).map((campo) => campo.trim().toLowerCase());
+    const indice = (nome: string) => cabecalho.indexOf(nome);
+    const idxChave = indice("chave");
+    const idxPeriodo = indice("periodo");
+    const idxValor = indice("valor");
+    if (idxChave < 0 || idxPeriodo < 0 || idxValor < 0) {
+      throw new Error("CSV de indicadores externos deve conter cabeçalho chave,periodo,valor.");
+    }
+
+    return linhas.slice(1).map((linha) => {
+      const colunas = this.dividirLinhaCsv(linha, separador);
+      return {
+        fonte: this.valorCsv(colunas, indice("fonte")) || fontePadrao,
+        chave: this.valorCsv(colunas, idxChave),
+        periodo: this.valorCsv(colunas, idxPeriodo),
+        valor: Number(this.valorCsv(colunas, idxValor).replace(",", ".")),
+        unidade: this.valorCsv(colunas, indice("unidade")) || undefined,
+        segmento: this.valorCsv(colunas, indice("segmento")) || undefined
+      };
+    });
+  }
+
+  private dividirLinhaCsv(linha: string, separador: string) {
+    const colunas: string[] = [];
+    let actual = "";
+    let entreAspas = false;
+
+    for (let i = 0; i < linha.length; i++) {
+      const char = linha[i];
+      const proximo = linha[i + 1];
+      if (char === '"' && proximo === '"') {
+        actual += '"';
+        i++;
+        continue;
+      }
+      if (char === '"') {
+        entreAspas = !entreAspas;
+        continue;
+      }
+      if (char === separador && !entreAspas) {
+        colunas.push(actual.trim());
+        actual = "";
+        continue;
+      }
+      actual += char;
+    }
+    colunas.push(actual.trim());
+    return colunas;
+  }
+
+  private valorCsv(colunas: string[], indice: number) {
+    if (indice < 0) return "";
+    return colunas[indice]?.trim() ?? "";
+  }
+
+  private chaveIndicadorExterno(indicador: IndicadorExternoPreditivo) {
+    return [
+      indicador.fonte.toUpperCase(),
+      indicador.chave.toLowerCase(),
+      indicador.periodo,
+      indicador.segmento?.toLowerCase() ?? ""
+    ].join("|");
+  }
+
+  private lerFontesDadosPreditivas(valor: string | null | undefined): FontesDadosPreditivas {
+    try {
+      const parsed = JSON.parse(valor || "{}") as FontesDadosPreditivas;
+      return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
+    } catch {
+      return {};
+    }
   }
 
   // ── Guarda Mínimo de Dados (RN-T015) ────────────────────────────────────

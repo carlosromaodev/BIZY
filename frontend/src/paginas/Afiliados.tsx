@@ -152,7 +152,7 @@ export function PaginaAfiliados() {
           slugLoja: null,
           codigoProduto: null,
           canal: "whatsapp",
-          origemConteudo: "crm-afiliados",
+          origemConteudo: "team-afiliados",
           ativo: true
         }
       });
@@ -260,7 +260,10 @@ export function PaginaAfiliados() {
       )}
 
       {/* ── Leaderboard Table ── */}
-      <TableCard>
+      <TableCard
+        titulo="Parceiros e links"
+        descricao="Crie links por afiliado, acompanhe receita atribuida e mantenha comissões visíveis para pagamento."
+      >
         <Table>
           <TableHead>
             <Th>#</Th>

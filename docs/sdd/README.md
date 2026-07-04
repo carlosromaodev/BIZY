@@ -3,6 +3,7 @@
 Status: ativo
 Criado em: 2026-06-28
 Spec base: `../superpowers/specs/2026-06-28-sdd-completo-bizy-design.md`
+Meta global: `../superpowers/specs/2026-06-30-meta-global-bizy.md`
 
 ## Objetivo
 
@@ -12,12 +13,13 @@ Use esta pasta quando a pergunta for: onde esta a fronteira deste modulo, que re
 
 ## Como Usar
 
-1. Comece pelo processo em `00-processo-sdd-bizy.md`.
-2. Navegue pelo indice em `01-indice-mestre-sdd.md`.
-3. Consulte o dominio afetado em `domains/`.
-4. Crie specs novas com `templates/spec-template.md`.
-5. Crie planos executaveis com `templates/plan-template.md`.
-6. Registre decisoes estruturais em `decisions/`.
+1. Comece pela meta global em `../superpowers/specs/2026-06-30-meta-global-bizy.md`.
+2. Use o processo em `00-processo-sdd-bizy.md`.
+3. Navegue pelo indice em `01-indice-mestre-sdd.md`.
+4. Consulte o dominio afetado em `domains/`.
+5. Crie specs novas com `templates/spec-template.md`.
+6. Crie planos executaveis com `templates/plan-template.md`.
+7. Registre decisoes estruturais em `decisions/`.
 
 ## Fluxo
 
@@ -38,6 +40,7 @@ Visao/Wiki -> SDD por dominio -> Spec de iniciativa -> Plano -> Implementacao ->
 - `docs/wiki/pages/visao-produto-bizy.md`
 - `docs/wiki/pages/mapa-de-modulos-bizy.md`
 - `docs/wiki/pages/bizy-market-lojas-digitais.md`
+- `docs/superpowers/specs/2026-06-30-meta-global-bizy.md`
 - `docs/wiki/pages/requisitos-funcionais-bizy.md`
 - `docs/wiki/pages/requisitos-nao-funcionais-bizy.md`
 - `docs/wiki/pages/regras-de-negocio-bizy.md`
@@ -48,4 +51,4 @@ Visao/Wiki -> SDD por dominio -> Spec de iniciativa -> Plano -> Implementacao ->
 
 ## Regra Curta
 
-Toda iniciativa relevante deve apontar para um dominio SDD. Toda mudanca que altera fronteira, fluxo, regra, entidade, permissao, seguranca ou roadmap deve atualizar o dominio afetado.
+Toda iniciativa relevante deve apontar para um dominio SDD e passar pelo filtro da meta global. Toda mudanca que altera fronteira, fluxo, regra, entidade, permissao, seguranca ou roadmap deve atualizar o dominio afetado.

@@ -25,7 +25,7 @@ export const moduloClientes: ModuloHttp = {
         permissao: "clientes:ler",
         modulo: "crm",
         mensagemPermissao: "Sem permissão para consultar clientes.",
-        mensagemModulo: "CRM desativado para este negócio."
+        mensagemModulo: "Módulo comercial desativado para este negócio."
       });
       if (!contextoComercial) return;
 
@@ -46,7 +46,7 @@ export const moduloClientes: ModuloHttp = {
         permissao: "clientes:gerir",
         modulo: "crm",
         mensagemPermissao: "Sem permissão para gerir clientes.",
-        mensagemModulo: "CRM desativado para este negócio."
+        mensagemModulo: "Módulo comercial desativado para este negócio."
       });
       if (!contextoComercial) return;
 
@@ -103,7 +103,7 @@ export const moduloClientes: ModuloHttp = {
         permissao: "clientes:exportar",
         modulo: "crm",
         mensagemPermissao: "Sem permissão para importar clientes.",
-        mensagemModulo: "CRM desativado para este negócio."
+        mensagemModulo: "Módulo comercial desativado para este negócio."
       });
       if (!contextoComercial) return;
 
@@ -117,7 +117,7 @@ export const moduloClientes: ModuloHttp = {
         permissao: "clientes:gerir",
         modulo: "crm",
         mensagemPermissao: "Sem permissão para criar relação entre negócios.",
-        mensagemModulo: "CRM desativado para este negócio."
+        mensagemModulo: "Módulo comercial desativado para este negócio."
       });
       if (!contextoComercial) return;
 
@@ -145,7 +145,7 @@ export const moduloClientes: ModuloHttp = {
         permissao: "clientes:gerir",
         modulo: "crm",
         mensagemPermissao: "Sem permissão para atualizar relação entre negócios.",
-        mensagemModulo: "CRM desativado para este negócio."
+        mensagemModulo: "Módulo comercial desativado para este negócio."
       });
       if (!contextoComercial) return;
 
@@ -170,7 +170,7 @@ export const moduloClientes: ModuloHttp = {
         permissao: "clientes:gerir",
         modulo: "crm",
         mensagemPermissao: "Sem permissão para exportar clientes.",
-        mensagemModulo: "CRM desativado para este negócio."
+        mensagemModulo: "Módulo comercial desativado para este negócio."
       });
       if (!contextoComercial) return;
 
@@ -194,7 +194,7 @@ export const moduloClientes: ModuloHttp = {
         permissao: "clientes:ler",
         modulo: "crm",
         mensagemPermissao: "Sem permissão para consultar segmentos de clientes.",
-        mensagemModulo: "CRM desativado para este negócio."
+        mensagemModulo: "Módulo comercial desativado para este negócio."
       });
       if (!contextoComercial) return;
 
@@ -206,7 +206,7 @@ export const moduloClientes: ModuloHttp = {
         permissao: "clientes:ler",
         modulo: "crm",
         mensagemPermissao: "Sem permissão para consultar segmentação RFM.",
-        mensagemModulo: "CRM desativado para este negócio."
+        mensagemModulo: "Módulo comercial desativado para este negócio."
       });
       if (!contextoComercial) return;
 
@@ -218,7 +218,7 @@ export const moduloClientes: ModuloHttp = {
         permissao: "clientes:gerir",
         modulo: "crm",
         mensagemPermissao: "Sem permissão para pré-visualizar fusão de clientes.",
-        mensagemModulo: "CRM desativado para este negócio."
+        mensagemModulo: "Módulo comercial desativado para este negócio."
       });
       if (!contextoComercial) return;
 
@@ -242,7 +242,7 @@ export const moduloClientes: ModuloHttp = {
         permissao: "clientes:gerir",
         modulo: "crm",
         mensagemPermissao: "Sem permissão para fundir clientes.",
-        mensagemModulo: "CRM desativado para este negócio."
+        mensagemModulo: "Módulo comercial desativado para este negócio."
       });
       if (!contextoComercial) return;
 
@@ -267,7 +267,7 @@ export const moduloClientes: ModuloHttp = {
         permissao: "clientes:ler",
         modulo: "crm",
         mensagemPermissao: "Sem permissão para consultar clientes compartilhados.",
-        mensagemModulo: "CRM desativado para este negócio."
+        mensagemModulo: "Módulo comercial desativado para este negócio."
       });
       if (!contextoComercial) return;
 
@@ -282,7 +282,7 @@ export const moduloClientes: ModuloHttp = {
         permissao: "clientes:gerir",
         modulo: "crm",
         mensagemPermissao: "Sem permissão para revogar compartilhamento de cliente.",
-        mensagemModulo: "CRM desativado para este negócio."
+        mensagemModulo: "Módulo comercial desativado para este negócio."
       });
       if (!contextoComercial) return;
 
@@ -308,7 +308,7 @@ export const moduloClientes: ModuloHttp = {
         permissao: "clientes:gerir",
         modulo: "crm",
         mensagemPermissao: "Sem permissão para compartilhar clientes.",
-        mensagemModulo: "CRM desativado para este negócio."
+        mensagemModulo: "Módulo comercial desativado para este negócio."
       });
       if (!contextoComercial) return;
 
@@ -341,7 +341,7 @@ export const moduloClientes: ModuloHttp = {
         permissao: "clientes:gerir",
         modulo: "crm",
         mensagemPermissao: "Sem permissão para executar ação rápida do cliente.",
-        mensagemModulo: "CRM desativado para este negócio."
+        mensagemModulo: "Módulo comercial desativado para este negócio."
       });
       if (!contextoComercial) return;
 
@@ -381,7 +381,7 @@ export const moduloClientes: ModuloHttp = {
         permissao: "clientes:gerir",
         modulo: "crm",
         mensagemPermissao: "Sem permissão para anonimizar clientes.",
-        mensagemModulo: "CRM desativado para este negócio."
+        mensagemModulo: "Módulo comercial desativado para este negócio."
       });
       if (!contextoComercial) return;
 
@@ -420,7 +420,7 @@ export const moduloClientes: ModuloHttp = {
         permissao: "clientes:ler",
         modulo: "crm",
         mensagemPermissao: "Sem permissão para consultar endereços do cliente.",
-        mensagemModulo: "CRM desativado para este negócio."
+        mensagemModulo: "Módulo comercial desativado para este negócio."
       });
       if (!contextoComercial) return;
 
@@ -438,7 +438,7 @@ export const moduloClientes: ModuloHttp = {
         permissao: "clientes:gerir",
         modulo: "crm",
         mensagemPermissao: "Sem permissão para gerir endereços do cliente.",
-        mensagemModulo: "CRM desativado para este negócio."
+        mensagemModulo: "Módulo comercial desativado para este negócio."
       });
       if (!contextoComercial) return;
 
@@ -461,7 +461,7 @@ export const moduloClientes: ModuloHttp = {
         permissao: "clientes:ler",
         modulo: "crm",
         mensagemPermissao: "Sem permissão para consultar clientes.",
-        mensagemModulo: "CRM desativado para este negócio."
+        mensagemModulo: "Módulo comercial desativado para este negócio."
       });
       if (!contextoComercial) return;
 
@@ -479,7 +479,7 @@ export const moduloClientes: ModuloHttp = {
         permissao: "clientes:gerir",
         modulo: "crm",
         mensagemPermissao: "Sem permissão para gerir clientes.",
-        mensagemModulo: "CRM desativado para este negócio."
+        mensagemModulo: "Módulo comercial desativado para este negócio."
       });
       if (!contextoComercial) return;
 

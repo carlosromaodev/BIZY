@@ -782,10 +782,16 @@ export class RepositorioJobsOperacionaisMemoria implements RepositorioJobsOperac
 export class RepositorioMembrosNegocioMemoria implements RepositorioMembrosNegocio {
   private readonly membros = new Map<string, MembroNegocioOperacional>();
 
-  async listar(negocioId: string): Promise<MembroNegocioOperacional[]> {
-    return [...this.membros.values()]
-      .filter((membro) => membro.negocioId === negocioId)
-      .sort((a, b) => a.nome.localeCompare(b.nome));
+  async listar(negocioId: string, filtros: { limite?: number; offset?: number; status?: string; busca?: string } = {}): Promise<MembroNegocioOperacional[]> {
+    const limite = typeof filtros.limite === "number" ? Math.max(1, Math.min(Math.trunc(filtros.limite), 500)) : 500;
+    const offset = typeof filtros.offset === "number" ? Math.max(0, Math.trunc(filtros.offset)) : 0;
+    return this.filtrarMembros(negocioId, filtros)
+      .sort((a, b) => a.nome.localeCompare(b.nome))
+      .slice(offset, offset + limite);
+  }
+
+  async contar(negocioId: string, filtros: { status?: string; busca?: string } = {}): Promise<number> {
+    return this.filtrarMembros(negocioId, filtros).length;
   }
 
   async criar(dados: NovoMembroNegocioOperacional): Promise<MembroNegocioOperacional> {
@@ -829,6 +835,19 @@ export class RepositorioMembrosNegocioMemoria implements RepositorioMembrosNegoc
     };
     this.membros.set(id, atualizado);
     return atualizado;
+  }
+
+  private filtrarMembros(negocioId: string, filtros: { status?: string; busca?: string } = {}) {
+    const busca = filtros.busca?.trim().toLocaleLowerCase("pt-AO");
+    return [...this.membros.values()]
+      .filter((membro) => membro.negocioId === negocioId)
+      .filter((membro) => (filtros.status ? membro.status === filtros.status : true))
+      .filter((membro) => {
+        if (!busca) return true;
+        return [membro.nome, membro.telefone, membro.email]
+          .filter((valor): valor is string => typeof valor === "string")
+          .some((valor) => valor.toLocaleLowerCase("pt-AO").includes(busca));
+      });
   }
 }
 
@@ -1326,6 +1345,7 @@ export class RepositorioReservasMemoria implements RepositorioReservas {
       clienteNegocioId: dados.clienteNegocioId ?? null,
       userIdCliente: dados.userIdCliente ?? null,
       avatarUrlCliente: dados.avatarUrlCliente ?? null,
+      origem: dados.origem ?? null,
       estadoPagamento: dados.estadoPagamento ?? "AGUARDANDO_COMPROVATIVO",
       enderecoEntrega: dados.enderecoEntrega ?? null,
       comprovativoPagamentoUrl: dados.comprovativoPagamentoUrl ?? null,
@@ -1742,6 +1762,10 @@ export class RepositorioAutenticacaoMemoria implements RepositorioAutenticacao {
   async buscarNegocioPrincipalPorUsuario(usuarioId: string): Promise<NegocioBizy | null> {
     const negocioId = this.negocioPrincipalPorUsuario.get(usuarioId);
     return negocioId ? this.negocios.get(negocioId) ?? null : null;
+  }
+
+  async buscarNegocioPorId(negocioId: string): Promise<NegocioBizy | null> {
+    return this.negocios.get(negocioId) ?? null;
   }
 
   async salvarNegocioUsuario(usuarioId: string, dados: DadosNegocioBizy): Promise<NegocioBizy> {
@@ -3878,11 +3902,26 @@ export class RepositorioAuditoriaMemoria implements RepositorioAuditoria {
   }
 
   async resumirMensagensWhatsAppOutbox(negocioId?: string | null): Promise<ResumoOutboxMensagemWhatsApp> {
+    const agora = new Date();
+    const sloEntregaMs = 60_000;
     const mensagens = [...this.outboxWhatsApp.values()].filter((mensagem) =>
       this.pertenceAoNegocio(mensagem.negocioId, negocioId)
     );
     const pendentes = mensagens.filter((mensagem) => mensagem.status === "PENDENTE");
     const falhadas = mensagens.filter((mensagem) => mensagem.status === "FALHOU");
+    const latenciasEnvioMs = mensagens
+      .filter((mensagem) => mensagem.status === "ENVIADA" && mensagem.enviadaEm)
+      .map((mensagem) => Math.max(0, (mensagem.enviadaEm ?? agora).getTime() - mensagem.criadoEm.getTime()));
+    const idadePendenteMaisAntigaMs =
+      pendentes
+        .map((mensagem) => Math.max(0, agora.getTime() - mensagem.criadoEm.getTime()))
+        .sort((a, b) => b - a)[0] ?? null;
+    const maiorLatenciaEnvioMs = latenciasEnvioMs.sort((a, b) => b - a)[0] ?? null;
+    const mediaLatenciaEnvioMs = latenciasEnvioMs.length
+      ? Math.round(latenciasEnvioMs.reduce((total, valor) => total + valor, 0) / latenciasEnvioMs.length)
+      : null;
+    const enviosRecentesForaSlo = latenciasEnvioMs.filter((valor) => valor > sloEntregaMs).length;
+    const pendentesForaSlo = pendentes.filter((mensagem) => agora.getTime() - mensagem.criadoEm.getTime() > sloEntregaMs).length;
     const reprocessaveis = [...pendentes, ...falhadas];
     const proximaTentativaEm =
       reprocessaveis.map((mensagem) => mensagem.proximaTentativaEm).sort((a, b) => a.getTime() - b.getTime())[0] ?? null;
@@ -3897,6 +3936,14 @@ export class RepositorioAuditoriaMemoria implements RepositorioAuditoria {
       pendentes: pendentes.length,
       enviadas: mensagens.filter((mensagem) => mensagem.status === "ENVIADA").length,
       falhadas: falhadas.length,
+      estado: falhadas.length > 0 ? "INDISPONIVEL" : enviosRecentesForaSlo > 0 || pendentesForaSlo > 0 ? "DEGRADADO" : "OK",
+      sloEntregaMs,
+      idadePendenteMaisAntigaMs,
+      maiorLatenciaEnvioMs,
+      mediaLatenciaEnvioMs,
+      enviosRecentesAmostrados: latenciasEnvioMs.length,
+      enviosRecentesForaSlo,
+      pendentesForaSlo,
       proximaTentativaEm,
       ultimaFalha,
       atualizadoEm
@@ -4099,6 +4146,7 @@ export class RepositorioComprasUnificadasMemoria implements RepositorioComprasUn
     const compra: CompraUnificada = {
       id: randomUUID(),
       numero: this.contadorNumero++,
+      idempotencyKey: dados.idempotencyKey ?? null,
       compradorTelefone: dados.compradorTelefone,
       compradorNome: dados.compradorNome ?? null,
       compradorEmail: dados.compradorEmail ?? null,
@@ -4132,6 +4180,13 @@ export class RepositorioComprasUnificadasMemoria implements RepositorioComprasUn
     return this.compras.find((c) => c.numero === numero) ?? null;
   }
 
+  async buscarPorIdempotencyKey(idempotencyKey: string, compradorTelefone?: string): Promise<CompraUnificada | null> {
+    return this.compras.find((c) =>
+      c.idempotencyKey === idempotencyKey &&
+      (!compradorTelefone || c.compradorTelefone === compradorTelefone)
+    ) ?? null;
+  }
+
   async listarPedidosFilho(compraUnificadaId: string): Promise<PedidoFilho[]> {
     return this.pedidosFilho.filter((f) => f.compraUnificadaId === compraUnificadaId);
   }
@@ -4144,12 +4199,38 @@ export class RepositorioComprasUnificadasMemoria implements RepositorioComprasUn
     return compra;
   }
 
-  async atualizarEstadoPagamento(id: string, estadoPagamento: CompraUnificada["estadoPagamento"]): Promise<CompraUnificada | null> {
+  async atualizarEstadoPagamento(
+    id: string,
+    estadoPagamento: CompraUnificada["estadoPagamento"],
+    comprovativoPagamentoUrl?: string | null
+  ): Promise<CompraUnificada | null> {
     const compra = this.compras.find((c) => c.id === id);
     if (!compra) return null;
     compra.estadoPagamento = estadoPagamento;
+    if (comprovativoPagamentoUrl !== undefined) {
+      compra.comprovativoPagamentoUrl = comprovativoPagamentoUrl;
+    }
     compra.atualizadoEm = new Date();
     return compra;
+  }
+
+  async atualizarPedidoFilhoEstado(
+    compraUnificadaId: string,
+    pedidoId: string,
+    dados: Partial<Pick<PedidoFilho, "estado" | "estadoPagamento" | "estadoEntrega">>
+  ): Promise<PedidoFilho | null> {
+    const indice = this.pedidosFilho.findIndex((filho) =>
+      filho.compraUnificadaId === compraUnificadaId && filho.pedidoId === pedidoId
+    );
+    if (indice < 0) return null;
+
+    const atualizado = {
+      ...this.pedidosFilho[indice],
+      ...dados,
+      atualizadoEm: new Date()
+    };
+    this.pedidosFilho[indice] = atualizado;
+    return atualizado;
   }
 }
 
@@ -4188,6 +4269,13 @@ export class RepositorioRepassesFinanceirosMemoria implements RepositorioRepasse
     let resultado = this.repasses.filter((r) => r.negocioId === negocioId);
     if (filtros?.estado) resultado = resultado.filter((r) => r.estado === filtros.estado);
     if (filtros?.pedidoId) resultado = resultado.filter((r) => r.pedidoId === filtros.pedidoId);
+    if (filtros?.limite) resultado = resultado.slice(0, filtros.limite);
+    return resultado;
+  }
+
+  async listarTodos(filtros?: { estado?: RepasseFinanceiro["estado"]; limite?: number }): Promise<RepasseFinanceiro[]> {
+    let resultado = [...this.repasses];
+    if (filtros?.estado) resultado = resultado.filter((r) => r.estado === filtros.estado);
     if (filtros?.limite) resultado = resultado.slice(0, filtros.limite);
     return resultado;
   }

@@ -227,7 +227,8 @@ async function exigirAdmin(
   }
 
   const { createHash } = await import("node:crypto");
-  const tokenHash = createHash("sha256").update(token).digest("hex");
+  const segredo = process.env.AUTH_SECRET ?? "";
+  const tokenHash = createHash("sha256").update(`${segredo}:sessao:${token}`).digest("hex");
   const sessao = await contexto.repositorios.autenticacao.buscarSessaoPorTokenHash(tokenHash, new Date());
   if (!sessao) {
     reply.code(401).send({ erro: "SESSAO_INVALIDA", mensagem: "Sessão inválida ou expirada." });

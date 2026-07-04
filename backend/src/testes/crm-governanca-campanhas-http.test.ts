@@ -229,6 +229,23 @@ describe("CRM+ governança, campanhas, eventos e jobs", () => {
         ])
       );
 
+      const saudeOutbox = await app.inject({
+        method: "GET",
+        url: "/automacoes/whatsapp/outbox/saude",
+        headers
+      });
+      expect(saudeOutbox.statusCode).toBe(200);
+      expect(saudeOutbox.json()).toEqual(
+        expect.objectContaining({
+          total: 1,
+          estado: "OK",
+          sloEntregaMs: 60_000,
+          idadePendenteMaisAntigaMs: expect.any(Number),
+          enviosRecentesAmostrados: 0,
+          pendentesForaSlo: 0
+        })
+      );
+
       const lojaPublica = await app.inject({
         method: "PUT",
         url: "/loja-publica/configuracao",

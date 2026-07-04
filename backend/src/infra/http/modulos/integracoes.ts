@@ -1,7 +1,8 @@
-import { CriarInstanciaWhatsAppSchema, EnviarMensagemWhatsAppManualSchema, QueryTokenSchema } from "../../../dominio/esquemas.js";
+import { CriarInstanciaWhatsAppSchema, EnviarMensagemWhatsAppManualSchema } from "../../../dominio/esquemas.js";
 import type { FiltrosTemplatesWhatsApp } from "../../../dominio/servicos/AutomacaoWhatsApp.js";
 import type { TemplateWhatsAppNegocio } from "../../../dominio/tipos.js";
 import type { ContextoAplicacao } from "../ContextoAplicacao.js";
+import { compararTokenSeguro } from "../criarAplicacao.js";
 import { exigirAcessoComercial } from "../contextoComercial.js";
 import { exigirUsuarioAutenticado } from "../seguranca.js";
 import type { ModuloHttp } from "./ModuloHttp.js";
@@ -151,9 +152,8 @@ export const moduloIntegracoes: ModuloHttp = {
     app.post("/webhooks/instagram", async (request, reply) => {
       const tokenConfigurado = process.env.INSTAGRAM_WEBHOOK_TOKEN;
       const tokenRecebido = request.headers["x-instagram-webhook-token"];
-      const { token: tokenQuery } = QueryTokenSchema.parse(request.query ?? {});
 
-      if (tokenConfigurado && tokenRecebido !== tokenConfigurado && tokenQuery !== tokenConfigurado) {
+      if (tokenConfigurado && !compararTokenSeguro(tokenRecebido, tokenConfigurado)) {
         return reply.code(401).send({ erro: "NAO_AUTORIZADO", mensagem: "Token do Instagram inválido." });
       }
 
@@ -365,9 +365,8 @@ export const moduloIntegracoes: ModuloHttp = {
     app.post("/webhooks/evolution", async (request, reply) => {
       const tokenConfigurado = process.env.EVOLUTION_WEBHOOK_TOKEN;
       const tokenRecebido = request.headers["x-emeu-evolution-token"];
-      const { token: tokenQuery } = QueryTokenSchema.parse(request.query ?? {});
 
-      if (tokenConfigurado && tokenRecebido !== tokenConfigurado && tokenQuery !== tokenConfigurado) {
+      if (tokenConfigurado && !compararTokenSeguro(tokenRecebido, tokenConfigurado)) {
         return reply.code(401).send({ erro: "NAO_AUTORIZADO", mensagem: "Token da Evolution inválido." });
       }
 
@@ -395,7 +394,15 @@ export const moduloIntegracoes: ModuloHttp = {
       }
 
       const mensagem = contexto.receberMensagemWhatsApp.processarWebhookEvolution(payload);
-      return reply.code(202).send({ ok: true, duplicado: mensagem.duplicado, idempotencyKey, mensagem });
+      const comandoTurno = !mensagem.duplicado && mensagem.direcao === "INBOUND" && mensagem.telefone && mensagem.texto
+        ? await contexto.gestaoEquipa.registarPresencaViaWhatsApp({
+          negocioId: negocioId ?? undefined,
+          telefone: mensagem.telefone,
+          texto: mensagem.texto
+        })
+        : null;
+
+      return reply.code(202).send({ ok: true, duplicado: mensagem.duplicado, idempotencyKey, mensagem, comandoTurno });
     });
   }
 };

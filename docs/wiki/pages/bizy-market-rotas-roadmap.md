@@ -8,32 +8,31 @@ tags:
   - bizy/rotas
   - bizy/backend
   - bizy/frontend
-status: ativo
-updated: 2026-06-20
+status: implementado
+updated: 2026-07-02
 ---
 
 # Bizy Market Rotas e Roadmap
 
-Status: ativo
-Ultima atualizacao: 2026-06-20
-Fontes principais: [[bizy-market-lojas-digitais]], `docs/RF-RNF-RN-BIZY-MARKET-LOJA-DIGITAL.md`
+Status: implementado
+Ultima atualizacao: 2026-07-02
+Fontes principais: [[bizy-market-lojas-digitais]], [[requisitos-bizy-market]], `docs/RF-RNF-RN-BIZY-MARKET-LOJA-DIGITAL.md`, `frontend/src/lojas/rotasLojas.ts`, `backend/src/infra/http/modulos/market.ts`, `backend/src/infra/http/modulos/checkoutUnificado.ts`.
 
 > [!abstract] Decisao
-> As rotas do Bizy Market devem separar experiencia publica, API publica, controlo da loja dentro do CRM, checkout unificado e administracao Bizy. O Market gera descoberta; o CRM continua sendo a fonte de verdade da operacao.
+> As rotas do Bizy Market separam experiencia publica, API publica, controlo da loja dentro do Team, checkout unificado e administracao Bizy. O Market gera descoberta; o Team continua sendo a fonte de verdade da operacao. `/team/loja` e o prefixo canonico; `/crm/loja` e alias legado.
 
 ## Principios de Roteamento
 
 - Rotas publicas sem dados pessoais devem ser cacheaveis e compartilhaveis.
-- Rotas de checkout, carrinho e comprovativo devem usar `no-store`.
-- Rotas de CRM exigem sessao, permissao e isolamento por `negocioId`.
+- Rotas de checkout, carrinho, pagamento e comprovativo devem usar `no-store`.
+- Rotas Team exigem sessao, permissao e isolamento por `negocioId`.
 - Rotas Admin Bizy exigem papel interno e auditoria.
 - O perfil da loja e o Market devem apontar um para o outro sem apagar a identidade do fornecedor.
-- URLs antigas da loja publica devem continuar funcionando durante a migracao.
+- URLs antigas da loja publica continuam funcionando durante a migracao.
 - O dominio canonico do shopping center e `market.usebizy.space`; `/market` continua como fallback local e rota de compatibilidade no app principal.
+- Codigo novo nao deve chamar `/crm/loja/*`; os aliases existem apenas para compatibilidade.
 
 ## Rotas Publicas do Comprador
-
-Estas rotas representam telas navegaveis no frontend publico.
 
 ```txt
 https://market.usebizy.space/
@@ -49,11 +48,9 @@ https://market.usebizy.space/novidades
 https://market.usebizy.space/destaques
 ```
 
-Fallback de compatibilidade/local: `/market`, `/market/categorias/:categoria`, `/market/produtos/:codigo` e `/market/lojas`.
+Fallback de compatibilidade/local: `/market`, `/market/categorias/:categoria`, `/market/produtos/:codigo`, `/market/lojas` e `/market/lojas/:slug`.
 
 ## Perfil Publico da Loja
-
-Estas rotas preservam a autonomia do cliente Bizy.
 
 ```txt
 /lojas/:slug
@@ -65,123 +62,98 @@ Estas rotas preservam a autonomia do cliente Bizy.
 /lojas/:slug/contacto
 ```
 
-## Checkout Unificado
-
-Estas rotas representam a experiencia unica do comprador.
+## Checkout e Compra
 
 ```txt
-/checkout                                  # implementado como entrada progressiva frontend
+/checkout
 /checkout/carrinho
 /checkout/identificacao
 /checkout/entrega
 /checkout/pagamento
 /checkout/comprovativo
 /checkout/confirmacao/:numeroCompra
-/compras/:numeroCompra
-/compras/:numeroCompra/acompanhar
+/compras/:id
+/compras/:id/acompanhar
 ```
 
 ## APIs Publicas
 
-Estas rotas alimentam Market, perfil de loja, produto publico, similares e tracking.
-
 ```txt
-GET  /publico/market/produtos
-GET  /publico/market/produtos/:codigo
-GET  /publico/market/produtos/:codigo/similares
-GET  /publico/market/categorias
-GET  /publico/market/lojas
-GET  /publico/market/lojas/:slug
+GET    /publico/market/produtos
+GET    /publico/market/produtos/:codigo
+GET    /publico/market/produtos/:codigo/similares
+GET    /publico/market/categorias
+GET    /publico/market/lojas
+GET    /publico/market/lojas/:slug
 
-GET  /publico/lojas/:slug
-GET  /publico/lojas/:slug/catalogos/:catalogo
-GET  /publico/lojas/:slug/produtos/:codigo
-GET  /publico/lojas/:slug/produtos/:codigo/similares
-POST /publico/lojas/:slug/seguir
+POST   /publico/market/checkout
+GET    /publico/market/compras/:id
+POST   /publico/market/compras/:id/pagamento
+
+GET    /publico/lojas/:slug
+GET    /publico/lojas/:slug/catalogos/:catalogo
+GET    /publico/lojas/:slug/produtos/:codigo
+GET    /publico/lojas/:slug/produtos/:codigo/similares
+POST   /publico/lojas/:slug/checkout
+POST   /publico/lojas/:slug/checkout/abandonado
+POST   /publico/lojas/:slug/seguir
 DELETE /publico/lojas/:slug/seguir
 
-POST /publico/tracking/eventos
-POST /publico/recomendacoes/eventos
+POST   /publico/tracking/eventos
+POST   /publico/recomendacoes/eventos
 ```
 
-## APIs do Checkout
+## Team e Bizy Studio
 
-Estas rotas devem ser idempotentes onde criam ou alteram estado.
+Estas telas ficam dentro do Team e substituem qualquer painel separado da loja.
 
 ```txt
-GET  /publico/checkout/:checkoutId
-POST /publico/checkout/carrinho
-PUT  /publico/checkout/carrinho/:itemId
-DELETE /publico/checkout/carrinho/:itemId
-POST /publico/checkout/entrega/calcular
-POST /publico/checkout/iniciar
-POST /publico/checkout/pagamento
-POST /publico/checkout/comprovativo
-GET  /publico/compras/:numeroCompra
+/app/loja
+/app/loja/perfil
+/app/loja/tema
+/app/loja/catalogos
+/app/loja/produtos
+/app/loja/publicacao
+/app/loja/market
+/app/loja/checkout
+/app/loja/entrega
+/app/loja/pagamentos
+/app/loja/seo
+/app/loja/seguidores
+/app/loja/metricas
 ```
 
-## CRM e Bizy Studio
+## APIs Team
 
-Estas rotas ficam dentro do CRM e substituem qualquer painel separado da loja.
+Estas rotas controlam a loja a partir do Team.
 
 ```txt
-/crm/loja
-/crm/loja/perfil
-/crm/loja/tema
-/crm/loja/catalogos
-/crm/loja/produtos
-/crm/loja/publicacao
-/crm/loja/market
-/crm/loja/checkout
-/crm/loja/entrega
-/crm/loja/pagamentos
-/crm/loja/seo
-/crm/loja/seguidores
-/crm/loja/metricas
+GET    /loja-publica/configuracao
+PUT    /loja-publica/configuracao
+GET    /loja-publica/tracking/resumo
+
+GET    /team/loja/catalogos
+POST   /team/loja/catalogos
+PUT    /team/loja/catalogos/:id
+DELETE /team/loja/catalogos/:id
+
+PUT    /team/loja/produtos/:codigo/publicacao
+PUT    /team/loja/produtos/publicacao-em-massa
+
+GET    /team/loja/market/resumo
+GET    /team/loja/seguidores
+GET    /team/loja/metricas
+GET    /team/loja/pedidos-market
+GET    /team/loja/repasses
 ```
 
-## APIs do CRM
-
-Estas rotas controlam a loja a partir do CRM.
+Aliases legados registrados no backend:
 
 ```txt
-GET  /loja-publica/configuracao
-PUT  /loja-publica/configuracao
-
-GET  /crm/loja/catalogos
-POST /crm/loja/catalogos
-PUT  /crm/loja/catalogos/:id
-DELETE /crm/loja/catalogos/:id
-
-PUT  /crm/loja/produtos/:codigo/publicacao
-PUT  /crm/loja/produtos/publicacao-em-massa
-
-GET  /crm/loja/market/resumo
-GET  /crm/loja/seguidores
-GET  /crm/loja/metricas
-GET  /crm/loja/pedidos-market
-GET  /crm/loja/repasses
-
-GET    /afiliados
-POST   /afiliados
-GET    /afiliados/resumo
-GET    /afiliados/links
-POST   /afiliados/:id/links
-GET    /afiliados/:id/pacote-divulgacao
-PUT    /afiliados/:id/estado
-GET    /afiliados/comissoes
-GET    /afiliados/comissoes/saldos
-GET    /afiliados/comissoes/lotes-pagamento
-GET    /afiliados/comissoes/lotes-pagamento/exportar.csv
-POST   /afiliados/comissoes/lotes-pagamento
-GET    /afiliados/comissoes/:id/auditoria
-POST   /afiliados/comissoes/:id/pagar
-POST   /afiliados/atribuicoes/manual
+/crm/loja/*
 ```
 
 ## Admin Bizy
-
-Estas rotas pertencem ao painel interno Bizy.
 
 ```txt
 /admin/market
@@ -197,8 +169,6 @@ Estas rotas pertencem ao painel interno Bizy.
 ```
 
 ## APIs Admin Bizy
-
-Estas rotas exigem auditoria operacional.
 
 ```txt
 GET  /admin/market/categorias
@@ -218,16 +188,16 @@ GET  /admin/market/repasses
 POST /admin/market/repasses/:id/conciliar
 ```
 
-## Sequencia Recomendada
+## Sequencia Implementada
 
 ### Fase 1 - Perfil e Publicacao
 
 - [x] `GET /publico/lojas/:slug` com perfil, colecoes e CTA para Market.
 - [x] `GET /publico/market/produtos` com produtos elegiveis e fornecedor sanitizado.
 - [x] `GET /publico/market/categorias`.
-- [x] `GET /crm/loja/market/resumo`.
-- [x] `PUT /crm/loja/produtos/:codigo/publicacao`.
-- [x] `PUT /crm/loja/produtos/publicacao-em-massa`.
+- [x] `GET /team/loja/market/resumo`.
+- [x] `PUT /team/loja/produtos/:codigo/publicacao`.
+- [x] `PUT /team/loja/produtos/publicacao-em-massa`.
 
 ### Fase 2 - Produto, Similares e Descoberta
 
@@ -238,45 +208,48 @@ POST /admin/market/repasses/:id/conciliar
 - [x] `GET /publico/market/lojas/:slug`.
 - [x] `POST /publico/recomendacoes/eventos`.
 
-### Fase 3 - Bizy Studio no CRM
+### Fase 3 - Bizy Studio no Team
 
-- [x] `GET /crm/loja/catalogos`.
-- [x] `POST /crm/loja/catalogos`.
-- [x] `PUT /crm/loja/catalogos/:id`.
-- [x] `DELETE /crm/loja/catalogos/:id`.
-- [x] `GET /crm/loja/seguidores`.
-- [x] `GET /crm/loja/metricas`.
+- [x] `GET /team/loja/catalogos`.
+- [x] `POST /team/loja/catalogos`.
+- [x] `PUT /team/loja/catalogos/:id`.
+- [x] `DELETE /team/loja/catalogos/:id`.
+- [x] `GET /team/loja/seguidores`.
+- [x] `GET /team/loja/metricas`.
 
 ### Fase 4 - Checkout Unificado
 
-- [x] `/checkout` frontend progressivo com carrinho local, fornecedor por item e finalizacao por endpoint atual quando houver uma loja.
-- [x] Checkout MVP para carrinho de uma unica loja (dados do comprador, entrega, pagamento, comprovativo e consentimento).
-- [x] Carrinho client-side com agrupamento por loja (localStorage). Checkout multi-loja desbloqueado no frontend.
-- [x] `POST /publico/market/checkout` — compra unificada multi-loja com pedidos filhos por fornecedor, IVA, taxa Bizy e repasses.
-- [x] `POST /publico/market/compras/:id/pagamento` — pagamento centralizado e propagacao para pedidos filhos.
-- [x] `GET /publico/market/compras/:id` — acompanhamento pelo comprador com estado por fornecedor.
-- [x] `GET /crm/loja/pedidos-market` — pedidos com origem Market no CRM da loja.
+- [x] `/checkout` frontend com carrinho local, fornecedor por item e idempotencia.
+- [x] Checkout para carrinho de uma unica loja via endpoint da loja.
+- [x] Carrinho multi-loja agrupado por fornecedor.
+- [x] `POST /publico/market/checkout` para compra unificada multi-loja com pedidos filhos por fornecedor, IVA, taxa Bizy e repasses.
+- [x] `POST /publico/market/compras/:id/pagamento` para pagamento/comprovativo centralizado e propagacao para pedidos filhos.
+- [x] `GET /publico/market/compras/:id` para acompanhamento pelo comprador com estado por fornecedor.
+- [x] `GET /team/loja/pedidos-market` para pedidos com origem Market no Team da loja.
 
 ### Fase 5 - Governanca, Financeiro e Boost
 
 - [x] `GET /admin/market/categorias` e `POST /admin/market/categorias`.
-- [x] `POST /admin/market/suspender` — suspensao/reativacao de lojas e produtos.
-- [x] `POST /admin/market/destaque` — destaque, verificado e patrocinado para produtos.
+- [x] `POST /admin/market/suspender` ou endpoints equivalentes de suspensao/reativacao de lojas e produtos.
+- [x] `POST /admin/market/destaque` ou endpoints equivalentes de destaque, verificado e patrocinado para produtos.
 - [x] `GET /admin/market/denuncias` e `PUT /admin/market/denuncias/:id/resolver`.
 - [x] `GET /admin/market/repasses` e `POST /admin/market/repasses/:id/conciliar`.
-- [x] `GET /crm/loja/repasses`.
+- [x] `GET /team/loja/repasses`.
 
 ## MVP Obrigatorio
 
-O menor conjunto coerente para lançar o Bizy Market sem quebrar a proposta:
+O menor conjunto coerente para lancar o Bizy Market sem quebrar a proposta:
 
 ```txt
 /market
 /market/categorias/:categoria
+/market/produtos/:codigo
+/market/lojas
 /lojas/:slug
 /lojas/:slug/produtos/:codigo
 /checkout
-/crm/loja/market
+/compras/:id
+/app/loja
 ```
 
 APIs correspondentes:
@@ -286,17 +259,20 @@ GET /publico/market/produtos
 GET /publico/market/categorias
 GET /publico/market/produtos/:codigo
 GET /publico/market/produtos/:codigo/similares
-PUT /crm/loja/produtos/:codigo/publicacao
-GET /crm/loja/market/resumo
+POST /publico/market/checkout
+GET /publico/market/compras/:id
+GET /team/loja/market/resumo
+PUT /team/loja/produtos/:codigo/publicacao
 ```
 
 ## Guardrails
 
 - Nao criar rotas publicas que exponham `negocioId`, custo, margem ou dados privados.
 - Nao colocar dados pessoais em query string de checkout, tracking ou preview social.
-- Nao duplicar configuracao de loja fora do CRM.
+- Nao duplicar configuracao de loja fora do Team.
 - Nao permitir que produto patrocinado apareca se falhar regras de seguranca.
 - Nao deixar rota admin sem auditoria.
+- Nao inventar prova social publica: ratings, vendidos, reviews, seguidores e tempo de resposta devem vir do backend ou ficar ausentes.
 
 ## Ligacoes
 

@@ -805,7 +805,7 @@ describe("Fluxo operacional dos módulos", () => {
 
       const relatorioCrm = await app.inject({
         method: "GET",
-        url: "/relatorios/crm-pos-live?liveId=live_relatorio",
+        url: "/relatorios/team-pos-live?liveId=live_relatorio",
         headers: headersAutenticados
       });
       expect(relatorioCrm.statusCode).toBe(200);
@@ -838,7 +838,7 @@ describe("Fluxo operacional dos módulos", () => {
 
       const relatorioCrmCsv = await app.inject({
         method: "GET",
-        url: "/relatorios/crm-pos-live.csv?liveId=live_relatorio",
+        url: "/relatorios/team-pos-live.csv?liveId=live_relatorio",
         headers: headersAutenticados
       });
       expect(relatorioCrmCsv.statusCode).toBe(200);

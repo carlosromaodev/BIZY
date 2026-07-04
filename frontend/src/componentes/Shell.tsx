@@ -2,6 +2,7 @@ import {
   BarChart3,
   Bell,
   Bolt,
+  CheckSquare,
   ChevronDown,
   Grid2X2,
   Home,
@@ -22,7 +23,15 @@ import {
 import { Fragment, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
-import { obterUsuario, removerToken, removerUsuario, requisitarApi } from "../api";
+import {
+  EVENTO_WORKSPACE_ALTERADO,
+  alternarWorkspace,
+  obterNegocioActualId,
+  obterUsuario,
+  removerToken,
+  removerUsuario,
+  requisitarApi,
+} from "../api";
 import { CORES_BIZY_PADRAO, CORES_LOGO_BIZY_ESCURA, LogoBizy, NOME_PRODUTO } from "../marca/bizy";
 import {
   filtrarRotasPorModulos,
@@ -33,8 +42,9 @@ import {
   usuarioPodeVerAdminSistema,
 } from "../rotasApp";
 import type { LiveResumo, Peca, Reserva, RespostaConversas, ResumoPainel } from "../tipos";
-import { formatarKwanza } from "../utilidades";
+import { configurarLocaleNegocio, formatarKwanza } from "../utilidades";
 import { CrmListItem } from "./CrmInterno21st";
+import { EmptyStateBizy } from "./BizyDesignSystem";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -51,6 +61,19 @@ import { cn } from "@/lib/utils";
 
 // CRM v3 mobile: primary tabs in the header, secondary pages accessed via sheet menu.
 
+type WorkspaceShell = {
+  id: string;
+  nomeComercial: string;
+  segmento: string;
+  tipo: string;
+  moeda?: string | null;
+  fusoHorario?: string | null;
+  locale?: string | null;
+  slugPublico: string | null;
+  papel: string | null;
+  principal: boolean;
+};
+
 export function Shell({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
   const location = useLocation();
@@ -60,10 +83,42 @@ export function Shell({ children }: { children: ReactNode }) {
   const [modulosAtivos, setModulosAtivos] = useState<string[]>([]);
   const [liveAtiva, setLiveAtiva] = useState<LiveResumo | null>(null);
   const [tempoLiveShell, setTempoLiveShell] = useState(0);
+  const [workspaces, setWorkspaces] = useState<WorkspaceShell[]>([]);
+  const [workspaceAtualId, setWorkspaceAtualId] = useState<string | null>(() => obterNegocioActualId());
+  const [workspaceMudando, setWorkspaceMudando] = useState(false);
   const podeVerAdminSistema = usuarioPodeVerAdminSistema(usuario?.papel);
 
+  const carregarModulos = useCallback(() => {
+    requisitarApi<{ modulosAtivos?: string[] }>("/negocio/modulos")
+      .then((r) => setModulosAtivos(r?.modulosAtivos ?? []))
+      .catch(() => setModulosAtivos([]));
+  }, []);
+
   useEffect(() => {
-    requisitarApi<{ modulosAtivos?: string[] }>("/negocio/modulos").then((r) => setModulosAtivos(r?.modulosAtivos ?? [])).catch(() => {});
+    carregarModulos();
+  }, [carregarModulos, workspaceAtualId]);
+
+  useEffect(() => {
+    requisitarApi<{ negocios: WorkspaceShell[] }>("/workspaces")
+      .then((resposta) => {
+        const lista = resposta.negocios ?? [];
+        setWorkspaces(lista);
+        const armazenado = obterNegocioActualId();
+        const principal = lista.find((negocio) => negocio.principal) ?? lista[0];
+        if (!armazenado && principal) {
+          alternarWorkspace(principal.id);
+          setWorkspaceAtualId(principal.id);
+        } else {
+          setWorkspaceAtualId(armazenado);
+        }
+      })
+      .catch(() => setWorkspaces([]));
+  }, []);
+
+  useEffect(() => {
+    const listener = () => setWorkspaceAtualId(obterNegocioActualId());
+    window.addEventListener(EVENTO_WORKSPACE_ALTERADO, listener);
+    return () => window.removeEventListener(EVENTO_WORKSPACE_ALTERADO, listener);
   }, []);
 
   useEffect(() => {
@@ -78,7 +133,7 @@ export function Shell({ children }: { children: ReactNode }) {
     verificarLive();
     const intervalo = window.setInterval(verificarLive, 15_000);
     return () => window.clearInterval(intervalo);
-  }, []);
+  }, [workspaceAtualId]);
 
   useEffect(() => {
     if (liveAtiva?.iniciadaEm) {
@@ -167,6 +222,51 @@ export function Shell({ children }: { children: ReactNode }) {
     navigate("/login", { replace: true });
   }
 
+  async function trocarWorkspace(negocioId: string) {
+    if (!negocioId || negocioId === workspaceAtualId || workspaceMudando) return;
+    setWorkspaceMudando(true);
+    try {
+      await requisitarApi("/workspaces/alternar", { method: "POST", body: { negocioId } });
+      alternarWorkspace(negocioId);
+      setWorkspaceAtualId(negocioId);
+      setModulosAtivos([]);
+      setLiveAtiva(null);
+    } finally {
+      setWorkspaceMudando(false);
+    }
+  }
+
+  const workspaceAtual = useMemo(
+    () => workspaces.find((workspace) => workspace.id === workspaceAtualId) ?? workspaces.find((workspace) => workspace.principal) ?? null,
+    [workspaceAtualId, workspaces]
+  );
+
+  useEffect(() => {
+    configurarLocaleNegocio(workspaceAtual);
+  }, [workspaceAtual]);
+
+  function renderSeletorWorkspace() {
+    if (workspaces.length <= 1) return null;
+    return (
+      <label className="team-workspace-switch">
+        <span>Workspace</span>
+        <select
+          aria-label="Alternar workspace"
+          value={workspaceAtual?.id ?? ""}
+          disabled={workspaceMudando}
+          onChange={(evento) => void trocarWorkspace(evento.target.value)}
+        >
+          {workspaces.map((workspace) => (
+            <option key={workspace.id} value={workspace.id}>
+              {workspace.nomeComercial}
+            </option>
+          ))}
+        </select>
+        {workspaceMudando && <Loader2 size={13} className="animate-spin" aria-hidden="true" />}
+      </label>
+    );
+  }
+
   return (
     <div className="app-commerce-shell min-h-dvh bg-background text-foreground">
       {/* ── CRM v3 Mobile header — same visual identity as desktop ── */}
@@ -176,6 +276,7 @@ export function Shell({ children }: { children: ReactNode }) {
             <LogoBizy className="crm-brand-wordmark" cores={CORES_BIZY_PADRAO} aria-hidden="true" />
           </Link>
           <span className="team-mob-tag">Team</span>
+          {renderSeletorWorkspace()}
           <div className="team-mob-head-actions">
             <button type="button" className="team-mob-head-icon" aria-label="Buscar" onClick={() => navigate("/app")}>
               <Search size={16} />
@@ -322,6 +423,7 @@ export function Shell({ children }: { children: ReactNode }) {
           <span className="team-util-right">
             <Link to="/app/loja">Ver loja pública</Link>
             <span>Ajuda</span>
+            {renderSeletorWorkspace()}
             <span>{usuario?.nome ?? "Vendedor"} · {NOME_PRODUTO}</span>
           </span>
         </div>
@@ -453,7 +555,7 @@ export function Shell({ children }: { children: ReactNode }) {
         </div>
         <AnimatePresence mode="wait">
           <motion.div
-            key={location.pathname}
+            key={`${workspaceAtualId ?? "principal"}:${location.pathname}`}
             className="app-conteudo"
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
@@ -484,7 +586,7 @@ const crmV3BottomNavItems: Array<{ id: string; label: string; icon: typeof Home;
 ];
 const crmV3BottomNavItemsAfterFab: Array<{ id: string; label: string; icon: typeof Home; path: string }> = [
   { id: "chat", label: "Chat", icon: MessageSquare, path: "/app/conversas" },
-  { id: "clientes", label: "Clientes", icon: Users, path: "/app/clientes" },
+  { id: "tarefas", label: "Tarefas", icon: CheckSquare, path: "/app/tarefas" },
 ];
 
 function CrmV3MobileBottomNav({
@@ -845,17 +947,27 @@ export function ResumoIndicadores({
 export function EstadoVazio({
   icone,
   titulo,
-  detalhe
+  detalhe,
+  acaoTexto,
+  acaoRota,
+  onAcao,
 }: {
   icone: ReactNode;
   titulo: string;
   detalhe: string;
+  acaoTexto?: string;
+  acaoRota?: string;
+  onAcao?: () => void;
 }) {
   return (
-    <div className="crm21-empty grid min-h-32 place-items-center gap-2 rounded-lg border border-dashed border-border/50 bg-(--color-surface-warm) p-6 text-center">
-      <span className="text-muted-foreground/60 [&_svg]:h-6 [&_svg]:w-6">{icone}</span>
-      <strong className="text-sm font-medium text-foreground/80">{titulo}</strong>
-      <span className="max-w-sm text-xs text-muted-foreground">{detalhe}</span>
-    </div>
+    <EmptyStateBizy
+      icone={icone}
+      titulo={titulo}
+      detalhe={detalhe}
+      acaoTexto={acaoTexto}
+      acaoRota={acaoRota}
+      onAcao={onAcao}
+      className="crm21-empty"
+    />
   );
 }

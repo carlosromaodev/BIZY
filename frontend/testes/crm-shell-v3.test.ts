@@ -8,7 +8,7 @@ describe("shell CRM v3", () => {
   it("mantem as abas primarias na ordem do design aprovado", () => {
     expect(rotasApp).toContain("export const caminhosCrmV3Principais");
     expect(rotasApp).toContain("export const rotulosCrmV3Principais");
-    expect(rotasApp).toContain("[\"/app\", \"/app/reservas\", \"/app/conversas\", \"/app/clientes\", \"/app/live\", \"/app/loja\", \"/app/relatorios\"]");
-    expect(rotasApp).toContain("[\"Comando\", \"Pedidos\", \"Atendimento\", \"Clientes\", \"Live\", \"Studio\", \"Relatórios\"]");
+    expect(rotasApp).toContain("[\"/app\", \"/app/reservas\", \"/app/conversas\", \"/app/tarefas\", \"/app/clientes\", \"/app/metas\", \"/app/equipa\", \"/app/projectos\", \"/app/financas\", \"/app/live\", \"/app/loja\", \"/app/relatorios\"]");
+    expect(rotasApp).toContain("[\"Início\", \"Pedidos\", \"Atendimento\", \"Tarefas\", \"Clientes\", \"Metas\", \"Equipa\", \"Projectos\", \"Finanças\", \"Live\", \"Studio\", \"Relatórios\"]");
   });
 });

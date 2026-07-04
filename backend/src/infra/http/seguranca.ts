@@ -57,7 +57,11 @@ export function obterJwtAudience(): string {
 }
 
 export function obterSegredoJwt(): string {
-  return process.env.AUTH_JWT_SECRET ?? process.env.AUTH_SECRET ?? process.env.N8N_WEBHOOK_SECRET ?? "emeu-dev-secret";
+  const segredo = process.env.AUTH_JWT_SECRET ?? process.env.AUTH_SECRET;
+  if (!segredo) {
+    throw new Error("AUTH_JWT_SECRET ou AUTH_SECRET não configurado. Defina a variável de ambiente.");
+  }
+  return segredo;
 }
 
 export async function assinarJwtSessao(dados: {
@@ -106,13 +110,7 @@ export function extrairTokenCookie(cookie?: string | string[] | null, nome = obt
 export function extrairTokenAutenticacao(request: FastifyRequest): string | null {
   return extrairTokenBearer(request.headers.authorization)
     ?? obterCookieSessaoRequest(request)
-    ?? extrairTokenQueryParam(request);
-}
-
-function extrairTokenQueryParam(request: FastifyRequest): string | null {
-  const query = request.query as Record<string, unknown>;
-  const token = typeof query?.token === "string" ? query.token.trim() : null;
-  return token || null;
+    ?? extrairTokenQueryEventos(request);
 }
 
 export async function resolverSessaoJwt(request: FastifyRequest): Promise<IdentificadorSessaoAutenticada | null> {
@@ -196,8 +194,7 @@ function temFormatoJwt(token: string): boolean {
 }
 
 function tokenLegadoPermitido(): boolean {
-  if (process.env.AUTH_ALLOW_LEGACY_TOKENS === "true") return true;
-  return process.env.NODE_ENV !== "production";
+  return process.env.AUTH_ALLOW_LEGACY_TOKENS === "true";
 }
 
 function obterChaveJwt() {
@@ -207,6 +204,16 @@ function obterChaveJwt() {
 function obterCookieSessaoRequest(request: FastifyRequest): string | null {
   const cookieDecorado = request.cookies?.[obterNomeCookieSessao()];
   return cookieDecorado ?? extrairTokenCookie(request.headers.cookie);
+}
+
+function extrairTokenQueryEventos(request: FastifyRequest): string | null {
+  if (!request.url.startsWith("/eventos")) return null;
+
+  try {
+    return new URL(request.url, "http://localhost").searchParams.get("token");
+  } catch {
+    return null;
+  }
 }
 
 function payloadJwtSessaoValido(payload: unknown): payload is PayloadJwtSessao {
