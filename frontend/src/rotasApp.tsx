@@ -45,7 +45,8 @@ import { PaginaFormularioLeadPublico } from "./projetos/market/paginas/Formulari
 import { PaginaFormularios } from "./paginas/Formularios";
 import { PaginaHome } from "./paginas/Home";
 import { PaginaLive } from "./paginas/Live";
-import { PaginaLearning, PaginaLearningTeam } from "./projetos/learning/paginas/Learning";
+import { PaginaLearning, PaginaLearningTeam, PaginaPerfilLearning } from "./projetos/learning/paginas/Learning";
+import { PaginaProdutoLearning } from "./projetos/learning/paginas/ProdutoLearning";
 import { PaginaLogin } from "./paginas/Login";
 import { PaginaCatalogoPublico } from "./projetos/market/paginas/CatalogoPublico";
 import { PaginaLojaDigitalPublica } from "./projetos/market/paginas/LojaDigitalPublica";
@@ -113,6 +114,8 @@ export const rotasPublicas: RotaPublica[] = [
   { caminho: "/market/categorias/:categoria", elemento: <PaginaMarket /> },
   { caminho: "/market", elemento: <PaginaMarket /> },
   { caminho: "/learning", elemento: <PaginaLearning /> },
+  { caminho: "/learning/produtos/:slug", elemento: <PaginaProdutoLearning /> },
+  { caminho: "/learning/:slug", elemento: <PaginaPerfilLearning /> },
   { caminho: "/lojas/:slug/catalogos/:catalogo", elemento: <PaginaCatalogoPublico /> },
   { caminho: "/lojas/:slug/produtos/:codigo", elemento: <PaginaLojaDigitalPublica /> },
   { caminho: "/lojas/:slug", elemento: <PaginaLojaDigitalPublica /> }

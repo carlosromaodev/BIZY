@@ -151,7 +151,18 @@ export function criarFormVazio(ordemVitrinesPadrao: string[]): FormLoja {
       slug: "",
       descricaoPublica: "",
       publicada: false,
-      participaNoMarket: true
+      participaNoMarket: true,
+      participaNoLearning: false,
+      learning: {
+        ativa: false,
+        publicada: false,
+        slug: "",
+        nomePublico: "",
+        descricaoPublica: "",
+        categoriasTexto: "Cursos, Workshops, Comunidade",
+        canaisSuporteTexto: "Team, Comunidade, WhatsApp",
+        politicaSuporte: "Suporte pelo Team, comunidade ou canal configurado pelo perfil Learning."
+      }
     },
     tema: {
       corPrimaria: "#111111",
@@ -192,6 +203,9 @@ export function criarFormVazio(ordemVitrinesPadrao: string[]): FormLoja {
 }
 
 export function criarFormAPartirConfiguracao(dados: ConfiguracaoLojaDigital, ordemVitrinesPadrao: string[]): FormLoja {
+  const learning = dados.configuracao.publicacao.learning;
+  const participaNoLearning = dados.configuracao.publicacao.participaNoLearning ?? false;
+
   return {
     identidade: {
       nomeComercial: dados.configuracao.identidade.nomeComercial ?? "",
@@ -207,7 +221,18 @@ export function criarFormAPartirConfiguracao(dados: ConfiguracaoLojaDigital, ord
       slug: dados.configuracao.publicacao.slug ?? "",
       descricaoPublica: dados.configuracao.publicacao.descricaoPublica ?? dados.configuracao.identidade.descricaoPublica ?? "",
       publicada: dados.configuracao.publicacao.publicada,
-      participaNoMarket: dados.configuracao.publicacao.participaNoMarket ?? true
+      participaNoMarket: dados.configuracao.publicacao.participaNoMarket ?? true,
+      participaNoLearning,
+      learning: {
+        ativa: learning?.ativa ?? participaNoLearning,
+        publicada: learning?.publicada ?? false,
+        slug: learning?.slug ?? dados.configuracao.publicacao.slug ?? "",
+        nomePublico: learning?.nomePublico ?? dados.configuracao.identidade.nomeComercial ?? "",
+        descricaoPublica: learning?.descricaoPublica ?? dados.configuracao.publicacao.descricaoPublica ?? dados.configuracao.identidade.descricaoPublica ?? "",
+        categoriasTexto: formatarListaTexto(learning?.categorias ?? []),
+        canaisSuporteTexto: formatarListaTexto(learning?.canaisSuporte ?? []),
+        politicaSuporte: learning?.politicaSuporte ?? ""
+      }
     },
     tema: {
       corPrimaria: dados.configuracao.tema.corPrimaria || "#111111",
@@ -271,7 +296,22 @@ export function criarPayloadConfiguracao(form: FormLoja) {
       slug: form.publicacao.slug || undefined,
       descricaoPublica: textoOuNull(form.publicacao.descricaoPublica || form.identidade.descricaoPublica),
       publicada: form.publicacao.publicada,
-      participaNoMarket: form.publicacao.participaNoMarket
+      participaNoMarket: form.publicacao.participaNoMarket,
+      participaNoLearning: form.publicacao.participaNoLearning,
+      learning: {
+        ativa: form.publicacao.participaNoLearning && form.publicacao.learning.ativa,
+        publicada: form.publicacao.participaNoLearning && form.publicacao.learning.publicada,
+        slug: normalizarSlug(form.publicacao.learning.slug || form.publicacao.slug) || undefined,
+        nomePublico: textoOuNull(form.publicacao.learning.nomePublico || form.identidade.nomeComercial),
+        descricaoPublica: textoOuNull(
+          form.publicacao.learning.descricaoPublica ||
+            form.publicacao.descricaoPublica ||
+            form.identidade.descricaoPublica
+        ),
+        categorias: parseListaTexto(form.publicacao.learning.categoriasTexto),
+        canaisSuporte: parseListaTexto(form.publicacao.learning.canaisSuporteTexto),
+        politicaSuporte: textoOuNull(form.publicacao.learning.politicaSuporte)
+      }
     },
     tema: {
       corPrimaria: form.tema.corPrimaria,

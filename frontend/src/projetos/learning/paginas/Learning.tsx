@@ -6,16 +6,20 @@ import {
   BriefcaseBusiness,
   CalendarClock,
   CheckCircle2,
+  ChevronDown,
   Clock3,
   Compass,
   CreditCard,
   FileText,
   GraduationCap,
+  Heart,
   Layers3,
   LockKeyhole,
   Megaphone,
+  Menu,
   MessageCircle,
   MessageSquareText,
+  Package,
   PlayCircle,
   Plus,
   RefreshCcw,
@@ -23,14 +27,19 @@ import {
   Send,
   ShieldCheck,
   Sparkles,
+  Store,
+  User,
   UserCheck,
   UserPlus,
-  UsersRound
+  UsersRound,
+  X
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import type { FormEvent } from "react";
-import { Link } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
+import { motion, useReducedMotion } from "motion/react";
+import "../learning.css";
 import { CrmPageMotion } from "../../../componentes/CrmInterno21st";
 import {
   BotaoBizy,
@@ -44,32 +53,47 @@ import {
 import {
   alterarPublicacaoLearning,
   abrirCohortLearningTeam,
+  ajustarCompraLearningTeam,
   atribuirProgramaLearningTeam,
   checkoutLearning,
   concluirLicaoLearning,
   criarComunidadeLearningTeam,
   criarProdutoLearningTeam,
+  decidirModeracaoLearning,
+  denunciarConteudoLearning,
   emitirCertificadoLearning,
   enviarMensagemChatLearning,
   inscreverProgramaLearning,
   listarChatInternoLearning,
+  obterPerfilLearning,
   obterHomeLearning,
   obterResumoLearningTeam,
   publicarPostComunidadeLearning,
   registrarPresencaCohortLearning,
+  revogarEntitlementLearning,
   type AcessoComunidadeLearning,
+  type AcaoModeracaoLearning,
+  type CasoModeracaoLearning,
+  type CertificadoLearning,
   type ChatInternoLearning,
+  type CompraLearning,
   type ContextoChatLearning,
   type CriarProgramaLearningInput,
+  type EntitlementLearning,
   type EstadoAtribuicaoLearning,
+  type EstadoCasoModeracaoLearning,
   type EstadoCohortLearning,
   type EstadoComunidadeLearning,
   type FormatoProgramaLearning,
   type HomeLearningResposta,
+  type MotivoModeracaoLearning,
   type NivelLearning,
+  type PerfilLearningPublico,
   type ProgramaLearning,
   type ResumoLearningTeamResposta,
+  type SeveridadeModeracaoLearning,
   type TipoAcessoLearning,
+  type TipoAlvoModeracaoLearning,
   type TipoMensagemChatLearning,
   type TipoPostComunidadeLearning
 } from "../api";
@@ -81,6 +105,7 @@ export function PaginaLearning() {
   const [dados, setDados] = useState<HomeLearningResposta | null>(null);
   const [busca, setBusca] = useState("");
   const [categoria, setCategoria] = useState("");
+  const [formato, setFormato] = useState("");
   const [erro, setErro] = useState("");
   const [carregando, setCarregando] = useState(true);
 
@@ -105,144 +130,282 @@ export function PaginaLearning() {
   }, []);
 
   const programas = dados?.programas ?? [];
+  const perfisPublicos = dados?.perfisPublicos ?? [];
   const categorias = dados?.categorias?.length ? dados.categorias : CATEGORIAS_PADRAO;
   const familias = dados?.familias?.length ? dados.familias : [
     "Cursos estruturados",
     "Microlearning",
     "Lives e workshops",
     "Mentorias e coaching",
-    "Certificacoes e recertificacoes",
+    "Certificações e recertificações",
     "Comunidades e memberships"
   ];
+  
   const filtrados = useMemo(() => {
     const texto = busca.trim().toLowerCase();
     return programas.filter((programa) => {
       const combinaCategoria = !categoria || programa.categoria === categoria;
+      const combinaFormato = !formato || programa.formato === formato;
       const combinaTexto =
         !texto ||
-        [programa.titulo, programa.subtitulo, programa.descricao, programa.resultadoEsperado, programa.categoria]
+        [programa.titulo, programa.subtitulo, programa.descricao, programa.resultadoEsperado, programa.categoria, programa.formato]
           .join(" ")
           .toLowerCase()
           .includes(texto);
-      return combinaCategoria && combinaTexto;
+      return combinaCategoria && combinaFormato && combinaTexto;
     });
-  }, [busca, categoria, programas]);
+  }, [busca, categoria, formato, programas]);
+
+  const categoriasComProgramas = useMemo(() => {
+    return categorias.map((cat) => {
+      const itens = programas.filter((p) => p.categoria === cat);
+      return { nome: cat, itens };
+    }).filter((c) => c.itens.length > 0);
+  }, [categorias, programas]);
+
+  const programasDestaque = useMemo(() => {
+    const comDestaque = programas.filter((p) => p.destaque);
+    return comDestaque.length ? comDestaque.slice(0, 4) : programas.slice(0, 4);
+  }, [programas]);
+
+  const isHome = !categoria && !formato && !busca;
 
   return (
-    <main className="min-h-[100dvh] bg-[#f4f6f8] text-neutral-950">
-      <header className="absolute inset-x-0 top-0 z-20">
-        <div className="mx-auto flex w-full max-w-7xl items-center justify-between px-5 py-4 sm:px-8">
-          <Link to="/" className="rounded-full bg-black/45 px-3 py-1.5 text-sm font-semibold text-white backdrop-blur">
-            bizy<span className="text-[#a6e85f]">.</span> learning
-          </Link>
-          <nav className="flex items-center gap-2 text-sm">
-            <Link to="/market" className="hidden rounded-full bg-white/15 px-3 py-1.5 font-medium text-white backdrop-blur sm:inline-flex">
-              Market
-            </Link>
-            <Link to="/login" className="rounded-full bg-[#a6e85f] px-4 py-2 font-semibold text-neutral-950 shadow-sm">
-              Entrar no Team
-            </Link>
-          </nav>
-        </div>
-      </header>
+    <main className="learn-page">
+      <CabecalhoLearningComercial
+        busca={busca}
+        categoriaSelecionada={categoria}
+        formatoSelecionado={formato}
+        categorias={categorias}
+        onBusca={setBusca}
+        onCategoria={(cat) => { setCategoria(cat); setFormato(""); }}
+        onFormato={(fmt) => { setFormato(fmt); setCategoria(""); }}
+        onLimpar={() => { setBusca(""); setCategoria(""); setFormato(""); }}
+      />
 
-      <section className="relative flex min-h-[76dvh] items-end overflow-hidden px-5 pb-14 pt-28 sm:px-8 lg:pb-20" aria-label="Bizy Learning">
-        <img
-          src="/bizy-login-team.png"
-          alt=""
-          className="absolute inset-0 h-full w-full object-cover"
-          loading="eager"
-        />
-        <div className="absolute inset-0 bg-black/58" />
-        <div className="relative z-10 mx-auto grid w-full max-w-7xl gap-7 lg:grid-cols-[minmax(0,1.1fr)_minmax(300px,0.6fr)] lg:items-end">
-          <div className="max-w-3xl">
-            <span className="inline-flex items-center gap-2 rounded-full bg-white/12 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.08em] text-white backdrop-blur">
-              <GraduationCap size={15} />
-              Sistema próprio do ecossistema Bizy
-            </span>
-            <h1 className="mt-5 max-w-3xl text-4xl font-semibold leading-[1.02] text-white sm:text-6xl lg:text-7xl">
-              Bizy Learning
-            </h1>
-            <p className="mt-5 max-w-2xl text-base leading-7 text-white/84 sm:text-lg">
-              Home pública para descobrir programas, cohorts e comunidades de aprendizagem aplicada. A administração fica no Team: perfis, donos, publicação, progresso e governança.
-            </p>
-            <div className="mt-7 flex flex-wrap gap-3">
-              <a href="#programas-learning" className="inline-flex items-center gap-2 rounded-full bg-[#a6e85f] px-5 py-3 text-sm font-semibold text-neutral-950 shadow-sm">
-                Explorar programas
-                <ArrowRight size={16} />
-              </a>
-              <Link to="/app/learning" className="inline-flex items-center gap-2 rounded-full border border-white/30 bg-white/12 px-5 py-3 text-sm font-semibold text-white backdrop-blur">
-                Administrar no Team
-                <ShieldCheck size={16} />
-              </Link>
+      {!isHome ? (
+        <section className="learn-cat-head" style={{ padding: "40px 24px 20px", background: "var(--learn-surface)", borderBottom: "1px solid var(--learn-border)" }}>
+          <span style={{ fontSize: "12px", color: "var(--learn-ink-3)", textTransform: "uppercase", fontWeight: 600 }}>
+            Explorar / <b>{categoria || (formato === "CURSO" ? "Cursos" : formato === "MENTORIA" ? "Mentorias" : formato === "COHORT" ? "Turmas ao Vivo" : formato)}</b>
+          </span>
+          <h1 style={{ fontSize: "28px", fontWeight: 800, marginTop: "8px", color: "var(--learn-ink)" }}>
+            {categoria || (formato === "CURSO" ? "Cursos Práticos" : formato === "MENTORIA" ? "Mentorias Individuais" : formato === "COHORT" ? "Turmas ao Vivo" : formato)}
+          </h1>
+          <p style={{ fontSize: "14px", color: "var(--learn-ink-2)", marginTop: "4px" }}>
+            {carregando ? "A carregar resultados..." : `${filtrados.length} programa(s) encontrado(s)`}
+          </p>
+        </section>
+      ) : (
+        <>
+          <section className="learn-hero">
+            <div className="relative z-10 max-w-4xl mx-auto">
+              <motion.h1
+                initial={{ y: 24, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ duration: 0.5 }}
+              >
+                Leva o teu conhecimento ao{" "}
+                <span className="highlight">próximo nível</span>
+              </motion.h1>
+              <motion.p
+                initial={{ y: 20, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ delay: 0.12, duration: 0.5 }}
+              >
+                Aprende com especialistas que aplicam o conhecimento no mundo real. Cursos, mentorias e cohorts práticos para acelerar a tua evolução.
+              </motion.p>
+              <motion.div
+                initial={{ y: 20, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ delay: 0.24, duration: 0.5 }}
+              >
+                <a href="#programas-learning" className="learn-hero-cta">
+                  Explorar programas
+                  <ArrowRight size={15} />
+                </a>
+              </motion.div>
+            </div>
+          </section>
+
+          <div className="learn-stats-row">
+            <div className="learn-stat-card">
+              <div className="learn-stat-value">{programas.length}</div>
+              <div className="learn-stat-label">Programas</div>
+            </div>
+            <div className="learn-stat-card" onClick={() => setFormato("MENTORIA")} style={{ cursor: "pointer" }}>
+              <div className="learn-stat-value">{perfisPublicos.length}</div>
+              <div className="learn-stat-label">Especialistas</div>
+            </div>
+            <div className="learn-stat-card">
+              <div className="learn-stat-value">
+                {dados?.metricas.minutos ? `${Math.round(dados.metricas.minutos / 60)}h` : "480h"}
+              </div>
+              <div className="learn-stat-label">Horas de conteúdo</div>
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-3 sm:max-w-lg lg:ml-auto">
-            <MetricHero rotulo="Produtos digitais" valor={dados?.metricas.produtosDigitais ?? dados?.metricas.programas ?? "-"} />
-            <MetricHero rotulo="Produtos pagos" valor={dados?.metricas.pagos ?? "-"} />
-            <MetricHero rotulo="Comunidades" valor={dados?.metricas.comunidades ?? "-"} />
-            <MetricHero rotulo="Receita vitrine" valor={formatarKwanzaCompacto(dados?.metricas.receitaPotencial ?? 0)} />
-          </div>
-        </div>
-      </section>
 
-      <section className="mx-auto grid w-full max-w-7xl gap-6 px-5 py-10 sm:px-8 lg:grid-cols-[minmax(0,0.82fr)_minmax(0,1.18fr)]">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-neutral-500">Como funciona</p>
-          <h2 className="mt-2 text-2xl font-semibold text-neutral-950 sm:text-3xl">Produto digital, acesso e operação.</h2>
-          <p className="mt-3 max-w-xl text-sm leading-6 text-neutral-600">
-            O Team administra o backstage; a home do Learning dá descoberta pública. Cada programa aponta para uma prática real dentro do Bizy.
-          </p>
-        </div>
-        <div className="grid gap-3 sm:grid-cols-3">
-          <SinalLearning icone={Compass} titulo="Descoberta" texto="Home pública, filtros, destaques e produtos digitais por perfil." />
-          <SinalLearning icone={CreditCard} titulo="Checkout" texto="Compra digital gera acesso, documento e origem financeira." />
-          <SinalLearning icone={BookOpenCheck} titulo="Aplicação" texto="Lições curtas, progresso, comunidade e certificado." />
-        </div>
-      </section>
+          <SecaoConfiancaLearning />
 
-      <section className="bg-neutral-950 px-5 py-12 text-white sm:px-8">
-        <div className="mx-auto w-full max-w-7xl">
-          <div className="flex flex-col gap-3 lg:max-w-3xl">
-            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[#a6e85f]">Ecossistema Learning</p>
-            <h2 className="text-2xl font-semibold sm:text-3xl">Famílias de produto digital para vender, formar e reter.</h2>
-            <p className="text-sm leading-6 text-white/68">
-              O Learning organiza cursos, comunidades, cohorts, mentorias, downloads e certificações como produtos digitais com acesso, operação e receita rastreáveis.
-            </p>
-          </div>
-          <div className="mt-7 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-            {familias.map((familia, indice) => (
-              <FamiliaLearningPublica
-                key={familia}
-                familia={familia}
-                indice={indice}
-                totalProdutos={programas.filter((programa) => programa.familiaProduto === familia).length}
-              />
-            ))}
-          </div>
-        </div>
-      </section>
+          {/* Como funciona */}
+          <section className="learn-section">
+            <div className="learn-section-head text-center">
+              <span className="learn-section-badge">Jornada</span>
+              <h2 className="learn-section-title">Como funciona a tua evolução</h2>
+              <p className="learn-section-subtitle mx-auto">
+                Formatos didáticos dinâmicos concebidos para o teu desenvolvimento real e prático.
+              </p>
+            </div>
+            
+            <div className="learn-formats-grid">
+              <motion.div whileHover={{ y: -2 }} className="learn-format-card" onClick={() => setFormato("CURSO")} style={{ cursor: "pointer" }}>
+                <div className="mb-4 inline-flex h-10 w-10 items-center justify-center bg-neutral-100 text-neutral-700">
+                  <BookOpenCheck size={18} />
+                </div>
+                <h3 className="learn-format-name">Cursos Práticos</h3>
+                <p className="learn-format-desc">Aprende ao teu próprio ritmo com lições estruturadas e metas de progresso.</p>
+              </motion.div>
 
-      <section id="programas-learning" className="mx-auto w-full max-w-7xl px-5 pb-14 sm:px-8">
-        <div className="flex flex-col gap-4 border-t border-neutral-200 pt-8 lg:flex-row lg:items-end lg:justify-between">
+              <motion.div whileHover={{ y: -2 }} className="learn-format-card" onClick={() => setFormato("MENTORIA")} style={{ cursor: "pointer" }}>
+                <div className="mb-4 inline-flex h-10 w-10 items-center justify-center bg-neutral-100 text-neutral-700">
+                  <UsersRound size={18} />
+                </div>
+                <h3 className="learn-format-name">Mentorias</h3>
+                <p className="learn-format-desc">Sessões diretas com especialistas para acelerar o teu negócio ou carreira.</p>
+              </motion.div>
+
+              <motion.div whileHover={{ y: -2 }} className="learn-format-card" onClick={() => setFormato("COHORT")} style={{ cursor: "pointer" }}>
+                <div className="mb-4 inline-flex h-10 w-10 items-center justify-center bg-neutral-100 text-neutral-700">
+                  <GraduationCap size={18} />
+                </div>
+                <h3 className="learn-format-name">Turmas ao Vivo</h3>
+                <p className="learn-format-desc">Aprende em comunidade com encontros interativos e projectos práticos.</p>
+              </motion.div>
+
+              <motion.div whileHover={{ y: -2 }} className="learn-format-card" onClick={() => setFormato("COMUNIDADE")} style={{ cursor: "pointer" }}>
+                <div className="mb-4 inline-flex h-10 w-10 items-center justify-center bg-neutral-100 text-neutral-700">
+                  <MessageCircle size={18} />
+                </div>
+                <h3 className="learn-format-name">Comunidades</h3>
+                <p className="learn-format-desc">Espaços exclusivos para networking e discussões sobre o teu mercado.</p>
+              </motion.div>
+            </div>
+          </section>
+
+          {/* Programas em Destaque */}
+          {programasDestaque.length > 0 && (
+            <section className="learn-section" style={{ borderTop: "1px solid var(--learn-border)" }}>
+              <div className="learn-section-head">
+                <span className="learn-section-badge">Recomendados</span>
+                <h2 className="learn-section-title">Programas em Destaque</h2>
+                <p className="learn-section-subtitle">
+                  Uma seleção especial dos melhores programas e cohorts ativos no ecossistema Bizy.
+                </p>
+              </div>
+              <div className="learn-programs-grid">
+                {programasDestaque.map((programa) => (
+                  <ProgramaLearningPublico key={programa.slug} programa={programa} />
+                ))}
+              </div>
+            </section>
+          )}
+
+          {/* Shelves por Categoria */}
+          {categoriasComProgramas.map(({ nome, itens }) => (
+            <section key={nome} className="learn-section" style={{ borderTop: "1px solid var(--learn-border)" }}>
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between mb-8">
+                <div>
+                  <span className="learn-section-badge">Categoria / {nome}</span>
+                  <h2 className="learn-section-title">
+                    {nome === "Team" ? "Colaboração & Gestão de Equipa" :
+                     nome === "Market" ? "Vendas & E-commerce" :
+                     nome === "Atendimento" ? "Suporte & Atendimento ao Cliente" :
+                     nome === "Financas" ? "Gestão Financeira & Faturação" :
+                     nome === "Afiliados" ? "Marketing & Programas de Afiliados" :
+                     nome === "Criadores" ? "Criação de Conteúdo & Infoprodutos" : nome}
+                  </h2>
+                </div>
+                <button
+                  type="button"
+                  className="learn-pill"
+                  onClick={() => { setCategoria(nome); setFormato(""); }}
+                  style={{ alignSelf: "flex-start", height: "32px", padding: "0 14px", border: "1px solid var(--learn-border)" }}
+                >
+                  Explorar tudo em {nome}
+                </button>
+              </div>
+              <div className="learn-programs-grid">
+                {itens.slice(0, 4).map((programa) => (
+                  <ProgramaLearningPublico key={programa.slug} programa={programa} />
+                ))}
+              </div>
+            </section>
+          ))}
+
+          {/* Mentores/Criadores */}
+          {perfisPublicos.length > 0 && (
+            <section className="learn-section" style={{ borderTop: "1px solid var(--learn-border)" }}>
+              <div className="learn-section-head">
+                <span className="learn-section-badge">Criadores</span>
+                <h2 className="learn-section-title">Aprende com especialistas líderes</h2>
+                <p className="learn-section-subtitle">
+                  Canais dedicados de mentores, escolas e negócios digitais que utilizam o ecossistema Bizy.
+                </p>
+              </div>
+              <div className="learn-programs-grid">
+                {perfisPublicos.slice(0, 6).map((perfil) => (
+                  <PerfilLearningPublicoCard key={perfil.slug} perfil={perfil} />
+                ))}
+              </div>
+            </section>
+          )}
+
+          {/* Formatos de Aprendizagem */}
+          <section className="learn-dark-section">
+            <div className="learn-section" style={{ padding: 0 }}>
+              <div className="learn-section-head">
+                <span className="learn-section-badge">Formatos de Aprendizagem</span>
+                <h2 className="learn-section-title">Formatos criados para a tua rotina</h2>
+                <p className="learn-section-subtitle text-white/70">
+                  Escolhe o método que melhor se adapta aos teus objetivos do dia-a-dia.
+                </p>
+              </div>
+              <div className="learn-formats-grid mt-8">
+                {familias.map((familia, indice) => (
+                  <FamiliaLearningPublica
+                    key={familia}
+                    familia={familia}
+                    indice={indice}
+                    totalProdutos={programas.filter((programa) => programa.familiaProduto === familia).length}
+                  />
+                ))}
+              </div>
+            </div>
+          </section>
+        </>
+      )}
+
+      {/* Vitrine Geral / Exploração Ativa */}
+      <section id="programas-learning" className="learn-section" style={{ borderTop: isHome ? "1px solid var(--learn-border)" : "none" }}>
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between mb-8">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-neutral-500">Programas em destaque</p>
-            <h2 className="mt-2 text-2xl font-semibold text-neutral-950">Aprendizagem orientada a operação.</h2>
+            <span className="learn-section-badge">Catálogo</span>
+            <h2 className="learn-section-title">Todos os programas disponíveis</h2>
           </div>
           <div className="flex flex-col gap-2 sm:flex-row">
-            <label className="relative min-w-[220px]">
-              <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-neutral-500" />
+            <label className="learn-search" style={{ maxWidth: "260px" }}>
+              <Search className="learn-search-icon size-4" />
               <input
                 value={busca}
                 onChange={(evento) => setBusca(evento.target.value)}
-                placeholder="Buscar programa"
-                className="h-11 w-full rounded-full border border-neutral-300 bg-white pl-9 pr-4 text-sm outline-none focus:border-neutral-950"
+                placeholder="Buscar programa..."
+                style={{ height: "38px" }}
               />
             </label>
             <select
               value={categoria}
-              onChange={(evento) => setCategoria(evento.target.value)}
-              className="h-11 rounded-full border border-neutral-300 bg-white px-4 text-sm outline-none focus:border-neutral-950"
+              onChange={(evento) => { setCategoria(evento.target.value); setFormato(""); }}
+              className="learn-pill"
+              style={{ height: "38px", padding: "0 16px" }}
             >
               <option value="">Todas categorias</option>
               {categorias.map((item) => <option key={item} value={item}>{item}</option>)}
@@ -250,36 +413,202 @@ export function PaginaLearning() {
           </div>
         </div>
 
-        {erro && <div className="mt-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{erro}</div>}
-        {carregando && <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">{Array.from({ length: 6 }).map((_, index) => <div key={index} className="h-64 animate-pulse rounded-lg bg-white" />)}</div>}
-        {!carregando && !erro && (
-          <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {filtrados.map((programa) => <ProgramaLearningPublico key={programa.slug} programa={programa} />)}
-          </div>
-        )}
-      </section>
-
-      <section className="bg-neutral-950 px-5 py-12 text-white sm:px-8">
-        <div className="mx-auto grid max-w-7xl gap-7 lg:grid-cols-[minmax(0,0.7fr)_minmax(0,1.3fr)]">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[#a6e85f]">Perfis Learning</p>
-            <h2 className="mt-2 text-2xl font-semibold">Perfis governados pelo Team.</h2>
-            <p className="mt-3 text-sm leading-6 text-white/68">
-              Donos e admins controlam quem aprende, quem publica e como o progresso entra na operação.
-            </p>
-          </div>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            {(dados?.perfis ?? []).map((perfil) => (
-              <div key={perfil.codigo} className="rounded-lg border border-white/12 bg-white/[0.04] p-4">
-                <div className="flex items-center justify-between gap-3">
-                  <strong className="text-sm">{perfil.nome}</strong>
-                  {perfil.podeAdministrar ? <LockKeyhole size={15} className="text-[#a6e85f]" /> : <GraduationCap size={15} className="text-white/60" />}
-                </div>
-                <p className="mt-2 text-xs leading-5 text-white/60">{perfil.descricao}</p>
-              </div>
+        {erro && <div className="mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{erro}</div>}
+        {carregando && (
+          <div className="learn-programs-grid">
+            {Array.from({ length: 6 }).map((_, index) => (
+              <div key={index} className="learn-skeleton h-72" />
             ))}
           </div>
+        )}
+        {!carregando && !erro && (
+          <>
+            {filtrados.length > 0 ? (
+              <div className="learn-programs-grid">
+                {filtrados.map((programa) => (
+                  <ProgramaLearningPublico key={programa.slug} programa={programa} />
+                ))}
+              </div>
+            ) : (
+              <div className="learn-empty">
+                <h3>Nenhum programa encontrado</h3>
+                <p>Experimenta ajustar a tua pesquisa ou limpar os filtros activos.</p>
+                <button
+                  onClick={() => { setBusca(""); setCategoria(""); setFormato(""); }}
+                  className="learn-empty-btn"
+                >
+                  Ver todos os programas
+                </button>
+              </div>
+            )}
+          </>
+        )}
+      </section>
+    </main>
+  );
+}
+
+export function PaginaPerfilLearning() {
+  const { slug = "" } = useParams();
+  const [perfil, setPerfil] = useState<PerfilLearningPublico | null>(null);
+  const [erro, setErro] = useState("");
+  const [carregando, setCarregando] = useState(true);
+
+  useEffect(() => {
+    let activo = true;
+    async function carregar() {
+      setCarregando(true);
+      setErro("");
+      try {
+        if (!slug.trim()) throw new Error("Perfil Learning inválido.");
+        const resposta = await obterPerfilLearning(slug);
+        if (activo) setPerfil(resposta.perfil);
+      } catch (falha) {
+        if (activo) setErro(falha instanceof Error ? falha.message : "Não foi possível carregar o perfil Learning.");
+      } finally {
+        if (activo) setCarregando(false);
+      }
+    }
+    void carregar();
+    return () => {
+      activo = false;
+    };
+  }, [slug]);
+
+  const programas = perfil?.programas ?? [];
+  const categorias = perfil?.categorias ?? [];
+  const canaisSuporte = perfil?.canaisSuporte ?? [];
+
+  return (
+    <main className="learn-page">
+      <CabecalhoLearningComercial
+        busca=""
+        categoriaSelecionada=""
+        formatoSelecionado=""
+        categorias={categorias}
+        onBusca={() => {}}
+        onCategoria={() => {}}
+        onFormato={() => {}}
+        onLimpar={() => {}}
+      />
+
+      <section className="learn-profile-hero">
+        <div className="relative z-10 mx-auto max-w-7xl grid gap-7 lg:grid-cols-[minmax(0,1.15fr)_minmax(300px,0.55fr)] lg:items-end">
+          <div className="max-w-3xl">
+            <span className="learn-section-badge" style={{ backgroundColor: "rgba(255,255,255,0.15)", color: "#fff" }}>
+              <BriefcaseBusiness size={14} />
+              Especialista
+            </span>
+            <h1 className="mt-5 text-4xl font-extrabold text-white sm:text-5xl leading-tight">
+              {carregando ? "A carregar perfil..." : perfil?.nomePublico ?? "Perfil Learning"}
+            </h1>
+            <p className="mt-4 text-base leading-relaxed text-white/80 sm:text-lg">
+              {perfil?.descricaoPublica ?? "Produtos digitais, comunidades, mentorias e certificações no ecossistema Bizy."}
+            </p>
+            <div className="mt-5 flex flex-wrap gap-2">
+              {categorias.slice(0, 8).map((categoria) => (
+                <span key={categoria} className="bg-white/10 px-3 py-1.5 text-xs font-bold text-white">
+                  {categoria}
+                </span>
+              ))}
+              {perfil?.localizacao && (
+                <span className="bg-white/15 px-3 py-1.5 text-xs font-bold text-white">
+                  {perfil.localizacao}
+                </span>
+              )}
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3 sm:max-w-lg lg:ml-auto w-full">
+            <div className="learn-stat-card" style={{ background: "rgba(255, 255, 255, 0.08)", borderColor: "rgba(255, 255, 255, 0.1)", color: "#fff" }}>
+              <strong className="block text-2xl font-black text-white">{perfil?.metricas.programas ?? 0}</strong>
+              <span className="mt-1 block text-[10px] font-bold uppercase tracking-wider text-white/70">Programas</span>
+            </div>
+            <div className="learn-stat-card" style={{ background: "rgba(255, 255, 255, 0.08)", borderColor: "rgba(255, 255, 255, 0.1)", color: "#fff" }}>
+              <strong className="block text-2xl font-black text-white">{perfil?.metricas.pagos ?? 0}</strong>
+              <span className="mt-1 block text-[10px] font-bold uppercase tracking-wider text-white/70">Premium</span>
+            </div>
+            <div className="learn-stat-card" style={{ background: "rgba(255, 255, 255, 0.08)", borderColor: "rgba(255, 255, 255, 0.1)", color: "#fff" }}>
+              <strong className="block text-2xl font-black text-white">{perfil?.metricas.comunidades ?? 0}</strong>
+              <span className="mt-1 block text-[10px] font-bold uppercase tracking-wider text-white/70">Grupos</span>
+            </div>
+            <div className="learn-stat-card" style={{ background: "rgba(255, 255, 255, 0.08)", borderColor: "rgba(255, 255, 255, 0.1)", color: "#fff" }}>
+              <strong className="block text-2xl font-black text-white">{perfil?.metricas.minutos ? `${Math.round(perfil.metricas.minutos / 60)}h` : "0h"}</strong>
+              <span className="mt-1 block text-[10px] font-bold uppercase tracking-wider text-white/70">Aulas</span>
+            </div>
+          </div>
         </div>
+      </section>
+
+      {/* Apoio e Aprendizado */}
+      <section className="learn-section">
+        <div className="grid gap-8 lg:grid-cols-[0.8fr_1.2fr] items-center">
+          <div>
+            <span className="learn-section-badge">Metodologia</span>
+            <h2 className="learn-section-title">Apoio em toda a jornada</h2>
+            <p className="learn-section-subtitle">
+              {perfil?.politicaSuporte ?? "Estudo estruturado com acompanhamento ativo. Os nossos programas incluem canais de suporte dedicados para retirar dúvidas e acelerar o teu desenvolvimento."}
+            </p>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-3">
+            <SinalLearning icone={CreditCard} titulo="Compra Segura" texto="Pagamento prático com ativação imediata dos programas." />
+            <SinalLearning icone={LockKeyhole} titulo="Acesso Direto" texto="Conteúdos, cohorts e fóruns sem burocracia ou demoras." />
+            <SinalLearning icone={BadgeCheck} titulo="Metas Práticas" texto="Mede o teu progresso através das lições e checklists." />
+          </div>
+        </div>
+      </section>
+
+      {/* Canais */}
+      <section className="learn-section" style={{ paddingTop: 0 }}>
+        <div className="bg-white border border-neutral-200 p-6">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <span className="text-[11px] font-bold text-neutral-400 uppercase tracking-wide">Canais de Ajuda</span>
+              <h3 className="text-lg font-extrabold text-neutral-900 mt-1">Esclarece as tuas dúvidas diretamente com o mentor</h3>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {(canaisSuporte.length ? canaisSuporte : ["Plataforma", "Comunidade", "E-mail"]).map((canal) => (
+                <span key={canal} className="inline-flex items-center gap-1.5 bg-neutral-50 text-neutral-700 px-4 py-2 text-xs font-bold border border-neutral-200">
+                  <MessageCircle size={14} />
+                  {canal}
+                </span>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Vitrine do Perfil */}
+      <section id="programas-perfil-learning" className="learn-section" style={{ borderTop: "1px solid var(--learn-border)" }}>
+        <div className="learn-section-head mb-8">
+          <span className="learn-section-badge">Catálogo</span>
+          <h2 className="learn-section-title">Programas publicados pelo especialista</h2>
+        </div>
+
+        {erro && <div className="mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{erro}</div>}
+        {carregando && (
+          <div className="learn-programs-grid">
+            {Array.from({ length: 3 }).map((_, index) => (
+              <div key={index} className="learn-skeleton h-72" />
+            ))}
+          </div>
+        )}
+        {!carregando && !erro && (
+          <>
+            {programas.length > 0 ? (
+              <div className="learn-programs-grid">
+                {programas.map((programa) => (
+                  <ProgramaLearningPublico key={programa.slug} programa={programa} />
+                ))}
+              </div>
+            ) : (
+              <div className="learn-empty">
+                <span className="learn-empty-icon"></span>
+                <h3>Nenhum programa publicado</h3>
+                <p>Este especialista ainda não publicou programas para inscrições públicas. Volta em breve!</p>
+              </div>
+            )}
+          </>
+        )}
       </section>
     </main>
   );
@@ -352,6 +681,19 @@ export function PaginaLearningTeam() {
     conteudo: "",
     fixado: true
   });
+  const [moderacaoForm, setModeracaoForm] = useState({
+    alvoTipo: "COMUNIDADE" as TipoAlvoModeracaoLearning,
+    alvoId: "",
+    motivo: "CONTEUDO_SENSIVEL" as MotivoModeracaoLearning,
+    severidade: "MEDIA" as SeveridadeModeracaoLearning,
+    descricao: ""
+  });
+  const [decisaoModeracaoForm, setDecisaoModeracaoForm] = useState({
+    casoId: "",
+    acao: "COLOCAR_EM_REVISAO" as AcaoModeracaoLearning,
+    decisao: "",
+    ocultoPublicamente: false
+  });
 
   async function carregar() {
     setCarregando(true);
@@ -383,6 +725,14 @@ export function PaginaLearningTeam() {
       setPostComunidadeForm((actual) => ({
         ...actual,
         comunidadeId: actual.comunidadeId || resumo.comunidades[0]?.id || ""
+      }));
+      setModeracaoForm((actual) => ({
+        ...actual,
+        alvoId: actual.alvoId || resumo.comunidades[0]?.id || resumo.programas[0]?.slug || ""
+      }));
+      setDecisaoModeracaoForm((actual) => ({
+        ...actual,
+        casoId: actual.casoId || resumo.moderacao[0]?.id || ""
       }));
     } catch (falha) {
       setErro(falha instanceof Error ? falha.message : "Não foi possível carregar o Bizy Learning.");
@@ -476,6 +826,24 @@ export function PaginaLearningTeam() {
         referenciaPagamento: `TEAM-${programa.slug}-${Date.now()}`,
         confirmarPagamento: true
       });
+    });
+  }
+
+  async function ajustarCompra(compra: CompraLearning, estado: "CANCELADO" | "REEMBOLSADO") {
+    await executarAcao(`ajustar-compra-${compra.id}-${estado}`, async () => {
+      await ajustarCompraLearningTeam(compra.id, {
+        estado,
+        motivo: estado === "REEMBOLSADO"
+          ? "Reembolso registado pelo Team Learning."
+          : "Cancelamento registado pelo Team Learning.",
+        revogarAcesso: true
+      });
+    });
+  }
+
+  async function revogarAcesso(entitlement: EntitlementLearning) {
+    await executarAcao(`revogar-entitlement-${entitlement.id}`, async () => {
+      await revogarEntitlementLearning(entitlement.id, "Acesso revogado manualmente pelo Team Learning.");
     });
   }
 
@@ -591,6 +959,42 @@ export function PaginaLearningTeam() {
     });
   }
 
+  async function denunciarConteudo(evento: FormEvent<HTMLFormElement>) {
+    evento.preventDefault();
+    if (!moderacaoForm.alvoId || !moderacaoForm.descricao.trim()) return;
+
+    await executarAcao(`denuncia-${moderacaoForm.alvoId}`, async () => {
+      await denunciarConteudoLearning({
+        alvoTipo: moderacaoForm.alvoTipo,
+        alvoId: moderacaoForm.alvoId,
+        motivo: moderacaoForm.motivo,
+        severidade: moderacaoForm.severidade,
+        descricao: moderacaoForm.descricao.trim()
+      });
+      setModeracaoForm((actual) => ({ ...actual, descricao: "" }));
+    });
+  }
+
+  async function decidirModeracao(evento: FormEvent<HTMLFormElement>) {
+    evento.preventDefault();
+    if (!decisaoModeracaoForm.casoId) return;
+
+    await executarAcao(`moderacao-${decisaoModeracaoForm.casoId}`, async () => {
+      await decidirModeracaoLearning(decisaoModeracaoForm.casoId, {
+        acao: decisaoModeracaoForm.acao,
+        decisao: decisaoModeracaoForm.decisao.trim() || undefined,
+        ocultoPublicamente: decisaoModeracaoForm.ocultoPublicamente
+      });
+      setDecisaoModeracaoForm((actual) => ({ ...actual, decisao: "" }));
+    });
+  }
+
+  async function decidirModeracaoRapida(caso: CasoModeracaoLearning, acaoModeracao: AcaoModeracaoLearning) {
+    await executarAcao(`moderacao-${caso.id}-${acaoModeracao}`, async () => {
+      await decidirModeracaoLearning(caso.id, { acao: acaoModeracao });
+    });
+  }
+
   async function executarAcao(chave: string, fn: () => Promise<void>) {
     setAcao(chave);
     setErro("");
@@ -606,6 +1010,13 @@ export function PaginaLearningTeam() {
 
   const metricas = dados?.metricas;
   const programas = dados?.programas ?? [];
+  const postsModeraveis = (dados?.comunidades ?? []).flatMap((comunidade) =>
+    comunidade.postsRecentes.map((post) => ({
+      id: post.id,
+      titulo: `${post.titulo || post.tipo.toLowerCase()} · ${comunidade.titulo}`
+    }))
+  );
+  const opcoesModeracao = opcoesAlvoModeracao(moderacaoForm.alvoTipo, programas, dados?.comunidades ?? [], postsModeraveis, dados?.certificados ?? []);
 
   return (
     <CrmPageMotion>
@@ -629,6 +1040,9 @@ export function PaginaLearningTeam() {
       <KpiGrid>
         <KpiCard hero icone={GraduationCap} rotulo="Programas" valor={metricas?.programas ?? "-"} delta={`${metricas?.publicados ?? 0} publicados`} deltaPositivo />
         <KpiCard icone={CreditCard} cor="green" rotulo="Receita Learning" valor={formatarKwanzaCompacto(metricas?.receitaLearning ?? 0)} delta={`${metricas?.comprasConfirmadas ?? 0} compras`} deltaPositivo />
+        <KpiCard icone={Compass} cor="blue" rotulo="Views públicas" valor={metricas?.visualizacoesPublicas ?? "-"} />
+        <KpiCard icone={PlayCircle} cor="green" rotulo="Previews públicos" valor={metricas?.previewsPublicos ?? "-"} />
+        <KpiCard icone={ArrowRight} cor="amber" rotulo="CTAs Learning" valor={(metricas?.ctasCheckoutLearning ?? 0) + (metricas?.ctasInscricaoLearning ?? 0)} />
         <KpiCard icone={LockKeyhole} cor="blue" rotulo="Acessos ativos" valor={metricas?.entitlementsAtivos ?? "-"} />
         <KpiCard icone={BadgeCheck} cor="green" rotulo="Certificados" valor={metricas?.certificados ?? "-"} />
         <KpiCard icone={UserPlus} cor="blue" rotulo="Atribuições" valor={metricas?.atribuicoesAtivas ?? "-"} />
@@ -639,6 +1053,7 @@ export function PaginaLearningTeam() {
         <KpiCard icone={PlayCircle} cor="green" rotulo="Replays" valor={metricas?.replaysDisponiveis ?? "-"} />
         <KpiCard icone={MessageSquareText} cor="blue" rotulo="Comunidades" valor={metricas?.comunidadesAtivas ?? "-"} />
         <KpiCard icone={Megaphone} cor="amber" rotulo="Posts" valor={metricas?.postsComunidade ?? "-"} delta={`${metricas?.perguntasComunidade ?? 0} perguntas`} />
+        <KpiCard icone={ShieldCheck} cor={(metricas?.casosModeracaoAbertos ?? 0) > 0 ? "rose" : "green"} rotulo="Moderação" valor={metricas?.casosModeracaoAbertos ?? "-"} delta={`${metricas?.conteudosOcultosLearning ?? 0} ocultos`} />
         <KpiCard icone={Layers3} cor="amber" rotulo="Rascunhos" valor={metricas?.rascunhos ?? "-"} />
         <KpiCard icone={UsersRound} cor="blue" rotulo="Inscrições" valor={metricas?.inscritos ?? "-"} />
         <KpiCard icone={CheckCircle2} cor="green" rotulo="Concluídos" valor={metricas?.concluidos ?? "-"} />
@@ -1282,6 +1697,229 @@ export function PaginaLearningTeam() {
       </PanelCard>
 
       <PanelCard
+        titulo="Governança e moderação Learning"
+        descricao="Regista denúncias, revisão humana, ocultação temporária e decisão auditável para produtos, comunidades, posts, mentores e certificados."
+      >
+        <div className="grid gap-4 xl:grid-cols-[minmax(320px,0.58fr)_minmax(0,1fr)]">
+          <div className="grid gap-4">
+            <form onSubmit={(evento) => void denunciarConteudo(evento)} className="rounded-lg border bg-background p-4">
+              <div className="flex items-center gap-2 text-sm font-semibold">
+                <AlertTriangle size={16} />
+                Abrir denúncia
+              </div>
+              <div className="mt-4 grid gap-3">
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <label className="grid gap-1.5">
+                    <span className="text-xs font-medium text-muted-foreground">Alvo</span>
+                    <select
+                      value={moderacaoForm.alvoTipo}
+                      onChange={(evento) => {
+                        const alvoTipo = evento.target.value as TipoAlvoModeracaoLearning;
+                        const primeiraOpcao = opcoesAlvoModeracao(alvoTipo, programas, dados?.comunidades ?? [], postsModeraveis, dados?.certificados ?? [])[0]?.id || "";
+                        setModeracaoForm((actual) => ({ ...actual, alvoTipo, alvoId: primeiraOpcao }));
+                      }}
+                      disabled={Boolean(acao)}
+                      className="h-10 rounded-md border bg-background px-3 text-sm outline-none focus:border-primary"
+                    >
+                      <option value="PROGRAMA">Programa</option>
+                      <option value="COMUNIDADE">Comunidade</option>
+                      <option value="POST">Post</option>
+                      <option value="PERFIL">Perfil</option>
+                      <option value="MENTOR">Mentor</option>
+                      <option value="CERTIFICADO">Certificado</option>
+                    </select>
+                  </label>
+                  <label className="grid gap-1.5">
+                    <span className="text-xs font-medium text-muted-foreground">Item</span>
+                    {opcoesModeracao.length > 0 ? (
+                      <select
+                        value={moderacaoForm.alvoId}
+                        onChange={(evento) => setModeracaoForm((actual) => ({ ...actual, alvoId: evento.target.value }))}
+                        disabled={Boolean(acao)}
+                        className="h-10 rounded-md border bg-background px-3 text-sm outline-none focus:border-primary"
+                      >
+                        {opcoesModeracao.map((opcao) => <option key={opcao.id} value={opcao.id}>{opcao.titulo}</option>)}
+                      </select>
+                    ) : (
+                      <input
+                        value={moderacaoForm.alvoId}
+                        onChange={(evento) => setModeracaoForm((actual) => ({ ...actual, alvoId: evento.target.value }))}
+                        disabled={Boolean(acao)}
+                        className="h-10 rounded-md border bg-background px-3 text-sm outline-none focus:border-primary"
+                        placeholder="ID do alvo"
+                      />
+                    )}
+                  </label>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <label className="grid gap-1.5">
+                    <span className="text-xs font-medium text-muted-foreground">Motivo</span>
+                    <select
+                      value={moderacaoForm.motivo}
+                      onChange={(evento) => setModeracaoForm((actual) => ({ ...actual, motivo: evento.target.value as MotivoModeracaoLearning }))}
+                      disabled={Boolean(acao)}
+                      className="h-10 rounded-md border bg-background px-3 text-sm outline-none focus:border-primary"
+                    >
+                      <option value="CONTEUDO_SENSIVEL">Conteúdo sensível</option>
+                      <option value="SPAM">Spam</option>
+                      <option value="DIREITOS_AUTORAIS">Direitos autorais</option>
+                      <option value="FRAUDE">Fraude</option>
+                      <option value="ASSEDIO">Assédio</option>
+                      <option value="INFORMACAO_ERRADA">Informação errada</option>
+                      <option value="OUTRO">Outro</option>
+                    </select>
+                  </label>
+                  <label className="grid gap-1.5">
+                    <span className="text-xs font-medium text-muted-foreground">Severidade</span>
+                    <select
+                      value={moderacaoForm.severidade}
+                      onChange={(evento) => setModeracaoForm((actual) => ({ ...actual, severidade: evento.target.value as SeveridadeModeracaoLearning }))}
+                      disabled={Boolean(acao)}
+                      className="h-10 rounded-md border bg-background px-3 text-sm outline-none focus:border-primary"
+                    >
+                      <option value="BAIXA">Baixa</option>
+                      <option value="MEDIA">Média</option>
+                      <option value="ALTA">Alta</option>
+                      <option value="CRITICA">Crítica</option>
+                    </select>
+                  </label>
+                </div>
+                <label className="grid gap-1.5">
+                  <span className="text-xs font-medium text-muted-foreground">Descrição</span>
+                  <textarea
+                    value={moderacaoForm.descricao}
+                    onChange={(evento) => setModeracaoForm((actual) => ({ ...actual, descricao: evento.target.value }))}
+                    disabled={Boolean(acao)}
+                    rows={4}
+                    className="resize-none rounded-md border bg-background px-3 py-2 text-sm outline-none focus:border-primary"
+                    placeholder="Explique o problema, impacto e contexto para revisão humana."
+                  />
+                </label>
+                <BotaoBizy tipo="submit" icone={AlertTriangle} disabled={Boolean(acao) || !moderacaoForm.alvoId || !moderacaoForm.descricao.trim()}>
+                  Registar denúncia
+                </BotaoBizy>
+              </div>
+            </form>
+
+            <form onSubmit={(evento) => void decidirModeracao(evento)} className="rounded-lg border bg-background p-4">
+              <div className="flex items-center gap-2 text-sm font-semibold">
+                <ShieldCheck size={16} />
+                Decisão de moderação
+              </div>
+              <div className="mt-4 grid gap-3">
+                <label className="grid gap-1.5">
+                  <span className="text-xs font-medium text-muted-foreground">Caso</span>
+                  <select
+                    value={decisaoModeracaoForm.casoId}
+                    onChange={(evento) => setDecisaoModeracaoForm((actual) => ({ ...actual, casoId: evento.target.value }))}
+                    disabled={!dados?.podeAdministrar || Boolean(acao) || !(dados?.moderacao ?? []).length}
+                    className="h-10 rounded-md border bg-background px-3 text-sm outline-none focus:border-primary"
+                  >
+                    {(dados?.moderacao ?? []).map((caso) => <option key={caso.id} value={caso.id}>{caso.tituloAlvo}</option>)}
+                  </select>
+                </label>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <label className="grid gap-1.5">
+                    <span className="text-xs font-medium text-muted-foreground">Ação</span>
+                    <select
+                      value={decisaoModeracaoForm.acao}
+                      onChange={(evento) => setDecisaoModeracaoForm((actual) => ({ ...actual, acao: evento.target.value as AcaoModeracaoLearning }))}
+                      disabled={!dados?.podeAdministrar || Boolean(acao)}
+                      className="h-10 rounded-md border bg-background px-3 text-sm outline-none focus:border-primary"
+                    >
+                      <option value="COLOCAR_EM_REVISAO">Colocar em revisão</option>
+                      <option value="OCULTAR_TEMPORARIAMENTE">Ocultar temporariamente</option>
+                      <option value="RESOLVER">Resolver</option>
+                      <option value="REJEITAR">Rejeitar</option>
+                      <option value="REABRIR">Reabrir</option>
+                    </select>
+                  </label>
+                  <label className="inline-flex h-10 items-center gap-2 rounded-md border px-3 text-sm sm:self-end">
+                    <input
+                      type="checkbox"
+                      checked={decisaoModeracaoForm.ocultoPublicamente}
+                      onChange={(evento) => setDecisaoModeracaoForm((actual) => ({ ...actual, ocultoPublicamente: evento.target.checked }))}
+                      disabled={!dados?.podeAdministrar || Boolean(acao)}
+                      className="size-4"
+                    />
+                    Ocultar no público
+                  </label>
+                </div>
+                <label className="grid gap-1.5">
+                  <span className="text-xs font-medium text-muted-foreground">Decisão</span>
+                  <textarea
+                    value={decisaoModeracaoForm.decisao}
+                    onChange={(evento) => setDecisaoModeracaoForm((actual) => ({ ...actual, decisao: evento.target.value }))}
+                    disabled={!dados?.podeAdministrar || Boolean(acao)}
+                    rows={3}
+                    className="resize-none rounded-md border bg-background px-3 py-2 text-sm outline-none focus:border-primary"
+                    placeholder="Registe a decisão, evidência ou próxima ação."
+                  />
+                </label>
+                <BotaoBizy tipo="submit" icone={ShieldCheck} disabled={!dados?.podeAdministrar || Boolean(acao) || !decisaoModeracaoForm.casoId}>
+                  Registar decisão
+                </BotaoBizy>
+              </div>
+            </form>
+          </div>
+
+          <div className="grid gap-3">
+            {(dados?.moderacao ?? []).slice(0, 10).map((caso) => (
+              <article key={caso.id} className="rounded-lg border bg-background p-4">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <StatusBadge cor={corModeracao(caso.estado)}>{caso.estado.toLowerCase()}</StatusBadge>
+                      <StatusBadge cor={corSeveridade(caso.severidade)}>{caso.severidade.toLowerCase()}</StatusBadge>
+                      {caso.ocultoPublicamente && <StatusBadge cor="rose">oculto</StatusBadge>}
+                    </div>
+                    <h3 className="mt-2 text-sm font-semibold text-foreground">{caso.tituloAlvo}</h3>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {rotuloAlvoModeracao(caso.alvoTipo)} · {caso.motivo.toLowerCase()} · {formatarDataCurta(caso.atualizadoEm)}
+                    </p>
+                  </div>
+                  <ShieldCheck size={18} className="text-muted-foreground" />
+                </div>
+                <p className="mt-3 rounded-md bg-muted/60 p-3 text-sm leading-6 text-muted-foreground">{caso.descricao}</p>
+                {caso.decisao && <p className="mt-2 text-sm leading-6 text-muted-foreground">Decisão: {caso.decisao}</p>}
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <BotaoBizy
+                    variante="secondary"
+                    icone={ShieldCheck}
+                    onClick={() => void decidirModeracaoRapida(caso, "COLOCAR_EM_REVISAO")}
+                    disabled={!dados?.podeAdministrar || Boolean(acao)}
+                  >
+                    Revisar
+                  </BotaoBizy>
+                  <BotaoBizy
+                    variante="secondary"
+                    icone={AlertTriangle}
+                    onClick={() => void decidirModeracaoRapida(caso, "OCULTAR_TEMPORARIAMENTE")}
+                    disabled={!dados?.podeAdministrar || Boolean(acao)}
+                  >
+                    Ocultar
+                  </BotaoBizy>
+                  <BotaoBizy
+                    variante="ghost"
+                    icone={CheckCircle2}
+                    onClick={() => void decidirModeracaoRapida(caso, "RESOLVER")}
+                    disabled={!dados?.podeAdministrar || Boolean(acao)}
+                  >
+                    Resolver
+                  </BotaoBizy>
+                </div>
+              </article>
+            ))}
+            {!(dados?.moderacao ?? []).length && (
+              <p className="rounded-lg border bg-background p-4 text-sm text-muted-foreground">
+                Sem casos de moderação. Denúncias de produtos, posts, comunidades, mentores e certificados aparecem aqui para revisão humana.
+              </p>
+            )}
+          </div>
+        </div>
+      </PanelCard>
+
+      <PanelCard
         titulo="Criar programa administrado pelo Team"
         descricao="Define perfil dono, perfis-alvo, formato e primeira lição aplicável ao Bizy."
         acaoTexto={dados?.podeAdministrar ? undefined : "Sem permissão"}
@@ -1515,12 +2153,37 @@ export function PaginaLearningTeam() {
                 <div key={compra.id} className="rounded-md bg-muted/60 p-3 text-sm">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <strong>{compra.programaSlug}</strong>
-                    <StatusBadge cor={compra.estado === "CONFIRMADO" ? "green" : "amber"}>{compra.estado.toLowerCase()}</StatusBadge>
+                    <StatusBadge cor={corCompra(compra.estado)}>{compra.estado.toLowerCase()}</StatusBadge>
                   </div>
                   <div className="mt-2 flex flex-wrap gap-2 text-xs text-muted-foreground">
                     <span>{formatarKwanza(compra.valor, compra.moeda)}</span>
                     {compra.factura && <span className="inline-flex items-center gap-1"><FileText size={13} /> {compra.factura.numero}</span>}
+                    {compra.motivoAjuste && <span>{compra.motivoAjuste}</span>}
                   </div>
+                  {dados?.podeAdministrar && compra.estado === "CONFIRMADO" && (
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <BotaoBizy
+                        variante="secondary"
+                        icone={RefreshCcw}
+                        onClick={() => void ajustarCompra(compra, "REEMBOLSADO")}
+                        disabled={Boolean(acao)}
+                      >
+                        Reembolsar e revogar
+                      </BotaoBizy>
+                    </div>
+                  )}
+                  {dados?.podeAdministrar && compra.estado === "PENDENTE_VALIDACAO" && (
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <BotaoBizy
+                        variante="danger"
+                        icone={AlertTriangle}
+                        onClick={() => void ajustarCompra(compra, "CANCELADO")}
+                        disabled={Boolean(acao)}
+                      >
+                        Cancelar
+                      </BotaoBizy>
+                    </div>
+                  )}
                 </div>
               ))}
               {!(dados?.compras ?? []).length && <p className="text-sm text-muted-foreground">Sem compras Learning registadas.</p>}
@@ -1539,6 +2202,18 @@ export function PaginaLearningTeam() {
                     <StatusBadge cor={entitlement.estado === "ATIVO" ? "green" : "mute"}>{entitlement.estado.toLowerCase()}</StatusBadge>
                   </div>
                   <p className="mt-2 text-xs text-muted-foreground">Origem {entitlement.origem.toLowerCase()} · {formatarDataCurta(entitlement.acessoDesde)}</p>
+                  {dados?.podeAdministrar && entitlement.estado === "ATIVO" && (
+                    <div className="mt-3">
+                      <BotaoBizy
+                        variante="secondary"
+                        icone={LockKeyhole}
+                        onClick={() => void revogarAcesso(entitlement)}
+                        disabled={Boolean(acao)}
+                      >
+                        Revogar acesso
+                      </BotaoBizy>
+                    </div>
+                  )}
                 </div>
               ))}
               {!(dados?.entitlements ?? []).length && <p className="text-sm text-muted-foreground">Sem acessos digitais activos.</p>}
@@ -1569,12 +2244,12 @@ function SinalLearning({
   texto: string;
 }) {
   return (
-    <div className="rounded-lg border border-neutral-200 bg-white p-4">
-      <span className="inline-flex size-10 items-center justify-center rounded-full bg-neutral-950 text-white">
+    <div className="bg-white border border-neutral-200 p-5 transition-all hover:border-neutral-300">
+      <span className="inline-flex size-10 items-center justify-center bg-neutral-100 text-neutral-700 mb-3">
         <Icone size={18} />
       </span>
-      <h3 className="mt-4 text-sm font-semibold text-neutral-950">{titulo}</h3>
-      <p className="mt-2 text-sm leading-6 text-neutral-600">{texto}</p>
+      <h3 className="text-sm font-extrabold text-neutral-900">{titulo}</h3>
+      <p className="mt-2 text-xs leading-relaxed text-neutral-500">{texto}</p>
     </div>
   );
 }
@@ -1599,50 +2274,319 @@ function FamiliaLearningPublica({
 }) {
   const Icone = ICONES_FAMILIA_LEARNING[indice % ICONES_FAMILIA_LEARNING.length];
   return (
-    <article className="rounded-lg border border-white/12 bg-white/[0.04] p-4">
-      <span className="inline-flex size-10 items-center justify-center rounded-full bg-[#a6e85f] text-neutral-950">
+    <article className="learn-format-card animate-fade-in" style={{ background: "rgba(255,255,255,0.05)", borderColor: "rgba(255,255,255,0.12)" }}>
+      <span className="inline-flex size-10 items-center justify-center bg-white/10 text-white mb-3">
         <Icone size={18} />
       </span>
-      <h3 className="mt-4 text-sm font-semibold">{familia}</h3>
-      <p className="mt-2 text-xs leading-5 text-white/62">
-        Produto digital com acesso, regras, progresso, suporte e métrica própria.
+      <h3 className="text-sm font-extrabold text-white">{familia}</h3>
+      <p className="mt-2 text-xs leading-5 text-white/70">
+        Programa didático estruturado com progresso rastreável, regras claras e apoio.
       </p>
-      <div className="mt-4 flex items-center justify-between gap-3 text-xs text-white/58">
+      <div className="mt-4 flex items-center justify-between gap-3 text-xs text-white/50 border-t border-white/10 pt-3">
         <span>{totalProdutos || "Novo"} produto(s)</span>
-        <span>Learning commerce</span>
+        <span className="font-semibold uppercase tracking-wider text-white/40">Learning</span>
+      </div>
+    </article>
+  );
+}
+
+
+
+function obterIconeFormato(formato: FormatoProgramaLearning): LucideIcon {
+  const icones: Record<FormatoProgramaLearning, LucideIcon> = {
+    CURSO: BookOpenCheck,
+    MICROLEARNING: Clock3,
+    LIVE: PlayCircle,
+    WORKSHOP: CalendarClock,
+    MENTORIA: UserCheck,
+    CERTIFICACAO: BadgeCheck,
+    COMUNIDADE: MessageSquareText,
+    MEMBERSHIP: LockKeyhole,
+    BUNDLE: Layers3,
+    TRILHO: Compass,
+    TRILHA: Compass,
+    ACADEMIA: GraduationCap,
+    DOWNLOAD: FileText,
+    COHORT: UsersRound
+  };
+  return icones[formato] || BookOpenCheck;
+}
+
+function obterGradienteFormato(formato: FormatoProgramaLearning): string {
+  const gradientes: Record<FormatoProgramaLearning, string> = {
+    CURSO: "linear-gradient(135deg, #0e8c68 0%, #075e44 100%)",
+    MICROLEARNING: "linear-gradient(135deg, #10b981 0%, #047857 100%)",
+    LIVE: "linear-gradient(135deg, #ef4444 0%, #b91c1c 100%)",
+    WORKSHOP: "linear-gradient(135deg, #f59e0b 0%, #b45309 100%)",
+    MENTORIA: "linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)",
+    CERTIFICACAO: "linear-gradient(135deg, #8b5cf6 0%, #5d33a6 100%)",
+    COMUNIDADE: "linear-gradient(135deg, #ec4899 0%, #be185d 100%)",
+    MEMBERSHIP: "linear-gradient(135deg, #14b8a6 0%, #0f766e 100%)",
+    BUNDLE: "linear-gradient(135deg, #6366f1 0%, #4338ca 100%)",
+    TRILHO: "linear-gradient(135deg, #64748b 0%, #334155 100%)",
+    TRILHA: "linear-gradient(135deg, #64748b 0%, #334155 100%)",
+    ACADEMIA: "linear-gradient(135deg, #0f172a 0%, #020617 100%)",
+    DOWNLOAD: "linear-gradient(135deg, #22c55e 0%, #15803d 100%)",
+    COHORT: "linear-gradient(135deg, #a855f7 0%, #7e22ce 100%)"
+  };
+  return gradientes[formato] || "linear-gradient(135deg, #0e8c68 0%, #075e44 100%)";
+}
+
+function CabecalhoLearningComercial({
+  busca,
+  categoriaSelecionada,
+  formatoSelecionado,
+  categorias,
+  onBusca,
+  onCategoria,
+  onFormato,
+  onLimpar,
+  placeholder = "Buscar cursos, mentorias e comunidades..."
+}: {
+  busca: string;
+  categoriaSelecionada: string;
+  formatoSelecionado: string;
+  categorias: string[];
+  onBusca: (valor: string) => void;
+  onCategoria: (categoria: string) => void;
+  onFormato: (formato: string) => void;
+  onLimpar: () => void;
+  placeholder?: string;
+}) {
+  return (
+    <header aria-label="Cabeçalho do Bizy Learning" style={{ width: "100%" }}>
+      <div className="learn-topbar" aria-label="Benefícios do Bizy Learning">
+        <div className="learn-topbar-left">
+          <BookOpenCheck size={14} />
+          <span>Cursos práticos · Mentoria com especialistas · Certificado digital</span>
+        </div>
+        <div className="learn-topbar-right">
+          <Link to="/app/learning">
+            <span>Área do Criador</span>
+          </Link>
+          <span>Progresso</span>
+          <span>PT · Kz</span>
+        </div>
+      </div>
+
+      <div className="learn-navbar">
+        <Link to="/learning" className="learn-brand" aria-label="Abrir Bizy Learning">
+          <span className="learn-brand-text">bizy<span className="dot">.</span></span>
+          <span className="learn-brand-tag">Learning</span>
+        </Link>
+
+        <form className="learn-search" role="search" onSubmit={(evento) => evento.preventDefault()}>
+          <Search className="learn-search-icon" size={18} aria-hidden="true" />
+          <input
+            aria-label="Buscar no Bizy Learning"
+            value={busca}
+            onChange={(evento) => onBusca(evento.target.value)}
+            placeholder={categoriaSelecionada ? `Buscar em ${categoriaSelecionada}` : placeholder}
+          />
+          {busca && (
+            <button type="button" className="learn-search-clear" onClick={onLimpar} aria-label="Limpar busca">
+              <X size={15} />
+            </button>
+          )}
+        </form>
+
+        <div className="learn-nav-actions" aria-label="Ações rápidas">
+          <Link to="/market" className="learn-nav-link" aria-label="Ir para o Market">
+            <Store size={18} />
+            <span>Market</span>
+          </Link>
+          <Link to="/app/learning" className="learn-nav-link" aria-label="Abrir dashboard">
+            <User size={18} />
+            <span>Painel</span>
+          </Link>
+        </div>
+      </div>
+
+      <nav className="learn-filters" aria-label="Categorias do Learning">
+        <button
+          type="button"
+          className={`learn-pill ${!categoriaSelecionada && !formatoSelecionado ? "active" : ""}`}
+          onClick={onLimpar}
+        >
+          Todos
+        </button>
+        {categorias.slice(0, 6).map((cat) => (
+          <button
+            key={cat}
+            type="button"
+            className={`learn-pill ${categoriaSelecionada === cat ? "active" : ""}`}
+            onClick={() => onCategoria(cat)}
+          >
+            {cat}
+          </button>
+        ))}
+        {["CURSO", "MENTORIA", "COHORT", "COMUNIDADE"].map((fmt) => (
+          <button
+            key={fmt}
+            type="button"
+            className={`learn-pill ${formatoSelecionado === fmt ? "active" : ""}`}
+            onClick={() => onFormato(fmt)}
+          >
+            {fmt === "CURSO" ? "Cursos" : fmt === "MENTORIA" ? "Mentorias" : fmt === "COHORT" ? "Turmas ao Vivo" : "Comunidades"}
+          </button>
+        ))}
+      </nav>
+    </header>
+  );
+}
+
+function SecaoConfiancaLearning() {
+  const itens = [
+    { icon: BookOpenCheck, titulo: "Ensino Prático", texto: "Foco total em execução" },
+    { icon: ShieldCheck, titulo: "Compra Segura", texto: "Garantia e suporte Bizy" },
+    { icon: GraduationCap, titulo: "Certificação Real", texto: "Certificados digitais válidos" },
+    { icon: Compass, titulo: "Apoio do Mentor", texto: "Alinhado com especialistas" }
+  ];
+
+  return (
+    <section
+      aria-label="Confiança no Bizy Learning"
+      style={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: "32px",
+        flexWrap: "wrap",
+        padding: "16px 24px",
+        borderBottom: "1px solid var(--learn-border)",
+        background: "var(--learn-surface)",
+        fontSize: "13px"
+      }}
+    >
+      {itens.map(({ icon: Icone, titulo, texto }) => (
+        <div key={titulo} style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+          <Icone size={16} style={{ color: "var(--learn-ink-2)", flexShrink: 0 }} />
+          <span>
+            <strong style={{ color: "var(--learn-ink)", fontWeight: 700 }}>{titulo}</strong>{" "}
+            <span style={{ color: "var(--learn-ink-3)" }}>{texto}</span>
+          </span>
+        </div>
+      ))}
+    </section>
+  );
+}
+
+function PerfilLearningPublicoCard({ perfil }: { perfil: PerfilLearningPublico }) {
+  return (
+    <article className="learn-profile-card">
+      <div className="flex items-start justify-between gap-4">
+        <span className="inline-flex size-11 shrink-0 items-center justify-center bg-neutral-100 text-neutral-700">
+          <GraduationCap size={20} />
+        </span>
+        <span className="bg-neutral-100 border border-neutral-200 px-3 py-1 text-xs font-bold text-neutral-600">
+          {perfil.metricas.programas} produto(s)
+        </span>
+      </div>
+      <h3 className="mt-4 text-lg font-bold leading-tight text-neutral-900">{perfil.nomePublico}</h3>
+      <p className="mt-2 line-clamp-3 text-sm leading-relaxed text-neutral-500">{perfil.descricaoPublica}</p>
+      <div className="mt-4 flex flex-wrap gap-2">
+        {perfil.categorias.slice(0, 4).map((categoria) => (
+          <span key={categoria} className="bg-neutral-100 px-3 py-1 text-xs font-bold text-neutral-600">
+            {categoria}
+          </span>
+        ))}
+      </div>
+      <div className="mt-4 grid gap-2 text-xs text-neutral-500 sm:grid-cols-2">
+        <span className="inline-flex items-center gap-1.5"><CreditCard size={14} /> {perfil.metricas.pagos} pagos</span>
+        <span className="inline-flex items-center gap-1.5"><MessageSquareText size={14} /> {perfil.metricas.comunidades} comunidades</span>
+        <span className="inline-flex items-center gap-1.5"><BadgeCheck size={14} /> {perfil.metricas.certificados} certificados</span>
+        <span className="inline-flex items-center gap-1.5"><Clock3 size={14} /> {perfil.metricas.minutos} min</span>
+      </div>
+      <div className="mt-auto flex items-center justify-between gap-3 pt-5 border-t border-neutral-100">
+        <span className="min-w-0 truncate text-xs font-medium text-neutral-400">{perfil.nomeNegocio}</span>
+        <Link to={perfil.urlPublica} className="learn-program-cta" style={{ textDecoration: "none" }}>
+          Visitar
+          <ArrowRight size={14} />
+        </Link>
       </div>
     </article>
   );
 }
 
 function ProgramaLearningPublico({ programa }: { programa: ProgramaLearning }) {
+  const Icone = obterIconeFormato(programa.formato);
+  const corDeFundoGradient = obterGradienteFormato(programa.formato);
+
   return (
-    <article className="flex min-h-[290px] flex-col rounded-lg border border-neutral-200 bg-white p-5 shadow-sm">
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="rounded-full bg-neutral-950 px-2.5 py-1 text-xs font-semibold text-white">{programa.categoria}</span>
-        <span className="rounded-full bg-[#e8f8d5] px-2.5 py-1 text-xs font-semibold text-neutral-800">{programa.formato.toLowerCase()}</span>
-        <span className="rounded-full bg-[#e9f1ff] px-2.5 py-1 text-xs font-semibold text-neutral-800">{programa.tipoAcesso.toLowerCase()}</span>
-        {programa.cohort && <span className="rounded-full bg-[#fff0c2] px-2.5 py-1 text-xs font-semibold text-neutral-800">cohort</span>}
-      </div>
-      <h3 className="mt-4 text-lg font-semibold leading-tight text-neutral-950">{programa.titulo}</h3>
-      <p className="mt-2 text-sm leading-6 text-neutral-600">{programa.subtitulo}</p>
-      <div className="mt-4 grid gap-2 text-xs text-neutral-500">
-        <span className="inline-flex items-center gap-1.5"><Clock3 size={14} /> {programa.duracaoMinutos} minutos</span>
-        <span className="inline-flex items-center gap-1.5"><UsersRound size={14} /> {programa.publico.join(", ")}</span>
-        <span className="inline-flex items-center gap-1.5"><BookOpenCheck size={14} /> {programa.licoes.length} lições práticas</span>
-        <span className="inline-flex items-center gap-1.5"><CreditCard size={14} /> {rotuloPreco(programa)}</span>
-        {programa.certificadoConfigurado && <span className="inline-flex items-center gap-1.5"><BadgeCheck size={14} /> certificado verificável</span>}
-      </div>
-      <div className="mt-4 rounded-md bg-neutral-50 p-3 text-xs leading-5 text-neutral-600">
-        <strong className="block text-neutral-800">{programa.familiaProduto}</strong>
-        <span className="mt-1 block">{programa.resultadoEsperado}</span>
-      </div>
-      <div className="mt-auto flex items-center justify-between gap-3 pt-5">
-        <span className="text-xs font-medium text-neutral-500">Owner: {programa.ownerPerfil}</span>
-        <Link to="/login" className="inline-flex items-center gap-1.5 rounded-full bg-neutral-950 px-3 py-2 text-xs font-semibold text-white">
-          Entrar
-          <ArrowRight size={14} />
+    <article className="learn-program-card">
+      <Link
+        to={`/learning/produtos/${programa.slug}`}
+        className="learn-program-media"
+        style={{ background: corDeFundoGradient }}
+      >
+        <Icone size={40} className="learn-program-media-icon" />
+        <span className="learn-program-badge">
+          {programa.formato.toLowerCase()}
+        </span>
+        {programa.destaque && (
+          <span className="learn-program-destaque">
+            <Sparkles size={10} />
+            Destaque
+          </span>
+        )}
+      </Link>
+      <div className="learn-program-body">
+        <div className="learn-program-meta">
+          <span className="learn-program-cat">
+            {programa.categoria}
+          </span>
+          <span className="text-neutral-300">·</span>
+          <span className="learn-program-level">
+            {programa.nivel === "INICIAL" ? "Iniciante" : programa.nivel === "INTERMEDIO" ? "Intermediário" : "Avançado"}
+          </span>
+        </div>
+
+        <Link
+          to={`/learning/produtos/${programa.slug}`}
+          className="learn-program-title"
+        >
+          {programa.titulo}
         </Link>
+        
+        <p className="learn-program-subtitle">
+          {programa.subtitulo}
+        </p>
+
+        <div className={`learn-program-price ${programa.tipoAcesso !== "PAGO" ? "free" : ""}`}>
+          {rotuloPreco(programa)}
+        </div>
+
+        <div className="learn-program-signals">
+          <span>
+            <Clock3 size={13} />
+            {programa.duracaoMinutos} min de aulas
+          </span>
+          <span>
+            <BookOpenCheck size={13} />
+            {programa.licoes.length} lições práticas
+          </span>
+          {programa.certificadoConfigurado && (
+            <span className="cert">
+              <BadgeCheck size={13} />
+              Certificado Verificável
+            </span>
+          )}
+        </div>
+
+        <div className="learn-program-footer">
+          <span className="learn-program-mentor">
+            <User size={13} />
+            {programa.mentorNome || "Academy " + (programa.ownerPerfil === "DONO" ? "Bizy" : programa.ownerPerfil)}
+          </span>
+          
+          <Link
+            to={`/learning/produtos/${programa.slug}`}
+            className="learn-program-cta"
+          >
+            Aceder
+            <ArrowRight size={13} />
+          </Link>
+        </div>
       </div>
     </article>
   );
@@ -1675,6 +2619,13 @@ function corAtribuicao(estado: EstadoAtribuicaoLearning): "green" | "amber" | "m
   return "blue";
 }
 
+function corCompra(estado: CompraLearning["estado"]): "green" | "amber" | "mute" | "rose" {
+  if (estado === "CONFIRMADO") return "green";
+  if (estado === "PENDENTE_VALIDACAO") return "amber";
+  if (estado === "REEMBOLSADO") return "rose";
+  return "mute";
+}
+
 function corCohort(estado: EstadoCohortLearning): "green" | "amber" | "mute" | "blue" {
   if (estado === "EM_ANDAMENTO" || estado === "ABERTO") return "green";
   if (estado === "AGENDADO") return "blue";
@@ -1687,6 +2638,53 @@ function corComunidade(estado: EstadoComunidadeLearning): "green" | "amber" | "m
   if (estado === "PRIVADA") return "blue";
   if (estado === "PAUSADA") return "amber";
   return "mute";
+}
+
+function corModeracao(estado: EstadoCasoModeracaoLearning): "green" | "amber" | "mute" | "blue" | "rose" {
+  if (estado === "RESOLVIDO") return "green";
+  if (estado === "REJEITADO") return "mute";
+  if (estado === "OCULTO_TEMPORARIAMENTE") return "rose";
+  if (estado === "EM_REVISAO") return "amber";
+  return "blue";
+}
+
+function corSeveridade(severidade: SeveridadeModeracaoLearning): "green" | "amber" | "blue" | "rose" {
+  if (severidade === "CRITICA") return "rose";
+  if (severidade === "ALTA") return "amber";
+  if (severidade === "BAIXA") return "green";
+  return "blue";
+}
+
+function rotuloAlvoModeracao(tipo: TipoAlvoModeracaoLearning): string {
+  const rotulos: Record<TipoAlvoModeracaoLearning, string> = {
+    PROGRAMA: "Programa",
+    COMUNIDADE: "Comunidade",
+    POST: "Post",
+    PERFIL: "Perfil",
+    MENTOR: "Mentor",
+    CERTIFICADO: "Certificado"
+  };
+  return rotulos[tipo];
+}
+
+function opcoesAlvoModeracao(
+  tipo: TipoAlvoModeracaoLearning,
+  programas: ProgramaLearning[],
+  comunidades: ResumoLearningTeamResposta["comunidades"],
+  posts: Array<{ id: string; titulo: string }>,
+  certificados: CertificadoLearning[]
+): Array<{ id: string; titulo: string }> {
+  if (tipo === "PROGRAMA") return programas.map((programa) => ({ id: programa.slug, titulo: programa.titulo }));
+  if (tipo === "COMUNIDADE") return comunidades.map((comunidade) => ({ id: comunidade.id, titulo: comunidade.titulo }));
+  if (tipo === "POST") return posts;
+  if (tipo === "PERFIL") return PERFIS_PADRAO.map((perfil) => ({ id: perfil, titulo: perfil }));
+  if (tipo === "MENTOR") {
+    const mentores = programas
+      .map((programa) => programa.mentorNome || programa.ownerPerfil)
+      .filter((mentor): mentor is string => Boolean(mentor));
+    return [...new Set(mentores)].map((mentor) => ({ id: mentor, titulo: mentor }));
+  }
+  return certificados.map((certificado) => ({ id: certificado.id, titulo: certificado.codigoVerificacao }));
 }
 
 function formatarKwanza(valor: number, moeda = "AOA"): string {

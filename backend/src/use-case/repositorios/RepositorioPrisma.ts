@@ -3102,6 +3102,15 @@ export class RepositorioAutenticacaoPrisma implements RepositorioAutenticacao {
     return membros.map((m) => this.mapearNegocio(m.negocio, m.papel));
   }
 
+  async listarNegocios(): Promise<NegocioBizy[]> {
+    const negocios = await this.prisma.negocio.findMany({
+      orderBy: {
+        nomeComercial: "asc"
+      }
+    });
+    return negocios.map((negocio) => this.mapearNegocio(negocio));
+  }
+
   async atualizarContasSociaisNegocio(negocioId: string, contasSociais: Record<string, unknown>): Promise<NegocioBizy> {
     const negocio = await this.prisma.negocio.update({
       where: { id: negocioId },

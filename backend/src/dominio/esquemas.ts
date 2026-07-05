@@ -534,6 +534,19 @@ export const PublicarLojaSchema = z.object({
   publicada: z.boolean().default(true)
 });
 
+const PublicacaoLearningStudioSchema = z
+  .object({
+    ativa: z.boolean().optional(),
+    publicada: z.boolean().optional(),
+    slug: SlugLojaPublicaSchema.optional(),
+    nomePublico: z.string().trim().min(2).max(120).nullable().optional().transform((valor) => valor ?? null),
+    descricaoPublica: TextoLongoLojaOpcionalSchema,
+    categorias: z.array(z.string().trim().min(1).max(80)).max(20).default([]),
+    canaisSuporte: z.array(z.string().trim().min(1).max(80)).max(12).default([]),
+    politicaSuporte: TextoLongoLojaOpcionalSchema
+  })
+  .default({});
+
 export const SalvarConfiguracaoLojaPublicaSchema = z.object({
   slug: SlugLojaPublicaSchema.optional(),
   descricaoPublica: TextoLongoLojaOpcionalSchema,
@@ -563,7 +576,9 @@ export const SalvarConfiguracaoLojaPublicaSchema = z.object({
       slug: SlugLojaPublicaSchema.optional(),
       descricaoPublica: TextoLongoLojaOpcionalSchema,
       publicada: z.boolean().optional(),
-      participaNoMarket: z.boolean().optional()
+      participaNoMarket: z.boolean().optional(),
+      participaNoLearning: z.boolean().optional(),
+      learning: PublicacaoLearningStudioSchema
     })
     .default({}),
   tema: z

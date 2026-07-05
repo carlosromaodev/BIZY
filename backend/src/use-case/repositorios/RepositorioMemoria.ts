@@ -1832,6 +1832,12 @@ export class RepositorioAutenticacaoMemoria implements RepositorioAutenticacao {
     return [...ids].map((id) => this.negocios.get(id)).filter((n): n is NegocioBizy => n != null);
   }
 
+  async listarNegocios(): Promise<NegocioBizy[]> {
+    return [...this.negocios.values()].sort((a, b) =>
+      a.nomeComercial.localeCompare(b.nomeComercial, "pt-AO", { sensitivity: "base" })
+    );
+  }
+
   async atualizarContasSociaisNegocio(negocioId: string, contasSociais: Record<string, unknown>): Promise<NegocioBizy> {
     const atual = this.negocios.get(negocioId);
     if (!atual) throw new Error("Negócio não encontrado.");

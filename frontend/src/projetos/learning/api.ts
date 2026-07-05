@@ -24,6 +24,18 @@ export type EstadoCohortLearning = "AGENDADO" | "ABERTO" | "EM_ANDAMENTO" | "CON
 export type EstadoComunidadeLearning = "ABERTA" | "PRIVADA" | "PAUSADA" | "ARQUIVADA";
 export type AcessoComunidadeLearning = "ABERTO" | "ENTITLEMENT" | "MEMBERSHIP" | "CONVITE";
 export type TipoPostComunidadeLearning = "ANUNCIO" | "PERGUNTA" | "RESPOSTA" | "MATERIAL" | "DESAFIO";
+export type TipoAlvoModeracaoLearning = "PROGRAMA" | "COMUNIDADE" | "POST" | "PERFIL" | "MENTOR" | "CERTIFICADO";
+export type MotivoModeracaoLearning =
+  | "CONTEUDO_SENSIVEL"
+  | "SPAM"
+  | "DIREITOS_AUTORAIS"
+  | "FRAUDE"
+  | "ASSEDIO"
+  | "INFORMACAO_ERRADA"
+  | "OUTRO";
+export type SeveridadeModeracaoLearning = "BAIXA" | "MEDIA" | "ALTA" | "CRITICA";
+export type EstadoCasoModeracaoLearning = "ABERTO" | "EM_REVISAO" | "OCULTO_TEMPORARIAMENTE" | "RESOLVIDO" | "REJEITADO";
+export type AcaoModeracaoLearning = "COLOCAR_EM_REVISAO" | "OCULTAR_TEMPORARIAMENTE" | "RESOLVER" | "REJEITAR" | "REABRIR";
 
 export interface PerfilLearning {
   codigo: string;
@@ -138,6 +150,29 @@ export interface ProgramaLearning {
   progresso?: ProgressoLearning;
 }
 
+export interface PerfilLearningPublico {
+  slug: string;
+  negocioId: string;
+  nomePublico: string;
+  nomeNegocio: string;
+  descricaoPublica: string;
+  categorias: string[];
+  canaisSuporte: string[];
+  politicaSuporte: string;
+  localizacao?: string | null;
+  urlPublica: string;
+  programas: ProgramaLearning[];
+  metricas: {
+    programas: number;
+    pagos: number;
+    gratuitos: number;
+    comunidades: number;
+    certificados: number;
+    minutos: number;
+    receitaPotencial: number;
+  };
+}
+
 export interface OfertaLearning {
   modelo: ModeloOfertaLearning;
   moeda: string;
@@ -168,6 +203,9 @@ export interface CompraLearning {
     emitidoEm: string;
   } | null;
   entitlementId?: string | null;
+  ajustadoEm?: string | null;
+  ajustadoPorId?: string | null;
+  motivoAjuste?: string | null;
   criadoEm: string;
 }
 
@@ -276,6 +314,27 @@ export interface ComunidadeLearning {
   criadoEm: string;
 }
 
+export interface CasoModeracaoLearning {
+  id: string;
+  alvoTipo: TipoAlvoModeracaoLearning;
+  alvoId: string;
+  tituloAlvo: string;
+  programaSlug?: string | null;
+  comunidadeId?: string | null;
+  postId?: string | null;
+  motivo: MotivoModeracaoLearning;
+  severidade: SeveridadeModeracaoLearning;
+  descricao: string;
+  estado: EstadoCasoModeracaoLearning;
+  ocultoPublicamente: boolean;
+  denuncianteId: string;
+  denuncianteNome: string;
+  revisadoPorId?: string | null;
+  decisao?: string | null;
+  criadoEm: string;
+  atualizadoEm: string;
+}
+
 export interface HomeLearningResposta {
   produto: string;
   tese: string;
@@ -286,10 +345,12 @@ export interface HomeLearningResposta {
     gratuitos: number;
     trilhos: number;
     comunidades: number;
+    perfisPublicos: number;
     minutos: number;
     receitaPotencial: number;
   };
   perfis: PerfilLearning[];
+  perfisPublicos: PerfilLearningPublico[];
   destaques: ProgramaLearning[];
   programas: ProgramaLearning[];
   categorias: string[];
@@ -323,6 +384,13 @@ export interface ResumoLearningTeamResposta {
     postsComunidade: number;
     anunciosComunidade: number;
     perguntasComunidade: number;
+    denunciasLearning: number;
+    casosModeracaoAbertos: number;
+    conteudosOcultosLearning: number;
+    visualizacoesPublicas: number;
+    previewsPublicos: number;
+    ctasCheckoutLearning: number;
+    ctasInscricaoLearning: number;
   };
   compras: CompraLearning[];
   entitlements: EntitlementLearning[];
@@ -330,7 +398,46 @@ export interface ResumoLearningTeamResposta {
   atribuicoes: AtribuicaoLearning[];
   cohorts: CohortLearning[];
   comunidades: ComunidadeLearning[];
+  moderacao: CasoModeracaoLearning[];
+  analytics: AnalyticsLearningTeam;
   chat: ChatInternoLearning;
+}
+
+export interface AnalyticsLearningTeam {
+  metricas: {
+    visualizacoesPublicas: number;
+    previewsPublicos: number;
+    ctasCheckout: number;
+    ctasInscricao: number;
+    produtosComEventos: number;
+  };
+  produtos: Array<{
+    programaSlug: string;
+    programaTitulo: string;
+    visualizacoes: number;
+    previews: number;
+    ctasCheckout: number;
+    ctasInscricao: number;
+    ultimoEventoEm: string | null;
+  }>;
+  perfis: Array<{
+    perfilSlug: string;
+    visualizacoes: number;
+    previews: number;
+    ctas: number;
+  }>;
+  ultimosEventos: Array<{
+    id: string;
+    tipo: "VISUALIZACAO" | "PREVIEW" | "CTA_CHECKOUT" | "CTA_INSCRICAO";
+    programaSlug: string;
+    perfilSlug: string | null;
+    negocioId: string;
+    origemPrograma: "BIZY" | "TEAM";
+    familiaProduto: string;
+    categoria: string;
+    fonte: string | null;
+    criadoEm: string;
+  }>;
 }
 
 export interface CriarProgramaLearningInput {
@@ -371,6 +478,12 @@ export interface CheckoutLearningInput {
   comprovativoUrl?: string;
   cupao?: string;
   confirmarPagamento?: boolean;
+}
+
+export interface AjustarCompraLearningInput {
+  estado: "CANCELADO" | "REEMBOLSADO";
+  motivo?: string;
+  revogarAcesso?: boolean;
 }
 
 export interface EnviarMensagemChatLearningInput {
@@ -422,8 +535,30 @@ export interface PublicarPostComunidadeLearningInput {
   fixado?: boolean;
 }
 
+export interface DenunciarConteudoLearningInput {
+  alvoTipo: TipoAlvoModeracaoLearning;
+  alvoId: string;
+  programaSlug?: string;
+  comunidadeId?: string;
+  postId?: string;
+  motivo?: MotivoModeracaoLearning;
+  severidade?: SeveridadeModeracaoLearning;
+  descricao: string;
+}
+
+export interface DecidirModeracaoLearningInput {
+  acao?: AcaoModeracaoLearning;
+  estado?: EstadoCasoModeracaoLearning;
+  decisao?: string;
+  ocultoPublicamente?: boolean;
+}
+
 export function obterHomeLearning(): Promise<HomeLearningResposta> {
   return requisitarApi<HomeLearningResposta>("/publico/learning", {}, false);
+}
+
+export function obterPerfilLearning(slug: string): Promise<{ perfil: PerfilLearningPublico }> {
+  return requisitarApi<{ perfil: PerfilLearningPublico }>(`/publico/learning/perfis/${encodeURIComponent(slug)}`, {}, false);
 }
 
 export function obterResumoLearningTeam(): Promise<ResumoLearningTeamResposta> {
@@ -512,6 +647,27 @@ export function publicarPostComunidadeLearning(
   });
 }
 
+export function listarModeracaoLearningTeam(): Promise<{ casos: CasoModeracaoLearning[] }> {
+  return requisitarApi("/learning/team/moderacao");
+}
+
+export function denunciarConteudoLearning(dados: DenunciarConteudoLearningInput): Promise<{ caso: CasoModeracaoLearning; duplicado: boolean }> {
+  return requisitarApi("/learning/team/moderacao/denuncias", {
+    method: "POST",
+    body: dados
+  });
+}
+
+export function decidirModeracaoLearning(
+  id: string,
+  dados: DecidirModeracaoLearningInput
+): Promise<{ caso: CasoModeracaoLearning; duplicado: boolean }> {
+  return requisitarApi(`/learning/team/moderacao/${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    body: dados
+  });
+}
+
 export function inscreverProgramaLearning(slug: string): Promise<unknown> {
   return requisitarApi(`/learning/programas/${encodeURIComponent(slug)}/inscrever`, { method: "POST" });
 }
@@ -522,6 +678,16 @@ export function concluirLicaoLearning(licaoId: string): Promise<unknown> {
 
 export function checkoutLearning(dados: CheckoutLearningInput): Promise<{ compra: CompraLearning; entitlement: EntitlementLearning | null; duplicado: boolean }> {
   return requisitarApi("/learning/checkout", {
+    method: "POST",
+    body: dados
+  });
+}
+
+export function ajustarCompraLearningTeam(
+  id: string,
+  dados: AjustarCompraLearningInput
+): Promise<{ compra: CompraLearning; entitlementsRevogados: EntitlementLearning[]; duplicado: boolean }> {
+  return requisitarApi(`/learning/team/compras/${encodeURIComponent(id)}/ajustar`, {
     method: "POST",
     body: dados
   });

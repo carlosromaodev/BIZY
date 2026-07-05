@@ -33,7 +33,7 @@ Bizy Learning e um sistema proprio de produtos digitais, activacao, formacao, co
 | 12 Frontend/UX | Shell, paginas, design system | tipos frontend e componentes | `frontend/src/rotasApp.tsx`, paginas React | identidade visual v2 |
 | 13 Operacao | Deploy, Docker, backup, observabilidade | jobs, logs, scripts | `/saude`, scripts, Docker Compose | docs deploy |
 | 14 Seguranca | RBAC, privacidade, auditoria | `EventoOperacional`, `Auditoria*`, sessoes | guardas HTTP, auditoria, rate limit | guardrails seguranca |
-| 15 Learning | Produtos digitais, academias, comunidade, cohorts, entitlements, certificados, perfis Team | `LearningProfile`, `LearningDigitalProduct`, `LearningOffer`, `LearningEntitlement`, `LearningProgress`, `LearningCohort`, `LearningCertificate` | `/learning`, `/app/learning`, `/app/loja`, `/publico/learning` | `docs/RF-RNF-RN-BIZY-LEARNING.md`, deep research Learning |
+| 15 Learning | Produtos digitais, academias, comunidade, cohorts, entitlements, certificados, perfis Team | `LearningProfile`, `LearningDigitalProduct`, `LearningOffer`, `LearningEntitlement`, `LearningProgress`, `LearningCohort`, `LearningCertificate` | `/learning`, `/learning/:slug`, `/learning/produtos/:slug`, `/app/learning`, `/app/loja`, `/publico/learning`, `/publico/learning/perfis/:slug`, `/publico/learning/produtos/:slug` | `docs/RF-RNF-RN-BIZY-LEARNING.md`, deep research Learning |
 
 ## 3. Fronteiras Criticas
 

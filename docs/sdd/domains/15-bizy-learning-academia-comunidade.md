@@ -240,7 +240,9 @@ APIs iniciais:
 - `GET /publico/learning`
 - `GET /publico/learning/perfis/:slug`
 - `GET /publico/learning/produtos/:slug`
+- `POST /publico/learning/eventos`
 - `GET /learning/team/resumo`
+- `GET /learning/team/analytics`
 - `POST /learning/team/perfis`
 - `PATCH /learning/team/perfis/:id/publicacao`
 - `POST /learning/team/produtos`
@@ -252,7 +254,11 @@ APIs iniciais:
 - `GET /learning/team/comunidades`
 - `POST /learning/team/programas/:slug/comunidades`
 - `POST /learning/team/comunidades/:id/posts`
+- `GET /learning/team/moderacao`
+- `POST /learning/team/moderacao/denuncias`
+- `PATCH /learning/team/moderacao/:id`
 - `POST /learning/checkout`
+- `POST /learning/team/compras/:id/ajustar`
 - `POST /learning/produtos/:id/inscrever`
 - `POST /learning/entitlements/:id/revogar`
 - `POST /learning/licoes/:id/concluir`
@@ -305,17 +311,22 @@ Antes desta iniciativa, o Bizy tinha referencias iniciais a Learning como aprend
 Implementado de forma incremental:
 
 - home publica `/learning`;
+- perfil publico `/learning/:slug` e `GET /publico/learning/perfis/:slug`, derivados transitoriamente da configuração Studio `entrega.lojaDigital.learning`;
+- produto publico `/learning/produtos/:slug` e `GET /publico/learning/produtos/:slug`, com perfil vendedor, preview seguro, politica de acesso, sinais de confianca, relacionados e SEO basico;
 - backoffice Team `/app/learning`;
 - programas/produtos digitais iniciais;
 - checkout digital Learning;
-- entitlement, inscricao, progresso e certificado;
+- entitlement, inscricao, progresso, certificado, ajuste de compra, reembolso/cancelamento e revogacao de acesso relacionado;
+- eventos publicos de visualizacao, preview e CTA, com metricas em `/learning/team/resumo` e `GET /learning/team/analytics`;
 - chat interno Learning por programa, persistido transitoriamente em `EventoOperacional`;
+- comunidades/memberships Team e moderação base, persistidas transitoriamente em `EventoOperacional`;
+- base Studio Market/Learning/Ambos em `/app/loja`, com `participaNoLearning` e perfil Learning transitorio em `entrega.lojaDigital.learning`;
 - testes HTTP e frontend targeted para o fluxo base.
 
 ## 14. Lacunas
 
 - P0: documentacao consolidada, home `/learning`, backoffice `/app/learning`, produto digital basico, checkout Learning, entitlement, inscricao, progresso, certificado e chat interno por programa.
-- P1: activacao Studio Market/Learning/Ambos, perfil Learning dedicado, schema dedicado, comprovativo/factura completo, cohorts, lives, comunidades e moderacao.
+- P1: concluir schema dedicado e tabela `LearningProfile`, owners/permissões finas, imagem/capa, SEO social completo, elegibilidade Studio, comprovativo/factura completo, checkout publico completo, cohorts/lives recorrentes, comunidades publicas, moderacao completa e metricas separadas.
 - P2: assinaturas, bundles avancados, memberships, mentorias pagas, afiliados Learning, analytics de retencao, mobile offline parcial e recomendacoes por evento operacional.
 - P3: streaming adaptativo, xAPI/LRS-like event store, certificacoes verificaveis avancadas, marketplace de criadores e reputacao publica.
 
@@ -334,6 +345,7 @@ Validacao futura de implementacao:
 
 - testes HTTP para home Learning, perfil, produto digital, publicacao, checkout, entitlement e progresso;
 - testes HTTP para chat interno Learning por programa/cohort/comunidade e tipos mensagem/decisao/tarefa/suporte;
+- testes HTTP para denuncias, fila de moderacao, decisao humana e ocultacao temporaria;
 - testes de permissao para dono, admin, gestor, mentor, criador, parceiro e comprador;
 - testes de isolamento por `negocioId`, utilizador, produto e entitlement;
 - testes de revogacao de acesso apos refund, cancelamento, expiracao ou suspensao;

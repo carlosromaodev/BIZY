@@ -334,6 +334,8 @@ async function montarDadosNegocioComConfiguracaoLoja(
   const consumoLocalAtual = objeto(entregaAtual.consumoLocal);
   const pagamentosAtual = objeto(entregaAtual.pagamentos);
   const lojaDigitalAtual = objeto(entregaAtual.lojaDigital);
+  const learningAtual = objeto(lojaDigitalAtual.learning);
+  const learningPayload = dados.publicacao.learning;
   const criacaoConfirmadaEmAtual = texto(lojaDigitalAtual.criacaoConfirmadaEm);
   const experienciaLoja = normalizarExperienciaLoja(dados.experiencia);
   const criacaoConfirmadaEm = dados.criacao.confirmar
@@ -394,7 +396,28 @@ async function montarDadosNegocioComConfiguracaoLoja(
         criacaoConfirmadaEm,
         origemCriacao: criacaoConfirmadaEm ? texto(lojaDigitalAtual.origemCriacao) ?? "assistente-loja-digital" : null,
         experiencia: experienciaLoja,
-        participaNoMarket: dados.publicacao.participaNoMarket ?? booleano(lojaDigitalAtual.participaNoMarket, true)
+        participaNoMarket: dados.publicacao.participaNoMarket ?? booleano(lojaDigitalAtual.participaNoMarket, true),
+        participaNoLearning: dados.publicacao.participaNoLearning ?? booleano(lojaDigitalAtual.participaNoLearning, false),
+        learning: {
+          ...learningAtual,
+          ativa: learningPayload.ativa ?? booleano(learningAtual.ativa, dados.publicacao.participaNoLearning ?? false),
+          publicada: learningPayload.publicada ?? booleano(learningAtual.publicada, false),
+          slug: learningPayload.slug ?? texto(learningAtual.slug) ?? dados.publicacao.slug ?? atual.slugPublico,
+          nomePublico: learningPayload.nomePublico ?? texto(learningAtual.nomePublico) ?? dados.identidade.nomeComercial ?? atual.nomeComercial,
+          descricaoPublica:
+            learningPayload.descricaoPublica ??
+            texto(learningAtual.descricaoPublica) ??
+            descricaoPublica ??
+            atual.descricaoPublica,
+          categorias: learningPayload.categorias.length ? learningPayload.categorias : listaTextos(learningAtual.categorias).slice(0, 20),
+          canaisSuporte: learningPayload.canaisSuporte.length
+            ? learningPayload.canaisSuporte
+            : listaTextos(learningAtual.canaisSuporte).slice(0, 12),
+          politicaSuporte:
+            learningPayload.politicaSuporte ??
+            texto(learningAtual.politicaSuporte) ??
+            "Suporte pelo Team, comunidade ou canal configurado pelo perfil Learning."
+        }
       }
     },
     minutosReservaPadrao: atual.minutosReservaPadrao,
@@ -411,6 +434,8 @@ function mapearConfiguracaoLojaDigital(negocio: NegocioBizy, produtos: Peca[]) {
   const consumoLocal = objeto(entrega.consumoLocal);
   const pagamentos = objeto(entrega.pagamentos);
   const lojaDigital = objeto(entrega.lojaDigital);
+  const learning = objeto(lojaDigital.learning);
+  const participaNoLearning = booleano(lojaDigital.participaNoLearning, false);
   const criacaoConfirmadaEm = texto(lojaDigital.criacaoConfirmadaEm);
   const catalogo = resumirCatalogoLoja(produtos);
   const publicada = Boolean(negocio.lojaPublicadaEm);
@@ -434,6 +459,17 @@ function mapearConfiguracaoLojaDigital(negocio: NegocioBizy, produtos: Peca[]) {
         descricaoPublica: negocio.descricaoPublica,
         publicada,
         participaNoMarket: booleano(lojaDigital.participaNoMarket, true),
+        participaNoLearning,
+        learning: {
+          ativa: booleano(learning.ativa, participaNoLearning),
+          publicada: booleano(learning.publicada, false),
+          slug: texto(learning.slug) ?? negocio.slugPublico,
+          nomePublico: texto(learning.nomePublico) ?? negocio.nomeComercial,
+          descricaoPublica: texto(learning.descricaoPublica) ?? negocio.descricaoPublica,
+          categorias: listaTextos(learning.categorias).slice(0, 20),
+          canaisSuporte: listaTextos(learning.canaisSuporte).slice(0, 12),
+          politicaSuporte: texto(learning.politicaSuporte) ?? "Suporte pelo Team, comunidade ou canal configurado pelo perfil Learning."
+        },
         publicadaEm: negocio.lojaPublicadaEm?.toISOString() ?? null,
         urlPublica
       },

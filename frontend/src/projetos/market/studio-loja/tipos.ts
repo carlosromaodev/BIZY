@@ -4,6 +4,7 @@ export type ModoExperienciaLoja = "auto" | "moda" | "comida" | "servicos" | "ger
 export type CriterioCatalogoPersonalizado = "categoria" | "colecao" | "busca" | "todos";
 export type AcessoLojaDigital = "aberto" | "telefone" | "login" | "membros";
 export type AgrupamentoRelatorioLoja = "hora" | "produto" | "cliente";
+export type PresencaPublicaBizy = "market" | "learning" | "ambos";
 
 export interface ZonaEntregaOperacaoLoja {
   nome: string;
@@ -25,6 +26,17 @@ export interface CatalogoPersonalizadoLoja {
   descricao?: string | null;
   criterio: CriterioCatalogoPersonalizado;
   valor?: string | null;
+}
+
+export interface LearningStudioPublicacao {
+  ativa: boolean;
+  publicada: boolean;
+  slug: string | null;
+  nomePublico: string | null;
+  descricaoPublica: string | null;
+  categorias: string[];
+  canaisSuporte: string[];
+  politicaSuporte: string | null;
 }
 
 export interface OperacaoLojaDigital {
@@ -180,6 +192,8 @@ export interface ConfiguracaoLojaDigital {
       descricaoPublica: string | null;
       publicada: boolean;
       participaNoMarket?: boolean;
+      participaNoLearning?: boolean;
+      learning?: LearningStudioPublicacao;
       publicadaEm: string | null;
       urlPublica: string | null;
     };
@@ -246,6 +260,17 @@ export interface FormLoja {
     descricaoPublica: string;
     publicada: boolean;
     participaNoMarket: boolean;
+    participaNoLearning: boolean;
+    learning: {
+      ativa: boolean;
+      publicada: boolean;
+      slug: string;
+      nomePublico: string;
+      descricaoPublica: string;
+      categoriasTexto: string;
+      canaisSuporteTexto: string;
+      politicaSuporte: string;
+    };
   };
   tema: {
     corPrimaria: string;

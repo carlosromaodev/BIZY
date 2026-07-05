@@ -439,6 +439,7 @@ export interface RepositorioAutenticacao {
   buscarNegocioPorId(negocioId: string): Promise<NegocioBizy | null>;
   buscarNegocioPorUsuario(usuarioId: string, negocioId: string): Promise<NegocioBizy | null>;
   listarNegociosPorUsuario(usuarioId: string): Promise<NegocioBizy[]>;
+  listarNegocios(): Promise<NegocioBizy[]>;
   salvarNegocioUsuario(usuarioId: string, dados: DadosNegocioBizy): Promise<NegocioBizy>;
   atualizarContasSociaisNegocio(negocioId: string, contasSociais: Record<string, unknown>): Promise<NegocioBizy>;
   atualizarPublicacaoLoja(negocioId: string, dados: DadosPublicacaoLoja): Promise<NegocioBizy>;

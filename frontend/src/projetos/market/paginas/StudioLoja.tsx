@@ -114,6 +114,7 @@ import type {
   ModoExperienciaLoja,
   OperacaoLojaDigital,
   PassoAssistente,
+  PresencaPublicaBizy,
   SubpastaStudio
 } from "../studio-loja/tipos";
 
@@ -937,10 +938,9 @@ export function PaginaLojaPublica() {
 
               {passo === "publicar" && (
                 <PassoPublicar
+                  form={form}
                   prontidao={prontidao}
                   urlPublica={urlPublica}
-                  publicada={form.publicacao.publicada}
-                  participaNoMarket={form.publicacao.participaNoMarket}
                   salvando={salvando}
                   copiarLink={copiarLink}
                   guardarConfiguracao={guardarConfiguracao}
@@ -1422,6 +1422,7 @@ function StudioWorkspace({
 
         {subpasta === "visao" && (
           <StudioVisaoGeral
+            atualizarSecao={atualizarSecao}
             catalogo={catalogo}
             copiarLink={copiarLink}
             form={form}
@@ -1468,10 +1469,9 @@ function StudioWorkspace({
         {subpasta === "links" && (
           <div className="grid gap-5">
             <PassoPublicar
+              form={form}
               prontidao={prontidao}
               urlPublica={urlPublica}
-              publicada={form.publicacao.publicada}
-              participaNoMarket={form.publicacao.participaNoMarket}
               salvando={salvando}
               copiarLink={copiarLink}
               guardarConfiguracao={guardarConfiguracao}
@@ -1543,6 +1543,7 @@ function StudioSubpastaItem({
 }
 
 function StudioVisaoGeral({
+  atualizarSecao,
   catalogo,
   copiarLink,
   form,
@@ -1555,6 +1556,7 @@ function StudioVisaoGeral({
   tracking,
   urlPublica
 }: {
+  atualizarSecao: AtualizarSecaoLoja;
   catalogo: ConfiguracaoLojaDigital["catalogo"];
   copiarLink: () => void;
   form: FormLoja;
@@ -1581,7 +1583,11 @@ function StudioVisaoGeral({
         <StudioMetrica titulo="Ticket médio" valor={formatarKwanza(ticketMedio)} detalhe="pedidos da loja" />
       </div>
 
-      <StudioPresencaPublicaPanel participaNoMarket={form.publicacao.participaNoMarket} setSubpasta={setSubpasta} />
+      <StudioPresencaPublicaPanel
+        atualizarSecao={atualizarSecao}
+        form={form}
+        setSubpasta={setSubpasta}
+      />
 
       <div className="ggrid">
         <div className="edcard">
@@ -1699,13 +1705,48 @@ function StudioMetrica({
   );
 }
 
+function resolverPresencaPublica(form: FormLoja): PresencaPublicaBizy {
+  if (form.publicacao.participaNoMarket && form.publicacao.participaNoLearning) return "ambos";
+  if (form.publicacao.participaNoLearning) return "learning";
+  return "market";
+}
+
+function aplicarPresencaPublica(
+  presenca: PresencaPublicaBizy,
+  form: FormLoja,
+  atualizarSecao: AtualizarSecaoLoja
+) {
+  const participaNoMarket = presenca === "market" || presenca === "ambos";
+  const participaNoLearning = presenca === "learning" || presenca === "ambos";
+
+  atualizarSecao("publicacao", {
+    participaNoMarket,
+    participaNoLearning,
+    learning: {
+      ...form.publicacao.learning,
+      ativa: participaNoLearning,
+      publicada: participaNoLearning ? form.publicacao.learning.publicada : false,
+      slug: form.publicacao.learning.slug || form.publicacao.slug,
+      nomePublico: form.publicacao.learning.nomePublico || form.identidade.nomeComercial,
+      descricaoPublica:
+        form.publicacao.learning.descricaoPublica ||
+        form.publicacao.descricaoPublica ||
+        form.identidade.descricaoPublica
+    }
+  });
+}
+
 function StudioPresencaPublicaPanel({
-  participaNoMarket,
+  atualizarSecao,
+  form,
   setSubpasta
 }: {
-  participaNoMarket: boolean;
+  atualizarSecao: AtualizarSecaoLoja;
+  form: FormLoja;
   setSubpasta: (subpasta: SubpastaStudio) => void;
 }) {
+  const presenca = resolverPresencaPublica(form);
+
   return (
     <div className="edcard">
       <div className="edcard-head">
@@ -1716,26 +1757,51 @@ function StudioPresencaPublicaPanel({
         </div>
       </div>
       <div className="qact">
-        <button type="button" className="qa" onClick={() => setSubpasta("market")}>
+        <button
+          type="button"
+          className="qa"
+          aria-pressed={presenca === "market"}
+          onClick={() => aplicarPresencaPublica("market", form, atualizarSecao)}
+        >
           <Store size={17} />
           <span>
             <strong>Market</strong>
-            <small>{participaNoMarket ? "Perfil e produtos físicos no shopping center" : "Activar produtos físicos e serviços"}</small>
+            <small>{form.publicacao.participaNoMarket ? "Produtos físicos, serviços, stock e entrega" : "Activar produtos físicos e serviços"}</small>
           </span>
         </button>
-        <Link className="qa" to="/app/learning">
+        <button
+          type="button"
+          className="qa"
+          aria-pressed={presenca === "learning"}
+          onClick={() => aplicarPresencaPublica("learning", form, atualizarSecao)}
+        >
           <GraduationCap size={17} />
           <span>
             <strong>Learning</strong>
-            <small>Produtos digitais, acesso, progresso e certificados</small>
+            <small>{form.publicacao.participaNoLearning ? "Produtos digitais, acesso e certificados" : "Activar ecossistema digital"}</small>
           </span>
-        </Link>
-        <Link className="qa" to="/app/learning">
+        </button>
+        <button
+          type="button"
+          className="qa"
+          aria-pressed={presenca === "ambos"}
+          onClick={() => aplicarPresencaPublica("ambos", form, atualizarSecao)}
+        >
           <Layers3 size={17} />
           <span>
             <strong>Ambos</strong>
             <small>Market vende físico; Learning vende acesso digital</small>
           </span>
+        </button>
+      </div>
+      <div className="flex flex-wrap gap-2">
+        <button type="button" className="btn3 ghost" onClick={() => setSubpasta("market")}>
+          <Store size={15} />
+          Operar Market
+        </button>
+        <Link className="btn3 ghost" to="/app/learning">
+          <GraduationCap size={15} />
+          Operar Learning
         </Link>
       </div>
     </div>
@@ -2968,26 +3034,31 @@ function PassoOperacaoLoja({
 
 function PassoPublicar({
   copiarLink,
+  form,
   guardarConfiguracao,
   prontaParaPublicar,
   prontidao,
-  publicada,
-  participaNoMarket,
   salvando,
   atualizarSecao,
   urlPublica
 }: {
   copiarLink: () => void;
+  form: FormLoja;
   guardarConfiguracao: (publicar?: boolean) => Promise<void>;
   prontaParaPublicar?: boolean;
   prontidao: ConfiguracaoLojaDigital["prontidao"];
-  publicada: boolean;
-  participaNoMarket: boolean;
   salvando: boolean;
-  atualizarSecao: <Secao extends keyof FormLoja>(secao: Secao, valores: Partial<FormLoja[Secao]>) => void;
+  atualizarSecao: AtualizarSecaoLoja;
   urlPublica: string;
 }) {
   const pronto = prontaParaPublicar ?? prontidao.prontaParaPublicar;
+  const atualizarLearning = (valores: Partial<FormLoja["publicacao"]["learning"]>) =>
+    atualizarSecao("publicacao", {
+      learning: {
+        ...form.publicacao.learning,
+        ...valores
+      }
+    });
 
   return (
     <section className="grid gap-5">
@@ -3008,17 +3079,106 @@ function PassoPublicar({
 
       <BlocoFormulario icon={<Globe2 size={18} />} title="Publicação" detail="A publicação fica ligada ao tracking e pode ser pausada sem apagar a configuração.">
         <OpcaoMarcavel
-          checked={publicada}
+          checked={form.publicacao.publicada}
           title="Loja online"
-          detail={publicada ? "Clientes conseguem aceder ao link." : "Configuração guardada sem abrir a loja."}
+          detail={form.publicacao.publicada ? "Clientes conseguem aceder ao link." : "Configuração guardada sem abrir a loja."}
           onChange={(checked) => atualizarSecao("publicacao", { publicada: checked })}
         />
         <OpcaoMarcavel
-          checked={participaNoMarket}
+          checked={form.publicacao.participaNoMarket}
           title="Participar no Bizy Market"
-          detail={participaNoMarket ? "Produtos elegíveis aparecem no shopping center." : "Loja ativa apenas no link próprio, sem aparecer no Market."}
+          detail={form.publicacao.participaNoMarket ? "Produtos elegíveis aparecem no shopping center." : "Loja ativa apenas no link próprio, sem aparecer no Market."}
           onChange={(checked) => atualizarSecao("publicacao", { participaNoMarket: checked })}
         />
+        <OpcaoMarcavel
+          checked={form.publicacao.participaNoLearning}
+          title="Activar Bizy Learning"
+          detail={form.publicacao.participaNoLearning ? "Perfil digital pronto para cursos, mentorias, comunidades e downloads." : "Mantém apenas loja física/serviços neste perfil."}
+          onChange={(checked) =>
+            atualizarSecao("publicacao", {
+              participaNoLearning: checked,
+              learning: {
+                ...form.publicacao.learning,
+                ativa: checked,
+                publicada: checked ? form.publicacao.learning.publicada : false
+              }
+            })
+          }
+        />
+
+        {form.publicacao.participaNoLearning && (
+          <div className="grid gap-4 p-3" style={{ border: "1px solid var(--studio-line)", background: "var(--studio-paper)" }}>
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <h4 className="text-sm font-semibold">Perfil Learning</h4>
+                <p className="text-sm" style={{ color: "var(--studio-muted)" }}>
+                  Market vende físico/serviços; Learning vende acesso digital, inscrição, certificados, comunidades e materiais.
+                </p>
+              </div>
+              <Button asChild variant="outline" size="sm">
+                <Link to="/app/learning">
+                  <GraduationCap size={14} />
+                  Abrir Learning
+                </Link>
+              </Button>
+            </div>
+
+            <OpcaoMarcavel
+              checked={form.publicacao.learning.publicada}
+              title="Publicar perfil Learning"
+              detail={form.publicacao.learning.publicada ? "A presença Learning pode aparecer quando houver produtos digitais publicados." : "Mantém a operação Learning em preparação."}
+              onChange={(checked) => atualizarLearning({ publicada: checked })}
+            />
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              <CampoTexto
+                id="learning-nome"
+                label="Nome público Learning"
+                value={form.publicacao.learning.nomePublico}
+                onChange={(valor) => atualizarLearning({ nomePublico: valor })}
+              />
+              <CampoTexto
+                id="learning-slug"
+                label="Slug Learning"
+                value={form.publicacao.learning.slug}
+                onChange={(valor) => atualizarLearning({ slug: normalizarSlug(valor) })}
+              />
+            </div>
+
+            <CampoArea
+              id="learning-descricao"
+              label="Descrição pública Learning"
+              value={form.publicacao.learning.descricaoPublica}
+              rows={3}
+              onChange={(valor) => atualizarLearning({ descricaoPublica: valor })}
+            />
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              <CampoArea
+                id="learning-categorias"
+                label="Categorias digitais"
+                value={form.publicacao.learning.categoriasTexto}
+                rows={3}
+                onChange={(valor) => atualizarLearning({ categoriasTexto: valor })}
+              />
+              <CampoArea
+                id="learning-suporte"
+                label="Canais de suporte"
+                value={form.publicacao.learning.canaisSuporteTexto}
+                rows={3}
+                onChange={(valor) => atualizarLearning({ canaisSuporteTexto: valor })}
+              />
+            </div>
+
+            <CampoArea
+              id="learning-politica-suporte"
+              label="Política de suporte digital"
+              value={form.publicacao.learning.politicaSuporte}
+              rows={3}
+              onChange={(valor) => atualizarLearning({ politicaSuporte: valor })}
+            />
+          </div>
+        )}
 
         {urlPublica ? (
           <div className="flex flex-wrap items-center gap-2 p-3" style={{ border: "1px solid var(--studio-line)", background: "var(--studio-paper)" }}>

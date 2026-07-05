@@ -4,6 +4,20 @@ import { SalvarConfiguracaoLojaPublicaSchema } from "../dominio/esquemas.js";
 describe("configuracao avancada da loja digital", () => {
   it("preserva plano, quotas, checkout, entrega, catalogo, clientes, encomendas, canais, relatorios e SEO", () => {
     const configuracao = SalvarConfiguracaoLojaPublicaSchema.parse({
+      publicacao: {
+        participaNoMarket: true,
+        participaNoLearning: true,
+        learning: {
+          ativa: true,
+          publicada: true,
+          slug: "academia-uorconnect",
+          nomePublico: "Academia Uorconnect",
+          descricaoPublica: "Cursos, mentorias e comunidade para comerciantes.",
+          categorias: ["Cursos", "Mentoria", "Comunidade"],
+          canaisSuporte: ["Team", "Comunidade"],
+          politicaSuporte: "Suporte em até 2 dias úteis pelo Team."
+        }
+      },
       experiencia: {
         operacao: {
           plano: {
@@ -124,6 +138,19 @@ describe("configuracao avancada da loja digital", () => {
         siteSeo: expect.objectContaining({
           dominioPersonalizado: "loja.uorconnect.ao",
           tituloSite: "Uorconnect Store"
+        })
+      })
+    );
+    expect(configuracao.publicacao).toEqual(
+      expect.objectContaining({
+        participaNoMarket: true,
+        participaNoLearning: true,
+        learning: expect.objectContaining({
+          ativa: true,
+          publicada: true,
+          slug: "academia-uorconnect",
+          categorias: ["Cursos", "Mentoria", "Comunidade"],
+          canaisSuporte: ["Team", "Comunidade"]
         })
       })
     );

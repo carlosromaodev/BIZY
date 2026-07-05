@@ -288,6 +288,17 @@ export interface CatalogoPersonalizadoLoja {
   valor?: string | null;
 }
 
+export interface LearningStudioPublicacao {
+  ativa: boolean;
+  publicada: boolean;
+  slug?: string | null;
+  nomePublico?: string | null;
+  descricaoPublica?: string | null;
+  categorias: string[];
+  canaisSuporte: string[];
+  politicaSuporte?: string | null;
+}
+
 export interface ConfiguracaoLojaPublica {
   identidade: {
     nomeComercial?: string | null;
@@ -303,6 +314,9 @@ export interface ConfiguracaoLojaPublica {
     slug?: string | null;
     descricaoPublica?: string | null;
     publicada: boolean;
+    participaNoMarket?: boolean;
+    participaNoLearning?: boolean;
+    learning?: LearningStudioPublicacao;
     publicadaEm?: string | null;
     urlPublica?: string | null;
   };

@@ -58,8 +58,81 @@ describe("Bizy Learning HTTP", () => {
           oferta: expect.objectContaining({ emiteDocumento: true, permiteComprovativo: true })
         })
       );
+      expect(produtoPago.json().produto).toEqual(
+        expect.objectContaining({
+          preview: expect.objectContaining({
+            conteudoPremiumProtegido: true,
+            licoes: expect.any(Array)
+          }),
+          checkout: expect.objectContaining({
+            requerPagamento: true,
+            emiteDocumento: true,
+            permiteComprovativo: true
+          }),
+          seo: expect.objectContaining({
+            urlCanonica: "/learning/produtos/vender-no-bizy-market"
+          })
+        })
+      );
 
       const headers = await autenticar(app);
+      const perfilStudio = await app.inject({
+        method: "PUT",
+        url: "/loja-publica/configuracao",
+        headers,
+        payload: {
+          slug: "academia-qa-learning",
+          descricaoPublica: "Academia digital para equipas que vendem e operam no Bizy.",
+          publicada: false,
+          criacao: { confirmar: true },
+          identidade: {
+            nomeComercial: "Academia QA Learning",
+            descricaoPublica: "Cursos, mentorias e comunidade para equipas de venda.",
+            provincia: "Luanda",
+            municipio: "Talatona"
+          },
+          publicacao: {
+            slug: "academia-qa-learning",
+            publicada: false,
+            participaNoMarket: false,
+            participaNoLearning: true,
+            learning: {
+              ativa: true,
+              publicada: true,
+              slug: "academia-qa-learning",
+              nomePublico: "Academia QA Learning",
+              descricaoPublica: "Cursos, mentorias e comunidade para equipas de venda.",
+              categorias: ["Vendas", "Team", "Mentoria"],
+              canaisSuporte: ["Team", "Comunidade"],
+              politicaSuporte: "Suporte pelo Team em até 2 dias úteis."
+            }
+          }
+        }
+      });
+      expect(perfilStudio.statusCode).toBe(200);
+
+      const homeComPerfil = await app.inject({ method: "GET", url: "/publico/learning" });
+      expect(homeComPerfil.statusCode).toBe(200);
+      expect(homeComPerfil.json().metricas.perfisPublicos).toBeGreaterThanOrEqual(1);
+      expect(homeComPerfil.json().perfisPublicos).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            slug: "academia-qa-learning",
+            nomePublico: "Academia QA Learning",
+            categorias: expect.arrayContaining(["Vendas", "Team"]),
+            metricas: expect.objectContaining({ programas: 0 })
+          })
+        ])
+      );
+
+      const perfilPublicoInicial = await app.inject({ method: "GET", url: "/publico/learning/perfis/academia-qa-learning" });
+      expect(perfilPublicoInicial.statusCode).toBe(200);
+      expect(perfilPublicoInicial.json().perfil).toEqual(
+        expect.objectContaining({
+          slug: "academia-qa-learning",
+          programas: []
+        })
+      );
 
       const checkout = await app.inject({
         method: "POST",
@@ -176,6 +249,101 @@ describe("Bizy Learning HTTP", () => {
       expect(publicacao.statusCode).toBe(200);
       expect(publicacao.json().programa).toEqual(expect.objectContaining({ estado: "PUBLICADO", visibilidade: "PUBLICO", destaque: true }));
 
+      const perfilPublicoComPrograma = await app.inject({ method: "GET", url: "/publico/learning/perfis/academia-qa-learning" });
+      expect(perfilPublicoComPrograma.statusCode).toBe(200);
+      expect(perfilPublicoComPrograma.json().perfil.metricas.programas).toBeGreaterThanOrEqual(1);
+      expect(perfilPublicoComPrograma.json().perfil.programas).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            slug: programa.slug,
+            origem: "TEAM",
+            estado: "PUBLICADO",
+            visibilidade: "PUBLICO"
+          })
+        ])
+      );
+
+      const produtoPerfil = await app.inject({ method: "GET", url: `/publico/learning/produtos/${programa.slug}` });
+      expect(produtoPerfil.statusCode).toBe(200);
+      expect(produtoPerfil.json().produto).toEqual(
+        expect.objectContaining({
+          perfil: expect.objectContaining({
+            slug: "academia-qa-learning",
+            origem: "PERFIL"
+          }),
+          preview: expect.objectContaining({
+            licoesLiberadas: expect.any(Number),
+            licoesBloqueadas: expect.any(Number),
+            conteudoPremiumProtegido: false
+          }),
+          checkout: expect.objectContaining({
+            textoBotao: "Inscrever grátis",
+            politicaAcesso: expect.any(Object)
+          }),
+          relacionados: expect.any(Array),
+          sinaisConfianca: expect.arrayContaining(["Vendido por Academia QA Learning"])
+        })
+      );
+
+      const eventoVisualizacao = await app.inject({
+        method: "POST",
+        url: "/publico/learning/eventos",
+        payload: {
+          tipo: "VISUALIZACAO",
+          programaSlug: programa.slug,
+          perfilSlug: "academia-qa-learning",
+          fonte: "teste-http"
+        }
+      });
+      expect(eventoVisualizacao.statusCode).toBe(201);
+
+      const eventoPreview = await app.inject({
+        method: "POST",
+        url: "/publico/learning/eventos",
+        payload: {
+          tipo: "PREVIEW",
+          programaSlug: programa.slug,
+          perfilSlug: "academia-qa-learning",
+          fonte: "teste-http"
+        }
+      });
+      expect(eventoPreview.statusCode).toBe(201);
+
+      const analyticsPublico = await app.inject({
+        method: "GET",
+        url: "/learning/team/analytics",
+        headers
+      });
+      expect(analyticsPublico.statusCode).toBe(200);
+      expect(analyticsPublico.json().metricas).toEqual(
+        expect.objectContaining({
+          visualizacoesPublicas: 1,
+          previewsPublicos: 1,
+          produtosComEventos: 1
+        })
+      );
+      expect(analyticsPublico.json().produtos).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            programaSlug: programa.slug,
+            visualizacoes: 1,
+            previews: 1
+          })
+        ])
+      );
+
+      const homeComProgramaTeam = await app.inject({ method: "GET", url: "/publico/learning" });
+      expect(homeComProgramaTeam.statusCode).toBe(200);
+      expect(homeComProgramaTeam.json().programas).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            slug: programa.slug,
+            origem: "TEAM",
+            estado: "PUBLICADO"
+          })
+        ])
+      );
+
       const atribuicao = await app.inject({
         method: "POST",
         url: `/learning/team/programas/${programa.slug}/atribuir`,
@@ -208,7 +376,9 @@ describe("Bizy Learning HTTP", () => {
       expect(resumoComAtribuicao.json().metricas).toEqual(
         expect.objectContaining({
           atribuicoesAtivas: expect.any(Number),
-          formacoesObrigatorias: expect.any(Number)
+          formacoesObrigatorias: expect.any(Number),
+          visualizacoesPublicas: 1,
+          previewsPublicos: 1
         })
       );
       expect(resumoComAtribuicao.json().atribuicoes).toEqual(
@@ -390,6 +560,85 @@ describe("Bizy Learning HTTP", () => {
         ])
       );
 
+      const denuncia = await app.inject({
+        method: "POST",
+        url: "/learning/team/moderacao/denuncias",
+        headers,
+        payload: {
+          alvoTipo: "POST",
+          alvoId: postComunidade.json().post.id,
+          comunidadeId: comunidade.json().comunidade.id,
+          motivo: "CONTEUDO_SENSIVEL",
+          severidade: "ALTA",
+          descricao: "Material precisa de revisão antes de ficar disponível para membros da comunidade."
+        }
+      });
+      expect(denuncia.statusCode).toBe(201);
+      expect(denuncia.json().caso).toEqual(
+        expect.objectContaining({
+          alvoTipo: "POST",
+          alvoId: postComunidade.json().post.id,
+          estado: "ABERTO",
+          ocultoPublicamente: false
+        })
+      );
+
+      const filaModeracao = await app.inject({
+        method: "GET",
+        url: "/learning/team/moderacao",
+        headers
+      });
+      expect(filaModeracao.statusCode).toBe(200);
+      expect(filaModeracao.json().casos).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            id: denuncia.json().caso.id,
+            severidade: "ALTA"
+          })
+        ])
+      );
+
+      const decisaoModeracao = await app.inject({
+        method: "PATCH",
+        url: `/learning/team/moderacao/${denuncia.json().caso.id}`,
+        headers,
+        payload: {
+          acao: "OCULTAR_TEMPORARIAMENTE",
+          decisao: "Ocultar material até validação do mentor responsável."
+        }
+      });
+      expect(decisaoModeracao.statusCode).toBe(200);
+      expect(decisaoModeracao.json().caso).toEqual(
+        expect.objectContaining({
+          id: denuncia.json().caso.id,
+          estado: "OCULTO_TEMPORARIAMENTE",
+          ocultoPublicamente: true,
+          decisao: expect.stringContaining("Ocultar material")
+        })
+      );
+
+      const resumoComModeracao = await app.inject({
+        method: "GET",
+        url: "/learning/team/resumo",
+        headers
+      });
+      expect(resumoComModeracao.statusCode).toBe(200);
+      expect(resumoComModeracao.json().metricas).toEqual(
+        expect.objectContaining({
+          denunciasLearning: expect.any(Number),
+          casosModeracaoAbertos: expect.any(Number),
+          conteudosOcultosLearning: expect.any(Number)
+        })
+      );
+      expect(resumoComModeracao.json().moderacao).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            id: denuncia.json().caso.id,
+            estado: "OCULTO_TEMPORARIAMENTE"
+          })
+        ])
+      );
+
       const inscricao = await app.inject({
         method: "POST",
         url: `/learning/programas/${programa.slug}/inscrever`,
@@ -461,6 +710,48 @@ describe("Bizy Learning HTTP", () => {
         ])
       );
 
+      const checkoutAjustavel = await app.inject({
+        method: "POST",
+        url: "/learning/checkout",
+        headers,
+        payload: {
+          programaSlug: "vender-no-bizy-market",
+          compradorNome: "Comprador Reembolso Learning",
+          metodoPagamento: "Pagamento manual",
+          referenciaPagamento: "PAY-LEARNING-REFUND-001",
+          confirmarPagamento: true
+        }
+      });
+      expect(checkoutAjustavel.statusCode).toBe(201);
+      expect(checkoutAjustavel.json().entitlement).toEqual(expect.objectContaining({ estado: "ATIVO", origem: "CHECKOUT" }));
+
+      const ajusteCompra = await app.inject({
+        method: "POST",
+        url: `/learning/team/compras/${checkoutAjustavel.json().compra.id}/ajustar`,
+        headers,
+        payload: {
+          estado: "REEMBOLSADO",
+          motivo: "Reembolso solicitado no teste.",
+          revogarAcesso: true
+        }
+      });
+      expect(ajusteCompra.statusCode).toBe(200);
+      expect(ajusteCompra.json().compra).toEqual(
+        expect.objectContaining({
+          id: checkoutAjustavel.json().compra.id,
+          estado: "REEMBOLSADO",
+          motivoAjuste: "Reembolso solicitado no teste."
+        })
+      );
+      expect(ajusteCompra.json().entitlementsRevogados).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            id: checkoutAjustavel.json().entitlement.id,
+            estado: "REVOGADO"
+          })
+        ])
+      );
+
       const acessos = await app.inject({
         method: "GET",
         url: "/learning/entitlements",
@@ -470,6 +761,14 @@ describe("Bizy Learning HTTP", () => {
       expect(acessos.json().compras).toEqual(
         expect.arrayContaining([
           expect.objectContaining({ programaSlug: "vender-no-bizy-market", estado: "CONFIRMADO" })
+        ])
+      );
+      expect(acessos.json().entitlements).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            id: checkoutAjustavel.json().entitlement.id,
+            estado: "REVOGADO"
+          })
         ])
       );
       expect(acessos.json().certificados).toEqual(

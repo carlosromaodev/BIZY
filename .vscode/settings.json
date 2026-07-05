@@ -6,6 +6,7 @@
     },
     "mkdir": true,
     "printf": true,
-    "base64": true
+    "base64": true,
+    "tar": true
   }
 }

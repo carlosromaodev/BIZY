@@ -86,6 +86,21 @@ const CheckoutLearningSchema = z.object({
   confirmarPagamento: z.boolean().optional()
 });
 
+const TipoEventoPublicoLearningSchema = z.enum(["VISUALIZACAO", "PREVIEW", "CTA_CHECKOUT", "CTA_INSCRICAO"]);
+
+const RegistrarEventoPublicoLearningSchema = z.object({
+  tipo: TipoEventoPublicoLearningSchema.optional(),
+  programaSlug: z.string().trim().min(2).max(120),
+  perfilSlug: z.string().trim().min(2).max(120).nullable().optional(),
+  fonte: z.string().trim().min(1).max(120).nullable().optional()
+});
+
+const AjustarCompraLearningSchema = z.object({
+  estado: z.enum(["CANCELADO", "REEMBOLSADO"]),
+  motivo: z.string().trim().min(3).max(300).optional(),
+  revogarAcesso: z.boolean().optional()
+});
+
 const RevogarEntitlementSchema = z.object({
   motivo: z.string().trim().min(3).max(300).optional()
 });
@@ -120,6 +135,11 @@ const RegistrarPresencaCohortLearningSchema = z.object({
 
 const AcessoComunidadeLearningSchema = z.enum(["ABERTO", "ENTITLEMENT", "MEMBERSHIP", "CONVITE"]);
 const TipoPostComunidadeLearningSchema = z.enum(["ANUNCIO", "PERGUNTA", "RESPOSTA", "MATERIAL", "DESAFIO"]);
+const TipoAlvoModeracaoLearningSchema = z.enum(["PROGRAMA", "COMUNIDADE", "POST", "PERFIL", "MENTOR", "CERTIFICADO"]);
+const MotivoModeracaoLearningSchema = z.enum(["CONTEUDO_SENSIVEL", "SPAM", "DIREITOS_AUTORAIS", "FRAUDE", "ASSEDIO", "INFORMACAO_ERRADA", "OUTRO"]);
+const SeveridadeModeracaoLearningSchema = z.enum(["BAIXA", "MEDIA", "ALTA", "CRITICA"]);
+const EstadoCasoModeracaoLearningSchema = z.enum(["ABERTO", "EM_REVISAO", "OCULTO_TEMPORARIAMENTE", "RESOLVIDO", "REJEITADO"]);
+const AcaoModeracaoLearningSchema = z.enum(["COLOCAR_EM_REVISAO", "OCULTAR_TEMPORARIAMENTE", "RESOLVER", "REJEITAR", "REABRIR"]);
 
 const CriarComunidadeLearningSchema = z.object({
   titulo: z.string().trim().min(3).max(160).optional(),
@@ -134,6 +154,24 @@ const PublicarPostComunidadeLearningSchema = z.object({
   titulo: z.string().trim().min(3).max(160).optional(),
   conteudo: z.string().trim().min(1).max(3000),
   fixado: z.boolean().optional()
+});
+
+const DenunciarConteudoLearningSchema = z.object({
+  alvoTipo: TipoAlvoModeracaoLearningSchema,
+  alvoId: z.string().trim().min(2).max(160),
+  programaSlug: z.string().trim().min(2).max(120).optional(),
+  comunidadeId: z.string().trim().min(2).max(160).optional(),
+  postId: z.string().trim().min(2).max(160).optional(),
+  motivo: MotivoModeracaoLearningSchema.optional(),
+  severidade: SeveridadeModeracaoLearningSchema.optional(),
+  descricao: z.string().trim().min(5).max(1200)
+});
+
+const DecidirModeracaoLearningSchema = z.object({
+  acao: AcaoModeracaoLearningSchema.optional(),
+  estado: EstadoCasoModeracaoLearningSchema.optional(),
+  decisao: z.string().trim().min(3).max(1200).optional(),
+  ocultoPublicamente: z.boolean().optional()
 });
 
 const QueryChatLearningSchema = z.object({
@@ -163,10 +201,23 @@ export const moduloLearning: ModuloHttp = {
       return contexto.bizyLearning.obterProgramaPublico(slug);
     });
 
+    app.get("/publico/learning/perfis/:slug", async (request, reply) => {
+      aplicarCachePublico(reply);
+      const { slug } = ParamSlugSchema.parse(request.params);
+      return contexto.bizyLearning.obterPerfilPublico(slug);
+    });
+
     app.get("/publico/learning/produtos/:slug", async (request, reply) => {
       aplicarCachePublico(reply);
       const { slug } = ParamSlugSchema.parse(request.params);
       return contexto.bizyLearning.obterProdutoPublico(slug);
+    });
+
+    app.post("/publico/learning/eventos", async (request, reply) => {
+      aplicarNoStore(reply);
+      const dados = RegistrarEventoPublicoLearningSchema.parse(request.body ?? {});
+      const resultado = await contexto.bizyLearning.registrarEventoPublico(dados);
+      return reply.code(resultado.duplicado ? 200 : 201).send(resultado);
     });
 
     app.get("/learning/team/resumo", async (request, reply) => {
@@ -178,6 +229,18 @@ export const moduloLearning: ModuloHttp = {
       if (!ctx) return;
 
       return contexto.bizyLearning.obterResumoTeam(ctx.negocio.id, ctx.usuario.id, ctx.papel, ctx.permissoes);
+    });
+
+    app.get("/learning/team/analytics", async (request, reply) => {
+      aplicarNoStore(reply);
+      const ctx = await exigirAcessoComercial(contexto, request, reply, {
+        permissao: "learning:ler",
+        mensagemPermissao: "Sem permissão para consultar analytics do Bizy Learning."
+      });
+      if (!ctx) return;
+
+      const programas = await contexto.bizyLearning.listarProgramasDoNegocio(ctx.negocio.id);
+      return contexto.bizyLearning.resumirAnalyticsPublico(ctx.negocio.id, programas);
     });
 
     app.post("/learning/team/programas", async (request, reply) => {
@@ -317,6 +380,48 @@ export const moduloLearning: ModuloHttp = {
       return reply.code(resultado.duplicado ? 200 : 201).send(resultado);
     });
 
+    app.get("/learning/team/moderacao", async (request, reply) => {
+      aplicarNoStore(reply);
+      const ctx = await exigirAcessoComercial(contexto, request, reply, {
+        permissao: "learning:ler",
+        mensagemPermissao: "Sem permissão para consultar moderação do Bizy Learning."
+      });
+      if (!ctx) return;
+
+      return { casos: await contexto.bizyLearning.listarCasosModeracao(ctx.negocio.id) };
+    });
+
+    app.post("/learning/team/moderacao/denuncias", async (request, reply) => {
+      aplicarNoStore(reply);
+      const ctx = await exigirAcessoComercial(contexto, request, reply, {
+        permissao: "learning:ler",
+        mensagemPermissao: "Sem permissão para denunciar conteúdo do Bizy Learning."
+      });
+      if (!ctx) return;
+
+      const dados = DenunciarConteudoLearningSchema.parse(request.body ?? {});
+      const resultado = await contexto.bizyLearning.denunciarConteudoLearning(
+        ctx.negocio.id,
+        ctx.usuario.id,
+        ctx.usuario.nome,
+        dados
+      );
+      return reply.code(resultado.duplicado ? 200 : 201).send(resultado);
+    });
+
+    app.patch("/learning/team/moderacao/:id", async (request, reply) => {
+      aplicarNoStore(reply);
+      const ctx = await exigirAcessoComercial(contexto, request, reply, {
+        permissao: "learning:administrar",
+        mensagemPermissao: "Sem permissão para decidir moderação do Bizy Learning."
+      });
+      if (!ctx) return;
+
+      const { id } = ParamIdSchema.parse(request.params);
+      const dados = DecidirModeracaoLearningSchema.parse(request.body ?? {});
+      return contexto.bizyLearning.decidirModeracaoLearning(ctx.negocio.id, ctx.usuario.id, id, dados);
+    });
+
     app.post("/learning/checkout", async (request, reply) => {
       aplicarNoStore(reply);
       const ctx = await exigirAcessoComercial(contexto, request, reply, {
@@ -328,6 +433,19 @@ export const moduloLearning: ModuloHttp = {
       const dados = CheckoutLearningSchema.parse(request.body ?? {});
       const resultado = await contexto.bizyLearning.checkoutDigital(ctx.negocio.id, ctx.usuario.id, dados);
       return reply.code(resultado.duplicado ? 200 : 201).send(resultado);
+    });
+
+    app.post("/learning/team/compras/:id/ajustar", async (request, reply) => {
+      aplicarNoStore(reply);
+      const ctx = await exigirAcessoComercial(contexto, request, reply, {
+        permissao: "learning:administrar",
+        mensagemPermissao: "Sem permissão para ajustar compras do Bizy Learning."
+      });
+      if (!ctx) return;
+
+      const { id } = ParamIdSchema.parse(request.params);
+      const dados = AjustarCompraLearningSchema.parse(request.body ?? {});
+      return contexto.bizyLearning.ajustarCompraDigital(ctx.negocio.id, ctx.usuario.id, id, dados);
     });
 
     app.post("/learning/programas/:slug/inscrever", async (request, reply) => {

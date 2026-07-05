@@ -1,6 +1,15 @@
 import { createHash, randomUUID } from "node:crypto";
-import type { RepositorioEventosOperacionais } from "../../../dominio/repositorios/contratos.js";
-import type { EventoOperacional } from "../../../dominio/tipos.js";
+import type { RepositorioAutenticacao, RepositorioEventosOperacionais } from "../../../dominio/repositorios/contratos.js";
+import type { EventoOperacional, NegocioBizy } from "../../../dominio/tipos.js";
+import {
+  extrairEventoPublicoLearning,
+  montarProdutoPublico,
+  normalizarTipoEventoPublicoLearning,
+  resumirEventosPublicosLearning,
+  type AnalyticsLearningTeam,
+  type EventoPublicoLearning,
+  type RegistrarEventoPublicoLearningInput
+} from "./learningPublico.js";
 
 export type NivelLearning = "INICIAL" | "INTERMEDIO" | "AVANCADO";
 export type EstadoProgramaLearning = "RASCUNHO" | "EM_REVISAO" | "PUBLICADO" | "PAUSADO" | "ARQUIVADO" | "SUSPENSO";
@@ -28,6 +37,18 @@ export type EstadoCohortLearning = "AGENDADO" | "ABERTO" | "EM_ANDAMENTO" | "CON
 export type EstadoComunidadeLearning = "ABERTA" | "PRIVADA" | "PAUSADA" | "ARQUIVADA";
 export type AcessoComunidadeLearning = "ABERTO" | "ENTITLEMENT" | "MEMBERSHIP" | "CONVITE";
 export type TipoPostComunidadeLearning = "ANUNCIO" | "PERGUNTA" | "RESPOSTA" | "MATERIAL" | "DESAFIO";
+export type TipoAlvoModeracaoLearning = "PROGRAMA" | "COMUNIDADE" | "POST" | "PERFIL" | "MENTOR" | "CERTIFICADO";
+export type MotivoModeracaoLearning =
+  | "CONTEUDO_SENSIVEL"
+  | "SPAM"
+  | "DIREITOS_AUTORAIS"
+  | "FRAUDE"
+  | "ASSEDIO"
+  | "INFORMACAO_ERRADA"
+  | "OUTRO";
+export type SeveridadeModeracaoLearning = "BAIXA" | "MEDIA" | "ALTA" | "CRITICA";
+export type EstadoCasoModeracaoLearning = "ABERTO" | "EM_REVISAO" | "OCULTO_TEMPORARIAMENTE" | "RESOLVIDO" | "REJEITADO";
+export type AcaoModeracaoLearning = "COLOCAR_EM_REVISAO" | "OCULTAR_TEMPORARIAMENTE" | "RESOLVER" | "REJEITAR" | "REABRIR";
 
 export interface PerfilLearning {
   codigo: string;
@@ -93,6 +114,29 @@ export interface ProgramaLearning {
   criadoEm?: string | null;
 }
 
+export interface PerfilPublicoLearning {
+  slug: string;
+  negocioId: string;
+  nomePublico: string;
+  nomeNegocio: string;
+  descricaoPublica: string;
+  categorias: string[];
+  canaisSuporte: string[];
+  politicaSuporte: string;
+  localizacao: string | null;
+  urlPublica: string;
+  programas: ProgramaLearning[];
+  metricas: {
+    programas: number;
+    pagos: number;
+    gratuitos: number;
+    comunidades: number;
+    certificados: number;
+    minutos: number;
+    receitaPotencial: number;
+  };
+}
+
 export interface OfertaLearning {
   modelo: ModeloOfertaLearning;
   moeda: "AOA" | string;
@@ -120,6 +164,9 @@ export interface CompraLearning {
   factura?: DocumentoLearning | null;
   movimentoFinanceiro?: MovimentoLearning | null;
   entitlementId?: string | null;
+  ajustadoEm?: string | null;
+  ajustadoPorId?: string | null;
+  motivoAjuste?: string | null;
   criadoEm: string;
 }
 
@@ -259,6 +306,27 @@ export interface PostComunidadeLearning {
   criadoEm: string;
 }
 
+export interface CasoModeracaoLearning {
+  id: string;
+  alvoTipo: TipoAlvoModeracaoLearning;
+  alvoId: string;
+  tituloAlvo: string;
+  programaSlug?: string | null;
+  comunidadeId?: string | null;
+  postId?: string | null;
+  motivo: MotivoModeracaoLearning;
+  severidade: SeveridadeModeracaoLearning;
+  descricao: string;
+  estado: EstadoCasoModeracaoLearning;
+  ocultoPublicamente: boolean;
+  denuncianteId: string;
+  denuncianteNome: string;
+  revisadoPorId?: string | null;
+  decisao?: string | null;
+  criadoEm: string;
+  atualizadoEm: string;
+}
+
 export type TipoMensagemChatLearning = "MENSAGEM" | "DECISAO" | "TAREFA" | "SUPORTE" | "ANUNCIO";
 export type ContextoChatLearning = "PROGRAMA" | "COHORT" | "COMUNIDADE" | "SUPORTE";
 
@@ -340,6 +408,12 @@ export interface CheckoutLearningInput {
   confirmarPagamento?: boolean;
 }
 
+export interface AjustarCompraLearningInput {
+  estado: Extract<EstadoCompraLearning, "CANCELADO" | "REEMBOLSADO">;
+  motivo?: string;
+  revogarAcesso?: boolean;
+}
+
 export interface EnviarMensagemChatLearningInput {
   programaSlug: string;
   conteudo: string;
@@ -387,6 +461,24 @@ export interface PublicarPostComunidadeLearningInput {
   titulo?: string;
   conteudo: string;
   fixado?: boolean;
+}
+
+export interface DenunciarConteudoLearningInput {
+  alvoTipo: TipoAlvoModeracaoLearning;
+  alvoId: string;
+  programaSlug?: string;
+  comunidadeId?: string;
+  postId?: string;
+  motivo?: MotivoModeracaoLearning;
+  severidade?: SeveridadeModeracaoLearning;
+  descricao: string;
+}
+
+export interface DecidirModeracaoLearningInput {
+  acao?: AcaoModeracaoLearning;
+  estado?: EstadoCasoModeracaoLearning;
+  decisao?: string;
+  ocultoPublicamente?: boolean;
 }
 
 const TOPICO_LEARNING = "learning";
@@ -603,10 +695,18 @@ function normalizarOferta(oferta: Partial<OfertaLearning> | undefined, tipoAcess
 }
 
 export class BizyLearningUseCase {
-  constructor(private readonly eventosOperacionais: RepositorioEventosOperacionais) {}
+  constructor(
+    private readonly eventosOperacionais: RepositorioEventosOperacionais,
+    private readonly autenticacao: RepositorioAutenticacao
+  ) {}
 
   async obterHomePublica() {
-    const programas = PROGRAMAS_BASE.filter((programa) => programa.estado === "PUBLICADO" && programa.visibilidade === "PUBLICO");
+    const perfisPublicos = await this.listarPerfisPublicos();
+    const programasBase = PROGRAMAS_BASE.filter((programa) => programa.estado === "PUBLICADO" && programa.visibilidade === "PUBLICO");
+    const programas = deduplicarProgramasPublicos([
+      ...programasBase,
+      ...perfisPublicos.flatMap((perfil) => perfil.programas)
+    ]);
     return {
       produto: "Bizy Learning",
       tese: "Plataforma de produtos digitais, formacao, comunidade e monetizacao de conhecimento do ecossistema Bizy.",
@@ -617,10 +717,12 @@ export class BizyLearningUseCase {
         gratuitos: programas.filter((programa) => programa.tipoAcesso !== "PAGO").length,
         trilhos: programas.filter((programa) => programa.formato === "TRILHO" || programa.formato === "TRILHA").length,
         comunidades: programas.filter((programa) => programa.comunidade).length,
+        perfisPublicos: perfisPublicos.length,
         minutos: programas.reduce((total, programa) => total + programa.duracaoMinutos, 0),
         receitaPotencial: programas.reduce((total, programa) => total + valorOferta(programa), 0)
       },
       perfis: PERFIS_LEARNING,
+      perfisPublicos,
       destaques: programas.filter((programa) => programa.destaque),
       programas,
       categorias: [...new Set(programas.map((programa) => programa.categoria))],
@@ -635,7 +737,69 @@ export class BizyLearningUseCase {
   }
 
   async obterProdutoPublico(slug: string) {
-    return this.obterProgramaPublico(slug);
+    const normalizado = slugify(slug);
+    const home = await this.obterHomePublica();
+    const programa = home.programas.find((item) => item.slug === normalizado);
+    if (!programa) throw new Error("Produto Learning não encontrado ou não publicado.");
+    const perfil = home.perfisPublicos.find((item) => item.programas.some((produto) => produto.slug === programa.slug));
+    const produto = montarProdutoPublico(programa, perfil ?? null, home.programas);
+    return { programa: produto.programa, produto };
+  }
+
+  async obterPerfilPublico(slug: string) {
+    const normalizado = slugify(slug);
+    const perfil = (await this.listarPerfisPublicos()).find((item) => item.slug === normalizado);
+    if (!perfil) throw new Error("Perfil Learning não encontrado ou não publicado.");
+    return { perfil };
+  }
+
+  async registrarEventoPublico(dados: RegistrarEventoPublicoLearningInput) {
+    const normalizado = slugify(dados.programaSlug);
+    const home = await this.obterHomePublica();
+    const programa = home.programas.find((item) => item.slug === normalizado);
+    if (!programa) throw new Error("Produto Learning não encontrado para analytics.");
+    const perfil = home.perfisPublicos.find((item) =>
+      (!dados.perfilSlug || item.slug === slugify(dados.perfilSlug)) &&
+      item.programas.some((produto) => produto.slug === programa.slug)
+    ) ?? home.perfisPublicos.find((item) => item.programas.some((produto) => produto.slug === programa.slug)) ?? null;
+    const negocioId = perfil?.negocioId ?? "bizy-learning";
+    const criadoEm = new Date().toISOString();
+    const eventoPublico: EventoPublicoLearning = {
+      id: randomUUID(),
+      tipo: normalizarTipoEventoPublicoLearning(dados.tipo),
+      programaSlug: programa.slug,
+      perfilSlug: perfil?.slug ?? null,
+      negocioId,
+      origemPrograma: programa.origem,
+      familiaProduto: programa.familiaProduto,
+      categoria: programa.categoria,
+      fonte: dados.fonte?.trim().slice(0, 120) || null,
+      criadoEm
+    };
+
+    if (!perfil) {
+      // Produtos oficiais ainda nao têm tenant persistido; evitamos violar FK sem bloquear a vitrine pública.
+      return {
+        evento: eventoPublico,
+        duplicado: false
+      };
+    }
+
+    const { evento, duplicado } = await this.eventosOperacionais.registrar({
+      negocioId,
+      topico: TOPICO_LEARNING,
+      tipo: "LEARNING_EVENTO_PUBLICO",
+      entidadeTipo: "learning_public_event",
+      entidadeId: programa.slug,
+      idempotencyKey: `learning:publico:${eventoPublico.tipo}:${programa.slug}:${eventoPublico.id}`,
+      payload: { evento: eventoPublico },
+      estado: "PROCESSADO"
+    });
+
+    return {
+      evento: extrairEventoPublicoLearning(evento) ?? eventoPublico,
+      duplicado
+    };
   }
 
   async obterResumoTeam(negocioId: string, usuarioId: string, papel: string, permissoes: string[]) {
@@ -647,6 +811,8 @@ export class BizyLearningUseCase {
     const atribuicoes = await this.listarAtribuicoes(negocioId);
     const cohorts = await this.listarCohorts(negocioId);
     const comunidades = await this.listarComunidades(negocioId);
+    const moderacao = await this.listarCasosModeracao(negocioId);
+    const analytics = await this.resumirAnalyticsPublico(negocioId, programas);
     const progressoPorSlug = new Map(progresso.programas.map((item) => [item.programaSlug, item]));
     const papelNormalizado = papel.toUpperCase();
     const podeAdministrar = podeAdministrarLearning(papelNormalizado, permissoes);
@@ -693,7 +859,14 @@ export class BizyLearningUseCase {
         comunidadesAtivas: comunidades.filter((comunidade) => comunidade.estado === "ABERTA" || comunidade.estado === "PRIVADA").length,
         postsComunidade: comunidades.reduce((total, comunidade) => total + comunidade.posts, 0),
         anunciosComunidade: comunidades.reduce((total, comunidade) => total + comunidade.anuncios, 0),
-        perguntasComunidade: comunidades.reduce((total, comunidade) => total + comunidade.perguntas, 0)
+        perguntasComunidade: comunidades.reduce((total, comunidade) => total + comunidade.perguntas, 0),
+        denunciasLearning: moderacao.length,
+        casosModeracaoAbertos: moderacao.filter((caso) => ["ABERTO", "EM_REVISAO", "OCULTO_TEMPORARIAMENTE"].includes(caso.estado)).length,
+        conteudosOcultosLearning: moderacao.filter((caso) => caso.ocultoPublicamente && caso.estado !== "RESOLVIDO" && caso.estado !== "REJEITADO").length,
+        visualizacoesPublicas: analytics.metricas.visualizacoesPublicas,
+        previewsPublicos: analytics.metricas.previewsPublicos,
+        ctasCheckoutLearning: analytics.metricas.ctasCheckout,
+        ctasInscricaoLearning: analytics.metricas.ctasInscricao
       },
       compras: compras.slice(0, 20),
       entitlements: entitlements.filter((entitlement) => entitlement.usuarioId === usuarioId || podeAdministrar).slice(0, 50),
@@ -701,6 +874,8 @@ export class BizyLearningUseCase {
       atribuicoes: atribuicoesVisiveis.slice(0, 50),
       cohorts: cohorts.slice(0, 50),
       comunidades: comunidades.slice(0, 50),
+      moderacao: moderacao.slice(0, 50),
+      analytics,
       chat
     };
   }
@@ -1047,6 +1222,92 @@ export class BizyLearningUseCase {
     };
   }
 
+  async denunciarConteudoLearning(
+    negocioId: string,
+    denuncianteId: string,
+    denuncianteNome: string,
+    dados: DenunciarConteudoLearningInput
+  ) {
+    const alvo = await this.resolverAlvoModeracao(negocioId, dados);
+    const agora = new Date().toISOString();
+    const severidade = normalizarSeveridadeModeracao(dados.severidade);
+    const caso: CasoModeracaoLearning = {
+      id: randomUUID(),
+      alvoTipo: normalizarTipoAlvoModeracao(dados.alvoTipo),
+      alvoId: dados.alvoId.trim(),
+      tituloAlvo: alvo.tituloAlvo,
+      programaSlug: dados.programaSlug?.trim() || alvo.programaSlug || null,
+      comunidadeId: dados.comunidadeId?.trim() || alvo.comunidadeId || null,
+      postId: dados.postId?.trim() || alvo.postId || null,
+      motivo: normalizarMotivoModeracao(dados.motivo),
+      severidade,
+      descricao: dados.descricao.trim(),
+      estado: "ABERTO",
+      ocultoPublicamente: false,
+      denuncianteId,
+      denuncianteNome: denuncianteNome.trim() || "Membro Team",
+      revisadoPorId: null,
+      decisao: null,
+      criadoEm: agora,
+      atualizadoEm: agora
+    };
+
+    const { evento, duplicado } = await this.eventosOperacionais.registrar({
+      negocioId,
+      topico: TOPICO_LEARNING,
+      tipo: "LEARNING_MODERACAO_CASO_ABERTO",
+      entidadeTipo: "learning_moderation_case",
+      entidadeId: caso.id,
+      idempotencyKey: `learning:moderacao:${caso.id}`,
+      payload: { caso },
+      estado: "PROCESSADO"
+    });
+
+    return {
+      caso: extrairCasoModeracao(evento) ?? caso,
+      duplicado
+    };
+  }
+
+  async decidirModeracaoLearning(
+    negocioId: string,
+    revisorId: string,
+    casoId: string,
+    dados: DecidirModeracaoLearningInput
+  ) {
+    const casos = await this.listarCasosModeracao(negocioId);
+    const caso = casos.find((item) => item.id === casoId);
+    if (!caso) throw new Error("Caso de moderação Learning não encontrado.");
+
+    const acao = normalizarAcaoModeracao(dados.acao);
+    const estado = normalizarEstadoModeracao(dados.estado) ?? estadoPorAcaoModeracao(acao);
+    const ocultoPublicamente = definirOcultacaoModeracao(caso, acao, estado, dados.ocultoPublicamente);
+    const atualizado: CasoModeracaoLearning = {
+      ...caso,
+      estado,
+      ocultoPublicamente,
+      revisadoPorId: revisorId,
+      decisao: dados.decisao?.trim() || decisaoPadraoModeracao(acao, estado),
+      atualizadoEm: new Date().toISOString()
+    };
+
+    const { evento, duplicado } = await this.eventosOperacionais.registrar({
+      negocioId,
+      topico: TOPICO_LEARNING,
+      tipo: "LEARNING_MODERACAO_DECISAO_REGISTADA",
+      entidadeTipo: "learning_moderation_case",
+      entidadeId: caso.id,
+      idempotencyKey: `learning:moderacao:${caso.id}:decisao:${atualizado.atualizadoEm}`,
+      payload: { caso: atualizado, casoAnterior: resumoModeracao(caso), acao },
+      estado: "PROCESSADO"
+    });
+
+    return {
+      caso: extrairCasoModeracao(evento) ?? atualizado,
+      duplicado
+    };
+  }
+
   async inscrever(negocioId: string, usuarioId: string, programaSlug: string, origem = "TEAM") {
     const programa = (await this.listarProgramasDoNegocio(negocioId)).find((item) => item.slug === programaSlug);
     if (!programa || programa.estado !== "PUBLICADO") throw new Error("Programa Learning não está publicado.");
@@ -1155,6 +1416,64 @@ export class BizyLearningUseCase {
       compra: { ...compraPersistida, entitlementId: entitlement.id },
       duplicado,
       entitlement
+    };
+  }
+
+  async ajustarCompraDigital(
+    negocioId: string,
+    usuarioId: string,
+    compraId: string,
+    dados: AjustarCompraLearningInput
+  ) {
+    const compra = (await this.listarCompras(negocioId)).find((item) => item.id === compraId);
+    if (!compra) throw new Error("Compra Learning não encontrada.");
+    if (compra.estado === "CANCELADO" || compra.estado === "REEMBOLSADO") {
+      throw new Error("Compra Learning já está cancelada ou reembolsada.");
+    }
+
+    const ajustadoEm = new Date().toISOString();
+    const compraAjustada: CompraLearning = {
+      ...compra,
+      estado: dados.estado,
+      ajustadoEm,
+      ajustadoPorId: usuarioId,
+      motivoAjuste: dados.motivo?.trim() || (dados.estado === "REEMBOLSADO" ? "Reembolso registado pelo Team." : "Cancelamento registado pelo Team.")
+    };
+
+    const { evento, duplicado } = await this.eventosOperacionais.registrar({
+      negocioId,
+      topico: TOPICO_LEARNING,
+      tipo: "LEARNING_COMPRA_DIGITAL_AJUSTADA",
+      entidadeTipo: "learning_checkout",
+      entidadeId: compra.id,
+      idempotencyKey: `learning:compra:${compra.id}:ajuste:${compraAjustada.estado}:${ajustadoEm}`,
+      payload: { compra: compraAjustada, compraAnterior: compra, usuarioId },
+      estado: "PROCESSADO"
+    });
+
+    const entitlementsRevogados: EntitlementLearning[] = [];
+    if (dados.revogarAcesso !== false) {
+      const entitlements = await this.listarEntitlements(negocioId);
+      const relacionados = entitlements.filter((entitlement) =>
+        entitlement.estado === "ATIVO" &&
+        entitlement.programaSlug === compra.programaSlug &&
+        (entitlement.origemId === compra.id || entitlement.id === compra.entitlementId)
+      );
+      for (const entitlement of relacionados) {
+        const revogado = await this.revogarEntitlement(
+          negocioId,
+          usuarioId,
+          entitlement.id,
+          compraAjustada.motivoAjuste ?? "Acesso revogado por ajuste da compra Learning."
+        );
+        entitlementsRevogados.push(revogado.entitlement);
+      }
+    }
+
+    return {
+      compra: extrairCompra(evento) ?? compraAjustada,
+      entitlementsRevogados,
+      duplicado
     };
   }
 
@@ -1361,11 +1680,14 @@ export class BizyLearningUseCase {
 
   async listarCompras(negocioId: string): Promise<CompraLearning[]> {
     const eventos = await this.eventosOperacionais.listar(negocioId, { topico: TOPICO_LEARNING, limite: 1000 });
-    return eventos
-      .filter((evento) => evento.tipo === "LEARNING_COMPRA_DIGITAL_CRIADA")
-      .map(extrairCompra)
-      .filter((compra): compra is CompraLearning => Boolean(compra))
-      .sort((a, b) => b.criadoEm.localeCompare(a.criadoEm));
+    const mapa = new Map<string, CompraLearning>();
+    const ordenados = [...eventos].sort((a, b) => a.criadoEm.getTime() - b.criadoEm.getTime());
+    for (const evento of ordenados) {
+      if (evento.tipo !== "LEARNING_COMPRA_DIGITAL_CRIADA" && evento.tipo !== "LEARNING_COMPRA_DIGITAL_AJUSTADA") continue;
+      const compra = extrairCompra(evento);
+      if (compra) mapa.set(compra.id, compra);
+    }
+    return [...mapa.values()].sort((a, b) => b.criadoEm.localeCompare(a.criadoEm));
   }
 
   async listarEntitlements(negocioId: string): Promise<EntitlementLearning[]> {
@@ -1527,6 +1849,100 @@ export class BizyLearningUseCase {
       .sort((a, b) => (b.ultimaAtividade ?? b.criadoEm).localeCompare(a.ultimaAtividade ?? a.criadoEm));
   }
 
+  async listarCasosModeracao(negocioId: string): Promise<CasoModeracaoLearning[]> {
+    const eventos = await this.eventosOperacionais.listar(negocioId, { topico: TOPICO_LEARNING, limite: 1000 });
+    const mapa = new Map<string, CasoModeracaoLearning>();
+
+    for (const evento of eventos.reverse()) {
+      if (evento.tipo !== "LEARNING_MODERACAO_CASO_ABERTO" && evento.tipo !== "LEARNING_MODERACAO_DECISAO_REGISTADA") continue;
+      const caso = extrairCasoModeracao(evento);
+      if (caso) mapa.set(caso.id, caso);
+    }
+
+    return [...mapa.values()].sort((a, b) => b.atualizadoEm.localeCompare(a.atualizadoEm));
+  }
+
+  async resumirAnalyticsPublico(negocioId: string, programas: ProgramaLearning[]): Promise<AnalyticsLearningTeam> {
+    const eventos = await this.listarEventosPublicos(negocioId);
+    return resumirEventosPublicosLearning(eventos, programas);
+  }
+
+  private async listarEventosPublicos(negocioId: string): Promise<EventoPublicoLearning[]> {
+    const eventos = await this.eventosOperacionais.listar(negocioId, {
+      topico: TOPICO_LEARNING,
+      tipo: "LEARNING_EVENTO_PUBLICO",
+      limite: 1000
+    });
+    return eventos
+      .map(extrairEventoPublicoLearning)
+      .filter((evento): evento is EventoPublicoLearning => Boolean(evento))
+      .sort((a, b) => b.criadoEm.localeCompare(a.criadoEm));
+  }
+
+  private async listarPostsComunidade(negocioId: string): Promise<PostComunidadeLearning[]> {
+    const eventos = await this.eventosOperacionais.listar(negocioId, {
+      topico: TOPICO_LEARNING,
+      tipo: "LEARNING_COMUNIDADE_POST_PUBLICADO",
+      limite: 1000
+    });
+    return eventos
+      .map(extrairPostComunidade)
+      .filter((post): post is PostComunidadeLearning => Boolean(post))
+      .sort((a, b) => b.criadoEm.localeCompare(a.criadoEm));
+  }
+
+  private async resolverAlvoModeracao(negocioId: string, dados: DenunciarConteudoLearningInput) {
+    const alvoTipo = normalizarTipoAlvoModeracao(dados.alvoTipo);
+    const alvoId = dados.alvoId.trim();
+    if (!alvoId) throw new Error("Denúncia Learning exige alvo válido.");
+
+    if (alvoTipo === "PROGRAMA") {
+      const programa = (await this.listarProgramasDoNegocio(negocioId)).find((item) => item.slug === alvoId);
+      if (!programa) throw new Error("Programa Learning denunciado não encontrado.");
+      return { tituloAlvo: programa.titulo, programaSlug: programa.slug, comunidadeId: null, postId: null };
+    }
+
+    if (alvoTipo === "COMUNIDADE") {
+      const comunidade = (await this.listarComunidades(negocioId)).find((item) => item.id === alvoId);
+      if (!comunidade) throw new Error("Comunidade Learning denunciada não encontrada.");
+      return { tituloAlvo: comunidade.titulo, programaSlug: comunidade.programaSlug, comunidadeId: comunidade.id, postId: null };
+    }
+
+    if (alvoTipo === "POST") {
+      const post = (await this.listarPostsComunidade(negocioId)).find((item) => item.id === alvoId);
+      if (!post) throw new Error("Post Learning denunciado não encontrado.");
+      const comunidade = (await this.listarComunidades(negocioId)).find((item) => item.id === post.comunidadeId);
+      return {
+        tituloAlvo: post.titulo || post.conteudo.slice(0, 80),
+        programaSlug: post.programaSlug,
+        comunidadeId: post.comunidadeId,
+        postId: post.id,
+        comunidadeTitulo: comunidade?.titulo ?? null
+      };
+    }
+
+    if (alvoTipo === "CERTIFICADO") {
+      const certificado = (await this.listarCertificados(negocioId)).find((item) => item.id === alvoId || item.codigoVerificacao === alvoId);
+      if (!certificado) throw new Error("Certificado Learning denunciado não encontrado.");
+      return { tituloAlvo: `Certificado ${certificado.codigoVerificacao}`, programaSlug: certificado.programaSlug, comunidadeId: null, postId: null };
+    }
+
+    if (alvoTipo === "PERFIL") {
+      const perfil = PERFIS_LEARNING.find((item) => item.codigo === alvoId.toUpperCase());
+      return { tituloAlvo: perfil?.nome ?? `Perfil ${alvoId}`, programaSlug: dados.programaSlug?.trim() || null, comunidadeId: null, postId: null };
+    }
+
+    const programaMentor = (await this.listarProgramasDoNegocio(negocioId)).find(
+      (programa) => programa.mentorNome?.toLowerCase() === alvoId.toLowerCase() || programa.ownerPerfil === alvoId.toUpperCase()
+    );
+    return {
+      tituloAlvo: programaMentor?.mentorNome ?? `Mentor ${alvoId}`,
+      programaSlug: programaMentor?.slug ?? dados.programaSlug?.trim() ?? null,
+      comunidadeId: null,
+      postId: null
+    };
+  }
+
   private async temEntitlementAtivo(negocioId: string, usuarioId: string, programaSlug: string): Promise<boolean> {
     const entitlements = await this.listarEntitlements(negocioId);
     return entitlements.some((item) => item.usuarioId === usuarioId && item.programaSlug === programaSlug && item.estado === "ATIVO");
@@ -1646,10 +2062,103 @@ export class BizyLearningUseCase {
 
     return [...mapa.values()].sort((a, b) => Number(b.destaque) - Number(a.destaque) || a.titulo.localeCompare(b.titulo));
   }
+
+  private async listarPerfisPublicos(): Promise<PerfilPublicoLearning[]> {
+    const negocios = await this.autenticacao.listarNegocios();
+    const perfis = await Promise.all(
+      negocios.map(async (negocio) => {
+        const base = montarPerfilLearningBase(negocio);
+        if (!base) return null;
+        const programas = (await this.listarProgramasDoNegocio(negocio.id)).filter((programa) =>
+          programa.origem === "TEAM" &&
+          programa.estado === "PUBLICADO" &&
+          programa.visibilidade === "PUBLICO"
+        );
+        return {
+          ...base,
+          programas,
+          metricas: metricasPerfilLearning(programas)
+        };
+      })
+    );
+    return perfis
+      .filter((perfil): perfil is PerfilPublicoLearning => perfil != null)
+      .sort((a, b) => b.metricas.programas - a.metricas.programas || a.nomePublico.localeCompare(b.nomePublico, "pt-AO", { sensitivity: "base" }));
+  }
 }
 
 function podeAdministrarLearning(papel: string, permissoes: string[]): boolean {
   return ["DONO", "ADMIN"].includes(papel) || permissoes.includes("learning:administrar") || permissoes.includes("equipa:gestao");
+}
+
+function montarPerfilLearningBase(negocio: NegocioBizy): Omit<PerfilPublicoLearning, "programas" | "metricas"> | null {
+  const entrega = objeto(negocio.entrega);
+  const lojaDigital = objeto(entrega.lojaDigital);
+  const learning = objeto(lojaDigital.learning);
+  const participaNoLearning = booleano(lojaDigital.participaNoLearning, false);
+  const ativo = booleano(learning.ativa, participaNoLearning);
+  const publicado = booleano(learning.publicada, false);
+  const slugFonte = texto(learning.slug) ?? negocio.slugPublico ?? "";
+  const slug = slugify(slugFonte);
+
+  if (!participaNoLearning || !ativo || !publicado || !slugFonte.trim() || !slug) return null;
+
+  const descricao =
+    texto(learning.descricaoPublica) ??
+    negocio.descricaoPublica ??
+    "Perfil Learning para produtos digitais, comunidade, mentoria e aprendizagem operacional.";
+
+  return {
+    slug,
+    negocioId: negocio.id,
+    nomePublico: texto(learning.nomePublico) ?? negocio.nomeComercial,
+    nomeNegocio: negocio.nomeComercial,
+    descricaoPublica: descricao,
+    categorias: listaTextos(learning.categorias).length
+      ? listaTextos(learning.categorias).slice(0, 20)
+      : ["Cursos", "Comunidade", "Mentoria"],
+    canaisSuporte: listaTextos(learning.canaisSuporte).slice(0, 12),
+    politicaSuporte: texto(learning.politicaSuporte) ?? "Suporte pelo Team, comunidade ou canal configurado pelo perfil Learning.",
+    localizacao: [negocio.municipio, negocio.provincia].filter(Boolean).join(", ") || null,
+    urlPublica: `/learning/${slug}`
+  };
+}
+
+function deduplicarProgramasPublicos(programas: ProgramaLearning[]): ProgramaLearning[] {
+  const porSlug = new Map<string, ProgramaLearning>();
+  for (const programa of programas) {
+    if (!porSlug.has(programa.slug)) porSlug.set(programa.slug, programa);
+  }
+  return [...porSlug.values()];
+}
+
+function metricasPerfilLearning(programas: ProgramaLearning[]): PerfilPublicoLearning["metricas"] {
+  return {
+    programas: programas.length,
+    pagos: programas.filter((programa) => programa.tipoAcesso === "PAGO").length,
+    gratuitos: programas.filter((programa) => programa.tipoAcesso !== "PAGO").length,
+    comunidades: programas.filter((programa) => programa.comunidade || programa.formato === "COMUNIDADE" || programa.formato === "MEMBERSHIP").length,
+    certificados: programas.filter((programa) => programa.certificadoConfigurado).length,
+    minutos: programas.reduce((total, programa) => total + programa.duracaoMinutos, 0),
+    receitaPotencial: programas.reduce((total, programa) => total + valorOferta(programa), 0)
+  };
+}
+
+function objeto(valor: unknown): Record<string, unknown> {
+  return valor && typeof valor === "object" && !Array.isArray(valor) ? valor as Record<string, unknown> : {};
+}
+
+function texto(valor: unknown): string | null {
+  return typeof valor === "string" && valor.trim() ? valor.trim() : null;
+}
+
+function booleano(valor: unknown, padrao: boolean): boolean {
+  return typeof valor === "boolean" ? valor : padrao;
+}
+
+function listaTextos(valor: unknown): string[] {
+  if (!Array.isArray(valor)) return [];
+  return valor.filter((item): item is string => typeof item === "string" && item.trim().length > 0).map((item) => item.trim());
 }
 
 function progressoVazio(programa: ProgramaLearning): ProgressoLearning {
@@ -1768,6 +2277,16 @@ function resumoComunidade(comunidade: ComunidadeLearning) {
   };
 }
 
+function resumoModeracao(caso: CasoModeracaoLearning) {
+  return {
+    id: caso.id,
+    alvoTipo: caso.alvoTipo,
+    alvoId: caso.alvoId,
+    estado: caso.estado,
+    ocultoPublicamente: caso.ocultoPublicamente
+  };
+}
+
 function extrairCompra(evento: EventoOperacional): CompraLearning | null {
   const compra = evento.payload.compra;
   if (!compra || typeof compra !== "object") return null;
@@ -1880,6 +2399,33 @@ function extrairPostComunidade(evento: EventoOperacional): PostComunidadeLearnin
     conteudo: candidato.conteudo,
     autorNome: candidato.autorNome || "Membro Team",
     fixado: candidato.fixado === true
+  };
+}
+
+function extrairCasoModeracao(evento: EventoOperacional): CasoModeracaoLearning | null {
+  const caso = evento.payload.caso;
+  if (!caso || typeof caso !== "object") return null;
+  const candidato = caso as CasoModeracaoLearning;
+  if (!candidato.id || !candidato.alvoTipo || !candidato.alvoId || !candidato.descricao) return null;
+  const criadoEm = candidato.criadoEm || evento.criadoEm.toISOString();
+  return {
+    ...candidato,
+    alvoTipo: normalizarTipoAlvoModeracao(candidato.alvoTipo),
+    alvoId: candidato.alvoId,
+    tituloAlvo: candidato.tituloAlvo || candidato.alvoId,
+    programaSlug: candidato.programaSlug || null,
+    comunidadeId: candidato.comunidadeId || null,
+    postId: candidato.postId || null,
+    motivo: normalizarMotivoModeracao(candidato.motivo),
+    severidade: normalizarSeveridadeModeracao(candidato.severidade),
+    descricao: candidato.descricao,
+    estado: normalizarEstadoModeracao(candidato.estado) ?? "ABERTO",
+    ocultoPublicamente: candidato.ocultoPublicamente === true,
+    denuncianteNome: candidato.denuncianteNome || "Membro Team",
+    revisadoPorId: candidato.revisadoPorId || null,
+    decisao: candidato.decisao || null,
+    criadoEm,
+    atualizadoEm: candidato.atualizadoEm || criadoEm
   };
 }
 
@@ -2075,4 +2621,67 @@ function normalizarEstadoComunidade(valor: unknown): EstadoComunidadeLearning {
 function normalizarTipoPostComunidade(valor: unknown): TipoPostComunidadeLearning {
   if (valor === "PERGUNTA" || valor === "RESPOSTA" || valor === "MATERIAL" || valor === "DESAFIO") return valor;
   return "ANUNCIO";
+}
+
+function normalizarTipoAlvoModeracao(valor: unknown): TipoAlvoModeracaoLearning {
+  if (valor === "COMUNIDADE" || valor === "POST" || valor === "PERFIL" || valor === "MENTOR" || valor === "CERTIFICADO") return valor;
+  return "PROGRAMA";
+}
+
+function normalizarMotivoModeracao(valor: unknown): MotivoModeracaoLearning {
+  if (
+    valor === "SPAM" ||
+    valor === "DIREITOS_AUTORAIS" ||
+    valor === "FRAUDE" ||
+    valor === "ASSEDIO" ||
+    valor === "INFORMACAO_ERRADA" ||
+    valor === "OUTRO"
+  ) {
+    return valor;
+  }
+  return "CONTEUDO_SENSIVEL";
+}
+
+function normalizarSeveridadeModeracao(valor: unknown): SeveridadeModeracaoLearning {
+  if (valor === "BAIXA" || valor === "ALTA" || valor === "CRITICA") return valor;
+  return "MEDIA";
+}
+
+function normalizarEstadoModeracao(valor: unknown): EstadoCasoModeracaoLearning | null {
+  if (valor === "ABERTO" || valor === "EM_REVISAO" || valor === "OCULTO_TEMPORARIAMENTE" || valor === "RESOLVIDO" || valor === "REJEITADO") return valor;
+  return null;
+}
+
+function normalizarAcaoModeracao(valor: unknown): AcaoModeracaoLearning {
+  if (valor === "OCULTAR_TEMPORARIAMENTE" || valor === "RESOLVER" || valor === "REJEITAR" || valor === "REABRIR") return valor;
+  return "COLOCAR_EM_REVISAO";
+}
+
+function estadoPorAcaoModeracao(acao: AcaoModeracaoLearning): EstadoCasoModeracaoLearning {
+  if (acao === "OCULTAR_TEMPORARIAMENTE") return "OCULTO_TEMPORARIAMENTE";
+  if (acao === "RESOLVER") return "RESOLVIDO";
+  if (acao === "REJEITAR") return "REJEITADO";
+  if (acao === "REABRIR") return "ABERTO";
+  return "EM_REVISAO";
+}
+
+function definirOcultacaoModeracao(
+  caso: CasoModeracaoLearning,
+  acao: AcaoModeracaoLearning,
+  estado: EstadoCasoModeracaoLearning,
+  valor?: boolean
+): boolean {
+  if (typeof valor === "boolean") return valor;
+  if (acao === "OCULTAR_TEMPORARIAMENTE" || estado === "OCULTO_TEMPORARIAMENTE") return true;
+  if (estado === "RESOLVIDO" || estado === "REJEITADO") return false;
+  return caso.ocultoPublicamente;
+}
+
+function decisaoPadraoModeracao(acao: AcaoModeracaoLearning, estado: EstadoCasoModeracaoLearning): string {
+  if (acao === "OCULTAR_TEMPORARIAMENTE") return "Conteúdo ocultado temporariamente até revisão humana.";
+  if (acao === "RESOLVER") return "Caso resolvido pela equipa Team.";
+  if (acao === "REJEITAR") return "Denúncia rejeitada após revisão.";
+  if (acao === "REABRIR") return "Caso reaberto para nova análise.";
+  if (estado === "EM_REVISAO") return "Caso colocado em revisão.";
+  return "Decisão de moderação registada.";
 }

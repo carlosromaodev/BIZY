@@ -506,7 +506,7 @@ export function criarContextoAplicacao(logger: FastifyBaseLogger): ContextoAplic
     gestaoTarefas
   );
   const bizyMarket = new BizyMarketUseCase(repositorios.autenticacao, repositorios.pecas);
-  const bizyLearning = new BizyLearningUseCase(repositorios.eventosOperacionais);
+  const bizyLearning = new BizyLearningUseCase(repositorios.eventosOperacionais, repositorios.autenticacao);
 
   const checkoutUnificado = new CheckoutUnificadoUseCase({
     autenticacao: repositorios.autenticacao,

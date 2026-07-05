@@ -1,7 +1,7 @@
 # Bizy Learning - Requisitos Funcionais, Nao Funcionais e Regras de Negocio
 
 Documento: `RF-RNF-RN-BIZY-LEARNING.md`
-Versao: 0.2
+Versao: 0.4
 Data: 2026-07-04
 Autor: Carlos + Codex
 Status: especificacao viva com implementacao incremental em curso
@@ -16,7 +16,17 @@ Status: especificacao viva com implementacao incremental em curso
 - 2026-07-04: `/app/learning` passou a suportar abertura de cohorts/turmas por programa publicado, com data, vagas, sala, replay, regras de entrada e registo de presença. Presença de membro pode gerar entitlement de origem `TEAM` e inscrição rastreável.
 - Esta entrega cobre parcialmente RF-L057/RF-L060. Ainda faltam calendário avançado, presença por QR/check-in, tarefas pós-evento, replay protegido por entitlement e cohorts recorrentes.
 - 2026-07-04: `/app/learning` passou a suportar comunidades/memberships administradas pelo Team, com criação por programa, acesso aberto/entitlement/membership/convite, regras, moderadores, tópicos e posts do tipo anúncio, pergunta, resposta, material ou desafio.
-- Esta entrega cobre parcialmente RF-L058/RF-L059/RF-L030. Ainda faltam página pública de comunidade, permissões finas por membro, denúncias/moderação formal, anexos reais e protecção de materiais premium por entitlement.
+- Esta entrega cobre parcialmente RF-L058/RF-L059/RF-L030. Ainda faltam página pública de comunidade, permissões finas por membro, anexos reais e protecção de materiais premium por entitlement.
+- 2026-07-04: `/app/learning` passou a suportar governança e moderação base, com denúncia de programa, comunidade, post, perfil, mentor ou certificado; fila Team; decisão auditável; ocultação temporária; resolução/rejeição; métricas de casos abertos e conteúdos ocultos.
+- Esta entrega cobre parcialmente RF-L064/RF-L066/RN-L027/RNF-L008. Ainda faltam moderação pública fora do Team, notificações aos envolvidos, workflow de recurso/apelação, aplicação de ocultação em todas as vitrines públicas multi-tenant e políticas globais por categoria.
+- 2026-07-04: `/app/loja` passou a persistir a escolha de presença pública Market, Learning ou ambos no Studio, com `participaNoLearning`, identidade base do perfil Learning, categorias digitais, canais e política de suporte.
+- Esta entrega cobre parcialmente RF-L011/RF-L014/RN-L001/RN-L002. Ainda faltam elegibilidade avançada, métricas financeiras separadas, owners dedicados e schema dedicado.
+- 2026-07-04: `/learning` passou a listar perfis públicos Learning configurados no Studio e `/learning/:slug` passou a exibir perfil público com identidade, categorias, canais de suporte, política de suporte, métricas e programas Team publicados. O backend expõe `GET /publico/learning/perfis/:slug`.
+- Esta entrega cobre parcialmente RF-L004/RF-L005/RF-L006/RF-L008/RN-L030/RNF-L026/RNF-L027. O perfil ainda é transitório em `entrega.lojaDigital.learning`; faltam tabela dedicada `LearningProfile`, imagem/capa própria, SEO, owners finos, elegibilidade pública, analytics de perfil e páginas públicas de produto por perfil.
+- 2026-07-04: o Learning passou a expor produto digital público em `GET /publico/learning/produtos/:slug` e `/learning/produtos/:slug`, com perfil vendedor, preview seguro, política de acesso, sinais de confiança, relacionados, SEO básico e CTA rastreável.
+- 2026-07-04: a vitrine de produto regista eventos públicos `VISUALIZACAO`, `PREVIEW`, `CTA_CHECKOUT` e `CTA_INSCRICAO`; o Team expõe métricas em `/learning/team/resumo` e `GET /learning/team/analytics`.
+- 2026-07-04: o Team passou a permitir ajuste de compra Learning por `POST /learning/team/compras/:id/ajustar`, com cancelamento/reembolso, motivo auditável e revogação de entitlement relacionado por padrão.
+- Esta entrega cobre parcialmente RF-L010/RF-L021/RF-L032/RF-L033/RF-L035/RF-L036/RF-L038/RF-L039/RF-L040/RF-L069/RNF-L006/RNF-L008/RNF-L020/RNF-L025/RN-L005/RN-L007/RN-L040. Ainda faltam checkout público completo, schema dedicado, player/asset premium real, políticas de consumo parcial, assinatura/bundle, split/payout e integração financeira definitiva.
 
 ## 1. Objetivo do Documento
 
@@ -103,6 +113,8 @@ Decisao de produto:
 - [ ] **RF-L009**: A home Learning deve permitir busca por tema, mentor, perfil, categoria, formato, preco, certificado, nivel e disponibilidade.
 - [ ] **RF-L010**: Produtos Learning publicados devem ter URL propria, metadata SEO e preview social sem expor conteudo premium.
 
+Estado incremental 2026-07-04: RF-L001 a RF-L008 têm implementação parcial em `/learning`, `/learning/:slug`, `GET /publico/learning` e `GET /publico/learning/perfis/:slug`, com perfis vindos do Studio. RF-L010 tem implementação inicial em `/learning/produtos/:slug` e `GET /publico/learning/produtos/:slug`, sem player premium real nem SEO social completo. A conclusão completa depende de schema dedicado, SEO avançado, elegibilidade, métricas por perfil e governança por owner.
+
 ### 5.2 Bizy Studio e Escolha Market/Learning/Ambos
 
 - [ ] **RF-L011**: O Bizy Studio deve apresentar a escolha de presenca publica: Market, Learning ou ambos.
@@ -141,6 +153,8 @@ Decisao de produto:
 - [ ] **RF-L038**: O comprador deve conseguir acompanhar o estado da compra digital e do acesso.
 - [ ] **RF-L039**: O sistema deve permitir reembolso total ou parcial conforme politica do produto e estado de consumo.
 - [ ] **RF-L040**: O sistema deve ajustar acesso quando uma compra digital for cancelada, reembolsada, expirada ou contestada.
+
+Estado incremental 2026-07-04: RF-L032/RF-L033/RF-L035/RF-L036/RF-L038/RF-L039/RF-L040 estão parcialmente implementados com checkout autenticado, compra digital, comprovativo URL, documento digital, movimento financeiro transitório em eventos, ajuste de compra, reembolso/cancelamento e revogação de entitlement. Ainda falta checkout público completo, split/payout, reembolso parcial por consumo, reconciliação financeira definitiva e UI detalhada de disputa.
 
 ### 5.5 Entitlement, Inscricao e Acesso
 
@@ -196,6 +210,8 @@ Decisao de produto:
 - [ ] **RF-L074**: Campanhas devem poder apontar para produtos Market, Learning ou ambos, mantendo origem rastreavel.
 - [ ] **RF-L075**: O sistema deve recomendar produtos Learning com base em perfil, eventos operacionais, compras, progresso e objectivos do negocio.
 - [ ] **RF-L076**: O sistema deve criar tarefas humanas quando um formando abandonar uma formacao obrigatoria ou quando uma live paga precisar de follow-up.
+
+Estado incremental 2026-07-04: RF-L069 tem cobertura parcial para visualização, preview, CTA checkout/inscrição, compra, inscrição, progresso, certificado e receita Learning no resumo Team. Ainda faltam abandono, retenção por período, funil público completo, CRM consentido, afiliados e tarefas automáticas.
 
 ## 6. Requisitos Nao Funcionais
 
@@ -341,6 +357,7 @@ Gestor/Mentor/Dono abre /app/learning
 - Validar que produtos gratuitos, pagos, bundles, memberships, lives, mentorias e certificacoes estao cobertos.
 - Criar testes HTTP para home Learning, perfil, produto digital, publicacao, checkout, entitlement e progresso.
 - Criar testes HTTP para chat interno Learning, threads por programa e mensagens de decisao/tarefa/suporte.
+- Criar testes HTTP para denuncias, fila de moderacao, decisao humana e ocultacao temporaria.
 - Criar testes de permissao para dono, admin, mentor, vendedor, afiliado/criador e comprador/formando.
 - Criar testes de revogacao de acesso apos reembolso, cancelamento, expiracao ou suspensao.
 - Criar browser QA em `/learning`, `/app/learning` e Studio.
@@ -350,22 +367,25 @@ Gestor/Mentor/Dono abre /app/learning
 Implementacao incremental existente:
 
 - home publica `/learning`;
+- perfil publico `/learning/:slug` alimentado transitoriamente por `entrega.lojaDigital.learning`;
 - backoffice `/app/learning`;
 - produtos/programas digitais iniciais por familias;
 - criacao/publicacao Team de produto Learning basico;
 - checkout digital Learning com origem, documento e movimento transitorio;
 - entitlement, inscricao, progresso e certificado;
 - chat interno Learning por programa, com mensagens de decisao, tarefa, suporte, anuncio e mensagem normal;
+- activacao Studio Market/Learning/Ambos com persistencia transitoria em `entrega.lojaDigital.learning`;
+- API publica `GET /publico/learning/perfis/:slug` para perfil Learning publicado sem exigir loja Market publicada;
 - testes HTTP e frontend targeted para a base implementada.
 
 Ainda pendente para o dominio definitivo:
 
 - schema dedicado Learning;
-- perfis publicos dedicados;
+- perfis publicos dedicados em tabela propria, com owners, imagem/capa, SEO, elegibilidade e metricas proprias;
 - player/conteudo premium protegido;
 - comunidades/memberships reais;
 - cohorts, lives, mentorias e agenda completa;
 - moderacao, denuncias e governanca global;
 - financeiro fiscal completo, comissoes, repasses e reconciliacao dedicados;
-- integracao Studio Market/Learning/Ambos completa;
+- integracao Studio Market/Learning/Ambos completa, incluindo perfil publico dedicado, elegibilidade e metricas;
 - browser QA visual completo em `/learning`, `/app/learning` e Studio.
