@@ -7,7 +7,7 @@ tags:
   - bizy/prioridades
   - bizy/lancamento
 status: ativo
-updated: 2026-06-05
+updated: 2026-07-10
 ---
 
 # Prioridades de Lancamento do Bizy
@@ -21,7 +21,7 @@ O backend esta maduro como fundacao CRM+ multi-negocio, modular e auditavel.
 As maiores lacunas restantes estao em:
 
 - checkout visual completo;
-- SEO/preview social renderizado no frontend publico;
+- ~~SEO/preview social renderizado no frontend publico~~;
 - privacidade/tracking banner;
 - paginacao padronizada com volume;
 - maturacao visual das paginas CRM novas para design v2.
@@ -46,7 +46,7 @@ Links: [[mapa-de-modulos-bizy#Loja Publica, Checkout e Tracking]], [[inventario-
 
 ### SEO e preview social
 
-Backend devolve `title`, `description`, `image`, `canonicalPath` e previews. Falta renderizar no frontend publico.
+~~Backend devolve `title`, `description`, `image`, `canonicalPath` e previews. Falta renderizar no frontend publico.~~ Fechado: o frontend publico aplica meta padrao, canonical, Open Graph e Twitter Card em Market, lojas, catalogos e Learning. Limite assumido: e SEO runtime da SPA; prerender/SSR fica como evolucao futura se a distribuicao exigir previews para crawlers que nao executam JavaScript.
 
 ### Checkout visual
 
@@ -54,7 +54,7 @@ Endpoint publico cria pedido e calcula entrega. Falta carrinho/resumo visual, et
 
 ### Privacidade e tracking
 
-Backend opera sem cookies e bloqueia dados pessoais. Falta aviso/banner visual quando tracking ou eventos de marketing forem usados.
+~~Backend opera sem cookies e bloqueia dados pessoais. Falta aviso/banner visual quando tracking ou eventos de marketing forem usados.~~ Fechado: tracking publico bloqueia dados pessoais e a UI publica usa aviso de privacidade/tracking.
 
 ### Estados vazios orientadores
 
@@ -66,7 +66,7 @@ Backend opera sem cookies e bloqueia dados pessoais. Falta aviso/banner visual q
 
 ### Paginacao padronizada
 
-APIs aceitam limites/filtros, mas falta paginacao cursor/offset padronizada e teste com volume.
+~~APIs aceitam limites/filtros, mas falta paginacao cursor/offset padronizada e teste com volume.~~ Fechado para as listas publicas grandes de Market com `limite`, `offset` e metadados de paginacao.
 
 ### Remover telas vazias/decorativas
 
@@ -130,7 +130,7 @@ P2 deve ser guiado por feedback real.
 
 ## Sequencia Recomendada
 
-1. **Sprint P0:** checkout visual, SEO renderizado, privacidade/tracking banner e paginacao padronizada.
+1. **Sprint P0:** checkout visual e consistencia mobile sem scroll horizontal.
 2. **Sprint P1:** perfil Cliente 360 polido, envio binario na conversa, colecoes visuais e templates WhatsApp.
 3. **P2 por feedback:** ligacao backend completa das paginas CRM novas (pipeline, agenda, metas, cotacoes, respostas rapidas, notas, formularios, sequencias), afiliados portal, social oficial, bus unificado.
 

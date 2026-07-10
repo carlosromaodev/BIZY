@@ -29,7 +29,7 @@ import {
   ROTAS_LOJAS
 } from "../api";
 import type { ProdutoMarketNormalizado } from "../api";
-import { aplicarSeoMetaTags, formatarKwanza } from "../../../utilidades";
+import { aplicarSeoMetaTags, formatarKwanza, montarSeoPublico } from "../../../utilidades";
 
 const CORES_VARIANTES: Record<string, string> = {
   amarelo: "#d9a441",
@@ -118,11 +118,13 @@ export function PaginaProdutoMarket() {
         setSimilares((respostaSimilares?.produtos ?? resposta.similares ?? []).map(normalizarProdutoMarket));
         setFotoAtiva(0);
         setQuantidade(1);
-        limparSeo = aplicarSeoMetaTags(resposta.seo ?? {
+        limparSeo = aplicarSeoMetaTags(resposta.seo ?? montarSeoPublico({
           titulo: `${normalizado.nome} | Bizy Market`,
-          descricao: normalizado.descricao || undefined,
-          imagem: normalizado.fotos[0] || undefined
-        });
+          descricao: normalizado.descricao || `${normalizado.nome} de ${normalizado.nomeFornecedor} no Bizy Market.`,
+          canonicalPath: normalizado.urlMarket || ROTAS_LOJAS.produtoMarket(normalizado.codigo),
+          imagem: normalizado.fotos[0] || undefined,
+          tipo: "product"
+        }));
       } catch (falha) {
         if (!ativo) return;
         setErro(falha instanceof Error ? falha.message : "Produto fora do Market ou indisponível.");

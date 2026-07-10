@@ -329,6 +329,79 @@ describe("GestaoWorkflowUseCase", () => {
     expect(payloadFinal).toEqual(expect.objectContaining({ execucaoId: "execucao-1", estado: "CONCLUIDO" }));
   });
 
+  it("RN-T025: pausa fluxo e cria tarefa humana apos falhas criticas consecutivas", async () => {
+    const fluxoAutomatico = {
+      findUniqueOrThrow: vi.fn().mockResolvedValue({
+        id: "fluxo-critico",
+        negocioId: "negocio-1",
+        nome: "Cobranca automatica",
+        ativo: true,
+        pausadoPorFalha: false,
+        falhasConsecutivas: 2,
+        passos: [{ id: "passo-1", ordem: 1, tipo: "WEBHOOK" }]
+      }),
+      update: vi.fn().mockResolvedValue({ id: "fluxo-critico" })
+    };
+    const execucaoFluxo = {
+      create: vi.fn().mockResolvedValue({ id: "execucao-critica", fluxoId: "fluxo-critico" }),
+      update: vi
+        .fn()
+        .mockRejectedValueOnce(new Error("Provider n8n indisponivel"))
+        .mockResolvedValue({ id: "execucao-critica" })
+    };
+    const outboxEventoN8n = {
+      create: vi.fn().mockResolvedValue({ id: "outbox-critico", eventoId: "evento-critico", status: "PENDENTE" }),
+      update: vi.fn().mockResolvedValue({ id: "outbox-critico", status: "FALHOU" })
+    };
+    const tarefaOperacional = {
+      create: vi.fn().mockResolvedValue({ id: "tarefa-workflow-1" })
+    };
+    const prisma = {
+      fluxoAutomatico,
+      execucaoFluxo,
+      outboxEventoN8n,
+      tarefaOperacional,
+      $transaction: vi.fn(async (operacao) => {
+        if (typeof operacao === "function") return operacao({ execucaoFluxo, outboxEventoN8n });
+        return Promise.all(operacao);
+      })
+    } as unknown as PrismaClient;
+    const useCase = new GestaoWorkflowUseCase(prisma);
+
+    const resultado = await useCase.executarFluxo("fluxo-critico", "pedido-1");
+
+    expect(resultado).toEqual(
+      expect.objectContaining({
+        execucaoId: "execucao-critica",
+        estado: "FALHADO",
+        erro: "Provider n8n indisponivel"
+      })
+    );
+    expect(fluxoAutomatico.update).toHaveBeenCalledWith({
+      where: { id: "fluxo-critico" },
+      data: { falhasConsecutivas: 3, pausadoPorFalha: true, ativo: false }
+    });
+    expect(tarefaOperacional.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        negocioId: "negocio-1",
+        tipo: "WORKFLOW",
+        prioridade: "ALTA",
+        estado: "ABERTA",
+        titulo: expect.stringContaining("pausado por falhas consecutivas"),
+        descricao: expect.stringContaining("Provider n8n indisponivel")
+      })
+    });
+    expect(outboxEventoN8n.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "outbox-critico" },
+        data: expect.objectContaining({
+          status: "FALHOU",
+          ultimoErro: "Provider n8n indisponivel"
+        })
+      })
+    );
+  });
+
   it("RF-T070/RF-T072: usa threshold configurável e etapa crítica concluída nos alertas WhatsApp", async () => {
     const configuracaoAlertaProactivo = {
       findMany: vi.fn().mockResolvedValue([

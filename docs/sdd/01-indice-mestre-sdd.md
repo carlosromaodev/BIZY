@@ -16,7 +16,7 @@ Criado em: 2026-06-28
 
 | Dominio | Arquivo | Resumo |
 |---|---|---|
-| 00 | `domains/00-visao-produto-e-principios.md` | Visao, tese, publico, contexto angolano, principios e evolucao live -> CRM+ -> Market -> Team. |
+| 00 | `domains/00-visao-produto-e-principios.md` | Visao unificada, tese, publico, contexto angolano, principios, Team, Market, Learning e Anani interno. |
 | 01 | `domains/01-arquitetura-plataforma.md` | Stack, modularidade, use cases, providers, outbox e backend como fonte de verdade. |
 | 02 | `domains/02-identidade-acesso-negocios.md` | Autenticacao, sessoes, negocios, membros, papeis, modulos e multi-tenant. |
 | 03 | `domains/03-crm-social-commerce.md` | Nucleo CRM+ para vendas sociais, pedidos, conversas, tarefas e relatorios. |
@@ -38,7 +38,7 @@ Criado em: 2026-06-28
 Specs de iniciativa ficam em `../superpowers/specs/`.
 Planos executaveis ficam em `../superpowers/plans/`.
 
-A meta global em `../superpowers/specs/2026-06-30-meta-global-bizy.md` e o filtro estrategico antes de qualquer spec: toda iniciativa precisa melhorar descoberta, conversao, execucao, retencao ou controlo.
+A visao unificada em `../wiki/pages/visao-produto-bizy.md` e a fonte canonica. A meta global em `../superpowers/specs/2026-06-30-meta-global-bizy.md` e o filtro estrategico antes de qualquer spec: toda iniciativa precisa melhorar descoberta, conversao, execucao, retencao ou controlo.
 
 Fluxo recomendado:
 
@@ -69,3 +69,8 @@ O SDD organiza fronteiras, regras e responsabilidades por dominio. Quando houver
 ## Decisoes
 
 - `decisions/ADR-0001-sdd-como-fonte-de-organizacao.md`
+- `decisions/ADR-0002-anani-nucleo-interno-invisivel.md`
+
+## Specs SDD Recentes
+
+- `specs/2026-07-09-anani-control-plane-backend.md`

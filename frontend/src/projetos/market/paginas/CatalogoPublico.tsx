@@ -4,7 +4,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { obterCatalogoPublico, normalizarProdutoLojaPublica, ROTAS_LOJAS } from "../api";
 import type { RespostaCatalogoPublico } from "../api";
 import type { ProdutoMarketNormalizado } from "../api";
-import { formatarKwanza, aplicarSeoMetaTags } from "../../../utilidades";
+import { formatarKwanza, aplicarSeoMetaTags, montarSeoPublico } from "../../../utilidades";
 import { resolverUrlMedia } from "../../../api";
 
 function formatarSeloCatalogo(selo: string): string {
@@ -34,10 +34,12 @@ export function PaginaCatalogoPublico() {
         if (!ativo) return;
         setDados(resposta);
         setProdutos((resposta.produtos ?? []).map((p) => normalizarProdutoLojaPublica(p, resposta.loja?.slug)));
-        limparSeo = aplicarSeoMetaTags(resposta.seo ?? {
+        limparSeo = aplicarSeoMetaTags(resposta.seo ?? montarSeoPublico({
           titulo: `${resposta.catalogo?.nome ?? catalogoId} | Bizy`,
-          descricao: resposta.catalogo?.descricao ?? undefined
-        });
+          descricao: resposta.catalogo?.descricao ?? `Catálogo público de ${resposta.loja?.nomeComercial ?? slug} no Bizy.`,
+          canonicalPath: ROTAS_LOJAS.catalogoLoja(slug, catalogoId),
+          imagem: resposta.loja?.logoUrl ?? undefined
+        }));
       } catch (falha) {
         if (!ativo) return;
         setErro(falha instanceof Error ? falha.message : "Não foi possível carregar o catálogo.");

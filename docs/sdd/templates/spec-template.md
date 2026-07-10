@@ -3,6 +3,7 @@
 Status: rascunho
 Data: AAAA-MM-DD
 Dominio SDD: CAMINHO_DO_DOMINIO
+Visao canonica: `docs/wiki/pages/visao-produto-bizy.md`
 Capacidade da meta global: descoberta | conversao | execucao | retencao | controlo
 Owner logico: PAPEL_OU_AREA_RESPONSAVEL
 
@@ -10,7 +11,7 @@ Owner logico: PAPEL_OU_AREA_RESPONSAVEL
 
 Descrever em uma ou duas frases o que esta iniciativa entrega e por que ela importa para o Bizy.
 
-Explicar como a iniciativa melhora a capacidade declarada da meta global em `docs/superpowers/specs/2026-06-30-meta-global-bizy.md`.
+Explicar como a iniciativa respeita a visao canonica e melhora a capacidade declarada da meta global em `docs/superpowers/specs/2026-06-30-meta-global-bizy.md`.
 
 ## 2. Contexto
 

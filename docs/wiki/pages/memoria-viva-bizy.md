@@ -6,22 +6,22 @@ tags:
   - bizy/memoria
   - bizy/operacao
 status: ativo
-updated: 2026-06-07
+updated: 2026-07-10
 ---
 
 # Memoria Viva do Bizy
 
 Status: ativo
-Ultima atualizacao: 2026-06-07
-Fontes principais: `README.md`, `docs/RF-RNF-RN-EMEUV1.md`, `docs/deploy.md`, `docs/docker.md`, `docs/n8n.md`, `frontend/src/rotasApp.tsx`, `backend/src/infra/http/modulos/manifestoModulosHttp.ts`
+Ultima atualizacao: 2026-07-10
+Fontes principais: `README.md`, `docs/RF-RNF-RN-EMEUV1.md`, `docs/deploy.md`, `docs/docker.md`, `docs/n8n.md`, `frontend/src/rotasApp.tsx`, `backend/src/infra/http/modulos/manifestoModulosHttp.ts`, `docs/sdd/decisions/ADR-0002-anani-nucleo-interno-invisivel.md`
 
 ## Identidade do Projeto
 
-Bizy/EMeu e uma plataforma de comercio operacional para social commerce, lives e WhatsApp. A primeira identidade era automacao de vendas em lives, mas a direcao atual e Bizy CRM+: CRM de loja, pedidos, catalogo/stock, clientes 360, atendimento, loja publica, afiliados, campanhas, tracking, tarefas e recuperacao comercial.
+Bizy/EMeu e o sistema operacional comercial para pequenos negocios. A primeira identidade era automacao de vendas em lives, mas a direcao atual organiza o produto em tres sistemas visiveis: Bizy Team, Bizy Market e Bizy Learning. Por dentro, Anani e o nucleo invisivel de inteligencia, risco, auditoria, controlo e governanca.
 
 O produto deve parecer ferramenta de operacao diaria, nao landing page permanente. As telas internas devem ser densas, claras, previsiveis e orientadas a acao.
 
-Para a memoria de produto, visao, dores resolvidas, qualidades e regras de decisao para outra IA, comecar por [[memoria-projeto-bizy|Memoria de Projeto do Bizy]] e [[guia-para-ia-bizy|Guia para IA no Bizy]]. Esta pagina continua como memoria operacional e historico de trabalho.
+Para a memoria de produto, visao, dores resolvidas, qualidades e regras de decisao para outra IA, comecar por [[memoria-projeto-bizy|Memoria de Projeto do Bizy]], [[guia-para-ia-bizy|Guia para IA no Bizy]] e [[anani-intelligence-control-plane]]. Esta pagina continua como memoria operacional e historico de trabalho.
 
 ## Como Navegar Esta Memoria
 
@@ -48,7 +48,7 @@ O vendedor precisa conseguir:
 - usar campanhas, afiliados e tracking sem perder controle humano;
 - operar WhatsApp/n8n/Evolution com guardrails.
 
-O backend ja tem fundacao ampla de CRM+; a Loja Digital agora tem configuracao operacional ligada ao CRM via `experiencia.operacao`, cobrindo checkout, fidelizacao, automacoes, canais e relatorios. O frontend ainda concentra lacunas P0/P1 em SEO/consentimento publico, paginacao visual e maturacao de alguns fluxos avancados.
+O backend ja tem fundacao ampla de CRM+; a Loja Digital agora tem configuracao operacional ligada ao CRM via `experiencia.operacao`, cobrindo checkout, fidelizacao, automacoes, canais e relatorios. O frontend ainda concentra lacunas P0/P1 em checkout visual, SEO publico, consistencia mobile e maturacao de alguns fluxos avancados.
 
 ## Stack
 
@@ -102,6 +102,8 @@ Entrada principal:
 - `backend/src/main.ts`
 - `backend/src/infra/http/criarAplicacao.ts`
 - `backend/src/infra/http/ContextoAplicacao.ts`
+- `backend/src/app/bootstrap/bootstrapAnani.ts`
+- `backend/src/anani/policies/AnaniPolicyEngine.ts`
 
 Manifesto de modulos HTTP:
 
@@ -142,6 +144,8 @@ Use cases centrais:
 - `OnboardingBizyUseCase`
 
 Regra de arquitetura: dominio/use cases nao devem depender de Fastify, React, TikTok, n8n ou Evolution diretamente. Providers e repositorios ficam atras de contratos.
+
+Anani fica como nucleo interno. Rotas diretas devem ficar em `/governance/anani/*`, protegidas por papel de plataforma, e nao podem aparecer como modulo comum de tenant.
 
 ## Frontend Atual
 

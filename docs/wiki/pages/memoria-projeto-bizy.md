@@ -9,7 +9,7 @@ tags:
   - bizy/produto
   - ia/briefing
 status: ativo
-updated: 2026-06-07
+updated: 2026-07-10
 ---
 
 # Memoria de Projeto do Bizy
@@ -19,11 +19,15 @@ updated: 2026-06-07
 
 ## Resumo Curto
 
-Bizy e um CRM+ de social commerce para negocios que vendem por live, WhatsApp, loja publica, catalogo, afiliados, criadores e redes sociais. O sistema transforma interacoes dispersas em [[dominio-e-entidades-bizy|clientes, pedidos, pagamentos, entregas, tarefas, campanhas, tracking, comissoes e relatorios auditaveis]].
+Bizy e o sistema operacional comercial para pequenos negocios que vendem, atendem, cobram, entregam, recuperam clientes, gerem equipa e medem crescimento no mesmo lugar.
 
-O projeto nasceu como EMeu, focado em automacao de vendas em lives. A direcao atual e maior: o nucleo do produto e loja/CRM operacional, e a live e apenas um canal forte dentro desse ecossistema.
+Formula atual:
 
-Atualizacao 2026-06-07: a loja digital deve evoluir para [[bizy-market-lojas-digitais|Bizy Market e Lojas Digitais]], combinando perfis autonomos de loja, shopping center central, produtos similares entre fornecedores, checkout unificado Bizy e controlo completo dentro do CRM.
+```text
+Bizy = Bizy Team + Bizy Market + Bizy Learning + Anani interno
+```
+
+O projeto nasceu como EMeu, focado em automacao de vendas em lives. Essa origem continua importante, mas live, WhatsApp, loja publica, campanhas, afiliados e social inbox agora sao canais que alimentam o mesmo loop comercial. A fonte canonica desta direcao e [[visao-produto-bizy|Visao Unificada do Bizy]].
 
 ## Mapa da Memoria
 
@@ -31,13 +35,14 @@ Leia nesta ordem quando estiveres a continuar o projeto:
 
 1. [[guia-para-ia-bizy|Guia para outra IA]]
 2. [[protocolo-atualizacao-memoria-bizy|Protocolo de Atualizacao da Memoria]]
-3. [[visao-produto-bizy|Visao e estrategia de produto]]
-4. [[dores-e-qualidades-bizy|Dores resolvidas e qualidades do produto]]
-5. [[mapa-de-modulos-bizy|Mapa de modulos funcionais]]
-6. [[dominio-e-entidades-bizy|Dominio e entidades principais]]
-7. [[fluxos-operacionais-bizy|Fluxos operacionais]]
-8. [[arquitetura-e-guardrails-bizy|Arquitetura e guardrails]]
-9. [[prioridades-lancamento-bizy|Prioridades de lancamento]]
+3. [[visao-produto-bizy|Visao Unificada do Bizy]]
+4. [[anani-intelligence-control-plane|Anani Intelligence Control Plane]]
+5. [[dores-e-qualidades-bizy|Dores resolvidas e qualidades do produto]]
+6. [[mapa-de-modulos-bizy|Mapa de modulos funcionais]]
+7. [[dominio-e-entidades-bizy|Dominio e entidades principais]]
+8. [[fluxos-operacionais-bizy|Fluxos operacionais]]
+9. [[arquitetura-e-guardrails-bizy|Arquitetura e guardrails]]
+10. [[prioridades-lancamento-bizy|Prioridades de lancamento]]
 
 Depois de entender o produto, use os inventarios:
 
@@ -50,24 +55,14 @@ Depois de entender o produto, use os inventarios:
 
 ## O Que o Bizy E
 
-O Bizy e uma plataforma de operacao comercial para vender, atender, cobrar, entregar, recuperar clientes e medir resultado nos canais onde pequenas lojas realmente trabalham.
+O Bizy tem tres sistemas visiveis e um nucleo interno:
 
-Ele junta:
+- Bizy Team: operacao privada, CRM, equipa, pedidos, pagamentos, tarefas, financeiro e backoffice.
+- Bizy Market: descoberta publica, lojas, produtos, checkout, confianca, tracking e repasses.
+- Bizy Learning: produtos digitais, cursos, mentorias, comunidade, acesso, progresso e certificados.
+- Anani: nucleo interno invisivel de inteligencia, risco, auditoria, controlo e governanca.
 
-- CRM de clientes;
-- catalogo e stock;
-- pedidos e reservas;
-- atendimento WhatsApp;
-- lives e comentarios;
-- loja publica;
-- Bizy Market e perfis de loja;
-- checkout;
-- social inbox;
-- campanhas;
-- afiliados/criadores/revendedores;
-- tarefas e playbooks;
-- tracking e atribuicao;
-- relatorios e auditoria.
+Ele transforma interacoes dispersas em [[dominio-e-entidades-bizy|clientes, produtos, pedidos, pagamentos, entregas, conversas, tarefas, campanhas, tracking, comissoes e relatorios auditaveis]].
 
 ## O Que o Bizy Nao E
 
@@ -82,6 +77,7 @@ O Bizy tambem nao deve virar:
 - sistema dependente de n8n como fonte de verdade;
 - automacao que confirma pagamento ou promete entrega sem regra;
 - app cheio de modulos vazios.
+- Anani exposto como produto de tenant.
 
 ## Frase Norteadora
 
@@ -92,20 +88,11 @@ Se uma tela, endpoint ou automacao nao faz isso, precisa ser repensada, escondid
 
 ## Estado Atual em Uma Leitura
 
-O backend CRM+ ja esta amplo: autenticacao, negocio, catalogo, reservas, pedidos, clientes 360, conversas, WhatsApp, n8n, loja publica, tracking, afiliados, social inbox, campanhas, funil, tarefas, relatorios, auditoria, jobs, contratos, backup e rate limit.
+O backend ja esta amplo: autenticacao, negocio, catalogo, reservas, pedidos, clientes 360, conversas, WhatsApp, n8n, loja publica, Market, Learning, tracking, afiliados, social inbox, campanhas, funil, tarefas, relatorios, auditoria, jobs, contratos, Anani, backup e rate limit.
 
-O maior risco de lancamento esta no frontend publico e em polimento operacional:
+As lacunas de lancamento devem ser lidas em [[prioridades-lancamento-bizy]]. Hoje o foco P0/P1 nao e inventar nova visao; e fechar execucao, checkout visual, SEO publico, consistencia mobile, projectors/read models Anani e polimento operacional.
 
-- loja publica visual;
-- checkout visual;
-- SEO e preview social;
-- privacidade/tracking no frontend;
-- estados vazios orientadores;
-- ocultar modulos desativados;
-- paginacao padronizada;
-- telas visuais de funil, Cliente 360, afiliados e playbooks.
-
-Detalhes ficam em [[prioridades-lancamento-bizy]].
+Detalhes de estado tecnico ficam em [[memoria-viva-bizy]] e nos inventarios.
 
 ## Regra Para Futuras IAs
 
@@ -115,6 +102,7 @@ Detalhes ficam em [[prioridades-lancamento-bizy]].
 Antes de alterar codigo, outra IA deve responder:
 
 - Que dor real isto resolve?
+- Isto respeita [[visao-produto-bizy|a visao unificada]]?
 - Qual entidade principal esta envolvida?
 - O dado esta isolado por `negocioId`?
 - Existe permissao/auditoria?

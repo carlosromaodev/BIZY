@@ -6,7 +6,7 @@ Dominio SDD: `domains/00-visao-produto-e-principios.md`
 
 ## Contexto
 
-O Bizy cresceu de automacao de live para CRM+, Bizy Market e Bizy Team. A documentacao existente esta distribuida entre wiki, requisitos formais, specs Superpowers, planos, arquivos raiz e codigo.
+O Bizy cresceu de automacao de live para a visao unificada atual: Bizy Team, Bizy Market, Bizy Learning e Anani interno. A documentacao existente esta distribuida entre wiki, requisitos formais, specs Superpowers, planos, arquivos raiz e codigo.
 
 Essa distribuicao guarda bastante conhecimento, mas dificulta responder rapidamente:
 

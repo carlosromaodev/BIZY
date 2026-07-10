@@ -2284,3 +2284,97 @@ model PesquisaNPS {
   @@index([negocioId, criadoEm])
   @@index([negocioId, modulo])
 }
+
+// ── Anani — Event Outbox (Fila de Eventos Duráveis) ─────────────────────
+
+model EventOutbox {
+  id              String    @id @default(uuid())
+  tipo            String
+  sistema         String    // TEAM | MARKET | LEARNING | CORE | ANANI
+  contexto        String    // bounded context de origem
+  negocioId       String?
+  actorId         String?
+  aggregateType   String?
+  aggregateId     String?
+  payload         Json
+  metadata        Json?
+  correlationId   String?
+  causationId     String?
+  status          String    @default("PENDING") // PENDING | PROCESSED | FAILED
+  tentativas      Int       @default(0)
+  erro            String?
+  criadoEm        DateTime  @default(now())
+  processadoEm    DateTime?
+
+  @@index([status, criadoEm])
+  @@index([negocioId])
+  @@index([sistema, tipo])
+  @@index([correlationId])
+}
+
+// ── Anani — Snapshot de Risco por Tenant (Read Model) ────────────────────
+
+model AnaniTenantRiskSnapshot {
+  id              String   @id @default(uuid())
+  negocioId       String
+  sistema         String   // TEAM | MARKET | LEARNING
+  riskScore       Float    @default(0)
+  trustScore      Float    @default(1)
+  sinais          Json     @default("[]")
+  recomendacoes   Json?
+  criadoEm        DateTime @default(now())
+
+  @@index([negocioId, sistema])
+  @@index([negocioId, criadoEm])
+}
+
+// ── Anani — Quarentena Preventiva ────────────────────────────────────────
+
+model AnaniQuarantine {
+  id              String    @id @default(uuid())
+  tipo            String    // SESSION | DEVICE | TENANT | USER | ORDER | PAYMENT | CAMPAIGN | PRODUCT | STORE | COURSE | API_KEY | WORKFLOW | INTEGRATION
+  sistema         String    // TEAM | MARKET | LEARNING | PLATFORM
+  negocioId       String?
+  entidadeTipo    String?
+  entidadeId      String?
+  severidade      String    // LOW | MEDIUM | HIGH | CRITICAL
+  motivo          String
+  evidencias      Json      @default("[]")
+  status          String    @default("OPEN") // OPEN | RESOLVED | IGNORED
+  acaoTomada      Json?
+  criadoPor       String    @default("ANANI")
+  revistoPor      String?
+  criadoEm        DateTime  @default(now())
+  revistoEm       DateTime?
+
+  @@index([negocioId])
+  @@index([status, severidade])
+  @@index([tipo, status])
+  @@index([criadoEm])
+}
+
+// ── Anani — Incidentes para Consola de Governança ───────────────────────
+
+model AnaniIncident {
+  id              String    @id @default(uuid())
+  titulo          String
+  tipo            String    // SECURITY | FRAUD | ABUSE | COMPLIANCE | OPERATIONAL | DATA_LEAK
+  severidade      String    // LOW | MEDIUM | HIGH | CRITICAL
+  sistema         String    // TEAM | MARKET | LEARNING | PLATFORM
+  negocioId       String?
+  status          String    @default("OPEN") // OPEN | INVESTIGATING | RESOLVED | CLOSED
+  resumo          String
+  timeline        Json      @default("[]")
+  entidades       Json      @default("[]")
+  evidencias      Json      @default("[]")
+  decisoes        Json      @default("[]")
+  recomendacao    String?
+  relatorioUrl    String?
+  criadoEm        DateTime  @default(now())
+  fechadoEm       DateTime?
+
+  @@index([negocioId])
+  @@index([status, severidade])
+  @@index([tipo, status])
+  @@index([criadoEm])
+}

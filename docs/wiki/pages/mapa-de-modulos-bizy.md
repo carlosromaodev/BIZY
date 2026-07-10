@@ -7,13 +7,25 @@ tags:
   - bizy/modulos
   - bizy/produto
 status: ativo
-updated: 2026-06-07
+updated: 2026-07-10
 ---
 
 # Mapa de Modulos do Bizy
 
 > [!info] Relacao com codigo
 > O inventario tecnico dos endpoints fica em [[inventario-backend-api]]. Esta nota explica os modulos pelo ponto de vista do produto.
+
+## Regra Atual de Produto
+
+Fonte: [[visao-produto-bizy|Visao Unificada do Bizy]].
+
+Bizy tem tres sistemas visiveis:
+
+- Bizy Team
+- Bizy Market
+- Bizy Learning
+
+Tudo fora desses tres deve ser tratado como nucleo interno, capability, provider, worker ou infraestrutura. [[anani-intelligence-control-plane|Anani]] e nucleo interno invisivel de inteligencia, risco, auditoria e governanca; nao e modulo de tenant.
 
 ## Autenticacao e Onboarding
 
@@ -202,6 +214,23 @@ Inclui:
 - follow-up.
 
 Fonte de verdade continua no backend.
+
+## Anani
+
+Nucleo interno de inteligencia e controlo da plataforma.
+
+Inclui:
+
+- event outbox interno;
+- read models e snapshots de risco;
+- policy engine;
+- skill registry;
+- incidentes;
+- quarentena preventiva;
+- futura Governance Console;
+- futura integracao Claude/GPT com contexto sanitizado.
+
+Regra: acesso direto apenas a `GOVERNANTE_BIZY`, `ADMIN_GERAL` e `SUPER_ADMIN_PLATFORM`. Donos, admins de negocio, vendedores, alunos, professores, compradores e afiliados recebem apenas efeitos dentro do Team, Market ou Learning.
 
 ## Loja Publica, Checkout e Tracking
 

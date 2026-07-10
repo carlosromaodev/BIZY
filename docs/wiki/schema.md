@@ -6,7 +6,7 @@ tags:
   - bizy/wiki
   - bizy/schema
 status: ativo
-updated: 2026-05-27
+updated: 2026-07-10
 ---
 
 # Schema da Wiki
@@ -18,10 +18,11 @@ Manter uma camada organizada entre os ficheiros brutos do projeto e as respostas
 ## Ligacoes Essenciais
 
 - O mapa de navegacao fica em [Indice da Wiki](index.md), mas as paginas tambem devem ligar diretamente umas as outras quando houver relacao real.
+- A visao canonica fica em [Visao Unificada do Bizy](pages/visao-produto-bizy.md).
 - A memoria de produto para outra IA fica em [Memoria de Projeto do Bizy](pages/memoria-projeto-bizy.md).
 - O guia de uso da memoria por agentes fica em [Guia para IA no Bizy](pages/guia-para-ia-bizy.md).
 - O protocolo obrigatorio de manutencao continua fica em [Protocolo de Atualizacao da Memoria](pages/protocolo-atualizacao-memoria-bizy.md).
-- As notas tematicas principais sao [Visao de Produto](pages/visao-produto-bizy.md), [Dores e Qualidades](pages/dores-e-qualidades-bizy.md), [Mapa de Modulos](pages/mapa-de-modulos-bizy.md), [Dominio e Entidades](pages/dominio-e-entidades-bizy.md), [Fluxos Operacionais](pages/fluxos-operacionais-bizy.md), [Arquitetura e Guardrails](pages/arquitetura-e-guardrails-bizy.md) e [Prioridades de Lancamento](pages/prioridades-lancamento-bizy.md).
+- As notas tematicas principais sao [Visao Unificada](pages/visao-produto-bizy.md), [Dores e Qualidades](pages/dores-e-qualidades-bizy.md), [Mapa de Modulos](pages/mapa-de-modulos-bizy.md), [Dominio e Entidades](pages/dominio-e-entidades-bizy.md), [Fluxos Operacionais](pages/fluxos-operacionais-bizy.md), [Arquitetura e Guardrails](pages/arquitetura-e-guardrails-bizy.md) e [Prioridades de Lancamento](pages/prioridades-lancamento-bizy.md).
 - A memoria operacional fica em [Memoria Viva do Bizy](pages/memoria-viva-bizy.md).
 - O inventario detalhado comeca em [Inventario do Sistema Bizy](pages/inventario-sistema-bizy.md).
 - As regras de localizacao de ficheiros ficam em [Organizacao de Arquivos](pages/organizacao-de-arquivos.md).

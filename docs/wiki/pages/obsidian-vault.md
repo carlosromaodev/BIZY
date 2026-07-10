@@ -6,14 +6,14 @@ tags:
   - bizy/wiki
   - obsidian
 status: ativo
-updated: 2026-05-27
+updated: 2026-07-10
 ---
 
 # Vault Obsidian
 
 Status: ativo
-Ultima atualizacao: 2026-05-27
-Fontes principais: `docs/wiki/README.md`, `docs/wiki/schema.md`
+Ultima atualizacao: 2026-07-10
+Fontes principais: `docs/wiki/README.md`, `docs/wiki/schema.md`, `docs/wiki/pages/anani-intelligence-control-plane.md`
 
 ## Pasta do Vault
 
@@ -29,6 +29,7 @@ docs/wiki/
 - Mapa de navegacao: [Indice da Wiki](../index.md).
 - Memoria que deve aparecer como no central do grafo: [Memoria Viva do Bizy](memoria-viva-bizy.md).
 - Inventario detalhado: [Inventario do Sistema Bizy](inventario-sistema-bizy.md).
+- Nucleo interno novo: [[anani-intelligence-control-plane]].
 
 ## Como Abrir
 
@@ -44,6 +45,7 @@ docs/wiki/
 - `index.md` e o mapa principal.
 - `log.md` registra alteracoes da wiki.
 - `workspace.json` e estado local do Obsidian e nao deve ser versionado.
+- Notas de arquitetura interna como Anani devem ficar em `pages/` e usar wikilinks para SDD/ADR/spec.
 
 ## Para Memoria do Agente
 

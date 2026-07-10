@@ -14,6 +14,8 @@ Cliente -> Produto -> Pedido -> Pagamento -> Entrega
 Live, WhatsApp, loja publica, Bizy Market, Bizy Learning, Social Inbox, campanhas, afiliados e formularios sao canais de entrada. Eles alimentam o mesmo nucleo operacional.
 Bizy Learning e um sistema proprio de produtos digitais, activacao, formacao, comunidade e monetizacao de conhecimento. Ele tem home publica propria como o Bizy Market, mas o backstage de perfis, owners, produtos digitais, precos, publicacao, entitlements, cohorts, progresso e certificados e administrado pelo Team. O Bizy Studio deve orientar o negocio a activar presenca em Market, Learning ou ambos.
 
+Desde 2026-07-09, a camada visivel do Bizy fica limitada a `Bizy Team`, `Bizy Market` e `Bizy Learning`. `Anani` e nucleo interno de inteligencia, controlo, risco e governanca; nao e modulo comercial nem menu de tenant.
+
 ## 2. Mapa de Dominios
 
 | Dominio | Modulos | Entidades Principais | APIs/Telas | Fontes |
@@ -29,7 +31,7 @@ Bizy Learning e um sistema proprio de produtos digitais, activacao, formacao, co
 | 08 Afiliados/Social | Afiliados, campanhas, Social Inbox | `ParceiroComercial`, `LinkAfiliado`, `CampanhaCrm`, `SocialInboxItem` | `/afiliados`, `/campanhas`, `/social/inbox` | requisitos social commerce |
 | 09 Team/Projectos | Equipa, turnos, projectos | `ConviteEquipa`, `MetaVendas`, `Projecto`, `ProjetoComercial` | `/equipa`, `/projectos` | requisitos Bizy Team |
 | 10 Financas | Ledger, facturacao, conformidade | `MovimentoFinanceiro`, `Factura`, `Despesa`, `RegraFiscal` | `/financas`, `/conformidade` | requisitos Team, financas |
-| 11 Inteligencia | Previsoes, insights, workflow, n8n | `InsightPreditivo`, `FluxoAutomatico`, `ExecucaoFluxo` | `/inteligencia`, `/workflow`, `/n8n` | requisitos Team, automacoes |
+| 11 Inteligencia | Previsoes, insights, workflow, n8n, Anani interno | `InsightPreditivo`, `FluxoAutomatico`, `ExecucaoFluxo`, `EventOutbox`, `AnaniTenantRiskSnapshot`, `AnaniQuarantine`, `AnaniIncident` | `/inteligencia`, `/workflow`, `/n8n`, `/governance/anani` | requisitos Team, automacoes, ADR-0002 |
 | 12 Frontend/UX | Shell, paginas, design system | tipos frontend e componentes | `frontend/src/rotasApp.tsx`, paginas React | identidade visual v2 |
 | 13 Operacao | Deploy, Docker, backup, observabilidade | jobs, logs, scripts | `/saude`, scripts, Docker Compose | docs deploy |
 | 14 Seguranca | RBAC, privacidade, auditoria | `EventoOperacional`, `Auditoria*`, sessoes | guardas HTTP, auditoria, rate limit | guardrails seguranca |
@@ -43,6 +45,7 @@ Bizy Learning e um sistema proprio de produtos digitais, activacao, formacao, co
 - Tracking nao substitui pedido, pagamento ou consentimento.
 - Backend e fonte de verdade para stock, pagamento, permissao, consentimento, comissao e auditoria.
 - n8n, Evolution, Cloud API, IA e conectores sociais sao suporte operacional.
+- Anani e nucleo interno invisivel; tenants veem efeitos dentro de Team/Market/Learning, nao a console Anani.
 - Market gera descoberta; CRM/Team controla execucao.
 - Financas devem estar ligadas a origem operacional auditavel.
 - Learning deve ser separado do Market: Market controla stock, entrega e pedidos fisicos; Learning controla acesso, entitlement, progresso, certificados, comunidades e produtos digitais. Ambos podem ser geridos pelo Studio e administrados no Team conforme permissao.
@@ -53,6 +56,7 @@ Arquivos de entrada:
 
 - Backend HTTP: `backend/src/infra/http/modulos/manifestoModulosHttp.ts`
 - Composicao backend: `backend/src/infra/http/ContextoAplicacao.ts`
+- Nucleo Anani: `backend/src/anani/`, `backend/src/app/bootstrap/bootstrapAnani.ts`
 - Dados: `backend/prisma/schema.prisma`
 - Frontend rotas: `frontend/src/rotasApp.tsx`
 - API frontend: `frontend/src/api.ts`

@@ -111,7 +111,8 @@ export function listarProdutosMarket(filtros: FiltrosMarketProdutos = {}): Promi
       precoMaximo: filtros.precoMaximo,
       apenasDisponivel: filtros.apenasDisponivel,
       apenasPromocao: filtros.apenasPromocao,
-      limite: filtros.limite
+      limite: filtros.limite,
+      offset: filtros.offset
     }),
     {},
     false
@@ -432,7 +433,8 @@ export function listarLojasMarket(filtros: FiltrosMarketLojas = {}): Promise<Res
       busca: filtros.busca,
       categoria: filtros.categoria,
       provincia: filtros.provincia,
-      limite: filtros.limite
+      limite: filtros.limite,
+      offset: filtros.offset
     }),
     {},
     false

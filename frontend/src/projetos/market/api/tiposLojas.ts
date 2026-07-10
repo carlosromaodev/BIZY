@@ -1,3 +1,6 @@
+import type { PaginacaoOffset } from "../../../tipos";
+import type { DadosSeoPreviewSocial } from "../../../utilidades";
+
 export type RegistroJson = Record<string, unknown>;
 
 export type EstadoStockPublico = "DISPONIVEL" | "BAIXO_STOCK" | "ESGOTADO" | "ARQUIVADO" | string;
@@ -17,7 +20,7 @@ export interface SeoPublico {
   descricao: string;
   canonicalPath: string;
   imagem?: string | null;
-  previewSocial?: RegistroJson;
+  previewSocial?: DadosSeoPreviewSocial | null;
 }
 
 export interface VitrineProdutoPublico extends RegistroJson {
@@ -120,6 +123,7 @@ export interface FiltrosMarketProdutos {
   apenasDisponivel?: boolean | null;
   apenasPromocao?: boolean | null;
   limite?: number | null;
+  offset?: number | null;
 }
 
 export interface RespostaMarketCategorias {
@@ -131,6 +135,7 @@ export interface RespostaMarketProdutos {
   produtos: ProdutoMarket[];
   total: number;
   filtros?: RegistroJson;
+  paginacao?: PaginacaoOffset;
   categorias?: CategoriaMarket[];
 }
 
@@ -580,12 +585,14 @@ export interface FiltrosMarketLojas {
   categoria?: string | null;
   provincia?: string | null;
   limite?: number | null;
+  offset?: number | null;
 }
 
 export interface RespostaMarketLojas {
   lojas: LojaMarket[];
   total: number;
   filtros?: RegistroJson;
+  paginacao?: PaginacaoOffset;
 }
 
 export interface RespostaLojaMarket {

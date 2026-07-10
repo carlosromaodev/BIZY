@@ -6,10 +6,26 @@ tags:
   - bizy/wiki
   - bizy/log
 status: ativo
-updated: 2026-06-30
+updated: 2026-07-10
 ---
 
 # Log da Wiki
+
+## [2026-07-10] arquitetura | Consolidacao do caminho unico Bizy
+
+- [x] Mantido o caminho vivo: Bizy Team, Bizy Market, Bizy Learning e Anani interno governado.
+- [x] Registrada a regra de nao criar `systems/*` vazio enquanto `projetos/*` e `anani` forem os caminhos reais.
+- [x] Fechados checkboxes de privacidade/tracking publico e paginacao Market onde o codigo e os testes ja cobrem.
+- [x] Descartados artefatos Oprivado/testerivado e experimentos UI/CSS sem rota viva.
+- [x] `visao-produto-bizy.md` passou a ser a Visao Unificada do Bizy e fonte canonica.
+- [x] SDD, meta global, memoria principal, guia de IA, schema e indice passaram a apontar para essa fonte unica.
+
+## [2026-07-09] arquitetura | Anani como nucleo interno invisivel
+
+- [x] Criada a nota [[anani-intelligence-control-plane]] para sintetizar o plano mestre Anani.
+- [x] Atualizado SDD com `ADR-0002` e spec `2026-07-09-anani-control-plane-backend`.
+- [x] Atualizadas notas de arquitetura, mapa de modulos, memoria viva e vault para registrar a regra: Bizy visivel = Team, Market e Learning; Anani = nucleo interno governado.
+- [x] Backend recebeu policy engine, rotas `/governance/anani/*` e migration das tabelas internas Anani.
 
 ## [2026-06-30] produto | Meta global do Bizy estabelecida
 

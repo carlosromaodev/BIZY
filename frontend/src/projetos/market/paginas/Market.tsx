@@ -34,12 +34,14 @@ import {
   ROTAS_LOJAS
 } from "../api";
 import type { CategoriaMarket, LojaMarket, ProdutoMarketNormalizado } from "../api";
-import { formatarKwanza, aplicarSeoMetaTags } from "../../../utilidades";
+import { formatarKwanza, aplicarSeoMetaTags, montarSeoPublico } from "../../../utilidades";
 import { AvisoPrivacidade } from "../../../componentes/BizyDesignSystem";
 
 type FiltroTexto = "busca" | "provincia" | "municipio" | "loja" | "precoMinimo" | "precoMaximo";
 
 const DEPARTAMENTOS_MARKET = ["Moda", "Beleza", "Casa", "Tecnologia", "Comida", "Serviços"];
+const IMAGEM_SEO_MARKET = "/bizy-live-commerce-hero.png";
+const DESCRICAO_SEO_MARKET = "Descubra produtos de lojas angolanas no Bizy Market, com fornecedor visível e checkout unificado.";
 const CATEGORIAS_EDITORIAIS: Array<{ titulo: string; subtitulo: string; acento: string; icone: LucideIcon }> = [
   { titulo: "Moda", subtitulo: "Looks, ténis e acessórios", acento: "verde", icone: ShoppingBag },
   { titulo: "Beleza", subtitulo: "Skincare, cabelo e perfume", acento: "rosa", icone: Heart },
@@ -117,6 +119,7 @@ export function PaginaMarket() {
 
   useEffect(() => {
     let ativo = true;
+    let limparSeo = () => {};
 
     async function carregarMarket() {
       setCarregando(true);
@@ -143,7 +146,14 @@ export function PaginaMarket() {
         setProdutos((respostaProdutos.produtos ?? []).map(normalizarProdutoMarket));
         setTotal(respostaProdutos.total ?? respostaProdutos.produtos?.length ?? 0);
         const tituloMarket = categoriaSelecionada ? `${categoriaSelecionada} no Bizy Market` : "Bizy Market";
-        aplicarSeoMetaTags({ titulo: tituloMarket, descricao: `Descubra produtos de lojas angolanas no Bizy Market.` });
+        limparSeo = aplicarSeoMetaTags(montarSeoPublico({
+          titulo: tituloMarket,
+          descricao: categoriaSelecionada
+            ? `Compre ${categoriaSelecionada} em lojas angolanas no Bizy Market, com fornecedor visível e checkout unificado.`
+            : DESCRICAO_SEO_MARKET,
+          canonicalPath: categoriaSelecionada ? ROTAS_LOJAS.categoriaMarket(categoriaSelecionada) : ROTAS_LOJAS.market,
+          imagem: IMAGEM_SEO_MARKET
+        }));
       } catch (falha) {
         if (!ativo) return;
         setErro(falha instanceof Error ? falha.message : "Não foi possível carregar o Bizy Market.");
@@ -157,6 +167,7 @@ export function PaginaMarket() {
     void carregarMarket();
     return () => {
       ativo = false;
+      limparSeo();
     };
   }, [busca, categoriaSelecionada, loja, municipio, provincia, precoMinimo, precoMaximo, apenasDisponivel, apenasPromocao]);
 
@@ -401,6 +412,7 @@ export function PaginaDiretorioLojasMarket() {
 
   useEffect(() => {
     let ativo = true;
+    let limparSeo = () => {};
 
     async function carregarLojas() {
       setCarregando(true);
@@ -409,7 +421,12 @@ export function PaginaDiretorioLojasMarket() {
         const resposta = await listarLojasMarket({ limite: 48 });
         if (!ativo) return;
         setLojas(resposta.lojas ?? []);
-        aplicarSeoMetaTags({ titulo: "Lojas no Bizy Market", descricao: "Encontre lojas de confiança no Bizy Market." });
+        limparSeo = aplicarSeoMetaTags(montarSeoPublico({
+          titulo: "Lojas no Bizy Market",
+          descricao: "Encontre lojas angolanas com produtos publicados, fornecedor identificado e compra organizada pelo Bizy Market.",
+          canonicalPath: ROTAS_LOJAS.lojasMarket,
+          imagem: IMAGEM_SEO_MARKET
+        }));
       } catch (falha) {
         if (!ativo) return;
         setErro(falha instanceof Error ? falha.message : "Não foi possível carregar as lojas do Market.");
@@ -422,6 +439,7 @@ export function PaginaDiretorioLojasMarket() {
     void carregarLojas();
     return () => {
       ativo = false;
+      limparSeo();
     };
   }, []);
 
@@ -824,11 +842,12 @@ export function PaginaLojaMarket() {
         if (!ativo) return;
         setLoja(resposta.loja ?? null);
         setProdutos((resposta.produtos ?? []).map(normalizarProdutoMarket));
-        limparSeo = aplicarSeoMetaTags(resposta.seo ?? {
+        limparSeo = aplicarSeoMetaTags(resposta.seo ?? montarSeoPublico({
           titulo: `${resposta.loja?.nomeComercial ?? slug} | Bizy Market`,
-          descricao: resposta.loja?.descricaoPublica ?? undefined,
-          imagem: resposta.loja?.logoUrl ?? undefined
-        });
+          descricao: resposta.loja?.descricaoPublica ?? "Loja publicada no Bizy Market com produtos, stock e fornecedor visível.",
+          canonicalPath: `/market/lojas/${encodeURIComponent(resposta.loja?.slug ?? slug)}`,
+          imagem: resposta.loja?.logoUrl ?? resposta.loja?.capaUrl ?? IMAGEM_SEO_MARKET
+        }));
       } catch (falha) {
         if (!ativo) return;
         setErro(falha instanceof Error ? falha.message : "Não foi possível carregar a loja.");

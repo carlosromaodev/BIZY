@@ -1,5 +1,6 @@
 import type { FastifyReply, FastifyRequest } from "fastify";
 import { jwtVerify, SignJWT } from "jose";
+import { papelPodeGovernarAnani } from "../../anani/policies/AnaniPolicyEngine.js";
 import type { ContextoAplicacao } from "./ContextoAplicacao.js";
 
 const NOME_COOKIE_SESSAO_PADRAO = "bizy_sessao";
@@ -183,6 +184,30 @@ export async function exigirUsuarioAutenticado(
 
   if (!usuario) {
     await reply.code(401).send({ erro: "NAO_AUTENTICADO", mensagem });
+    return null;
+  }
+
+  return usuario;
+}
+
+export async function exigirGovernanteAnani(
+  contexto: ContextoAplicacao,
+  request: FastifyRequest,
+  reply: FastifyReply
+) {
+  const usuario = await exigirUsuarioAutenticado(
+    contexto,
+    request,
+    reply,
+    "Faça login com uma conta de governança Bizy para acessar a Anani."
+  );
+  if (!usuario) return null;
+
+  if (!papelPodeGovernarAnani(usuario.papel)) {
+    await reply.code(403).send({
+      erro: "ANANI_RESTRITO_GOVERNANCA",
+      mensagem: "Acesso direto à Anani é restrito a GOVERNANTE_BIZY, ADMIN_GERAL ou SUPER_ADMIN_PLATFORM."
+    });
     return null;
   }
 

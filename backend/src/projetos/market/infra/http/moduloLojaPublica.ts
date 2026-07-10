@@ -878,12 +878,15 @@ function textoQuery(valor?: string): string | undefined {
   return texto || undefined;
 }
 
-function contemDadoSensivelTracking(dados: {
+export function contemDadoSensivelTracking(dados: {
+  entidadeId?: string | null;
   trackingId?: string | null;
+  origem?: string | null;
+  canal?: string | null;
   utm?: Record<string, string>;
   metadata?: Record<string, unknown>;
 }) {
-  const candidatos: unknown[] = [dados.trackingId, dados.utm, dados.metadata];
+  const candidatos: unknown[] = [dados.entidadeId, dados.trackingId, dados.origem, dados.canal, dados.utm, dados.metadata];
   return candidatos.some((valor) => contemDadoPessoal(valor));
 }
 

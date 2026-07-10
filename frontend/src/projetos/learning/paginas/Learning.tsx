@@ -97,9 +97,11 @@ import {
   type TipoMensagemChatLearning,
   type TipoPostComunidadeLearning
 } from "../api";
+import { aplicarSeoMetaTags, montarSeoPublico } from "../../../utilidades";
 
 const PERFIS_PADRAO = ["DONO", "ADMIN", "GESTOR", "VENDEDOR", "ATENDENTE", "FINANCEIRO", "AFILIADO", "CRIADOR"];
 const CATEGORIAS_PADRAO = ["Team", "Market", "Atendimento", "Financas", "Afiliados", "Criadores"];
+const IMAGEM_SEO_LEARNING = "/bizy-live-commerce-hero.png";
 
 export function PaginaLearning() {
   const [dados, setDados] = useState<HomeLearningResposta | null>(null);
@@ -108,6 +110,15 @@ export function PaginaLearning() {
   const [formato, setFormato] = useState("");
   const [erro, setErro] = useState("");
   const [carregando, setCarregando] = useState(true);
+
+  useEffect(() => {
+    return aplicarSeoMetaTags(montarSeoPublico({
+      titulo: "Bizy Learning | Cursos, mentorias e produtos digitais",
+      descricao: "Descubra cursos, mentorias, comunidades e produtos digitais ligados ao ecossistema Bizy.",
+      canonicalPath: "/learning",
+      imagem: IMAGEM_SEO_LEARNING
+    }));
+  }, []);
 
   useEffect(() => {
     let activo = true;
@@ -456,13 +467,22 @@ export function PaginaPerfilLearning() {
 
   useEffect(() => {
     let activo = true;
+    let limparSeo = () => {};
     async function carregar() {
       setCarregando(true);
       setErro("");
       try {
         if (!slug.trim()) throw new Error("Perfil Learning inválido.");
         const resposta = await obterPerfilLearning(slug);
-        if (activo) setPerfil(resposta.perfil);
+        if (activo) {
+          setPerfil(resposta.perfil);
+          limparSeo = aplicarSeoMetaTags(montarSeoPublico({
+            titulo: `${resposta.perfil.nomePublico} | Bizy Learning`,
+            descricao: resposta.perfil.descricaoPublica || "Produtos digitais, mentorias e comunidades no Bizy Learning.",
+            canonicalPath: resposta.perfil.urlPublica || `/learning/${slug}`,
+            imagem: IMAGEM_SEO_LEARNING
+          }));
+        }
       } catch (falha) {
         if (activo) setErro(falha instanceof Error ? falha.message : "Não foi possível carregar o perfil Learning.");
       } finally {
@@ -472,6 +492,7 @@ export function PaginaPerfilLearning() {
     void carregar();
     return () => {
       activo = false;
+      limparSeo();
     };
   }, [slug]);
 

@@ -1,4 +1,5 @@
 import { moduloAdminGovernanca } from "./adminGovernanca.js";
+import { moduloAnaniGovernance } from "./ananiGovernance.js";
 import { moduloAfiliados } from "./afiliados.js";
 import { moduloCheckoutUnificado } from "../../../projetos/market/infra/http/moduloCheckoutUnificado.js";
 import { moduloAutenticacao } from "./autenticacao.js";
@@ -50,6 +51,7 @@ export const modulosHttp = [
   moduloOperacional,
   moduloPainel,
   moduloAdminGovernanca,
+  moduloAnaniGovernance,
   moduloCheckoutUnificado,
   moduloEquipa,
   moduloFinancas,

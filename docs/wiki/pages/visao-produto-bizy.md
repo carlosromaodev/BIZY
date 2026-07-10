@@ -1,88 +1,129 @@
 ---
-title: Visao de Produto do Bizy
+title: Visao Unificada do Bizy
 aliases:
+  - Visao de Produto do Bizy
   - Visao Bizy
   - Estrategia Bizy
+  - Meta Global Bizy
 tags:
   - bizy/produto
   - bizy/visao
 status: ativo
-updated: 2026-06-30
+updated: 2026-07-10
 ---
 
-# Visao de Produto do Bizy
+# Visao Unificada do Bizy
 
-## Identidade
+> [!important] Fonte canonica
+> Esta nota e a visao unica do Bizy. SDD, specs, roadmap, memoria e inventarios devem apontar para ela, nao criar teses paralelas.
 
-Bizy/EMeu nasceu como automacao de vendas em live: capturar comentarios, interpretar intencao de compra, extrair telefone angolano e codigo da peca, criar reserva e acionar WhatsApp.
+## Formula
 
-A visao atual e maior: Bizy e um CRM+ de social commerce. A live continua importante, mas o nucleo passa a ser a operacao completa da loja.
+```text
+Bizy = 3 sistemas visiveis + 1 nucleo interno invisivel
 
-## Visao
+Sistemas visiveis:
+- Bizy Team
+- Bizy Market
+- Bizy Learning
 
-Ser o sistema operacional de vendas para negocios que vendem em canais sociais e conversacionais:
+Nucleo interno:
+- Anani
+```
 
-- WhatsApp;
-- TikTok/live;
-- Instagram/Facebook/TikTok comentarios;
-- loja publica;
-- links de produto;
-- campanhas;
-- afiliados e criadores;
-- atendimento humano com apoio de automacao.
+Bizy nao e apenas live, CRM, marketplace, escola, bot, dashboard ou IA. Bizy e o sistema operacional comercial para pequenos negocios que precisam vender, atender, cobrar, entregar, recuperar clientes, gerir equipa e medir crescimento no mesmo lugar.
 
-## Meta Global
+## Tese
 
-A meta oficial do Bizy e ser o sistema operacional comercial para pequenos negocios: trazer clientes, vender, atender, cobrar, entregar, medir e repetir crescimento sem o dono da loja sair do Bizy.
+Pequenos negocios nao precisam primeiro de mais automacao. Precisam primeiro de uma fonte de verdade simples para cliente, produto, pedido, pagamento, entrega, conversa, equipa e dinheiro.
 
-Fonte de decisao: [`docs/superpowers/specs/2026-06-30-meta-global-bizy.md`](../../superpowers/specs/2026-06-30-meta-global-bizy.md).
+Automacao, IA, n8n, WhatsApp, tracking, campanhas e recomendacoes so entram quando fortalecem essa fonte de verdade e deixam fallback humano.
 
-Toda iniciativa deve melhorar pelo menos uma destas capacidades:
+## Loop Comercial
 
-- descoberta;
-- conversao;
-- execucao;
-- retencao;
-- controlo.
+Toda parte do Bizy deve servir pelo menos uma etapa deste loop:
 
-## Expansao: Bizy Market
+```text
+Descobrir -> Converter -> Executar -> Reter -> Controlar
+```
 
-Em 2026-06-07 a visao de loja digital foi ampliada para [[bizy-market-lojas-digitais|Bizy Market e Lojas Digitais]].
+Traduzido para operacao:
 
-O Bizy passa a ter uma camada adicional:
+```text
+Cliente -> Produto -> Pedido -> Pagamento -> Entrega
+        -> Conversa -> Tarefa -> Recuperacao -> Relatorio
+        -> Equipa -> Financas -> Auditoria
+```
 
-- cada negocio continua com loja/perfil autonomo e subdominio proprio;
-- produtos elegiveis podem aparecer num shopping center central do Bizy;
-- compradores podem sair de uma loja e procurar produtos similares de outros fornecedores;
-- o checkout deve ser unificado pelo Bizy;
-- toda central de controlo da loja continua dentro do CRM.
+Se uma tela, endpoint, workflow ou documento nao ajuda esse loop, deve sair da navegacao principal, ir para Admin/Sistema, ficar como capacidade interna ou ser adiado.
 
-Essa expansao reforca a tese do CRM+: descoberta publica so tem valor se virar pedido, atendimento, pagamento, entrega, recuperacao e relatorio dentro da operacao da loja.
+## Sistemas Visiveis
 
-## Objetivo Pratico
+### Bizy Team
 
-Quando a vendedora abre o Bizy, ela deve saber:
+Team e o centro operacional privado do negocio.
 
-- quem precisa de resposta;
-- que pedidos precisam de pagamento;
-- que entregas estao pendentes;
-- que produtos estao com stock baixo;
-- que clientes podem ser recuperados;
-- que links/campanhas deram resultado;
-- que automacoes falharam e precisam de humano.
+Responsabilidades:
 
-O objetivo e reduzir caos operacional, nao aumentar burocracia.
+- CRM, clientes, conversas e tarefas;
+- produtos, stock, pedidos, pagamentos e entregas;
+- equipa, papeis, permissoes, metas e projectos;
+- configuracao de loja, Market, Learning e modulos ativos;
+- relatorios operacionais e financeiro do negocio.
 
-## Publico-Alvo
+Regra: Team e a fonte principal de verdade da operacao.
 
-O publico principal:
+### Bizy Market
 
-- vendedoras em live;
-- lojas pequenas e medias;
-- equipas comerciais por WhatsApp;
-- criadores que vendem produtos;
-- afiliados e revendedores;
-- negocios com produtos fisicos e alto volume de conversa.
+Market e a camada publica de descoberta, compra e confianca.
+
+Responsabilidades:
+
+- expor lojas, produtos elegiveis, categorias e similares;
+- gerar descoberta cruzada sem apagar a marca da loja;
+- preservar origem, tracking e privacidade;
+- encaminhar para checkout e criar dados acionaveis para o Team;
+- suportar confianca, denuncias, moderacao, repasses e governanca de marketplace.
+
+Regra: Market gera descoberta; Team controla execucao.
+
+### Bizy Learning
+
+Learning e a camada de produtos digitais, formacao e comunidade comercial.
+
+Responsabilidades:
+
+- cursos, mentorias, cohorts, comunidades, certificados e produtos digitais;
+- descoberta publica de ofertas de conhecimento;
+- checkout digital, acesso, progresso e entitlement;
+- backoffice operacional dentro do Team;
+- qualidade, moderacao e confianca apoiadas por Anani.
+
+Regra: Learning nao e apenas uma pagina publica; e commerce de conhecimento ligado ao Team.
+
+## Nucleo Interno
+
+### Anani
+
+Anani e o nucleo interno invisivel de inteligencia, risco, auditoria, controlo e governanca.
+
+Anani pode observar, cruzar sinais, avaliar politicas, criar incidentes, colocar entidades em quarentena, recomendar acoes e preparar execucao segura.
+
+Anani nao e produto de tenant, chatbot publico, menu comum, copilot vendido ou fonte de verdade. O acesso direto pertence apenas a `GOVERNANTE_BIZY`, `ADMIN_GERAL` e `SUPER_ADMIN_PLATFORM`.
+
+Regra: tenants veem efeitos do Anani dentro de Team, Market e Learning: alertas, tarefas, scores, protecoes, relatorios simplificados e pedidos de verificacao.
+
+## Canais e Capacidades
+
+Live, WhatsApp, loja publica, Social Inbox, campanhas, afiliados, formularios, links rastreaveis, n8n, Evolution, IA externa e providers nao sao visoes separadas.
+
+Eles sao canais, capacidades, adapters ou infraestrutura que alimentam o loop comercial.
+
+Regra: nenhum provider externo decide stock, preco, pagamento, desconto, entrega, comissao, permissao ou dado de tenant fora dos use cases, policies e auditoria do Bizy.
+
+## Contexto Principal
+
+O Bizy nasce para lojas pequenas e medias, equipas comerciais por WhatsApp, vendedoras em live, criadores, afiliados, mentores e negocios com alto volume de conversa.
 
 Contexto forte:
 
@@ -90,41 +131,35 @@ Contexto forte:
 - Kwanza/AOA;
 - telefone angolano;
 - WhatsApp como canal dominante;
-- pagamento por comprovativo/IBAN;
+- comprovativo/IBAN e dinheiro na entrega como fluxos reais;
 - operacao mobile;
-- necessidade de linguagem simples para vendedor nao tecnico.
+- linguagem simples para utilizador nao tecnico.
 
-## Tese do Produto
+## Regras de Decisao
 
-> [!tip] Tese
-> Pequenos negocios nao precisam primeiro de mais automacao. Precisam de uma fonte de verdade simples para cliente, produto, pedido, pagamento, entrega e conversa. A automacao vem depois, com guardrails.
+Toda iniciativa deve responder:
 
-## Diferenca Entre MVP Antigo e CRM+
+- melhora descoberta, conversao, execucao, retencao ou controlo?
+- qual sistema lidera: Team, Market ou Learning?
+- e canal/capacidade ou produto visivel?
+- que entidade operacional nasce ou muda?
+- o resultado fica acionavel dentro do Team?
+- existe permissao, auditoria e isolamento por `negocioId`?
+- existe fallback humano quando mexe com dinheiro, privacidade, stock, comissao, permissao ou reclamacao?
 
-MVP de live:
+## Anti-Metas
 
-- comentario;
-- parser;
-- reserva;
-- fila;
-- WhatsApp;
-- n8n.
+Bizy nao deve caminhar para:
 
-CRM+ atual:
-
-- [[dominio-e-entidades-bizy#Negocio|Negocio]];
-- [[dominio-e-entidades-bizy#Cliente|Cliente]];
-- [[dominio-e-entidades-bizy#Produto e Stock|Produto e stock]];
-- [[dominio-e-entidades-bizy#Pedido|Pedido]];
-- [[dominio-e-entidades-bizy#Conversa|Conversa]];
-- pagamento;
-- entrega;
-- campanha;
-- afiliado;
-- tracking;
-- tarefa;
-- relatorio;
-- auditoria.
+- app com muitos modulos incompletos;
+- marketplace anonimo que apaga lojas;
+- CRM com telas bonitas sem acao;
+- Learning decorativo sem checkout/acesso/progresso;
+- automacao que confirma pagamento ou promete entrega sem regra;
+- IA ou n8n como fonte de verdade;
+- Anani exposto a tenant comum;
+- relatorios sem decisao seguinte;
+- specs que repetem visao em vez de apontar para esta nota.
 
 ## Norte de UX
 
@@ -136,9 +171,16 @@ Direcao:
 - acoes previsiveis;
 - poucos cliques/toques;
 - mobile-first;
-- Admin/Sistema separado de loja;
+- Admin/Sistema separado da operacao comercial;
 - estados vazios com proxima acao;
 - texto curto e humano;
 - sem paginas decorativas.
 
-Ver tambem [[dores-e-qualidades-bizy]] e [[inventario-frontend]].
+## Documentos Derivados
+
+- [[memoria-projeto-bizy]]: briefing para outra IA e entrada narrativa.
+- [`SDD Dominio 00`](../../sdd/domains/00-visao-produto-e-principios.md): projecao da visao para Spec-Driven Development.
+- [`Meta Global Bizy`](../../superpowers/specs/2026-06-30-meta-global-bizy.md): criterios historicos de decisao e aceite global.
+- [[mapa-de-modulos-bizy]]: mapa funcional dos sistemas e capacidades.
+- [[anani-intelligence-control-plane]]: detalhe do nucleo interno Anani.
+- [[prioridades-lancamento-bizy]]: fila de prioridades derivada desta visao.

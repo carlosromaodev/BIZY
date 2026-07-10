@@ -1,3 +1,5 @@
+import type { DadosSeo } from "../../../utilidades";
+
 export type TipoEventoTracking = "LOJA_VISITADA" | "PRODUTO_VISTO" | "CATALOGO_VISTO" | "CHECKOUT_INICIADO";
 export type PassoCheckout = "variante" | "dados" | "entrega" | "confirmar";
 export type TipoEntregaCheckout = "ENTREGA" | "RETIRADA" | "ORCAMENTO";
@@ -86,10 +88,7 @@ export interface LojaPublicaResposta {
   };
   produtos: ProdutoPublico[];
   vitrine?: Partial<Record<"destaques" | "promocoes" | "novidades" | "reposicoes" | "maisVendidos" | "kits", ProdutoPublico[]>>;
-  seo?: {
-    titulo?: string;
-    descricao?: string;
-  };
+  seo?: DadosSeo;
 }
 
 export interface PerfilClienteLoja {

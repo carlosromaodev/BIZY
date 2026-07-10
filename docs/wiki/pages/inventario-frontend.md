@@ -6,13 +6,13 @@ tags:
   - bizy/inventario
   - bizy/frontend
 status: ativo
-updated: 2026-06-05
+updated: 2026-07-10
 ---
 
 # Inventario Frontend e UX
 
 Status: ativo
-Ultima atualizacao: 2026-06-05
+Ultima atualizacao: 2026-07-10
 Fontes principais: `frontend/src/rotasApp.tsx`, `frontend/src/paginas/`, `frontend/src/api.ts`, `frontend/src/componentes/BizyDesignSystem.tsx`, `frontend/testes/`
 
 ## Stack Frontend
@@ -252,7 +252,6 @@ Do documento de requisitos:
 
 - falta checkout visual/carrinho completo no frontend publico;
 - falta SEO/social preview renderizado no frontend publico;
-- falta aviso visual de privacidade/tracking quando aplicavel;
 - faltam estados vazios orientadores em alguns modulos;
-- falta paginacao padronizada em tabelas grandes;
+- falta auditoria mobile 360px nas tabelas grandes;
 - faltam algumas telas visuais de colecoes e perfil 360 polido.

@@ -120,24 +120,24 @@ Market possui endpoints publicos de produtos, categorias, lojas, detalhes, simil
 
 ## 12. Lacunas Residuais
 
-- Validar em staging o fluxo completo multi-loja com dados reais de pagamento/entrega.
-- Ligar provider de pagamento online quando houver decisao comercial; comprovativo/transferencia e dinheiro na entrega seguem como fluxo operacional.
-- Evoluir perfil autenticado do comprador e recomendacao comportamental avancada sem simular dados no MVP.
-- Ampliar observabilidade com dashboards de falhas por etapa de checkout, pagamento e repasse.
+- [ ] Validar em staging o fluxo completo multi-loja com dados reais de pagamento/entrega.
+- [ ] Ligar provider de pagamento online quando houver decisao comercial; comprovativo/transferencia e dinheiro na entrega seguem como fluxo operacional.
+- [ ] Evoluir perfil autenticado do comprador e recomendacao comportamental avancada sem simular dados no MVP.
+- [ ] Ampliar observabilidade com dashboards de falhas por etapa de checkout, pagamento e repasse.
 
 ## 13. Testes e Verificacao
 
-- Testes HTTP de Market.
-- Testes de contrato frontend.
-- Testes de checkout unificado.
-- Testes de isolamento por fornecedor.
-- Testes de repasses e reembolsos.
-- Testes mobile sem scroll horizontal.
-- Varredura de UI publica para evitar ratings/reviews/vendidos simulados.
+- [x] Testes HTTP de Market.
+- [ ] Testes de contrato frontend.
+- [ ] Testes de checkout unificado.
+- [ ] Testes de isolamento por fornecedor.
+- [ ] Testes de repasses e reembolsos.
+- [ ] Testes mobile sem scroll horizontal.
+- [ ] Varredura de UI publica para evitar ratings/reviews/vendidos simulados.
 
 ## 14. Proximos Planos
 
-- Validacao staging ponta a ponta: Market -> checkout -> compra -> pedidos filhos -> repasses.
-- Observabilidade operacional de checkout, pagamento e repasse.
-- Provider de pagamento online com idempotencia e conciliacao.
-- Perfil autenticado do comprador e recomendacao avancada baseada em consentimento.
+- [ ] Validacao staging ponta a ponta: Market -> checkout -> compra -> pedidos filhos -> repasses.
+- [ ] Observabilidade operacional de checkout, pagamento e repasse.
+- [ ] Provider de pagamento online com idempotencia e conciliacao.
+- [ ] Perfil autenticado do comprador e recomendacao avancada baseada em consentimento.

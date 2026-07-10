@@ -154,6 +154,21 @@ describe("Bizy Market Fase 2+3 HTTP", () => {
       );
       expect(JSON.stringify(corpoLojas)).not.toContain("Loja Fantasma");
 
+      const lojasPaginadas = await app.inject({ method: "GET", url: "/publico/market/lojas?limite=1&offset=1" });
+      expect(lojasPaginadas.statusCode).toBe(200);
+      expect(lojasPaginadas.json().lojas).toHaveLength(1);
+      expect(lojasPaginadas.json().lojas[0].slug).toBe("sapatos-benguela");
+      expect(lojasPaginadas.json().filtros).toEqual({ offset: 1, limite: 1 });
+      expect(lojasPaginadas.json().paginacao).toEqual({
+        total: 2,
+        limite: 1,
+        offset: 1,
+        temProxima: false,
+        temAnterior: true,
+        proximoOffset: null,
+        anteriorOffset: 0
+      });
+
       // --- Filtro por provincia ---
       const filtroProvi = await app.inject({ method: "GET", url: "/publico/market/lojas?provincia=Benguela" });
       expect(filtroProvi.statusCode).toBe(200);
@@ -221,6 +236,20 @@ describe("Bizy Market Fase 2+3 HTTP", () => {
         }
       });
       expect(evento.statusCode).toBe(201);
+
+      const eventoComDadosPessoais = await app.inject({
+        method: "POST",
+        url: "/publico/recomendacoes/eventos",
+        payload: {
+          slugLoja: "loja-tracking-a",
+          tipo: "PRODUTO_VISTO",
+          codigoProduto: "TRK-01",
+          trackingId: "anonimo-trk-01",
+          utm: { utm_source: "instagram", email: "cliente@example.com" }
+        }
+      });
+      expect(eventoComDadosPessoais.statusCode).toBe(400);
+      expect(eventoComDadosPessoais.json().erro).toBe("TRACKING_DADO_SENSIVEL");
 
       // --- Evento sem slugLoja ---
       const eventoSemSlug = await app.inject({

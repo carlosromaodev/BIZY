@@ -6,16 +6,68 @@ export interface ConfiguracaoLocaleNegocio {
   moeda?: string | null;
 }
 
+export interface DadosSeoPreviewSocial {
+  facebook?: { openGraph?: { title?: string; description?: string; image?: string | null; url?: string; type?: string } };
+  navegador?: { title?: string; metaDescription?: string; canonicalPath?: string; image?: string | null };
+  twitter?: { title?: string; description?: string; image?: string | null; url?: string; card?: string };
+  whatsapp?: { titulo?: string; descricao?: string; imagem?: string | null; url?: string };
+}
+
 export interface DadosSeo {
   titulo?: string;
   descricao?: string;
   imagem?: string | null;
   canonicalPath?: string;
-  previewSocial?: {
-    facebook?: { openGraph?: { title?: string; description?: string; image?: string | null; url?: string; type?: string } };
-    navegador?: { title?: string; metaDescription?: string; canonicalPath?: string; image?: string | null };
-    whatsapp?: { titulo?: string; descricao?: string; imagem?: string | null; url?: string };
+  previewSocial?: DadosSeoPreviewSocial | null;
+}
+
+export interface SeoPublicoInput {
+  titulo: string;
+  descricao: string;
+  canonicalPath?: string;
+  imagem?: string | null;
+  tipo?: string;
+}
+
+export function montarSeoPublico({
+  titulo,
+  descricao,
+  canonicalPath,
+  imagem,
+  tipo = "website"
+}: SeoPublicoInput): DadosSeo {
+  const seo: DadosSeo = { titulo, descricao, canonicalPath, imagem };
+  seo.previewSocial = {
+    facebook: {
+      openGraph: {
+        title: titulo,
+        description: descricao,
+        image: imagem,
+        url: canonicalPath,
+        type: tipo
+      }
+    },
+    navegador: {
+      title: titulo,
+      metaDescription: descricao,
+      canonicalPath,
+      image: imagem
+    },
+    twitter: {
+      title: titulo,
+      description: descricao,
+      image: imagem,
+      url: canonicalPath,
+      card: imagem ? "summary_large_image" : "summary"
+    },
+    whatsapp: {
+      titulo,
+      descricao,
+      imagem,
+      url: canonicalPath
+    }
   };
+  return seo;
 }
 
 const CONFIGURACAO_LOCALE_PADRAO = {
@@ -83,8 +135,23 @@ function normalizarFusoHorario(fusoHorario?: string | null): string | null {
 
 export function aplicarSeoMetaTags(seo: DadosSeo | null | undefined): () => void {
   if (!seo) return () => undefined;
+  if (typeof document === "undefined") return () => undefined;
 
   const criadas: HTMLElement[] = [];
+  const restauradores: Array<() => void> = [];
+  const tituloAnterior = document.title || "Bizy";
+
+  function guardarAtributo(el: Element, atributo: string) {
+    const existia = el.hasAttribute(atributo);
+    const valorAnterior = el.getAttribute(atributo);
+    restauradores.push(() => {
+      if (existia && valorAnterior !== null) {
+        el.setAttribute(atributo, valorAnterior);
+      } else {
+        el.removeAttribute(atributo);
+      }
+    });
+  }
 
   function upsertMeta(attr: string, valor: string, conteudo: string) {
     let el = document.querySelector(`meta[${attr}="${valor}"]`) as HTMLMetaElement | null;
@@ -93,6 +160,8 @@ export function aplicarSeoMetaTags(seo: DadosSeo | null | undefined): () => void
       el.setAttribute(attr, valor);
       document.head.appendChild(el);
       criadas.push(el);
+    } else {
+      guardarAtributo(el, "content");
     }
     el.setAttribute("content", conteudo);
   }
@@ -104,6 +173,8 @@ export function aplicarSeoMetaTags(seo: DadosSeo | null | undefined): () => void
       el.setAttribute("rel", "canonical");
       document.head.appendChild(el);
       criadas.push(el);
+    } else {
+      guardarAtributo(el, "href");
     }
     el.setAttribute("href", href);
   }
@@ -119,38 +190,43 @@ export function aplicarSeoMetaTags(seo: DadosSeo | null | undefined): () => void
     }
   }
 
-  const canonicalPath = seo.previewSocial?.navegador?.canonicalPath ?? seo.canonicalPath;
+  const preview = seo.previewSocial;
+  const og = preview?.facebook?.openGraph;
+  const titulo = preview?.navegador?.title ?? seo.titulo;
+  const descricao = preview?.navegador?.metaDescription ?? seo.descricao;
+  const canonicalPath = preview?.navegador?.canonicalPath ?? seo.canonicalPath;
   const canonicalUrl = resolverUrlPublica(canonicalPath);
   if (canonicalUrl) {
     upsertCanonical(canonicalUrl);
     upsertMeta("name", "twitter:url", canonicalUrl);
   }
 
-  if (seo.titulo) document.title = seo.titulo;
-  if (seo.descricao) upsertMeta("name", "description", seo.descricao);
+  if (titulo) document.title = titulo;
+  if (descricao) upsertMeta("name", "description", descricao);
 
-  const og = seo.previewSocial?.facebook?.openGraph;
-  if (og?.title) upsertMeta("property", "og:title", og.title);
-  if (og?.description) upsertMeta("property", "og:description", og.description);
-  if (og?.image) upsertMeta("property", "og:image", og.image);
-  const ogUrl = resolverUrlPublica(og?.url ?? canonicalPath);
+  const imagem = preview?.navegador?.image ?? preview?.twitter?.image ?? preview?.whatsapp?.imagem ?? seo.imagem ?? og?.image ?? null;
+  const imagemUrl = resolverUrlPublica(imagem);
+
+  upsertMeta("property", "og:site_name", "Bizy");
+  upsertMeta("property", "og:type", og?.type ?? "website");
+  if (og?.title ?? preview?.whatsapp?.titulo ?? titulo) upsertMeta("property", "og:title", og?.title ?? preview?.whatsapp?.titulo ?? titulo ?? "");
+  if (og?.description ?? preview?.whatsapp?.descricao ?? descricao) upsertMeta("property", "og:description", og?.description ?? preview?.whatsapp?.descricao ?? descricao ?? "");
+  const ogImage = resolverUrlPublica(og?.image ?? imagemUrl);
+  if (ogImage) upsertMeta("property", "og:image", ogImage);
+  const ogUrl = resolverUrlPublica(og?.url ?? preview?.whatsapp?.url ?? canonicalPath);
   if (ogUrl) upsertMeta("property", "og:url", ogUrl);
-  if (og?.type) upsertMeta("property", "og:type", og.type);
 
-  if (!og) {
-    if (seo.titulo) upsertMeta("property", "og:title", seo.titulo);
-    if (seo.descricao) upsertMeta("property", "og:description", seo.descricao);
-    if (seo.imagem) upsertMeta("property", "og:image", seo.imagem);
-  }
-
-  if (seo.titulo) upsertMeta("name", "twitter:title", seo.titulo);
-  if (seo.descricao) upsertMeta("name", "twitter:description", seo.descricao);
-  if (seo.imagem) upsertMeta("name", "twitter:image", seo.imagem);
-  upsertMeta("name", "twitter:card", seo.imagem ? "summary_large_image" : "summary");
+  if (preview?.twitter?.title ?? titulo) upsertMeta("name", "twitter:title", preview?.twitter?.title ?? titulo ?? "");
+  if (preview?.twitter?.description ?? descricao) upsertMeta("name", "twitter:description", preview?.twitter?.description ?? descricao ?? "");
+  if (imagemUrl) upsertMeta("name", "twitter:image", imagemUrl);
+  const twitterUrl = resolverUrlPublica(preview?.twitter?.url ?? canonicalPath);
+  if (twitterUrl) upsertMeta("name", "twitter:url", twitterUrl);
+  upsertMeta("name", "twitter:card", preview?.twitter?.card ?? (imagemUrl ? "summary_large_image" : "summary"));
 
   return () => {
     for (const el of criadas) el.remove();
-    document.title = "Bizy";
+    for (const restaurar of restauradores.reverse()) restaurar();
+    document.title = tituloAnterior;
   };
 }
 

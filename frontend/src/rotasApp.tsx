@@ -156,7 +156,6 @@ export const rotasComerciais: RotaPrivada[] = [
   { caminho: "/app/learning", icone: <GraduationCap size={20} />, rotulo: "Learning", secao: "Gestão", elemento: <PaginaLearningTeam /> },
   { caminho: "/app/projectos", icone: <Workflow size={20} />, rotulo: "Projectos", secao: "Gestão", elemento: <PaginaProjectos /> },
   { caminho: "/app/financas", icone: <Wallet size={20} />, rotulo: "Finanças", secao: "Gestão", elemento: <PaginaFinancas /> },
-  { caminho: "/app/inteligencia", icone: <Brain size={20} />, rotulo: "Inteligência", secao: "Gestão", elemento: <PaginaInteligencia /> },
   { caminho: "/app/pagamentos", icone: <CreditCard size={20} />, rotulo: "Pagamentos", secao: "Gestão", elemento: <PaginaPagamentos /> },
   { caminho: "/app/administracao", icone: <Settings size={20} />, rotulo: "Administração", secao: "Gestão", elemento: <PaginaAdministracao /> }
 ];
@@ -165,6 +164,7 @@ export const rotasAdminSistema: RotaPrivada[] = [
   { caminho: "/app/comentarios", icone: <MessageSquareText size={20} />, rotulo: "Live monitor", secao: "Admin/Sistema", elemento: <PaginaComentarios />, requerAdminSistema: true },
   { caminho: "/app/diagnosticos", icone: <Smartphone size={20} />, rotulo: "Diagnósticos SMS", secao: "Admin/Sistema", elemento: <PaginaDiagnosticos />, requerAdminSistema: true },
   { caminho: "/app/auditoria", icone: <Shield size={20} />, rotulo: "Auditoria", secao: "Admin/Sistema", elemento: <PaginaAuditoria />, requerAdminSistema: true },
+  { caminho: "/app/inteligencia", icone: <Brain size={20} />, rotulo: "Inteligência", secao: "Admin/Sistema", elemento: <PaginaInteligencia />, requerAdminSistema: true }
 ];
 
 export const caminhosCrmV3Principais = ["/app", "/app/reservas", "/app/conversas", "/app/tarefas", "/app/clientes", "/app/metas", "/app/equipa", "/app/learning", "/app/projectos", "/app/financas", "/app/live", "/app/loja", "/app/relatorios"] as const;

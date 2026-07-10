@@ -1,15 +1,21 @@
 # Meta Global Bizy - Sistema Operacional Comercial
 
-Status: rascunho estrategico para orientar specs
+Status: consolidado como criterio derivado da visao unificada
 Data: 2026-06-30
-Escopo: meta global do Bizy e criterios de decisao para Team, Market, Studio, Checkout, Automacoes, WhatsApp e futuras distribuicoes
+Atualizado: 2026-07-10
+Escopo: meta global do Bizy e criterios de decisao para Team, Market, Learning, Anani, Studio, Checkout, Automacoes, WhatsApp e futuras capacidades
 
 ## Fontes
 
+- `docs/wiki/pages/visao-produto-bizy.md`
 - `docs/RF-RNF-RN-BIZY-MARKET-LOJA-DIGITAL.md`
 - `docs/wiki/pages/mapa-de-modulos-bizy.md`
 - `docs/superpowers/specs/2026-06-07-bizy-market-frontend-lojas-design.md`
 - `docs/superpowers/specs/2026-05-23-bizy-design-interno-comercio-suave-design.md`
+
+## Relacao com a Visao
+
+Este documento nao e uma segunda visao. A fonte canonica e `docs/wiki/pages/visao-produto-bizy.md`. Esta spec preserva os criterios de decisao e aceite global que as specs novas devem usar.
 
 ## Decisao
 
@@ -19,7 +25,7 @@ A meta nao e ter muitos modulos. A meta e fazer cada modulo contribuir para um c
 
 ## Frase Norteadora
 
-> O Bizy transforma negocios locais em operacoes comerciais digitais completas: cada loja tem presenca propria, vende em canais publicos e pelo Market, executa tudo no Team e mede crescimento com dados reais.
+> O Bizy transforma negocios locais em operacoes comerciais digitais completas: cada negocio executa no Team, descobre e vende pelo Market, monetiza conhecimento no Learning e e protegido por Anani como nucleo interno.
 
 ## Meta 2026/2027
 
@@ -56,7 +62,7 @@ Toda funcionalidade nova deve aumentar pelo menos uma destas capacidades:
 
 Se uma feature nao melhora nenhuma destas capacidades, ela nao deve entrar no roadmap principal.
 
-## Papel de Cada Distribuicao
+## Papel de Cada Sistema e Capacidade
 
 ### Bizy Team / team-core
 
@@ -89,6 +95,34 @@ Responsabilidades:
 
 Regra: o Market gera descoberta; o Team controla execucao.
 
+### Bizy Learning
+
+O Learning e a camada de produtos digitais e formacao comercial.
+
+Responsabilidades:
+
+- publicar cursos, mentorias, comunidades, cohorts e certificados;
+- vender produtos digitais com checkout, acesso e progresso;
+- permitir criadores/mentores monetizarem conhecimento pratico;
+- manter operacao, owner, analytics e publicacao ligados ao Team;
+- gerar dados de aprendizagem e qualidade para governanca.
+
+Regra: Learning nao e pagina decorativa; precisa estar ligado a produto digital, acesso, progresso, checkout ou operacao no Team.
+
+### Anani
+
+Anani e o nucleo interno invisivel de inteligencia, risco, auditoria, controlo e governanca.
+
+Responsabilidades:
+
+- observar sinais de Team, Market e Learning;
+- avaliar acoes por policy engine;
+- criar incidentes, quarentenas e snapshots de risco;
+- proteger contra abuso, PII em prompt, quebra de tenant e impacto financeiro indevido;
+- preparar acoes para aprovacao humana quando necessario.
+
+Regra: Anani nao e produto de tenant nem fonte de verdade. Acesso direto so para governanca Bizy.
+
 ### Bizy Studio / Loja
 
 O Studio e a ponte entre presenca publica e operacao interna.
@@ -102,7 +136,7 @@ Responsabilidades:
 - exibir preview e metricas da loja;
 - orientar o lojista sobre o que falta para vender melhor.
 
-Regra: o Studio nao deve virar um painel separado. Ele deve ser uma area operacional dentro do Team.
+Regra: o Studio nao e sistema visivel separado. Ele e uma area operacional dentro do Team para ativar Market, Learning ou ambos.
 
 ### Checkout, Pedidos e Pagamentos
 
@@ -138,7 +172,8 @@ Regra: automacao deve executar ou sugerir acao sobre dados do Bizy, sem substitu
 Todo spec novo deve responder claramente:
 
 - Que capacidade melhora: descoberta, conversao, execucao, retencao ou controlo?
-- Qual distribuicao lidera: Team, Market, Studio, Checkout, WhatsApp, IA ou outra?
+- Qual sistema ou capacidade lidera: Team, Market, Learning, Anani, Studio, Checkout, WhatsApp, IA ou outra?
+- E sistema visivel, canal, capability, provider ou nucleo interno?
 - Que entidade operacional nasce ou muda: cliente, lead, seguidor, produto, pedido, pagamento, entrega, conversa, tarefa, campanha, meta ou relatorio?
 - Que dado entra no CRM/Team depois da acao publica?
 - Como o dono da loja percebe valor: mais venda, menos tempo, menos erro, mais controlo ou melhor retorno?
@@ -158,12 +193,15 @@ Uma entrega alinhada com esta meta deve cumprir:
 - metricas minimas de uso ou resultado;
 - nenhuma duplicacao desnecessaria de painel ou fonte de verdade;
 - compatibilidade progressiva com lojas, Market e checkout existentes.
+- respeito a formula atual: Team, Market, Learning e Anani interno.
 
 ## Anti-Metas
 
 O Bizy nao deve caminhar para:
 
 - marketplace anonimo que apaga a marca da loja;
+- Learning publico sem produto digital, acesso ou operacao real;
+- Anani exposto como assistente de tenant;
 - CRM cheio de telas sem impacto comercial;
 - automacoes que escondem ou corrompem a fonte de verdade;
 - modulos que aparecem na UI mas nao funcionam por completo;

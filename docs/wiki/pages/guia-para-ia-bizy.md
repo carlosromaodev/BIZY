@@ -7,7 +7,7 @@ tags:
   - bizy/memoria
   - ia/guia
 status: ativo
-updated: 2026-05-27
+updated: 2026-07-10
 ---
 
 # Guia para IA no Bizy
@@ -17,15 +17,16 @@ updated: 2026-05-27
 
 ## Ordem de Leitura
 
-1. [[memoria-projeto-bizy|Memoria de Projeto do Bizy]]
-2. [[protocolo-atualizacao-memoria-bizy|Protocolo de Atualizacao da Memoria]]
-3. [[visao-produto-bizy|Visao e estrategia]]
-4. [[dores-e-qualidades-bizy|Dores e qualidades]]
-5. [[mapa-de-modulos-bizy|Mapa de modulos]]
-6. [[dominio-e-entidades-bizy|Dominio e entidades]]
-7. [[fluxos-operacionais-bizy|Fluxos operacionais]]
-8. [[arquitetura-e-guardrails-bizy|Arquitetura e guardrails]]
-9. [[prioridades-lancamento-bizy|Prioridades P0/P1/P2]]
+1. [[visao-produto-bizy|Visao Unificada do Bizy]]
+2. [[memoria-projeto-bizy|Memoria de Projeto do Bizy]]
+3. [[protocolo-atualizacao-memoria-bizy|Protocolo de Atualizacao da Memoria]]
+4. [[anani-intelligence-control-plane|Anani Intelligence Control Plane]]
+5. [[dores-e-qualidades-bizy|Dores e qualidades]]
+6. [[mapa-de-modulos-bizy|Mapa de modulos]]
+7. [[dominio-e-entidades-bizy|Dominio e entidades]]
+8. [[fluxos-operacionais-bizy|Fluxos operacionais]]
+9. [[arquitetura-e-guardrails-bizy|Arquitetura e guardrails]]
+10. [[prioridades-lancamento-bizy|Prioridades P0/P1/P2]]
 
 Se a tarefa for tecnica, consulte depois:
 
@@ -37,7 +38,7 @@ Se a tarefa for tecnica, consulte depois:
 
 ## Como Pensar o Produto
 
-Bizy deve ser pensado como CRM+ de social commerce, nao como app de deploy, dashboard generico ou bot de WhatsApp.
+Bizy deve ser pensado como tres sistemas visiveis, Team, Market e Learning, apoiados por Anani como nucleo interno invisivel. Nao tratar Bizy como app de deploy, dashboard generico, bot de WhatsApp ou vitrine de IA.
 
 O eixo principal e:
 
@@ -47,6 +48,8 @@ Cliente -> Produto -> Pedido -> Pagamento -> Entrega
 ```
 
 Live, loja publica, social inbox, campanhas e afiliados sao canais de entrada e aceleradores comerciais. Eles alimentam o mesmo nucleo.
+
+Anani nao e canal de entrada. Anani e governanca interna: observa, cruza sinais, aplica politicas, cria incidentes/quarentenas e prepara acoes seguras.
 
 ## Regra de Memoria Continua
 
@@ -79,6 +82,7 @@ Se a memoria nao responder uma consulta, procurar no codigo, atualizar a nota co
 - Nao criar telas decorativas.
 - Nao criar menu para modulo sem fluxo real.
 - Nao mostrar tokens, providers, n8n e debug a vendedor comum.
+- Nao mostrar Anani a tenant comum; acesso direto so para governanca Bizy.
 - Nao confirmar pagamento automaticamente sem regra e permissao.
 - Nao conceder desconto, resolver reclamacao, cancelar pedido ou prometer entrega sem trilha.
 - Nao usar dados pessoais em tracking, URL, cookies ou identificadores publicos.
@@ -88,7 +92,7 @@ Se a memoria nao responder uma consulta, procurar no codigo, atualizar a nota co
 
 ## Onde Colocar Conhecimento Novo
 
-- Produto, visao e principios: atualizar [[visao-produto-bizy]] ou [[dores-e-qualidades-bizy]].
+- Produto, visao e principios: atualizar [[visao-produto-bizy]]; dores/qualidades ficam em [[dores-e-qualidades-bizy]].
 - Novo modulo ou capacidade: atualizar [[mapa-de-modulos-bizy]].
 - Nova entidade ou regra de dados: atualizar [[dominio-e-entidades-bizy]] e [[inventario-dados-prisma]].
 - Novo fluxo: atualizar [[fluxos-operacionais-bizy]].

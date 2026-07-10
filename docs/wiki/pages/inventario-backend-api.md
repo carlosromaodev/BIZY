@@ -6,20 +6,21 @@ tags:
   - bizy/inventario
   - bizy/backend
 status: ativo
-updated: 2026-05-27
+updated: 2026-07-09
 ---
 
 # Inventario Backend e API HTTP
 
 Status: ativo
-Ultima atualizacao: 2026-05-27
-Fontes principais: `backend/src/infra/http/modulos/manifestoModulosHttp.ts`, `backend/src/infra/http/modulos/*.ts`, `backend/src/use-case/`
+Ultima atualizacao: 2026-07-09
+Fontes principais: `backend/src/infra/http/modulos/manifestoModulosHttp.ts`, `backend/src/infra/http/modulos/*.ts`, `backend/src/use-case/`, `backend/src/anani/`
 
 ## Entrada e Composicao
 
 - Entrada do backend: `backend/src/main.ts`.
 - Criacao Fastify, CORS, auth, rate limit e error handler: `backend/src/infra/http/criarAplicacao.ts`.
 - Montagem de repositorios/use cases/providers: `backend/src/infra/http/ContextoAplicacao.ts`.
+- Bootstrap Anani interno: `backend/src/app/bootstrap/bootstrapAnani.ts`.
 - Contratos de repositorio: `backend/src/dominio/repositorios/contratos.ts`.
 - Repositorios concretos: `backend/src/use-case/repositorios/RepositorioPrisma.ts` e `RepositorioMemoria.ts`.
 
@@ -30,6 +31,7 @@ Fontes principais: `backend/src/infra/http/modulos/manifestoModulosHttp.ts`, `ba
 - Telas que consomem estas rotas: [Inventario Frontend e UX](inventario-frontend.md).
 - Como testar/subir estes endpoints: [Inventario de Operacao, Integracoes e Testes](inventario-operacao-testes.md).
 - Visao geral do sistema: [Inventario do Sistema Bizy](inventario-sistema-bizy.md).
+- Nucleo interno de governanca: [[anani-intelligence-control-plane]].
 
 ## Modulos HTTP Registrados
 
@@ -52,6 +54,33 @@ Ordem em `manifestoModulosHttp.ts`:
 15. `n8n`
 16. `operacional`
 17. `painel`
+18. `admin-governanca`
+19. `anani-governance`
+20. `checkoutUnificado`
+21. `equipa`
+22. `financas`
+23. `inteligencia`
+24. `workflow`
+25. `projectos`
+26. `conformidade`
+
+## Anani Governance
+
+Rotas internas. Exigem sessao e papel de plataforma: `GOVERNANTE_BIZY`, `ADMIN_GERAL` ou `SUPER_ADMIN_PLATFORM`.
+
+- `GET /governance/anani/health`
+- `GET /governance/anani/policies`
+- `POST /governance/anani/policies/evaluate`
+- `POST /governance/anani/events`
+- `POST /governance/anani/events/processar`
+- `GET /governance/anani/incidents`
+- `POST /governance/anani/incidents`
+- `PATCH /governance/anani/incidents/:id`
+- `GET /governance/anani/quarantine`
+- `POST /governance/anani/quarantine`
+- `POST /governance/anani/quarantine/:id/resolver`
+- `POST /governance/anani/risk-snapshots`
+- `GET /governance/anani/risk-snapshots/:negocioId/:sistema`
 
 ## Saude
 
@@ -347,5 +376,6 @@ Contratos:
 - Catalogo/pedidos/reservas: `GestaoPecasUseCase`, `GestaoPedidosUseCase`, `MotorReservas`, `MonitorReservasUseCase`, `GerarReciboReservaUseCase`.
 - Clientes/governanca: `GestaoClientesCrmUseCase`, `GestaoCompartilhamentoClientesUseCase`, `GestaoGovernancaCrmUseCase`, `GestaoModulosNegocioUseCase`.
 - Automacoes/WhatsApp/n8n: `GestaoWhatsAppEvolutionUseCase`, `ReceberMensagemWhatsAppUseCase`, `RecuperacaoMensagensWhatsAppUseCase`, `ConsultaAtendimentoN8n`.
+- Anani interno: `AnaniPolicyEngine`, `bootstrapAnani`.
 - Social commerce: `LojaPublicaUseCase`, `GestaoAfiliadosUseCase`, `GestaoCampanhasCrmUseCase`, `GestaoSocialInboxUseCase`, `GestaoFunilComercialUseCase`, `GestaoOportunidadesRecuperacaoUseCase`, `GestaoPlaybooksRecuperacaoUseCase`.
 - Relatorios/auditoria: `RelatoriosComerciaisUseCase`, `ConsultaPainelUseCase`, `ConsultaOperacionalUseCase`, `AuditoriaEventosUseCase`.

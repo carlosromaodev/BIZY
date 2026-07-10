@@ -6,13 +6,13 @@ tags:
   - bizy/inventario
   - bizy/dados
 status: ativo
-updated: 2026-05-27
+updated: 2026-07-09
 ---
 
 # Inventario de Dados, Prisma e Migrations
 
 Status: ativo
-Ultima atualizacao: 2026-05-27
+Ultima atualizacao: 2026-07-09
 Fontes principais: `backend/prisma/schema.prisma`, `backend/prisma/migrations/`, `backend/src/use-case/repositorios/RepositorioPrisma.ts`
 
 ## Armazenamento
@@ -57,6 +57,13 @@ Eventos e outbox:
 - `OutboxMensagemWhatsApp`
 - `EventoOperacional`
 - `JobOperacional`
+
+Anani interno:
+
+- `EventOutbox`
+- `AnaniTenantRiskSnapshot`
+- `AnaniQuarantine`
+- `AnaniIncident`
 
 Identidade, negocios e modulos:
 
@@ -133,6 +140,8 @@ Tracking, afiliados e comissoes:
 - `20260526033000_contas_sociais_negocio`
 - `20260526090000_links_afiliados_contexto_comercial`
 - `20260527045500_evento_operacional_payload_version`
+- `20260623090000_renomeia_modulo_crm_team_core`
+- `20260709090000_anani_internal_control_plane`
 
 ## Comandos de Banco
 

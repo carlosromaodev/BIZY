@@ -172,6 +172,25 @@ describe("Bizy Market público HTTP", () => {
           })
         })
       );
+
+      const paginaProdutos = await app.inject({
+        method: "GET",
+        url: "/publico/market/produtos?limite=1&offset=1"
+      });
+      expect(paginaProdutos.statusCode).toBe(200);
+      expect(paginaProdutos.json().produtos).toHaveLength(1);
+      expect(paginaProdutos.json().total).toBe(2);
+      expect(paginaProdutos.json().filtros).toEqual({ offset: 1, limite: 1 });
+      expect(paginaProdutos.json().paginacao).toEqual({
+        total: 2,
+        limite: 1,
+        offset: 1,
+        temProxima: false,
+        temAnterior: true,
+        proximoOffset: null,
+        anteriorOffset: 0
+      });
+
       expect(JSON.stringify(corpo)).not.toContain("negocioId");
       expect(JSON.stringify(corpo)).not.toContain("custoEmKwanza");
       expect(JSON.stringify(corpo)).not.toContain("margemEstimadaEmKwanza");

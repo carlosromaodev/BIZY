@@ -7,7 +7,7 @@ tags:
   - bizy/wiki
   - bizy/indice
 status: ativo
-updated: 2026-06-30
+updated: 2026-07-10
 ---
 
 # Indice da Wiki Bizy
@@ -17,10 +17,11 @@ updated: 2026-06-30
 
 ## Primeira Leitura Para IA
 
+- [[visao-produto-bizy|Visao Unificada do Bizy]]
 - [[memoria-projeto-bizy|Memoria de Projeto do Bizy]]
 - [[guia-para-ia-bizy|Guia para IA no Bizy]]
 - [[protocolo-atualizacao-memoria-bizy|Protocolo de Atualizacao da Memoria]]
-- [[visao-produto-bizy|Visao de Produto]]
+- [[anani-intelligence-control-plane|Anani Intelligence Control Plane]]
 - [`Meta Global Bizy`](../superpowers/specs/2026-06-30-meta-global-bizy.md)
 - [[dores-e-qualidades-bizy|Dores e Qualidades]]
 - [[mapa-de-modulos-bizy|Mapa de Modulos]]
@@ -87,6 +88,8 @@ updated: 2026-06-30
 - [`docs/sdd/01-indice-mestre-sdd.md`](../sdd/01-indice-mestre-sdd.md)
 - [`docs/sdd/02-mapa-dominio-produto.md`](../sdd/02-mapa-dominio-produto.md)
 - [`docs/sdd/03-roadmap-sdd.md`](../sdd/03-roadmap-sdd.md)
+- [`ADR-0002 Anani interno`](../sdd/decisions/ADR-0002-anani-nucleo-interno-invisivel.md)
+- [`Spec Anani Control Plane Backend`](../sdd/specs/2026-07-09-anani-control-plane-backend.md)
 
 ## Planos e Specs Recentes
 

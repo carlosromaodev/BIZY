@@ -9,7 +9,7 @@ Toda mudanca relevante deve estar ligada a um dominio SDD.
 
 O SDD existe para impedir que o Bizy cresca por documentos soltos, conversas antigas ou implementacoes sem fronteira. Ele transforma a visao do produto em dominios claros, specs rastreaveis, planos executaveis e memoria atualizada.
 
-A meta global oficial fica em `docs/superpowers/specs/2026-06-30-meta-global-bizy.md`. Toda iniciativa deve provar que melhora descoberta, conversao, execucao, retencao ou controlo.
+A visao canonica fica em `docs/wiki/pages/visao-produto-bizy.md`. A meta global em `docs/superpowers/specs/2026-06-30-meta-global-bizy.md` e o filtro objetivo: toda iniciativa deve provar que melhora descoberta, conversao, execucao, retencao ou controlo.
 
 ## 2. Lifecycle
 
@@ -19,7 +19,7 @@ Ideia -> Dominio SDD -> Spec -> Plano -> Implementacao -> Verificacao -> Wiki/SD
 
 Etapas:
 
-1. Validar a ideia contra a meta global do Bizy.
+1. Validar a ideia contra a visao unificada e a meta global do Bizy.
 2. Identificar o dominio SDD afetado.
 3. Confirmar se a mudanca altera regra, fluxo, entidade, UX, seguranca, integracao ou roadmap.
 4. Criar uma spec em `docs/superpowers/specs/` quando houver desenho de produto/arquitetura.
@@ -96,7 +96,7 @@ Se a mudanca apenas implementa uma lacuna ja descrita, atualizar o estado atual 
 - Automacao sensivel gera tarefa humana.
 - Admin/Sistema fica separado da operacao comercial.
 - Specs e planos devem citar dominio SDD relacionado.
-- Specs e planos devem declarar que capacidade da meta global melhoram.
+- Specs e planos devem declarar que capacidade da meta global melhoram e que parte da visao unificada respeitam.
 - Pedido e a entidade comercial principal; reserva e bloqueio temporario.
 - Tracking nao substitui pedido, pagamento ou consentimento.
 - Comissao so confirma apos pedido pago.

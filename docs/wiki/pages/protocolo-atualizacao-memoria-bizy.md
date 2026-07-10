@@ -9,7 +9,7 @@ tags:
   - bizy/wiki
   - ia/protocolo
 status: ativo
-updated: 2026-05-27
+updated: 2026-07-10
 ---
 
 # Protocolo de Atualizacao da Memoria Bizy
@@ -39,7 +39,7 @@ Atualizar a wiki sempre que houver:
 ## Como Atualizar
 
 1. Ler [[schema|Schema da Wiki]].
-2. Comecar por [[memoria-projeto-bizy|Memoria de Projeto do Bizy]] ou [[guia-para-ia-bizy|Guia para IA no Bizy]].
+2. Comecar por [[visao-produto-bizy|Visao Unificada do Bizy]], depois [[memoria-projeto-bizy|Memoria de Projeto do Bizy]] ou [[guia-para-ia-bizy|Guia para IA no Bizy]].
 3. Identificar a nota correta:
    - produto/visao: [[visao-produto-bizy]];
    - dor/qualidade: [[dores-e-qualidades-bizy]];

@@ -14,6 +14,7 @@ import {
 } from "../../../../dominio/esquemas.js";
 import { exigirAcessoComercial } from "../../../../infra/http/contextoComercial.js";
 import type { ModuloHttp } from "../../../../infra/http/modulos/ModuloHttp.js";
+import { contemDadoSensivelTracking } from "./moduloLojaPublica.js";
 
 const AtualizarPublicacaoMarketSchema = z.object({
   publicado: z.boolean()
@@ -70,7 +71,8 @@ export const moduloMarket: ModuloHttp = {
         precoMaximo: query.precoMaximo,
         apenasDisponivel: query.apenasDisponivel || undefined,
         apenasPromocao: query.apenasPromocao || undefined,
-        limite: query.limite
+        limite: query.limite,
+        offset: query.offset
       });
     });
 
@@ -97,7 +99,8 @@ export const moduloMarket: ModuloHttp = {
         busca: query.busca,
         categoria: query.categoria,
         provincia: query.provincia,
-        limite: query.limite
+        limite: query.limite,
+        offset: query.offset
       });
     });
 
@@ -114,6 +117,12 @@ export const moduloMarket: ModuloHttp = {
       const dados = RegistrarEventoTrackingSchema.parse(request.body ?? {});
       if (!dados.slugLoja) {
         return reply.code(400).send({ erro: "VALIDACAO", mensagem: "Informe slugLoja para tracking de recomendações." });
+      }
+      if (contemDadoSensivelTracking(dados)) {
+        return reply.code(400).send({
+          erro: "TRACKING_DADO_SENSIVEL",
+          mensagem: "Tracking público deve usar apenas identificadores técnicos, origem, campanha e timestamps."
+        });
       }
       const evento = await contexto.lojaPublica.registrarEventoPublico(dados.slugLoja, {
         ...dados,

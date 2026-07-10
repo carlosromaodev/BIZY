@@ -5,7 +5,7 @@ aliases:
 tags:
   - bizy/wiki
 status: ativo
-updated: 2026-05-27
+updated: 2026-07-10
 ---
 
 # Wiki do Projeto Bizy
@@ -34,7 +34,8 @@ Esta wiki evita que requisitos, decisoes, deploys e memoria operacional fiquem e
 
 ## Entradas Recomendadas
 
-- [[memoria-projeto-bizy|Memoria de Projeto do Bizy]]: primeira leitura para entender visao, dores, objetivos, qualidades e prioridades.
+- [[visao-produto-bizy|Visao Unificada do Bizy]]: fonte canonica da direcao Team, Market, Learning e Anani.
+- [[memoria-projeto-bizy|Memoria de Projeto do Bizy]]: briefing para outra IA entender a visao, dores, objetivos, qualidades e prioridades.
 - [[guia-para-ia-bizy|Guia para IA no Bizy]]: como outra IA deve usar esta memoria.
 - [[mapa-de-modulos-bizy|Mapa de Modulos]]: leitura funcional do que o produto faz.
 - [[inventario-sistema-bizy|Inventario do Sistema Bizy]]: mapa do que ja existe no produto.

@@ -3,7 +3,7 @@
 Status: ativo
 Owner logico: Produto Vitrine
 Fontes: `docs/wiki/pages/loja-digital-operacao-crm.md`, `docs/wiki/pages/requisitos-funcionais-bizy.md`, `docs/wiki/pages/bizy-market-lojas-digitais.md`
-Ultima atualizacao: 2026-06-28
+Ultima atualizacao: 2026-07-10
 
 ## 1. Proposito
 
@@ -82,23 +82,26 @@ Telas: Produtos/Catalogo, Loja Digital, Loja Publica, Produto Publico, Checkout.
 
 ## 11. Estado Atual
 
-Catalogo, stock, variantes, loja publica, tracking, checkout e configuracao operacional existem. Frontend de loja e checkout visual ainda precisa maturacao continua.
+Catalogo, stock, variantes, loja publica, tracking, checkout e configuracao operacional existem. Aviso de privacidade/tracking e bloqueio de dados pessoais em tracking publico estao implementados. SEO/preview social runtime das paginas publicas foi consolidado no frontend. Checkout visual ainda precisa maturacao continua.
 
 ## 12. Lacunas
 
-- P0: checkout visual, SEO publico e aviso de privacidade/tracking.
-- P1: gestao visual de colecoes e categorias uteis.
-- P2: dominio personalizado e catalogos avancados.
+- [ ] P0: checkout visual publico.
+- [x] P0: SEO publico e preview social.
+- [x] P0: aviso de privacidade/tracking publico.
+- [ ] P1: gestao visual de colecoes e categorias uteis.
+- [ ] P2: dominio personalizado e catalogos avancados.
 
 ## 13. Testes e Verificacao
 
-- Testes de catalogo/stock.
-- Testes de loja publica/tracking.
-- Testes de checkout.
-- Testes frontend mobile sem scroll horizontal.
+- [ ] Testes de catalogo/stock.
+- [x] Testes de loja publica/tracking.
+- [x] Testes de checkout.
+- [x] Teste frontend de SEO/canonical publico.
+- [ ] Testes frontend mobile sem scroll horizontal.
 
 ## 14. Proximos Planos
 
-- Spec de checkout visual publico.
-- Spec de SEO e preview social.
-- Spec de privacidade/tracking publico.
+- [ ] Spec de checkout visual publico.
+- [x] Spec de SEO e preview social.
+- [x] Guardrail de privacidade/tracking publico aplicado.

@@ -3,6 +3,11 @@ import type {
   RepositorioPecas
 } from "../../../dominio/repositorios/contratos.js";
 import type { NegocioBizy, Peca } from "../../../dominio/tipos.js";
+import {
+  montarPaginacaoOffset,
+  normalizarLimitePaginacao,
+  normalizarOffsetPaginacao
+} from "../../../use-case/utils/paginacao.js";
 
 export interface FiltrosBizyMarket {
   busca?: string | null;
@@ -15,9 +20,17 @@ export interface FiltrosBizyMarket {
   apenasDisponivel?: boolean | null;
   apenasPromocao?: boolean | null;
   limite?: number | null;
+  offset?: number | null;
 }
 
 type ItemMarket = { peca: Peca; loja: NegocioBizy };
+type FiltrosLojasMarket = {
+  busca?: string | null;
+  categoria?: string | null;
+  provincia?: string | null;
+  limite?: number | null;
+  offset?: number | null;
+};
 
 export class BizyMarketUseCase {
   constructor(
@@ -27,16 +40,18 @@ export class BizyMarketUseCase {
 
   async listarProdutos(filtros: FiltrosBizyMarket = {}) {
     const limite = this.normalizarLimite(filtros.limite);
+    const offset = normalizarOffsetPaginacao(filtros.offset ?? undefined);
     const produtos = (await this.listarItensMarket())
       .filter((item) => this.itemAtendeFiltros(item, filtros))
       .sort((a, b) => this.ordenarItensMarket(a, b));
 
-    const produtosLimitados = produtos.slice(0, limite);
+    const produtosPaginados = produtos.slice(offset, offset + limite);
 
     return {
-      produtos: produtosLimitados.map(({ peca, loja }) => this.mapearProdutoMarket(peca, loja)),
+      produtos: produtosPaginados.map(({ peca, loja }) => this.mapearProdutoMarket(peca, loja)),
       total: produtos.length,
-      filtros: this.mapearFiltrosAplicados(filtros, limite),
+      filtros: this.mapearFiltrosAplicados(filtros, limite, offset),
+      paginacao: montarPaginacaoOffset(produtos.length, limite, offset),
       categorias: this.montarCategorias(produtos)
     };
   }
@@ -262,8 +277,9 @@ export class BizyMarketUseCase {
     );
   }
 
-  async listarLojasMarket(filtros: { busca?: string | null; categoria?: string | null; provincia?: string | null; limite?: number | null } = {}) {
+  async listarLojasMarket(filtros: FiltrosLojasMarket = {}) {
     const limite = this.normalizarLimite(filtros.limite ?? 24);
+    const offset = normalizarOffsetPaginacao(filtros.offset ?? undefined);
     const itens = await this.listarItensMarket();
     const lojasPorId = new Map<string, { loja: NegocioBizy; totalProdutos: number; categorias: Set<string> }>();
 
@@ -300,16 +316,18 @@ export class BizyMarketUseCase {
     lojas.sort((a, b) => b.totalProdutos - a.totalProdutos);
 
     return {
-      lojas: lojas.slice(0, limite).map(({ loja, totalProdutos, categorias }) => ({
+      lojas: lojas.slice(offset, offset + limite).map(({ loja, totalProdutos, categorias }) => ({
         ...this.mapearLojaMarket(loja),
         totalProdutos,
         categorias: [...categorias].sort()
       })),
       total: lojas.length,
+      paginacao: montarPaginacaoOffset(lojas.length, limite, offset),
       filtros: {
         ...(filtros.busca ? { busca: filtros.busca } : {}),
         ...(filtros.categoria ? { categoria: filtros.categoria } : {}),
         ...(filtros.provincia ? { provincia: filtros.provincia } : {}),
+        ...(offset > 0 ? { offset } : {}),
         limite
       }
     };
@@ -525,7 +543,7 @@ export class BizyMarketUseCase {
     return peca.vitrine.publicacaoMarket?.publicado !== false;
   }
 
-  private mapearFiltrosAplicados(filtros: FiltrosBizyMarket, limite: number) {
+  private mapearFiltrosAplicados(filtros: FiltrosBizyMarket, limite: number, offset: number) {
     return {
       ...(filtros.busca ? { busca: filtros.busca } : {}),
       ...(filtros.categoria ? { categoria: filtros.categoria } : {}),
@@ -536,13 +554,13 @@ export class BizyMarketUseCase {
       ...(filtros.precoMaximo != null ? { precoMaximo: filtros.precoMaximo } : {}),
       ...(filtros.apenasDisponivel ? { apenasDisponivel: true } : {}),
       ...(filtros.apenasPromocao ? { apenasPromocao: true } : {}),
+      ...(offset > 0 ? { offset } : {}),
       limite
     };
   }
 
   private normalizarLimite(limite?: number | null): number {
-    if (!limite || Number.isNaN(limite)) return 48;
-    return Math.max(1, Math.min(Math.trunc(limite), 100));
+    return normalizarLimitePaginacao(limite ?? undefined, 48, 100);
   }
 
   private normalizarTexto(valor?: string | null): string {

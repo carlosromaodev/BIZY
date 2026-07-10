@@ -7,7 +7,7 @@ tags:
   - bizy/arquitetura
   - bizy/guardrails
 status: ativo
-updated: 2026-05-27
+updated: 2026-07-09
 ---
 
 # Arquitetura e Guardrails do Bizy
@@ -21,6 +21,17 @@ updated: 2026-05-27
 - Infra: Docker Compose, PostgreSQL, Redis, n8n, Evolution, Caddy opcional.
 
 Detalhes: [[inventario-backend-api]], [[inventario-frontend]], [[inventario-operacao-testes]].
+
+## Regra Organizacional Atual
+
+```text
+Bizy visivel = Bizy Team + Bizy Market + Bizy Learning
+Nucleo interno = Anani
+```
+
+Anani nao e produto de tenant, chatbot publico ou menu operacional comum. O acesso direto fica restrito a `GOVERNANTE_BIZY`, `ADMIN_GERAL` e `SUPER_ADMIN_PLATFORM` em `/governance/anani/*`.
+
+Ver [[anani-intelligence-control-plane]].
 
 ## Regra Principal do Backend
 
@@ -53,12 +64,16 @@ Modulos HTTP ficam em `backend/src/infra/http/modulos/` e sao registrados por ma
 > [!warning] Fonte de verdade
 > n8n, IA, Evolution, Cloud API e conectores sociais nao podem decidir stock, pagamento, pedido, consentimento, auditoria ou permissao sem passar pelo backend.
 
+> [!warning] Anani
+> Anani pode observar, recomendar, criar incidente, colocar quarentena preventiva e preparar acoes; mas qualquer acao passa por PolicyEngine, auditoria e, quando for alto impacto, aprovacao humana.
+
 O backend valida:
 
 - negocio;
 - usuario;
 - permissao;
 - modulo ativo;
+- politica Anani quando a acao vier do nucleo interno;
 - stock;
 - pedido;
 - pagamento;
@@ -120,6 +135,19 @@ Casos sensiveis devem ir para humano:
 - baixa confianca.
 
 Automacao deve ser conservadora. Criar tarefa com contexto e melhor que executar acao errada.
+
+## Anani, n8n e IA
+
+n8n e executor periferico: recebe instrucao autorizada e executa workflow. Ele nao decide sozinho stock, preco, pagamento, permissao, consentimento, suspensao ou dados de tenant.
+
+Claude/GPT, quando integrado, deve receber apenas contexto sanitizado e estruturado. PII, tokens, segredos e conteudo cru nao entram no prompt.
+
+O backend agora possui a primeira fronteira Anani:
+
+- `backend/src/anani/policies/AnaniPolicyEngine.ts`
+- `backend/src/app/bootstrap/bootstrapAnani.ts`
+- `backend/src/infra/http/modulos/ananiGovernance.ts`
+- `backend/prisma/migrations/20260709090000_anani_internal_control_plane/migration.sql`
 
 ## Auditoria por Padrao
 

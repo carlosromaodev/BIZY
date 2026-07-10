@@ -57,7 +57,7 @@ import { resolverSlugLojaPublica } from "../dominio/lojaSubdominio";
 import { adicionarItemCheckoutBizy, deixarDeSeguirLoja, obterLojaPublica, ROTAS_LOJAS, seguirLoja, verificarSeSegueLoja } from "../api";
 import { LogoBizy } from "../../../marca/bizy";
 import { AvisoPrivacidade } from "../../../componentes/BizyDesignSystem";
-import { formatarKwanza, aplicarSeoMetaTags } from "../../../utilidades";
+import { formatarKwanza, aplicarSeoMetaTags, montarSeoPublico } from "../../../utilidades";
 import type {
   AbaDetalheProduto,
   AbaLojaPublica,
@@ -190,7 +190,13 @@ export function PaginaLojaDigitalPublica() {
         if (!ativo) return;
 
         setDados(corpo);
-        limparSeo = aplicarSeoMetaTags(corpo.seo);
+        const imagemLoja = corpo.loja.logoUrl || corpo.loja.capaUrl ? resolverUrlMedia(corpo.loja.logoUrl ?? corpo.loja.capaUrl) : undefined;
+        limparSeo = aplicarSeoMetaTags(corpo.seo ?? montarSeoPublico({
+          titulo: `${corpo.loja.nomeComercial} | Bizy`,
+          descricao: corpo.loja.descricaoPublica ?? `Loja pública de ${corpo.loja.nomeComercial} no Bizy, com catálogo, stock e checkout organizado.`,
+          canonicalPath: ROTAS_LOJAS.loja(corpo.loja.slug || slug),
+          imagem: imagemLoja
+        }));
         registrarEvento("LOJA_VISITADA", {
           entidadeTipo: "LOJA",
           entidadeId: corpo.loja.slug,
@@ -246,6 +252,22 @@ export function PaginaLojaDigitalPublica() {
 
     setErro("Produto não está disponível nesta loja.");
   }, [codigoProdutoRota, dados?.produtos, slug]);
+
+  useEffect(() => {
+    if (!dados || !produtoAberto) return;
+
+    const imagemProduto = produtoAberto.fotos[0]
+      ? resolverUrlMedia(produtoAberto.fotos[0])
+      : resolverUrlMedia(dados.loja.logoUrl ?? dados.loja.capaUrl ?? "");
+
+    return aplicarSeoMetaTags(montarSeoPublico({
+      titulo: `${produtoAberto.nome} | ${dados.loja.nomeComercial}`,
+      descricao: produtoAberto.descricao || `${produtoAberto.nome} disponível em ${dados.loja.nomeComercial} no Bizy.`,
+      canonicalPath: ROTAS_LOJAS.produtoLoja(slug, produtoAberto.codigo),
+      imagem: imagemProduto || undefined,
+      tipo: "product"
+    }));
+  }, [dados, produtoAberto, slug]);
 
   useEffect(() => {
     if (!checkoutAberto || !checkoutProduto) return;

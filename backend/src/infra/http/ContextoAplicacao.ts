@@ -2,6 +2,7 @@ import type { FastifyBaseLogger } from "fastify";
 import { DespachadorEventos } from "../../dominio/eventos/DespachadorEventos.js";
 import { AssistenteIAUseCase } from "../../use-case/AssistenteIAUseCase.js";
 import { ProvedorIAOpenRouter } from "../provedores/ProvedorIAOpenRouter.js";
+import { bootstrapAnani, type AnaniContext } from "../../app/bootstrap/bootstrapAnani.js";
 import type { LiveCommentProvider } from "../../dominio/provedores/LiveCommentProvider.js";
 import type { ProvedorWhatsApp } from "../../dominio/provedores/ProvedorWhatsApp.js";
 import type {
@@ -274,6 +275,7 @@ export interface ContextoAplicacao {
   conformidadeROI: ConformidadeROIUseCase;
   inteligenciaPreditiva: InteligenciaPreditivaUseCase;
   assistenteIA: AssistenteIAUseCase | null;
+  anani: AnaniContext;
   sessoesLive: Map<string, SessaoLive>;
 }
 
@@ -535,6 +537,7 @@ export function criarContextoAplicacao(logger: FastifyBaseLogger): ContextoAplic
   const gestaoProjectos = new GestaoProjectosUseCase(prismaDirecto);
   const conformidadeROI = new ConformidadeROIUseCase(prismaDirecto);
   const inteligenciaPreditiva = new InteligenciaPreditivaUseCase(prismaDirecto);
+  const anani = bootstrapAnani(prismaDirecto, eventos, logger);
 
   const provedorIA = criarProvedorIA();
   const assistenteIA = provedorIA
@@ -619,6 +622,7 @@ export function criarContextoAplicacao(logger: FastifyBaseLogger): ContextoAplic
     conformidadeROI,
     inteligenciaPreditiva,
     assistenteIA,
+    anani,
     sessoesLive: new Map()
   };
 }

@@ -1735,14 +1735,16 @@ export const QueryMarketProdutosSchema = z.object({
   precoMaximo: z.coerce.number().min(0).optional(),
   apenasDisponivel: BooleanQueryOpcionalSchema,
   apenasPromocao: BooleanQueryOpcionalSchema,
-  limite: LimiteQuerySchema
+  limite: LimiteQuerySchema,
+  offset: OffsetQuerySchema
 });
 
 export const QueryMarketLojasSchema = z.object({
   busca: TextoQueryOpcionalSchema,
   categoria: TextoQueryOpcionalSchema,
   provincia: TextoQueryOpcionalSchema,
-  limite: LimiteQuerySchema
+  limite: LimiteQuerySchema,
+  offset: OffsetQuerySchema
 });
 
 export const QueryMarketSeguidoresSchema = z.object({

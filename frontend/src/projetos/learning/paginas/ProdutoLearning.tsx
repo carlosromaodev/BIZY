@@ -20,7 +20,10 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import type { ProgramaLearning } from "../api";
 import { obterProdutoLearning, registrarEventoPublicoLearning, type ProdutoLearningPublico, type TipoEventoPublicoLearning } from "../apiPublica";
+import { aplicarSeoMetaTags, montarSeoPublico } from "../../../utilidades";
 import "../learning.css";
+
+const IMAGEM_SEO_LEARNING = "/bizy-live-commerce-hero.png";
 
 export function PaginaProdutoLearning() {
   const { slug = "" } = useParams();
@@ -32,6 +35,7 @@ export function PaginaProdutoLearning() {
 
   useEffect(() => {
     let activo = true;
+    let limparSeo = () => {};
 
     async function carregar() {
       setCarregando(true);
@@ -41,7 +45,13 @@ export function PaginaProdutoLearning() {
         const resposta = await obterProdutoLearning(slug);
         if (activo) {
           setProduto(resposta.produto);
-          document.title = resposta.produto.seo.titulo;
+          limparSeo = aplicarSeoMetaTags(montarSeoPublico({
+            titulo: resposta.produto.seo.titulo,
+            descricao: resposta.produto.seo.descricao,
+            canonicalPath: resposta.produto.seo.urlCanonica || `/learning/produtos/${slug}`,
+            imagem: IMAGEM_SEO_LEARNING,
+            tipo: "product"
+          }));
         }
       } catch (falha) {
         if (activo) setErro(falha instanceof Error ? falha.message : "Não foi possível carregar o produto Learning.");
@@ -53,6 +63,7 @@ export function PaginaProdutoLearning() {
     void carregar();
     return () => {
       activo = false;
+      limparSeo();
     };
   }, [slug]);
 

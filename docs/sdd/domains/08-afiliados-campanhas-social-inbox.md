@@ -96,17 +96,17 @@ Backend possui afiliados, links, comissoes, lotes, campanhas, templates, Social 
 
 ## 12. Lacunas
 
-- P0: garantir privacidade/tracking publico.
-- P1: resultados de campanha por webhook/status.
-- P2: portal de afiliado, conectores sociais oficiais e comissao por meta.
+- [x] P0: garantir privacidade/tracking publico.
+- [ ] P1: resultados de campanha por webhook/status.
+- [ ] P2: portal de afiliado, conectores sociais oficiais e comissao por meta.
 
 ## 13. Testes e Verificacao
 
-- Testes HTTP de afiliados.
-- Testes de campanhas e templates.
-- Testes de Social Inbox.
-- Testes de tracking sem dados pessoais.
-- Testes de reversao de comissao.
+- [ ] Testes HTTP de afiliados.
+- [ ] Testes de campanhas e templates.
+- [ ] Testes de Social Inbox.
+- [x] Testes de tracking sem dados pessoais.
+- [ ] Testes de reversao de comissao.
 
 ## 14. Proximos Planos
 
