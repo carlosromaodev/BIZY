@@ -52,7 +52,7 @@ export class ProvedorWhatsAppCloudApi implements ProvedorWhatsApp {
       throw new Error("Telefone WhatsApp angolano inválido.");
     }
 
-    const resposta = await this.requisitar(this.criarPayloadMensagem(destino.providerTo, conteudo));
+    const resposta = await this.requisitar(this.criarPayloadMensagem(destino.providerTo, conteudo, mensagem.media));
 
     return {
       idExterno: extrairIdMensagemCloudApi(resposta) ?? `whatsapp_cloud_${Date.now()}`,
@@ -79,12 +79,30 @@ export class ProvedorWhatsAppCloudApi implements ProvedorWhatsApp {
     return corpo;
   }
 
-  private criarPayloadMensagem(destino: string, conteudo: string) {
+  private criarPayloadMensagem(destino: string, conteudo: string, media?: MensagemWhatsApp["media"]) {
     const base = {
       messaging_product: "whatsapp",
       recipient_type: "individual",
       to: destino
     };
+
+    if (media) {
+      const link = media.url?.trim();
+      if (!link || !/^https:\/\//i.test(link)) {
+        throw new Error("WhatsApp Cloud API exige URL HTTPS publica para enviar imagem ou documento.");
+      }
+
+      const tipo = media.tipo === "IMAGEM" || media.tipo === "CATALOGO" || media.mimeType?.startsWith("image/") ? "image" : "document";
+      return {
+        ...base,
+        type: tipo,
+        [tipo]: {
+          link,
+          caption: conteudo,
+          ...(tipo === "document" ? { filename: media.fileName?.trim() || "documento-bizy.pdf" } : {})
+        }
+      };
+    }
 
     if (this.defaultTemplateName) {
       return {

@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   extrairIdMensagemEvolution,
   extrairMensagemEvolution,
@@ -9,6 +9,11 @@ import {
   selecionarInstanciaWhatsAppPreferida,
   validarPoliticaMensagemWhatsApp
 } from "../infra/provedores/ClienteEvolutionApi.js";
+import { ProvedorWhatsAppEvolution } from "../infra/provedores/ProvedorWhatsAppEvolution.js";
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
 
 describe("ClienteEvolutionApi helpers", () => {
   it("normaliza estado aninhado da Evolution", () => {
@@ -65,5 +70,48 @@ describe("ClienteEvolutionApi helpers", () => {
     );
     expect(validarPoliticaMensagemWhatsApp("boaaaaaaaaaaaaaaaa venda")).toContain("repetição excessiva");
     expect(validarPoliticaMensagemWhatsApp("Reserva confirmada.")).toBeNull();
+  });
+
+  it("envia imagem ou documento pelo endpoint sendMedia da Evolution", async () => {
+    const fetchMock = vi.fn(async () =>
+      new Response(JSON.stringify({ key: { id: "evo-media-1" } }), { status: 200 })
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const provedor = new ProvedorWhatsAppEvolution({
+      baseUrl: "https://evolution.local",
+      apiKey: "token",
+      instancia: "loja",
+      atrasoMs: 0
+    });
+
+    const resultado = await provedor.enviarMensagem({
+      telefone: "923456789",
+      conteudo: "Segue a imagem.",
+      tipo: "MANUAL_IMAGEM",
+      media: {
+        tipo: "IMAGEM",
+        dataUrl: "data:image/png;base64,iVBORw0KGgo=",
+        mimeType: "image/png",
+        fileName: "foto.png"
+      }
+    });
+
+    expect(resultado.idExterno).toBe("evo-media-1");
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://evolution.local/message/sendMedia/loja",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({
+          number: "244923456789",
+          mediatype: "image",
+          mimetype: "image/png",
+          caption: "Segue a imagem.",
+          media: "data:image/png;base64,iVBORw0KGgo=",
+          fileName: "foto.png",
+          linkPreview: false
+        })
+      })
+    );
   });
 });

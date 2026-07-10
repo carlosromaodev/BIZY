@@ -33,16 +33,16 @@ P0 bloqueia lancamento ou experiencia minima aceitavel:
 
 P1 melhora primeira operacao comercial:
 
-- Cliente 360 polido;
-- pedido direto na conversa;
-- envio binario real no WhatsApp;
-- colecoes visuais;
-- templates transacionais por evento;
-- tarefas automaticas para falhas de automacao;
-- textos operacionais para vendedora nao tecnica;
-- prioridade visual para VIP, reclamacao e pagamento pendente;
-- resultados de campanha por webhook/status.
-- Bizy Learning separado como learning commerce engine, com home publica tipo Market, backoffice Team e Studio capaz de activar Market, Learning ou ambos.
+- [ ] Cliente 360 polido;
+- [ ] pedido direto na conversa;
+- [x] envio binario real no WhatsApp;
+- [ ] colecoes visuais;
+- [ ] templates transacionais por evento;
+- [ ] tarefas automaticas para falhas de automacao;
+- [ ] textos operacionais para vendedora nao tecnica;
+- [ ] prioridade visual para VIP, reclamacao e pagamento pendente;
+- [ ] resultados de campanha por webhook/status.
+- [ ] Bizy Learning separado como learning commerce engine, com home publica tipo Market, backoffice Team e Studio capaz de activar Market, Learning ou ambos.
 
 ## 3. P2
 
@@ -72,7 +72,7 @@ P2 depende de feedback, escala ou integracao madura:
 | 02 Identidade | Formalizar matriz de permissoes por papel/persona; guard de URL por modulo ja esta fechado no frontend. |
 | 03 CRM Social Commerce | Polir funil comercial, tarefas e relatorios operacionais no mesmo modelo. |
 | 04 Live/Reservas | Fechar fluxo reserva -> pedido -> pagamento -> entrega com telemetria. |
-| 05 Clientes/WhatsApp | Completar Cliente 360 visual, envio binario e opt-out granular. |
+| 05 Clientes/WhatsApp | Completar Cliente 360 visual e opt-out granular; envio binario real ja esta fechado. |
 | 06 Catalogo/Loja | Manter checkout visual, SEO, privacidade, mobile 360px e modulos visiveis por configuracao. |
 | 07 Market | Evoluir checkout multi-loja, acompanhamento do comprador e repasses. |
 | 08 Afiliados/Social | Criar portal do afiliado e conectores sociais oficiais. |

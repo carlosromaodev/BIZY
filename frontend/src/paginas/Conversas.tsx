@@ -12,6 +12,7 @@ import {
   MessageCircle,
   MessageSquare,
   Package,
+  Paperclip,
   Phone,
   Plus,
   RefreshCcw,
@@ -27,7 +28,7 @@ import {
 import { type FormEvent, type KeyboardEvent as ReactKeyboardEvent, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "motion/react";
-import { criarFonteEventosAutenticada, requisitarApi } from "../api";
+import { criarFonteEventosAutenticada, requisitarApi, resolverUrlMedia } from "../api";
 import { EstadoVazio } from "../componentes/Shell";
 import { SkeletonPagina } from "../componentes/SkeletonBlocks";
 import { CrmList, CrmListItem, CrmMetricMini, CrmPageMotion } from "../componentes/CrmInterno21st";
@@ -92,6 +93,8 @@ const estadosCrm = [
 ] as const;
 const prioridadesCrm = ["BAIXA", "NORMAL", "ALTA", "URGENTE"] as const;
 const politicasAutomacao = ["AUTOMATICO", "SUGERIR_RESPOSTA", "EXIGIR_HUMANO", "BLOQUEAR_IA"] as const;
+const LIMITE_ANEXO_ATENDIMENTO_BYTES = 10 * 1024 * 1024;
+const TIPOS_ANEXO_ATENDIMENTO = new Set(["image/jpeg", "image/png", "image/webp", "application/pdf"]);
 
 type MensagemParcial = Partial<Mensagem> & {
   criadoEm?: string;
@@ -147,9 +150,11 @@ export function PaginaConversas() {
   const [contextoAberto, setContextoAberto] = useState(false);
   const [mensagem, setMensagem] = useState("");
   const [textoResposta, setTextoResposta] = useState("");
+  const [anexoResposta, setAnexoResposta] = useState<File | null>(null);
   const [notaInterna, setNotaInterna] = useState("");
   const mensagensRef = useRef<HTMLDivElement | null>(null);
   const mensagensRefDesktop = useRef<HTMLDivElement | null>(null);
+  const inputAnexoRef = useRef<HTMLInputElement | null>(null);
   const [formCrm, setFormCrm] = useState({
     estadoCrm: "NOVA" as Conversa["estadoCrm"],
     prioridade: "NORMAL" as Conversa["prioridade"],
@@ -294,8 +299,10 @@ export function PaginaConversas() {
       await acao();
       await carregar();
       setMensagem(sucesso);
+      return true;
     } catch (erro) {
       setMensagem(erro instanceof Error ? erro.message : "Operação rejeitada.");
+      return false;
     } finally {
       setCarregando(false);
     }
@@ -446,10 +453,13 @@ export function PaginaConversas() {
   async function enviarMensagem(e: FormEvent) {
     e.preventDefault();
     const texto = textoResposta.trim();
-    if (!conversaAtual || !texto) return;
+    if (!conversaAtual || (!texto && !anexoResposta)) return;
 
-    await enviarTextoAtendimento(texto);
+    const enviado = await enviarTextoAtendimento(texto, undefined, anexoResposta);
+    if (!enviado) return;
     setTextoResposta("");
+    setAnexoResposta(null);
+    if (inputAnexoRef.current) inputAnexoRef.current.value = "";
   }
 
   async function enviarMensagemRapida(texto: string) {
@@ -460,17 +470,30 @@ export function PaginaConversas() {
 
   async function enviarTextoAtendimento(
     texto: string,
-    contextoAcao?: { entidadeTipo?: string; entidadeId?: string }
+    contextoAcao?: { entidadeTipo?: string; entidadeId?: string },
+    anexo?: File | null
   ) {
-    if (!conversaAtual || !texto.trim()) return;
+    if (!conversaAtual || (!texto.trim() && !anexo)) return false;
+    if (anexo && !conversaAtual.conversaCrmId) {
+      setMensagem("Anexos exigem uma conversa CRM vinculada.");
+      return false;
+    }
 
-    await executar(
-      () => conversaAtual.conversaCrmId
-        ? requisitarApi(`/atendimento/conversas/${conversaAtual.conversaCrmId}/mensagens`, {
+    return await executar(
+      async () => {
+        const media = anexo ? await prepararAnexoAtendimento(anexo) : null;
+
+        return conversaAtual.conversaCrmId
+          ? requisitarApi(`/atendimento/conversas/${conversaAtual.conversaCrmId}/mensagens`, {
             method: "POST",
             body: {
-              tipo: "TEXTO",
-              mensagem: texto.trim(),
+              tipo: media?.tipo ?? "TEXTO",
+              mensagem: texto.trim() || undefined,
+              ...(media ? {
+                mediaDataUrl: media.dataUrl,
+                mediaMimeType: media.mimeType,
+                mediaFileName: media.fileName
+              } : {}),
               entidadeTipo: contextoAcao?.entidadeTipo ?? null,
               entidadeId: contextoAcao?.entidadeId ?? null,
               contexto: {
@@ -479,15 +502,39 @@ export function PaginaConversas() {
               }
             }
           })
-        : requisitarApi("/whatsapp/mensagens", {
+          : requisitarApi("/whatsapp/mensagens", {
             method: "POST",
             body: {
               telefone: conversaAtual.telefone,
               mensagem: texto.trim()
             }
-          }),
-      "Mensagem enviada para o WhatsApp."
+          });
+      },
+      anexo ? "Anexo enviado para o WhatsApp." : "Mensagem enviada para o WhatsApp."
     );
+  }
+
+  function selecionarAnexoResposta(arquivo: File | null) {
+    if (!arquivo) {
+      setAnexoResposta(null);
+      return;
+    }
+    if (!TIPOS_ANEXO_ATENDIMENTO.has(arquivo.type)) {
+      setMensagem("Anexe imagem PNG/JPG/WebP ou PDF.");
+      if (inputAnexoRef.current) inputAnexoRef.current.value = "";
+      return;
+    }
+    if (arquivo.size > LIMITE_ANEXO_ATENDIMENTO_BYTES) {
+      setMensagem("Anexo acima do limite de 10 MB.");
+      if (inputAnexoRef.current) inputAnexoRef.current.value = "";
+      return;
+    }
+    setAnexoResposta(arquivo);
+  }
+
+  function limparAnexoResposta() {
+    setAnexoResposta(null);
+    if (inputAnexoRef.current) inputAnexoRef.current.value = "";
   }
 
   async function reenviarMensagem(mensagemFalhada: Mensagem) {
@@ -981,9 +1028,28 @@ export function PaginaConversas() {
                       onEnviarTexto={(texto) => void enviarMensagemRapida(texto)}
                     />
                   )}
+                  <input
+                    ref={inputAnexoRef}
+                    type="file"
+                    className="sr-only"
+                    accept="image/png,image/jpeg,image/webp,application/pdf"
+                    onChange={(e) => selecionarAnexoResposta(e.currentTarget.files?.[0] ?? null)}
+                  />
+                  {anexoResposta && (
+                    <div className="inline-flex max-w-full items-center gap-2 justify-self-start rounded-md border bg-muted/40 px-2 py-1 text-xs font-medium text-foreground">
+                      <Paperclip className="size-3.5 shrink-0" />
+                      <span className="max-w-[220px] truncate">{anexoResposta.name}</span>
+                      <button type="button" className="rounded-sm p-0.5 text-muted-foreground hover:bg-background hover:text-foreground" onClick={limparAnexoResposta} title="Remover anexo">
+                        <X className="size-3.5" />
+                      </button>
+                    </div>
+                  )}
                   <div className="chat-commerce-row grid items-end gap-2">
                     <Button type="button" variant="outline" size="icon-lg" className="atendimento-fab-mobile" onClick={() => setDrawerMobileAberto(true)} disabled={carregando}>
                       <Plus className="size-4" />
+                    </Button>
+                    <Button type="button" variant="outline" size="icon-lg" className="chat-commerce-attach-button" onClick={() => inputAnexoRef.current?.click()} disabled={carregando || !conversaAtual.conversaCrmId} title="Anexar imagem ou PDF">
+                      <Paperclip className="size-4" />
                     </Button>
                     <Textarea
                       aria-label="Responder pelo WhatsApp"
@@ -1004,7 +1070,7 @@ export function PaginaConversas() {
                     <Button type="button" variant="outline" size="icon-lg" onClick={() => void guardarSugestaoResposta()} disabled={carregando || !textoResposta.trim() || !conversaAtual.conversaCrmId} title="Guardar rascunho">
                       <StickyNote className="size-4" />
                     </Button>
-                    <Button size="icon-lg" disabled={carregando || !textoResposta.trim()}>
+                    <Button size="icon-lg" disabled={carregando || (!textoResposta.trim() && !anexoResposta)}>
                       <Send className="size-4" />
                     </Button>
                   </div>
@@ -1432,10 +1498,26 @@ export function PaginaConversas() {
 
                     {/* Composer — KirriDesk style with channel badge */}
                     <form className="bz-composer" onSubmit={(e) => void enviarMensagem(e)}>
+                      <input
+                        ref={inputAnexoRef}
+                        type="file"
+                        className="sr-only"
+                        accept="image/png,image/jpeg,image/webp,application/pdf"
+                        onChange={(e) => selecionarAnexoResposta(e.currentTarget.files?.[0] ?? null)}
+                      />
                       {conversaAtual.origemPrincipal && (
                         <span className="bz-composer-channel">
                           <IconeOrigem origem={conversaAtual.origemPrincipal} />
                           {NOME_CANAL[conversaAtual.origemPrincipal] ?? conversaAtual.origemPrincipal}
+                        </span>
+                      )}
+                      {anexoResposta && (
+                        <span className="inline-flex h-9 max-w-[180px] items-center gap-2 rounded-md border border-border bg-background px-2 text-[11px] font-semibold text-foreground">
+                          <Paperclip size={13} />
+                          <span className="truncate">{anexoResposta.name}</span>
+                          <button type="button" className="grid size-5 place-items-center rounded text-muted-foreground hover:bg-muted hover:text-foreground" onClick={limparAnexoResposta} title="Remover anexo">
+                            <X size={12} />
+                          </button>
                         </span>
                       )}
                       <button type="button" className="bz-iconbtn" onClick={() => setRespostasRapidasAbertas((a) => !a)} disabled={carregando} title="Respostas rápidas">
@@ -1443,6 +1525,9 @@ export function PaginaConversas() {
                       </button>
                       <button type="button" className="bz-iconbtn" onClick={() => setContextoAberto((a) => !a)} disabled={carregando} title="Consultar produtos">
                         <Package size={15} />
+                      </button>
+                      <button type="button" className="bz-iconbtn" onClick={() => inputAnexoRef.current?.click()} disabled={carregando || !conversaAtual.conversaCrmId} title="Anexar imagem ou PDF">
+                        <Paperclip size={15} />
                       </button>
                       <textarea
                         className="inp"
@@ -1454,7 +1539,7 @@ export function PaginaConversas() {
                         disabled={carregando}
                         rows={1}
                       />
-                      <button type="submit" className="send" disabled={carregando || !textoResposta.trim()} title="Enviar">
+                      <button type="submit" className="send" disabled={carregando || (!textoResposta.trim() && !anexoResposta)} title="Enviar">
                         <Send size={16} />
                       </button>
                     </form>
@@ -1744,6 +1829,7 @@ function MensagemLinha({
   const permiteUsarSugestao = mensagem.origem === "ia_sugestao" && mensagem.status === "QUEUED";
   const enviadaPelaLoja = mensagem.remetente !== "cliente";
   const mensagemFalhou = enviadaPelaLoja && mensagem.status === "FAILED";
+  const anexo = obterAnexoMensagem(mensagem);
   const classeBalao = enviadaPelaLoja
     ? mensagemFalhou
       ? "max-w-[85%] rounded-2xl rounded-br-sm border border-destructive/30 bg-destructive/5 p-3 text-foreground"
@@ -1759,6 +1845,7 @@ function MensagemLinha({
           </span>
         )}
         <p className="atendimento-message-text whitespace-pre-wrap text-sm leading-6">{mensagem.conteudo}</p>
+        {anexo && <LinkAnexoMensagem anexo={anexo} />}
         <span className={mensagemFalhou ? "mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground" : "mt-2 flex flex-wrap items-center gap-2 text-xs opacity-80"}>
           {formatarHora(mensagem.enviadaEm)}
           {status && (
@@ -1995,8 +2082,68 @@ function normalizarMensagemAtendimento(mensagem: MensagemParcial, indice: number
     status: mensagem.status ?? mensagem.estadoEnvio,
     provider: mensagem.provider ?? null,
     providerMessageId: mensagem.providerMessageId ?? null,
-    erro: mensagem.erro ?? null
+    erro: mensagem.erro ?? null,
+    contexto: mensagem.contexto
   };
+}
+
+function prepararAnexoAtendimento(arquivo: File): Promise<{
+  dataUrl: string;
+  mimeType: string;
+  fileName: string;
+  tipo: "IMAGEM" | "DOCUMENTO";
+}> {
+  return new Promise((resolve, reject) => {
+    const leitor = new FileReader();
+    leitor.onerror = () => reject(new Error("Nao foi possivel ler o anexo."));
+    leitor.onload = () => {
+      const dataUrl = typeof leitor.result === "string" ? leitor.result : "";
+      if (!dataUrl.startsWith("data:")) {
+        reject(new Error("Anexo invalido."));
+        return;
+      }
+      resolve({
+        dataUrl,
+        mimeType: arquivo.type || "application/octet-stream",
+        fileName: arquivo.name || "anexo-bizy",
+        tipo: arquivo.type.startsWith("image/") ? "IMAGEM" : "DOCUMENTO"
+      });
+    };
+    leitor.readAsDataURL(arquivo);
+  });
+}
+
+function obterAnexoMensagem(mensagem: Mensagem): { url: string; fileName: string; mimeType: string | null } | null {
+  const contexto = mensagem.contexto ?? {};
+  const media = typeof contexto.media === "object" && contexto.media !== null && !Array.isArray(contexto.media)
+    ? contexto.media as Record<string, unknown>
+    : null;
+  const url = textoDoContexto(media?.url) ?? textoDoContexto(contexto.mediaUrl);
+  if (!url) return null;
+  return {
+    url,
+    fileName: textoDoContexto(media?.fileName) ?? textoDoContexto(contexto.mediaFileName) ?? "Anexo",
+    mimeType: textoDoContexto(media?.mimeType) ?? textoDoContexto(contexto.mediaMimeType)
+  };
+}
+
+function textoDoContexto(valor: unknown): string | null {
+  return typeof valor === "string" && valor.trim() ? valor.trim() : null;
+}
+
+function LinkAnexoMensagem({ anexo }: { anexo: { url: string; fileName: string; mimeType: string | null } }) {
+  return (
+    <a
+      className="mt-2 inline-flex max-w-full items-center gap-1.5 rounded-md border border-current/20 px-2 py-1 text-xs font-semibold underline-offset-2 hover:underline"
+      href={resolverUrlMedia(anexo.url)}
+      target="_blank"
+      rel="noreferrer"
+      title={anexo.mimeType ?? "Anexo"}
+    >
+      <Paperclip className="size-3 shrink-0" />
+      <span className="truncate">{anexo.fileName || "Ver anexo"}</span>
+    </a>
+  );
 }
 
 function normalizarTelefoneLocal(telefone?: string | null) {
@@ -2162,6 +2309,7 @@ function MensagemBizy({
   const falhou = enviadaPelaLoja && mensagem.status === "FAILED";
   const permiteReenvio = falhou && (mensagem.origem === "whatsapp" || mensagem.origem === "instagram" || mensagem.origem === "sms");
   const permiteUsarSugestao = mensagem.origem === "ia_sugestao" && mensagem.status === "QUEUED";
+  const anexo = obterAnexoMensagem(mensagem);
   const classeBolha = ehSistema
     ? "bz-msg msg-system"
     : falhou
@@ -2175,6 +2323,7 @@ function MensagemBizy({
     return (
       <div className={classeBolha}>
         <span className="bz-msg-text">{mensagem.conteudo}</span>
+        {anexo && <LinkAnexoMensagem anexo={anexo} />}
         <div className="bz-msg-meta" style={{ justifyContent: "center" }}>
           <span className="tm">{formatarHora(mensagem.enviadaEm)}</span>
         </div>
@@ -2201,6 +2350,7 @@ function MensagemBizy({
             <span className="sender-label">{traduzirRemetenteMensagem(mensagem)}</span>
           )}
           <span className="bz-msg-text">{mensagem.conteudo}</span>
+          {anexo && <LinkAnexoMensagem anexo={anexo} />}
           <div className="bz-msg-meta">
             <span className="tm">{formatarHora(mensagem.enviadaEm)}</span>
             {mensagem.origem && NOME_CANAL[mensagem.origem] && (

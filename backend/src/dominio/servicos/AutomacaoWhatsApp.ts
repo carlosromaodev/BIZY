@@ -48,6 +48,13 @@ export interface DadosMensagemManualWhatsApp {
   categoria?: CategoriaMensagemWhatsApp;
   consentimentoMarketing?: boolean;
   janelaAtendimentoAtiva?: boolean;
+  media?: {
+    tipo: "IMAGEM" | "DOCUMENTO" | "RECIBO" | "CATALOGO";
+    url?: string | null;
+    dataUrl?: string | null;
+    mimeType?: string | null;
+    fileName?: string | null;
+  } | null;
 }
 
 type RegistradorTarefaHumana = (dados: NovaTarefaOperacional) => Promise<void> | void;
@@ -291,7 +298,7 @@ Assim que receber o código da peça, confirmo a disponibilidade e sigo com a tu
     try {
       const template = dados.templateId ? this.exigirTemplate(dados.templateId) : null;
       const conteudo = dados.mensagem?.trim() || (template ? this.renderizarTemplate(template, dados.variaveis ?? {}) : "");
-      const tipo = template?.tipo ?? "MANUAL";
+      const tipo = template?.tipo ?? (dados.media ? `MANUAL_${dados.media.tipo}` : "MANUAL");
       const politica = this.politicaWhatsApp.avaliar({
         tipo,
         origem: "manual",
@@ -310,15 +317,18 @@ Assim que receber o código da peça, confirmo a disponibilidade e sigo com a tu
           negocioId: dados.negocioId ?? null,
           origem: "painel",
           templateId: template?.id ?? null,
-          variaveis: dados.variaveis ?? {}
+          variaveis: dados.variaveis ?? {},
+          ...(dados.media ? { media: this.sanitizarMediaContexto(dados.media) } : {})
         },
-        politica
+        politica,
+        dados.media ?? null
       );
 
       return {
         telefone: dados.telefone,
         tipo,
         conteudo,
+        media: dados.media ?? null,
         template,
         politica,
         resultado
@@ -396,7 +406,8 @@ Assim que receber o código da peça, confirmo a disponibilidade e sigo com a tu
     tipo: string,
     conteudo: string,
     contexto: Record<string, unknown>,
-    politica: PoliticaEnvioWhatsApp
+    politica: PoliticaEnvioWhatsApp,
+    media?: DadosMensagemManualWhatsApp["media"]
   ) {
     const contextoComPolitica = this.comPolitica(contexto, politica);
     const negocioId = this.extrairNegocioIdDoContexto(contexto);
@@ -408,7 +419,8 @@ Assim que receber o código da peça, confirmo a disponibilidade e sigo com a tu
         tipo,
         categoria: politica.categoria,
         politica,
-        contexto: contextoComPolitica
+        contexto: contextoComPolitica,
+        ...(media ? { media } : {})
       });
 
       this.eventos.emitir("WHATSAPP_MESSAGE_SENT", {
@@ -419,6 +431,7 @@ Assim que receber o código da peça, confirmo a disponibilidade e sigo com a tu
         politicaWhatsApp: politica,
         conteudo,
         contexto: contextoComPolitica,
+        ...(media ? { media: this.sanitizarMediaContexto(media) } : {}),
         provider: resultado.provider,
         idExterno: resultado.idExterno,
         enviadoEm: resultado.enviadoEm
@@ -434,6 +447,7 @@ Assim que receber o código da peça, confirmo a disponibilidade e sigo com a tu
         politicaWhatsApp: politica,
         conteudo,
         contexto: contextoComPolitica,
+        ...(media ? { media: this.sanitizarMediaContexto(media) } : {}),
         erro: erro instanceof Error ? erro.message : "Falha desconhecida ao enviar WhatsApp.",
         ocorridoEm: new Date()
       });
@@ -453,6 +467,16 @@ Assim que receber o código da peça, confirmo a disponibilidade e sigo com a tu
     }
 
     return this.clonarTemplate(template);
+  }
+
+  private sanitizarMediaContexto(media: NonNullable<DadosMensagemManualWhatsApp["media"]>) {
+    return {
+      tipo: media.tipo,
+      url: media.url ?? null,
+      mimeType: media.mimeType ?? null,
+      fileName: media.fileName ?? null,
+      temDataUrl: Boolean(media.dataUrl)
+    };
   }
 
   private templateAtendeFiltros(template: TemplateWhatsApp, filtros: FiltrosTemplatesWhatsApp): boolean {

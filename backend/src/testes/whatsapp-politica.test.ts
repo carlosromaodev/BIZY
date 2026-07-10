@@ -110,6 +110,43 @@ describe("política WhatsApp por categoria oficial", () => {
     ]);
   });
 
+  it("transporta imagem ou documento manual para o provider sem guardar data URL no contexto", async () => {
+    const provedor = new ProvedorWhatsAppCaptura();
+    const automacao = new AutomacaoWhatsApp(provedor, new DespachadorEventos(), 10);
+
+    const envio = await automacao.enviarMensagemManual({
+      negocioId: "negocio-1",
+      telefone: "923456789",
+      mensagem: "Segue o documento.",
+      categoria: "service",
+      janelaAtendimentoAtiva: true,
+      media: {
+        tipo: "DOCUMENTO",
+        dataUrl: "data:application/pdf;base64,JVBERi0xLjQKJUVPRgo=",
+        url: "/media/files/atendimento-anexos/2026/07/documento.pdf",
+        mimeType: "application/pdf",
+        fileName: "documento.pdf"
+      }
+    });
+
+    expect(envio.tipo).toBe("MANUAL_DOCUMENTO");
+    expect(provedor.mensagens[0].media).toEqual(
+      expect.objectContaining({
+        tipo: "DOCUMENTO",
+        dataUrl: expect.stringContaining("data:application/pdf"),
+        fileName: "documento.pdf"
+      })
+    );
+    expect(provedor.mensagens[0].contexto?.media).toEqual(
+      expect.objectContaining({
+        tipo: "DOCUMENTO",
+        url: "/media/files/atendimento-anexos/2026/07/documento.pdf",
+        temDataUrl: true
+      })
+    );
+    expect(JSON.stringify(provedor.mensagens[0].contexto)).not.toContain("JVBERi0x");
+  });
+
   it("classifica texto livre manual como serviço quando a janela de atendimento está ativa", async () => {
     const provedor = new ProvedorWhatsAppCaptura();
     const automacao = new AutomacaoWhatsApp(provedor, new DespachadorEventos(), 10);

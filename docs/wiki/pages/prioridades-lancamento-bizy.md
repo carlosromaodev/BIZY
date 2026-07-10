@@ -37,6 +37,7 @@ Lacunas ja fechadas (2026-06-05):
 - Estados vazios com orientacao nas novas paginas.
 - Design system v2 reutilizavel (`BizyDesignSystem.tsx`).
 - Read models Anani `TeamHealth`, `MarketSnapshot`, `SecuritySnapshot` e console interna inicial em `/app/governance/anani`.
+- Envio real de imagem/PDF na conversa WhatsApp, com storage privado, Evolution `sendMedia`, Cloud API por link publico HTTPS e renderizacao do anexo no historico.
 
 ## P0 Bloqueia Lancamento
 
@@ -83,7 +84,7 @@ P1 melhora a operacao diaria logo apos o lancamento inicial.
 - Kanban/lista visual de funil de pedidos.
 - Perfil Cliente 360 completo na UI.
 - Criar pedido diretamente na conversa.
-- Envio real de imagem/documento pelo provider WhatsApp.
+- ~~Envio real de imagem/documento pelo provider WhatsApp.~~
 - Resultado de campanha atualizado por webhook/status.
 - Gestao visual de colecoes.
 - Categorias ocultas se nao tiverem uso real.
@@ -135,7 +136,7 @@ P2 deve ser guiado por feedback real.
 ## Sequencia Recomendada
 
 1. **Sprint P0:** fechado no roadmap atual.
-2. **Sprint P1:** perfil Cliente 360 polido, envio binario na conversa, colecoes visuais, templates WhatsApp e projectors duraveis da Anani.
+2. **Sprint P1:** perfil Cliente 360 polido, colecoes visuais, templates WhatsApp e projectors duraveis da Anani.
 3. **P2 por feedback:** ligacao backend completa das paginas CRM novas (pipeline, agenda, metas, cotacoes, respostas rapidas, notas, formularios, sequencias), afiliados portal, social oficial, bus unificado.
 
 ## Como Usar Esta Nota

@@ -3415,18 +3415,22 @@ input::placeholder { color: var(--texto-terciario); }
 }
 
 .chat-commerce-row {
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-columns: auto auto minmax(0, 1fr) auto;
 }
 
 @media (min-width: 541px) {
   .chat-commerce-row {
-    grid-template-columns: auto minmax(0, 1fr) repeat(4, auto);
+    grid-template-columns: auto auto minmax(0, 1fr) repeat(4, auto);
   }
 }
 
 @media (max-width: 540px) {
   .chat-commerce-row > button:not(:first-child):not(:last-child) {
     display: none;
+  }
+
+  .chat-commerce-row > button.chat-commerce-attach-button {
+    display: inline-flex;
   }
 }
 

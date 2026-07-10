@@ -17,6 +17,13 @@ export interface MensagemWhatsApp {
   categoria?: CategoriaMensagemWhatsApp;
   politica?: PoliticaEnvioWhatsApp;
   contexto?: Record<string, unknown>;
+  media?: {
+    tipo: "IMAGEM" | "DOCUMENTO" | "RECIBO" | "CATALOGO";
+    url?: string | null;
+    dataUrl?: string | null;
+    mimeType?: string | null;
+    fileName?: string | null;
+  };
 }
 
 export interface ResultadoEnvioWhatsApp {

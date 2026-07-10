@@ -11,6 +11,13 @@ updated: 2026-07-10
 
 # Log da Wiki
 
+## [2026-07-10] atendimento | Envio binario real na conversa WhatsApp
+
+- [x] Backend passou a aceitar anexo por `mediaDataUrl`/`mediaUrl` em `/atendimento/conversas/:id/mensagens`.
+- [x] Evolution envia imagem/PDF por `sendMedia`; Cloud API envia media apenas quando ha URL HTTPS publica.
+- [x] Anexos enviados pela conversa ficam em storage privado de atendimento e aparecem no historico do frontend.
+- [x] SDD e prioridades P1 passaram a marcar envio binario como concluido.
+
 ## [2026-07-10] arquitetura | Consolidacao do caminho unico Bizy
 
 - [x] Mantido o caminho vivo: Bizy Team, Bizy Market, Bizy Learning e Anani interno governado.

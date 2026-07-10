@@ -8,7 +8,7 @@ const DATA_URL_PATTERN = /^data:([^;,]+);base64,([A-Za-z0-9+/=]+)$/;
 const IMAGE_MIME_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 const DOCUMENT_MIME_TYPES = new Set(["application/pdf"]);
 const MEDIA_PREFIX = "/media/files";
-const PRIVATE_PURPOSES = new Set(["comprovativos-pagamento"]);
+const PRIVATE_PURPOSES = new Set(["comprovativos-pagamento", "atendimento-anexos"]);
 
 export interface OpcoesSalvarMedia {
   purpose: string;

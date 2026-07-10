@@ -38,6 +38,7 @@ import {
 } from "../../../dominio/tipos.js";
 import { exigirAcessoComercial } from "../contextoComercial.js";
 import { exigirUsuarioAutenticado } from "../seguranca.js";
+import { salvarMediaDataUrl } from "../../media/MediaStorage.js";
 import type { ModuloHttp } from "./ModuloHttp.js";
 
 export const moduloOperacional: ModuloHttp = {
@@ -908,6 +909,8 @@ export const moduloOperacional: ModuloHttp = {
       if (!conversa) return reply.code(404).send({ erro: "CONVERSA_NAO_ENCONTRADA", mensagem: "Conversa não encontrada." });
 
       const mensagemLivre = montarMensagemLivreConversa(dados);
+      const media = await prepararMediaEnvioAtendimento(dados, reply);
+      if (media === false) return;
       const janelaAtendimentoAtiva = resolverJanelaAtendimentoWhatsApp(dados, conversa.mensagens);
       const envio = await contexto.automacaoWhatsApp.enviarMensagemManual({
         negocioId: contextoComercial.negocio.id,
@@ -917,7 +920,8 @@ export const moduloOperacional: ModuloHttp = {
         variaveis: dados.variaveis,
         categoria: dados.categoria,
         consentimentoMarketing: dados.consentimentoMarketing,
-        janelaAtendimentoAtiva
+        janelaAtendimentoAtiva,
+        media
       });
       const mensagem = await contexto.repositorios.atendimento.registrarMensagem({
         negocioId: contextoComercial.negocio.id,
@@ -940,7 +944,10 @@ export const moduloOperacional: ModuloHttp = {
           entidadeId: dados.entidadeId,
           categoriaWhatsApp: envio.politica.categoria,
           templateId: dados.templateId ?? null,
-          mediaUrl: dados.mediaUrl ?? null
+          mediaUrl: media?.url ?? dados.mediaUrl ?? null,
+          mediaMimeType: media?.mimeType ?? dados.mediaMimeType ?? null,
+          mediaFileName: media?.fileName ?? dados.mediaFileName ?? null,
+          temMediaBinaria: Boolean(dados.mediaDataUrl)
         }
       });
       const conversaAtualizada = await contexto.gestaoAtendimentoCrm.atualizarConversa(id, {
@@ -1146,6 +1153,86 @@ function montarMensagemLivreConversa(dados: {
   if (dados.mediaUrl && dados.tipo === "RECIBO") return `Recibo enviado: ${dados.mediaUrl}`;
   if (dados.mediaUrl && dados.tipo === "CATALOGO") return `Catálogo enviado: ${dados.mediaUrl}`;
   return undefined;
+}
+
+async function prepararMediaEnvioAtendimento(
+  dados: {
+    tipo: "TEXTO" | "TEMPLATE" | "IMAGEM" | "DOCUMENTO" | "RECIBO" | "CATALOGO";
+    mediaUrl?: string;
+    mediaDataUrl?: string;
+    mediaMimeType?: string;
+    mediaFileName?: string;
+  },
+  reply: { code: (statusCode: number) => { send: (payload: unknown) => unknown } }
+) {
+  if (!dados.mediaDataUrl && !dados.mediaUrl) return null;
+
+  const tipo = dados.tipo === "TEXTO" || dados.tipo === "TEMPLATE"
+    ? resolverTipoMediaPorMime(dados.mediaMimeType)
+    : dados.tipo;
+
+  if (dados.mediaDataUrl) {
+    try {
+      const armazenada = await salvarMediaDataUrl(dados.mediaDataUrl, {
+        purpose: "atendimento-anexos",
+        allowDocuments: true,
+        maxBytes: Number(process.env.WHATSAPP_OUTBOUND_MEDIA_MAX_BYTES ?? 10 * 1024 * 1024)
+      });
+      return {
+        tipo,
+        url: armazenada.url,
+        dataUrl: dados.mediaDataUrl,
+        mimeType: armazenada.mimeType,
+        fileName: normalizarNomeFicheiro(dados.mediaFileName, armazenada.mimeType, tipo)
+      };
+    } catch (erro) {
+      reply.code(400).send({
+        erro: "MEDIA_INVALIDA",
+        mensagem: erro instanceof Error ? erro.message : "Nao foi possivel preparar o anexo."
+      });
+      return false as const;
+    }
+  }
+
+  return {
+    tipo,
+    url: dados.mediaUrl ?? null,
+    dataUrl: null,
+    mimeType: dados.mediaMimeType ?? inferirMimeTypePorUrl(dados.mediaUrl, tipo),
+    fileName: normalizarNomeFicheiro(dados.mediaFileName, dados.mediaMimeType, tipo)
+  };
+}
+
+function resolverTipoMediaPorMime(mimeType?: string): "IMAGEM" | "DOCUMENTO" {
+  return mimeType?.startsWith("image/") ? "IMAGEM" : "DOCUMENTO";
+}
+
+function inferirMimeTypePorUrl(url: string | undefined, tipo: "IMAGEM" | "DOCUMENTO" | "RECIBO" | "CATALOGO") {
+  if (!url) return tipo === "IMAGEM" || tipo === "CATALOGO" ? "image/jpeg" : "application/pdf";
+  if (/\.pdf($|\?)/i.test(url)) return "application/pdf";
+  if (/\.webp($|\?)/i.test(url)) return "image/webp";
+  if (/\.png($|\?)/i.test(url)) return "image/png";
+  if (/\.jpe?g($|\?)/i.test(url)) return "image/jpeg";
+  return tipo === "IMAGEM" || tipo === "CATALOGO" ? "image/jpeg" : "application/pdf";
+}
+
+function normalizarNomeFicheiro(
+  nome: string | undefined,
+  mimeType: string | undefined,
+  tipo: "IMAGEM" | "DOCUMENTO" | "RECIBO" | "CATALOGO"
+) {
+  const limpo = nome?.trim().replace(/[\\/:*?"<>|]+/g, "-").slice(0, 180);
+  if (limpo) return limpo;
+  const extensao = extensaoPorMime(mimeType, tipo);
+  return tipo === "IMAGEM" || tipo === "CATALOGO" ? `imagem-bizy.${extensao}` : `documento-bizy.${extensao}`;
+}
+
+function extensaoPorMime(mimeType: string | undefined, tipo: "IMAGEM" | "DOCUMENTO" | "RECIBO" | "CATALOGO") {
+  if (mimeType === "image/webp") return "webp";
+  if (mimeType === "image/png") return "png";
+  if (mimeType === "image/jpeg") return "jpg";
+  if (mimeType === "application/pdf") return "pdf";
+  return tipo === "IMAGEM" || tipo === "CATALOGO" ? "jpg" : "pdf";
 }
 
 const JANELA_ATENDIMENTO_WHATSAPP_MS = 24 * 60 * 60 * 1000;

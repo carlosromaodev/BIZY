@@ -7,7 +7,7 @@ tags:
   - bizy/requisitos
   - bizy/rf
 status: ativo
-updated: 2026-06-17
+updated: 2026-07-10
 ---
 
 # Requisitos Funcionais do Bizy
@@ -188,7 +188,7 @@ SKU, fotos, custo, margem, colecoes, variantes, alertas de stock, historico de m
 
 Inbox comercial unificado, conversa vinculada a cliente/pedido, resposta por WhatsApp, proximas acoes, campanhas segmentadas, opt-out, filtros uteis.
 
-- RF122–RF124 `[~]` (falta polimento UI, vinculo visual, envio binario real); RF126 `[~]` (falta remover promessa visual antiga de chatbot); RF129 `[~]` (falta atualizacao por webhooks); RF131 `[~]` (falta sequenciador temporal).
+- RF122–RF124 `[~]` (falta polimento UI e vinculo visual; envio binario real fechado em 2026-07-10); RF126 `[~]` (falta remover promessa visual antiga de chatbot); RF129 `[~]` (falta atualizacao por webhooks); RF131 `[~]` (falta sequenciador temporal).
 - Restantes `[x]`.
 
 ### 3.13.6 Relatorios que a Loja Usa (RF133–RF143)

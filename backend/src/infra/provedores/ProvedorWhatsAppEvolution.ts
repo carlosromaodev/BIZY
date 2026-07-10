@@ -6,6 +6,7 @@ import type {
 import type { RepositorioInstanciasWhatsApp } from "../../dominio/repositorios/contratos.js";
 import {
   ClienteEvolutionApi,
+  type TipoMediaEvolution,
   extrairIdMensagemEvolution,
   extrairMensagemEvolution,
   normalizarMensagemWhatsApp,
@@ -68,14 +69,28 @@ export class ProvedorWhatsAppEvolution implements ProvedorWhatsApp {
       throw new Error("Telefone WhatsApp angolano inválido.");
     }
 
-    const resposta = await this.enviarComRetry(() =>
-      this.cliente.enviarTexto(this.instancia, {
+    const resposta = await this.enviarComRetry(() => {
+      if (mensagem.media) {
+        const media = prepararMediaEvolution(mensagem.media, conteudo);
+        return this.cliente.enviarMedia(this.instancia, {
+          number: destino.providerTo,
+          mediatype: media.mediatype,
+          mimetype: media.mimetype,
+          caption: media.caption,
+          media: media.media,
+          fileName: media.fileName,
+          delay: this.atrasoMs,
+          linkPreview: this.linkPreview
+        });
+      }
+
+      return this.cliente.enviarTexto(this.instancia, {
         number: destino.providerTo,
         text: conteudo,
         delay: this.atrasoMs,
         linkPreview: this.linkPreview
-      })
-    );
+      });
+    });
 
     if (!resposta.ok) {
       const detalhe = extrairMensagemEvolution(resposta.payload) ?? JSON.stringify(resposta.payload);
@@ -171,4 +186,58 @@ export class ProvedorWhatsAppEvolutionDinamico implements ProvedorWhatsApp {
 
 function aguardar(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function prepararMediaEvolution(
+  media: NonNullable<MensagemWhatsApp["media"]>,
+  caption: string
+): {
+  mediatype: TipoMediaEvolution;
+  mimetype: string;
+  caption: string;
+  media: string;
+  fileName: string;
+} {
+  const payloadMedia = media.dataUrl?.trim() || media.url?.trim();
+  if (!payloadMedia) {
+    throw new Error("Media WhatsApp sem ficheiro para envio.");
+  }
+
+  const mimetype = media.mimeType?.trim() || inferirMimeTypeMedia(payloadMedia, media.tipo);
+  const mediatype = resolverTipoMediaEvolution(media.tipo, mimetype);
+  return {
+    mediatype,
+    mimetype,
+    caption,
+    media: payloadMedia,
+    fileName: media.fileName?.trim() || nomePadraoMedia(mediatype, mimetype)
+  };
+}
+
+function resolverTipoMediaEvolution(tipo: NonNullable<MensagemWhatsApp["media"]>["tipo"], mimetype: string): TipoMediaEvolution {
+  if (tipo === "IMAGEM" || tipo === "CATALOGO" || mimetype.startsWith("image/")) return "image";
+  return "document";
+}
+
+function inferirMimeTypeMedia(media: string, tipo: NonNullable<MensagemWhatsApp["media"]>["tipo"]) {
+  const dataUrl = media.match(/^data:([^;,]+);base64,/i)?.[1]?.toLowerCase();
+  if (dataUrl) return dataUrl;
+  if (/\.pdf($|\?)/i.test(media)) return "application/pdf";
+  if (/\.webp($|\?)/i.test(media)) return "image/webp";
+  if (/\.png($|\?)/i.test(media)) return "image/png";
+  if (/\.jpe?g($|\?)/i.test(media)) return "image/jpeg";
+  return tipo === "IMAGEM" || tipo === "CATALOGO" ? "image/jpeg" : "application/pdf";
+}
+
+function nomePadraoMedia(mediatype: TipoMediaEvolution, mimetype: string) {
+  if (mediatype === "image") return `imagem-bizy.${extensaoPorMime(mimetype)}`;
+  return `documento-bizy.${extensaoPorMime(mimetype)}`;
+}
+
+function extensaoPorMime(mimetype: string) {
+  if (mimetype === "image/webp") return "webp";
+  if (mimetype === "image/png") return "png";
+  if (mimetype === "image/jpeg") return "jpg";
+  if (mimetype === "application/pdf") return "pdf";
+  return "bin";
 }

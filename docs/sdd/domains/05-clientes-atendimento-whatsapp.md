@@ -3,7 +3,7 @@
 Status: ativo
 Owner logico: Produto Atendimento
 Fontes: `docs/wiki/pages/dominio-e-entidades-bizy.md`, `docs/wiki/pages/mapa-de-modulos-bizy.md`, `docs/wiki/pages/fluxos-operacionais-bizy.md`
-Ultima atualizacao: 2026-06-28
+Ultima atualizacao: 2026-07-10
 
 ## 1. Proposito
 
@@ -87,13 +87,15 @@ Integracoes: Evolution API, WhatsApp Cloud API, n8n, Ombala para OTP quando apli
 
 ## 11. Estado Atual
 
-Backend possui Cliente 360, atendimento, conversas, mensagens, notas, politica WhatsApp, Evolution e Cloud API. Frontend possui pagina de Conversas e Clientes com evolucao visual em curso.
+Backend possui Cliente 360, atendimento, conversas, mensagens, notas, politica WhatsApp, Evolution, Cloud API e envio real de anexos de atendimento. Frontend possui pagina de Conversas e Clientes com evolucao visual em curso; a conversa ja envia imagem/PDF e mostra anexo no historico.
 
 ## 12. Lacunas
 
-- P0: revisar privacidade/tracking publico ligado a cliente.
-- P1: Cliente 360 visual completo, envio binario e prioridade visual.
-- P2: opt-out granular e sincronizacao completa de templates.
+- [x] P0: revisar privacidade/tracking publico ligado a cliente.
+- [ ] P1: Cliente 360 visual completo.
+- [x] P1: envio binario real na conversa WhatsApp.
+- [ ] P1: prioridade visual para VIP, reclamacao e pagamento pendente.
+- [ ] P2: opt-out granular e sincronizacao completa de templates.
 
 ## 13. Testes e Verificacao
 
@@ -101,9 +103,10 @@ Backend possui Cliente 360, atendimento, conversas, mensagens, notas, politica W
 - Testes de politica WhatsApp.
 - Testes de webhooks Evolution.
 - Testes frontend de conversas.
+- Testes de provider WhatsApp com media e storage privado de anexos.
 
 ## 14. Proximos Planos
 
-- Spec de Cliente 360 visual.
-- Spec de envio binario WhatsApp.
-- Spec de opt-out granular.
+- [ ] Spec de Cliente 360 visual.
+- [x] Spec de envio binario WhatsApp.
+- [ ] Spec de opt-out granular.

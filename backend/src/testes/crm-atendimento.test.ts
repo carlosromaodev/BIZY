@@ -1,6 +1,6 @@
 import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { DespachadorEventos } from "../dominio/eventos/DespachadorEventos.js";
 import { criarAplicacao } from "../infra/http/criarAplicacao.js";
 import { AtendimentoCrmUseCase } from "../use-case/AtendimentoCrmUseCase.js";
@@ -25,6 +25,7 @@ describe("CRM de atendimento", () => {
   });
 
   afterEach(() => {
+    vi.unstubAllGlobals();
     process.env = { ...ambienteOriginal };
   });
 
@@ -221,17 +222,9 @@ describe("CRM de atendimento", () => {
     try {
       const headers = await autenticar(app);
 
-      const instancia = await app.inject({
-        method: "POST",
-        url: "/evolution/instancias",
-        headers,
-        payload: {
-          nome: "loja_webhook",
-          etiqueta: "Loja Webhook",
-          baseUrl: "https://evolution.local",
-          apiKey: "api_key",
-          padrao: true
-        }
+      const instancia = await criarInstanciaEvolutionTeste(app, headers, {
+        nome: "loja_webhook",
+        etiqueta: "Loja Webhook"
       });
       expect(instancia.statusCode).toBe(201);
 
@@ -287,17 +280,9 @@ describe("CRM de atendimento", () => {
     try {
       const headers = await autenticar(app);
 
-      const instancia = await app.inject({
-        method: "POST",
-        url: "/evolution/instancias",
-        headers,
-        payload: {
-          nome: "loja_pdf",
-          etiqueta: "Loja PDF",
-          baseUrl: "https://evolution.local",
-          apiKey: "api_key",
-          padrao: true
-        }
+      const instancia = await criarInstanciaEvolutionTeste(app, headers, {
+        nome: "loja_pdf",
+        etiqueta: "Loja PDF"
       });
       expect(instancia.statusCode).toBe(201);
 
@@ -380,17 +365,9 @@ describe("CRM de atendimento", () => {
     try {
       const headers = await autenticar(app);
 
-      const instancia = await app.inject({
-        method: "POST",
-        url: "/evolution/instancias",
-        headers,
-        payload: {
-          nome: "loja_pdf_url",
-          etiqueta: "Loja PDF URL",
-          baseUrl: "https://evolution.local",
-          apiKey: "api_key",
-          padrao: true
-        }
+      const instancia = await criarInstanciaEvolutionTeste(app, headers, {
+        nome: "loja_pdf_url",
+        etiqueta: "Loja PDF URL"
       });
       expect(instancia.statusCode).toBe(201);
 
@@ -733,6 +710,32 @@ async function criarPeca(
       fotos: []
     }
   });
+}
+
+async function criarInstanciaEvolutionTeste(
+  app: Awaited<ReturnType<typeof criarAplicacao>>,
+  headers: Record<string, string>,
+  dados: { nome: string; etiqueta: string }
+) {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () => new Response(JSON.stringify({ instance: { state: "open" } }), { status: 200 }))
+  );
+  try {
+    return await app.inject({
+      method: "POST",
+      url: "/evolution/instancias",
+      headers,
+      payload: {
+        ...dados,
+        baseUrl: "https://evolution.local",
+        apiKey: "api_key",
+        padrao: true
+      }
+    });
+  } finally {
+    vi.unstubAllGlobals();
+  }
 }
 
 function aguardarProcessamentoEventos(ms = 25) {

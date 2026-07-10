@@ -1512,13 +1512,16 @@ export const EnviarMensagemConversaAtendimentoSchema = z
     categoria: z.enum(categoriasMensagemWhatsApp).optional(),
     janelaAtendimentoAtiva: z.boolean().optional(),
     consentimentoMarketing: z.boolean().optional(),
-    mediaUrl: z.string().trim().url().max(2048).optional(),
+    mediaUrl: z.string().trim().min(1).max(2048).optional(),
+    mediaDataUrl: z.string().trim().min(20).max(15_000_000).optional(),
+    mediaMimeType: z.string().trim().min(3).max(120).optional(),
+    mediaFileName: z.string().trim().min(1).max(180).optional(),
     entidadeTipo: CampoTarefaOpcionalSchema,
     entidadeId: CampoTarefaOpcionalSchema,
     contexto: z.record(z.string(), z.unknown()).default({})
   })
-  .refine((dados) => Boolean(dados.mensagem || dados.templateId || dados.mediaUrl), {
-    message: "Informe mensagem, templateId ou mediaUrl."
+  .refine((dados) => Boolean(dados.mensagem || dados.templateId || dados.mediaUrl || dados.mediaDataUrl), {
+    message: "Informe mensagem, templateId ou anexo."
   });
 
 export const CriarPedidoConversaAtendimentoSchema = CriarPedidoSchema.omit({ clienteId: true });
