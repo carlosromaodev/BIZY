@@ -20,10 +20,12 @@ O backend esta maduro como fundacao CRM+ multi-negocio, modular e auditavel.
 
 As maiores lacunas restantes estao em:
 
-- checkout visual completo;
+- ~~checkout visual completo~~;
 - ~~SEO/preview social renderizado no frontend publico~~;
-- privacidade/tracking banner;
-- paginacao padronizada com volume;
+- ~~privacidade/tracking banner~~;
+- ~~paginacao padronizada com volume~~;
+- consistencia mobile sem scroll horizontal;
+- verificacao final de modulos desativados na UI;
 - maturacao visual das paginas CRM novas para design v2.
 
 Lacunas ja fechadas (2026-06-05):
@@ -40,7 +42,7 @@ P0 impede primeiro cliente real com experiencia minima aceitavel.
 
 ### Loja publica frontend
 
-Backend ja devolve produtos, SEO, previews, vitrine e agrupamentos. Falta frontend publico responsivo, bonito, rapido e utilizavel em mobile.
+Backend ja devolve produtos, SEO, previews, vitrine e agrupamentos. O frontend publico ja cobre loja, Market, produto, checkout e tracking; a lacuna restante fica na auditoria mobile 360px sem scroll horizontal.
 
 Links: [[mapa-de-modulos-bizy#Loja Publica, Checkout e Tracking]], [[inventario-frontend]].
 
@@ -50,7 +52,7 @@ Links: [[mapa-de-modulos-bizy#Loja Publica, Checkout e Tracking]], [[inventario-
 
 ### Checkout visual
 
-Endpoint publico cria pedido e calcula entrega. Falta carrinho/resumo visual, etapa de pagamento e confirmacao clara.
+~~Endpoint publico cria pedido e calcula entrega. Falta carrinho/resumo visual, etapa de pagamento e confirmacao clara.~~ Fechado: o checkout publico tem passos visuais, carrinho com ajuste de quantidade, resumo por fornecedor, dados de entrega/pagamento e revisao de pendencias antes da finalizacao.
 
 ### Privacidade e tracking
 
@@ -62,7 +64,7 @@ Endpoint publico cria pedido e calcula entrega. Falta carrinho/resumo visual, et
 
 ### Ocultar modulos desativados
 
-~~Backend bloqueia rotas por modulo. Falta esconder navegacao/componentes quando modulo estiver desligado.~~ Fechado: `filtrarRotasPorModulos` em `rotasApp.tsx` controla visibilidade.
+~~Backend bloqueia rotas por modulo. Falta esconder navegacao/componentes quando modulo estiver desligado.~~ Fechado no filtro principal: `filtrarRotasPorModulos` em `rotasApp.tsx` controla visibilidade. Pendente apenas verificacao final de componentes secundarios.
 
 ### Paginacao padronizada
 
@@ -130,7 +132,7 @@ P2 deve ser guiado por feedback real.
 
 ## Sequencia Recomendada
 
-1. **Sprint P0:** checkout visual e consistencia mobile sem scroll horizontal.
+1. **Sprint P0:** consistencia mobile sem scroll horizontal e verificacao de modulos desativados na UI.
 2. **Sprint P1:** perfil Cliente 360 polido, envio binario na conversa, colecoes visuais e templates WhatsApp.
 3. **P2 por feedback:** ligacao backend completa das paginas CRM novas (pipeline, agenda, metas, cotacoes, respostas rapidas, notas, formularios, sequencias), afiliados portal, social oficial, bus unificado.
 

@@ -82,11 +82,11 @@ Telas: Produtos/Catalogo, Loja Digital, Loja Publica, Produto Publico, Checkout.
 
 ## 11. Estado Atual
 
-Catalogo, stock, variantes, loja publica, tracking, checkout e configuracao operacional existem. Aviso de privacidade/tracking e bloqueio de dados pessoais em tracking publico estao implementados. SEO/preview social runtime das paginas publicas foi consolidado no frontend. Checkout visual ainda precisa maturacao continua.
+Catalogo, stock, variantes, loja publica, tracking, checkout e configuracao operacional existem. Aviso de privacidade/tracking e bloqueio de dados pessoais em tracking publico estao implementados. SEO/preview social runtime das paginas publicas foi consolidado no frontend. Checkout visual publico agora cobre passos, carrinho, quantidade, resumo, pendencias e revisao antes de finalizar.
 
 ## 12. Lacunas
 
-- [ ] P0: checkout visual publico.
+- [x] P0: checkout visual publico.
 - [x] P0: SEO publico e preview social.
 - [x] P0: aviso de privacidade/tracking publico.
 - [ ] P1: gestao visual de colecoes e categorias uteis.
@@ -98,10 +98,11 @@ Catalogo, stock, variantes, loja publica, tracking, checkout e configuracao oper
 - [x] Testes de loja publica/tracking.
 - [x] Testes de checkout.
 - [x] Teste frontend de SEO/canonical publico.
+- [x] Teste frontend de checkout visual publico.
 - [ ] Testes frontend mobile sem scroll horizontal.
 
 ## 14. Proximos Planos
 
-- [ ] Spec de checkout visual publico.
+- [x] Spec de checkout visual publico.
 - [x] Spec de SEO e preview social.
 - [x] Guardrail de privacidade/tracking publico aplicado.

@@ -48,7 +48,7 @@ O vendedor precisa conseguir:
 - usar campanhas, afiliados e tracking sem perder controle humano;
 - operar WhatsApp/n8n/Evolution com guardrails.
 
-O backend ja tem fundacao ampla de CRM+; a Loja Digital agora tem configuracao operacional ligada ao CRM via `experiencia.operacao`, cobrindo checkout, fidelizacao, automacoes, canais e relatorios. O frontend ainda concentra lacunas P0/P1 em checkout visual, SEO publico, consistencia mobile e maturacao de alguns fluxos avancados.
+O backend ja tem fundacao ampla de CRM+; a Loja Digital agora tem configuracao operacional ligada ao CRM via `experiencia.operacao`, cobrindo checkout, fidelizacao, automacoes, canais e relatorios. O frontend ja fechou checkout visual e SEO publico; as lacunas P0 restantes ficam em consistencia mobile e verificacao de modulos desativados na UI.
 
 ## Stack
 
@@ -341,8 +341,8 @@ Lembrar: quando muitas rotas autenticadas falharem juntas com 500, verificar mig
 P0 pre-lancamento:
 
 - frontend da loja publica;
-- SEO e preview social nas paginas publicas;
-- checkout visual com carrinho;
+- SEO e preview social nas paginas publicas; `[x]`
+- checkout visual com carrinho; `[x]`
 - aviso de privacidade/tracking;
 - estados vazios orientadores;
 - ocultar modulos desativados na UI;

@@ -250,8 +250,8 @@ Rotas Admin/Sistema requerem papel admin/dono/owner via `usuarioPodeVerAdminSist
 
 Do documento de requisitos:
 
-- falta checkout visual/carrinho completo no frontend publico;
-- falta SEO/social preview renderizado no frontend publico;
+- checkout visual/carrinho completo no frontend publico fechado com passos, quantidade, resumo e revisao;
+- SEO/social preview renderizado no frontend publico fechado para Market, lojas, catalogos e Learning;
 - faltam estados vazios orientadores em alguns modulos;
 - falta auditoria mobile 360px nas tabelas grandes;
 - faltam algumas telas visuais de colecoes e perfil 360 polido.

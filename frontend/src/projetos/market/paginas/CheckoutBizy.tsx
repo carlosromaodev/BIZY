@@ -2,12 +2,16 @@ import {
   ArrowLeft,
   Banknote,
   CheckCircle2,
+  ClipboardCheck,
   CreditCard,
   Home,
   Loader2,
   Lock,
   MapPin,
+  Minus,
   Package,
+  Plus,
+  ReceiptText,
   ShieldCheck,
   ShoppingBag,
   Store,
@@ -31,6 +35,7 @@ import {
   limparCarrinhoCheckoutBizy,
   obterChaveIdempotenciaCheckoutBizy,
   removerItemCheckoutBizy,
+  atualizarQuantidadeItemCheckoutBizy,
   ROTAS_LOJAS
 } from "../api";
 import type { EntregaCheckoutPublico, ItemCarrinhoCheckoutBizy, RespostaCheckoutLojaPublica, RespostaCheckoutUnificado } from "../api";
@@ -69,6 +74,14 @@ const METODOS_PAGAMENTO: Array<{ id: MetodoPagamentoCheckout; titulo: string; de
   { id: "personalizado", titulo: "Combinar com a loja", detalhe: "A loja contacta-te para acordar o pagamento", icone: Store }
 ];
 
+const ETAPAS_CHECKOUT = [
+  { id: "carrinho", titulo: "Carrinho", icone: ShoppingBag },
+  { id: "dados", titulo: "Dados", icone: ClipboardCheck },
+  { id: "entrega", titulo: "Entrega", icone: Truck },
+  { id: "pagamento", titulo: "Pagamento", icone: CreditCard },
+  { id: "confirmacao", titulo: "Revisão", icone: ReceiptText }
+] as const;
+
 export function PaginaCheckoutBizy() {
   const navigate = useNavigate();
   const [itens, setItens] = useState<ItemCarrinhoCheckoutBizy[]>(() => carregarCarrinhoCheckoutBizy());
@@ -85,9 +98,32 @@ export function PaginaCheckoutBizy() {
   const totais = useMemo(() => calcularTotaisCheckoutBizy(itens), [itens]);
   const checkoutMultiLoja = grupos.length > 1;
   const grupoUnico = grupos[0] ?? null;
+  const camposPendentes = useMemo(() => {
+    const pendentes: string[] = [];
+    if (!itens.length) pendentes.push("Adicionar produtos");
+    if (!cliente.nome.trim()) pendentes.push("Nome completo");
+    if (!cliente.telefone.trim()) pendentes.push("WhatsApp");
+    if (!cliente.consentimentoDados) pendentes.push("Consentimento de dados");
+    if (entrega.tipo === "ENTREGA" && !entrega.endereco?.trim()) pendentes.push("Endereço ou referência");
+    return pendentes;
+  }, [cliente.consentimentoDados, cliente.nome, cliente.telefone, entrega.endereco, entrega.tipo, itens.length]);
+  const etapaAtual = useMemo<(typeof ETAPAS_CHECKOUT)[number]["id"]>(() => {
+    if (!itens.length) return "carrinho";
+    if (!cliente.nome.trim() || !cliente.telefone.trim() || !cliente.consentimentoDados) return "dados";
+    if (entrega.tipo === "ENTREGA" && !entrega.endereco?.trim()) return "entrega";
+    if (!metodoPagamento) return "pagamento";
+    return "confirmacao";
+  }, [cliente.consentimentoDados, cliente.nome, cliente.telefone, entrega.endereco, entrega.tipo, itens.length, metodoPagamento]);
+  const indiceEtapaAtual = ETAPAS_CHECKOUT.findIndex((etapa) => etapa.id === etapaAtual);
 
   function removerItem(id: string) {
     setItens(removerItemCheckoutBizy(id));
+    limparChaveIdempotenciaCheckoutBizy();
+  }
+
+  function atualizarQuantidade(id: string, quantidade: number) {
+    setItens(atualizarQuantidadeItemCheckoutBizy(id, quantidade));
+    limparChaveIdempotenciaCheckoutBizy();
   }
 
   function limparCarrinho() {
@@ -229,6 +265,18 @@ export function PaginaCheckoutBizy() {
         </p>
       </section>
 
+      <nav className="checkout-progress-steps" aria-label="Progresso do checkout">
+        {ETAPAS_CHECKOUT.map(({ id, titulo, icone: Icone }, indice) => {
+          const estado = indice < indiceEtapaAtual ? "done" : id === etapaAtual ? "active" : "todo";
+          return (
+            <span key={id} className={`checkout-progress-step is-${estado}`} aria-current={id === etapaAtual ? "step" : undefined}>
+              <i><Icone size={14} /></i>
+              <strong>{titulo}</strong>
+            </span>
+          );
+        })}
+      </nav>
+
       <section className="checkout-bizy-infoband" aria-live="polite">
         <ShieldCheck size={17} />
         <span>
@@ -297,7 +345,7 @@ export function PaginaCheckoutBizy() {
                       <span><Store size={16} /></span>
                       <div>
                         <strong>{grupo.nomeFornecedor}</strong>
-                        <small>{grupo.itens.length} item{grupo.itens.length === 1 ? "" : "s"} · {formatarKwanza(grupo.subtotalEmKwanza)}</small>
+                        <small>{grupo.itens.length} item{grupo.itens.length === 1 ? "" : "s"} · pedido separado · {formatarKwanza(grupo.subtotalEmKwanza)}</small>
                       </div>
                       {grupo.urlLoja && <Link to={grupo.urlLoja}>Ver loja</Link>}
                     </header>
@@ -307,13 +355,30 @@ export function PaginaCheckoutBizy() {
                           <span className="checkout-item-media">
                             {item.fotoUrl ? <img src={item.fotoUrl} alt="" /> : <Package size={18} />}
                           </span>
-                          <div>
+                          <div className="checkout-item-body">
                             <strong>{item.nomeProduto}</strong>
-                            <small>{item.quantidade} x {formatarKwanza(item.precoUnitarioEmKwanza)}</small>
+                            <small>{formatarKwanza(item.precoUnitarioEmKwanza)} por unidade</small>
+                            {Object.keys(item.variantes ?? {}).length > 0 && (
+                              <span className="checkout-item-variants">
+                                {Object.entries(item.variantes ?? {}).map(([nome, valor]) => `${nome}: ${valor}`).join(" · ")}
+                              </span>
+                            )}
+                            <span className="checkout-quantity-control" aria-label={`Quantidade de ${item.nomeProduto}`}>
+                              <button type="button" onClick={() => atualizarQuantidade(item.id, item.quantidade - 1)} disabled={item.quantidade <= 1} aria-label={`Diminuir ${item.nomeProduto}`}>
+                                <Minus size={13} />
+                              </button>
+                              <em>{item.quantidade}</em>
+                              <button type="button" onClick={() => atualizarQuantidade(item.id, item.quantidade + 1)} aria-label={`Aumentar ${item.nomeProduto}`}>
+                                <Plus size={13} />
+                              </button>
+                            </span>
                           </div>
-                          <button type="button" onClick={() => removerItem(item.id)} aria-label={`Remover ${item.nomeProduto}`}>
-                            <Trash2 size={16} />
-                          </button>
+                          <div className="checkout-item-actions">
+                            <strong>{formatarKwanza(item.precoUnitarioEmKwanza * item.quantidade)}</strong>
+                            <button type="button" onClick={() => removerItem(item.id)} aria-label={`Remover ${item.nomeProduto}`}>
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -339,10 +404,16 @@ export function PaginaCheckoutBizy() {
               <em>{totais.totalLojas} loja{totais.totalLojas === 1 ? "" : "s"}</em>
             </div>
 
+            <div className="checkout-visual-panel">
+              <span>{checkoutMultiLoja ? "Compra unificada" : "Checkout da loja"}</span>
+              <strong>{formatarKwanza(totais.subtotalEmKwanza)}</strong>
+              <small>{totais.quantidadeItens} item{totais.quantidadeItens === 1 ? "" : "s"} em {totais.totalLojas || 0} fornecedor{totais.totalLojas === 1 ? "" : "es"}</small>
+            </div>
+
             <div className="checkout-form-grid">
-              <Input value={cliente.nome} onChange={(e) => setCliente({ ...cliente, nome: e.target.value })} placeholder="Nome completo" />
-              <Input value={cliente.telefone} onChange={(e) => setCliente({ ...cliente, telefone: e.target.value })} placeholder="WhatsApp" />
-              <Input value={cliente.email} onChange={(e) => setCliente({ ...cliente, email: e.target.value })} placeholder="Email opcional" />
+              <Input value={cliente.nome} onChange={(e) => setCliente({ ...cliente, nome: e.target.value })} placeholder="Nome completo" aria-label="Nome completo" />
+              <Input value={cliente.telefone} onChange={(e) => setCliente({ ...cliente, telefone: e.target.value })} placeholder="WhatsApp" aria-label="WhatsApp" />
+              <Input value={cliente.email} onChange={(e) => setCliente({ ...cliente, email: e.target.value })} placeholder="Email opcional" aria-label="Email opcional" />
             </div>
 
             <div className="checkout-delivery-options" aria-label="Tipo de entrega">
@@ -427,7 +498,20 @@ export function PaginaCheckoutBizy() {
             <div className="checkout-bizy-summary">
               <div><span>Itens</span><strong>{totais.quantidadeItens}</strong></div>
               <div><span>Subtotal</span><strong>{formatarKwanza(totais.subtotalEmKwanza)}</strong></div>
+              <div><span>Fornecedores</span><strong>{totais.totalLojas}</strong></div>
+              <div><span>Pagamento</span><strong>{METODOS_PAGAMENTO.find((metodo) => metodo.id === metodoPagamento)?.titulo ?? "A combinar"}</strong></div>
               <div><span>Entrega</span><strong>calculada pela loja</strong></div>
+            </div>
+
+            <div className="checkout-review-panel" aria-live="polite">
+              <strong>Revisão antes de finalizar</strong>
+              {camposPendentes.length ? (
+                <ul>
+                  {camposPendentes.map((campo) => <li key={campo}>{campo}</li>)}
+                </ul>
+              ) : (
+                <span><CheckCircle2 size={15} /> Pronto para criar pedido operacional no Team.</span>
+              )}
             </div>
 
             {mensagem && <p className="checkout-message" aria-live="polite">{mensagem}</p>}

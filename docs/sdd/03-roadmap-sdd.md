@@ -19,7 +19,7 @@ Toda prioridade precisa melhorar pelo menos uma capacidade:
 
 P0 bloqueia lancamento ou experiencia minima aceitavel:
 
-- [ ] checkout visual completo;
+- [x] checkout visual completo;
 - [x] SEO e preview social publico;
 - [x] aviso de privacidade e tracking;
 - [x] paginacao padronizada em listas grandes;
@@ -73,7 +73,7 @@ P2 depende de feedback, escala ou integracao madura:
 | 03 CRM Social Commerce | Polir funil comercial, tarefas e relatorios operacionais no mesmo modelo. |
 | 04 Live/Reservas | Fechar fluxo reserva -> pedido -> pagamento -> entrega com telemetria. |
 | 05 Clientes/WhatsApp | Completar Cliente 360 visual, envio binario e opt-out granular. |
-| 06 Catalogo/Loja | Finalizar checkout visual e SEO; manter guardrail de privacidade publica. |
+| 06 Catalogo/Loja | Manter checkout visual, SEO e guardrail de privacidade publica; proxima auditoria e mobile 360px sem scroll horizontal. |
 | 07 Market | Evoluir checkout multi-loja, acompanhamento do comprador e repasses. |
 | 08 Afiliados/Social | Criar portal do afiliado e conectores sociais oficiais. |
 | 09 Team/Projectos | Completar onboarding de membros, modo sombra, war rooms e passagem via WhatsApp. |

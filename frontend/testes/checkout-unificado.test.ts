@@ -72,6 +72,22 @@ describe("checkout unificado progressivo", () => {
     expect(checkout).toContain("entrega,");
   });
 
+  it("fecha checkout visual completo com passos, quantidade e revisão operacional", () => {
+    const checkout = source("src/projetos/market/paginas/CheckoutBizy.tsx");
+    const estilos = source("src/estilos.css");
+
+    expect(checkout).toContain("ETAPAS_CHECKOUT");
+    expect(checkout).toContain("checkout-progress-steps");
+    expect(checkout).toContain("checkout-visual-panel");
+    expect(checkout).toContain("checkout-quantity-control");
+    expect(checkout).toContain("atualizarQuantidadeItemCheckoutBizy");
+    expect(checkout).toContain("checkout-review-panel");
+    expect(checkout).toContain("Revisão antes de finalizar");
+    expect(estilos).toContain(".checkout-progress-steps");
+    expect(estilos).toContain(".checkout-quantity-control");
+    expect(estilos).toContain(".checkout-review-panel");
+  });
+
   it("liga Market e produto da loja à entrada unificada sem remover checkout atual", () => {
     const marketProduto = source("src/projetos/market/paginas/ProdutoMarket.tsx");
     const lojaProduto = source("src/projetos/market/paginas/LojaDigitalPublica.tsx");
