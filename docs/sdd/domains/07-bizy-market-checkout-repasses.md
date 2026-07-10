@@ -132,7 +132,7 @@ Market possui endpoints publicos de produtos, categorias, lojas, detalhes, simil
 - [ ] Testes de checkout unificado.
 - [ ] Testes de isolamento por fornecedor.
 - [ ] Testes de repasses e reembolsos.
-- [ ] Testes mobile sem scroll horizontal.
+- [x] Testes mobile sem scroll horizontal.
 - [ ] Varredura de UI publica para evitar ratings/reviews/vendidos simulados.
 
 ## 14. Proximos Planos

@@ -90,7 +90,7 @@ Se uma tela, endpoint ou automacao nao faz isso, precisa ser repensada, escondid
 
 O backend ja esta amplo: autenticacao, negocio, catalogo, reservas, pedidos, clientes 360, conversas, WhatsApp, n8n, loja publica, Market, Learning, tracking, afiliados, social inbox, campanhas, funil, tarefas, relatorios, auditoria, jobs, contratos, Anani, backup e rate limit.
 
-As lacunas de lancamento devem ser lidas em [[prioridades-lancamento-bizy]]. Hoje o foco P0/P1 nao e inventar nova visao; e fechar execucao, consistencia mobile, verificacao de modulos desativados na UI, projectors/read models Anani e polimento operacional. Checkout visual e SEO publico ja foram fechados.
+As lacunas de lancamento devem ser lidas em [[prioridades-lancamento-bizy]]. Hoje o foco P0/P1 nao e inventar nova visao; e fechar execucao, verificacao de modulos desativados na UI, projectors/read models Anani e polimento operacional. Checkout visual, SEO publico e mobile 360px ja foram fechados.
 
 Detalhes de estado tecnico ficam em [[memoria-viva-bizy]] e nos inventarios.
 

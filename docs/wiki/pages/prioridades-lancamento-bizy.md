@@ -24,7 +24,7 @@ As maiores lacunas restantes estao em:
 - ~~SEO/preview social renderizado no frontend publico~~;
 - ~~privacidade/tracking banner~~;
 - ~~paginacao padronizada com volume~~;
-- consistencia mobile sem scroll horizontal;
+- ~~consistencia mobile sem scroll horizontal~~;
 - verificacao final de modulos desativados na UI;
 - maturacao visual das paginas CRM novas para design v2.
 
@@ -42,7 +42,7 @@ P0 impede primeiro cliente real com experiencia minima aceitavel.
 
 ### Loja publica frontend
 
-Backend ja devolve produtos, SEO, previews, vitrine e agrupamentos. O frontend publico ja cobre loja, Market, produto, checkout e tracking; a lacuna restante fica na auditoria mobile 360px sem scroll horizontal.
+Backend ja devolve produtos, SEO, previews, vitrine e agrupamentos. O frontend publico ja cobre loja, Market, produto, checkout e tracking. Auditoria mobile 360px sem scroll horizontal foi fechada com e2e nas rotas publicas principais.
 
 Links: [[mapa-de-modulos-bizy#Loja Publica, Checkout e Tracking]], [[inventario-frontend]].
 
@@ -132,7 +132,7 @@ P2 deve ser guiado por feedback real.
 
 ## Sequencia Recomendada
 
-1. **Sprint P0:** consistencia mobile sem scroll horizontal e verificacao de modulos desativados na UI.
+1. **Sprint P0:** verificacao de modulos desativados na UI.
 2. **Sprint P1:** perfil Cliente 360 polido, envio binario na conversa, colecoes visuais e templates WhatsApp.
 3. **P2 por feedback:** ligacao backend completa das paginas CRM novas (pipeline, agenda, metas, cotacoes, respostas rapidas, notas, formularios, sequencias), afiliados portal, social oficial, bus unificado.
 

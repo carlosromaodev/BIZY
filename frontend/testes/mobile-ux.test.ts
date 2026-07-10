@@ -161,4 +161,16 @@ describe("experiência mobile-first", () => {
     expect(loja).toContain("grid-cols-1 sm:grid-cols-2 xl:grid-cols-4");
     expect(loja).toContain("min-w-0");
   });
+
+  it("fecha auditoria mobile 360px sem scroll horizontal nas rotas públicas", () => {
+    const learningCss = source("src/projetos/learning/learning.css");
+    const e2eMobile = source("e2e/mobile-overflow.e2e.mjs");
+
+    expect(learningCss).toContain("grid-template-columns: minmax(0, 1fr) auto;");
+    expect(learningCss).toContain(".learn-nav-link span { display: none; }");
+    expect(learningCss).toContain(".learn-formats-grid { grid-template-columns: 1fr; }");
+    expect(e2eMobile).toContain("E2E_MOBILE_WIDTH ?? 360");
+    expect(e2eMobile).toContain("unexpectedOffenders");
+    expect(e2eMobile).toContain("allowedOverflowSelectors");
+  });
 });

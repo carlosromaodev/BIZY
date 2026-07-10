@@ -86,6 +86,6 @@ Design system v2 (`BizyDesignSystem.tsx`) com componentes reutilizaveis. Paginas
 
 As lacunas de lancamento estao em `docs/RF-RNF-RN-EMEUV1.md`, secao de priorizacao P0/P1/P2. Em resumo:
 
-- P0 restante concentra consistencia mobile sem scroll horizontal e verificacao final de modulos desativados na UI; checkout visual, SEO social publico e aviso de privacidade/tracking ja foram fechados.
+- P0 restante concentra verificacao final de modulos desativados na UI; mobile 360px, checkout visual, SEO social publico e aviso de privacidade/tracking ja foram fechados.
 - P1 concentra perfil 360 polido, envio binario real nas conversas, colecoes visuais e templates/fallbacks WhatsApp.
 - Paginas CRM novas (pipeline, cotacoes, agenda, metas, formularios, sequencias) precisam de maturacao visual para design v2 e ligacao completa aos endpoints backend.

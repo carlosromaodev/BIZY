@@ -99,10 +99,11 @@ Catalogo, stock, variantes, loja publica, tracking, checkout e configuracao oper
 - [x] Testes de checkout.
 - [x] Teste frontend de SEO/canonical publico.
 - [x] Teste frontend de checkout visual publico.
-- [ ] Testes frontend mobile sem scroll horizontal.
+- [x] Testes frontend mobile sem scroll horizontal.
 
 ## 14. Proximos Planos
 
 - [x] Spec de checkout visual publico.
 - [x] Spec de SEO e preview social.
 - [x] Guardrail de privacidade/tracking publico aplicado.
+- [x] Spec de mobile 360 sem scroll horizontal.

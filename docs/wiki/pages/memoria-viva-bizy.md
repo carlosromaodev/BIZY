@@ -48,7 +48,7 @@ O vendedor precisa conseguir:
 - usar campanhas, afiliados e tracking sem perder controle humano;
 - operar WhatsApp/n8n/Evolution com guardrails.
 
-O backend ja tem fundacao ampla de CRM+; a Loja Digital agora tem configuracao operacional ligada ao CRM via `experiencia.operacao`, cobrindo checkout, fidelizacao, automacoes, canais e relatorios. O frontend ja fechou checkout visual e SEO publico; as lacunas P0 restantes ficam em consistencia mobile e verificacao de modulos desativados na UI.
+O backend ja tem fundacao ampla de CRM+; a Loja Digital agora tem configuracao operacional ligada ao CRM via `experiencia.operacao`, cobrindo checkout, fidelizacao, automacoes, canais e relatorios. O frontend ja fechou checkout visual, SEO publico e mobile 360px; a lacuna P0 restante fica em verificacao de modulos desativados na UI.
 
 ## Stack
 

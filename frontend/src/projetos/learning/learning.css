@@ -85,6 +85,7 @@
   display: flex;
   align-items: center;
   gap: 20px;
+  min-width: 0;
   padding: 0 24px;
   height: 60px;
   background: var(--learn-surface);
@@ -120,6 +121,7 @@
 
 .learn-search {
   flex: 1;
+  min-width: 0;
   max-width: 480px;
   position: relative;
 }
@@ -162,9 +164,16 @@
   display: flex;
 }
 
-.learn-nav-actions { display: flex; align-items: center; gap: 6px; margin-left: auto; }
+.learn-nav-actions {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+}
 .learn-nav-link {
   display: flex;
+  flex: 0 0 auto;
   align-items: center;
   gap: 6px;
   padding: 6px 12px;
@@ -359,6 +368,7 @@
   border: 1px solid var(--learn-border);
 }
 .learn-format-card {
+  min-width: 0;
   background: var(--learn-surface);
   padding: 24px;
   transition: background .15s;
@@ -396,6 +406,7 @@
    PROGRAM CARD
    ══════════════════════════════════════════════ */
 .learn-program-card {
+  min-width: 0;
   background: var(--learn-surface);
   border: 1px solid var(--learn-border);
   display: flex;
@@ -659,15 +670,50 @@
   .learn-section { padding: 40px 16px; }
   .learn-programs-grid { grid-template-columns: 1fr; }
   .learn-formats-grid { grid-template-columns: repeat(2, 1fr); }
-  .learn-navbar { padding: 0 16px; }
+  .learn-navbar {
+    height: auto;
+    min-height: 60px;
+    flex-wrap: wrap;
+    gap: 10px;
+    padding: 10px 16px;
+  }
+  .learn-brand { min-width: 0; }
+  .learn-nav-actions {
+    max-width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .learn-nav-actions::-webkit-scrollbar { display: none; }
   .learn-filters { padding: 0 16px; }
-  .learn-search { max-width: none; }
+  .learn-search {
+    order: 3;
+    flex: 1 0 100%;
+    max-width: none;
+  }
   .learn-stats-row { flex-wrap: wrap; background: none; gap: 1px; }
   .learn-stat-card { min-width: 120px; padding: 16px 20px; }
 }
 
 @media (max-width: 480px) {
   .learn-topbar { display: none; }
+  .learn-navbar {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .learn-nav-actions { justify-self: end; }
+  .learn-nav-link {
+    width: 40px;
+    height: 38px;
+    justify-content: center;
+    padding: 0;
+  }
+  .learn-nav-link span { display: none; }
+  .learn-search {
+    grid-column: 1 / -1;
+    width: 100%;
+  }
+  .learn-formats-grid { grid-template-columns: 1fr; }
   .learn-hero h1 { letter-spacing: -0.8px; }
   .learn-dark-section { padding: 44px 16px; }
   .learn-profile-hero { padding: 60px 16px 44px; }

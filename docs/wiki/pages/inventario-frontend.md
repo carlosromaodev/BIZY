@@ -253,5 +253,5 @@ Do documento de requisitos:
 - checkout visual/carrinho completo no frontend publico fechado com passos, quantidade, resumo e revisao;
 - SEO/social preview renderizado no frontend publico fechado para Market, lojas, catalogos e Learning;
 - faltam estados vazios orientadores em alguns modulos;
-- falta auditoria mobile 360px nas tabelas grandes;
+- auditoria mobile 360px publica sem scroll horizontal fechada com e2e; tabelas grandes devem continuar encapsuladas em wrappers internos;
 - faltam algumas telas visuais de colecoes e perfil 360 polido.
