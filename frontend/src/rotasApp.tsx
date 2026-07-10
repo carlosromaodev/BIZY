@@ -192,7 +192,6 @@ export function usuarioPodeVerAdminSistema(papel?: string | null): boolean {
 }
 
 export function filtrarRotasPorModulos(rotas: RotaPrivada[], modulosAtivos: string[]): RotaPrivada[] {
-  if (modulosAtivos.length === 0) return rotas;
   return rotas.filter((rota) => !rota.modulo || modulosAtivos.includes(rota.modulo));
 }
 

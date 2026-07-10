@@ -84,7 +84,7 @@ Frontend possui Vite/React, rotas publicas e privadas, design system v2, paginas
 
 ## 12. Lacunas
 
-- P0: verificacao de modulos desativados na UI. Mobile 360px sem scroll horizontal, SEO publico, checkout visual, privacidade/tracking e paginacao ja foram fechados.
+- P0 fechado: modulos desativados na UI, mobile 360px sem scroll horizontal, SEO publico, checkout visual, privacidade/tracking e paginacao.
 - P1: Cliente 360, colecoes visuais, envio binario e revisao textual.
 - P2: painel personalizavel e war rooms.
 

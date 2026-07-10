@@ -25,7 +25,7 @@ P0 bloqueia lancamento ou experiencia minima aceitavel:
 - [x] paginacao padronizada em listas grandes;
 - [x] consistencia mobile sem scroll horizontal;
 - [x] estabilidade de loja publica e Bizy Market;
-- [ ] verificacao de modulos desativados na UI;
+- [x] verificacao de modulos desativados na UI;
 - [x] rotas publicas sem dados pessoais em tracking.
 - [x] Anani restrito a governanca, sem exposicao em tenant, com migration e policies basicas validas.
 
@@ -69,17 +69,17 @@ P2 depende de feedback, escala ou integracao madura:
 |---|---|
 | 00 Visao | Revisar posicionamento publico Bizy Team e promessa comercial por segmento. |
 | 01 Arquitetura | Consolidar bus/outbox unico e contratos versionados entre modulos. |
-| 02 Identidade | Formalizar matriz de permissoes por papel, persona e modulo. |
+| 02 Identidade | Formalizar matriz de permissoes por papel/persona e guards de URL por modulo. |
 | 03 CRM Social Commerce | Polir funil comercial, tarefas e relatorios operacionais no mesmo modelo. |
 | 04 Live/Reservas | Fechar fluxo reserva -> pedido -> pagamento -> entrega com telemetria. |
 | 05 Clientes/WhatsApp | Completar Cliente 360 visual, envio binario e opt-out granular. |
-| 06 Catalogo/Loja | Manter checkout visual, SEO, privacidade e auditoria mobile 360px; proxima verificacao e modulos desativados na UI. |
+| 06 Catalogo/Loja | Manter checkout visual, SEO, privacidade, mobile 360px e modulos visiveis por configuracao. |
 | 07 Market | Evoluir checkout multi-loja, acompanhamento do comprador e repasses. |
 | 08 Afiliados/Social | Criar portal do afiliado e conectores sociais oficiais. |
 | 09 Team/Projectos | Completar onboarding de membros, modo sombra, war rooms e passagem via WhatsApp. |
 | 10 Financas | Avancar reconciliacao bancaria, e-invoicing e relatorios fiscais. |
 | 11 Inteligencia/Anani | [ ] Ligar insights a tarefas, notificacoes WhatsApp e feedback de utilidade; [ ] completar projectors/read models iniciais; [ ] audit trail; [x] teste HTTP completo de governanca. |
-| 12 Frontend/UX | Manter e2e mobile 360px e auditar design v2, estados vazios e modulos desativados. |
+| 12 Frontend/UX | Manter e2e mobile 360px, modulos filtrados e auditar design v2/estados vazios. |
 | 13 Operacao | Documentar runbooks de incidentes, backup, restore e deploy continuo. |
 | 14 Seguranca | Expandir testes de isolamento multi-tenant, auditoria e minimizacao de dados. |
 | 15 Learning | Consolidar RF/RNF/RN do Learning; depois implementar Studio Market/Learning/Ambos, produto digital, checkout digital, entitlement, certificados, comunidade, mentorias e low-data mode. |

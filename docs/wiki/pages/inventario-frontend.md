@@ -234,6 +234,7 @@ Em `frontend/testes/`:
 - `loja-publica-fase1.test.ts`
 - `loja-subdominio.test.ts`
 - `marca-bizy.test.ts`
+- `modulos-ui.test.ts`
 - `mobile-ux.test.ts`
 - `painel-live.test.ts`
 - `shadcn-integracao.test.ts`
@@ -242,7 +243,7 @@ Em `frontend/testes/`:
 
 A navegacao e organizada por seccoes: Hoje, Vendas, CRM, Vitrine, Gestao, Admin/Sistema.
 
-Rotas com propriedade `modulo` so aparecem se o modulo estiver activo no negocio (ex: `automacoes`, `funil`, `loja-publica`, `afiliados`). A funcao `filtrarRotasPorModulos` em `rotasApp.tsx` controla a visibilidade.
+Rotas com propriedade `modulo` so aparecem se o modulo estiver activo no negocio (ex: `automacoes`, `funil`, `loja-publica`, `afiliados`). A funcao `filtrarRotasPorModulos` em `rotasApp.tsx` controla a visibilidade e lista vazia de modulos ativos mostra apenas o nucleo operacional.
 
 Rotas Admin/Sistema requerem papel admin/dono/owner via `usuarioPodeVerAdminSistema`.
 

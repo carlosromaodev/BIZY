@@ -99,8 +99,9 @@ Autenticacao por telefone, Google, estudantil, onboarding, membros, modulos e se
 
 ## 12. Lacunas
 
-- P0: verificar ocultacao consistente de modulos desativados.
+- [x] P0: verificar ocultacao consistente de modulos desativados na UI.
 - P1: matriz de permissoes por papel/persona.
+- P1: guard frontend de acesso direto por URL quando modulo estiver desligado.
 - P2: modo sombra e progressive disclosure por novos membros.
 
 ## 13. Testes e Verificacao
@@ -108,6 +109,7 @@ Autenticacao por telefone, Google, estudantil, onboarding, membros, modulos e se
 - Testes HTTP de autenticacao.
 - Testes de sessao e cookie.
 - Testes de permissao por modulo.
+- [x] Teste frontend de ocultacao de modulos desativados.
 - Testes de isolamento por `negocioId`.
 
 ## 14. Proximos Planos
