@@ -90,7 +90,7 @@ Se uma tela, endpoint ou automacao nao faz isso, precisa ser repensada, escondid
 
 O backend ja esta amplo: autenticacao, negocio, catalogo, reservas, pedidos, clientes 360, conversas, WhatsApp, n8n, loja publica, Market, Learning, tracking, afiliados, social inbox, campanhas, funil, tarefas, relatorios, auditoria, jobs, contratos, Anani, backup e rate limit.
 
-As lacunas de lancamento devem ser lidas em [[prioridades-lancamento-bizy]]. O P0 do roadmap atual esta fechado; a sequencia agora e P1/P2 sem inventar nova visao: projectors/read models Anani, polimento operacional, matriz de permissoes, guard frontend de URL por modulo e melhorias de primeira operacao.
+As lacunas de lancamento devem ser lidas em [[prioridades-lancamento-bizy]]. O P0 do roadmap atual esta fechado; a sequencia agora e P1/P2 sem inventar nova visao: projectors/read models Anani, polimento operacional, matriz de permissoes e melhorias de primeira operacao. Guard frontend de URL por modulo ja foi fechado.
 
 Detalhes de estado tecnico ficam em [[memoria-viva-bizy]] e nos inventarios.
 

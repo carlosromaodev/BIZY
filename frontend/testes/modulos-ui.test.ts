@@ -35,6 +35,7 @@ describe("módulos desativados na UI", () => {
   });
 
   it("deriva tabs primárias, drawer desktop e sheet mobile das rotas filtradas", () => {
+    const app = source("src/App.tsx");
     const shell = source("src/componentes/Shell.tsx");
     const rotas = source("src/rotasApp.tsx");
     const caminhosPrimarios = caminhos(rotasCrmV3Principais);
@@ -45,6 +46,11 @@ describe("módulos desativados na UI", () => {
     expect(shell).toContain("return rotasCrmV3Principais.filter((rota) => caminhosVisiveis.has(rota.caminho));");
     expect(shell).toContain("rotasComerciaisFiltradas.filter((r) => r.secao === secao)");
     expect(shell).toContain("for (const rota of rotasDesktopVisiveis)");
+    expect(app).toContain('requisitarApi<{ modulosAtivos?: string[] }>("/negocio/modulos")');
+    expect(app).toContain('if (estadoModulo === "bloqueado") return <Navigate to="/app" replace />;');
+    expect(app).toContain("element={<LayoutApp modulo={rota.modulo}");
+    expect(app).toContain("element={<RotaPrivada modulo={rota.modulo}>");
+    expect(rotas).toContain('{ caminho: "/app/loja-publica", elemento: <PaginaLojaPublica />, modulo: "loja-publica" }');
     expect(rotas).not.toContain("if (modulosAtivos.length === 0) return rotas");
   });
 });

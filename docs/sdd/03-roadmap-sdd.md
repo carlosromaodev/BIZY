@@ -69,7 +69,7 @@ P2 depende de feedback, escala ou integracao madura:
 |---|---|
 | 00 Visao | Revisar posicionamento publico Bizy Team e promessa comercial por segmento. |
 | 01 Arquitetura | Consolidar bus/outbox unico e contratos versionados entre modulos. |
-| 02 Identidade | Formalizar matriz de permissoes por papel/persona e guards de URL por modulo. |
+| 02 Identidade | Formalizar matriz de permissoes por papel/persona; guard de URL por modulo ja esta fechado no frontend. |
 | 03 CRM Social Commerce | Polir funil comercial, tarefas e relatorios operacionais no mesmo modelo. |
 | 04 Live/Reservas | Fechar fluxo reserva -> pedido -> pagamento -> entrega com telemetria. |
 | 05 Clientes/WhatsApp | Completar Cliente 360 visual, envio binario e opt-out granular. |

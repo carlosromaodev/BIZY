@@ -93,6 +93,10 @@ export interface RotaPrivada {
   modulo?: string;
 }
 
+export interface RotaPrivadaOculta extends RotaPublica {
+  modulo?: string;
+}
+
 function PaginaEntradaPublica() {
   if (temDominioMarketPublico()) return <PaginaMarket />;
   return temSubdominioLojaPublica() ? <PaginaLojaDigitalPublica /> : <PaginaHome />;
@@ -178,9 +182,9 @@ export const rotasCrmV3Principais: RotaPrivada[] = caminhosCrmV3Principais.reduc
 
 export const rotasPrivadas: RotaPrivada[] = [...rotasComerciais, ...rotasAdminSistema];
 
-export const rotasPrivadasOcultas: RotaPublica[] = [
+export const rotasPrivadasOcultas: RotaPrivadaOculta[] = [
   { caminho: "/onboarding", elemento: <PaginaOnboarding /> },
-  { caminho: "/app/loja-publica", elemento: <PaginaLojaPublica /> }
+  { caminho: "/app/loja-publica", elemento: <PaginaLojaPublica />, modulo: "loja-publica" }
 ];
 
 export const secoesNavegacao: SecaoNavegacao[] = ["Hoje", "Vendas", "Comercial", "Vitrine", "Gestão", "Admin/Sistema"];

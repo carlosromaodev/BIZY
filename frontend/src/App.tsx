@@ -1,14 +1,26 @@
 import { type ReactNode, useEffect, useState } from "react";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
-import { EVENTO_SESSAO_ATUALIZADA, EVENTO_SESSAO_EXPIRADA, obterUsuario } from "./api";
+import { EVENTO_SESSAO_ATUALIZADA, EVENTO_SESSAO_EXPIRADA, EVENTO_WORKSPACE_ALTERADO, obterUsuario, requisitarApi } from "./api";
 import { NativeFeedbackProvider } from "./componentes/NativeFeedbackProvider";
 import { ProvedorNotificacoes } from "./componentes/Notificacoes";
 import { Shell } from "./componentes/Shell";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { rotasPrivadas, rotasPrivadasOcultas, rotasPublicas, usuarioPodeVerAdminSistema } from "./rotasApp";
 
-function RotaPrivada({ children, requerAdminSistema = false }: { children: ReactNode; requerAdminSistema?: boolean }) {
+type EstadoModuloRota = "liberado" | "bloqueado" | "verificando";
+
+function RotaPrivada({
+  children,
+  modulo,
+  requerAdminSistema = false
+}: {
+  children: ReactNode;
+  modulo?: string;
+  requerAdminSistema?: boolean;
+}) {
   const [autenticado, setAutenticado] = useState(() => Boolean(obterUsuario()));
+  const [versaoWorkspace, setVersaoWorkspace] = useState(0);
+  const [estadoModulo, setEstadoModulo] = useState<EstadoModuloRota>(() => (modulo ? "verificando" : "liberado"));
   const usuario = obterUsuario();
 
   useEffect(() => {
@@ -23,6 +35,35 @@ function RotaPrivada({ children, requerAdminSistema = false }: { children: React
       window.removeEventListener("storage", atualizarSessao);
     };
   }, []);
+
+  useEffect(() => {
+    const atualizarWorkspace = () => setVersaoWorkspace((versao) => versao + 1);
+    window.addEventListener(EVENTO_WORKSPACE_ALTERADO, atualizarWorkspace);
+    return () => window.removeEventListener(EVENTO_WORKSPACE_ALTERADO, atualizarWorkspace);
+  }, []);
+
+  useEffect(() => {
+    if (!modulo || !autenticado) {
+      setEstadoModulo("liberado");
+      return;
+    }
+
+    let ativo = true;
+    setEstadoModulo("verificando");
+
+    requisitarApi<{ modulosAtivos?: string[] }>("/negocio/modulos")
+      .then((resposta) => {
+        if (!ativo) return;
+        setEstadoModulo((resposta.modulosAtivos ?? []).includes(modulo) ? "liberado" : "bloqueado");
+      })
+      .catch(() => {
+        if (ativo) setEstadoModulo("bloqueado");
+      });
+
+    return () => {
+      ativo = false;
+    };
+  }, [autenticado, modulo, versaoWorkspace]);
 
   useEffect(() => {
     let meta = document.querySelector('meta[name="robots"]') as HTMLMetaElement | null;
@@ -41,13 +82,23 @@ function RotaPrivada({ children, requerAdminSistema = false }: { children: React
 
   if (!autenticado) return <Navigate to="/login" replace />;
   if (requerAdminSistema && !usuarioPodeVerAdminSistema(usuario?.papel)) return <Navigate to="/app" replace />;
+  if (estadoModulo === "verificando") return null;
+  if (estadoModulo === "bloqueado") return <Navigate to="/app" replace />;
 
   return <>{children}</>;
 }
 
-function LayoutApp({ children, requerAdminSistema = false }: { children: ReactNode; requerAdminSistema?: boolean }) {
+function LayoutApp({
+  children,
+  modulo,
+  requerAdminSistema = false
+}: {
+  children: ReactNode;
+  modulo?: string;
+  requerAdminSistema?: boolean;
+}) {
   return (
-    <RotaPrivada requerAdminSistema={requerAdminSistema}>
+    <RotaPrivada modulo={modulo} requerAdminSistema={requerAdminSistema}>
       <Shell>{children}</Shell>
     </RotaPrivada>
   );
@@ -68,12 +119,12 @@ export function App() {
                 <Route
                   key={rota.caminho}
                   path={rota.caminho}
-                  element={<LayoutApp requerAdminSistema={rota.requerAdminSistema}>{rota.elemento}</LayoutApp>}
+                  element={<LayoutApp modulo={rota.modulo} requerAdminSistema={rota.requerAdminSistema}>{rota.elemento}</LayoutApp>}
                 />
               ))}
 
               {rotasPrivadasOcultas.map((rota) => (
-                <Route key={rota.caminho} path={rota.caminho} element={<RotaPrivada>{rota.elemento}</RotaPrivada>} />
+                <Route key={rota.caminho} path={rota.caminho} element={<RotaPrivada modulo={rota.modulo}>{rota.elemento}</RotaPrivada>} />
               ))}
 
               <Route path="*" element={<Navigate to="/" replace />} />

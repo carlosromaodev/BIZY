@@ -70,7 +70,7 @@ Atualizar roadmap, dominio de identidade, dominio frontend e prioridade de lanca
 
 - [x] **Step 2: Registrar limite**
 
-Declarar que RBAC/ABAC completo e guards de URL ficam em P1/P2 ou backend.
+Declarar que RBAC/ABAC completo fica em P1/P2 ou backend. O guard frontend de URL foi fechado depois em `2026-07-10-guard-url-modulos-bizy`.
 
 ### Task 4: Validar
 

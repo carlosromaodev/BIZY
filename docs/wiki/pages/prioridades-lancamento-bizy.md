@@ -64,7 +64,7 @@ Links: [[mapa-de-modulos-bizy#Loja Publica, Checkout e Tracking]], [[inventario-
 
 ### Ocultar modulos desativados
 
-~~Backend bloqueia rotas por modulo. Falta esconder navegacao/componentes quando modulo estiver desligado.~~ Fechado na UI: `filtrarRotasPorModulos` em `rotasApp.tsx` agora trata lista vazia como nucleo minimo, e o Shell deriva tabs, drawer desktop e sheet mobile das rotas filtradas. Limite: guard frontend de acesso direto por URL e matriz RBAC/ABAC ficam fora deste recorte.
+~~Backend bloqueia rotas por modulo. Falta esconder navegacao/componentes quando modulo estiver desligado.~~ Fechado na UI e na rota direta: `filtrarRotasPorModulos` em `rotasApp.tsx` trata lista vazia como nucleo minimo; o Shell deriva tabs, drawer desktop e sheet mobile das rotas filtradas; `RotaPrivada` consulta `/negocio/modulos` antes de renderizar rota opcional por URL. Limite: matriz RBAC/ABAC completa fica fora deste recorte.
 
 ### Paginacao padronizada
 
@@ -133,7 +133,7 @@ P2 deve ser guiado por feedback real.
 ## Sequencia Recomendada
 
 1. **Sprint P0:** fechado no roadmap atual.
-2. **Sprint P1:** perfil Cliente 360 polido, envio binario na conversa, colecoes visuais, templates WhatsApp e guard frontend de URL por modulo.
+2. **Sprint P1:** perfil Cliente 360 polido, envio binario na conversa, colecoes visuais e templates WhatsApp.
 3. **P2 por feedback:** ligacao backend completa das paginas CRM novas (pipeline, agenda, metas, cotacoes, respostas rapidas, notas, formularios, sequencias), afiliados portal, social oficial, bus unificado.
 
 ## Como Usar Esta Nota

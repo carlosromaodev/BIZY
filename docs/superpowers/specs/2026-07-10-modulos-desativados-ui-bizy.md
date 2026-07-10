@@ -26,7 +26,7 @@ O Shell ja usava `filtrarRotasPorModulos`, mas a funcao devolvia todas as rotas 
 ## 4. Fora de Escopo
 
 - Matriz RBAC/ABAC completa por dominio.
-- Guard frontend de acesso direto por URL.
+- Matriz RBAC/ABAC completa por dominio.
 - Testes HTTP backend de permissao por modulo.
 - Modo sombra/progressive disclosure para membros.
 
@@ -43,7 +43,7 @@ O Shell ja usava `filtrarRotasPorModulos`, mas a funcao devolvia todas as rotas 
 - Rota sem `modulo` pertence ao nucleo operacional e fica visivel.
 - Rota com `modulo` so aparece se `modulosAtivos` contem esse modulo.
 - Shell deve derivar tabs, drawer desktop e sheet mobile das rotas filtradas.
-- Backend continua responsavel por bloquear acesso real e permissoes.
+- Backend continua responsavel por bloquear acesso real e permissoes. O guard frontend de URL direta foi fechado depois em `docs/superpowers/specs/2026-07-10-guard-url-modulos-bizy.md`.
 
 ## 7. Implementacao
 
