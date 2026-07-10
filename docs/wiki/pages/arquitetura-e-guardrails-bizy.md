@@ -7,7 +7,7 @@ tags:
   - bizy/arquitetura
   - bizy/guardrails
 status: ativo
-updated: 2026-07-09
+updated: 2026-07-10
 ---
 
 # Arquitetura e Guardrails do Bizy
@@ -58,6 +58,20 @@ Handlers HTTP nao devem conter regra pesada nem acesso direto ao banco quando ex
 - dependencias.
 
 Modulos HTTP ficam em `backend/src/infra/http/modulos/` e sao registrados por manifesto.
+
+## Anatomia Tecnica de Modulo
+
+Modulo Bizy nao deve nascer so como rota e pagina. Antes de ser tratado como caminho principal, precisa declarar:
+
+- owner de dominio;
+- entidades, regras, estados e transicoes;
+- comandos, consultas e eventos;
+- capabilities/policies/permissoes;
+- auditoria, logs, metricas e retencao;
+- testes proporcionais ao risco;
+- exportacao/documentacao quando houver dado operacional relevante.
+
+Estados sensiveis devem mudar por transicao validada, com condicao, permissao, acao, evento e auditoria. KPIs precisam de formula, fonte, periodo, moeda quando aplicavel e nivel de confianca.
 
 ## Backend como Fonte de Verdade
 

@@ -11,6 +11,15 @@ updated: 2026-07-10
 
 # Log da Wiki
 
+## [2026-07-10] produto | Benchmark internacional V2 incorporado
+
+- [x] Visao Unificada do Bizy atualizada para Business Operating System modular com criterio de excelencia por modulo.
+- [x] SDD Dominio 00 atualizado com anatomia minima de modulo, catalogo de capacidades, KPI real, eventos, observabilidade, WCAG/ASVS e guardrails de certificacao.
+- [x] RF/RNF/RN principal do ÉMeu/Bizy atualizado para versao 1.108 com backlog RF341-RF360, RNF111-RNF122 e RN137-RN146.
+- [x] RF/RNF/RN de Team, Market e Learning atualizados com orientacoes do benchmark internacional V2 e novos itens `[ ]` para maturidade M5.
+- [x] Memoria principal, mapa de modulos e guardrails atualizados para repetir o criterio novo sem criar visao paralela.
+- [ ] Proxima etapa: criar specs executaveis para plataforma comum, Developer Platform, event envelope, catalogo de KPI, portais externos e evidencias de maturidade.
+
 ## [2026-07-10] P1 | Cliente 360, campanhas, colecoes e Anani projector
 
 - [x] Cliente 360 ganhou sinais operacionais no frontend para VIP, reclamacao, prioridade alta e pagamento pendente.

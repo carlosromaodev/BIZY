@@ -1,15 +1,16 @@
 # Bizy Learning - Requisitos Funcionais, Nao Funcionais e Regras de Negocio
 
 Documento: `RF-RNF-RN-BIZY-LEARNING.md`
-Versao: 0.4
-Data: 2026-07-04
+Versao: 0.5
+Data: 2026-07-10
 Autor: Carlos + Codex
-Status: especificacao viva com implementacao incremental em curso
+Status: especificacao viva com implementacao incremental em curso e benchmark internacional V2 incorporado como backlog de maturidade
 
 ---
 
 ## 0. Implementacao Incremental Atual
 
+- 2026-07-10: auditoria integral de benchmark internacional V2 incorporada. Learning passa a mirar maturidade M5 com interoperabilidade standards-ready (LTI, xAPI, Open Badges, QTI, SCORM), acessibilidade WCAG, player/conteudo premium seguro, analytics de abandono/progresso, certificados verificaveis, portal do produtor e automacoes com fallback humano.
 - 2026-07-04: `/app/learning` passou a suportar atribuição Team de produto Learning a membro (`usuarioId`) ou perfil, com obrigação, prazo, mensagem operacional e métricas de atribuições activas/atrasadas.
 - Quando a atribuição tem membro definido, o backend cria entitlement de origem `TEAM`, inscrição rastreável e evento `LEARNING_ATRIBUICAO_TEAM_CRIADA`.
 - Esta entrega cobre parcialmente RF-L045/RF-L046. Ainda faltam atribuições por departamento, projecto, turma/cohort real, políticas avançadas de revogação e notificações.
@@ -75,6 +76,19 @@ Decisao de produto:
 | Operacao | Pedido, entrega, comprovativo, repasse | Inscricao, progresso, consumo, comunidade, certificado |
 | Risco principal | Overselling, entrega, pagamento, fornecedor | Acesso indevido, pirataria, qualidade, abandono, refund |
 | Backoffice | Bizy Studio e Team | Bizy Studio e Team |
+
+### 2.4 Benchmark Internacional e Standards-Ready
+
+O Learning deve aprender com Moodle e 1EdTech sem copiar complexidade inutil. A meta e preparar interoperabilidade e evidencias, nao declarar certificacao antes de processo formal.
+
+Referencias de desenho:
+
+- LTI para integrar ferramentas externas de ensino quando o ecossistema exigir;
+- QTI para avaliações e bancos de questões interoperáveis;
+- Open Badges para credenciais verificaveis;
+- xAPI para registar experiencias de aprendizagem;
+- SCORM por compatibilidade com conteudo legado quando houver cliente real;
+- WCAG 2.2 AA para acessibilidade de aprendizagem.
 
 ## 3. Familias de Produto Learning
 
@@ -213,6 +227,20 @@ Estado incremental 2026-07-04: RF-L032/RF-L033/RF-L035/RF-L036/RF-L038/RF-L039/R
 
 Estado incremental 2026-07-04: RF-L069 tem cobertura parcial para visualização, preview, CTA checkout/inscrição, compra, inscrição, progresso, certificado e receita Learning no resumo Team. Ainda faltam abandono, retenção por período, funil público completo, CRM consentido, afiliados e tarefas automáticas.
 
+### 5.10 Benchmark Internacional, Interoperabilidade e Portais
+
+- [ ] **RF-L077**: O Learning deve manter trilha de eventos de aprendizagem com sujeito, verbo, objeto, contexto, resultado, timestamp e origem, preparando compatibilidade futura com xAPI/LRS.
+- [ ] **RF-L078**: Avaliações devem ser modeladas com perguntas, alternativas, rubrica, tentativas, feedback, pontuação e banco reutilizável, preparando compatibilidade futura com QTI.
+- [ ] **RF-L079**: Certificados e badges devem ter metadados verificaveis, emissor, criterio, validade, evidencias e URL publica segura, preparando compatibilidade futura com Open Badges.
+- [ ] **RF-L080**: Conteudos externos ou ferramentas parceiras devem entrar por integracao controlada, com owner, escopo, retorno de progresso e revogacao, preparando compatibilidade futura com LTI.
+- [ ] **RF-L081**: O Learning deve aceitar pacote/conteudo legado em formato compatível com SCORM apenas quando houver necessidade real, mantendo isolamento e sem bloquear o modelo nativo.
+- [ ] **RF-L082**: O player Learning deve controlar acesso por entitlement, bloquear cache publico de conteudo premium, registar consumo e preservar progresso mesmo em falha temporaria de notificacao.
+- [ ] **RF-L083**: O Team deve expor risco de abandono, progresso atrasado, formacao obrigatoria vencida, certificado pendente e tarefas de follow-up por membro, produto, cohort e departamento.
+- [ ] **RF-L084**: O Learning deve ter portal do produtor/mentor com produtos, turmas, presenca, progresso, receita, suporte, mensagens internas, moderacao e documentos minimos.
+- [ ] **RF-L085**: Produtos Learning devem suportar versoes de conteudo, release notes e politica de impacto sobre progresso, certificados antigos e recertificacao.
+- [ ] **RF-L086**: O Learning deve criar automacoes seguras para matricula, entitlement, progresso, lembrete, conclusao, certificado, risco de abandono, cohort, recomendacao, comunidade e payout do produtor.
+- [ ] **RF-L087**: Qualquer acao sensivel de certificado, refund, suspensao, payout, ocultacao de conteudo ou revogacao de acesso deve exigir policy, permissao e auditoria.
+
 ## 6. Requisitos Nao Funcionais
 
 - [ ] **RNF-L001**: A experiencia Learning deve ser mobile-first em 360px, 375px, 390px, 768px, 1024px e 1440px.
@@ -244,6 +272,13 @@ Estado incremental 2026-07-04: RF-L069 tem cobertura parcial para visualização
 - [ ] **RNF-L027**: O design do Learning deve comunicar ecossistema de produtos digitais, nao landing page estatica nem catalogo simples.
 - [ ] **RNF-L028**: O backoffice `/app/learning` deve ser operacional e denso o suficiente para uso diario por gestores, mentores e donos, mantendo clareza mobile-first.
 - [ ] **RNF-L029**: O chat interno Learning deve ser low-noise, auditavel e separado de canais externos como WhatsApp, Instagram e atendimento CRM.
+- [ ] **RNF-L030**: A arquitetura de eventos Learning deve permitir evoluir para xAPI sem acoplar o MVP a um LRS externo.
+- [ ] **RNF-L031**: Avaliações, certificados e badges devem ser exportaveis em formato documentado e reprocessaveis sem perder auditoria.
+- [ ] **RNF-L032**: Conteudo premium, progresso, notas, certificados e mensagens internas devem ter autorizacao por entitlement, papel e `negocioId`.
+- [ ] **RNF-L033**: Videos, audios e materiais principais devem oferecer alternativa textual, captions/transcricao quando aplicavel e navegação por teclado.
+- [ ] **RNF-L034**: Automacoes Learning devem registrar motivo, politica, confiança quando houver IA, fallback humano e resultado.
+- [ ] **RNF-L035**: Relatorios de Learning devem separar metricas confirmadas, estimadas, incompletas e anonimizadas.
+- [ ] **RNF-L036**: Portal do produtor deve expor apenas dados necessarios de venda, suporte e aprendizagem, sem revelar margens internas, dados privados de outros formandos ou configuracoes do Team.
 
 ## 7. Regras de Negocio
 
@@ -292,6 +327,13 @@ Estado incremental 2026-07-04: RF-L069 tem cobertura parcial para visualização
 - [ ] **RN-L043**: Mensagens internas sobre cohort, mentoria, suporte ou certificacao nao podem revelar dados privados do comprador/formando a actores sem permissao.
 - [ ] **RN-L044**: Uma comunidade paga so pode receber mensagens de membros com entitlement activo ou permissao administrativa.
 - [ ] **RN-L045**: A vitrine publica do Learning deve priorizar descoberta por familias de produto, problema operacional, perfil-alvo e resultado, nao apenas lista cronologica de cursos.
+- [ ] **RN-L046**: LTI, xAPI, Open Badges, QTI e SCORM sao referencias de interoperabilidade; o Bizy so declara compatibilidade formal apos implementacao, testes e validacao dedicados.
+- [ ] **RN-L047**: Progresso Learning nao substitui avaliacao humana quando certificacao exigir criterio manual, presença validada ou evidência externa.
+- [ ] **RN-L048**: Certificado ou badge revogado deve permanecer verificavel como revogado, com motivo interno auditado e resposta publica minima.
+- [ ] **RN-L049**: Produto Learning com conteudo actualizado deve indicar se compradores antigos mantem versao anterior, recebem atualização ou precisam de recertificacao.
+- [ ] **RN-L050**: Recomendacao automatica de curso, trilha ou cohort nao deve matricular, cobrar, emitir certificado ou revogar acesso sem regra explicita e auditoria.
+- [ ] **RN-L051**: Payout de produtor Learning depende de compra confirmada, politica de reembolso, janela de contestacao e ausência de disputa aberta.
+- [ ] **RN-L052**: Comunidade Learning nao pode ser usada para suporte operacional de pedido Market quando o fluxo correto for atendimento/Team.
 
 ## 8. Fluxos Principais
 
@@ -360,6 +402,10 @@ Gestor/Mentor/Dono abre /app/learning
 - Criar testes HTTP para denuncias, fila de moderacao, decisao humana e ocultacao temporaria.
 - Criar testes de permissao para dono, admin, mentor, vendedor, afiliado/criador e comprador/formando.
 - Criar testes de revogacao de acesso apos reembolso, cancelamento, expiracao ou suspensao.
+- Criar testes de eventos Learning preparando xAPI sem exigir LRS externo no MVP.
+- Criar testes de certificado/badge verificavel, revogacao e resposta publica minima.
+- Criar testes de acessibilidade WCAG para player, produto publico, checkout, comunidade e certificado.
+- Criar testes de automacao Learning garantindo fallback humano para certificado, refund, payout, suspensao e revogacao.
 - Criar browser QA em `/learning`, `/app/learning` e Studio.
 
 ## 10. Estado de Implementacao
@@ -388,4 +434,6 @@ Ainda pendente para o dominio definitivo:
 - moderacao, denuncias e governanca global;
 - financeiro fiscal completo, comissoes, repasses e reconciliacao dedicados;
 - integracao Studio Market/Learning/Ambos completa, incluindo perfil publico dedicado, elegibilidade e metricas;
+- interoperabilidade standards-ready (xAPI, LTI, QTI, Open Badges e SCORM) com validacao real apenas quando implementada;
+- portal do produtor/mentor dedicado;
 - browser QA visual completo em `/learning`, `/app/learning` e Studio.

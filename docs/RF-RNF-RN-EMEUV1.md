@@ -1,10 +1,10 @@
 # Bizy / ÉMeu V1 - Requisitos Funcionais, Não Funcionais e Regras de Negócio
 
 Documento: `RF-RNF-RN-EMEUV1.md`
-Versão: 1.107
-Data: 2026-05-31
+Versão: 1.108
+Data: 2026-07-10
 Autor: Carlos
-Status: MVP base implementado; fundação backend Bizy CRM+ com Clientes 360, Pedidos, Catálogo/Stock, Loja Pública, Vitrine Pública, Checkout, Entrega, Afiliados, Criadores, Revendedores, Mini-lojas Públicas, Comissões, Atribuição Comercial, Lotes Financeiros, Campanhas com receita atribuída por tracking, Governança, Jobs de Clientes/Produtos/Exportações, Contratos Versionados, Eventos Operacionais, eventos públicos idempotentes, webhook Evolution idempotente com ledger operacional, bootstrap de ambiente, backup/restore PostgreSQL, rate limit distribuível por Redis REST, sessão HttpOnly compatível com Bearer, cache seguro em catálogo público, eventos server-side preparados, Inbox Comercial, SLA, Social Inbox seguro, transferência operacional, política WhatsApp, descontos aprováveis, carrinho abandonado, antifraude de afiliados, anonimização, SEO público, logs operacionais, navegação comercial, busca global, auditoria de exportações comerciais, painel diário em evolução, análise de lacunas para lançamento com priorização P0/P1/P2 e módulos de evolução formalizados: Painel/Resumo Diário, Funil Comercial, Entregas/Logística, Notificações Internas, Pipeline de Vendas, Agenda/Lembretes, Metas de Vendas, Cotações/Orçamentos, Respostas Rápidas, Notas/Actividades, Formulários de Leads e Sequências Automáticas
+Status: MVP base implementado; fundação backend Bizy CRM+ com Clientes 360, Pedidos, Catálogo/Stock, Loja Pública, Vitrine Pública, Checkout, Entrega, Afiliados, Criadores, Revendedores, Mini-lojas Públicas, Comissões, Atribuição Comercial, Lotes Financeiros, Campanhas com receita atribuída por tracking, Governança, Jobs de Clientes/Produtos/Exportações, Contratos Versionados, Eventos Operacionais, eventos públicos idempotentes, webhook Evolution idempotente com ledger operacional, bootstrap de ambiente, backup/restore PostgreSQL, rate limit distribuível por Redis REST, sessão HttpOnly compatível com Bearer, cache seguro em catálogo público, eventos server-side preparados, Inbox Comercial, SLA, Social Inbox seguro, transferência operacional, política WhatsApp, descontos aprováveis, carrinho abandonado, antifraude de afiliados, anonimização, SEO público, logs operacionais, navegação comercial, busca global, auditoria de exportações comerciais, painel diário em evolução, análise de lacunas para lançamento com priorização P0/P1/P2, módulos de evolução formalizados e nova camada de benchmark internacional V2 para plataforma modular, automação, eventos, KPIs, segurança, acessibilidade, observabilidade e maturidade M5.
 
 ---
 
@@ -231,6 +231,8 @@ Atualização 1.105: análise cruzada do cofre Obsidian com os módulos oferecid
 Atualização 1.106: Loja Digital evoluiu para operação CRM configurável no admin, com persistência em `experiencia.operacao`. A configuração agora cobre checkout inteligente (rascunho até pagamento, entrada, taxa, prefixo/sufixo, telefone/login), acesso e fidelização (telefone/login/membros, cupom, recompensas, crédito), automações comerciais (carrinho abandonado, pagamento, entrega, avaliação, recompra), canais conectados (site, WhatsApp, Instagram, Google, POS, live commerce, chatbot) e relatórios guiados por métricas, agrupamento e estados de pedido. O conector TikTok Live passou a desativar fallback Euler e interromper reconexão em erros terminais como `user_not_found`, live offline e falta de permissão, evitando loops de erro no monitoramento live.
 
 Atualização 1.107: responsividade passa a ser regra transversal de todas as páginas internas e públicas. Qualquer tela nova ou refatorada deve começar em uma coluna no mobile, evitar grids fixos antes de breakpoints, manter `min-w-0` em shells e áreas com texto longo, preservar ações principais no mobile, usar scroll horizontal apenas para navegação/abas densas e ter guardrail em teste quando a página tiver risco de overflow. A admin "Minha loja" foi ajustada com ações mobile, grids mobile-first e assistente com navegação horizontal.
+
+Atualização 1.108: a auditoria integral de benchmark internacional V2 passa a orientar o Bizy como Business Operating System modular. Novos requisitos RF341-RF360, RNF111-RNF122 e RN137-RN146 formalizam anatomia mínima de módulo, catálogo de capacidades, workflows por transição validada, filas, páginas 360, KPIs com fonte real, automação com níveis de autonomia, Developer Platform, envelope de eventos, observabilidade, incidentes, privacidade, acessibilidade, continuidade e preparação para evidências internacionais sem declarar certificação formal.
 
 ---
 
@@ -865,6 +867,33 @@ Esta secção formaliza módulos identificados na análise do cofre Obsidian com
 | RF339 | [ ] Sequências nunca devem disparar em loop: deve haver limite máximo de execuções por cliente por sequência. | Alta | Planeado |
 | RF340 | [ ] O sistema deve gerar relatório de conversão por sequência. | Média | Planeado |
 
+### 3.17 Plataforma Modular, Automacao e Excelencia Internacional
+
+Esta secção traduz a auditoria integral de benchmark internacional V2 para requisitos gerais do ÉMeu/Bizy. Estes itens nao substituem Team, Market ou Learning; eles criam a base comum para que cada dominio evolua de M3/M4 para M5 sem abrir caminhos incompletos.
+
+| ID | Requisito Funcional | Prioridade | Estado |
+|---|---|---|---|
+| RF341 | [ ] Cada modulo Bizy deve declarar owner de dominio, entidades, value objects, regras, estados, transicoes, comandos, consultas, eventos, capacidades, policies, logs, testes, metricas, retencao, exportacao e documentacao. | Alta | Planeado |
+| RF342 | [ ] Cada modulo novo ou refatorado deve ter anatomia operacional minima: overview, listas/registos, detalhe 360, criacao, edicao controlada, workflow, tarefas/aprovacoes, automacao, relatorios, configuracao, permissoes, auditoria, integracoes, notificacoes e ajuda contextual. | Alta | Planeado |
+| RF343 | [ ] O backend deve manter catalogo vivo de modulos e capacidades, indicando sistema lider (Team, Market, Learning ou plataforma), maturidade M0-M5, dependencias, guards e owners. | Alta | Planeado |
+| RF344 | [ ] O sistema deve implementar padrao universal de workflow com estado, transicao, condicao, validador, permissao, acao, evento e auditoria. | Alta | Planeado |
+| RF345 | [ ] Alteracoes de estado critico em pedido, pagamento, entrega, stock, refund, disputa, publicacao, permissao e certificado devem passar por transicoes validas, nao por escrita livre de estado. | Alta | Planeado |
+| RF346 | [ ] O sistema deve oferecer padrao universal de filas com prioridade, SLA, capacidade, disponibilidade, skill, grupo, canal, valor do cliente, risco, antiguidade e continuidade de contexto. | Alta | Planeado |
+| RF347 | [ ] Registos importantes devem possuir detalhe 360 com resumo, timeline, dados principais, estado, relacionamentos, documentos, comunicacoes, tarefas, financeiro, risco, auditoria e automacao. | Alta | Planeado |
+| RF348 | [ ] O Bizy deve manter catalogo de KPIs com codigo, nome, definicao, formula, fonte, periodo, moeda, ultima atualizacao, nivel de confianca e drill-down. | Alta | Planeado |
+| RF349 | [ ] O motor universal de automacao deve seguir o ciclo observar, classificar, decidir, agir, verificar, escalar e aprender. | Alta | Planeado |
+| RF350 | [ ] Automações devem declarar nivel de autonomia A0-A5, politica aplicavel, risco, idempotencia, fallback humano e criterio de escalonamento. | Alta | Planeado |
+| RF351 | [ ] A plataforma deve expor Developer Platform com API keys, OAuth/OIDC apps, webhooks, OpenAPI, SDKs, sandbox, logs, limits, versioning, changelog, deprecation e marketplace de integracoes. | Media | Planeado |
+| RF352 | [ ] Eventos de dominio expostos a integracoes devem usar envelope versionado compativel com CloudEvents, incluindo id, source, type, subject, time, data, correlation, causation e dedupe. | Alta | Planeado |
+| RF353 | [ ] O sistema deve centralizar notificacoes transacionais e operacionais com preferencias, templates, canal, politica, estado de entrega, retry e tarefa humana quando envio automatico nao for seguro. | Alta | Planeado |
+| RF354 | [ ] O Bizy deve ter servico de ficheiros/media/documentos com classificacao, privacidade, retention, virus-scan futuro, referencias seguras e auditoria de acesso. | Alta | Planeado |
+| RF355 | [ ] O Bizy deve ter pesquisa global operacional sobre clientes, pedidos, produtos, conversas, tarefas, documentos, Learning, Market e Team, respeitando permissao e contexto de negocio. | Media | Planeado |
+| RF356 | [ ] O Bizy deve expor observabilidade de produto e plataforma com logs estruturados, metricas, traces, SLOs, erro por modulo, latencia, fila/outbox e saude de providers. | Alta | Planeado |
+| RF357 | [ ] O Bizy deve gerir incidentes, problemas e mudancas com estado, severidade, owner, impacto, timeline, acao corretiva, comunicacao e postmortem quando aplicavel. | Media | Planeado |
+| RF358 | [ ] O Bizy deve manter data governance transversal com classificacao de dados, base legal/consentimento quando aplicavel, retencao, exportacao, eliminacao/anonimizacao e trilha auditavel. | Alta | Planeado |
+| RF359 | [ ] O Bizy deve preparar evidencias de acessibilidade, seguranca, privacidade, continuidade, IA governada, testes de carga e disaster recovery sem declarar certificacao formal. | Alta | Planeado |
+| RF360 | [ ] O Bizy deve oferecer portais externos dedicados para comprador, seller, afiliado, fornecedor, produtor Learning, estafeta e parceiro quando o fluxo exigir self-service fora do Team. | Media | Planeado |
+
 ---
 
 ## 4. Requisitos Não Funcionais (RNF)
@@ -1033,6 +1062,23 @@ Esta secção formaliza módulos identificados na análise do cofre Obsidian com
 | RNF108 | [~] O backend deve suportar migração gradual do modelo de reservas para pedidos sem quebrar vendas de live já existentes. | Alta | Parcial - pedidos completos coexistem com reservas, aceitam `reservaId` e reservas de live podem ser convertidas de forma idempotente; falta migração histórica em lote |
 | RNF109 | [~] Novos módulos devem preservar fronteiras de domínio claras: Clientes, Pedidos, Produtos, Conversas, Campanhas, Loja, Afiliados, Social Inbox, Tracking e WhatsApp Policy. | Alta | Parcial - fronteiras implementadas para Clientes, Pedidos, Produtos, Loja Pública, Tracking, Afiliados, Social Inbox, Funil, Campanhas e WhatsApp Policy; falta revisão arquitetural final |
 | RNF110 | [~] Falhas de provider externo devem resultar em tarefa, retry ou estado falhado explícito, nunca em perda silenciosa de dado. | Alta | Parcial - WhatsApp bloqueado antes do provider cria tarefa e outbox WhatsApp preserva retry/falhas; faltam tarefas para falha final de provider e demais integrações |
+
+### 4.12 Benchmark Internacional e Qualidade Transversal
+
+| ID | Requisito Não Funcional | Prioridade | Estado |
+|---|---|---|---|
+| RNF111 | [ ] APIs internas, publicas e de integracao devem ter contrato OpenAPI versionado quando forem consumidas fora do proprio modulo. | Alta | Planeado |
+| RNF112 | [ ] Eventos e webhooks devem ser idempotentes, versionados, assinados quando externos, observaveis e reprocessaveis sem duplicar efeito de negocio. | Alta | Planeado |
+| RNF113 | [ ] Fluxos criticos devem produzir logs, metricas e traces compativeis com estrategia OpenTelemetry, com correlation id entre HTTP, jobs, eventos e providers. | Alta | Planeado |
+| RNF114 | [ ] Interfaces publicas e internas devem mirar WCAG 2.2 AA em contraste, foco, teclado, leitores de tela, alvos tacteis, formularios e estados de erro. | Alta | Planeado |
+| RNF115 | [ ] Requisitos de seguranca devem ser avaliados contra OWASP ASVS proporcional ao risco do modulo antes de marcar M5. | Alta | Planeado |
+| RNF116 | [ ] Dados pessoais devem seguir privacy by design: minimizacao, finalidade, permissao, consentimento quando aplicavel, retencao e redacao de logs. | Alta | Planeado |
+| RNF117 | [ ] Pagamentos devem reduzir escopo PCI usando providers, tokenizacao e segregacao de dados sensiveis sempre que houver cartao ou gateway equivalente. | Alta | Planeado |
+| RNF118 | [ ] Modulos financeiros devem manter rastreabilidade compativel com prestacao de contas de PME, separando valor confirmado, estimado, retido, reembolsado e reconciliado. | Alta | Planeado |
+| RNF119 | [ ] Modulos de IA/Anani devem registrar objetivo, fonte de dados, politica, avaliacao de risco, explicacao, feedback humano e limite de autonomia. | Alta | Planeado |
+| RNF120 | [ ] Plataforma deve ter SLOs por dominio critico, incluindo latencia, disponibilidade, backlog de filas, falhas de provider, erros HTTP e tempo de recuperacao. | Media | Planeado |
+| RNF121 | [ ] Cada modulo M5 deve ter testes unitarios, integracao, HTTP, E2E quando houver UI, acessibilidade, seguranca, carga proporcional e disaster recovery quando critico. | Alta | Planeado |
+| RNF122 | [ ] Backups, restore, exportacao e retencao devem ter prova operacional periodica, nao apenas scripts existentes. | Alta | Planeado |
 
 ---
 
@@ -1248,6 +1294,21 @@ Esta secção formaliza módulos identificados na análise do cofre Obsidian com
 | Configurações da Loja | Dados da loja, equipa, pagamentos, entrega, mensagens rápidas | n8n, tokens, providers e debug para vendedor comum |
 | Admin/Sistema | Saúde técnica, n8n, providers, webhooks, auditoria técnica | Não deve aparecer para perfis comerciais sem permissão |
 
+### 5.13 Regras de Negócio da Plataforma Modular
+
+| ID | Regra de Negócio | Estado |
+|---|---|---|
+| RN137 | [ ] Um modulo nao deve ser considerado completo apenas por possuir pagina, endpoint, tabela, KPI, menu ou formulario. | Processo |
+| RN138 | [ ] Um modulo so pode ser promovido a M5 quando tiver workflow, auditoria, automacao segura, relatorios, seguranca, acessibilidade, integracao, testes e metricas com fonte real. | Processo |
+| RN139 | [ ] Padroes como NIST, ISO, OWASP ASVS, WCAG, PCI, OpenAPI, CloudEvents, OpenTelemetry, LTI, xAPI, Open Badges, QTI e SCORM sao referencias de desenho; certificacao formal exige processo independente. | Processo |
+| RN140 | [ ] Automacao nao pode confirmar pagamento, anular factura, apagar registo, alterar permissao, pagar comissao, autorizar reembolso, publicar conteudo sensivel ou enviar campanha sem politica explicita, permissao e auditoria. | Processo |
+| RN141 | [ ] Quando automacao e seguranca operacional entrarem em conflito, o sistema deve preferir tarefa humana, aprovacao ou bloqueio explicito. | Processo |
+| RN142 | [ ] KPI nao pode ser inventado, estimado sem rotulo, apresentado sem periodo, sem fonte, sem moeda ou misturado com valor confirmado. | Processo |
+| RN143 | [ ] Provider externo, n8n, Evolution, gateway de pagamento, rede social ou IA nunca substitui use case, policy, auditoria e fonte de verdade do Bizy. | Processo |
+| RN144 | [ ] Evento externo deve ter dono de dominio, versao, contrato, idempotencia, tentativa, erro, replay e regra de compatibilidade antes de ser tratado como integracao estavel. | Processo |
+| RN145 | [ ] Mudanca de estado sensivel deve guardar actor, papel, motivo quando aplicavel, estado anterior, estado novo, entidade, origem e timestamp. | Processo |
+| RN146 | [ ] Portais externos devem expor apenas dados minimos necessarios para self-service e nunca dados internos de margem, desempenho, permissao ou configuracao do negocio. | Processo |
+
 ---
 
 ## 6. Itens Fora do Escopo do MVP
@@ -1393,6 +1454,8 @@ Estas referências não substituem as decisões do Bizy, mas ajudam a manter a p
 
 Data da análise: 2026-05-27
 Base: código, migrations, testes e rotas HTTP atuais vs requisitos deste documento
+
+Nota 2026-07-10: a cobertura numérica abaixo ainda não foi recalculada após a inclusão do benchmark internacional V2 (`RF341-RF360`, `RNF111-RNF122`, `RN137-RN146`). Os novos itens entram como backlog de evolução e devem ser medidos em nova auditoria de maturidade M0-M5.
 
 ### 10.1 Cobertura Numérica
 

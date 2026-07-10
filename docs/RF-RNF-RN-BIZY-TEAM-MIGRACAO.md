@@ -1,10 +1,10 @@
 # Migração BIZY CRM → BIZY Team — Requisitos Funcionais, Não Funcionais e Regras de Negócio
 
 Documento: `RF-RNF-RN-BIZY-TEAM-MIGRACAO.md`
-Versão: 1.0
-Data: 2026-06-21
+Versão: 1.1
+Data: 2026-07-10
 Autor: Carlos
-Status: Planeamento — migração do BIZY CRM+ para ecossistema operacional BIZY Team
+Status: Planeamento — migração do BIZY CRM+ para ecossistema operacional BIZY Team com benchmark internacional V2 incorporado
 
 ---
 
@@ -13,6 +13,8 @@ Status: Planeamento — migração do BIZY CRM+ para ecossistema operacional BIZ
 Este documento formaliza os requisitos para a transformação do BIZY CRM+ num ecossistema operacional completo — o **BIZY Team** — integrando inteligência preditiva, gestão financeira, adaptabilidade organizacional e integração profunda nos fluxos de trabalho diários. A migração visa tornar a plataforma indispensável para toda a rede Bizy, passando de ferramenta utilitária a sistema operacional central de negócio.
 
 Referência estratégica: "Do Utilitário ao Essencial: Um Modelo para Transformar o BIZY Team num Ecossistema Operacional Indispensável"
+
+Atualização 2026-07-10: a auditoria integral de benchmark internacional V2 reforça o Team como dominio operacional M5 para pessoas, estrutura, turnos, presença, desenvolvimento, performance, projectos, portfólio, workflow, auditoria e controlo de mudanças. ISO 30414:2025 e ISO 21500/21502 entram como referencias de desenho, nao como certificacao declarada.
 
 ---
 
@@ -91,6 +93,7 @@ O BIZY CRM+ possui 20 módulos HTTP, 55 modelos Prisma e 44 use cases cobrindo:
 ### Pilar 6 — Conformidade Regulatória e E-Invoicing
 ### Pilar 7 — Métricas de ROI e Adopção
 ### Pilar 8 — Integração Operacional (Projectos Comerciais, Lives e Campanhas)
+### Pilar 9 — Gestão de Pessoas, Capacidade e Portfólio M5
 
 ---
 
@@ -373,6 +376,36 @@ O BIZY CRM+ possui 20 módulos HTTP, 55 modelos Prisma e 44 use cases cobrindo:
 
 ---
 
+### Pilar 9 — Gestão de Pessoas, Capacidade e Portfólio M5
+
+> **Contexto:** A auditoria V2 posiciona Team como domínio completo de pessoas, estrutura, disponibilidade, projectos, capacidade, desenvolvimento e governança operacional. O objetivo nao e transformar o Bizy em RH pesado; e dar controlo simples sobre quem trabalha, quando trabalha, em que projecto, com que carga, que acesso possui e que risco operacional existe.
+
+#### 5.9.1 Pessoas, Skills e Disponibilidade
+
+- [ ] [RF-T131] O Team deve manter perfil operacional 360 de membro com papel, departamento, cargo, skills, disponibilidade, turno, metas, tarefas, projectos, desempenho, acessos e historico.
+- [ ] [RF-T132] O sistema deve permitir matriz de skills por membro, incluindo atendimento, vendas, logistica, finanças, live, moderação, Learning, Market e suporte.
+- [ ] [RF-T133] O sistema deve calcular capacidade disponivel por membro/equipa considerando turno, presença, tarefas abertas, SLA, projectos activos, ausencias e carga ponderada.
+- [ ] [RF-T134] O sistema deve gerir ausencias, folgas, indisponibilidade e substituicao temporaria com impacto automatico em filas e projectos.
+- [ ] [RF-T135] O Team deve suportar offboarding seguro com checklist, redistribuicao de tarefas/conversas, revogacao de acessos, preservacao de auditoria e handover.
+
+#### 5.9.2 Desenvolvimento, Desempenho e Capital Humano
+
+- [ ] [RF-T136] O Team deve medir indicadores de pessoas inspirados em ISO 30414: composicao, rotatividade, produtividade, bem-estar operacional, competencias, recrutamento, mobilidade e desenvolvimento.
+- [ ] [RF-T137] O sistema deve ligar Learning a lacunas de skill, onboarding, formacao obrigatoria, coaching e recertificacao por perfil operacional.
+- [ ] [RF-T138] O sistema deve permitir plano simples de desenvolvimento por membro com objetivo, acao, prazo, evidencias e acompanhamento do gestor.
+- [ ] [RF-T139] Indicadores individuais sensiveis devem ter visibilidade por permissao e resumo adequado para o proprio membro.
+
+#### 5.9.3 Project Portfolio e Controlo de Mudancas
+
+- [ ] [RF-T140] Projectos devem ter charter minimo com objetivo, owner, stakeholders, prazo, orçamento, risco, dependencias, criterios de sucesso e estado.
+- [ ] [RF-T141] O Team deve manter portfólio de projectos com prioridade, capacidade consumida, risco, progresso, bloqueios, ROI esperado e relatorio de encerramento.
+- [ ] [RF-T142] Mudancas relevantes em escopo, prazo, orçamento, owner, estado ou risco de projecto devem passar por controlo de mudança com motivo, aprovador e auditoria.
+- [ ] [RF-T143] Riscos e issues de projecto devem ter severidade, owner, plano de mitigacao, data alvo, estado e escalonamento.
+- [ ] [RF-T144] O sistema deve suportar licoes aprendidas, postmortem operacional e melhoria continua por projecto, campanha, live e incidente interno.
+- [ ] [RF-T145] O Team deve emitir eventos versionados para membro criado/alterado/desactivado, presença, turno, skill, projecto, mudança, risco, handover e offboarding.
+
+---
+
 ## 6. Requisitos Não Funcionais (RNF)
 
 ### 6.1 Desempenho
@@ -431,6 +464,17 @@ O BIZY CRM+ possui 20 módulos HTTP, 55 modelos Prisma e 44 use cases cobrindo:
 - [~] [RNF-T031] A interface web do BIZY Team deve ser totalmente responsiva e optimizada para navegadores móveis (Chrome/Safari no Android/iOS), permitindo que membros de campo ou vendedores usem o sistema 100% pelo telemóvel sem perder funcionalidades core. *(parcial: shell mobile com Sheet mantém todos os módulos, abas principais incluem Tarefas, Metas, Equipa, Projectos e Finanças, dock inferior compacta em 320px e CSS evita overflow horizontal; QA local em Chromium mobile 320x740 e 390x844 passou em `/app`, `/app/tarefas`, `/app/metas`, `/app/equipa`, `/app/projectos` e `/app/financas` sem overflow/respostas >=400; falta QA visual real em Chrome/Safari Android/iOS antes de marcar como 100%)*
 - [x] [RNF-T032] O seletor de Workspaces (para utilizadores multi-negócio) deve alternar entre contextos em menos de 1 segundo sem recarregar a página (usando state management reactivo). *(implementado: Shell carrega `/workspaces`, valida `/workspaces/alternar`, actualiza `bizy_negocio_actual_id`, emite `bizy:workspace-alterado` e remonta o conteúdo por chave de workspace sem `window.location.reload`)*
 - [x] [RNF-T033] Links de convite (Magic Links) devem ter validade de 72 horas e ser de uso único (invalidados após o primeiro acesso bem-sucedido) por motivos de segurança.
+
+### 6.9 Pessoas, Portfólio e Governança M5
+
+- [ ] [RNF-T034] Dados de desempenho, presença, ausência, bem-estar, skills e desenvolvimento devem ter classificação de sensibilidade, acesso minimo necessario e auditoria.
+- [ ] [RNF-T035] Métricas de pessoas devem separar indicador operacional de decisão laboral; decisões disciplinares, despedimento ou redução de acesso sensível exigem revisão humana.
+- [ ] [RNF-T036] Filas por capacidade devem recalcular sem travar a interface e devem degradar para fila geral quando dados de presença/turno estiverem indisponíveis.
+- [ ] [RNF-T037] Project portfolio deve suportar pelo menos 200 projectos activos por negócio com filtros por estado, owner, risco, prioridade e data.
+- [ ] [RNF-T038] Mudanças de projecto e offboarding devem produzir eventos, auditoria e tarefas de follow-up reprocessaveis.
+- [ ] [RNF-T039] Relatorios de pessoas devem ser agregados quando usados para benchmark interno, evitando exposição desnecessária de dados individuais.
+- [ ] [RNF-T040] O Team deve preparar evidencias de governança de pessoas e projectos inspiradas em ISO 30414 e ISO 21500/21502 sem declarar certificação formal.
+- [ ] [RNF-T041] A UI de Team deve manter linguagem operacional simples, evitando jargão de RH/PMO quando a loja pequena precisa apenas saber disponibilidade, tarefa, meta, risco e proxima acao.
 
 ---
 
@@ -508,6 +552,18 @@ O BIZY CRM+ possui 20 módulos HTTP, 55 modelos Prisma e 44 use cases cobrindo:
 - [x] [RN-T044] **Handoff automático pós-projecto:** se um Projecto/Live terminar e houver conversas em aberto ou reservas pendentes vinculadas a ele, o sistema deve manter a atribuição ao membro que estava a atender, mas adicionar um timer de SLA de 15 minutos para resolução. Após o SLA, escalonamento automático para a fila geral do departamento com contexto completo da conversa.
 - [x] [RN-T045] **Integridade do pool de stock:** o Pool de Stock de um Projecto é um subconjunto do stock real. Se o stock global do produto chegar a zero (por vendas fora do projecto), o sistema deve pausar automaticamente as reservas do Projecto, notificar a Sala de Guerra e bloquear novas vendas daquele produto no contexto do projecto, evitando overselling.
 
+### 7.10 Regras de Pessoas, Capacidade e Portfólio
+
+- [ ] [RN-T046] **Dados de pessoas com necessidade de conhecimento:** desempenho, presença, ausência, skills, bem-estar e desenvolvimento só podem ser vistos por quem tem papel operacional legitimo.
+- [ ] [RN-T047] **Automação não decide trabalho sensível:** o sistema pode sugerir coaching, escalação, formação ou redistribuição, mas não executa decisão disciplinar, salarial ou desligamento sem revisão humana.
+- [ ] [RN-T048] **Capacidade antes de atribuição:** novas tarefas, conversas e projectos devem respeitar disponibilidade, turno, carga, skill e prioridade quando os dados estiverem disponíveis.
+- [ ] [RN-T049] **Offboarding preserva histórico:** desactivar membro remove acesso e redistribui trabalho, mas não apaga auditoria, autoria de eventos, decisões ou documentos.
+- [ ] [RN-T050] **Projecto sem owner é risco:** projecto sem gestor activo deve ser sinalizado, não fechado automaticamente nem receber novas automações sensíveis.
+- [ ] [RN-T051] **Mudança relevante exige motivo:** alteração de escopo, prazo, orçamento, owner, estado ou risco de projecto deve guardar motivo, actor, data e impacto.
+- [ ] [RN-T052] **Skills não substituem permissão:** possuir skill operacional não concede acesso a dados ou ações sem papel/permissão correspondente.
+- [ ] [RN-T053] **Indicador de pessoas não é sentença:** métricas individuais servem para operação e desenvolvimento, não para punição automatizada.
+- [ ] [RN-T054] **Benchmark internacional como orientação:** ISO 30414 e ISO 21500/21502 guiam estrutura de dados, métricas e processos, mas não autorizam alegar conformidade certificada.
+
 ---
 
 ## 8. Priorização de Implementação
@@ -565,6 +621,11 @@ O BIZY CRM+ possui 20 módulos HTTP, 55 modelos Prisma e 44 use cases cobrindo:
 - [x] [RF-T096-T107] Métricas de ROI e adopção
 - [x] [RN-T028-T032] Regras de conformidade e ROI
 
+### Fase 7 — Pessoas, Capacidade e Portfólio M5
+- [ ] [RF-T131-T145] Perfil 360 de membro, skills, capacidade, ausência, offboarding, desenvolvimento, portfólio, riscos, mudanças, lições aprendidas e eventos versionados.
+- [ ] [RNF-T034-T041] Proteção de dados de pessoas, capacidade resiliente, portfolio escalável, evidências ISO-inspired e linguagem operacional simples.
+- [ ] [RN-T046-T054] Regras de necessidade de conhecimento, revisão humana, capacidade antes de atribuição, offboarding, mudanças e limites de automação.
+
 ---
 
 ## 9. Modelo de Dados — Novos Modelos Prisma (Estimativa)
@@ -597,12 +658,20 @@ O BIZY CRM+ possui 20 módulos HTTP, 55 modelos Prisma e 44 use cases cobrindo:
 - `ChecklistOnboarding` — itens do checklist de primeiro dia por membro, com estado concluído/pendente e data
 - `ConfiguracaoGamificacao` — modo competição por negócio (activo/inactivo), KPI seleccionado, período, recompensa descritiva
 - `RankingEquipa` — snapshot periódico do ranking para feed e histórico
+- `SkillMembro` — matriz de skills operacionais por membro, nivel, validade e evidencias
+- `AusenciaMembro` — ausencias, folgas, indisponibilidade e substituicoes temporarias
+- `PlanoDesenvolvimentoMembro` — objectivos, acoes, prazos, evidencias e acompanhamento
+- `OffboardingMembro` — checklist de saida, redistribuicao, revogacao e handover
 
 ### 9.3 Projectos
 - `Departamento` — departamentos com líder
 - `Projecto` — projectos com orçamento e prazo
 - `EntregaProjecto` — milestones com dependências
 - `MembroProjecto` — alocação de membros a projectos
+- `PortfolioProjecto` — agrupamento de projectos por prioridade, capacidade, risco e ROI esperado
+- `RiscoProjecto` — risco/issue com severidade, owner, mitigacao e escalonamento
+- `MudancaProjecto` — controlo de mudancas de escopo, prazo, orçamento, owner, estado e risco
+- `LicaoAprendidaProjecto` — postmortem e melhoria continua por projecto/campanha/live
 
 ### 9.4 Inteligência
 - `PrevisaoDemanda` — previsões de stock por SKU
@@ -699,3 +768,5 @@ O BIZY CRM+ possui 20 módulos HTTP, 55 modelos Prisma e 44 use cases cobrindo:
 | Rastreabilidade de Receita por Projecto | RF-T127, RN-T042 |
 | Debriefing e Fecho Automático | RF-T128, RF-T130 |
 | Handoff Pós-Projecto | RN-T044 |
+| Pessoas, Skills e Capacidade | RF-T131 a RF-T139, RNF-T034 a RNF-T036, RN-T046 a RN-T049 |
+| Project Portfolio e Controlo de Mudanças | RF-T140 a RF-T145, RNF-T037 a RNF-T041, RN-T050 a RN-T054 |

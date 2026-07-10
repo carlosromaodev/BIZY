@@ -1,10 +1,10 @@
 # Bizy Market e Lojas Digitais - Requisitos Funcionais, Nao Funcionais e Regras de Negocio
 
 Documento: `RF-RNF-RN-BIZY-MARKET-LOJA-DIGITAL.md`
-Versao: 0.1
-Data: 2026-06-07
+Versao: 0.2
+Data: 2026-07-10
 Autor: Carlos + Codex
-Status: rascunho estrategico para evolucao da loja digital atual
+Status: especificacao viva para Bizy Market, loja digital e benchmark internacional V2
 
 ---
 
@@ -53,6 +53,12 @@ O Bizy deve parecer:
 O Bizy Market nao deve ser apenas um ecommerce generico. Ele deve ser social, local, operacional e confiavel.
 
 O comprador deve sentir que esta explorando lojas reais. O lojista deve sentir que tem uma marca propria, nao apenas uma banca anonima dentro de uma plataforma.
+
+### 2.5 Benchmark Internacional V2
+
+A auditoria integral de 2026-07-10 passa a orientar o Market como marketplace operacional completo. A referencia nao e so vitrine: e seller onboarding, qualidade de catalogo, checkout unificado, pedidos-filho, comissao da plataforma, saldos, payouts, reembolsos, disputas, trust & safety, moderação, buyer portal e seller portal.
+
+Stripe Connect e usado como referencia de arquitetura para contas conectadas, verificacao, split, saldos e payouts. Shopify e usado como referencia para fulfilment, returns, risco, confiança e operacao de loja. PCI DSS e referencia para reduzir escopo de dados sensiveis usando provider/tokenizacao quando houver pagamento por cartao ou gateway equivalente.
 
 ## 3. Modulos do Produto
 
@@ -313,6 +319,21 @@ Inclui:
 - [x] **RF-113**: O painel Bizy admin deve mostrar desempenho do shopping center por categoria, loja, produto e periodo.
 - [x] **RF-114**: Relatorios devem permitir exportacao auditada quando o plano/permissao permitir.
 
+### 5.16 Marketplace M5, Seller Operations e Trust & Safety
+
+- [ ] **RF-115**: O Market deve ter seller onboarding com elegibilidade, documentos minimos, verificacao, estado de aprovacao, pendencias e historico de revisao.
+- [ ] **RF-116**: O Market deve manter conta operacional por seller com saldo disponivel, saldo retido, saldo em disputa, taxas, comissoes e historico de payout.
+- [ ] **RF-117**: O checkout multi-loja deve calcular split por fornecedor, taxa Bizy, desconto, entrega, retencao, comissao e impostos quando aplicavel.
+- [ ] **RF-118**: O sistema deve suportar hold de repasse por regra de risco, prazo de entrega, disputa, reembolso ou politica de categoria.
+- [ ] **RF-119**: O seller deve ter portal/visao dedicada para pedidos, preparacao, entregas, repasses, disputas, documentos, notificacoes e suporte.
+- [ ] **RF-120**: O comprador deve ter portal de compra para acompanhar pedido unificado, pedidos-filho, pagamento, entrega, reembolso, disputa e suporte.
+- [ ] **RF-121**: O Market deve suportar fluxo formal de reembolso, troca, devolucao, disputa e chargeback com estados, evidencias, responsavel, prazo e decisao.
+- [ ] **RF-122**: O Market deve ter fila Trust & Safety para denuncias, fraude, produto proibido, loja com falhas recorrentes, abuso de checkout, spam e risco de reputacao.
+- [ ] **RF-123**: O ranking do Market deve incorporar qualidade de catalogo, disponibilidade, cumprimento de entrega, cancelamentos, reclamacoes, disputas, confianca e frescor.
+- [ ] **RF-124**: O Market deve gerir qualidade de catalogo com checklist de imagem, preco, categoria, descricao, variacao, stock, entrega, politica e dados obrigatorios por tipo de produto.
+- [ ] **RF-125**: Fulfilment deve ligar pedido, separacao, embalagem, entrega, prova de entrega, atraso, tentativa falhada e devolucao ao Team e ao portal do comprador.
+- [ ] **RF-126**: O Market deve expor eventos versionados para seller onboarding, checkout, pagamento, pedido-filho, entrega, disputa, payout e refund.
+
 ## 6. Requisitos Nao Funcionais
 
 - [x] **RNF-001**: A experiencia publica deve ser mobile-first em 375px, 390px, 768px, 1024px e 1440px.
@@ -340,6 +361,14 @@ Inclui:
 - [x] **RNF-023**: Relatorios devem ser consistentes com pedidos e pagamentos confirmados, nao apenas eventos de tracking.
 - [x] **RNF-024**: O sistema deve suportar operacao em AOA/Kwanza e formatos locais de telefone, endereco e pagamento.
 - [x] **RNF-025**: A linguagem da UI deve ser curta, humana e orientada a acao, adequada a vendedores nao tecnicos.
+- [ ] **RNF-026**: Pagamentos Market devem reduzir escopo PCI usando provider/tokenizacao e nunca guardar PAN, CVV ou credenciais sensiveis de cartao no Bizy.
+- [ ] **RNF-027**: Payouts, saldos, holds, refunds e disputas devem ser idempotentes, auditaveis e reconciliaveis por seller, pedido, periodo e lote.
+- [ ] **RNF-028**: Portais de comprador e seller devem expor somente dados minimos necessarios, respeitando `negocioId`, pedido, papel e relacao operacional.
+- [ ] **RNF-029**: Eventos do Market devem ser versionados, assinaveis quando externos, reprocessaveis e observaveis por seller, pedido e compra unificada.
+- [ ] **RNF-030**: O Market deve ter SLOs para checkout, criacao de pedido-filho, upload de comprovativo, notificacao, payout e resolucao de disputa.
+- [ ] **RNF-031**: Trust & Safety deve registrar evidencias, origem, decisao, responsavel e prazo sem expor dados sensiveis fora do painel autorizado.
+- [ ] **RNF-032**: Ranking e recomendacao devem ser explicaveis em termos operacionais, sem favorecer patrocinio quando houver risco, produto indisponivel ou loja suspensa.
+- [ ] **RNF-033**: A experiencia de devolucao/disputa deve continuar utilizavel em mobile e conexao lenta, com estados claros para comprador e seller.
 
 ## 7. Regras de Negocio
 
@@ -443,6 +472,17 @@ Inclui:
 - [x] **RN-066**: A area atual "Minha loja" deve virar Bizy Studio dentro do CRM.
 - [x] **RN-067**: O Market deve ser introduzido como camada adicional de descoberta, nao como substituto da loja do cliente.
 
+### 7.12 Marketplace, Repasses e Disputas
+
+- [ ] **RN-068**: Seller sem elegibilidade minima nao pode receber destaque, patrocinio, payout acelerado ou alto volume sem revisao Bizy.
+- [ ] **RN-069**: Saldo de seller so fica disponivel para payout apos pagamento confirmado, janela minima de risco e ausencia de disputa ou refund bloqueante.
+- [ ] **RN-070**: Split e comissao devem ser calculados sobre valor elegivel, separando produto, entrega, desconto, taxa, imposto, reembolso e chargeback.
+- [ ] **RN-071**: Disputa aberta deve congelar apenas os valores e pedidos afetados, sem bloquear operacao inteira da loja salvo risco grave.
+- [ ] **RN-072**: Reembolso parcial deve afetar somente itens, sellers e taxas correspondentes, preservando historico financeiro completo.
+- [ ] **RN-073**: Produto proibido, falsificado, inseguro ou sem owner responsavel deve ser suspenso mesmo que esteja pago, patrocinado ou em alta demanda.
+- [ ] **RN-074**: Ranking patrocinado nao pode ultrapassar bloqueios de seguranca, disponibilidade, denuncia grave, fraude, disputa critica ou baixa qualidade de catalogo.
+- [ ] **RN-075**: Buyer portal e seller portal nao substituem o Team; eles sao self-service externo para estados, documentos e suporte minimo.
+
 ## 8. Fases de Implementacao Sugeridas
 
 ### Fase 1 - Perfil de Loja Evoluido
@@ -487,6 +527,16 @@ Inclui:
 - produtos patrocinados;
 - campanhas Market;
 - relatorios de performance.
+
+### Fase 6 - Marketplace M5 e Operacao Externa
+
+- seller onboarding e verificacao;
+- saldos, holds, split e payouts;
+- buyer portal e seller portal;
+- disputas, chargebacks, devolucoes e reembolsos;
+- Trust & Safety;
+- eventos versionados e observabilidade por seller/pedido;
+- preparacao PCI por reducao de escopo via provider/tokenizacao.
 
 ### 8.1 Sequencia Tecnica de Rotas
 

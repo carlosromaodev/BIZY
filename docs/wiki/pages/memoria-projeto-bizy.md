@@ -29,6 +29,8 @@ Bizy = Bizy Team + Bizy Market + Bizy Learning + Anani interno
 
 O projeto nasceu como EMeu, focado em automacao de vendas em lives. Essa origem continua importante, mas live, WhatsApp, loja publica, campanhas, afiliados e social inbox agora sao canais que alimentam o mesmo loop comercial. A fonte canonica desta direcao e [[visao-produto-bizy|Visao Unificada do Bizy]].
 
+Atualizacao 2026-07-10: a auditoria integral de benchmark internacional V2 reforcou o Bizy como Business Operating System modular. Um modulo so deve ser tratado como pronto quando for mensuravel, automatizavel, auditavel, seguro, acessivel e integrado; pagina, endpoint, menu, tabela ou KPI isolado nao bastam.
+
 ## Mapa da Memoria
 
 Leia nesta ordem quando estiveres a continuar o projeto:
@@ -77,6 +79,8 @@ O Bizy tambem nao deve virar:
 - sistema dependente de n8n como fonte de verdade;
 - automacao que confirma pagamento ou promete entrega sem regra;
 - app cheio de modulos vazios.
+- KPI sem fonte real, periodo e definicao.
+- promessa de certificacao sem validacao independente.
 - Anani exposto como produto de tenant.
 
 ## Frase Norteadora
@@ -107,6 +111,7 @@ Antes de alterar codigo, outra IA deve responder:
 - O dado esta isolado por `negocioId`?
 - Existe permissao/auditoria?
 - Existe fallback humano?
+- O modulo tem workflow, auditoria, KPI real, integracao/eventos e criterio de maturidade?
 - O modulo pode estar desativado?
 - O frontend tem estado vazio util?
 - Existe teste ou verificacao?

@@ -27,6 +27,27 @@ Bizy tem tres sistemas visiveis:
 
 Tudo fora desses tres deve ser tratado como nucleo interno, capability, provider, worker ou infraestrutura. [[anani-intelligence-control-plane|Anani]] e nucleo interno invisivel de inteligencia, risco, auditoria e governanca; nao e modulo de tenant.
 
+## Criterio de Modulo Completo
+
+A partir do benchmark internacional V2 de 2026-07-10, modulo Bizy completo nao e sinônimo de pagina, endpoint, tabela, menu ou KPI. Um modulo deve ter:
+
+- overview operacional, listas, detalhe 360, criacao e edicao controlada;
+- workflow, tarefas/aprovacoes, filas quando aplicavel e automacao com fallback humano;
+- relatorios e KPIs com fonte real;
+- configuracao, permissoes, auditoria, integracoes/eventos, notificacoes e ajuda contextual;
+- owner de dominio, entidades, regras, estados, transicoes, policies, logs, testes, metricas, retencao, exportacao e documentacao.
+
+Maturidade:
+
+| Nivel | Significado |
+|---|---|
+| M0 | nao existe |
+| M1 | pagina/prototipo |
+| M2 | CRUD parcial |
+| M3 | fluxo operacional |
+| M4 | workflow, auditoria, automacao e relatorios |
+| M5 | benchmark internacional, extensivel, resiliente e mensuravel |
+
 ## Autenticacao e Onboarding
 
 Responsavel por entrada do utilizador e criacao inicial da loja.
@@ -268,6 +289,7 @@ Inclui:
 - checkout unificado Bizy;
 - compra unificada com pedidos filhos por fornecedor;
 - central de controlo inteira dentro do CRM.
+- seller onboarding, saldos, holds, split, payouts, disputas, devolucoes, Trust & Safety, buyer portal e seller portal como backlog M5.
 
 Regra: o Market aumenta descoberta, mas nao substitui a identidade da loja nem a operacao CRM. Toda venda deve virar pedido, pagamento, entrega, conversa, cliente, tarefa ou relatorio no CRM.
 

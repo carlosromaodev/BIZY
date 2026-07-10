@@ -33,6 +33,16 @@ Nucleo interno:
 
 Bizy nao e apenas live, CRM, marketplace, escola, bot, dashboard ou IA. Bizy e o sistema operacional comercial para pequenos negocios que precisam vender, atender, cobrar, entregar, recuperar clientes, gerir equipa e medir crescimento no mesmo lugar.
 
+## Direcao 2026-07-10
+
+A auditoria integral de benchmark internacional V2 eleva a visao do Bizy para **Business Operating System modular**. Isso significa que Team, Market, Learning, Anani e os servicos de plataforma devem evoluir como dominios operacionais completos, nao como paginas soltas nem modulos que parecem prontos apenas por terem menu, tabela ou dashboard.
+
+Definicao de excelencia:
+
+> Um modulo Bizy e um dominio operacional completo, mensuravel, automatizavel, auditavel, seguro, acessivel e integrado ao restante ecossistema.
+
+As referencias internacionais usadas pelo Bizy sao guias de alinhamento e preparacao, nao promessa de certificacao: NIST CSF, ISO/IEC 27001, OWASP ASVS, ISO/IEC 27701, WCAG 2.2, ISO 20000/ITIL, PCI DSS, IFRS for SMEs, ISO 30414, ISO 21500/21502, ISO/IEC 42001, OpenAPI, CloudEvents, OpenTelemetry, OIDC/WebAuthn/SCIM, LTI, xAPI, Open Badges, QTI e SCORM.
+
 ## Tese
 
 Pequenos negocios nao precisam primeiro de mais automacao. Precisam primeiro de uma fonte de verdade simples para cliente, produto, pedido, pagamento, entrega, conversa, equipa e dinheiro.
@@ -56,6 +66,27 @@ Cliente -> Produto -> Pedido -> Pagamento -> Entrega
 ```
 
 Se uma tela, endpoint, workflow ou documento nao ajuda esse loop, deve sair da navegacao principal, ir para Admin/Sistema, ficar como capacidade interna ou ser adiado.
+
+## Anatomia Minima de Modulo
+
+Qualquer modulo novo ou refatorado deve nascer com:
+
+- overview operacional;
+- listas/registos;
+- detalhe 360;
+- criacao e edicao controlada;
+- estado e workflow;
+- tarefas, filas e aprovacoes quando aplicavel;
+- automacao com fallback humano;
+- relatorios e KPIs com fonte real;
+- configuracao;
+- permissoes;
+- auditoria;
+- integracoes/eventos;
+- notificacoes;
+- ajuda contextual.
+
+O modulo so pode ser tratado como completo quando tambem possuir dono de dominio, entidades, regras, estados, transicoes, comandos, consultas, eventos, policies, logs, testes, metricas, retencao, exportacao e documentacao minima.
 
 ## Sistemas Visiveis
 
@@ -146,12 +177,15 @@ Toda iniciativa deve responder:
 - o resultado fica acionavel dentro do Team?
 - existe permissao, auditoria e isolamento por `negocioId`?
 - existe fallback humano quando mexe com dinheiro, privacidade, stock, comissao, permissao ou reclamacao?
+- existe workflow validado, KPI com fonte real, evento versionado e observabilidade minima?
+- existe evidencia de acessibilidade, seguranca e privacidade proporcional ao risco?
 
 ## Anti-Metas
 
 Bizy nao deve caminhar para:
 
 - app com muitos modulos incompletos;
+- modulo declarado completo por ter pagina, endpoint, tabela ou KPI isolado;
 - marketplace anonimo que apaga lojas;
 - CRM com telas bonitas sem acao;
 - Learning decorativo sem checkout/acesso/progresso;
@@ -159,6 +193,8 @@ Bizy nao deve caminhar para:
 - IA ou n8n como fonte de verdade;
 - Anani exposto a tenant comum;
 - relatorios sem decisao seguinte;
+- KPI inventado, estimado sem rotulo, sem periodo ou sem fonte;
+- certificacao formal declarada sem processo independente;
 - specs que repetem visao em vez de apontar para esta nota.
 
 ## Norte de UX

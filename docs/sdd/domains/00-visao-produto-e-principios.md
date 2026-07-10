@@ -3,7 +3,7 @@
 Status: ativo
 Owner logico: Produto
 Fonte canonica: `docs/wiki/pages/visao-produto-bizy.md`
-Fontes derivadas: `docs/wiki/pages/memoria-projeto-bizy.md`, `docs/wiki/pages/dores-e-qualidades-bizy.md`, `docs/superpowers/specs/2026-06-30-meta-global-bizy.md`, `docs/sdd/decisions/ADR-0002-anani-nucleo-interno-invisivel.md`
+Fontes derivadas: `docs/wiki/pages/memoria-projeto-bizy.md`, `docs/wiki/pages/dores-e-qualidades-bizy.md`, `docs/superpowers/specs/2026-06-30-meta-global-bizy.md`, `docs/sdd/decisions/ADR-0002-anani-nucleo-interno-invisivel.md`, auditoria integral de benchmark internacional V2 de 2026-07-10
 Ultima atualizacao: 2026-07-10
 
 ## 1. Proposito
@@ -29,6 +29,8 @@ Nucleo interno:
 O Bizy deve ser o sistema operacional comercial para pequenos negocios: trazer clientes, vender, atender, cobrar, entregar, medir e repetir crescimento sem o dono da loja sair do Bizy.
 
 Essa meta deve orientar qualquer nova spec, plano ou decisao de produto.
+
+Atualizacao 2026-07-10: o Bizy passa a tratar cada modulo como dominio operacional completo. Um modulo so esta pronto quando e mensuravel, automatizavel, auditavel, seguro, acessivel e integrado ao restante ecossistema.
 
 Toda iniciativa deve melhorar pelo menos uma capacidade:
 
@@ -75,6 +77,9 @@ Cliente -> Produto -> Pedido -> Pagamento -> Entrega
 - Manter Team como centro de execucao e fonte de verdade operacional.
 - Orientar novas specs pela frase: vender, atender, cobrar, entregar, recuperar, medir, gerir equipa ou controlar dinheiro.
 - Validar specs novas contra as cinco capacidades da meta global: descoberta, conversao, execucao, retencao e controlo.
+- Exigir anatomia minima de modulo em specs novas: overview, listas, detalhe 360, criacao, edicao controlada, workflow, tarefas/aprovacoes, automacao, relatorios, configuracao, permissoes, auditoria, integracoes, notificacoes e ajuda contextual.
+- Exigir que cada modulo declare owner de dominio, entidades, regras, estados, transicoes, comandos, consultas, eventos, policies, logs, testes, metricas, retencao, exportacao e documentacao.
+- Separar plataforma comum de produto visivel: catalogo de modulos, capacidades, event envelope, workflow engine, auditoria, notificacoes, error model, observabilidade, catalogo de KPI e classificacao de dados devem servir Team, Market e Learning.
 
 ## 7. Regras de Negocio
 
@@ -84,6 +89,9 @@ Cliente -> Produto -> Pedido -> Pagamento -> Entrega
 - Comprovativo recebido nao e pagamento confirmado.
 - Comissao depende de pedido pago.
 - Automacao sensivel prefere tarefa humana.
+- KPI sem fonte real, periodo e definicao nao deve ser usado para decisao de produto.
+- Padrões internacionais sao referencias de alinhamento e preparacao; o Bizy nao declara certificacao formal sem processo independente.
+- Estado operacional nao deve mudar por `string` livre: precisa de transicao, condicao, permissao, evento e auditoria.
 
 ## 8. Requisitos Nao Funcionais
 
@@ -91,6 +99,9 @@ Cliente -> Produto -> Pedido -> Pagamento -> Entrega
 - Mobile-first para contexto de operacao angolano.
 - UX operacional, nao decorativa.
 - Guardrails de privacidade, auditoria e permissao por padrao.
+- APIs e eventos novos devem preparar OpenAPI, versionamento, idempotencia e envelope compativel com CloudEvents quando houver integracao externa.
+- Fluxos criticos devem produzir logs, metricas e traces compativeis com uma estrategia OpenTelemetry.
+- Specs novas devem verificar WCAG 2.2 AA, ASVS proporcional ao risco, minimizacao de dados e fallback humano para automacoes sensiveis.
 
 ## 9. APIs, Telas e Integracoes
 
@@ -106,6 +117,8 @@ Este dominio orienta todas as APIs e telas, mas nao define endpoints proprios.
 - Nao transformar deploy, n8n ou Evolution no centro da memoria.
 - Nao criar modulo sem fluxo operacional real.
 - Nao prometer automacao perigosa como diferencial.
+- Nao tratar pagina, endpoint, tabela, card de KPI ou menu como prova de maturidade de modulo.
+- Nao duplicar caminhos incompletos quando Team, Market, Learning ou Anani ja forem o caminho vivo.
 
 ## 11. Estado Atual
 
@@ -115,8 +128,13 @@ A visao unificada esta documentada em `docs/wiki/pages/visao-produto-bizy.md`. E
 
 - [x] P0: alinhar experiencia publica a promessa Bizy Market.
 - [x] P0: consolidar visao Bizy em uma fonte canonica.
+- [ ] P0: formalizar catalogo vivo de modulos, capacidades, owners e maturidade M0-M5 para Team, Market, Learning e servicos de plataforma.
+- [ ] P0: aplicar anatomia minima de modulo a qualquer nova spec antes de aceitar novas telas ou endpoints.
 - [ ] P1: revisar textos de produto para vendedores nao tecnicos.
+- [ ] P1: criar catalogo de KPIs com codigo, definicao, formula, fonte, periodo, moeda, confianca e drill-down.
+- [ ] P1: padronizar event envelope, idempotencia, replay e dead-letter para integracoes externas.
 - [ ] P2: refinar posicionamento Bizy Team por segmento de cliente.
+- [ ] P2: preparar evidencias de ASVS, WCAG AA, NIST CSF profile, governanca de IA, continuidade e load tests para fase de excelencia internacional.
 
 ## 13. Testes e Verificacao
 
@@ -125,8 +143,13 @@ A visao unificada esta documentada em `docs/wiki/pages/visao-produto-bizy.md`. E
 - [x] Verificar se documentos de visao apontam para a fonte canonica.
 - [ ] Verificar se toda tela tem acao operacional.
 - [ ] Verificar se nova automacao possui fallback humano quando sensivel.
+- [ ] Verificar se todo modulo novo possui workflow, auditoria, permissao, metricas, integracao/eventos e testes proporcionais ao risco.
+- [ ] Verificar se todo KPI novo possui fonte real, periodo e definicao antes de aparecer em dashboard.
+- [ ] Verificar se toda integracao externa possui contrato, idempotencia, logs e caminho de erro explicito.
 
 ## 14. Proximos Planos
 
 - [ ] Spec de posicionamento publico Bizy Team.
 - [ ] Spec de linguagem operacional para CRM, Market e Team.
+- [ ] Spec de plataforma comum: modulos, capacidades, workflow, eventos, auditoria, notificacoes, observabilidade e KPIs.
+- [ ] Spec de Developer Platform com OpenAPI, webhooks, OAuth/OIDC, sandbox, limites e versionamento.
