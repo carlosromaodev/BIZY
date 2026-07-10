@@ -13,7 +13,7 @@ Usar previsoes, insights, workflows, automacoes e Anani para apoiar a operacao, 
 
 Entra: previsao de demanda, churn, LTV, lead scoring, previsao de caixa, anomalias, insights, feedback, fluxos automaticos, passos, execucoes, notificacoes, n8n, IA assistiva e Anani como nucleo interno de dados, cognicao, controlo e governanca.
 
-Fica fora: regras financeiras de contabilizacao, cobertas no dominio 10; politica WhatsApp detalhada, coberta no dominio 05; e UI final da Governance Console, que deve nascer de spec propria.
+Fica fora: regras financeiras de contabilizacao, cobertas no dominio 10; politica WhatsApp detalhada, coberta no dominio 05; e UI final da Governance Console alem da console interna inicial.
 
 ## 3. Atores e Permissoes
 
@@ -104,7 +104,7 @@ Team/Market/Learning -> EventOutbox -> Read Models -> Anani PolicyEngine -> Acti
 
 APIs: `/inteligencia/*`, `/workflow/*`, `/n8n/*`, `/automacoes/*`, `/eventos-operacionais`, `/governance/anani/*`.
 
-Telas: Inteligencia, Sequencias, Recuperacao, Painel, Administracao, Auditoria e futura Governance Console Anani.
+Telas: Inteligencia, Sequencias, Recuperacao, Painel, Administracao, Auditoria e Governance Console Anani interna inicial.
 
 Integracoes: n8n, OpenRouter/IA, WhatsApp, jobs internos.
 
@@ -119,13 +119,14 @@ Integracoes: n8n, OpenRouter/IA, WhatsApp, jobs internos.
 
 ## 11. Estado Atual
 
-Backend possui n8n, outbox, IA assistiva, inteligencia preditiva, workflow e notificacoes em evolucao. Em 2026-07-09 ganhou a primeira fronteira interna Anani: policy engine, skill registry, bootstrap, rotas de governanca, migration e tabelas de outbox/risco/quarentena/incidentes. Frontend possui pagina Inteligencia e Sequencias; a Governance Console ainda nao foi implementada.
+Backend possui n8n, outbox, IA assistiva, inteligencia preditiva, workflow e notificacoes em evolucao. Em 2026-07-09 ganhou a primeira fronteira interna Anani: policy engine, skill registry, bootstrap, rotas de governanca, migration e tabelas de outbox/risco/quarentena/incidentes. Em 2026-07-10 ganhou read models iniciais `TeamHealth`, `MarketSnapshot` e `SecuritySnapshot` em `/governance/anani/read-models`. Frontend possui pagina Inteligencia, Sequencias e uma Governance Console interna inicial em `/app/governance/anani`, oculta da navegacao comercial.
 
 ## 12. Lacunas
 
 - [x] P0: manter Anani restrito a governanca e fora de tenant.
 - [x] P0: tarefas humanas para falhas criticas de automacao.
-- [ ] P1: projectors/read models reais de TeamHealth, MarketSnapshot e SecuritySnapshot.
+- [x] P1: read models reais iniciais de TeamHealth, MarketSnapshot e SecuritySnapshot.
+- [ ] P1: projectors duraveis/event-driven para manter read models consolidados sem recalculo sob demanda.
 - [ ] P1: insights contextuais melhores e notificacoes WhatsApp configuraveis.
 - [ ] P2: explicabilidade avancada, motor de recomendacao, ActionGateway real e automacoes cross-domain.
 
@@ -139,11 +140,14 @@ Backend possui n8n, outbox, IA assistiva, inteligencia preditiva, workflow e not
 - [x] Testes do PolicyEngine Anani.
 - [x] Testes da guarda Anani por papel de plataforma.
 - [x] Testes HTTP completos das rotas `/governance/anani/*` com papel `GOVERNANTE_BIZY`.
+- [x] Teste unitario dos read models Anani.
+- [x] Teste frontend da Governance Console Anani.
 
 ## 14. Proximos Planos
 
 - [ ] Spec de notificacoes proactivas via WhatsApp.
 - [ ] Spec de explicabilidade de insights.
 - [ ] Spec de workflow cross-domain.
-- [ ] Spec de projectors/read models Anani.
-- [ ] Spec de Governance Console Anani.
+- [x] Spec de read models Anani e Governance Console inicial.
+- [ ] Spec de projectors duraveis Anani.
+- [ ] Spec de Governance Console Anani completa com audit trail e aprovacoes.

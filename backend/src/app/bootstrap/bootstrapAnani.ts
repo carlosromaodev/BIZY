@@ -8,6 +8,7 @@ export interface AnaniContext {
   quarantine: QuarantineService;
   incidents: IncidentService;
   riskSnapshots: RiskSnapshotService;
+  readModels: AnaniReadModelsService;
   policies: AnaniPolicyEngineService;
 }
 
@@ -31,6 +32,10 @@ export interface IncidentService {
 export interface RiskSnapshotService {
   registar(snapshot: CriarRiskSnapshot): Promise<void>;
   obterMaisRecente(negocioId: string, sistema: string): Promise<RiskSnapshotResumo | null>;
+}
+
+export interface AnaniReadModelsService {
+  obter(): Promise<AnaniReadModelsResumo>;
 }
 
 export interface EventoOutbox {
@@ -108,6 +113,60 @@ export interface CriarRiskSnapshot {
 export interface RiskSnapshotResumo {
   id: string;
   negocioId: string;
+  sistema?: string;
+  riskScore: number;
+  trustScore: number;
+  sinais?: unknown[];
+  recomendacoes?: unknown[] | null;
+  criadoEm: Date;
+}
+
+export interface AnaniReadModelsResumo {
+  atualizadoEm: Date;
+  teamHealth: TeamHealthReadModel;
+  marketSnapshot: MarketSnapshotReadModel;
+  securitySnapshot: SecuritySnapshotReadModel;
+}
+
+export interface TeamHealthReadModel {
+  negociosMonitorados: number;
+  tarefasAbertas: number;
+  tarefasCriticas: number;
+  conversasAbertas: number;
+  pedidosPendentes: number;
+  riscoMedio: number;
+  trustMedio: number;
+  negociosEmAtencao: NegocioRiscoResumo[];
+  sinais: string[];
+}
+
+export interface MarketSnapshotReadModel {
+  lojasPublicadas: number;
+  produtosAtivos: number;
+  produtosSemStock: number;
+  pedidos30d: number;
+  receita30dEmKwanza: number;
+  negociosMonitorados: number;
+  riscoMedio: number;
+  trustMedio: number;
+  negociosEmAtencao: NegocioRiscoResumo[];
+  sinais: string[];
+}
+
+export interface SecuritySnapshotReadModel {
+  incidentesAbertos: number;
+  incidentesCriticos: number;
+  quarentenasAbertas: number;
+  quarentenasCriticas: number;
+  eventosPendentes: number;
+  eventosFalhados: number;
+  ultimoIncidenteEm: Date | null;
+  sinais: string[];
+}
+
+export interface NegocioRiscoResumo {
+  negocioId: string;
+  nomeComercial: string | null;
   riskScore: number;
   trustScore: number;
   criadoEm: Date;
@@ -284,10 +343,184 @@ export function bootstrapAnani(
       return (prisma as any).ananiTenantRiskSnapshot.findFirst({
         where: { negocioId, sistema },
         orderBy: { criadoEm: "desc" },
-        select: { id: true, negocioId: true, riskScore: true, trustScore: true, criadoEm: true },
+        select: { id: true, negocioId: true, sistema: true, riskScore: true, trustScore: true, sinais: true, recomendacoes: true, criadoEm: true },
       });
     },
   };
 
-  return { eventOutbox, quarantine, incidents, riskSnapshots, policies };
+  const readModels: AnaniReadModelsService = {
+    async obter() {
+      const desde30d = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+      const [teamHealth, marketSnapshot, securitySnapshot] = await Promise.all([
+        calcularTeamHealth(prisma, desde30d),
+        calcularMarketSnapshot(prisma, desde30d),
+        calcularSecuritySnapshot(prisma),
+      ]);
+
+      return {
+        atualizadoEm: new Date(),
+        teamHealth,
+        marketSnapshot,
+        securitySnapshot,
+      };
+    },
+  };
+
+  return { eventOutbox, quarantine, incidents, riskSnapshots, readModels, policies };
+}
+
+async function calcularTeamHealth(prisma: PrismaClient, desde30d: Date): Promise<TeamHealthReadModel> {
+  const [tarefasAbertas, tarefasCriticas, conversasAbertas, pedidosPendentes, snapshots] = await Promise.all([
+    prisma.tarefaOperacional.count({ where: { estado: { in: ["ABERTA", "EM_ANDAMENTO"] } } }),
+    prisma.tarefaOperacional.count({ where: { estado: { in: ["ABERTA", "EM_ANDAMENTO"] }, prioridade: { in: ["ALTA", "URGENTE"] } } }),
+    prisma.conversaAtendimento.count({ where: { estado: { in: ["ABERTA", "AGUARDANDO_HUMANO", "AGUARDANDO_CLIENTE"] } } }),
+    prisma.pedido.count({ where: { estadoPagamento: { in: ["PENDENTE", "AGUARDANDO_COMPROVATIVO", "COMPROVATIVO_RECEBIDO"] } } }),
+    carregarUltimosSnapshots(prisma, "TEAM", desde30d),
+  ]);
+
+  const medias = calcularMediasRisco(snapshots);
+  const sinais = montarSinais([
+    [tarefasCriticas > 0, "tarefas_criticas_abertas"],
+    [conversasAbertas > 25, "fila_atendimento_elevada"],
+    [pedidosPendentes > 0, "pagamentos_pendentes"],
+    [medias.riscoMedio >= 0.6, "risco_operacional_elevado"],
+  ], "operacao_team_estavel");
+
+  return {
+    negociosMonitorados: snapshots.length,
+    tarefasAbertas,
+    tarefasCriticas,
+    conversasAbertas,
+    pedidosPendentes,
+    ...medias,
+    negociosEmAtencao: ordenarNegociosEmAtencao(snapshots),
+    sinais,
+  };
+}
+
+async function calcularMarketSnapshot(prisma: PrismaClient, desde30d: Date): Promise<MarketSnapshotReadModel> {
+  const [lojasPublicadas, produtosAtivos, produtosSemStock, pedidos30d, receita30d, snapshots] = await Promise.all([
+    prisma.negocio.count({ where: { lojaPublicadaEm: { not: null } } }),
+    prisma.peca.count({ where: { arquivadaEm: null, estado: { not: "ARQUIVADA" } } }),
+    prisma.peca.count({ where: { arquivadaEm: null, quantidade: { lte: 0 } } }),
+    prisma.pedido.count({ where: { criadoEm: { gte: desde30d } } }),
+    prisma.pedido.aggregate({
+      where: { criadoEm: { gte: desde30d }, estadoPagamento: { in: ["CONFIRMADO", "PAGO"] } },
+      _sum: { totalEmKwanza: true },
+    }),
+    carregarUltimosSnapshots(prisma, "MARKET", desde30d),
+  ]);
+
+  const medias = calcularMediasRisco(snapshots);
+  const sinais = montarSinais([
+    [lojasPublicadas === 0, "market_sem_lojas_publicadas"],
+    [produtosSemStock > 0, "produtos_sem_stock"],
+    [pedidos30d === 0 && lojasPublicadas > 0, "lojas_sem_pedidos_30d"],
+    [medias.riscoMedio >= 0.6, "risco_market_elevado"],
+  ], "market_estavel");
+
+  return {
+    lojasPublicadas,
+    produtosAtivos,
+    produtosSemStock,
+    pedidos30d,
+    receita30dEmKwanza: receita30d._sum.totalEmKwanza ?? 0,
+    negociosMonitorados: snapshots.length,
+    ...medias,
+    negociosEmAtencao: ordenarNegociosEmAtencao(snapshots),
+    sinais,
+  };
+}
+
+async function calcularSecuritySnapshot(prisma: PrismaClient): Promise<SecuritySnapshotReadModel> {
+  const [incidentesAbertos, incidentesCriticos, quarentenasAbertas, quarentenasCriticas, eventosPendentes, eventosFalhados, ultimoIncidente] = await Promise.all([
+    (prisma as any).ananiIncident.count({ where: { status: { in: ["OPEN", "INVESTIGATING"] } } }),
+    (prisma as any).ananiIncident.count({ where: { status: { in: ["OPEN", "INVESTIGATING"] }, severidade: { in: ["HIGH", "CRITICAL"] } } }),
+    (prisma as any).ananiQuarantine.count({ where: { status: "OPEN" } }),
+    (prisma as any).ananiQuarantine.count({ where: { status: "OPEN", severidade: { in: ["HIGH", "CRITICAL"] } } }),
+    (prisma as any).eventOutbox.count({ where: { status: "PENDING" } }),
+    (prisma as any).eventOutbox.count({ where: { status: "FAILED" } }),
+    (prisma as any).ananiIncident.findFirst({
+      where: { status: { in: ["OPEN", "INVESTIGATING"] } },
+      orderBy: { criadoEm: "desc" },
+      select: { criadoEm: true },
+    }),
+  ]);
+
+  const sinais = montarSinais([
+    [incidentesCriticos > 0, "incidentes_criticos_abertos"],
+    [quarentenasCriticas > 0, "quarentenas_criticas_abertas"],
+    [eventosFalhados > 0, "eventos_outbox_falhados"],
+    [eventosPendentes > 100, "backlog_eventos_elevado"],
+  ], "seguranca_estavel");
+
+  return {
+    incidentesAbertos,
+    incidentesCriticos,
+    quarentenasAbertas,
+    quarentenasCriticas,
+    eventosPendentes,
+    eventosFalhados,
+    ultimoIncidenteEm: ultimoIncidente?.criadoEm ?? null,
+    sinais,
+  };
+}
+
+async function carregarUltimosSnapshots(prisma: PrismaClient, sistema: "TEAM" | "MARKET", desde: Date): Promise<NegocioRiscoResumo[]> {
+  const registros = await (prisma as any).ananiTenantRiskSnapshot.findMany({
+    where: { sistema, criadoEm: { gte: desde } },
+    orderBy: { criadoEm: "desc" },
+    take: 500,
+    select: { negocioId: true, riskScore: true, trustScore: true, criadoEm: true },
+  });
+
+  const porNegocio = new Map<string, NegocioRiscoResumo>();
+  for (const registro of registros as Array<{ negocioId: string; riskScore: number; trustScore: number; criadoEm: Date }>) {
+    if (!porNegocio.has(registro.negocioId)) {
+      porNegocio.set(registro.negocioId, { ...registro, nomeComercial: null });
+    }
+  }
+
+  const snapshots = [...porNegocio.values()];
+  if (snapshots.length === 0) return snapshots;
+
+  const negocios = await prisma.negocio.findMany({
+    where: { id: { in: snapshots.map((snapshot) => snapshot.negocioId) } },
+    select: { id: true, nomeComercial: true },
+  });
+  const nomes = new Map(negocios.map((negocio) => [negocio.id, negocio.nomeComercial]));
+
+  return snapshots.map((snapshot) => ({
+    ...snapshot,
+    nomeComercial: nomes.get(snapshot.negocioId) ?? null,
+  }));
+}
+
+function calcularMediasRisco(snapshots: NegocioRiscoResumo[]) {
+  if (snapshots.length === 0) return { riscoMedio: 0, trustMedio: 1 };
+  const total = snapshots.reduce((acc, snapshot) => ({
+    risco: acc.risco + snapshot.riskScore,
+    trust: acc.trust + snapshot.trustScore,
+  }), { risco: 0, trust: 0 });
+
+  return {
+    riscoMedio: arredondarScore(total.risco / snapshots.length),
+    trustMedio: arredondarScore(total.trust / snapshots.length),
+  };
+}
+
+function ordenarNegociosEmAtencao(snapshots: NegocioRiscoResumo[]): NegocioRiscoResumo[] {
+  return [...snapshots]
+    .filter((snapshot) => snapshot.riskScore >= 0.5 || snapshot.trustScore <= 0.7)
+    .sort((a, b) => b.riskScore - a.riskScore || a.trustScore - b.trustScore)
+    .slice(0, 8);
+}
+
+function arredondarScore(valor: number) {
+  return Number(valor.toFixed(3));
+}
+
+function montarSinais(condicoes: Array<[boolean, string]>, fallback: string): string[] {
+  const sinais = condicoes.filter(([ativo]) => ativo).map(([, sinal]) => sinal);
+  return sinais.length > 0 ? sinais : [fallback];
 }

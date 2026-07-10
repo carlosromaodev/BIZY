@@ -26,6 +26,7 @@ As maiores lacunas restantes estao em:
 - ~~paginacao padronizada com volume~~;
 - ~~consistencia mobile sem scroll horizontal~~;
 - ~~verificacao final de modulos desativados na UI~~;
+- ~~read models internos iniciais da Anani e console de governanca oculta~~;
 - maturacao visual das paginas CRM novas para design v2.
 
 Lacunas ja fechadas (2026-06-05):
@@ -35,6 +36,7 @@ Lacunas ja fechadas (2026-06-05):
 - Telas de campanhas, social inbox, equipa, pagamentos, diagnosticos SMS e auditoria.
 - Estados vazios com orientacao nas novas paginas.
 - Design system v2 reutilizavel (`BizyDesignSystem.tsx`).
+- Read models Anani `TeamHealth`, `MarketSnapshot`, `SecuritySnapshot` e console interna inicial em `/app/governance/anani`.
 
 ## P0 Bloqueia Lancamento
 
@@ -133,7 +135,7 @@ P2 deve ser guiado por feedback real.
 ## Sequencia Recomendada
 
 1. **Sprint P0:** fechado no roadmap atual.
-2. **Sprint P1:** perfil Cliente 360 polido, envio binario na conversa, colecoes visuais e templates WhatsApp.
+2. **Sprint P1:** perfil Cliente 360 polido, envio binario na conversa, colecoes visuais, templates WhatsApp e projectors duraveis da Anani.
 3. **P2 por feedback:** ligacao backend completa das paginas CRM novas (pipeline, agenda, metas, cotacoes, respostas rapidas, notas, formularios, sequencias), afiliados portal, social oficial, bus unificado.
 
 ## Como Usar Esta Nota

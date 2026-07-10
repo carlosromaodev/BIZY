@@ -78,7 +78,7 @@ P2 depende de feedback, escala ou integracao madura:
 | 08 Afiliados/Social | Criar portal do afiliado e conectores sociais oficiais. |
 | 09 Team/Projectos | Completar onboarding de membros, modo sombra, war rooms e passagem via WhatsApp. |
 | 10 Financas | Avancar reconciliacao bancaria, e-invoicing e relatorios fiscais. |
-| 11 Inteligencia/Anani | [ ] Ligar insights a tarefas, notificacoes WhatsApp e feedback de utilidade; [ ] completar projectors/read models iniciais; [ ] audit trail; [x] teste HTTP completo de governanca. |
+| 11 Inteligencia/Anani | [ ] Ligar insights a tarefas, notificacoes WhatsApp e feedback de utilidade; [x] read models iniciais TeamHealth, MarketSnapshot e SecuritySnapshot; [ ] projectors duraveis/event-driven; [ ] audit trail; [x] teste HTTP completo de governanca; [x] console interna inicial no frontend. |
 | 12 Frontend/UX | Manter e2e mobile 360px, modulos filtrados e auditar design v2/estados vazios. |
 | 13 Operacao | Documentar runbooks de incidentes, backup, restore e deploy continuo. |
 | 14 Seguranca | Expandir testes de isolamento multi-tenant, auditoria e minimizacao de dados. |

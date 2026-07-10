@@ -128,6 +128,14 @@ export const moduloAnaniGovernance: ModuloHttp = {
       };
     });
 
+    app.get("/governance/anani/read-models", async (request, reply) => {
+      aplicarNoStore(reply);
+      const governante = await exigirGovernanteAnani(contexto, request, reply);
+      if (!governante) return;
+
+      return contexto.anani.readModels.obter();
+    });
+
     app.post("/governance/anani/policies/evaluate", async (request, reply) => {
       aplicarNoStore(reply);
       const governante = await exigirGovernanteAnani(contexto, request, reply);

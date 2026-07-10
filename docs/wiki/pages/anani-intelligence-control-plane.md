@@ -34,12 +34,14 @@ Team, Market e Learning continuam a ser os sistemas usados pelos clientes. Anani
 ## Planos Internos
 
 - [x] Data Plane inicial: event outbox e snapshots.
-- [ ] Data Plane completo: projectors e read models consolidados.
+- [x] Read models iniciais: `TeamHealth`, `MarketSnapshot` e `SecuritySnapshot`.
+- [ ] Data Plane completo: projectors duraveis e read models consolidados sem recalculo por consulta.
 - [ ] Cognition Plane: Claude/GPT com contexto sanitizado.
 - [x] Control Plane inicial: `PolicyEngine` e skill registry.
 - [ ] Control Plane completo: `ActionGateway`, quotas e circuit breaker.
 - [x] Governance Plane inicial: incidentes e quarentena.
-- [ ] Governance Plane completo: audit trail, aprovacoes e console.
+- [x] Governance Console inicial: rota oculta `/app/governance/anani`.
+- [ ] Governance Plane completo: audit trail, aprovacoes e console operacional completa.
 
 ## Regras Duraveis
 
@@ -59,6 +61,15 @@ Team, Market e Learning continuam a ser os sistemas usados pelos clientes. Anani
 - [x] `backend/prisma/migrations/20260709090000_anani_internal_control_plane/migration.sql`
 - [x] Rotas internas sob `/governance/anani/*`
 
+## Estado Implementado em 2026-07-10
+
+- [x] `GET /governance/anani/read-models`
+- [x] `TeamHealth`
+- [x] `MarketSnapshot`
+- [x] `SecuritySnapshot`
+- [x] `frontend/src/paginas/AnaniGovernance.tsx`
+- [x] Rota oculta `/app/governance/anani` com `requerGovernancaAnani`.
+
 ## Dados Iniciais
 
 - [x] `EventOutbox`
@@ -74,3 +85,4 @@ Team, Market e Learning continuam a ser os sistemas usados pelos clientes. Anani
 - [[obsidian-vault]]
 - [ADR-0002 Anani como nucleo interno invisivel](../../sdd/decisions/ADR-0002-anani-nucleo-interno-invisivel.md)
 - [Spec Anani Control Plane Backend](../../sdd/specs/2026-07-09-anani-control-plane-backend.md)
+- [Spec Anani Read Models e Governance Console Inicial](../../superpowers/specs/2026-07-10-anani-read-models-governance-console.md)

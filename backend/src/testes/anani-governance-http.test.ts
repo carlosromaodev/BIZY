@@ -56,6 +56,22 @@ describe("Anani Governance HTTP", () => {
           razoes: expect.arrayContaining(["MARKETING_CONSENT"])
         })
       );
+
+      const readModels = await app.inject({
+        method: "GET",
+        url: "/governance/anani/read-models",
+        headers: { authorization: "Bearer token-governante" }
+      });
+
+      expect(readModels.statusCode).toBe(200);
+      expect(readModels.headers["cache-control"]).toBe("no-store");
+      expect(readModels.json()).toEqual(
+        expect.objectContaining({
+          teamHealth: expect.objectContaining({ tarefasAbertas: 2, sinais: ["tarefas_criticas_abertas"] }),
+          marketSnapshot: expect.objectContaining({ lojasPublicadas: 1, sinais: ["market_estavel"] }),
+          securitySnapshot: expect.objectContaining({ incidentesAbertos: 0, eventosFalhados: 0 })
+        })
+      );
     } finally {
       await app.close();
     }
@@ -123,6 +139,44 @@ function criarContextoAnani(papel: string): ContextoAplicacao {
       riskSnapshots: {
         registar: vi.fn().mockResolvedValue(undefined),
         obterMaisRecente: vi.fn().mockResolvedValue(null)
+      },
+      readModels: {
+        obter: vi.fn().mockResolvedValue({
+          atualizadoEm: new Date("2026-07-10T00:00:00.000Z"),
+          teamHealth: {
+            negociosMonitorados: 1,
+            tarefasAbertas: 2,
+            tarefasCriticas: 1,
+            conversasAbertas: 3,
+            pedidosPendentes: 4,
+            riscoMedio: 0.7,
+            trustMedio: 0.6,
+            negociosEmAtencao: [],
+            sinais: ["tarefas_criticas_abertas"]
+          },
+          marketSnapshot: {
+            lojasPublicadas: 1,
+            produtosAtivos: 8,
+            produtosSemStock: 0,
+            pedidos30d: 5,
+            receita30dEmKwanza: 10000,
+            negociosMonitorados: 1,
+            riscoMedio: 0.2,
+            trustMedio: 0.9,
+            negociosEmAtencao: [],
+            sinais: ["market_estavel"]
+          },
+          securitySnapshot: {
+            incidentesAbertos: 0,
+            incidentesCriticos: 0,
+            quarentenasAbertas: 0,
+            quarentenasCriticas: 0,
+            eventosPendentes: 0,
+            eventosFalhados: 0,
+            ultimoIncidenteEm: null,
+            sinais: ["seguranca_estavel"]
+          }
+        })
       }
     }
   } as unknown as ContextoAplicacao;

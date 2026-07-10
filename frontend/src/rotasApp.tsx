@@ -34,6 +34,7 @@ import { PaginaActividades } from "./paginas/Actividades";
 import { PaginaAdministracao } from "./paginas/Administracao";
 import { PaginaAfiliados } from "./paginas/Afiliados";
 import { PaginaAgenda } from "./paginas/Agenda";
+import { PaginaAnaniGovernance } from "./paginas/AnaniGovernance";
 import { PaginaCatalogo } from "./paginas/Catalogo";
 import { PaginaClientes } from "./paginas/Clientes";
 import { PaginaComentarios } from "./paginas/Comentarios";
@@ -90,11 +91,13 @@ export interface RotaPrivada {
   elemento: ReactNode;
   fim?: boolean;
   requerAdminSistema?: boolean;
+  requerGovernancaAnani?: boolean;
   modulo?: string;
 }
 
 export interface RotaPrivadaOculta extends RotaPublica {
   modulo?: string;
+  requerGovernancaAnani?: boolean;
 }
 
 function PaginaEntradaPublica() {
@@ -184,6 +187,7 @@ export const rotasPrivadas: RotaPrivada[] = [...rotasComerciais, ...rotasAdminSi
 
 export const rotasPrivadasOcultas: RotaPrivadaOculta[] = [
   { caminho: "/onboarding", elemento: <PaginaOnboarding /> },
+  { caminho: "/app/governance/anani", elemento: <PaginaAnaniGovernance />, requerGovernancaAnani: true },
   { caminho: "/app/loja-publica", elemento: <PaginaLojaPublica />, modulo: "loja-publica" }
 ];
 
@@ -193,6 +197,11 @@ export const secoesComerciais: SecaoNavegacao[] = ["Hoje", "Vendas", "Comercial"
 export function usuarioPodeVerAdminSistema(papel?: string | null): boolean {
   const normalizado = papel?.trim().toUpperCase() ?? "";
   return normalizado.includes("ADMIN") || normalizado.includes("DONO") || normalizado.includes("OWNER");
+}
+
+export function usuarioPodeGovernarAnani(papel?: string | null): boolean {
+  const normalizado = papel?.trim().toUpperCase() ?? "";
+  return ["GOVERNANTE_BIZY", "ADMIN_GERAL", "SUPER_ADMIN_PLATFORM"].includes(normalizado);
 }
 
 export function filtrarRotasPorModulos(rotas: RotaPrivada[], modulosAtivos: string[]): RotaPrivada[] {

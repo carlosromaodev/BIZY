@@ -5,18 +5,20 @@ import { NativeFeedbackProvider } from "./componentes/NativeFeedbackProvider";
 import { ProvedorNotificacoes } from "./componentes/Notificacoes";
 import { Shell } from "./componentes/Shell";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { rotasPrivadas, rotasPrivadasOcultas, rotasPublicas, usuarioPodeVerAdminSistema } from "./rotasApp";
+import { rotasPrivadas, rotasPrivadasOcultas, rotasPublicas, usuarioPodeGovernarAnani, usuarioPodeVerAdminSistema } from "./rotasApp";
 
 type EstadoModuloRota = "liberado" | "bloqueado" | "verificando";
 
 function RotaPrivada({
   children,
   modulo,
-  requerAdminSistema = false
+  requerAdminSistema = false,
+  requerGovernancaAnani = false
 }: {
   children: ReactNode;
   modulo?: string;
   requerAdminSistema?: boolean;
+  requerGovernancaAnani?: boolean;
 }) {
   const [autenticado, setAutenticado] = useState(() => Boolean(obterUsuario()));
   const [versaoWorkspace, setVersaoWorkspace] = useState(0);
@@ -81,6 +83,7 @@ function RotaPrivada({
   }, []);
 
   if (!autenticado) return <Navigate to="/login" replace />;
+  if (requerGovernancaAnani && !usuarioPodeGovernarAnani(usuario?.papel)) return <Navigate to="/app" replace />;
   if (requerAdminSistema && !usuarioPodeVerAdminSistema(usuario?.papel)) return <Navigate to="/app" replace />;
   if (estadoModulo === "verificando") return null;
   if (estadoModulo === "bloqueado") return <Navigate to="/app" replace />;
@@ -91,14 +94,16 @@ function RotaPrivada({
 function LayoutApp({
   children,
   modulo,
-  requerAdminSistema = false
+  requerAdminSistema = false,
+  requerGovernancaAnani = false
 }: {
   children: ReactNode;
   modulo?: string;
   requerAdminSistema?: boolean;
+  requerGovernancaAnani?: boolean;
 }) {
   return (
-    <RotaPrivada modulo={modulo} requerAdminSistema={requerAdminSistema}>
+    <RotaPrivada modulo={modulo} requerAdminSistema={requerAdminSistema} requerGovernancaAnani={requerGovernancaAnani}>
       <Shell>{children}</Shell>
     </RotaPrivada>
   );
@@ -124,7 +129,11 @@ export function App() {
               ))}
 
               {rotasPrivadasOcultas.map((rota) => (
-                <Route key={rota.caminho} path={rota.caminho} element={<RotaPrivada modulo={rota.modulo}>{rota.elemento}</RotaPrivada>} />
+                <Route
+                  key={rota.caminho}
+                  path={rota.caminho}
+                  element={<RotaPrivada modulo={rota.modulo} requerGovernancaAnani={rota.requerGovernancaAnani}>{rota.elemento}</RotaPrivada>}
+                />
               ))}
 
               <Route path="*" element={<Navigate to="/" replace />} />

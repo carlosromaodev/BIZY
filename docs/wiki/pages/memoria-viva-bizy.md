@@ -48,7 +48,7 @@ O vendedor precisa conseguir:
 - usar campanhas, afiliados e tracking sem perder controle humano;
 - operar WhatsApp/n8n/Evolution com guardrails.
 
-O backend ja tem fundacao ampla de CRM+; a Loja Digital agora tem configuracao operacional ligada ao CRM via `experiencia.operacao`, cobrindo checkout, fidelizacao, automacoes, canais e relatorios. O frontend ja fechou checkout visual, SEO publico, mobile 360px, ocultacao de modulos desativados e guard de URL por modulo; o roadmap atual nao tem P0 aberto.
+O backend ja tem fundacao ampla de CRM+; a Loja Digital agora tem configuracao operacional ligada ao CRM via `experiencia.operacao`, cobrindo checkout, fidelizacao, automacoes, canais e relatorios. O frontend ja fechou checkout visual, SEO publico, mobile 360px, ocultacao de modulos desativados e guard de URL por modulo. Anani ja tem read models iniciais `TeamHealth`, `MarketSnapshot`, `SecuritySnapshot` e console interna oculta; o roadmap atual nao tem P0 aberto.
 
 ## Stack
 
