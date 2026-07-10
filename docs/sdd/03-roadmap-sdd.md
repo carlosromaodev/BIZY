@@ -34,7 +34,7 @@ P0 bloqueia lancamento ou experiencia minima aceitavel:
 P1 melhora primeira operacao comercial:
 
 - [ ] Cliente 360 polido;
-- [ ] pedido direto na conversa;
+- [x] pedido direto na conversa;
 - [x] envio binario real no WhatsApp;
 - [ ] colecoes visuais;
 - [ ] templates transacionais por evento;

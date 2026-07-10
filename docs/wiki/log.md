@@ -17,6 +17,7 @@ updated: 2026-07-10
 - [x] Evolution envia imagem/PDF por `sendMedia`; Cloud API envia media apenas quando ha URL HTTPS publica.
 - [x] Anexos enviados pela conversa ficam em storage privado de atendimento e aparecem no historico do frontend.
 - [x] SDD e prioridades P1 passaram a marcar envio binario como concluido.
+- [x] Confirmado por codigo/testes que pedido direto pela conversa ja esta fechado; MDs P1 foram atualizados.
 
 ## [2026-07-10] arquitetura | Consolidacao do caminho unico Bizy
 

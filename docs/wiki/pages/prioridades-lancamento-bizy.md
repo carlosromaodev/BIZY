@@ -38,6 +38,7 @@ Lacunas ja fechadas (2026-06-05):
 - Design system v2 reutilizavel (`BizyDesignSystem.tsx`).
 - Read models Anani `TeamHealth`, `MarketSnapshot`, `SecuritySnapshot` e console interna inicial em `/app/governance/anani`.
 - Envio real de imagem/PDF na conversa WhatsApp, com storage privado, Evolution `sendMedia`, Cloud API por link publico HTTPS e renderizacao do anexo no historico.
+- Pedido direto pela conversa, com endpoint CRM, mensagem de timeline e acao no frontend de Conversas.
 
 ## P0 Bloqueia Lancamento
 
@@ -83,7 +84,7 @@ P1 melhora a operacao diaria logo apos o lancamento inicial.
 
 - Kanban/lista visual de funil de pedidos.
 - Perfil Cliente 360 completo na UI.
-- Criar pedido diretamente na conversa.
+- ~~Criar pedido diretamente na conversa.~~
 - ~~Envio real de imagem/documento pelo provider WhatsApp.~~
 - Resultado de campanha atualizado por webhook/status.
 - Gestao visual de colecoes.

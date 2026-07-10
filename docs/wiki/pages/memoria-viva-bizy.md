@@ -353,7 +353,7 @@ P1 primeira operacao comercial:
 
 - kanban/lista visual de funil de pedidos;
 - perfil 360 completo na UI;
-- criar pedido direto na conversa;
+- [x] criar pedido direto na conversa;
 - [x] envio binario real na conversa;
 - resultados de campanha por webhook;
 - gestao visual de colecoes;
