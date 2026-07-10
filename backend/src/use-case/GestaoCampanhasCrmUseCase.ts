@@ -15,6 +15,7 @@ import type {
   FiltrosCampanhasCrm,
   MetricasCampanhaCrm,
   NovoTemplateWhatsAppNegocio,
+  StatusItemCampanhaCrm,
   TemplateWhatsAppNegocio
 } from "../dominio/tipos.js";
 import type { CategoriaMensagemWhatsApp } from "../dominio/provedores/ProvedorWhatsApp.js";
@@ -230,6 +231,38 @@ export class GestaoCampanhasCrmUseCase {
       motivoPausa: motivo
     });
     return atualizada ?? campanha;
+  }
+
+  async registrarStatusItem(
+    id: string,
+    negocioId: string,
+    dados: {
+      itemId?: string;
+      outboxMensagemId?: string;
+      telefone?: string;
+      status: StatusItemCampanhaCrm;
+      contexto?: Record<string, unknown>;
+    }
+  ) {
+    const campanha = await this.exigirCampanha(id, negocioId);
+    const item = await this.campanhas.atualizarStatusItem(
+      campanha.id,
+      negocioId,
+      { itemId: dados.itemId, outboxMensagemId: dados.outboxMensagemId, telefone: dados.telefone },
+      { status: dados.status, contexto: dados.contexto }
+    );
+    if (!item) throw new Error("Item de campanha não encontrado para atualizar status.");
+
+    const resultado = await this.obterResultados(id, negocioId);
+    const atualizada = await this.campanhas.atualizar(campanha.id, negocioId, {
+      metricas: resultado.metricas
+    });
+
+    return {
+      campanha: atualizada ?? campanha,
+      item,
+      metricas: resultado.metricas
+    };
   }
 
   async obterResultados(id: string, negocioId: string) {

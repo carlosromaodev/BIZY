@@ -1,4 +1,5 @@
 import {
+  AlertTriangle,
   Bolt,
   CheckCircle2,
   Clock,
@@ -61,6 +62,7 @@ import {
 const POR_PAGINA = 20;
 
 type Filtro = "todos" | EstadoRelacionamentoCliente;
+type SinalOperacionalCliente = { id: string; rotulo: string; detalhe: string; cor: CorSemantica };
 
 const FILTROS_OPCOES: Array<{ id: Filtro; rotulo: string; cor?: string }> = [
   { id: "todos", rotulo: "Todos" },
@@ -156,6 +158,42 @@ function criarUrlConversaCliente(cliente: Cliente360): string {
   params.set("clienteId", cliente.id);
   if (cliente.telefone) params.set("telefone", cliente.telefone);
   return `/app/conversas?${params.toString()}`;
+}
+
+function obterSinaisOperacionaisCliente(cliente: Cliente360): SinalOperacionalCliente[] {
+  const tags = cliente.tags.map((tag) => tag.toLowerCase());
+  const sinais: SinalOperacionalCliente[] = [];
+
+  if (cliente.estadoRelacionamento === "VIP" || tags.includes("vip")) {
+    sinais.push({ id: "vip", rotulo: "VIP", detalhe: "Cliente de alto valor", cor: "violet" });
+  }
+
+  if (tags.some((tag) => tag.includes("reclam") || tag.includes("queixa"))) {
+    sinais.push({ id: "reclamacao", rotulo: "Reclamação", detalhe: "Responder antes de novas vendas", cor: "rose" });
+  }
+
+  if (
+    cliente.estadoRelacionamento === "INADIMPLENTE" ||
+    cliente.metricas.reservasAtivas > 0 ||
+    tags.some((tag) => tag.includes("pagamento") || tag.includes("cobranca") || tag.includes("cobrança"))
+  ) {
+    sinais.push({ id: "pagamento", rotulo: "Pagamento pendente", detalhe: "Cobrança ou comprovativo em aberto", cor: "amber" });
+  }
+
+  if (cliente.estadoRelacionamento === "PRIORIDADE_ALTA") {
+    sinais.push({ id: "prioridade", rotulo: "Prioridade alta", detalhe: "Acompanhar manualmente", cor: "amber" });
+  }
+
+  return sinais;
+}
+
+function classePrioridadeCliente(cliente: Cliente360): string {
+  const sinais = obterSinaisOperacionaisCliente(cliente);
+  if (sinais.some((sinal) => sinal.id === "reclamacao")) return "bz-cli-row-inadimplente";
+  if (cliente.estadoRelacionamento === "INADIMPLENTE" || sinais.some((sinal) => sinal.id === "pagamento")) return "bz-cli-row-inadimplente";
+  if (cliente.estadoRelacionamento === "VIP" || sinais.some((sinal) => sinal.id === "vip")) return "bz-cli-row-vip";
+  if (cliente.estadoRelacionamento === "PRIORIDADE_ALTA" || sinais.length > 0) return "bz-cli-row-prioridade";
+  return "";
 }
 
 /* ── Component ──────────────────────────────────────────────────── */
@@ -395,8 +433,9 @@ export function PaginaClientes() {
                 <tbody>
                   {clientesPagina.map((cliente) => {
                     const nome = cliente.nome || cliente.username || cliente.telefone || "Cliente";
+                    const sinais = obterSinaisOperacionaisCliente(cliente);
                     return (
-                      <tr key={cliente.id} className={cliente.estadoRelacionamento === "VIP" ? "bz-cli-row-vip" : cliente.estadoRelacionamento === "PRIORIDADE_ALTA" ? "bz-cli-row-prioridade" : cliente.estadoRelacionamento === "INADIMPLENTE" ? "bz-cli-row-inadimplente" : ""}>
+                      <tr key={cliente.id} className={classePrioridadeCliente(cliente)}>
                         <Td>
                           <div className="bz-cli">
                             <AvatarBizy
@@ -411,6 +450,13 @@ export function PaginaClientes() {
                               <div className="bz-cli-desc">
                                 {cliente.username ? `@${cliente.username}` : "—"}
                               </div>
+                              {sinais.length > 0 && (
+                                <div className="bz-cli-priority">
+                                  {sinais.slice(0, 2).map((sinal) => (
+                                    <StatusBadge key={sinal.id} cor={sinal.cor}>{sinal.rotulo}</StatusBadge>
+                                  ))}
+                                </div>
+                              )}
                             </div>
                           </div>
                         </Td>
@@ -568,6 +614,7 @@ function PainelDetalheCliente({
   onAcao: (c: Cliente360, tipo: "COBRANCA" | "RECOMPRA" | "CONSENTIMENTO") => void;
 }) {
   const nome = cliente.nome || cliente.username || cliente.telefone || "Cliente";
+  const sinais = obterSinaisOperacionaisCliente(cliente);
 
   return (
     <div className="bz-detail-panel">
@@ -590,6 +637,23 @@ function PainelDetalheCliente({
           </StatusBadge>
         </div>
       </div>
+
+      {sinais.length > 0 && (
+        <div className="bz-detail-section">
+          <h4 className="bz-detail-label">Prioridade operacional</h4>
+          <div className="bz-detail-priority-list">
+            {sinais.map((sinal) => (
+              <div key={sinal.id} className="bz-detail-priority-row">
+                <AlertTriangle size={13} />
+                <div>
+                  <StatusBadge cor={sinal.cor}>{sinal.rotulo}</StatusBadge>
+                  <span>{sinal.detalhe}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Contact info */}
       <div className="bz-detail-section">

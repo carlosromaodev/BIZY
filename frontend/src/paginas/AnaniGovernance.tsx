@@ -16,6 +16,7 @@ import {
   PageHead,
   PanelCard,
   StatusBadge,
+  BotaoBizy,
   type CorSemantica,
 } from "../componentes/BizyDesignSystem";
 import { formatarKwanza } from "../utilidades";
@@ -74,6 +75,7 @@ interface AnaniReadModels {
 export function PaginaAnaniGovernance() {
   const [dados, setDados] = useState<AnaniReadModels | null>(null);
   const [carregando, setCarregando] = useState(true);
+  const [projetando, setProjetando] = useState(false);
   const [erro, setErro] = useState("");
 
   async function carregar() {
@@ -93,6 +95,19 @@ export function PaginaAnaniGovernance() {
     void carregar();
   }, []);
 
+  async function projectarReadModels() {
+    setProjetando(true);
+    setErro("");
+    try {
+      const resposta = await requisitarApi<AnaniReadModels>("/governance/anani/read-models/projectar", { method: "POST" });
+      setDados(resposta);
+    } catch (falha) {
+      setErro(falha instanceof Error ? falha.message : "Nao foi possivel projectar os read models Anani.");
+    } finally {
+      setProjetando(false);
+    }
+  }
+
   const severidadeSeguranca = useMemo(() => {
     const snapshot = dados?.securitySnapshot;
     if (!snapshot) return "mute" as CorSemantica;
@@ -109,6 +124,9 @@ export function PaginaAnaniGovernance() {
           titulo="Anani Control Plane"
           tamanhoTitulo="sm"
         >
+          <BotaoBizy icone={Brain} onClick={() => void projectarReadModels()} disabled={projetando}>
+            {projetando ? "A projectar" : "Projectar"}
+          </BotaoBizy>
           <button type="button" className="bz-iconbtn" onClick={() => void carregar()} disabled={carregando} title="Atualizar read models">
             <RefreshCcw size={16} />
           </button>

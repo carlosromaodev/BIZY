@@ -66,6 +66,7 @@ const formularioInicial = {
 };
 
 const estadosPeca: EstadoPeca[] = ["DISPONIVEL", "RESERVADA", "VENDIDA", "ESGOTADA"];
+const uploadCatalogo = { endpoint: "/media/upload", purpose: "catalogo" } as const;
 
 import { enviarMedia } from "../media";
 
@@ -222,7 +223,7 @@ export function PaginaCatalogo() {
     try {
       const urls = await Promise.all(
         selecionados.map(async (arquivo) => {
-          const media = await enviarMedia(arquivo, "catalogo", 1800);
+          const media = await enviarMedia(arquivo, uploadCatalogo.purpose, 1800);
           return media.url;
         })
       );
@@ -634,7 +635,7 @@ function ModalProduto({
 
   return (
     <Dialog open={aberto} onOpenChange={(v) => { if (!v) onFechar(); }}>
-      <DialogContent className="bz-product-dialog p-0 gap-0">
+      <DialogContent className="bz-product-dialog max-h-[calc(100dvh-1rem)] p-0 gap-0">
         <DialogHeader className="bz-dialog-head">
           <div className="bz-dialog-icon"><Package size={20} /></div>
           <DialogTitle className="text-base font-bold">
@@ -770,7 +771,7 @@ function ModalProduto({
                     onChange={(e) => setFormPeca({ ...formPeca, novoCatalogo: e.target.value })}
                     placeholder="Novo catálogo…"
                   />
-                  <Button type="button" variant="outline" size="sm" onClick={onAdicionarCatalogo}>
+                  <Button type="button" variant="outline" size="sm" onClick={onAdicionarCatalogo} title="Adicionar novo catálogo">
                     <Plus size={14} className="mr-1" /> Criar
                   </Button>
                 </div>

@@ -8310,6 +8310,13 @@ body.mobile-chat-imersivo .atendimento-message-bubble {
 .bz-cli-name { font-size: 14px; font-weight: 700; color: var(--ink); }
 .bz-cli-sub { font-size: 12.5px; color: var(--ink-3); margin-top: 2px; }
 .bz-cli-desc { font-size: 12.5px; color: var(--ink-3); margin-top: 2px; }
+.bz-cli-priority {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 6px;
+  max-width: 220px;
+}
 
 /* ── Client row priority highlights ── */
 .bz-cli-row-vip td { background: color-mix(in srgb, var(--violet) 4%, transparent); }
@@ -9439,6 +9446,36 @@ body.mobile-chat-imersivo .atendimento-message-bubble {
   color: var(--ink);
 }
 .bz-detail-row svg { color: var(--ink-3); flex-shrink: 0; }
+.bz-detail-priority-list {
+  display: grid;
+  gap: 8px;
+}
+.bz-detail-priority-row {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  gap: 8px;
+  align-items: start;
+  padding: 10px 12px;
+  border: 1px solid var(--line-2);
+  border-radius: 8px;
+  background: var(--bg);
+}
+.bz-detail-priority-row svg {
+  color: var(--amber);
+  margin-top: 2px;
+}
+.bz-detail-priority-row div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-width: 0;
+}
+.bz-detail-priority-row span:last-child {
+  color: var(--ink-3);
+  font-size: 12.5px;
+  line-height: 1.45;
+  min-width: 0;
+}
 .bz-detail-metrics {
   display: grid;
   grid-template-columns: 1fr 1fr;

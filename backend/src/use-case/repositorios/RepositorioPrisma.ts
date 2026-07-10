@@ -868,6 +868,37 @@ export class RepositorioCampanhasPrisma implements RepositorioCampanhas {
     return itens.map((item) => this.mapearItem(item));
   }
 
+  async atualizarStatusItem(
+    campanhaId: string,
+    negocioId: string,
+    identificador: { itemId?: string; outboxMensagemId?: string; telefone?: string },
+    dados: { status: ItemCampanhaCrm["status"]; contexto?: Record<string, unknown> }
+  ): Promise<ItemCampanhaCrm | null> {
+    const filtros: Prisma.ItemCampanhaCrmWhereInput[] = [];
+    if (identificador.itemId) filtros.push({ id: identificador.itemId });
+    if (identificador.outboxMensagemId) filtros.push({ outboxMensagemId: identificador.outboxMensagemId });
+    if (identificador.telefone) filtros.push({ telefone: identificador.telefone });
+    if (filtros.length === 0) return null;
+
+    const item = await this.prisma.itemCampanhaCrm.findFirst({
+      where: { campanhaId, negocioId, OR: filtros }
+    });
+    if (!item) return null;
+
+    const contexto = {
+      ...this.lerObjeto(item.contextoJson),
+      ...(dados.contexto ?? {})
+    };
+    const atualizado = await this.prisma.itemCampanhaCrm.update({
+      where: { id: item.id },
+      data: {
+        status: dados.status,
+        contextoJson: this.serializar(contexto)
+      }
+    });
+    return this.mapearItem(atualizado);
+  }
+
   private mapearCampanha(campanha: {
     id: string;
     negocioId: string;

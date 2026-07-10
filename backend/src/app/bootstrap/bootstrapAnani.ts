@@ -9,6 +9,7 @@ export interface AnaniContext {
   incidents: IncidentService;
   riskSnapshots: RiskSnapshotService;
   readModels: AnaniReadModelsService;
+  projectors: AnaniProjectorsService;
   policies: AnaniPolicyEngineService;
 }
 
@@ -36,6 +37,10 @@ export interface RiskSnapshotService {
 
 export interface AnaniReadModelsService {
   obter(): Promise<AnaniReadModelsResumo>;
+}
+
+export interface AnaniProjectorsService {
+  projectarReadModels(): Promise<AnaniReadModelsResumo>;
 }
 
 export interface EventoOutbox {
@@ -350,23 +355,97 @@ export function bootstrapAnani(
 
   const readModels: AnaniReadModelsService = {
     async obter() {
-      const desde30d = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-      const [teamHealth, marketSnapshot, securitySnapshot] = await Promise.all([
-        calcularTeamHealth(prisma, desde30d),
-        calcularMarketSnapshot(prisma, desde30d),
-        calcularSecuritySnapshot(prisma),
-      ]);
-
-      return {
-        atualizadoEm: new Date(),
-        teamHealth,
-        marketSnapshot,
-        securitySnapshot,
-      };
+      return (await carregarReadModelsProjetados(prisma)) ?? calcularReadModelsAtuais(prisma);
     },
   };
 
-  return { eventOutbox, quarantine, incidents, riskSnapshots, readModels, policies };
+  const projectors: AnaniProjectorsService = {
+    async projectarReadModels() {
+      const resumo = await calcularReadModelsAtuais(prisma);
+      await (prisma as any).eventOutbox.create({
+        data: {
+          tipo: "ANANI_READ_MODELS_PROJECTED",
+          sistema: "ANANI",
+          contexto: "anani-read-models",
+          aggregateType: "read-model",
+          aggregateId: "anani-control-plane",
+          payload: JSON.parse(JSON.stringify(resumo)),
+          metadata: {
+            projector: "anani-read-models-v1",
+            fonte: "calculo-consolidado"
+          },
+          status: "PROCESSED",
+          processadoEm: resumo.atualizadoEm
+        }
+      });
+      return resumo;
+    }
+  };
+
+  return { eventOutbox, quarantine, incidents, riskSnapshots, readModels, projectors, policies };
+}
+
+async function calcularReadModelsAtuais(prisma: PrismaClient): Promise<AnaniReadModelsResumo> {
+  const desde30d = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+  const [teamHealth, marketSnapshot, securitySnapshot] = await Promise.all([
+    calcularTeamHealth(prisma, desde30d),
+    calcularMarketSnapshot(prisma, desde30d),
+    calcularSecuritySnapshot(prisma),
+  ]);
+
+  return {
+    atualizadoEm: new Date(),
+    teamHealth,
+    marketSnapshot,
+    securitySnapshot,
+  };
+}
+
+async function carregarReadModelsProjetados(prisma: PrismaClient): Promise<AnaniReadModelsResumo | null> {
+  const evento = await (prisma as any).eventOutbox.findFirst({
+    where: {
+      tipo: "ANANI_READ_MODELS_PROJECTED",
+      sistema: "ANANI",
+      status: "PROCESSED"
+    },
+    orderBy: [
+      { processadoEm: "desc" },
+      { criadoEm: "desc" }
+    ],
+    select: { payload: true }
+  });
+
+  return evento?.payload ? hidratarReadModels(evento.payload) : null;
+}
+
+function hidratarReadModels(payload: unknown): AnaniReadModelsResumo | null {
+  if (!payload || typeof payload !== "object") return null;
+  const dados = payload as Record<string, any>;
+  if (!dados.teamHealth || !dados.marketSnapshot || !dados.securitySnapshot) return null;
+
+  return {
+    atualizadoEm: new Date(dados.atualizadoEm ?? Date.now()),
+    teamHealth: {
+      ...dados.teamHealth,
+      negociosEmAtencao: hidratarNegociosRisco(dados.teamHealth.negociosEmAtencao)
+    },
+    marketSnapshot: {
+      ...dados.marketSnapshot,
+      negociosEmAtencao: hidratarNegociosRisco(dados.marketSnapshot.negociosEmAtencao)
+    },
+    securitySnapshot: {
+      ...dados.securitySnapshot,
+      ultimoIncidenteEm: dados.securitySnapshot.ultimoIncidenteEm ? new Date(dados.securitySnapshot.ultimoIncidenteEm) : null
+    }
+  };
+}
+
+function hidratarNegociosRisco(valor: unknown): NegocioRiscoResumo[] {
+  if (!Array.isArray(valor)) return [];
+  return valor.map((item) => ({
+    ...item,
+    criadoEm: new Date(item.criadoEm)
+  }));
 }
 
 async function calcularTeamHealth(prisma: PrismaClient, desde30d: Date): Promise<TeamHealthReadModel> {

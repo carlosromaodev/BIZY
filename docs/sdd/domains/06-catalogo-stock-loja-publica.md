@@ -89,12 +89,12 @@ Catalogo, stock, variantes, loja publica, tracking, checkout e configuracao oper
 - [x] P0: checkout visual publico.
 - [x] P0: SEO publico e preview social.
 - [x] P0: aviso de privacidade/tracking publico.
-- [ ] P1: gestao visual de colecoes e categorias uteis.
+- [x] P1: gestao visual de colecoes e categorias uteis.
 - [ ] P2: dominio personalizado e catalogos avancados.
 
 ## 13. Testes e Verificacao
 
-- [ ] Testes de catalogo/stock.
+- [x] Testes de catalogo/stock.
 - [x] Testes de loja publica/tracking.
 - [x] Testes de checkout.
 - [x] Teste frontend de SEO/canonical publico.

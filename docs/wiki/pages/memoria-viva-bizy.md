@@ -355,13 +355,13 @@ P1 primeira operacao comercial:
 - perfil 360 completo na UI;
 - [x] criar pedido direto na conversa;
 - [x] envio binario real na conversa;
-- resultados de campanha por webhook;
-- gestao visual de colecoes;
-- revisao textual para vendedora;
-- templates WhatsApp por evento transacional;
-- tarefas/fallbacks estruturados para automacoes;
-- sequenciador pos-venda;
-- prioridade visual VIP/reclamacao/pendencia.
+- [x] resultados de campanha por webhook;
+- [x] gestao visual de colecoes;
+- [x] revisao textual para vendedora;
+- [x] templates WhatsApp por evento transacional;
+- [x] tarefas/fallbacks estruturados para automacoes;
+- [ ] sequenciador pos-venda;
+- [x] prioridade visual VIP/reclamacao/pendencia.
 
 ## Regras Para Trabalhar Neste Repo
 

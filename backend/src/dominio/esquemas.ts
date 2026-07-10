@@ -36,7 +36,8 @@ import {
   tiposMovimentoStock,
   tiposRelacaoNegocio,
   tiposParceiroComercial,
-  estadosRepasse
+  estadosRepasse,
+  statusItemCampanhaCrm
 } from "./tipos.js";
 import { categoriasMensagemWhatsApp } from "./provedores/ProvedorWhatsApp.js";
 
@@ -411,6 +412,19 @@ export const ConfirmarCampanhaSchema = z.object({
 export const PausarCampanhaSchema = z.object({
   motivo: z.string().trim().min(3).max(500)
 });
+
+export const RegistrarStatusCampanhaSchema = z
+  .object({
+    itemId: z.string().trim().min(1).max(120).optional(),
+    outboxMensagemId: z.string().trim().min(1).max(120).optional(),
+    telefone: z.string().trim().min(5).max(32).optional(),
+    status: z.enum(statusItemCampanhaCrm),
+    contexto: z.record(z.string(), z.unknown()).default({})
+  })
+  .refine(
+    (dados) => Boolean(dados.itemId || dados.outboxMensagemId || dados.telefone),
+    "Informe itemId, outboxMensagemId ou telefone para atualizar o status da campanha."
+  );
 
 export const RegistrarEventoOperacionalSchema = z.object({
   topico: z.string().trim().min(2).max(80),

@@ -172,6 +172,12 @@ export interface RepositorioCampanhas {
   atualizar(id: string, negocioId: string, dados: AtualizacaoCampanhaCrm): Promise<CampanhaCrm | null>;
   registrarItens(campanhaId: string, itens: NovoItemCampanhaCrm[]): Promise<ItemCampanhaCrm[]>;
   listarItens(campanhaId: string, negocioId: string): Promise<ItemCampanhaCrm[]>;
+  atualizarStatusItem(
+    campanhaId: string,
+    negocioId: string,
+    identificador: { itemId?: string; outboxMensagemId?: string; telefone?: string },
+    dados: { status: ItemCampanhaCrm["status"]; contexto?: Record<string, unknown> }
+  ): Promise<ItemCampanhaCrm | null>;
 }
 
 export interface RepositorioEventosOperacionais {

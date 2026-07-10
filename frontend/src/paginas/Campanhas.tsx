@@ -1,4 +1,6 @@
 import {
+  BarChart3,
+  Eye,
   Mail,
   MessageCircle,
   Pause,
@@ -28,7 +30,10 @@ import {
 import type {
   Campanha,
   EstadoCampanha,
+  MetricasCampanha,
   RespostaCampanhas,
+  RespostaResultadosCampanha,
+  StatusItemCampanha,
   WhatsAppTemplate,
   RespostaWhatsAppTemplates,
 } from "../tipos";
@@ -57,11 +62,69 @@ function rotuloEstado(estado: EstadoCampanha): string {
   return { RASCUNHO: "Rascunho", AGENDADA: "Agendada", EM_ENVIO: "Em envio", CONCLUIDA: "Concluída", PAUSADA: "Pausada", CANCELADA: "Cancelada" }[estado];
 }
 
+function obterMetricasCampanha(campanha: Campanha): MetricasCampanha {
+  return {
+    selecionados: campanha.metricas?.selecionados ?? campanha.totalDestinatarios ?? 0,
+    bloqueados: campanha.metricas?.bloqueados ?? 0,
+    enfileirados: campanha.metricas?.enfileirados ?? 0,
+    enviados: campanha.metricas?.enviados ?? campanha.enviados ?? 0,
+    entregues: campanha.metricas?.entregues ?? campanha.entregues ?? 0,
+    lidos: campanha.metricas?.lidos ?? campanha.lidos ?? 0,
+    respondidos: campanha.metricas?.respondidos ?? campanha.respostas ?? 0,
+    falhados: campanha.metricas?.falhados ?? campanha.erros ?? 0,
+    pedidosGerados: campanha.metricas?.pedidosGerados ?? 0,
+    receitaAtribuidaEmKwanza: campanha.metricas?.receitaAtribuidaEmKwanza ?? 0
+  };
+}
+
+function rotuloCanal(canal: string): string {
+  const normalizado = canal.toUpperCase();
+  if (normalizado === "WHATSAPP") return "WhatsApp";
+  return normalizado;
+}
+
+function corCanal(canal: string): "green" | "blue" | "violet" {
+  const normalizado = canal.toUpperCase();
+  if (normalizado === "WHATSAPP") return "green";
+  if (normalizado === "SMS") return "blue";
+  return "violet";
+}
+
+function corStatusItem(status: StatusItemCampanha): "green" | "amber" | "blue" | "rose" | "violet" | "mute" {
+  switch (status) {
+    case "CONVERTIDO": return "green";
+    case "ENTREGUE":
+    case "LIDO":
+    case "RESPONDIDO": return "blue";
+    case "ENFILEIRADO":
+    case "PENDENTE": return "amber";
+    case "FALHOU":
+    case "BLOQUEADO": return "rose";
+    case "ENVIADO": return "violet";
+  }
+}
+
+function rotuloStatusItem(status: StatusItemCampanha): string {
+  return {
+    PENDENTE: "Pendente",
+    BLOQUEADO: "Bloqueado",
+    ENFILEIRADO: "Enfileirado",
+    ENVIADO: "Enviado",
+    ENTREGUE: "Entregue",
+    LIDO: "Lido",
+    RESPONDIDO: "Respondido",
+    FALHOU: "Falhou",
+    CONVERTIDO: "Convertido"
+  }[status];
+}
+
 export function PaginaCampanhas() {
   const [campanhas, setCampanhas] = useState<Campanha[]>([]);
   const [templates, setTemplates] = useState<WhatsAppTemplate[]>([]);
   const [filtro, setFiltro] = useState<EstadoCampanha | "TODAS">("TODAS");
   const [carregando, setCarregando] = useState(true);
+  const [resultadoAtivo, setResultadoAtivo] = useState<RespostaResultadosCampanha | null>(null);
+  const [carregandoResultado, setCarregandoResultado] = useState("");
   const [abaAtiva, setAbaAtiva] = useState<"campanhas" | "templates">("campanhas");
 
   async function carregar() {
@@ -79,14 +142,24 @@ export function PaginaCampanhas() {
 
   useEffect(() => { void carregar(); }, []);
 
+  async function carregarResultados(campanha: Campanha) {
+    setCarregandoResultado(campanha.id);
+    try {
+      const resposta = await requisitarApi<RespostaResultadosCampanha>(`/campanhas/${campanha.id}/resultados`);
+      setResultadoAtivo(resposta);
+    } finally {
+      setCarregandoResultado("");
+    }
+  }
+
   const campanhasFiltradas = useMemo(() => {
     if (filtro === "TODAS") return campanhas;
     return campanhas.filter((c) => c.estado === filtro);
   }, [campanhas, filtro]);
 
-  const totalEnviados = campanhas.reduce((s, c) => s + c.enviados, 0);
-  const totalEntregues = campanhas.reduce((s, c) => s + c.entregues, 0);
-  const totalRespostas = campanhas.reduce((s, c) => s + c.respostas, 0);
+  const totalEnviados = campanhas.reduce((s, c) => s + obterMetricasCampanha(c).enviados, 0);
+  const totalEntregues = campanhas.reduce((s, c) => s + obterMetricasCampanha(c).entregues, 0);
+  const totalRespostas = campanhas.reduce((s, c) => s + obterMetricasCampanha(c).respondidos, 0);
   const taxaEntrega = totalEnviados > 0 ? Math.round((totalEntregues / totalEnviados) * 100) : 0;
 
   return (
@@ -165,16 +238,19 @@ export function PaginaCampanhas() {
                       </div>
                     </Td>
                     <Td>
-                      <StatusBadge cor={c.canal === "WHATSAPP" ? "green" : c.canal === "SMS" ? "blue" : "violet"}>
-                        {c.canal === "WHATSAPP" ? "WhatsApp" : c.canal}
+                      <StatusBadge cor={corCanal(c.canal)}>
+                        {rotuloCanal(c.canal)}
                       </StatusBadge>
                     </Td>
-                    <Td right><span className="bz-tnum">{c.enviados}</span></Td>
-                    <Td right><span className="bz-tnum">{c.entregues}</span></Td>
-                    <Td right><span className="bz-tnum">{c.respostas}</span></Td>
+                    <Td right><span className="bz-tnum">{obterMetricasCampanha(c).enviados}</span></Td>
+                    <Td right><span className="bz-tnum">{obterMetricasCampanha(c).entregues}</span></Td>
+                    <Td right><span className="bz-tnum">{obterMetricasCampanha(c).respondidos}</span></Td>
                     <Td><StatusBadge cor={corEstadoCampanha(c.estado)}>{rotuloEstado(c.estado)}</StatusBadge></Td>
                     <Td>
                       <div style={{ display: "flex", gap: 4 }}>
+                        <button type="button" className="bz-iconbtn" title="Resultados" onClick={() => void carregarResultados(c)} disabled={carregandoResultado === c.id}>
+                          <BarChart3 size={14} />
+                        </button>
                         {c.estado === "RASCUNHO" && (
                           <button type="button" className="bz-iconbtn" title="Confirmar" onClick={() => void requisitarApi(`/campanhas/${c.id}/confirmar`, { method: "POST" }).then(() => void carregar())}>
                             <Play size={14} />
@@ -198,6 +274,46 @@ export function PaginaCampanhas() {
               </tbody>
             </Table>
           </TableCard>
+
+          {resultadoAtivo && (
+            <TableCard
+              titulo={`Resultados · ${resultadoAtivo.campanha.nome}`}
+              descricao="Status de envio, respostas e conversões atribuídas por tracking/webhook."
+            >
+              <KpiGrid>
+                <KpiCard icone={Send} rotulo="Enfileirados" valor={resultadoAtivo.metricas.enfileirados} />
+                <KpiCard icone={Mail} cor="blue" rotulo="Entregues" valor={resultadoAtivo.metricas.entregues} />
+                <KpiCard icone={MessageCircle} cor="violet" rotulo="Respondidos" valor={resultadoAtivo.metricas.respondidos} />
+                <KpiCard icone={Eye} cor="green" rotulo="Pedidos gerados" valor={resultadoAtivo.metricas.pedidosGerados} delta={<Money valor={resultadoAtivo.metricas.receitaAtribuidaEmKwanza} />} deltaPositivo />
+              </KpiGrid>
+              <Table>
+                <TableHead>
+                  <Th>Destinatário</Th>
+                  <Th>Status</Th>
+                  <Th>Motivo</Th>
+                  <Th>Criado</Th>
+                </TableHead>
+                <tbody>
+                  {resultadoAtivo.itens.slice(0, 8).map((item) => (
+                    <tr key={item.id}>
+                      <Td>
+                        <div style={{ fontWeight: 600, fontSize: 13.5 }}>{item.nomeCliente ?? item.telefone ?? "Cliente"}</div>
+                        <div style={{ fontSize: 11.5, color: "var(--ink-3)", marginTop: 2 }}>{item.telefone ?? "Sem telefone"}</div>
+                      </Td>
+                      <Td><StatusBadge cor={corStatusItem(item.status)}>{rotuloStatusItem(item.status)}</StatusBadge></Td>
+                      <Td><span style={{ fontSize: 12 }}>{item.motivoBloqueio ?? "—"}</span></Td>
+                      <Td><span style={{ fontSize: 12 }}>{new Date(item.criadoEm).toLocaleDateString("pt-AO", { day: "2-digit", month: "short" })}</span></Td>
+                    </tr>
+                  ))}
+                  {resultadoAtivo.itens.length === 0 && (
+                    <tr>
+                      <td colSpan={4} className="bz-feed-empty">Sem destinatários registados para esta campanha.</td>
+                    </tr>
+                  )}
+                </tbody>
+              </Table>
+            </TableCard>
+          )}
         </>
       )}
 

@@ -92,21 +92,21 @@ Backend possui Cliente 360, atendimento, conversas, mensagens, notas, politica W
 ## 12. Lacunas
 
 - [x] P0: revisar privacidade/tracking publico ligado a cliente.
-- [ ] P1: Cliente 360 visual completo.
+- [x] P1: Cliente 360 visual completo.
 - [x] P1: envio binario real na conversa WhatsApp.
-- [ ] P1: prioridade visual para VIP, reclamacao e pagamento pendente.
+- [x] P1: prioridade visual para VIP, reclamacao e pagamento pendente.
 - [ ] P2: opt-out granular e sincronizacao completa de templates.
 
 ## 13. Testes e Verificacao
 
-- Testes HTTP de clientes e atendimento.
-- Testes de politica WhatsApp.
-- Testes de webhooks Evolution.
-- Testes frontend de conversas.
-- Testes de provider WhatsApp com media e storage privado de anexos.
+- [x] Testes HTTP de clientes e atendimento.
+- [x] Testes de politica WhatsApp.
+- [x] Testes de webhooks Evolution.
+- [x] Testes frontend de conversas.
+- [x] Testes de provider WhatsApp com media e storage privado de anexos.
 
 ## 14. Proximos Planos
 
-- [ ] Spec de Cliente 360 visual.
+- [x] Spec de Cliente 360 visual.
 - [x] Spec de envio binario WhatsApp.
 - [ ] Spec de opt-out granular.

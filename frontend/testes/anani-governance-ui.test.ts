@@ -17,6 +17,8 @@ describe("console interna Anani", () => {
     expect(app).toContain("requerGovernancaAnani && !usuarioPodeGovernarAnani");
     expect(app).toContain("rotasPrivadasOcultas.map");
     expect(pagina).toContain('"/governance/anani/read-models"');
+    expect(pagina).toContain('"/governance/anani/read-models/projectar"');
+    expect(pagina).toContain("projectarReadModels");
     expect(pagina).toContain("teamHealth");
     expect(pagina).toContain("marketSnapshot");
     expect(pagina).toContain("securitySnapshot");

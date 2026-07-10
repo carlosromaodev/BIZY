@@ -35,7 +35,7 @@ Team, Market e Learning continuam a ser os sistemas usados pelos clientes. Anani
 
 - [x] Data Plane inicial: event outbox e snapshots.
 - [x] Read models iniciais: `TeamHealth`, `MarketSnapshot` e `SecuritySnapshot`.
-- [ ] Data Plane completo: projectors duraveis e read models consolidados sem recalculo por consulta.
+- [x] Data Plane completo: projectors duraveis e read models consolidados sem recalculo por consulta.
 - [ ] Cognition Plane: Claude/GPT com contexto sanitizado.
 - [x] Control Plane inicial: `PolicyEngine` e skill registry.
 - [ ] Control Plane completo: `ActionGateway`, quotas e circuit breaker.

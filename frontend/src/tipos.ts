@@ -794,22 +794,70 @@ export interface Campanha {
   id: string;
   nome: string;
   estado: EstadoCampanha;
-  canal: "WHATSAPP" | "SMS" | "EMAIL";
-  segmentoId: string | null;
+  canal: string;
+  objetivo?: string;
+  categoria?: string;
+  segmentoId?: string | null;
   templateId: string | null;
-  totalDestinatarios: number;
-  enviados: number;
-  entregues: number;
-  lidos: number;
-  respostas: number;
-  erros: number;
-  agendadaPara: string | null;
+  totalDestinatarios?: number;
+  enviados?: number;
+  entregues?: number;
+  lidos?: number;
+  respostas?: number;
+  erros?: number;
+  metricas?: MetricasCampanha;
+  agendadaPara?: string | null;
+  janelaInicio?: string | null;
+  janelaFim?: string | null;
   criadaEm: string;
   atualizadaEm: string;
 }
 
 export interface RespostaCampanhas {
   campanhas: Campanha[];
+}
+
+export type StatusItemCampanha =
+  | "PENDENTE"
+  | "BLOQUEADO"
+  | "ENFILEIRADO"
+  | "ENVIADO"
+  | "ENTREGUE"
+  | "LIDO"
+  | "RESPONDIDO"
+  | "FALHOU"
+  | "CONVERTIDO";
+
+export interface MetricasCampanha {
+  selecionados: number;
+  bloqueados: number;
+  enfileirados: number;
+  enviados: number;
+  entregues: number;
+  lidos: number;
+  respondidos: number;
+  falhados: number;
+  pedidosGerados: number;
+  receitaAtribuidaEmKwanza: number;
+}
+
+export interface ItemCampanha {
+  id: string;
+  clienteId: string | null;
+  telefone: string | null;
+  nomeCliente: string | null;
+  status: StatusItemCampanha;
+  motivoBloqueio: string | null;
+  outboxMensagemId: string | null;
+  contexto: Record<string, unknown>;
+  criadoEm: string;
+  atualizadoEm: string;
+}
+
+export interface RespostaResultadosCampanha {
+  campanha: Campanha;
+  itens: ItemCampanha[];
+  metricas: MetricasCampanha;
 }
 
 export interface WhatsAppTemplate {

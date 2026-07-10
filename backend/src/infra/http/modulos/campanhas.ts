@@ -8,6 +8,7 @@ import {
   FiltrosEventosOperacionaisQuerySchema,
   PausarCampanhaSchema,
   ParamIdSchema,
+  RegistrarStatusCampanhaSchema,
   RegistrarEventoOperacionalSchema,
   CriarJobExportacaoClientesSchema,
   CriarJobExportacaoProdutosSchema,
@@ -149,6 +150,21 @@ export const moduloCampanhas: ModuloHttp = {
 
       const { id } = ParamIdSchema.parse(request.params);
       return contexto.gestaoCampanhasCrm.obterResultados(id, contextoComercial.negocio.id);
+    });
+
+    app.post("/campanhas/:id/status", async (request, reply) => {
+      const contextoComercial = await exigirAcessoComercial(contexto, request, reply, {
+        permissao: "campanhas:gerir",
+        modulo: "campanhas",
+        mensagemPermissao: "Sem permissão para atualizar status de campanhas.",
+        mensagemModulo: "Campanhas desativadas para este negócio."
+      });
+      if (!contextoComercial) return;
+
+      const { id } = ParamIdSchema.parse(request.params);
+      const dados = RegistrarStatusCampanhaSchema.parse(request.body ?? {});
+      const resultado = await contexto.gestaoCampanhasCrm.registrarStatusItem(id, contextoComercial.negocio.id, dados);
+      return { resultado };
     });
 
     app.get("/negocio/papeis", async (request, reply) => {

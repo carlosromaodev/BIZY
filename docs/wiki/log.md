@@ -11,6 +11,14 @@ updated: 2026-07-10
 
 # Log da Wiki
 
+## [2026-07-10] P1 | Cliente 360, campanhas, colecoes e Anani projector
+
+- [x] Cliente 360 ganhou sinais operacionais no frontend para VIP, reclamacao, prioridade alta e pagamento pendente.
+- [x] Campanhas ganharam registro de status por item em `POST /campanhas/:id/status` e painel frontend de resultados por status/tracking.
+- [x] Anani ganhou projector duravel em `/governance/anani/read-models/projectar`, persistindo `ANANI_READ_MODELS_PROJECTED` no `EventOutbox`.
+- [x] Colecoes/catalogo, templates WhatsApp, tarefas humanas de fallback e workflow foram revalidados por testes focados.
+- [x] Roadmap SDD e wiki foram atualizados com `[x]` para itens fechados e `[ ]` para sequenciador, Learning, opt-out granular, insights/notificacoes e audit trail/aprovacoes.
+
 ## [2026-07-10] atendimento | Envio binario real na conversa WhatsApp
 
 - [x] Backend passou a aceitar anexo por `mediaDataUrl`/`mediaUrl` em `/atendimento/conversas/:id/mensagens`.

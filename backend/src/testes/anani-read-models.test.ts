@@ -46,6 +46,76 @@ describe("Anani read models", () => {
       })
     );
   });
+
+  it("projecta read models e reutiliza a projeção durável mais recente", async () => {
+    const prisma = criarPrismaFake();
+    const anani = bootstrapAnani(prisma as never, new DespachadorEventos(), { info: vi.fn(), warn: vi.fn() } as never);
+
+    const projetado = await anani.projectors.projectarReadModels();
+
+    expect(projetado.teamHealth.tarefasAbertas).toBe(4);
+    expect(prisma.eventOutbox.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          tipo: "ANANI_READ_MODELS_PROJECTED",
+          sistema: "ANANI",
+          contexto: "anani-read-models",
+          status: "PROCESSED",
+          payload: expect.objectContaining({
+            teamHealth: expect.objectContaining({ tarefasAbertas: 4 }),
+            marketSnapshot: expect.objectContaining({ lojasPublicadas: 2 }),
+            securitySnapshot: expect.objectContaining({ incidentesAbertos: 2 })
+          })
+        })
+      })
+    );
+
+    prisma.eventOutbox.findFirst.mockResolvedValueOnce({
+      payload: {
+        atualizadoEm: "2026-07-10T14:00:00.000Z",
+        teamHealth: {
+          negociosMonitorados: 1,
+          tarefasAbertas: 99,
+          tarefasCriticas: 0,
+          conversasAbertas: 1,
+          pedidosPendentes: 0,
+          riscoMedio: 0.1,
+          trustMedio: 0.95,
+          negociosEmAtencao: [
+            { negocioId: "neg-projetado", nomeComercial: "Loja Projetada", riskScore: 0.1, trustScore: 0.95, criadoEm: "2026-07-10T13:59:00.000Z" }
+          ],
+          sinais: ["operacao_team_estavel"]
+        },
+        marketSnapshot: {
+          lojasPublicadas: 3,
+          produtosAtivos: 12,
+          produtosSemStock: 0,
+          pedidos30d: 7,
+          receita30dEmKwanza: 20000,
+          negociosMonitorados: 1,
+          riscoMedio: 0.1,
+          trustMedio: 0.95,
+          negociosEmAtencao: [],
+          sinais: ["market_estavel"]
+        },
+        securitySnapshot: {
+          incidentesAbertos: 0,
+          incidentesCriticos: 0,
+          quarentenasAbertas: 0,
+          quarentenasCriticas: 0,
+          eventosPendentes: 0,
+          eventosFalhados: 0,
+          ultimoIncidenteEm: null,
+          sinais: ["seguranca_estavel"]
+        }
+      }
+    });
+
+    const reutilizado = await anani.readModels.obter();
+
+    expect(reutilizado.teamHealth.tarefasAbertas).toBe(99);
+    expect(reutilizado.teamHealth.negociosEmAtencao[0].criadoEm).toBeInstanceOf(Date);
+  });
 });
 
 function criarPrismaFake() {
@@ -101,6 +171,7 @@ function criarPrismaFake() {
     eventOutbox: {
       count: vi.fn(async (args?: { where?: { status?: string } }) => args?.where?.status === "FAILED" ? 2 : 7),
       create: vi.fn(),
+      findFirst: vi.fn(async (): Promise<unknown> => null),
       findMany: vi.fn(),
       update: vi.fn()
     }

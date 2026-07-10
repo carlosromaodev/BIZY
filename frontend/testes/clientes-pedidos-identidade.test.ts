@@ -27,6 +27,7 @@ describe("identidade do cliente entre live, clientes e pedidos", () => {
   it("declara e apresenta os dados 360 capturados na aba Clientes", () => {
     const tipos = source("src/tipos.ts");
     const clientes = source("src/paginas/Clientes.tsx");
+    const resumoAtendimento = source("src/componentes/atendimento/ResumoClienteCartao.tsx");
 
     expect(tipos).toContain("perfil360: Record<string, unknown>");
     expect(tipos).toContain("identidadesDigitais: Record<string, unknown>");
@@ -40,6 +41,12 @@ describe("identidade do cliente entre live, clientes e pedidos", () => {
     expect(clientes).toContain("Sinais sociais");
     expect(clientes).toContain("Dados de captura");
     expect(clientes).toContain("renderizarObjetoResumo");
+    expect(clientes).toContain("Prioridade operacional");
+    expect(clientes).toContain("obterSinaisOperacionaisCliente");
+    expect(clientes).toContain("Pagamento pendente");
+    expect(clientes).toContain("Reclamação");
+    expect(resumoAtendimento).toContain("obterSinaisOperacionais");
+    expect(resumoAtendimento).toContain("Pagamento pendente");
   });
 
   it("consome paginação padronizada do backend na aba Clientes", () => {

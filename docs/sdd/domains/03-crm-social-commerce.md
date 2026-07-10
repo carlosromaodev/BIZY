@@ -88,20 +88,20 @@ Backend CRM+ e amplo. Frontend tem paginas para painel, pedidos, clientes, conve
 ## 12. Lacunas
 
 - [x] P0: paginacao padronizada.
-- [ ] P1: Cliente 360 mais polido.
+- [x] P1: Cliente 360 mais polido.
 - [x] P1: pedido direto na conversa.
-- [ ] P1: prioridade visual.
+- [x] P1: prioridade visual.
 - [ ] P2: pipeline completo, playbooks visuais e relatorios avancados.
 
 ## 13. Testes e Verificacao
 
-- [ ] Testes HTTP de clientes, pedidos e tarefas.
+- [x] Testes HTTP de clientes, pedidos e tarefas.
 - Testes de isolamento multi-tenant.
 - Testes frontend de navegacao CRM.
 - Testes de relatorios comerciais.
 
 ## 14. Proximos Planos
 
-- Spec de Cliente 360 visual.
-- Spec de pedido contextual na conversa.
-- Spec de paginacao CRM.
+- [x] Spec de Cliente 360 visual.
+- [x] Spec de pedido contextual na conversa.
+- [x] Spec de paginacao CRM.

@@ -82,21 +82,21 @@ Links: [[mapa-de-modulos-bizy#Loja Publica, Checkout e Tracking]], [[inventario-
 
 P1 melhora a operacao diaria logo apos o lancamento inicial.
 
-- Kanban/lista visual de funil de pedidos.
-- Perfil Cliente 360 completo na UI.
-- ~~Criar pedido diretamente na conversa.~~
-- ~~Envio real de imagem/documento pelo provider WhatsApp.~~
-- Resultado de campanha atualizado por webhook/status.
-- Gestao visual de colecoes.
-- Categorias ocultas se nao tiverem uso real.
-- Revisao textual para vendedora nao tecnica.
-- Templates WhatsApp por evento transacional.
-- Tarefas automaticas para falhas de automacao.
-- Fallback estruturado em mensagens.
-- Sequenciador pos-venda.
-- Lista de clientes com WhatsApp e ultimo pedido.
-- Aliases sociais completos.
-- Prioridade visual para VIP, reclamacao e pagamento pendente.
+- [ ] Kanban/lista visual de funil de pedidos.
+- [x] Perfil Cliente 360 completo na UI.
+- [x] Criar pedido diretamente na conversa.
+- [x] Envio real de imagem/documento pelo provider WhatsApp.
+- [x] Resultado de campanha atualizado por webhook/status.
+- [x] Gestao visual de colecoes.
+- [x] Categorias ocultas se nao tiverem uso real.
+- [x] Revisao textual para vendedora nao tecnica.
+- [x] Templates WhatsApp por evento transacional.
+- [x] Tarefas automaticas para falhas de automacao.
+- [x] Fallback estruturado em mensagens.
+- [ ] Sequenciador pos-venda.
+- [x] Lista de clientes com WhatsApp e ultimo pedido.
+- [x] Aliases sociais completos.
+- [x] Prioridade visual para VIP, reclamacao e pagamento pendente.
 
 ## P2 Evolucao Pos-Lancamento
 
@@ -137,7 +137,7 @@ P2 deve ser guiado por feedback real.
 ## Sequencia Recomendada
 
 1. **Sprint P0:** fechado no roadmap atual.
-2. **Sprint P1:** perfil Cliente 360 polido, colecoes visuais, templates WhatsApp e projectors duraveis da Anani.
+2. **Sprint P1:** fechado para Cliente 360 polido, colecoes visuais, templates WhatsApp, resultados de campanhas e projectors duraveis da Anani; seguem abertos kanban de funil, sequenciador pos-venda e P2 por feedback.
 3. **P2 por feedback:** ligacao backend completa das paginas CRM novas (pipeline, agenda, metas, cotacoes, respostas rapidas, notas, formularios, sequencias), afiliados portal, social oficial, bus unificado.
 
 ## Como Usar Esta Nota

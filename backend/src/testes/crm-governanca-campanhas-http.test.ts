@@ -294,6 +294,41 @@ describe("CRM+ governança, campanhas, eventos e jobs", () => {
         })
       );
 
+      const itemEnfileirado = resultados.json().itens.find((item: { status: string }) => item.status === "ENFILEIRADO");
+      expect(itemEnfileirado).toBeTruthy();
+
+      const statusWebhook = await app.inject({
+        method: "POST",
+        url: `/campanhas/${campanha.json().campanha.id}/status`,
+        headers,
+        payload: {
+          itemId: itemEnfileirado.id,
+          status: "ENTREGUE",
+          contexto: {
+            providerMessageId: "wamid.campanha.vip.1",
+            origem: "webhook-status"
+          }
+        }
+      });
+      expect(statusWebhook.statusCode).toBe(200);
+      expect(statusWebhook.json().resultado.item).toEqual(
+        expect.objectContaining({
+          id: itemEnfileirado.id,
+          status: "ENTREGUE",
+          contexto: expect.objectContaining({
+            providerMessageId: "wamid.campanha.vip.1"
+          })
+        })
+      );
+      expect(statusWebhook.json().resultado.metricas).toEqual(
+        expect.objectContaining({
+          entregues: 1,
+          enfileirados: 0,
+          pedidosGerados: 1,
+          receitaAtribuidaEmKwanza: 37000
+        })
+      );
+
       const pausa = await app.inject({
         method: "POST",
         url: `/campanhas/${campanha.json().campanha.id}/pausar`,

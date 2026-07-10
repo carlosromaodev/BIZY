@@ -43,6 +43,30 @@ function formatarTempoRelativo(data: string | null): string {
   return new Date(data).toLocaleDateString("pt-AO", { day: "numeric", month: "short" });
 }
 
+function obterSinaisOperacionais(cliente: Cliente360): Array<{ id: string; rotulo: string; variante: "default" | "warning" | "destructive" | "secondary" }> {
+  const tags = cliente.tags.map((tag) => tag.toLowerCase());
+  const sinais: Array<{ id: string; rotulo: string; variante: "default" | "warning" | "destructive" | "secondary" }> = [];
+
+  if (cliente.estadoRelacionamento === "VIP" || tags.includes("vip")) {
+    sinais.push({ id: "vip", rotulo: "VIP", variante: "default" });
+  }
+  if (tags.some((tag) => tag.includes("reclam") || tag.includes("queixa"))) {
+    sinais.push({ id: "reclamacao", rotulo: "Reclamação", variante: "destructive" });
+  }
+  if (
+    cliente.estadoRelacionamento === "INADIMPLENTE" ||
+    cliente.metricas.reservasAtivas > 0 ||
+    tags.some((tag) => tag.includes("pagamento") || tag.includes("cobranca") || tag.includes("cobrança"))
+  ) {
+    sinais.push({ id: "pagamento", rotulo: "Pagamento pendente", variante: "warning" });
+  }
+  if (cliente.estadoRelacionamento === "PRIORIDADE_ALTA") {
+    sinais.push({ id: "prioridade", rotulo: "Prioridade alta", variante: "warning" });
+  }
+
+  return sinais;
+}
+
 export function ResumoClienteCartao({
   cliente,
   className
@@ -52,6 +76,7 @@ export function ResumoClienteCartao({
 }) {
   const [expandido, setExpandido] = useState(true);
   const emRisco = cliente.estadoRelacionamento === "INADIMPLENTE" || cliente.estadoRelacionamento === "BLOQUEADO";
+  const sinais = obterSinaisOperacionais(cliente);
 
   return (
     <div className={`atendimento-resumo-cliente ${className ?? ""}`}>
@@ -112,6 +137,14 @@ export function ResumoClienteCartao({
             <p className="text-[0.65rem] text-muted-foreground mt-1">
               Última interação: {formatarTempoRelativo(cliente.metricas.ultimaInteracaoEm)}
             </p>
+
+            {sinais.length > 0 && (
+              <div className="flex flex-wrap gap-1 mt-2">
+                {sinais.map((sinal) => (
+                  <Badge key={sinal.id} variant={sinal.variante} className="text-[0.55rem]">{sinal.rotulo}</Badge>
+                ))}
+              </div>
+            )}
 
             {emRisco && (
               <div className="flex items-center gap-1.5 mt-2 rounded-lg bg-destructive/10 border border-destructive/20 px-2.5 py-1.5 text-xs text-destructive">

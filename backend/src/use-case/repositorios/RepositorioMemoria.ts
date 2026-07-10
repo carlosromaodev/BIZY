@@ -685,6 +685,34 @@ export class RepositorioCampanhasMemoria implements RepositorioCampanhas {
       .filter((item) => item.campanhaId === campanhaId && item.negocioId === negocioId)
       .sort((a, b) => a.criadoEm.getTime() - b.criadoEm.getTime());
   }
+
+  async atualizarStatusItem(
+    campanhaId: string,
+    negocioId: string,
+    identificador: { itemId?: string; outboxMensagemId?: string; telefone?: string },
+    dados: { status: ItemCampanhaCrm["status"]; contexto?: Record<string, unknown> }
+  ): Promise<ItemCampanhaCrm | null> {
+    const item = [...this.itens.values()].find((registro) => {
+      if (registro.campanhaId !== campanhaId || registro.negocioId !== negocioId) return false;
+      if (identificador.itemId && registro.id === identificador.itemId) return true;
+      if (identificador.outboxMensagemId && registro.outboxMensagemId === identificador.outboxMensagemId) return true;
+      if (identificador.telefone && registro.telefone === identificador.telefone) return true;
+      return false;
+    });
+    if (!item) return null;
+
+    const atualizado: ItemCampanhaCrm = {
+      ...item,
+      status: dados.status,
+      contexto: {
+        ...item.contexto,
+        ...(dados.contexto ?? {})
+      },
+      atualizadoEm: new Date()
+    };
+    this.itens.set(atualizado.id, atualizado);
+    return atualizado;
+  }
 }
 
 export class RepositorioEventosOperacionaisMemoria implements RepositorioEventosOperacionais {

@@ -72,6 +72,22 @@ describe("Anani Governance HTTP", () => {
           securitySnapshot: expect.objectContaining({ incidentesAbertos: 0, eventosFalhados: 0 })
         })
       );
+
+      const projecao = await app.inject({
+        method: "POST",
+        url: "/governance/anani/read-models/projectar",
+        headers: { authorization: "Bearer token-governante" }
+      });
+
+      expect(projecao.statusCode).toBe(202);
+      expect(projecao.headers["cache-control"]).toBe("no-store");
+      expect(projecao.json()).toEqual(
+        expect.objectContaining({
+          teamHealth: expect.objectContaining({ tarefasAbertas: 2 }),
+          marketSnapshot: expect.objectContaining({ lojasPublicadas: 1 }),
+          securitySnapshot: expect.objectContaining({ incidentesAbertos: 0 })
+        })
+      );
     } finally {
       await app.close();
     }
@@ -143,6 +159,44 @@ function criarContextoAnani(papel: string): ContextoAplicacao {
       readModels: {
         obter: vi.fn().mockResolvedValue({
           atualizadoEm: new Date("2026-07-10T00:00:00.000Z"),
+          teamHealth: {
+            negociosMonitorados: 1,
+            tarefasAbertas: 2,
+            tarefasCriticas: 1,
+            conversasAbertas: 3,
+            pedidosPendentes: 4,
+            riscoMedio: 0.7,
+            trustMedio: 0.6,
+            negociosEmAtencao: [],
+            sinais: ["tarefas_criticas_abertas"]
+          },
+          marketSnapshot: {
+            lojasPublicadas: 1,
+            produtosAtivos: 8,
+            produtosSemStock: 0,
+            pedidos30d: 5,
+            receita30dEmKwanza: 10000,
+            negociosMonitorados: 1,
+            riscoMedio: 0.2,
+            trustMedio: 0.9,
+            negociosEmAtencao: [],
+            sinais: ["market_estavel"]
+          },
+          securitySnapshot: {
+            incidentesAbertos: 0,
+            incidentesCriticos: 0,
+            quarentenasAbertas: 0,
+            quarentenasCriticas: 0,
+            eventosPendentes: 0,
+            eventosFalhados: 0,
+            ultimoIncidenteEm: null,
+            sinais: ["seguranca_estavel"]
+          }
+        })
+      },
+      projectors: {
+        projectarReadModels: vi.fn().mockResolvedValue({
+          atualizadoEm: new Date("2026-07-10T00:05:00.000Z"),
           teamHealth: {
             negociosMonitorados: 1,
             tarefasAbertas: 2,

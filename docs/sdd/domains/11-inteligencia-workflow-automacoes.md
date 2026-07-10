@@ -119,14 +119,14 @@ Integracoes: n8n, OpenRouter/IA, WhatsApp, jobs internos.
 
 ## 11. Estado Atual
 
-Backend possui n8n, outbox, IA assistiva, inteligencia preditiva, workflow e notificacoes em evolucao. Em 2026-07-09 ganhou a primeira fronteira interna Anani: policy engine, skill registry, bootstrap, rotas de governanca, migration e tabelas de outbox/risco/quarentena/incidentes. Em 2026-07-10 ganhou read models iniciais `TeamHealth`, `MarketSnapshot` e `SecuritySnapshot` em `/governance/anani/read-models`. Frontend possui pagina Inteligencia, Sequencias e uma Governance Console interna inicial em `/app/governance/anani`, oculta da navegacao comercial.
+Backend possui n8n, outbox, IA assistiva, inteligencia preditiva, workflow e notificacoes em evolucao. Em 2026-07-09 ganhou a primeira fronteira interna Anani: policy engine, skill registry, bootstrap, rotas de governanca, migration e tabelas de outbox/risco/quarentena/incidentes. Em 2026-07-10 ganhou read models iniciais `TeamHealth`, `MarketSnapshot` e `SecuritySnapshot` em `/governance/anani/read-models` e projector duravel em `/governance/anani/read-models/projectar`. Frontend possui pagina Inteligencia, Sequencias e uma Governance Console interna inicial em `/app/governance/anani`, oculta da navegacao comercial.
 
 ## 12. Lacunas
 
 - [x] P0: manter Anani restrito a governanca e fora de tenant.
 - [x] P0: tarefas humanas para falhas criticas de automacao.
 - [x] P1: read models reais iniciais de TeamHealth, MarketSnapshot e SecuritySnapshot.
-- [ ] P1: projectors duraveis/event-driven para manter read models consolidados sem recalculo sob demanda.
+- [x] P1: projectors duraveis/event-driven para manter read models consolidados sem recalculo sob demanda.
 - [ ] P1: insights contextuais melhores e notificacoes WhatsApp configuraveis.
 - [ ] P2: explicabilidade avancada, motor de recomendacao, ActionGateway real e automacoes cross-domain.
 
@@ -141,6 +141,7 @@ Backend possui n8n, outbox, IA assistiva, inteligencia preditiva, workflow e not
 - [x] Testes da guarda Anani por papel de plataforma.
 - [x] Testes HTTP completos das rotas `/governance/anani/*` com papel `GOVERNANTE_BIZY`.
 - [x] Teste unitario dos read models Anani.
+- [x] Teste unitario do projector duravel Anani.
 - [x] Teste frontend da Governance Console Anani.
 
 ## 14. Proximos Planos
@@ -149,5 +150,5 @@ Backend possui n8n, outbox, IA assistiva, inteligencia preditiva, workflow e not
 - [ ] Spec de explicabilidade de insights.
 - [ ] Spec de workflow cross-domain.
 - [x] Spec de read models Anani e Governance Console inicial.
-- [ ] Spec de projectors duraveis Anani.
+- [x] Spec de projectors duraveis Anani.
 - [ ] Spec de Governance Console Anani completa com audit trail e aprovacoes.
