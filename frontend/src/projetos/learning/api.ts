@@ -36,6 +36,9 @@ export type MotivoModeracaoLearning =
 export type SeveridadeModeracaoLearning = "BAIXA" | "MEDIA" | "ALTA" | "CRITICA";
 export type EstadoCasoModeracaoLearning = "ABERTO" | "EM_REVISAO" | "OCULTO_TEMPORARIAMENTE" | "RESOLVIDO" | "REJEITADO";
 export type AcaoModeracaoLearning = "COLOCAR_EM_REVISAO" | "OCULTAR_TEMPORARIAMENTE" | "RESOLVER" | "REJEITAR" | "REABRIR";
+export type VerboExperienciaLearning = "EXPERIENCED" | "COMPLETED" | "PASSED" | "FAILED" | "VIEWED" | "DOWNLOADED";
+export type ObjetoExperienciaLearning = "PROGRAMA" | "LICAO" | "QUIZ" | "CERTIFICADO" | "COHORT" | "COMUNIDADE";
+export type OrigemExperienciaLearning = "PLAYER" | "TEAM" | "API";
 
 export interface PerfilLearning {
   codigo: string;
@@ -230,6 +233,112 @@ export interface CertificadoLearning {
   emitidoEm: string;
   validadeAte?: string | null;
   estado: "VALIDO" | "REVOGADO";
+  revogadoEm?: string | null;
+  motivoRevogacao?: string | null;
+  badge?: {
+    issuer: string;
+    criteria: string;
+    evidence: string;
+    achievementType: "CERTIFICATE" | "BADGE";
+    version: string;
+  } | null;
+  verificacao?: {
+    metodo: "CODIGO";
+    codigo: string;
+    url: string;
+  } | null;
+}
+
+export interface CertificadoPublicoLearning {
+  codigoVerificacao: string;
+  programaSlug: string;
+  negocioId: string;
+  emitidoEm: string;
+  validadeAte: string | null;
+  estado: "VALIDO" | "REVOGADO";
+  revogadoEm: string | null;
+  titularHash: string;
+  badge: {
+    issuer: string;
+    criteria: string;
+    achievementType: "CERTIFICATE" | "BADGE";
+    version: string;
+  } | null;
+}
+
+export interface ExportacaoCertificadoLearning {
+  formato: "bizy.learning.certificate.export.v1";
+  exportadoEm: string;
+  certificado: CertificadoLearning;
+  badge: {
+    formato: "open-badges-lite.v1";
+    id: string;
+    type: string[];
+    issuer: string;
+    issuanceDate: string;
+    expirationDate: string | null;
+    credentialSubject: {
+      id: string;
+      achievement: {
+        id: string;
+        type: string;
+        criteria: string;
+      };
+    };
+    evidence: string | null;
+    credentialStatus: {
+      type: string;
+      status: string;
+      revokedAt: string | null;
+    };
+    verification: {
+      type: string;
+      code: string;
+      publicUrl: string;
+    };
+  };
+  verificacao: {
+    valido: boolean;
+    verificadoEm: string;
+  };
+  reprocessamento: {
+    negocioId: string;
+    usuarioId: string;
+    programaSlug: string;
+    codigoVerificacao: string;
+    estado: string;
+    eventoFonte: string;
+  };
+  auditoria: {
+    hash: string;
+    algoritmo: "sha256";
+    preservaEventoOriginal: boolean;
+  };
+}
+
+export interface EventoExperienciaLearning {
+  id: string;
+  negocioId: string;
+  usuarioId: string;
+  programaSlug: string;
+  verbo: VerboExperienciaLearning;
+  objetoTipo: ObjetoExperienciaLearning;
+  objetoId: string;
+  origem: OrigemExperienciaLearning;
+  resultado: Record<string, unknown>;
+  contexto: Record<string, unknown>;
+  criadoEm: string;
+}
+
+export interface PlayerProgramaLearning {
+  programa: ProgramaLearning;
+  entitlement: EntitlementLearning | null;
+  progresso: ProgressoLearning;
+  seguranca: {
+    cache: "no-store";
+    conteudoPremiumProtegido: boolean;
+    acessoValidadoEm: string;
+  };
 }
 
 export interface AtribuicaoLearning {
@@ -699,6 +808,83 @@ export function obterAcessosLearning(): Promise<{ compras: CompraLearning[]; ent
 
 export function emitirCertificadoLearning(slug: string): Promise<{ certificado: CertificadoLearning; duplicado: boolean }> {
   return requisitarApi(`/learning/programas/${encodeURIComponent(slug)}/certificado`, { method: "POST" });
+}
+
+export function verificarCertificadoPublicoLearning(
+  negocioId: string,
+  codigo: string
+): Promise<{ certificado: CertificadoPublicoLearning; verificacao: { valido: boolean; verificadoEm: string } }> {
+  return requisitarApi(
+    `/publico/learning/certificados/${encodeURIComponent(negocioId)}/${encodeURIComponent(codigo)}`,
+    {},
+    false
+  );
+}
+
+export function obterPlayerProgramaLearning(slug: string): Promise<PlayerProgramaLearning> {
+  return requisitarApi(`/learning/player/programas/${encodeURIComponent(slug)}`);
+}
+
+export function registrarExperienciaLearning(dados: {
+  programaSlug: string;
+  verbo?: VerboExperienciaLearning;
+  objetoTipo?: ObjetoExperienciaLearning;
+  objetoId?: string | null;
+  origem?: OrigemExperienciaLearning;
+  resultado?: Record<string, unknown>;
+  contexto?: Record<string, unknown>;
+  idempotencyKey?: string | null;
+}): Promise<{ experiencia: EventoExperienciaLearning; duplicado: boolean }> {
+  return requisitarApi("/learning/team/experiencias", {
+    method: "POST",
+    body: dados
+  });
+}
+
+export function registrarEventoPlayerLearning(dados: {
+  programaSlug: string;
+  verbo?: VerboExperienciaLearning;
+  objetoTipo?: ObjetoExperienciaLearning;
+  objetoId?: string | null;
+  resultado?: Record<string, unknown>;
+  contexto?: Record<string, unknown>;
+  idempotencyKey?: string | null;
+}): Promise<{ experiencia: EventoExperienciaLearning; duplicado: boolean }> {
+  return requisitarApi("/learning/player/eventos", {
+    method: "POST",
+    body: dados
+  });
+}
+
+export function listarExperienciasLearning(filtros?: {
+  programaSlug?: string;
+  usuarioId?: string;
+  limite?: number;
+}): Promise<{ experiencias: EventoExperienciaLearning[] }> {
+  const params = new URLSearchParams();
+  if (filtros?.programaSlug) params.set("programaSlug", filtros.programaSlug);
+  if (filtros?.usuarioId) params.set("usuarioId", filtros.usuarioId);
+  if (filtros?.limite) params.set("limite", String(filtros.limite));
+  const query = params.toString();
+  return requisitarApi(`/learning/team/experiencias${query ? `?${query}` : ""}`);
+}
+
+export function obterCertificadoLearning(codigo: string): Promise<{ certificado: CertificadoLearning }> {
+  return requisitarApi(`/learning/team/certificados/${encodeURIComponent(codigo)}`);
+}
+
+export function exportarCertificadoLearning(codigo: string): Promise<ExportacaoCertificadoLearning> {
+  return requisitarApi(`/learning/team/certificados/${encodeURIComponent(codigo)}/exportar`);
+}
+
+export function revogarCertificadoLearning(
+  codigo: string,
+  motivo: string
+): Promise<{ certificado: CertificadoLearning; duplicado: boolean }> {
+  return requisitarApi(`/learning/team/certificados/${encodeURIComponent(codigo)}/revogar`, {
+    method: "POST",
+    body: { motivo }
+  });
 }
 
 export function revogarEntitlementLearning(id: string, motivo: string): Promise<{ entitlement: EntitlementLearning }> {

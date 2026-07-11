@@ -5,6 +5,7 @@ import { exigirAcessoComercial } from "../../../../infra/http/contextoComercial.
 import type { ModuloHttp } from "../../../../infra/http/modulos/ModuloHttp.js";
 
 const ParamCompraIdSchema = z.object({ compraId: z.string().trim().min(1) });
+const TOPICO_MARKET = "bizy.market";
 
 const CriarCompraUnificadaSchema = z.object({
   idempotencyKey: z.string().trim().min(3).max(240).nullable().optional().transform((valor) => valor ?? null),
@@ -120,6 +121,54 @@ export const moduloCheckoutUnificado: ModuloHttp = {
         ...dados,
         itens: itensResolvidos
       });
+      await Promise.all(resultado.pedidosFilho.map(async (filho) => {
+        const eventos = [
+          registrarEventoMarketCheckout(contexto, filho.negocioId, "CHECKOUT_CRIADO", "COMPRA", resultado.compra.id, {
+            compraId: resultado.compra.id,
+            numero: resultado.compra.numero,
+            pedidoId: filho.pedidoId,
+            totalEmKwanza: filho.totalEmKwanza,
+            origem: resultado.compra.origem
+          }),
+          registrarEventoMarketCheckout(contexto, filho.negocioId, "PEDIDO_FILHO_CRIADO", "PEDIDO", filho.pedidoId, {
+            compraId: resultado.compra.id,
+            pedidoFilhoId: filho.id,
+            pedidoId: filho.pedidoId,
+            estado: filho.estado,
+            estadoPagamento: filho.estadoPagamento,
+            estadoEntrega: filho.estadoEntrega,
+            totalEmKwanza: filho.totalEmKwanza
+          })
+        ];
+        if (dados.entrega?.tipo === "ENTREGA" || filho.taxaEntregaEmKwanza > 0) {
+          eventos.push(registrarEventoMarketCheckout(contexto, filho.negocioId, "ENTREGA_SOLICITADA", "PEDIDO", filho.pedidoId, {
+            compraId: resultado.compra.id,
+            pedidoFilhoId: filho.id,
+            pedidoId: filho.pedidoId,
+            taxaEntregaEmKwanza: filho.taxaEntregaEmKwanza,
+            entrega: dados.entrega ?? null,
+            enderecoEntrega: dados.enderecoEntrega ?? null
+          }));
+        }
+        const repasses = await contexto.repassesFinanceiros.listarRepasses(filho.negocioId, {
+          pedidoId: filho.pedidoId,
+          limite: 1
+        });
+        const repasse = repasses[0];
+        if (repasse) {
+          eventos.push(registrarEventoMarketCheckout(contexto, filho.negocioId, "PAYOUT_PENDENTE_CRIADO", "REPASSE", repasse.id, {
+            repasseId: repasse.id,
+            compraId: resultado.compra.id,
+            pedidoId: filho.pedidoId,
+            valorBrutoEmKwanza: repasse.valorBrutoEmKwanza,
+            valorLiquidoEmKwanza: repasse.valorLiquidoEmKwanza,
+            taxaBizyEmKwanza: repasse.taxaBizyEmKwanza,
+            comissaoEmKwanza: repasse.comissaoEmKwanza,
+            estado: repasse.estado
+          }));
+        }
+        await Promise.all(eventos);
+      }));
       return reply.code(201).send(resultado);
     });
 
@@ -137,6 +186,20 @@ export const moduloCheckoutUnificado: ModuloHttp = {
       if (!compra) return reply.code(404).send({ erro: "Compra não encontrada." });
       const estadoAtualizado = await contexto.checkoutUnificado.buscarCompraComEstados(id);
       if (!estadoAtualizado) return reply.code(404).send({ erro: "Compra não encontrada." });
+      await Promise.all(estadoAtualizado.pedidosFilho.map((filho) => registrarEventoMarketCheckout(
+        contexto,
+        filho.negocioId,
+        "PAGAMENTO_COMPROVATIVO_RECEBIDO",
+        "PEDIDO",
+        filho.pedidoId,
+        {
+          compraId: estadoAtualizado.compra.id,
+          pedidoFilhoId: filho.id,
+          pedidoId: filho.pedidoId,
+          estadoPagamento: filho.estadoPagamento,
+          comprovativoUrl
+        }
+      )));
       return formatarCompraPublica(estadoAtualizado);
     });
 
@@ -165,7 +228,14 @@ export const moduloCheckoutUnificado: ModuloHttp = {
       const { compraId } = request.params as { compraId: string };
       const { motivo } = (request.body ?? {}) as { motivo: string };
       if (!motivo?.trim()) return reply.code(400).send({ erro: "Motivo obrigatório." });
-      return contexto.checkoutUnificado.cancelarPedidoFilho(compraId, ctx.negocio.id, motivo);
+      const compra = await contexto.checkoutUnificado.cancelarPedidoFilho(compraId, ctx.negocio.id, motivo);
+      if (!compra) return reply.code(404).send({ erro: "COMPRA_NAO_ENCONTRADA", mensagem: "Compra Market não encontrada para esta loja." });
+      await registrarEventoMarketCheckout(contexto, ctx.negocio.id, "PEDIDO_FILHO_CANCELADO", "COMPRA", compraId, {
+        compraId,
+        motivo,
+        canceladoPorId: ctx.usuario.id
+      });
+      return compra;
     });
 
     // --- Repasses financeiros (loja) ---
@@ -202,6 +272,13 @@ export const moduloCheckoutUnificado: ModuloHttp = {
     app.post("/market/reembolsos", async (request, reply) => {
       const dados = SolicitarReembolsoSchema.parse(request.body ?? {});
       const reembolso = await contexto.checkoutUnificado.solicitarReembolso(dados);
+      await registrarEventoMarketCheckout(contexto, dados.negocioId, "REEMBOLSO_SOLICITADO", "PEDIDO", dados.pedidoId, {
+        reembolsoId: reembolso.id,
+        pedidoId: reembolso.pedidoId,
+        compraUnificadaId: reembolso.compraUnificadaId,
+        tipo: reembolso.tipo,
+        valorEmKwanza: reembolso.valorEmKwanza
+      });
       return reply.code(201).send(reembolso);
     });
 
@@ -222,3 +299,24 @@ export const moduloCheckoutUnificado: ModuloHttp = {
     });
   }
 };
+
+async function registrarEventoMarketCheckout(
+  contexto: Parameters<ModuloHttp["registrar"]>[1],
+  negocioId: string,
+  tipo: string,
+  entidadeTipo: string,
+  entidadeId: string,
+  payload: Record<string, unknown>
+) {
+  return contexto.repositorios.eventosOperacionais.registrar({
+    negocioId,
+    topico: TOPICO_MARKET,
+    tipo,
+    entidadeTipo,
+    entidadeId,
+    idempotencyKey: `market:${tipo}:${entidadeId}`,
+    payloadVersion: "market.checkout.v1",
+    payload,
+    estado: "PROCESSADO"
+  });
+}

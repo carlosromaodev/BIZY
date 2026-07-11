@@ -321,18 +321,18 @@ Inclui:
 
 ### 5.16 Marketplace M5, Seller Operations e Trust & Safety
 
-- [ ] **RF-115**: O Market deve ter seller onboarding com elegibilidade, documentos minimos, verificacao, estado de aprovacao, pendencias e historico de revisao.
-- [ ] **RF-116**: O Market deve manter conta operacional por seller com saldo disponivel, saldo retido, saldo em disputa, taxas, comissoes e historico de payout.
+- [x] **RF-115**: O Market deve ter seller onboarding com elegibilidade, documentos minimos, verificacao, estado de aprovacao, pendencias e historico de revisao. *(implementado: `/team/loja/seller/onboarding`, persistido em `entrega.lojaDigital.marketplace.sellerOnboarding`)*
+- [x] **RF-116**: O Market deve manter conta operacional por seller com saldo disponivel, saldo retido, saldo em disputa, taxas, comissoes e historico de payout. *(implementado: `/team/loja/seller/conta` consolidando repasses, reembolsos pendentes, taxas e disputas)*
 - [ ] **RF-117**: O checkout multi-loja deve calcular split por fornecedor, taxa Bizy, desconto, entrega, retencao, comissao e impostos quando aplicavel.
 - [ ] **RF-118**: O sistema deve suportar hold de repasse por regra de risco, prazo de entrega, disputa, reembolso ou politica de categoria.
 - [ ] **RF-119**: O seller deve ter portal/visao dedicada para pedidos, preparacao, entregas, repasses, disputas, documentos, notificacoes e suporte.
 - [ ] **RF-120**: O comprador deve ter portal de compra para acompanhar pedido unificado, pedidos-filho, pagamento, entrega, reembolso, disputa e suporte.
-- [ ] **RF-121**: O Market deve suportar fluxo formal de reembolso, troca, devolucao, disputa e chargeback com estados, evidencias, responsavel, prazo e decisao.
-- [ ] **RF-122**: O Market deve ter fila Trust & Safety para denuncias, fraude, produto proibido, loja com falhas recorrentes, abuso de checkout, spam e risco de reputacao.
+- [x] **RF-121**: O Market deve suportar fluxo formal de reembolso, troca, devolucao, disputa e chargeback com estados, evidencias, responsavel, prazo e decisao. *(implementado: disputas aceitam evidencias/prazo/responsavel, `PATCH /team/loja/disputas/:id/decisao` formaliza decisao, `/team/loja/reembolsos` cobre refund e `/team/loja/pos-venda/casos` abre troca/devolucao/chargeback com evento auditavel)*
+- [x] **RF-122**: O Market deve ter fila Trust & Safety para denuncias, fraude, produto proibido, loja com falhas recorrentes, abuso de checkout, spam e risco de reputacao. *(implementado: `/team/loja/trust-safety/fila` sobre denúncias Market)*
 - [ ] **RF-123**: O ranking do Market deve incorporar qualidade de catalogo, disponibilidade, cumprimento de entrega, cancelamentos, reclamacoes, disputas, confianca e frescor.
-- [ ] **RF-124**: O Market deve gerir qualidade de catalogo com checklist de imagem, preco, categoria, descricao, variacao, stock, entrega, politica e dados obrigatorios por tipo de produto.
+- [x] **RF-124**: O Market deve gerir qualidade de catalogo com checklist de imagem, preco, categoria, descricao, variacao, stock, entrega, politica e dados obrigatorios por tipo de produto. *(implementado: `/team/loja/catalogo/checklist` consolida checklist por produto e loja com imagem, preco, categoria, descricao, variacoes, stock, publicacao, entrega/politicas, seller e metricas de prontidao)*
 - [ ] **RF-125**: Fulfilment deve ligar pedido, separacao, embalagem, entrega, prova de entrega, atraso, tentativa falhada e devolucao ao Team e ao portal do comprador.
-- [ ] **RF-126**: O Market deve expor eventos versionados para seller onboarding, checkout, pagamento, pedido-filho, entrega, disputa, payout e refund.
+- [x] **RF-126**: O Market deve expor eventos versionados para seller onboarding, checkout, pagamento, pedido-filho, entrega, disputa, payout e refund. *(implementado: `/team/loja/eventos-market` expõe eventos versionados de seller onboarding, checkout, pagamento, pedido-filho, entrega, disputa, payout, pos-venda e refund no tópico `bizy.market`)*
 
 ## 6. Requisitos Nao Funcionais
 

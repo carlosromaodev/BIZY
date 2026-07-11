@@ -193,6 +193,47 @@ export interface CertificadoLearning {
   emitidoEm: string;
   validadeAte?: string | null;
   estado: "VALIDO" | "REVOGADO";
+  revogadoEm?: string | null;
+  motivoRevogacao?: string | null;
+  badge?: BadgeLearning | null;
+  verificacao?: {
+    metodo: "CODIGO";
+    codigo: string;
+    url: string;
+  } | null;
+}
+
+export interface BadgeLearning {
+  issuer: "BIZY_LEARNING" | string;
+  criteria: string;
+  evidence: string;
+  achievementType: "CERTIFICATE" | "BADGE";
+  version: string;
+}
+
+export interface EventoExperienciaLearning {
+  id: string;
+  negocioId: string;
+  usuarioId: string;
+  programaSlug: string;
+  verbo: "EXPERIENCED" | "COMPLETED" | "PASSED" | "FAILED" | "VIEWED" | "DOWNLOADED";
+  objetoTipo: "PROGRAMA" | "LICAO" | "QUIZ" | "CERTIFICADO" | "COHORT" | "COMUNIDADE";
+  objetoId: string;
+  origem: "PLAYER" | "TEAM" | "API";
+  resultado: Record<string, unknown>;
+  contexto: Record<string, unknown>;
+  criadoEm: string;
+}
+
+export interface RegistrarExperienciaLearningInput {
+  programaSlug: string;
+  verbo?: EventoExperienciaLearning["verbo"];
+  objetoTipo?: EventoExperienciaLearning["objetoTipo"];
+  objetoId?: string | null;
+  origem?: EventoExperienciaLearning["origem"];
+  resultado?: Record<string, unknown>;
+  contexto?: Record<string, unknown>;
+  idempotencyKey?: string | null;
 }
 
 export interface DocumentoLearning {
@@ -1498,6 +1539,63 @@ export class BizyLearningUseCase {
     return { conclusao: evento.payload, duplicado, progresso: await this.obterProgresso(negocioId, usuarioId) };
   }
 
+  async registrarExperiencia(negocioId: string, usuarioId: string, dados: RegistrarExperienciaLearningInput) {
+    const programaSlug = slugify(dados.programaSlug);
+    const programa = (await this.listarProgramasDoNegocio(negocioId)).find((item) => item.slug === programaSlug);
+    if (!programa) throw new Error("Produto Learning não encontrado.");
+
+    await this.garantirAcessoLearning(negocioId, usuarioId, programa);
+
+    const criadoEm = new Date().toISOString();
+    const experiencia: EventoExperienciaLearning = {
+      id: randomUUID(),
+      negocioId,
+      usuarioId,
+      programaSlug,
+      verbo: dados.verbo ?? "EXPERIENCED",
+      objetoTipo: dados.objetoTipo ?? "PROGRAMA",
+      objetoId: dados.objetoId?.trim() || programaSlug,
+      origem: dados.origem ?? "PLAYER",
+      resultado: dados.resultado ?? {},
+      contexto: dados.contexto ?? {},
+      criadoEm
+    };
+
+    const { evento, duplicado } = await this.eventosOperacionais.registrar({
+      negocioId,
+      topico: TOPICO_LEARNING,
+      tipo: "LEARNING_EXPERIENCIA_REGISTADA",
+      entidadeTipo: "learning_experience",
+      entidadeId: experiencia.objetoId,
+      idempotencyKey: dados.idempotencyKey?.trim() || `learning:experiencia:${usuarioId}:${programaSlug}:${experiencia.id}`,
+      payloadVersion: "learning-experience.v1",
+      payload: { experiencia },
+      estado: "PROCESSADO"
+    });
+
+    return {
+      experiencia: extrairExperiencia(evento) ?? experiencia,
+      duplicado
+    };
+  }
+
+  async listarExperiencias(
+    negocioId: string,
+    filtros: { usuarioId?: string | null; programaSlug?: string | null; limite?: number | null } = {}
+  ): Promise<EventoExperienciaLearning[]> {
+    const limite = Math.min(Math.max(filtros.limite ?? 100, 1), 500);
+    const programaSlug = filtros.programaSlug ? slugify(filtros.programaSlug) : null;
+    const eventos = await this.eventosOperacionais.listar(negocioId, { topico: TOPICO_LEARNING, limite: 1000 });
+    return eventos
+      .filter((evento) => evento.tipo === "LEARNING_EXPERIENCIA_REGISTADA")
+      .map(extrairExperiencia)
+      .filter((experiencia): experiencia is EventoExperienciaLearning => Boolean(experiencia))
+      .filter((experiencia) => !filtros.usuarioId || experiencia.usuarioId === filtros.usuarioId)
+      .filter((experiencia) => !programaSlug || experiencia.programaSlug === programaSlug)
+      .sort((a, b) => b.criadoEm.localeCompare(a.criadoEm))
+      .slice(0, limite);
+  }
+
   async emitirCertificado(negocioId: string, usuarioId: string, programaSlug: string) {
     const programa = (await this.listarProgramasDoNegocio(negocioId)).find((item) => item.slug === programaSlug);
     if (!programa) throw new Error("Produto Learning não encontrado.");
@@ -1508,15 +1606,28 @@ export class BizyLearningUseCase {
     if (!progresso?.concluido) throw new Error("Certificado só pode ser emitido após conclusão dos critérios do produto.");
 
     const emitidoEm = new Date().toISOString();
+    const codigoVerificacao = gerarCodigoCertificado(negocioId, usuarioId, programaSlug, emitidoEm);
     const certificado: CertificadoLearning = {
       id: randomUUID(),
       programaSlug,
       usuarioId,
       negocioId,
-      codigoVerificacao: gerarCodigoCertificado(negocioId, usuarioId, programaSlug, emitidoEm),
+      codigoVerificacao,
       emitidoEm,
       validadeAte: null,
-      estado: "VALIDO"
+      estado: "VALIDO",
+      badge: {
+        issuer: "BIZY_LEARNING",
+        criteria: `Concluir 100% dos critérios de ${programa.titulo}.`,
+        evidence: `learning:${negocioId}:${usuarioId}:${programaSlug}`,
+        achievementType: "CERTIFICATE",
+        version: "open-badges-lite.v1"
+      },
+      verificacao: {
+        metodo: "CODIGO",
+        codigo: codigoVerificacao,
+        url: `/publico/learning/certificados/${encodeURIComponent(negocioId)}/${codigoVerificacao}`
+      }
     };
 
     const { evento, duplicado } = await this.eventosOperacionais.registrar({
@@ -1526,7 +1637,121 @@ export class BizyLearningUseCase {
       entidadeTipo: "learning_certificate",
       entidadeId: certificado.codigoVerificacao,
       idempotencyKey: `learning:certificado:${usuarioId}:${programaSlug}`,
+      payloadVersion: "learning-certificate.v1",
       payload: { certificado, programaResumo: resumoFinanceiroPrograma(programa) },
+      estado: "PROCESSADO"
+    });
+
+    return { certificado: extrairCertificado(evento) ?? certificado, duplicado };
+  }
+
+  async obterCertificado(negocioId: string, codigoVerificacao: string) {
+    const codigo = codigoVerificacao.trim();
+    const certificado = (await this.listarCertificados(negocioId)).find((item) => item.codigoVerificacao === codigo);
+    if (!certificado) throw new Error("Certificado Learning não encontrado.");
+    return { certificado };
+  }
+
+  async exportarCertificado(negocioId: string, codigoVerificacao: string) {
+    const { certificado } = await this.obterCertificado(negocioId, codigoVerificacao);
+    const verificado = await this.verificarCertificadoPublico(negocioId, codigoVerificacao);
+    const exportadoEm = new Date().toISOString();
+    const documentoBase = {
+      formato: "bizy.learning.certificate.export.v1",
+      exportadoEm,
+      certificado,
+      badge: montarBadgeExportavel(certificado, verificado.certificado),
+      verificacao: verificado.verificacao,
+      reprocessamento: {
+        negocioId: certificado.negocioId,
+        usuarioId: certificado.usuarioId,
+        programaSlug: certificado.programaSlug,
+        codigoVerificacao: certificado.codigoVerificacao,
+        estado: certificado.estado,
+        eventoFonte: "LEARNING_CERTIFICADO"
+      }
+    };
+    const hashAuditoria = createHash("sha256").update(JSON.stringify(documentoBase)).digest("hex");
+    return {
+      ...documentoBase,
+      auditoria: {
+        hash: hashAuditoria,
+        algoritmo: "sha256",
+        preservaEventoOriginal: true
+      }
+    };
+  }
+
+  async verificarCertificadoPublico(negocioId: string, codigoVerificacao: string) {
+    const { certificado } = await this.obterCertificado(negocioId, codigoVerificacao);
+    return {
+      certificado: {
+        codigoVerificacao: certificado.codigoVerificacao,
+        programaSlug: certificado.programaSlug,
+        negocioId: certificado.negocioId,
+        emitidoEm: certificado.emitidoEm,
+        validadeAte: certificado.validadeAte ?? null,
+        estado: certificado.estado,
+        revogadoEm: certificado.revogadoEm ?? null,
+        titularHash: createHash("sha256").update(`${certificado.negocioId}:${certificado.usuarioId}`).digest("hex").slice(0, 16),
+        badge: certificado.badge
+          ? {
+              issuer: certificado.badge.issuer,
+              criteria: certificado.badge.criteria,
+              achievementType: certificado.badge.achievementType,
+              version: certificado.badge.version
+            }
+          : null
+      },
+      verificacao: {
+        valido: certificado.estado === "VALIDO",
+        verificadoEm: new Date().toISOString()
+      }
+    };
+  }
+
+  async obterPlayerPrograma(negocioId: string, usuarioId: string, programaSlug: string) {
+    const slug = slugify(programaSlug);
+    const programa = (await this.listarProgramasDoNegocio(negocioId)).find((item) => item.slug === slug);
+    if (!programa) throw new Error("Produto Learning não encontrado.");
+    await this.garantirAcessoLearning(negocioId, usuarioId, programa);
+    const [progresso, entitlements] = await Promise.all([
+      this.obterProgresso(negocioId, usuarioId),
+      this.listarEntitlements(negocioId)
+    ]);
+    const entitlement = entitlements.find((item) => item.usuarioId === usuarioId && item.programaSlug === slug && item.estado === "ATIVO") ?? null;
+    return {
+      programa,
+      entitlement,
+      progresso: progresso.programas.find((item) => item.programaSlug === slug) ?? progressoVazio(programa),
+      seguranca: {
+        cache: "no-store",
+        conteudoPremiumProtegido: programa.tipoAcesso !== "GRATUITO",
+        acessoValidadoEm: new Date().toISOString()
+      }
+    };
+  }
+
+  async revogarCertificado(negocioId: string, usuarioId: string, codigoVerificacao: string, motivo: string) {
+    const certificadoAtual = (await this.obterCertificado(negocioId, codigoVerificacao)).certificado;
+    if (certificadoAtual.estado === "REVOGADO") return { certificado: certificadoAtual, duplicado: true };
+
+    const certificado: CertificadoLearning = {
+      ...certificadoAtual,
+      estado: "REVOGADO",
+      revogadoEm: new Date().toISOString(),
+      motivoRevogacao: motivo || "Revogado pelo Team."
+    };
+
+    const { evento, duplicado } = await this.eventosOperacionais.registrar({
+      negocioId,
+      topico: TOPICO_LEARNING,
+      tipo: "LEARNING_CERTIFICADO_REVOGADO",
+      entidadeTipo: "learning_certificate",
+      entidadeId: certificado.codigoVerificacao,
+      idempotencyKey: `learning:certificado:${certificado.id}:revogado`,
+      payloadVersion: "learning-certificate.v1",
+      payload: { certificado, revogadoPorId: usuarioId, motivo: certificado.motivoRevogacao },
       estado: "PROCESSADO"
     });
 
@@ -1708,11 +1933,14 @@ export class BizyLearningUseCase {
 
   async listarCertificados(negocioId: string): Promise<CertificadoLearning[]> {
     const eventos = await this.eventosOperacionais.listar(negocioId, { topico: TOPICO_LEARNING, limite: 1000 });
-    return eventos
-      .filter((evento) => evento.tipo === "LEARNING_CERTIFICADO_EMITIDO")
-      .map(extrairCertificado)
-      .filter((certificado): certificado is CertificadoLearning => Boolean(certificado))
-      .sort((a, b) => b.emitidoEm.localeCompare(a.emitidoEm));
+    const mapa = new Map<string, CertificadoLearning>();
+    const ordenados = [...eventos].sort((a, b) => a.criadoEm.getTime() - b.criadoEm.getTime());
+    for (const evento of ordenados) {
+      if (evento.tipo !== "LEARNING_CERTIFICADO_EMITIDO" && evento.tipo !== "LEARNING_CERTIFICADO_REVOGADO") continue;
+      const certificado = extrairCertificado(evento);
+      if (certificado) mapa.set(certificado.codigoVerificacao, certificado);
+    }
+    return [...mapa.values()].sort((a, b) => b.emitidoEm.localeCompare(a.emitidoEm));
   }
 
   async listarAtribuicoes(negocioId: string): Promise<AtribuicaoLearning[]> {
@@ -2287,6 +2515,50 @@ function resumoModeracao(caso: CasoModeracaoLearning) {
   };
 }
 
+function montarBadgeExportavel(
+  certificado: CertificadoLearning,
+  certificadoPublico: {
+    codigoVerificacao: string;
+    programaSlug: string;
+    negocioId: string;
+    emitidoEm: string;
+    validadeAte: string | null;
+    estado: string;
+    revogadoEm: string | null;
+    titularHash: string;
+    badge: Pick<BadgeLearning, "issuer" | "criteria" | "achievementType" | "version"> | null;
+  }
+) {
+  const badge = certificado.badge ?? certificadoPublico.badge;
+  return {
+    formato: "open-badges-lite.v1",
+    id: certificado.verificacao?.url ?? `/publico/learning/certificados/${encodeURIComponent(certificado.negocioId)}/${certificado.codigoVerificacao}`,
+    type: ["AchievementCredential", "OpenBadgeCredential"],
+    issuer: badge?.issuer ?? "BIZY_LEARNING",
+    issuanceDate: certificado.emitidoEm,
+    expirationDate: certificado.validadeAte ?? null,
+    credentialSubject: {
+      id: `sha256:${certificadoPublico.titularHash}`,
+      achievement: {
+        id: `learning:${certificado.programaSlug}`,
+        type: badge?.achievementType ?? "CERTIFICATE",
+        criteria: badge?.criteria ?? "Conclusão dos critérios configurados no Bizy Learning."
+      }
+    },
+    evidence: certificado.badge?.evidence ?? null,
+    credentialStatus: {
+      type: "BizyLearningCertificateStatus",
+      status: certificado.estado,
+      revokedAt: certificado.revogadoEm ?? null
+    },
+    verification: {
+      type: "BizyLearningVerificationCode",
+      code: certificado.codigoVerificacao,
+      publicUrl: certificado.verificacao?.url ?? `/publico/learning/certificados/${encodeURIComponent(certificado.negocioId)}/${certificado.codigoVerificacao}`
+    }
+  };
+}
+
 function extrairCompra(evento: EventoOperacional): CompraLearning | null {
   const compra = evento.payload.compra;
   if (!compra || typeof compra !== "object") return null;
@@ -2308,6 +2580,14 @@ function extrairCertificado(evento: EventoOperacional): CertificadoLearning | nu
   if (!certificado || typeof certificado !== "object") return null;
   const candidato = certificado as CertificadoLearning;
   if (!candidato.id || !candidato.codigoVerificacao || !candidato.programaSlug) return null;
+  return candidato;
+}
+
+function extrairExperiencia(evento: EventoOperacional): EventoExperienciaLearning | null {
+  const experiencia = evento.payload.experiencia;
+  if (!experiencia || typeof experiencia !== "object") return null;
+  const candidato = experiencia as EventoExperienciaLearning;
+  if (!candidato.id || !candidato.programaSlug || !candidato.usuarioId || !candidato.objetoId) return null;
   return candidato;
 }
 

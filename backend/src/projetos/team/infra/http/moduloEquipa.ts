@@ -58,6 +58,18 @@ const FiltrosMembrosQuerySchema = z.object({
   busca: z.string().trim().min(1).max(120).optional()
 });
 
+const OffboardingSeguroSchema = z.object({
+  motivo: z.string().trim().min(3).max(500).nullable().optional(),
+  substitutoMembroId: z.string().uuid().nullable().optional()
+});
+
+const RegistarAusenciaSchema = z.object({
+  membroId: z.string().trim().min(1).max(120),
+  motivo: z.string().trim().min(3).max(500),
+  inicioEm: z.coerce.date().optional(),
+  fimEm: z.coerce.date().optional()
+});
+
 /* ── Módulo HTTP ──────────────────────────────────────────────── */
 
 export const moduloEquipa: ModuloHttp = {
@@ -74,6 +86,60 @@ export const moduloEquipa: ModuloHttp = {
 
       const filtros = FiltrosMembrosQuerySchema.parse(request.query ?? {});
       return contexto.gestaoEquipa.listarMembros(ctx.negocio.id, filtros);
+    });
+
+    app.get("/equipa/membros/:id/360", async (request, reply) => {
+      const ctx = await exigirEquipa(contexto, request, reply, "equipa:ler");
+      if (!ctx) return;
+
+      const { id } = ParamIdSchema.parse(request.params);
+      try {
+        return await contexto.gestaoEquipa.obterPerfilOperacional360(ctx.negocio.id, id);
+      } catch (erro: unknown) {
+        const mensagem = erro instanceof Error ? erro.message : "Erro ao consultar membro.";
+        return reply.code(404).send({ erro: "MEMBRO_NAO_ENCONTRADO", mensagem });
+      }
+    });
+
+    app.get("/equipa/capacidade", async (request, reply) => {
+      const ctx = await exigirEquipa(contexto, request, reply, "equipa:ler");
+      if (!ctx) return;
+
+      return contexto.gestaoEquipa.calcularCapacidadeOperacional(ctx.negocio.id);
+    });
+
+    app.post("/equipa/ausencias", async (request, reply) => {
+      const ctx = await exigirEquipa(contexto, request, reply, "equipa:gestao");
+      if (!ctx) return;
+
+      const dados = RegistarAusenciaSchema.parse(request.body ?? {});
+      try {
+        const resultado = await contexto.gestaoEquipa.registarAusenciaOperacional(ctx.negocio.id, {
+          ...dados,
+          autorId: ctx.usuario.id
+        });
+        return reply.code(201).send(resultado);
+      } catch (erro: unknown) {
+        const mensagem = erro instanceof Error ? erro.message : "Erro ao registar ausência.";
+        return reply.code(400).send({ erro: "AUSENCIA_INVALIDA", mensagem });
+      }
+    });
+
+    app.post("/equipa/membros/:id/offboarding", async (request, reply) => {
+      const ctx = await exigirEquipa(contexto, request, reply, "equipa:gestao");
+      if (!ctx) return;
+
+      const { id } = ParamIdSchema.parse(request.params);
+      const dados = OffboardingSeguroSchema.parse(request.body ?? {});
+      try {
+        return await contexto.gestaoEquipa.executarOffboardingSeguro(id, ctx.negocio.id, {
+          ...dados,
+          autorId: ctx.usuario.id
+        });
+      } catch (erro: unknown) {
+        const mensagem = erro instanceof Error ? erro.message : "Erro ao executar offboarding.";
+        return reply.code(400).send({ erro: "OFFBOARDING_FALHOU", mensagem });
+      }
     });
 
     app.patch("/equipa/membros/:id/desativar", async (request, reply) => {

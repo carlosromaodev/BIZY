@@ -16,6 +16,7 @@ const LIMITE_MEMBROS_PADRAO = 500;
 const LIMITE_PAGINA_MEMBROS = 500;
 const DIAS_INACTIVIDADE_SUSPENSAO = 90;
 const PAPEIS_SENSIVEIS = ["ADMIN", "GESTOR_FINANCEIRO", "DONO"];
+const MINUTOS_SLA_CONVERSA = 30;
 
 export class GestaoEquipaUseCase {
   constructor(private readonly prisma: PrismaClient) {}
@@ -537,6 +538,414 @@ export class GestaoEquipaUseCase {
     return {
       membros,
       paginacao: montarPaginacaoOffset(total, limite, offset)
+    };
+  }
+
+  async obterPerfilOperacional360(negocioId: string, membroId: string) {
+    const membro = await this.prisma.membroNegocio.findFirst({
+      where: { id: membroId, negocioId },
+      include: {
+        usuario: {
+          select: {
+            id: true,
+            nome: true,
+            email: true,
+            telefone: true,
+            avatarUrl: true,
+            papel: true
+          }
+        }
+      }
+    });
+    if (!membro) throw new Error("Membro não encontrado neste negócio.");
+
+    const [
+      checklist,
+      turnos,
+      tarefasAbertas,
+      conversasAbertas,
+      pedidosAbertos,
+      projectos,
+      projectosSemOwner,
+      metas,
+      feed,
+      presencasRecentes,
+      eventosAusencia
+    ] =
+      await Promise.all([
+        this.prisma.checklistOnboarding.findMany({ where: { negocioId, membroId }, orderBy: { criadoEm: "asc" } }),
+        this.prisma.turnoMembro.findMany({ where: { negocioId, membroId, activo: true }, orderBy: [{ diaSemana: "asc" }, { horaInicio: "asc" }] }),
+        this.prisma.tarefaOperacional.findMany({
+          where: { negocioId, responsavelId: membro.usuarioId, estado: { in: ["ABERTA", "PENDENTE", "EM_PROGRESSO"] } },
+          select: { id: true, titulo: true, prioridade: true, estado: true, prazoEm: true },
+          orderBy: [{ prioridade: "desc" }, { prazoEm: "asc" }],
+          take: 20
+        }),
+        this.prisma.conversaAtendimento.findMany({
+          where: { negocioId, responsavelId: membro.usuarioId, estado: { in: ["ABERTA", "EM_ATENDIMENTO"] } },
+          select: { id: true, telefone: true, estado: true, prioridade: true, ultimaMensagemEm: true },
+          orderBy: { ultimaMensagemEm: "desc" },
+          take: 20
+        }),
+        this.prisma.pedido.findMany({
+          where: { negocioId, responsavelId: membro.usuarioId, estado: { in: ["AGUARDANDO_PAGAMENTO", "PENDENTE", "EM_PROCESSAMENTO"] } },
+          select: { id: true, numero: true, estado: true, estadoPagamento: true, estadoEntrega: true, totalEmKwanza: true },
+          orderBy: { criadoEm: "desc" },
+          take: 20
+        }),
+        this.prisma.membroProjecto.findMany({
+          where: { membroId, activo: true, projecto: { negocioId } },
+          include: {
+            projecto: {
+              select: { id: true, nome: true, estado: true, dataInicio: true, dataFim: true, gestorId: true }
+            }
+          },
+          take: 20
+        }),
+        this.prisma.projecto.findMany({
+          where: {
+            negocioId,
+            estado: { in: ["PLANEADO", "EM_ANDAMENTO"] },
+            OR: [{ gestorId: null }, { gestorId: "" }]
+          },
+          select: { id: true, nome: true, estado: true, dataFim: true },
+          take: 20
+        }),
+        this.prisma.metaVendas.findMany({
+          where: {
+            negocioId,
+            OR: [{ membroId: membro.id }, { tipo: "EQUIPA" }]
+          },
+          orderBy: { criadoEm: "desc" },
+          take: 20
+        }),
+        this.prisma.feedActividade.findMany({
+          where: { negocioId, OR: [{ autorId: membro.usuarioId }, { entidadeTipo: "MembroNegocio", entidadeId: membroId }] },
+          orderBy: { criadoEm: "desc" },
+          take: 20
+        }),
+        this.prisma.registoPresenca.findMany({
+          where: { negocioId, membroId },
+          orderBy: { registadoEm: "desc" },
+          take: 10
+        }),
+        this.prisma.feedActividade.findMany({
+          where: {
+            negocioId,
+            tipo: "AUSENCIA_OPERACIONAL",
+            entidadeTipo: "MembroNegocio",
+            entidadeId: membroId
+          },
+          orderBy: { criadoEm: "desc" },
+          take: 20
+        })
+      ]);
+
+    const checklistConcluido = checklist.filter((item) => item.concluido).length;
+    const emTurno = this.estaEmTurnoAgora(turnos);
+    const agora = new Date();
+    const ausenciaAtiva = this.extrairAusenciasAtivas(eventosAusencia, agora).at(0) ?? null;
+    const ultimaPresenca = presencasRecentes.at(0) ?? null;
+    const tarefasAtrasadas = tarefasAbertas.filter((tarefa) => tarefa.prazoEm && tarefa.prazoEm < agora);
+    const conversasForaSla = conversasAbertas.filter((conversa) => this.conversaForaSla(conversa.ultimaMensagemEm, agora));
+    const permissoes = this.parseJsonRecord(membro.permissoesJson);
+    const riscosOperacionais = [
+      PAPEIS_SENSIVEIS.includes(membro.papel) ? "PAPEL_SENSIVEL" : null,
+      ausenciaAtiva ? "AUSENCIA_ATIVA" : null,
+      tarefasAtrasadas.length > 0 ? "TAREFAS_ATRASADAS" : null,
+      conversasForaSla.length > 0 ? "CONVERSAS_FORA_SLA" : null,
+      projectosSemOwner.length > 0 ? "PROJECTOS_SEM_OWNER" : null
+    ].filter((item): item is string => Boolean(item));
+
+    return {
+      membro: {
+        id: membro.id,
+        usuarioId: membro.usuarioId,
+        nome: membro.usuario.nome,
+        email: membro.usuario.email,
+        telefone: membro.usuario.telefone,
+        avatarUrl: membro.usuario.avatarUrl,
+        papel: membro.papel,
+        status: membro.status,
+        criadoEm: membro.criadoEm
+      },
+      competencias: this.inferirCompetenciasMembro(membro),
+      disponibilidade: {
+        emTurno,
+        presencaAtiva: ultimaPresenca?.tipo === "CHECK_IN",
+        ultimaPresenca: this.serializarPresencaOperacional(ultimaPresenca),
+        ausenciaAtiva,
+        turnos,
+        presencasRecentes
+      },
+      cargaOperacional: {
+        tarefasAbertas: tarefasAbertas.length,
+        conversasAbertas: conversasAbertas.length,
+        pedidosAbertos: pedidosAbertos.length,
+        projectosActivos: projectos.length,
+        tarefas: tarefasAbertas,
+        conversas: conversasAbertas,
+        pedidos: pedidosAbertos,
+        projectos: projectos.map((item) => ({
+          id: item.projecto.id,
+          nome: item.projecto.nome,
+          estado: item.projecto.estado,
+          papelProjecto: item.papelProjecto,
+          dataInicio: item.projecto.dataInicio,
+          dataFim: item.projecto.dataFim
+        }))
+      },
+      desempenho: {
+        tarefasAtrasadas: tarefasAtrasadas.length,
+        conversasForaSla: conversasForaSla.length,
+        pedidosPendentesValorEmKwanza: pedidosAbertos.reduce((total, pedido) => total + pedido.totalEmKwanza, 0),
+        slaConversaMinutos: MINUTOS_SLA_CONVERSA,
+        fonte: "operacional"
+      },
+      metas: metas.map((meta) => ({
+        id: meta.id,
+        tipo: meta.tipo,
+        kpi: meta.kpi,
+        periodo: meta.periodo,
+        valorMeta: meta.valorMeta,
+        mes: meta.mes,
+        ano: meta.ano,
+        escopo: meta.membroId === membro.id ? "INDIVIDUAL" : "EQUIPA"
+      })),
+      acessos: {
+        papel: membro.papel,
+        permissoes,
+        papelSensivel: PAPEIS_SENSIVEIS.includes(membro.papel),
+        requerRevisao: membro.status !== "ATIVO" || PAPEIS_SENSIVEIS.includes(membro.papel)
+      },
+      onboarding: {
+        total: checklist.length,
+        concluidos: checklistConcluido,
+        percentagem: checklist.length > 0 ? Math.round((checklistConcluido / checklist.length) * 100) : 100,
+        checklist
+      },
+      indicadores: {
+        sinaisSensíveis: riscosOperacionais,
+        requerRevisaoAcesso: membro.status !== "ATIVO" || PAPEIS_SENSIVEIS.includes(membro.papel),
+        projectosSemOwner,
+        fonte: "dados_operacionais_team"
+      },
+      actividadeRecente: feed
+    };
+  }
+
+  async calcularCapacidadeOperacional(negocioId: string) {
+    const membros = await this.prisma.membroNegocio.findMany({
+      where: { negocioId, status: "ATIVO" },
+      include: { usuario: { select: { id: true, nome: true, telefone: true, email: true } } },
+      orderBy: { criadoEm: "asc" }
+    });
+
+    const agora = new Date();
+    const inicioJanelaPresenca = new Date(agora.getTime() - 48 * 60 * 60 * 1000);
+    const [turnos, tarefas, conversas, pedidos, projectos, eventosAusencia, presencasRecentes] = await Promise.all([
+      this.prisma.turnoMembro.findMany({ where: { negocioId, activo: true } }),
+      this.prisma.tarefaOperacional.findMany({
+        where: { negocioId, estado: { in: ["ABERTA", "PENDENTE", "EM_PROGRESSO"] } },
+        select: { responsavelId: true, prazoEm: true, prioridade: true }
+      }),
+      this.prisma.conversaAtendimento.findMany({
+        where: { negocioId, estado: { in: ["ABERTA", "EM_ATENDIMENTO"] } },
+        select: { responsavelId: true, ultimaMensagemEm: true, prioridade: true }
+      }),
+      this.prisma.pedido.findMany({
+        where: { negocioId, estado: { in: ["AGUARDANDO_PAGAMENTO", "PENDENTE", "EM_PROCESSAMENTO"] } },
+        select: { responsavelId: true }
+      }),
+      this.prisma.membroProjecto.findMany({
+        where: { activo: true, projecto: { negocioId, estado: { in: ["PLANEADO", "EM_ANDAMENTO"] } } },
+        select: { membroId: true }
+      }),
+      this.prisma.feedActividade.findMany({
+        where: { negocioId, tipo: "AUSENCIA_OPERACIONAL" },
+        orderBy: { criadoEm: "desc" },
+        take: 1000
+      }),
+      this.prisma.registoPresenca.findMany({
+        where: { negocioId, registadoEm: { gte: inicioJanelaPresenca } },
+        orderBy: { registadoEm: "desc" },
+        take: 2000
+      })
+    ]);
+
+    const tarefasPorUsuario = this.contarPorChave(tarefas.map((item) => item.responsavelId));
+    const tarefasAtrasadasPorUsuario = this.contarPorChave(tarefas.filter((item) => item.prazoEm && item.prazoEm < agora).map((item) => item.responsavelId));
+    const conversasPorUsuario = this.contarPorChave(conversas.map((item) => item.responsavelId));
+    const conversasForaSlaPorUsuario = this.contarPorChave(conversas.filter((item) => this.conversaForaSla(item.ultimaMensagemEm, agora)).map((item) => item.responsavelId));
+    const pedidosPorUsuario = this.contarPorChave(pedidos.map((item) => item.responsavelId));
+    const projectosPorMembro = this.contarPorChave(projectos.map((item) => item.membroId));
+    const ausenciasPorMembro = new Map(this.extrairAusenciasAtivas(eventosAusencia, agora).map((item) => [item.membroId, item]));
+    const ultimaPresencaPorMembro = this.mapearUltimaPresencaPorMembro(presencasRecentes);
+    const turnosPorMembro = new Map<string, typeof turnos>();
+    for (const turno of turnos) {
+      turnosPorMembro.set(turno.membroId, [...(turnosPorMembro.get(turno.membroId) ?? []), turno]);
+    }
+
+    const capacidade = membros.map((membro) => {
+      const totalTarefas = tarefasPorUsuario.get(membro.usuarioId) ?? 0;
+      const totalTarefasAtrasadas = tarefasAtrasadasPorUsuario.get(membro.usuarioId) ?? 0;
+      const totalConversas = conversasPorUsuario.get(membro.usuarioId) ?? 0;
+      const totalConversasForaSla = conversasForaSlaPorUsuario.get(membro.usuarioId) ?? 0;
+      const totalPedidos = pedidosPorUsuario.get(membro.usuarioId) ?? 0;
+      const totalProjectos = projectosPorMembro.get(membro.id) ?? 0;
+      const turnosMembro = turnosPorMembro.get(membro.id) ?? [];
+      const emTurno = this.estaEmTurnoAgora(turnosMembro);
+      const ausenciaAtiva = ausenciasPorMembro.get(membro.id) ?? null;
+      const ultimaPresenca = ultimaPresencaPorMembro.get(membro.id) ?? null;
+      const presencaAtiva = ultimaPresenca?.tipo === "CHECK_IN";
+      const baseDisponivel = ausenciaAtiva
+        ? 0
+        : presencaAtiva
+          ? emTurno
+            ? 100
+            : 85
+          : emTurno
+            ? 70
+            : turnosMembro.length > 0
+              ? 35
+              : 45;
+      const cargaPonderada =
+        totalTarefas * 2 +
+        totalConversas +
+        totalPedidos * 2 +
+        totalProjectos * 3 +
+        totalTarefasAtrasadas * 3 +
+        totalConversasForaSla * 2;
+      const capacidadePercentual = ausenciaAtiva ? 0 : Math.max(0, Math.min(100, baseDisponivel - cargaPonderada * 5));
+      const estado = ausenciaAtiva
+        ? "INDISPONIVEL"
+        : capacidadePercentual >= 65
+          ? "DISPONIVEL"
+          : capacidadePercentual >= 30
+            ? "OCUPADO"
+            : "SOBRECARREGADO";
+
+      return {
+        membroId: membro.id,
+        usuarioId: membro.usuarioId,
+        nome: membro.usuario.nome,
+        papel: membro.papel,
+        estado,
+        capacidadePercentual,
+        emTurno,
+        presencaAtiva,
+        ultimaPresenca: this.serializarPresencaOperacional(ultimaPresenca),
+        ausenciaAtiva,
+        carga: {
+          tarefas: totalTarefas,
+          tarefasAtrasadas: totalTarefasAtrasadas,
+          conversas: totalConversas,
+          conversasForaSla: totalConversasForaSla,
+          pedidos: totalPedidos,
+          projectos: totalProjectos,
+          ponderada: cargaPonderada
+        },
+        sla: {
+          conversaMinutos: MINUTOS_SLA_CONVERSA,
+          tarefasAtrasadas: totalTarefasAtrasadas,
+          conversasForaSla: totalConversasForaSla
+        }
+      };
+    });
+
+    return {
+      atualizadoEm: new Date().toISOString(),
+      resumo: {
+        membrosAtivos: capacidade.length,
+        disponiveis: capacidade.filter((item) => item.estado === "DISPONIVEL").length,
+        ocupados: capacidade.filter((item) => item.estado === "OCUPADO").length,
+        sobrecarregados: capacidade.filter((item) => item.estado === "SOBRECARREGADO").length,
+        indisponiveis: capacidade.filter((item) => item.estado === "INDISPONIVEL").length,
+        presentes: capacidade.filter((item) => item.presencaAtiva).length,
+        tarefasAtrasadas: capacidade.reduce((total, item) => total + item.sla.tarefasAtrasadas, 0),
+        conversasForaSla: capacidade.reduce((total, item) => total + item.sla.conversasForaSla, 0)
+      },
+      membros: capacidade
+    };
+  }
+
+  async registarAusenciaOperacional(
+    negocioId: string,
+    dados: { membroId: string; motivo: string; inicioEm?: Date; fimEm?: Date; autorId?: string | null }
+  ) {
+    const membro = await this.prisma.membroNegocio.findFirst({
+      where: { id: dados.membroId, negocioId },
+      include: { usuario: { select: { id: true, nome: true } } }
+    });
+    if (!membro) throw new Error("Membro não encontrado neste negócio.");
+
+    const inicioEm = dados.inicioEm ?? new Date();
+    const fimEm = dados.fimEm ?? new Date(inicioEm.getFullYear(), inicioEm.getMonth(), inicioEm.getDate(), 23, 59, 59, 999);
+    if (fimEm < inicioEm) throw new Error("Fim da ausência deve ser posterior ao início.");
+
+    const feed = await this.registrarActividade(negocioId, {
+      autorId: dados.autorId ?? undefined,
+      tipo: "AUSENCIA_OPERACIONAL",
+      entidadeTipo: "MembroNegocio",
+      entidadeId: membro.id,
+      resumo: `${membro.usuario.nome} indisponível: ${dados.motivo}`,
+      detalhes: {
+        membroId: membro.id,
+        usuarioId: membro.usuarioId,
+        inicioEm: inicioEm.toISOString(),
+        fimEm: fimEm.toISOString(),
+        motivo: dados.motivo
+      }
+    });
+
+    return {
+      ausencia: {
+        id: feed.id,
+        membroId: membro.id,
+        usuarioId: membro.usuarioId,
+        nome: membro.usuario.nome,
+        motivo: dados.motivo,
+        inicioEm,
+        fimEm
+      }
+    };
+  }
+
+  async executarOffboardingSeguro(
+    membroNegocioId: string,
+    negocioId: string,
+    dados: { motivo?: string | null; substitutoMembroId?: string | null; autorId?: string | null } = {}
+  ) {
+    const perfilAntes = await this.obterPerfilOperacional360(negocioId, membroNegocioId);
+    const membro = await this.desativarMembro(membroNegocioId, negocioId);
+    const checklist = [
+      { item: "REVOGAR_ACESSOS", estado: "PENDENTE", descricao: "Validar permissões, sessões e integrações do membro." },
+      { item: "TRANSFERIR_RESPONSABILIDADES", estado: "PENDENTE", descricao: "Confirmar conversas, tarefas, pedidos e projectos sem dono." },
+      { item: "DOCUMENTAR_MOTIVO", estado: "CONCLUIDO", descricao: dados.motivo || "Offboarding seguro iniciado pelo Team." },
+      { item: "COMUNICAR_EQUIPA", estado: "PENDENTE", descricao: "Informar equipa e substituto quando aplicável." }
+    ];
+
+    await this.registrarActividade(negocioId, {
+      autorId: dados.autorId ?? undefined,
+      tipo: "OFFBOARDING_SEGURO",
+      entidadeTipo: "MembroNegocio",
+      entidadeId: membroNegocioId,
+      resumo: "Offboarding seguro iniciado com redistribuição operacional.",
+      detalhes: {
+        motivo: dados.motivo ?? null,
+        substitutoMembroId: dados.substitutoMembroId ?? null,
+        cargaAntes: perfilAntes.cargaOperacional,
+        checklist
+      }
+    });
+
+    return {
+      membro,
+      estado: "INICIADO",
+      checklist,
+      cargaAntes: perfilAntes.cargaOperacional,
+      substitutoMembroId: dados.substitutoMembroId ?? null,
+      executadoEm: new Date().toISOString()
     };
   }
 
@@ -1755,6 +2164,107 @@ export class GestaoEquipaUseCase {
     if (digitos.startsWith("244") && digitos.length > 9) digitos = digitos.slice(3);
     if (digitos.startsWith("0") && digitos.length > 9) digitos = digitos.slice(1);
     return digitos;
+  }
+
+  private estaEmTurnoAgora(turnos: Array<{ diaSemana: number; horaInicio: string; horaFim: string }>) {
+    const agora = new Date();
+    const diaSemana = agora.getDay();
+    const horaActual = `${String(agora.getHours()).padStart(2, "0")}:${String(agora.getMinutes()).padStart(2, "0")}`;
+    return turnos.some((turno) => turno.diaSemana === diaSemana && horaActual >= turno.horaInicio && horaActual <= turno.horaFim);
+  }
+
+  private inferirCompetenciasMembro(membro: { papel: string; permissoesJson?: string | null }) {
+    const permissoes = this.parseJsonRecord(membro.permissoesJson);
+    const explicitas = Array.isArray(permissoes.competencias)
+      ? permissoes.competencias.filter((item): item is string => typeof item === "string" && item.trim().length > 0)
+      : [];
+    const porPapel: Record<string, string[]> = {
+      DONO: ["governanca", "financeiro", "operacoes", "decisao"],
+      ADMIN: ["governanca", "operacoes", "equipa"],
+      GESTOR: ["operacoes", "equipa", "atendimento"],
+      GESTOR_FINANCEIRO: ["financeiro", "repasses", "auditoria"],
+      VENDEDOR: ["vendas", "atendimento", "catalogo"],
+      ATENDENTE: ["atendimento", "whatsapp", "pos-venda"]
+    };
+    return [...new Set([...explicitas, ...(porPapel[membro.papel] ?? ["operacoes"])])];
+  }
+
+  private mapearUltimaPresencaPorMembro(
+    registos: Array<{ id: string; membroId: string; tipo: string; registadoEm: Date; metodo: string; observacao: string | null }>
+  ) {
+    const mapa = new Map<string, { id: string; membroId: string; tipo: string; registadoEm: Date; metodo: string; observacao: string | null }>();
+    for (const registo of registos) {
+      if (!mapa.has(registo.membroId)) {
+        mapa.set(registo.membroId, registo);
+      }
+    }
+    return mapa;
+  }
+
+  private serializarPresencaOperacional(
+    registo: { id: string; tipo: string; registadoEm: Date; metodo: string; observacao: string | null } | null
+  ) {
+    if (!registo) return null;
+    return {
+      id: registo.id,
+      tipo: registo.tipo,
+      registadoEm: registo.registadoEm,
+      metodo: registo.metodo,
+      observacao: registo.observacao
+    };
+  }
+
+  private conversaForaSla(ultimaMensagemEm: Date | null, agora = new Date()) {
+    if (!ultimaMensagemEm) return true;
+    return agora.getTime() - ultimaMensagemEm.getTime() > MINUTOS_SLA_CONVERSA * 60 * 1000;
+  }
+
+  private extrairAusenciasAtivas(
+    eventos: Array<{ id: string; entidadeId: string | null; detalhesJson: string; criadoEm: Date }>,
+    agora = new Date()
+  ) {
+    return eventos
+      .map((evento) => {
+        const detalhes = this.parseJsonRecord(evento.detalhesJson);
+        const membroId = typeof detalhes.membroId === "string" ? detalhes.membroId : evento.entidadeId;
+        const inicioEm = this.dataValida(detalhes.inicioEm) ?? evento.criadoEm;
+        const fimEm = this.dataValida(detalhes.fimEm);
+        if (!membroId || !fimEm) return null;
+        if (inicioEm > agora || fimEm < agora) return null;
+        return {
+          id: evento.id,
+          membroId,
+          motivo: typeof detalhes.motivo === "string" ? detalhes.motivo : "Ausência operacional",
+          inicioEm,
+          fimEm
+        };
+      })
+      .filter((item): item is { id: string; membroId: string; motivo: string; inicioEm: Date; fimEm: Date } => Boolean(item));
+  }
+
+  private dataValida(valor: unknown) {
+    if (typeof valor !== "string" && !(valor instanceof Date)) return null;
+    const data = valor instanceof Date ? valor : new Date(valor);
+    return Number.isNaN(data.getTime()) ? null : data;
+  }
+
+  private parseJsonRecord(valor?: string | null): Record<string, unknown> {
+    if (!valor) return {};
+    try {
+      const parseado = JSON.parse(valor);
+      return parseado && typeof parseado === "object" && !Array.isArray(parseado) ? parseado as Record<string, unknown> : {};
+    } catch {
+      return {};
+    }
+  }
+
+  private contarPorChave(chaves: Array<string | null | undefined>) {
+    const mapa = new Map<string, number>();
+    for (const chave of chaves) {
+      if (!chave) continue;
+      mapa.set(chave, (mapa.get(chave) ?? 0) + 1);
+    }
+    return mapa;
   }
 
   private async registrarActividade(

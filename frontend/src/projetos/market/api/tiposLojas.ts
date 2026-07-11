@@ -553,8 +553,76 @@ export interface ResumoMarketLoja {
     elegiveis: number;
     comPendencias: number;
   };
+  seller?: SellerOnboardingMarket;
   categorias: CategoriaMarket[];
   itens: ItemPublicacaoMarketLoja[];
+}
+
+export type EstadoSellerMarket = "RASCUNHO" | "PENDENTE" | "EM_REVISAO" | "APROVADO" | "REJEITADO" | "SUSPENSO";
+
+export interface SellerOnboardingMarket {
+  estado: EstadoSellerMarket;
+  elegivel?: boolean;
+  pendencias?: string[];
+  documentos: {
+    nif?: string | null;
+    iban?: string | null;
+    identidadeUrl?: string | null;
+    comprovativoBancarioUrl?: string | null;
+    termoAceiteEm?: string | null;
+  };
+  verificacao: {
+    responsavelNome?: string | null;
+    responsavelTelefone?: string | null;
+    observacao?: string | null;
+  };
+  historico: Array<{ estado: string; motivo?: string | null; atualizadoEm: string; atualizadoPorId?: string | null }>;
+  atualizadoEm?: string | null;
+  atualizadoPorId?: string | null;
+}
+
+export interface PayloadSellerOnboardingMarket {
+  estado?: EstadoSellerMarket;
+  motivo?: string | null;
+  documentos?: Partial<SellerOnboardingMarket["documentos"]>;
+  verificacao?: Partial<SellerOnboardingMarket["verificacao"]>;
+}
+
+export interface RespostaSellerOnboardingMarket {
+  seller: SellerOnboardingMarket;
+  loja: ResumoMarketLoja["loja"];
+  checklistCatalogo: ResumoMarketLoja["produtos"];
+  itensComPendencia: ItemPublicacaoMarketLoja[];
+}
+
+export interface CheckMarketCatalogo {
+  codigo: string;
+  ok: boolean;
+  mensagem: string | null;
+  detalhes: RegistroJson;
+}
+
+export interface ProdutoChecklistMarket {
+  codigo: string;
+  nome: string;
+  publicado: boolean;
+  elegivel: boolean;
+  checks: CheckMarketCatalogo[];
+  pendencias: string[];
+}
+
+export interface RespostaChecklistCatalogoMarket {
+  prontoParaMarket: boolean;
+  checklist: CheckMarketCatalogo[];
+  produtos: ProdutoChecklistMarket[];
+  metricas: {
+    totalProdutos: number;
+    produtosElegiveis: number;
+    produtosPublicados: number;
+    produtosComPendencias: number;
+    produtosComChecklistCompleto: number;
+  };
+  atualizadoEm: string;
 }
 
 export interface RespostaPublicacaoProdutoMarket {
@@ -792,3 +860,129 @@ export interface RepasseFinanceiroTeam {
 }
 
 export type RepasseFinanceiroCrm = RepasseFinanceiroTeam;
+
+export interface DisputaMarketTeam {
+  id: string;
+  tipo: "PRODUTO_PROIBIDO" | "INFORMACAO_FALSA" | "FRAUDE" | "CONTEUDO_OFENSIVO" | "SPAM" | "OUTRO";
+  entidadeTipo: "PRODUTO" | "LOJA";
+  entidadeId: string;
+  negocioAlvoId: string | null;
+  denuncianteId: string | null;
+  motivo: string;
+  descricao: string | null;
+  estado: "PENDENTE" | "EM_REVISAO" | "ACEITE" | "REJEITADA" | "RESOLVIDA";
+  resolvidoPorId: string | null;
+  resolucao: string | null;
+  criadoEm: string;
+  atualizadoEm: string;
+}
+
+export interface PayloadDisputaMarketTeam {
+  tipo?: DisputaMarketTeam["tipo"];
+  entidadeTipo?: DisputaMarketTeam["entidadeTipo"];
+  entidadeId?: string;
+  motivo: string;
+  descricao?: string | null;
+  evidencias?: string[];
+  prazoRespostaEm?: string | null;
+  responsavelId?: string | null;
+}
+
+export interface PayloadDecisaoDisputaMarketTeam {
+  estado: "ACEITE" | "REJEITADA" | "RESOLVIDA";
+  resolucao: string;
+  acao?: "REEMBOLSO" | "TROCA" | "DEVOLUCAO" | "CHARGEBACK" | "NENHUMA";
+  evidencias?: string[];
+  valorEmKwanza?: number | null;
+}
+
+export interface PayloadCasoPosVendaMarketTeam {
+  tipo: "TROCA" | "DEVOLUCAO" | "CHARGEBACK";
+  pedidoId: string;
+  compraUnificadaId?: string | null;
+  produtoCodigo?: string | null;
+  motivo: string;
+  descricao?: string | null;
+  evidencias?: string[];
+  prazoRespostaEm?: string | null;
+  responsavelId?: string | null;
+  valorEmKwanza?: number | null;
+}
+
+export interface ReembolsoMarketTeam {
+  id: string;
+  negocioId: string;
+  pedidoId: string;
+  compraUnificadaId: string | null;
+  tipo: "TOTAL" | "PARCIAL";
+  valorEmKwanza: number;
+  motivo: string;
+  itensAfetados: Array<{ codigoPeca: string; quantidade: number; valorEmKwanza: number }>;
+  estado: "PENDENTE" | "APROVADO" | "PROCESSADO" | "REJEITADO";
+  aprovadoPorId: string | null;
+  processadoEm: string | null;
+  criadoEm: string;
+  atualizadoEm: string;
+}
+
+export interface PayloadReembolsoMarketTeam {
+  pedidoId: string;
+  compraUnificadaId?: string | null;
+  tipo?: "TOTAL" | "PARCIAL";
+  valorEmKwanza: number;
+  motivo: string;
+  itensAfetados?: Array<{ codigoPeca: string; quantidade: number; valorEmKwanza: number }>;
+}
+
+export interface EventoMarketTeam {
+  id: string;
+  negocioId: string;
+  topico: string;
+  tipo: string;
+  entidadeTipo: string | null;
+  entidadeId: string | null;
+  payloadVersion: string;
+  payload: RegistroJson;
+  estado: "PENDENTE" | "PROCESSADO" | "IGNORADO" | "FALHOU";
+  criadoEm: string;
+  atualizadoEm: string;
+}
+
+export interface RespostaCasoPosVendaMarketTeam {
+  caso: DisputaMarketTeam;
+  evento: EventoMarketTeam;
+}
+
+export interface RespostaEventosMarketTeam {
+  eventos: EventoMarketTeam[];
+  total: number;
+  metricas: {
+    onboarding: number;
+    disputas: number;
+    reembolsos: number;
+    checkout: number;
+    entregas: number;
+    payouts: number;
+    posVenda: number;
+  };
+}
+
+export interface ContaSellerMarket {
+  saldos: {
+    disponivelEmKwanza: number;
+    retidoEmKwanza: number;
+    pagoEmKwanza: number;
+    canceladoEmKwanza: number;
+    emDisputaEmKwanza: number;
+  };
+  taxas: {
+    totalTaxasBizyEComissoesEmKwanza: number;
+  };
+  disputas: {
+    abertas: number;
+    total: number;
+  };
+  repasses: RepasseFinanceiroTeam[];
+  reembolsosPendentes: RegistroJson[];
+  atualizadoEm: string;
+}

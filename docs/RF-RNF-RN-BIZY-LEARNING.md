@@ -229,17 +229,17 @@ Estado incremental 2026-07-04: RF-L069 tem cobertura parcial para visualização
 
 ### 5.10 Benchmark Internacional, Interoperabilidade e Portais
 
-- [ ] **RF-L077**: O Learning deve manter trilha de eventos de aprendizagem com sujeito, verbo, objeto, contexto, resultado, timestamp e origem, preparando compatibilidade futura com xAPI/LRS.
+- [x] **RF-L077**: O Learning deve manter trilha de eventos de aprendizagem com sujeito, verbo, objeto, contexto, resultado, timestamp e origem, preparando compatibilidade futura com xAPI/LRS. *(implementado: `POST/GET /learning/team/experiencias`, payload versionado `learning-experience.v1` e validação por entitlement)*
 - [ ] **RF-L078**: Avaliações devem ser modeladas com perguntas, alternativas, rubrica, tentativas, feedback, pontuação e banco reutilizável, preparando compatibilidade futura com QTI.
-- [ ] **RF-L079**: Certificados e badges devem ter metadados verificaveis, emissor, criterio, validade, evidencias e URL publica segura, preparando compatibilidade futura com Open Badges.
+- [x] **RF-L079**: Certificados e badges devem ter metadados verificaveis, emissor, criterio, validade, evidencias e URL publica segura, preparando compatibilidade futura com Open Badges. *(implementado: certificado inclui metadados `open-badges-lite.v1`, codigo de verificacao, URL publica segura em `/publico/learning/certificados/:negocioId/:codigo`, resposta publica minima sem expor `usuarioId` e revogacao verificavel)*
 - [ ] **RF-L080**: Conteudos externos ou ferramentas parceiras devem entrar por integracao controlada, com owner, escopo, retorno de progresso e revogacao, preparando compatibilidade futura com LTI.
 - [ ] **RF-L081**: O Learning deve aceitar pacote/conteudo legado em formato compatível com SCORM apenas quando houver necessidade real, mantendo isolamento e sem bloquear o modelo nativo.
-- [ ] **RF-L082**: O player Learning deve controlar acesso por entitlement, bloquear cache publico de conteudo premium, registar consumo e preservar progresso mesmo em falha temporaria de notificacao.
+- [x] **RF-L082**: O player Learning deve controlar acesso por entitlement, bloquear cache publico de conteudo premium, registar consumo e preservar progresso mesmo em falha temporaria de notificacao. *(implementado: `/learning/player/programas/:slug` valida entitlement/acesso, retorna `seguranca.cache=no-store`, progresso e bloqueio de premium; `/learning/player/eventos` registra consumo versionado sem depender de notificacao externa)*
 - [ ] **RF-L083**: O Team deve expor risco de abandono, progresso atrasado, formacao obrigatoria vencida, certificado pendente e tarefas de follow-up por membro, produto, cohort e departamento.
 - [ ] **RF-L084**: O Learning deve ter portal do produtor/mentor com produtos, turmas, presenca, progresso, receita, suporte, mensagens internas, moderacao e documentos minimos.
 - [ ] **RF-L085**: Produtos Learning devem suportar versoes de conteudo, release notes e politica de impacto sobre progresso, certificados antigos e recertificacao.
 - [ ] **RF-L086**: O Learning deve criar automacoes seguras para matricula, entitlement, progresso, lembrete, conclusao, certificado, risco de abandono, cohort, recomendacao, comunidade e payout do produtor.
-- [ ] **RF-L087**: Qualquer acao sensivel de certificado, refund, suspensao, payout, ocultacao de conteudo ou revogacao de acesso deve exigir policy, permissao e auditoria.
+- [ ] **RF-L087**: Qualquer acao sensivel de certificado, refund, suspensao, payout, ocultacao de conteudo ou revogacao de acesso deve exigir policy, permissao e auditoria. *(parcial: certificado/revogacao, moderacao/ocultacao e ajuste de compra com revogacao de acesso ja exigem permissao e geram evento auditavel; faltam payout/suspensao e policy uniforme para todas as acoes sensiveis)*
 
 ## 6. Requisitos Nao Funcionais
 
@@ -272,9 +272,9 @@ Estado incremental 2026-07-04: RF-L069 tem cobertura parcial para visualização
 - [ ] **RNF-L027**: O design do Learning deve comunicar ecossistema de produtos digitais, nao landing page estatica nem catalogo simples.
 - [ ] **RNF-L028**: O backoffice `/app/learning` deve ser operacional e denso o suficiente para uso diario por gestores, mentores e donos, mantendo clareza mobile-first.
 - [ ] **RNF-L029**: O chat interno Learning deve ser low-noise, auditavel e separado de canais externos como WhatsApp, Instagram e atendimento CRM.
-- [ ] **RNF-L030**: A arquitetura de eventos Learning deve permitir evoluir para xAPI sem acoplar o MVP a um LRS externo.
-- [ ] **RNF-L031**: Avaliações, certificados e badges devem ser exportaveis em formato documentado e reprocessaveis sem perder auditoria.
-- [ ] **RNF-L032**: Conteudo premium, progresso, notas, certificados e mensagens internas devem ter autorizacao por entitlement, papel e `negocioId`.
+- [x] **RNF-L030**: A arquitetura de eventos Learning deve permitir evoluir para xAPI sem acoplar o MVP a um LRS externo. *(implementado via ledger operacional `LEARNING_EXPERIENCIA_REGISTADA` com payload versionado)*
+- [ ] **RNF-L031**: Avaliações, certificados e badges devem ser exportaveis em formato documentado e reprocessaveis sem perder auditoria. *(parcial: certificados/badges exportam por `GET /learning/team/certificados/:codigo/exportar` em `bizy.learning.certificate.export.v1`, com badge `open-badges-lite.v1`, dados de reprocessamento e hash `sha256`; faltam avaliações exportáveis após o modelo QTI ser implementado)*
+- [ ] **RNF-L032**: Conteudo premium, progresso, notas, certificados e mensagens internas devem ter autorizacao por entitlement, papel e `negocioId`. *(parcial: player premium valida entitlement e `negocioId`; progresso, certificados, exportação e chat interno exigem sessão/permissão e `negocioId`; falta política granular por papel para separar notas/mensagens internas sensíveis por contexto)*
 - [ ] **RNF-L033**: Videos, audios e materiais principais devem oferecer alternativa textual, captions/transcricao quando aplicavel e navegação por teclado.
 - [ ] **RNF-L034**: Automacoes Learning devem registrar motivo, politica, confiança quando houver IA, fallback humano e resultado.
 - [ ] **RNF-L035**: Relatorios de Learning devem separar metricas confirmadas, estimadas, incompletas e anonimizadas.

@@ -135,7 +135,7 @@ describe("GestaoEquipaUseCase — lógica pura", () => {
       usuarioId: "usuario-vendedor",
       papel: "VENDEDOR",
       status: "ATIVO",
-      criadoEm: new Date("2026-06-30T09:00:00.000Z"),
+      criadoEm: new Date(Date.now() - 24 * 60 * 60 * 1000),
       usuario: {
         id: "usuario-vendedor",
         nome: "Vendedor",
@@ -340,6 +340,242 @@ describe("GestaoEquipaUseCase — lógica pura", () => {
           negocioId: "negocio-1",
           status: "ATIVO",
           OR: expect.any(Array)
+        })
+      })
+    );
+  });
+
+  it("RF-T131/RF-T133: monta perfil 360 e capacidade operacional sem nova tabela", async () => {
+    const membro = {
+      id: "membro-vendedor",
+      negocioId: "negocio-1",
+      usuarioId: "usuario-vendedor",
+      papel: "VENDEDOR",
+      status: "ATIVO",
+      permissoesJson: JSON.stringify({ competencias: ["lives"] }),
+      criadoEm: new Date("2026-07-10T08:00:00.000Z"),
+      usuario: {
+        id: "usuario-vendedor",
+        nome: "Vendedor",
+        email: "vendedor@bizy.test",
+        telefone: "923000222",
+        avatarUrl: null,
+        papel: "USUARIO"
+      }
+    };
+    const membroNegocio = {
+      findFirst: vi.fn().mockResolvedValue(membro),
+      findMany: vi.fn().mockResolvedValue([membro])
+    };
+    const checklistOnboarding = { findMany: vi.fn().mockResolvedValue([{ item: "PERFIL_COMPLETO", concluido: true }]) };
+    const turnoMembro = {
+      findMany: vi.fn().mockResolvedValue([{ membroId: "membro-vendedor", diaSemana: new Date().getDay(), horaInicio: "00:00", horaFim: "23:59" }])
+    };
+    const tarefaOperacional = {
+      findMany: vi.fn().mockResolvedValue([{ id: "tarefa-1", titulo: "Separar pedido", prioridade: "ALTA", estado: "ABERTA", prazoEm: null, responsavelId: "usuario-vendedor" }])
+    };
+    const conversaAtendimento = {
+      findMany: vi.fn().mockResolvedValue([{ id: "conv-1", telefone: "923000111", estado: "ABERTA", prioridade: "NORMAL", ultimaMensagemEm: new Date(), responsavelId: "usuario-vendedor" }])
+    };
+    const pedido = {
+      findMany: vi.fn().mockResolvedValue([{ id: "pedido-1", numero: 1, estado: "PENDENTE", estadoPagamento: "PENDENTE", estadoEntrega: "PENDENTE", totalEmKwanza: 12000, responsavelId: "usuario-vendedor" }])
+    };
+    const membroProjecto = {
+      findMany: vi.fn()
+        .mockResolvedValueOnce([{ papelProjecto: "MEMBRO", projecto: { id: "proj-1", nome: "Live Julho", estado: "EM_ANDAMENTO", dataInicio: null, dataFim: null, gestorId: null } }])
+        .mockResolvedValueOnce([{ membroId: "membro-vendedor" }])
+    };
+    const ausenciaEvento = {
+      id: "ausencia-1",
+      entidadeId: "membro-vendedor",
+      detalhesJson: JSON.stringify({
+        membroId: "membro-vendedor",
+        motivo: "Formação externa",
+        inicioEm: new Date(Date.now() - 60 * 60 * 1000).toISOString(),
+        fimEm: new Date(Date.now() + 60 * 60 * 1000).toISOString()
+      }),
+      criadoEm: new Date()
+    };
+    const feedActividade = {
+      findMany: vi.fn()
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([ausenciaEvento])
+        .mockResolvedValueOnce([ausenciaEvento])
+    };
+    const registoPresenca = { findMany: vi.fn().mockResolvedValue([]) };
+    const projecto = {
+      findMany: vi.fn().mockResolvedValue([
+        { id: "proj-sem-owner", nome: "Campanha sem gestor", estado: "PLANEADO", dataFim: null }
+      ])
+    };
+    const metaVendas = {
+      findMany: vi.fn().mockResolvedValue([
+        { id: "meta-1", tipo: "INDIVIDUAL", kpi: "VENDAS_VALOR", periodo: "MENSAL", valorMeta: 100000, mes: 7, ano: 2026, membroId: "membro-vendedor" }
+      ])
+    };
+    const prisma = {
+      membroNegocio,
+      checklistOnboarding,
+      turnoMembro,
+      tarefaOperacional,
+      conversaAtendimento,
+      pedido,
+      membroProjecto,
+      projecto,
+      metaVendas,
+      feedActividade,
+      registoPresenca
+    } as unknown as PrismaClient;
+    const uc = new GestaoEquipaUseCase(prisma);
+
+    const perfil = await uc.obterPerfilOperacional360("negocio-1", "membro-vendedor");
+    const capacidade = await uc.calcularCapacidadeOperacional("negocio-1");
+
+    expect(perfil.competencias).toEqual(expect.arrayContaining(["lives", "vendas", "atendimento"]));
+    expect(perfil.cargaOperacional).toEqual(expect.objectContaining({
+      tarefasAbertas: 1,
+      conversasAbertas: 1,
+      pedidosAbertos: 1,
+      projectosActivos: 1
+    }));
+    expect(perfil.disponibilidade.ausenciaAtiva).toEqual(
+      expect.objectContaining({ motivo: "Formação externa", membroId: "membro-vendedor" })
+    );
+    expect(perfil.metas).toEqual([
+      expect.objectContaining({ id: "meta-1", escopo: "INDIVIDUAL" })
+    ]);
+    expect(perfil.indicadores.sinaisSensíveis).toEqual(expect.arrayContaining(["AUSENCIA_ATIVA", "PROJECTOS_SEM_OWNER"]));
+    expect(capacidade.membros[0]).toEqual(
+      expect.objectContaining({
+        membroId: "membro-vendedor",
+        estado: "INDISPONIVEL",
+        presencaAtiva: false,
+        ausenciaAtiva: expect.objectContaining({ id: "ausencia-1" }),
+        carga: expect.objectContaining({ tarefas: 1, conversas: 1, pedidos: 1, projectos: 1 })
+      })
+    );
+  });
+
+  it("RF-T133: usa check-in recente no cálculo de capacidade operacional", async () => {
+    const membro = {
+      id: "membro-presente",
+      negocioId: "negocio-1",
+      usuarioId: "usuario-presente",
+      papel: "ATENDENTE",
+      status: "ATIVO",
+      criadoEm: new Date("2026-07-10T08:00:00.000Z"),
+      usuario: {
+        id: "usuario-presente",
+        nome: "Atendente",
+        email: null,
+        telefone: "923000333"
+      }
+    };
+    const prisma = {
+      membroNegocio: {
+        findMany: vi.fn().mockResolvedValue([membro])
+      },
+      turnoMembro: { findMany: vi.fn().mockResolvedValue([]) },
+      tarefaOperacional: { findMany: vi.fn().mockResolvedValue([]) },
+      conversaAtendimento: { findMany: vi.fn().mockResolvedValue([]) },
+      pedido: { findMany: vi.fn().mockResolvedValue([]) },
+      membroProjecto: { findMany: vi.fn().mockResolvedValue([]) },
+      feedActividade: { findMany: vi.fn().mockResolvedValue([]) },
+      registoPresenca: {
+        findMany: vi.fn().mockResolvedValue([
+          {
+            id: "presenca-1",
+            membroId: "membro-presente",
+            tipo: "CHECK_IN",
+            registadoEm: new Date(),
+            metodo: "WHATSAPP",
+            observacao: "iniciar"
+          }
+        ])
+      }
+    } as unknown as PrismaClient;
+    const uc = new GestaoEquipaUseCase(prisma);
+
+    const capacidade = await uc.calcularCapacidadeOperacional("negocio-1");
+
+    expect(capacidade.resumo.presentes).toBe(1);
+    expect(capacidade.membros[0]).toEqual(
+      expect.objectContaining({
+        membroId: "membro-presente",
+        estado: "DISPONIVEL",
+        presencaAtiva: true,
+        capacidadePercentual: 85,
+        ultimaPresenca: expect.objectContaining({ id: "presenca-1", metodo: "WHATSAPP" })
+      })
+    );
+  });
+
+  it("RF-T135: executa offboarding seguro reaproveitando desativação e auditoria", async () => {
+    const membro = {
+      id: "membro-saida",
+      negocioId: "negocio-1",
+      usuarioId: "usuario-saida",
+      papel: "VENDEDOR",
+      status: "ATIVO",
+      permissoesJson: "{}",
+      criadoEm: new Date("2026-07-10T08:00:00.000Z"),
+      usuario: {
+        id: "usuario-saida",
+        nome: "Membro Saída",
+        email: null,
+        telefone: "923000333",
+        avatarUrl: null,
+        papel: "USUARIO"
+      }
+    };
+    const membroNegocio = {
+      findFirst: vi.fn().mockResolvedValue(membro),
+      findUnique: vi.fn().mockResolvedValue(membro),
+      update: vi.fn().mockResolvedValue({ ...membro, status: "SUSPENSO" })
+    };
+    const prisma = {
+      membroNegocio,
+      checklistOnboarding: { findMany: vi.fn().mockResolvedValue([]) },
+      turnoMembro: { findMany: vi.fn().mockResolvedValue([]) },
+      tarefaOperacional: {
+        findMany: vi.fn().mockResolvedValue([]),
+        updateMany: vi.fn().mockResolvedValue({ count: 2 })
+      },
+      conversaAtendimento: {
+        findMany: vi.fn().mockResolvedValue([]),
+        updateMany: vi.fn().mockResolvedValue({ count: 1 })
+      },
+      pedido: { findMany: vi.fn().mockResolvedValue([]) },
+      membroProjecto: { findMany: vi.fn().mockResolvedValue([]) },
+      projecto: { findMany: vi.fn().mockResolvedValue([]) },
+      metaVendas: { findMany: vi.fn().mockResolvedValue([]) },
+      feedActividade: {
+        findMany: vi.fn().mockResolvedValue([]),
+        create: vi.fn().mockResolvedValue({ id: "feed-offboarding" })
+      },
+      registoPresenca: { findMany: vi.fn().mockResolvedValue([]) }
+    } as unknown as PrismaClient;
+    const uc = new GestaoEquipaUseCase(prisma);
+
+    const resultado = await uc.executarOffboardingSeguro("membro-saida", "negocio-1", {
+      motivo: "Saída voluntária.",
+      autorId: "usuario-gestor"
+    });
+
+    expect(resultado.estado).toBe("INICIADO");
+    expect(resultado.checklist.map((item) => item.item)).toEqual([
+      "REVOGAR_ACESSOS",
+      "TRANSFERIR_RESPONSABILIDADES",
+      "DOCUMENTAR_MOTIVO",
+      "COMUNICAR_EQUIPA"
+    ]);
+    expect(prisma.conversaAtendimento.updateMany).toHaveBeenCalled();
+    expect(prisma.tarefaOperacional.updateMany).toHaveBeenCalled();
+    expect(prisma.feedActividade.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          tipo: "OFFBOARDING_SEGURO",
+          autorId: "usuario-gestor"
         })
       })
     );

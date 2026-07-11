@@ -54,6 +54,9 @@ import type {
   DesempenhoMembro,
   RespostaDesempenho,
   ModoSombraEquipa,
+  PerfilOperacional360Equipa,
+  RespostaCapacidadeEquipa,
+  RespostaOffboardingEquipa,
   FormularioCaptacao,
   RespostaFormularios,
 } from "../../../tipos";
@@ -69,6 +72,8 @@ export function PaginaEquipa() {
   const [desempenho, setDesempenho] = useState<RespostaDesempenho | null>(null);
   const [formularios, setFormularios] = useState<FormularioCaptacao[]>([]);
   const [modoSombra, setModoSombra] = useState<ModoSombraEquipa | null>(null);
+  const [capacidade, setCapacidade] = useState<RespostaCapacidadeEquipa | null>(null);
+  const [perfil360, setPerfil360] = useState<PerfilOperacional360Equipa | null>(null);
   const [modoSombraCarregando, setModoSombraCarregando] = useState<string | null>(null);
   const [carregando, setCarregando] = useState(true);
   const [mostrarForm, setMostrarForm] = useState(false);
@@ -81,13 +86,14 @@ export function PaginaEquipa() {
   async function carregar() {
     setCarregando(true);
     try {
-      const [rm, rp, rc, rf, rd, rfm] = await Promise.allSettled([
+      const [rm, rp, rc, rf, rd, rfm, rcap] = await Promise.allSettled([
         requisitarApi<RespostaMembros>("/negocio/membros"),
         requisitarApi<RespostaPapeis>("/negocio/papeis"),
         requisitarApi<RespostaConvites>("/equipa/convites"),
         requisitarApi<RespostaFeed>("/equipa/feed"),
         requisitarApi<RespostaDesempenho>("/equipa/desempenho"),
         requisitarApi<RespostaFormularios>("/formularios?limite=5"),
+        requisitarApi<RespostaCapacidadeEquipa>("/equipa/capacidade"),
       ]);
       setMembros(rm.status === "fulfilled" ? rm.value.membros : []);
       setPapeis(rp.status === "fulfilled" ? rp.value.papeis : []);
@@ -95,6 +101,7 @@ export function PaginaEquipa() {
       setFeed(rf.status === "fulfilled" ? rf.value.actividades : []);
       setDesempenho(rd.status === "fulfilled" ? rd.value : null);
       setFormularios(rfm.status === "fulfilled" ? rfm.value.formularios : []);
+      setCapacidade(rcap.status === "fulfilled" ? rcap.value : null);
     } catch { /* silencioso */ }
     finally { setCarregando(false); }
   }
@@ -134,8 +141,18 @@ export function PaginaEquipa() {
 
   async function desativarMembro(id: string) {
     try {
-      await requisitarApi(`/equipa/membros/${id}/desativar`, { method: "PATCH" });
+      await requisitarApi<RespostaOffboardingEquipa>(`/equipa/membros/${id}/offboarding`, {
+        method: "POST",
+        body: { motivo: "Offboarding iniciado pela gestão da equipa." }
+      });
       await carregar();
+    } catch { /* silencioso */ }
+  }
+
+  async function abrirPerfil360(id: string) {
+    try {
+      const resposta = await requisitarApi<PerfilOperacional360Equipa>(`/equipa/membros/${id}/360`);
+      setPerfil360(resposta);
     } catch { /* silencioso */ }
   }
 
@@ -150,6 +167,9 @@ export function PaginaEquipa() {
 
   const ativos = membros.filter((m) => m.estado === "ATIVO").length;
   const convitesPendentes = convites.filter((c) => c.estado === "PENDENTE" || c.estado === "REENVIO").length;
+  const membrosSobrecarregados = capacidade?.resumo.sobrecarregados ?? 0;
+  const membrosIndisponiveis = capacidade?.resumo.indisponiveis ?? 0;
+  const alertasSla = (capacidade?.resumo.tarefasAtrasadas ?? 0) + (capacidade?.resumo.conversasForaSla ?? 0);
   const formularioLead = formularios.find((form) => form.tagAutomatica === "lead-formulario") ?? formularios[0] ?? null;
 
   const tabs = [
@@ -176,8 +196,44 @@ export function PaginaEquipa() {
         <KpiCard hero icone={Users} rotulo="Total membros" valor={membros.length} delta={`${ativos} activo${ativos !== 1 ? "s" : ""}`} deltaPositivo />
         <KpiCard icone={Crown} cor="amber" rotulo="Papéis" valor={papeis.length} />
         <KpiCard icone={UserPlus} cor="blue" rotulo="Convites pendentes" valor={convitesPendentes} delta={convitesPendentes > 0 ? "aguardando" : "nenhum"} />
-        <KpiCard icone={Shield} cor="violet" rotulo="Permissões" valor={new Set(membros.flatMap((m) => m.permissoes)).size} delta="tipos únicos" />
+        <KpiCard icone={Shield} cor={membrosSobrecarregados + membrosIndisponiveis > 0 ? "rose" : "violet"} rotulo="Capacidade" valor={capacidade?.resumo.disponiveis ?? 0} delta={`${membrosSobrecarregados} sobrecarregados · ${membrosIndisponiveis} indisponíveis`} />
       </KpiGrid>
+
+      {capacidade && (
+        <PanelCard titulo="Capacidade operacional" descricao="Distribuição atual de carga por membro ativo.">
+          <div className="mb-4 flex flex-wrap gap-2 text-sm text-muted-foreground">
+            <span className="bz-eq-perm">{capacidade.resumo.presentes} presentes</span>
+            <span className="bz-eq-perm">{alertasSla} alertas SLA</span>
+            <span className="bz-eq-perm">{capacidade.resumo.tarefasAtrasadas} tarefas atrasadas</span>
+            <span className="bz-eq-perm">{capacidade.resumo.conversasForaSla} conversas fora SLA</span>
+          </div>
+          <div className="bz-rec-cards">
+            {capacidade.membros.slice(0, 6).map((item) => (
+              <div key={item.membroId} className="bz-rec-c">
+                <div className="bz-eq-role-head">
+                  <Activity size={16} className={item.estado === "SOBRECARREGADO" || item.estado === "INDISPONIVEL" ? "bz-icon-rose" : "bz-icon-green"} />
+                  <strong className="bz-eq-role-name">{item.nome}</strong>
+                </div>
+                <div className="bz-eq-role-desc">{item.papel} · {item.estado.toLowerCase()}</div>
+                <div className="bz-eq-role-desc">
+                  {item.presencaAtiva ? "Presente" : item.emTurno ? "Em turno sem check-in" : "Fora de turno"}
+                </div>
+                {item.ausenciaAtiva && (
+                  <div className="bz-eq-role-desc">Ausência: {item.ausenciaAtiva.motivo}</div>
+                )}
+                <div className="text-xl font-semibold tabular-nums">{item.capacidadePercentual}%</div>
+                <div className="bz-eq-perms">
+                  <span className="bz-eq-perm">{item.carga.tarefas} tarefas</span>
+                  <span className="bz-eq-perm">{item.carga.conversas} conversas</span>
+                  <span className="bz-eq-perm">{item.carga.pedidos} pedidos</span>
+                  {item.sla.tarefasAtrasadas > 0 && <span className="bz-eq-perm">{item.sla.tarefasAtrasadas} atrasadas</span>}
+                  {item.sla.conversasForaSla > 0 && <span className="bz-eq-perm">{item.sla.conversasForaSla} fora SLA</span>}
+                </div>
+              </div>
+            ))}
+          </div>
+        </PanelCard>
+      )}
 
       {formularioLead && (
         <PanelCard
@@ -298,8 +354,16 @@ export function PaginaEquipa() {
                         >
                           <Eye size={14} />
                         </button>
+                        <button
+                          type="button"
+                          className="bz-iconbtn"
+                          title="Perfil 360"
+                          onClick={() => void abrirPerfil360(m.id)}
+                        >
+                          <Activity size={14} />
+                        </button>
                         {m.estado === "ATIVO" && !m.papel.includes("DONO") && (
-                          <button type="button" className="bz-iconbtn" title="Suspender membro" onClick={() => void desativarMembro(m.id)}>
+                          <button type="button" className="bz-iconbtn" title="Offboarding seguro" onClick={() => void desativarMembro(m.id)}>
                             <UserMinus size={14} />
                           </button>
                         )}
@@ -356,6 +420,47 @@ export function PaginaEquipa() {
                     {modoSombra.modulos.modulosOcultos.length === 0 && (modoSombra.widgets.progressiveDisclosure?.widgetsOcultadosPorPapel.length ?? 0) === 0 && (
                       <span className="bz-eq-perm">Nenhum</span>
                     )}
+                  </div>
+                </div>
+              </div>
+            </PanelCard>
+          )}
+
+          {perfil360 && (
+            <PanelCard
+              titulo={`Perfil 360 · ${perfil360.membro.nome}`}
+              descricao={`${perfil360.membro.papel} · ${perfil360.membro.status}`}
+              acaoTexto="Fechar"
+              acaoIcone={XCircle}
+              onAcao={() => setPerfil360(null)}
+            >
+              <KpiGrid>
+                <KpiCard icone={Target} rotulo="Tarefas" valor={perfil360.cargaOperacional.tarefasAbertas} />
+                <KpiCard icone={MessageSquare} cor="blue" rotulo="Conversas" valor={perfil360.cargaOperacional.conversasAbertas} />
+                <KpiCard icone={TrendingUp} cor="green" rotulo="Pedidos" valor={perfil360.cargaOperacional.pedidosAbertos} />
+                <KpiCard icone={CheckCircle2} cor="violet" rotulo="Onboarding" valor={`${perfil360.onboarding.percentagem}%`} />
+              </KpiGrid>
+              <div className="bz-rec-cards">
+                <div className="bz-rec-c">
+                  <strong className="bz-eq-role-name">Competências</strong>
+                  <div className="bz-eq-perms">
+                    {perfil360.competencias.map((competencia) => (
+                      <span key={competencia} className="bz-eq-perm">{competencia}</span>
+                    ))}
+                  </div>
+                </div>
+                <div className="bz-rec-c">
+                  <strong className="bz-eq-role-name">Carga</strong>
+                  <div className="bz-eq-perms">
+                    <span className="bz-eq-perm">{perfil360.cargaOperacional.projectosActivos} projetos</span>
+                    <span className="bz-eq-perm">{perfil360.cargaOperacional.tarefasAbertas} tarefas</span>
+                    <span className="bz-eq-perm">{perfil360.cargaOperacional.conversasAbertas} conversas</span>
+                  </div>
+                </div>
+                <div className="bz-rec-c">
+                  <strong className="bz-eq-role-name">Risco de acesso</strong>
+                  <div className="bz-eq-role-desc">
+                    {perfil360.indicadores.requerRevisaoAcesso ? "Requer revisão de permissões." : "Sem revisão pendente."}
                   </div>
                 </div>
               </div>

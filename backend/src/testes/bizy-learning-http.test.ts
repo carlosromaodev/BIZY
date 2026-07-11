@@ -647,6 +647,23 @@ describe("Bizy Learning HTTP", () => {
       expect(inscricao.statusCode).toBe(201);
       expect(inscricao.json().inscricao).toEqual(expect.objectContaining({ programaSlug: programa.slug }));
 
+      const playerInicial = await app.inject({
+        method: "GET",
+        url: `/learning/player/programas/${programa.slug}`,
+        headers
+      });
+      expect(playerInicial.statusCode).toBe(200);
+      expect(playerInicial.json()).toEqual(
+        expect.objectContaining({
+          programa: expect.objectContaining({ slug: programa.slug }),
+          progresso: expect.objectContaining({ programaSlug: programa.slug, inscrito: true }),
+          seguranca: expect.objectContaining({
+            cache: "no-store",
+            acessoValidadoEm: expect.any(String)
+          })
+        })
+      );
+
       const licaoId = programa.licoes[0].id;
       const conclusao = await app.inject({
         method: "POST",
@@ -690,9 +707,155 @@ describe("Bizy Learning HTTP", () => {
         expect.objectContaining({
           programaSlug: programa.slug,
           estado: "VALIDO",
-          codigoVerificacao: expect.any(String)
+          codigoVerificacao: expect.any(String),
+          badge: expect.objectContaining({
+            issuer: "BIZY_LEARNING",
+            achievementType: "CERTIFICATE"
+          }),
+          verificacao: expect.objectContaining({
+            metodo: "CODIGO"
+          })
         })
       );
+
+      const eventoPlayer = await app.inject({
+        method: "POST",
+        url: "/learning/player/eventos",
+        headers,
+        payload: {
+          programaSlug: programa.slug,
+          verbo: "VIEWED",
+          objetoTipo: "LICAO",
+          objetoId: licaoId,
+          resultado: { segundos: 120 },
+          contexto: { player: "web" },
+          idempotencyKey: `teste-player-${programa.slug}-${licaoId}`
+        }
+      });
+      expect(eventoPlayer.statusCode).toBe(201);
+      expect(eventoPlayer.json().experiencia).toEqual(
+        expect.objectContaining({
+          programaSlug: programa.slug,
+          verbo: "VIEWED",
+          origem: "PLAYER"
+        })
+      );
+
+      const experiencia = await app.inject({
+        method: "POST",
+        url: "/learning/team/experiencias",
+        headers,
+        payload: {
+          programaSlug: programa.slug,
+          verbo: "COMPLETED",
+          objetoTipo: "PROGRAMA",
+          objetoId: programa.slug,
+          origem: "PLAYER",
+          resultado: { percentual: 100 },
+          contexto: { player: "bizy-learning" },
+          idempotencyKey: `teste-experiencia-${programa.slug}`
+        }
+      });
+      expect(experiencia.statusCode).toBe(201);
+      expect(experiencia.json().experiencia).toEqual(
+        expect.objectContaining({
+          programaSlug: programa.slug,
+          verbo: "COMPLETED",
+          objetoTipo: "PROGRAMA"
+        })
+      );
+
+      const experiencias = await app.inject({
+        method: "GET",
+        url: `/learning/team/experiencias?programaSlug=${programa.slug}`,
+        headers
+      });
+      expect(experiencias.statusCode).toBe(200);
+      expect(experiencias.json().experiencias).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ id: experiencia.json().experiencia.id })
+        ])
+      );
+
+      const certificadoVerificado = await app.inject({
+        method: "GET",
+        url: `/learning/team/certificados/${encodeURIComponent(certificado.json().certificado.codigoVerificacao)}`,
+        headers
+      });
+      expect(certificadoVerificado.statusCode).toBe(200);
+      expect(certificadoVerificado.json().certificado).toEqual(
+        expect.objectContaining({
+          codigoVerificacao: certificado.json().certificado.codigoVerificacao,
+          estado: "VALIDO"
+        })
+      );
+
+      const certificadoPublico = await app.inject({
+        method: "GET",
+        url: `/publico/learning/certificados/${encodeURIComponent(certificado.json().certificado.negocioId)}/${encodeURIComponent(certificado.json().certificado.codigoVerificacao)}`
+      });
+      expect(certificadoPublico.statusCode).toBe(200);
+      expect(certificadoPublico.json()).toEqual(
+        expect.objectContaining({
+          certificado: expect.objectContaining({
+            codigoVerificacao: certificado.json().certificado.codigoVerificacao,
+            estado: "VALIDO",
+            titularHash: expect.any(String),
+            badge: expect.objectContaining({ achievementType: "CERTIFICATE" })
+          }),
+          verificacao: expect.objectContaining({ valido: true })
+        })
+      );
+      expect(JSON.stringify(certificadoPublico.json())).not.toContain(certificado.json().certificado.usuarioId);
+
+      const certificadoExportado = await app.inject({
+        method: "GET",
+        url: `/learning/team/certificados/${encodeURIComponent(certificado.json().certificado.codigoVerificacao)}/exportar`,
+        headers
+      });
+      expect(certificadoExportado.statusCode).toBe(200);
+      expect(certificadoExportado.json()).toEqual(
+        expect.objectContaining({
+          formato: "bizy.learning.certificate.export.v1",
+          certificado: expect.objectContaining({
+            codigoVerificacao: certificado.json().certificado.codigoVerificacao
+          }),
+          badge: expect.objectContaining({
+            formato: "open-badges-lite.v1",
+            credentialSubject: expect.objectContaining({
+              id: expect.stringMatching(/^sha256:/)
+            })
+          }),
+          auditoria: expect.objectContaining({
+            algoritmo: "sha256",
+            hash: expect.any(String),
+            preservaEventoOriginal: true
+          })
+        })
+      );
+
+      const certificadoRevogado = await app.inject({
+        method: "POST",
+        url: `/learning/team/certificados/${encodeURIComponent(certificado.json().certificado.codigoVerificacao)}/revogar`,
+        headers,
+        payload: { motivo: "Critério de conclusão revisto no teste." }
+      });
+      expect(certificadoRevogado.statusCode).toBe(200);
+      expect(certificadoRevogado.json().certificado).toEqual(
+        expect.objectContaining({
+          codigoVerificacao: certificado.json().certificado.codigoVerificacao,
+          estado: "REVOGADO",
+          motivoRevogacao: "Critério de conclusão revisto no teste."
+        })
+      );
+
+      const certificadoPublicoRevogado = await app.inject({
+        method: "GET",
+        url: `/publico/learning/certificados/${encodeURIComponent(certificado.json().certificado.negocioId)}/${encodeURIComponent(certificado.json().certificado.codigoVerificacao)}`
+      });
+      expect(certificadoPublicoRevogado.statusCode).toBe(200);
+      expect(certificadoPublicoRevogado.json().verificacao.valido).toBe(false);
+      expect(certificadoPublicoRevogado.json().certificado.estado).toBe("REVOGADO");
 
       const progresso = await app.inject({
         method: "GET",
@@ -773,7 +936,7 @@ describe("Bizy Learning HTTP", () => {
       );
       expect(acessos.json().certificados).toEqual(
         expect.arrayContaining([
-          expect.objectContaining({ programaSlug: programa.slug, estado: "VALIDO" })
+          expect.objectContaining({ programaSlug: programa.slug, estado: "REVOGADO" })
         ])
       );
     } finally {

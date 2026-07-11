@@ -901,6 +901,142 @@ export interface RespostaMembros {
   paginacao?: PaginacaoOffset;
 }
 
+export interface AusenciaOperacionalEquipa {
+  id: string;
+  membroId: string;
+  motivo: string;
+  inicioEm: string;
+  fimEm: string;
+}
+
+export interface RegistoPresencaEquipa {
+  id: string;
+  tipo: "CHECK_IN" | "CHECK_OUT" | string;
+  registadoEm: string;
+  metodo: "MANUAL" | "WHATSAPP" | "AUTOMATICO" | string;
+  observacao: string | null;
+}
+
+export interface CapacidadeMembroEquipa {
+  membroId: string;
+  usuarioId: string;
+  nome: string;
+  papel: string;
+  estado: "DISPONIVEL" | "OCUPADO" | "SOBRECARREGADO" | "INDISPONIVEL" | string;
+  capacidadePercentual: number;
+  emTurno: boolean;
+  presencaAtiva: boolean;
+  ultimaPresenca: RegistoPresencaEquipa | null;
+  ausenciaAtiva: AusenciaOperacionalEquipa | null;
+  carga: {
+    tarefas: number;
+    tarefasAtrasadas: number;
+    conversas: number;
+    conversasForaSla: number;
+    pedidos: number;
+    projectos: number;
+    ponderada: number;
+  };
+  sla: {
+    conversaMinutos: number;
+    tarefasAtrasadas: number;
+    conversasForaSla: number;
+  };
+}
+
+export interface RespostaCapacidadeEquipa {
+  atualizadoEm: string;
+  resumo: {
+    membrosAtivos: number;
+    disponiveis: number;
+    ocupados: number;
+    sobrecarregados: number;
+    indisponiveis: number;
+    presentes: number;
+    tarefasAtrasadas: number;
+    conversasForaSla: number;
+  };
+  membros: CapacidadeMembroEquipa[];
+}
+
+export interface PerfilOperacional360Equipa {
+  membro: {
+    id: string;
+    usuarioId: string;
+    nome: string;
+    email: string | null;
+    telefone: string | null;
+    avatarUrl: string | null;
+    papel: string;
+    status: string;
+    criadoEm: string;
+  };
+  competencias: string[];
+  disponibilidade: {
+    emTurno: boolean;
+    presencaAtiva: boolean;
+    ultimaPresenca: RegistoPresencaEquipa | null;
+    ausenciaAtiva: AusenciaOperacionalEquipa | null;
+    turnos: unknown[];
+    presencasRecentes: unknown[];
+  };
+  cargaOperacional: {
+    tarefasAbertas: number;
+    conversasAbertas: number;
+    pedidosAbertos: number;
+    projectosActivos: number;
+    tarefas: unknown[];
+    conversas: unknown[];
+    pedidos: unknown[];
+    projectos: unknown[];
+  };
+  desempenho: {
+    tarefasAtrasadas: number;
+    conversasForaSla: number;
+    pedidosPendentesValorEmKwanza: number;
+    slaConversaMinutos: number;
+    fonte: string;
+  };
+  metas: Array<{
+    id: string;
+    tipo: string;
+    kpi: string;
+    periodo: string;
+    valorMeta: number;
+    mes: number | null;
+    ano: number | null;
+    escopo: "INDIVIDUAL" | "EQUIPA" | string;
+  }>;
+  acessos: {
+    papel: string;
+    permissoes: Record<string, unknown>;
+    papelSensivel: boolean;
+    requerRevisao: boolean;
+  };
+  onboarding: {
+    total: number;
+    concluidos: number;
+    percentagem: number;
+    checklist: unknown[];
+  };
+  indicadores: {
+    sinaisSensíveis: string[];
+    requerRevisaoAcesso: boolean;
+    projectosSemOwner: unknown[];
+    fonte: string;
+  };
+  actividadeRecente: ActividadeFeed[];
+}
+
+export interface RespostaOffboardingEquipa {
+  membro: unknown;
+  estado: "INICIADO" | string;
+  checklist: Array<{ item: string; estado: string; descricao: string }>;
+  cargaAntes: PerfilOperacional360Equipa["cargaOperacional"];
+  substitutoMembroId: string | null;
+  executadoEm: string;
+}
+
 export interface ModoSombraEquipa {
   modo: "SOMBRA";
   contexto: "PAINEL" | "PEDIDOS" | "CONVERSAS" | "FINANCAS";

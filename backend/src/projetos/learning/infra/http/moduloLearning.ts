@@ -105,6 +105,36 @@ const RevogarEntitlementSchema = z.object({
   motivo: z.string().trim().min(3).max(300).optional()
 });
 
+const VerboExperienciaLearningSchema = z.enum(["EXPERIENCED", "COMPLETED", "PASSED", "FAILED", "VIEWED", "DOWNLOADED"]);
+const ObjetoExperienciaLearningSchema = z.enum(["PROGRAMA", "LICAO", "QUIZ", "CERTIFICADO", "COHORT", "COMUNIDADE"]);
+const OrigemExperienciaLearningSchema = z.enum(["PLAYER", "TEAM", "API"]);
+
+const RegistrarExperienciaLearningSchema = z.object({
+  programaSlug: z.string().trim().min(2).max(120),
+  verbo: VerboExperienciaLearningSchema.optional(),
+  objetoTipo: ObjetoExperienciaLearningSchema.optional(),
+  objetoId: z.string().trim().min(1).max(160).nullable().optional(),
+  origem: OrigemExperienciaLearningSchema.optional(),
+  resultado: z.record(z.unknown()).optional(),
+  contexto: z.record(z.unknown()).optional(),
+  idempotencyKey: z.string().trim().min(8).max(180).nullable().optional()
+});
+
+const QueryExperienciasLearningSchema = z.object({
+  programaSlug: z.string().trim().min(2).max(120).optional(),
+  usuarioId: z.string().trim().min(2).max(120).optional(),
+  limite: z.coerce.number().int().min(1).max(500).optional()
+});
+
+const ParamCodigoCertificadoSchema = z.object({
+  codigo: z.string().trim().min(6).max(160)
+});
+
+const ParamCertificadoPublicoSchema = z.object({
+  negocioId: z.string().trim().min(2).max(120),
+  codigo: z.string().trim().min(6).max(160)
+});
+
 const AtribuirProgramaLearningSchema = z.object({
   usuarioId: z.string().trim().min(2).max(120).optional(),
   perfilAlvo: z.string().trim().min(2).max(40).optional(),
@@ -211,6 +241,12 @@ export const moduloLearning: ModuloHttp = {
       aplicarCachePublico(reply);
       const { slug } = ParamSlugSchema.parse(request.params);
       return contexto.bizyLearning.obterProdutoPublico(slug);
+    });
+
+    app.get("/publico/learning/certificados/:negocioId/:codigo", async (request, reply) => {
+      aplicarCachePublico(reply);
+      const { negocioId, codigo } = ParamCertificadoPublicoSchema.parse(request.params);
+      return contexto.bizyLearning.verificarCertificadoPublico(negocioId, codigo);
     });
 
     app.post("/publico/learning/eventos", async (request, reply) => {
@@ -474,6 +510,59 @@ export const moduloLearning: ModuloHttp = {
       return reply.code(resultado.duplicado ? 200 : 201).send(resultado);
     });
 
+    app.post("/learning/team/experiencias", async (request, reply) => {
+      aplicarNoStore(reply);
+      const ctx = await exigirAcessoComercial(contexto, request, reply, {
+        permissao: "learning:ler",
+        mensagemPermissao: "Sem permissão para registar eventos do Bizy Learning."
+      });
+      if (!ctx) return;
+
+      const dados = RegistrarExperienciaLearningSchema.parse(request.body ?? {});
+      const resultado = await contexto.bizyLearning.registrarExperiencia(ctx.negocio.id, ctx.usuario.id, dados);
+      return reply.code(resultado.duplicado ? 200 : 201).send(resultado);
+    });
+
+    app.get("/learning/player/programas/:slug", async (request, reply) => {
+      aplicarNoStore(reply);
+      const ctx = await exigirAcessoComercial(contexto, request, reply, {
+        permissao: "learning:ler",
+        mensagemPermissao: "Sem permissão para aceder ao player do Bizy Learning."
+      });
+      if (!ctx) return;
+
+      const { slug } = ParamSlugSchema.parse(request.params);
+      return contexto.bizyLearning.obterPlayerPrograma(ctx.negocio.id, ctx.usuario.id, slug);
+    });
+
+    app.post("/learning/player/eventos", async (request, reply) => {
+      aplicarNoStore(reply);
+      const ctx = await exigirAcessoComercial(contexto, request, reply, {
+        permissao: "learning:ler",
+        mensagemPermissao: "Sem permissão para registar consumo no player do Bizy Learning."
+      });
+      if (!ctx) return;
+
+      const dados = RegistrarExperienciaLearningSchema.parse(request.body ?? {});
+      const resultado = await contexto.bizyLearning.registrarExperiencia(ctx.negocio.id, ctx.usuario.id, {
+        ...dados,
+        origem: dados.origem ?? "PLAYER"
+      });
+      return reply.code(resultado.duplicado ? 200 : 201).send(resultado);
+    });
+
+    app.get("/learning/team/experiencias", async (request, reply) => {
+      aplicarNoStore(reply);
+      const ctx = await exigirAcessoComercial(contexto, request, reply, {
+        permissao: "learning:administrar",
+        mensagemPermissao: "Sem permissão para auditar eventos do Bizy Learning."
+      });
+      if (!ctx) return;
+
+      const filtros = QueryExperienciasLearningSchema.parse(request.query ?? {});
+      return { experiencias: await contexto.bizyLearning.listarExperiencias(ctx.negocio.id, filtros) };
+    });
+
     app.get("/learning/progresso", async (request, reply) => {
       aplicarNoStore(reply);
       const ctx = await exigirAcessoComercial(contexto, request, reply, {
@@ -583,6 +672,43 @@ export const moduloLearning: ModuloHttp = {
       const { slug } = ParamSlugSchema.parse(request.params);
       const resultado = await contexto.bizyLearning.emitirCertificado(ctx.negocio.id, ctx.usuario.id, slug);
       return reply.code(resultado.duplicado ? 200 : 201).send(resultado);
+    });
+
+    app.get("/learning/team/certificados/:codigo", async (request, reply) => {
+      aplicarNoStore(reply);
+      const ctx = await exigirAcessoComercial(contexto, request, reply, {
+        permissao: "learning:ler",
+        mensagemPermissao: "Sem permissão para verificar certificados do Bizy Learning."
+      });
+      if (!ctx) return;
+
+      const { codigo } = ParamCodigoCertificadoSchema.parse(request.params);
+      return contexto.bizyLearning.obterCertificado(ctx.negocio.id, codigo);
+    });
+
+    app.get("/learning/team/certificados/:codigo/exportar", async (request, reply) => {
+      aplicarNoStore(reply);
+      const ctx = await exigirAcessoComercial(contexto, request, reply, {
+        permissao: "learning:ler",
+        mensagemPermissao: "Sem permissão para exportar certificados do Bizy Learning."
+      });
+      if (!ctx) return;
+
+      const { codigo } = ParamCodigoCertificadoSchema.parse(request.params);
+      return contexto.bizyLearning.exportarCertificado(ctx.negocio.id, codigo);
+    });
+
+    app.post("/learning/team/certificados/:codigo/revogar", async (request, reply) => {
+      aplicarNoStore(reply);
+      const ctx = await exigirAcessoComercial(contexto, request, reply, {
+        permissao: "learning:administrar",
+        mensagemPermissao: "Sem permissão para revogar certificados do Bizy Learning."
+      });
+      if (!ctx) return;
+
+      const { codigo } = ParamCodigoCertificadoSchema.parse(request.params);
+      const { motivo } = RevogarEntitlementSchema.parse(request.body ?? {});
+      return contexto.bizyLearning.revogarCertificado(ctx.negocio.id, ctx.usuario.id, codigo, motivo ?? "Revogado pelo Team.");
     });
 
     app.post("/learning/certificados/:slug/emitir", async (request, reply) => {

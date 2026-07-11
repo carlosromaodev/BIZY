@@ -317,8 +317,252 @@ describe("Bizy Market público HTTP", () => {
             publicados: 1,
             elegiveis: 1,
             comPendencias: 0
+          }),
+          seller: expect.objectContaining({
+            estado: expect.any(String),
+            pendencias: expect.arrayContaining([
+              "Informar NIF ou identificação fiscal.",
+              "Informar IBAN para repasses."
+            ])
           })
         })
+      );
+
+      const seller = await app.inject({
+        method: "PUT",
+        url: "/team/loja/seller/onboarding",
+        headers: lojaA,
+        payload: {
+          estado: "EM_REVISAO",
+          motivo: "Documentação inicial validada no teste.",
+          documentos: {
+            nif: "5000000000",
+            iban: "AO06000600000000000000000",
+            termoAceiteEm: "2026-07-10T10:00:00.000Z"
+          },
+          verificacao: {
+            responsavelNome: "Gestor Market",
+            responsavelTelefone: "923000999"
+          }
+        }
+      });
+      expect(seller.statusCode).toBe(200);
+      expect(seller.json().seller).toEqual(
+        expect.objectContaining({
+          estado: "APROVADO",
+          elegivel: true,
+          documentos: expect.objectContaining({ nif: "5000000000" }),
+          pendencias: []
+        })
+      );
+
+      const checklist = await app.inject({
+        method: "GET",
+        url: "/team/loja/catalogo/checklist",
+        headers: lojaA
+      });
+      expect(checklist.statusCode).toBe(200);
+      expect(checklist.json()).toEqual(
+        expect.objectContaining({
+          checklist: expect.arrayContaining([
+            expect.objectContaining({ codigo: "seller", ok: true }),
+            expect.objectContaining({ codigo: "catalogo", ok: true })
+          ]),
+          produtos: expect.arrayContaining([
+            expect.objectContaining({
+              codigo: "VESTIDO-DETALHE",
+              checks: expect.arrayContaining([
+                expect.objectContaining({ codigo: "imagem", ok: true }),
+                expect.objectContaining({ codigo: "publicacao", ok: true })
+              ])
+            })
+          ]),
+          metricas: expect.objectContaining({
+            totalProdutos: 1,
+            produtosElegiveis: 1,
+            produtosPublicados: 1
+          })
+        })
+      );
+
+      const contaSeller = await app.inject({
+        method: "GET",
+        url: "/team/loja/seller/conta",
+        headers: lojaA
+      });
+      expect(contaSeller.statusCode).toBe(200);
+      expect(contaSeller.json()).toEqual(
+        expect.objectContaining({
+          saldos: expect.objectContaining({
+            disponivelEmKwanza: expect.any(Number),
+            retidoEmKwanza: expect.any(Number)
+          }),
+          disputas: expect.objectContaining({ abertas: 0 })
+        })
+      );
+
+      const disputa = await app.inject({
+        method: "POST",
+        url: "/team/loja/disputas",
+        headers: lojaA,
+        payload: {
+          entidadeTipo: "PRODUTO",
+          entidadeId: "VESTIDO-DETALHE",
+          motivo: "Cliente contestou prova de entrega.",
+          descricao: "Disputa criada para validar fluxo Trust & Safety do seller."
+        }
+      });
+      expect(disputa.statusCode).toBe(201);
+      expect(disputa.json().disputa).toEqual(
+        expect.objectContaining({
+          entidadeTipo: "PRODUTO",
+          entidadeId: "VESTIDO-DETALHE",
+          estado: "PENDENTE"
+        })
+      );
+
+      const trustSafety = await app.inject({
+        method: "GET",
+        url: "/team/loja/trust-safety/fila",
+        headers: lojaA
+      });
+      expect(trustSafety.statusCode).toBe(200);
+      expect(trustSafety.json().metricas.abertos).toBe(1);
+
+      const decisaoDisputa = await app.inject({
+        method: "PATCH",
+        url: `/team/loja/disputas/${disputa.json().disputa.id}/decisao`,
+        headers: lojaA,
+        payload: {
+          estado: "RESOLVIDA",
+          acao: "DEVOLUCAO",
+          resolucao: "Devolução aprovada com evidência de entrega validada.",
+          evidencias: ["https://example.com/evidencia-entrega.png"],
+          valorEmKwanza: 22_000
+        }
+      });
+      expect(decisaoDisputa.statusCode).toBe(200);
+      expect(decisaoDisputa.json().disputa).toEqual(
+        expect.objectContaining({
+          id: disputa.json().disputa.id,
+          estado: "RESOLVIDA",
+          resolucao: "Devolução aprovada com evidência de entrega validada."
+        })
+      );
+
+      const casoPosVenda = await app.inject({
+        method: "POST",
+        url: "/team/loja/pos-venda/casos",
+        headers: lojaA,
+        payload: {
+          tipo: "DEVOLUCAO",
+          pedidoId: "PEDIDO-MARKET-DEV-001",
+          produtoCodigo: "VESTIDO-DETALHE",
+          motivo: "Cliente devolveu dentro da política publicada.",
+          descricao: "Caso pós-venda criado para validar devolução formal com SLA e evidência.",
+          evidencias: ["https://example.com/devolucao.png"],
+          prazoRespostaEm: "2026-07-15T10:00:00.000Z",
+          responsavelId: "gestor-market-001",
+          valorEmKwanza: 22_000
+        }
+      });
+      expect(casoPosVenda.statusCode).toBe(201);
+      expect(casoPosVenda.json()).toEqual(
+        expect.objectContaining({
+          caso: expect.objectContaining({
+            entidadeTipo: "PRODUTO",
+            entidadeId: "VESTIDO-DETALHE",
+            estado: "PENDENTE"
+          }),
+          evento: expect.objectContaining({ tipo: "POS_VENDA_DEVOLUCAO_ABERTO" })
+        })
+      );
+
+      const checkoutMarket = await app.inject({
+        method: "POST",
+        url: "/publico/market/checkout",
+        payload: {
+          compradorTelefone: "923777001",
+          compradorNome: "Cliente Market Checkout",
+          itens: [
+            { slugLoja: "loja-market-studio-a", codigoPeca: "VESTIDO-DETALHE", quantidade: 1 }
+          ],
+          entrega: {
+            tipo: "ENTREGA",
+            provincia: "Luanda",
+            municipio: "Luanda",
+            bairro: "Maianga",
+            endereco: "Rua de teste 123"
+          },
+          metodoPagamento: "Pagamento manual",
+          origem: "teste-market-eventos"
+        }
+      });
+      expect(checkoutMarket.statusCode).toBe(201);
+
+      const comprovativoCheckout = await app.inject({
+        method: "POST",
+        url: `/publico/market/compras/${checkoutMarket.json().compra.id}/pagamento`,
+        payload: { comprovativoUrl: "https://example.com/comprovativo-market.png" }
+      });
+      expect(comprovativoCheckout.statusCode).toBe(200);
+
+      const reembolso = await app.inject({
+        method: "POST",
+        url: "/team/loja/reembolsos",
+        headers: lojaA,
+        payload: {
+          pedidoId: "PEDIDO-MARKET-001",
+          compraUnificadaId: "COMPRA-MARKET-001",
+          tipo: "PARCIAL",
+          valorEmKwanza: 5000,
+          motivo: "Ajuste comercial validado pelo seller."
+        }
+      });
+      expect(reembolso.statusCode).toBe(201);
+      expect(reembolso.json().reembolso).toEqual(
+        expect.objectContaining({
+          negocioId: expect.any(String),
+          pedidoId: "PEDIDO-MARKET-001",
+          estado: "PENDENTE",
+          valorEmKwanza: 5000
+        })
+      );
+
+      const reembolsos = await app.inject({
+        method: "GET",
+        url: "/team/loja/reembolsos?pedidoId=PEDIDO-MARKET-001",
+        headers: lojaA
+      });
+      expect(reembolsos.statusCode).toBe(200);
+      expect(reembolsos.json().reembolsos).toEqual([
+        expect.objectContaining({ pedidoId: "PEDIDO-MARKET-001", estado: "PENDENTE" })
+      ]);
+
+      const eventosMarket = await app.inject({
+        method: "GET",
+        url: "/team/loja/eventos-market",
+        headers: lojaA
+      });
+      expect(eventosMarket.statusCode).toBe(200);
+      expect(eventosMarket.json().metricas).toEqual(
+        expect.objectContaining({
+          onboarding: 1,
+          disputas: 2,
+          reembolsos: 1,
+          entregas: 1,
+          payouts: 1
+        })
+      );
+      expect(eventosMarket.json().eventos).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ tipo: "POS_VENDA_DEVOLUCAO_ABERTO" }),
+          expect.objectContaining({ tipo: "CHECKOUT_CRIADO" }),
+          expect.objectContaining({ tipo: "PEDIDO_FILHO_CRIADO" }),
+          expect.objectContaining({ tipo: "ENTREGA_SOLICITADA" }),
+          expect.objectContaining({ tipo: "PAYOUT_PENDENTE_CRIADO" }),
+          expect.objectContaining({ tipo: "PAGAMENTO_COMPROVATIVO_RECEBIDO" })
+        ])
       );
 
       const despublicar = await app.inject({

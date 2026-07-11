@@ -32,6 +32,25 @@ type FiltrosLojasMarket = {
   offset?: number | null;
 };
 
+export interface SellerOnboardingMarket {
+  estado: "RASCUNHO" | "PENDENTE" | "EM_REVISAO" | "APROVADO" | "REJEITADO" | "SUSPENSO";
+  documentos: {
+    nif?: string | null;
+    iban?: string | null;
+    identidadeUrl?: string | null;
+    comprovativoBancarioUrl?: string | null;
+    termoAceiteEm?: string | null;
+  };
+  verificacao: {
+    responsavelNome?: string | null;
+    responsavelTelefone?: string | null;
+    observacao?: string | null;
+  };
+  historico: Array<{ estado: string; motivo?: string | null; atualizadoEm: string; atualizadoPorId?: string | null }>;
+  atualizadoEm?: string | null;
+  atualizadoPorId?: string | null;
+}
+
 export class BizyMarketUseCase {
   constructor(
     private readonly autenticacao: RepositorioAutenticacao,
@@ -129,8 +148,19 @@ export class BizyMarketUseCase {
         elegiveis,
         comPendencias
       },
+      seller: this.avaliarSellerOnboarding(negocio, produtos),
       categorias: this.montarCategoriasLoja(pecas),
       itens: produtos
+    };
+  }
+
+  async obterSellerOnboarding(negocio: NegocioBizy) {
+    const resumo = await this.resumirLoja(negocio);
+    return {
+      seller: resumo.seller,
+      loja: resumo.loja,
+      checklistCatalogo: resumo.produtos,
+      itensComPendencia: resumo.itens.filter((item) => item.pendencias.length > 0).slice(0, 50)
     };
   }
 
@@ -177,6 +207,74 @@ export class BizyMarketUseCase {
     const entrega = loja.entrega && typeof loja.entrega === "object" ? loja.entrega as Record<string, unknown> : {};
     const lojaDigital = entrega.lojaDigital && typeof entrega.lojaDigital === "object" ? entrega.lojaDigital as Record<string, unknown> : {};
     return lojaDigital.participaNoMarket !== false;
+  }
+
+  private avaliarSellerOnboarding(
+    negocio: NegocioBizy,
+    produtos: Array<ReturnType<BizyMarketUseCase["resumirProdutoLoja"]>>
+  ) {
+    const seller = this.extrairSellerOnboarding(negocio);
+    const documentos = seller.documentos;
+    const pendencias = [
+      !negocio.slugPublico || !negocio.lojaPublicadaEm ? "Publicar loja com slug e descrição pública." : null,
+      !this.lojaParticipaNoMarket(negocio) ? "Ativar participação da loja no Bizy Market." : null,
+      produtos.filter((produto) => produto.elegivel).length === 0 ? "Publicar pelo menos um produto elegível no Market." : null,
+      !documentos.nif ? "Informar NIF ou identificação fiscal." : null,
+      !documentos.iban ? "Informar IBAN para repasses." : null,
+      !documentos.termoAceiteEm ? "Aceitar termos do seller Bizy Market." : null
+    ].filter((item): item is string => Boolean(item));
+    const estado = pendencias.length === 0 && seller.estado !== "SUSPENSO"
+      ? "APROVADO"
+      : seller.estado === "APROVADO"
+        ? "EM_REVISAO"
+        : seller.estado;
+
+    return {
+      estado,
+      elegivel: estado === "APROVADO",
+      pendencias,
+      documentos,
+      verificacao: seller.verificacao,
+      historico: seller.historico,
+      atualizadoEm: seller.atualizadoEm ?? null,
+      atualizadoPorId: seller.atualizadoPorId ?? null
+    };
+  }
+
+  private extrairSellerOnboarding(negocio: NegocioBizy): SellerOnboardingMarket {
+    const entrega = this.objeto(negocio.entrega);
+    const lojaDigital = this.objeto(entrega.lojaDigital);
+    const marketplace = this.objeto(lojaDigital.marketplace);
+    const seller = this.objeto(marketplace.sellerOnboarding);
+    const documentos = this.objeto(seller.documentos);
+    const verificacao = this.objeto(seller.verificacao);
+    const historicoRaw = Array.isArray(seller.historico) ? seller.historico : [];
+
+    return {
+      estado: normalizarEstadoSeller(seller.estado),
+      documentos: {
+        nif: this.texto(documentos.nif),
+        iban: this.texto(documentos.iban),
+        identidadeUrl: this.texto(documentos.identidadeUrl),
+        comprovativoBancarioUrl: this.texto(documentos.comprovativoBancarioUrl),
+        termoAceiteEm: this.texto(documentos.termoAceiteEm)
+      },
+      verificacao: {
+        responsavelNome: this.texto(verificacao.responsavelNome),
+        responsavelTelefone: this.texto(verificacao.responsavelTelefone),
+        observacao: this.texto(verificacao.observacao)
+      },
+      historico: historicoRaw
+        .map((item) => this.objeto(item))
+        .map((item) => ({
+          estado: String(item.estado ?? "PENDENTE"),
+          motivo: this.texto(item.motivo),
+          atualizadoEm: this.texto(item.atualizadoEm) ?? new Date().toISOString(),
+          atualizadoPorId: this.texto(item.atualizadoPorId)
+        })),
+      atualizadoEm: this.texto(seller.atualizadoEm),
+      atualizadoPorId: this.texto(seller.atualizadoPorId)
+    };
   }
 
   private async listarItensMarket(): Promise<ItemMarket[]> {
@@ -578,4 +676,12 @@ export class BizyMarketUseCase {
   private texto(valor: unknown): string | null {
     return typeof valor === "string" && valor.trim() ? valor.trim() : null;
   }
+}
+
+function normalizarEstadoSeller(valor: unknown): SellerOnboardingMarket["estado"] {
+  const estado = typeof valor === "string" ? valor.toUpperCase() : "";
+  if (["RASCUNHO", "PENDENTE", "EM_REVISAO", "APROVADO", "REJEITADO", "SUSPENSO"].includes(estado)) {
+    return estado as SellerOnboardingMarket["estado"];
+  }
+  return "PENDENTE";
 }

@@ -15,6 +15,11 @@ import type {
   PayloadFormularioLeadLojaPublica,
   PayloadCheckoutLojaPublica,
   PayloadConfiguracaoLojaPublica,
+  PayloadCasoPosVendaMarketTeam,
+  PayloadDecisaoDisputaMarketTeam,
+  PayloadDisputaMarketTeam,
+  PayloadReembolsoMarketTeam,
+  PayloadSellerOnboardingMarket,
   PayloadWhatsAppLojaPublica,
   ProdutoLojaPublica,
   ProdutoMarket,
@@ -44,7 +49,14 @@ import type {
   RespostaCatalogoPublico,
   RespostaCheckoutUnificado,
   RespostaCompraEstados,
-  RepasseFinanceiroTeam
+  RespostaCasoPosVendaMarketTeam,
+  RespostaChecklistCatalogoMarket,
+  RespostaEventosMarketTeam,
+  RepasseFinanceiroTeam,
+  ReembolsoMarketTeam,
+  ContaSellerMarket,
+  DisputaMarketTeam,
+  RespostaSellerOnboardingMarket
 } from "./tiposLojas";
 
 type ValorQuery = string | number | boolean | null | undefined;
@@ -542,6 +554,114 @@ export function listarPedidosMarketTeam(filtros?: {
 
 // Alias legado: use listarPedidosMarketTeam em código novo.
 export const listarPedidosMarketCrm = listarPedidosMarketTeam;
+
+// ── Seller Market no Team ──
+
+export function obterSellerOnboardingMarket(): Promise<RespostaSellerOnboardingMarket> {
+  return requisitarApi<RespostaSellerOnboardingMarket>(ROTAS_API_LOJAS.sellerOnboarding);
+}
+
+export function atualizarSellerOnboardingMarket(
+  dados: PayloadSellerOnboardingMarket
+): Promise<RespostaSellerOnboardingMarket> {
+  return requisitarApi<RespostaSellerOnboardingMarket>(ROTAS_API_LOJAS.sellerOnboarding, {
+    method: "PUT",
+    body: dados
+  });
+}
+
+export function obterContaSellerMarket(): Promise<ContaSellerMarket> {
+  return requisitarApi<ContaSellerMarket>(ROTAS_API_LOJAS.sellerConta);
+}
+
+export function obterChecklistCatalogoMarket(): Promise<RespostaChecklistCatalogoMarket> {
+  return requisitarApi<RespostaChecklistCatalogoMarket>(ROTAS_API_LOJAS.checklistCatalogoMarketTeam);
+}
+
+export function listarDisputasMarketTeam(filtros?: {
+  estado?: string;
+  entidadeTipo?: "PRODUTO" | "LOJA";
+  limite?: number;
+}): Promise<{ disputas: DisputaMarketTeam[]; total: number }> {
+  return requisitarApi(
+    comQuery(ROTAS_API_LOJAS.disputasMarketTeam, {
+      estado: filtros?.estado,
+      entidadeTipo: filtros?.entidadeTipo,
+      limite: filtros?.limite
+    })
+  );
+}
+
+export function criarDisputaMarketTeam(
+  dados: PayloadDisputaMarketTeam
+): Promise<{ disputa: DisputaMarketTeam }> {
+  return requisitarApi(ROTAS_API_LOJAS.disputasMarketTeam, {
+    method: "POST",
+    body: dados
+  });
+}
+
+export function decidirDisputaMarketTeam(
+  id: string,
+  dados: PayloadDecisaoDisputaMarketTeam
+): Promise<{ disputa: DisputaMarketTeam }> {
+  return requisitarApi(ROTAS_API_LOJAS.decisaoDisputaMarketTeam(id), {
+    method: "PATCH",
+    body: dados
+  });
+}
+
+export function criarCasoPosVendaMarketTeam(
+  dados: PayloadCasoPosVendaMarketTeam
+): Promise<RespostaCasoPosVendaMarketTeam> {
+  return requisitarApi(ROTAS_API_LOJAS.casosPosVendaMarketTeam, {
+    method: "POST",
+    body: dados
+  });
+}
+
+export function listarFilaTrustSafetyMarketTeam(filtros?: {
+  estado?: string;
+  entidadeTipo?: "PRODUTO" | "LOJA";
+  limite?: number;
+}): Promise<{ casos: DisputaMarketTeam[]; metricas: { abertos: number; resolvidos: number } }> {
+  return requisitarApi(
+    comQuery(ROTAS_API_LOJAS.trustSafetyMarketTeam, {
+      estado: filtros?.estado,
+      entidadeTipo: filtros?.entidadeTipo,
+      limite: filtros?.limite
+    })
+  );
+}
+
+export function listarReembolsosMarketTeam(filtros?: {
+  pedidoId?: string;
+  estado?: ReembolsoMarketTeam["estado"];
+  limite?: number;
+}): Promise<{ reembolsos: ReembolsoMarketTeam[]; total: number }> {
+  return requisitarApi(
+    comQuery(ROTAS_API_LOJAS.reembolsosMarketTeam, {
+      pedidoId: filtros?.pedidoId,
+      estado: filtros?.estado,
+      limite: filtros?.limite
+    })
+  );
+}
+
+export function criarReembolsoMarketTeam(
+  dados: PayloadReembolsoMarketTeam
+): Promise<{ reembolso: ReembolsoMarketTeam }> {
+  return requisitarApi(ROTAS_API_LOJAS.reembolsosMarketTeam, {
+    method: "POST",
+    body: dados
+  });
+}
+
+export function listarEventosMarketTeam(limite?: number): Promise<RespostaEventosMarketTeam> {
+  return requisitarApi<RespostaEventosMarketTeam>(
+    comQuery(ROTAS_API_LOJAS.eventosMarketTeam, { limite })
+  );
+}
 
 // ── Repasses Financeiros no Team ──
 
