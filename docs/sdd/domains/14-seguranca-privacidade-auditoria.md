@@ -86,7 +86,7 @@ Sinal de risco -> Anani PolicyEngine -> incidente/quarentena/acao aprovada -> Au
 - Rate limit em endpoints sensiveis.
 - Logs sem dados pessoais desnecessarios.
 - Cifra de credenciais.
-- [ ] Testes de isolamento multi-tenant.
+- [x] Testes de isolamento multi-tenant.
 - Auditoria legivel para dono/admin.
 
 ## 9. APIs, Telas e Integracoes
@@ -118,12 +118,12 @@ Projeto possui sessoes, cookie HttpOnly, rate limit, CORS, hash de SMS/sessao, c
 
 ## 13. Testes e Verificacao
 
-- [ ] Testes de autenticacao e cookie.
-- [ ] Testes de rate limit.
-- [ ] Testes de permissao financeira.
-- [ ] Testes de isolamento operacional.
+- [x] Testes de autenticacao e cookie.
+- [x] Testes de rate limit.
+- [x] Testes de permissao financeira.
+- [x] Testes de isolamento operacional.
 - [x] Testes de tracking sem dados pessoais.
-- [ ] Revisao de logs e URLs publicas.
+- [x] Revisao de logs e URLs publicas.
 - [x] Testes de policies Anani para PII, tenant crossing e financeiro.
 
 ## 14. Proximos Planos

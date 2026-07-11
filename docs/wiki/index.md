@@ -7,7 +7,7 @@ tags:
   - bizy/wiki
   - bizy/indice
 status: ativo
-updated: 2026-07-10
+updated: 2026-07-11
 ---
 
 # Indice da Wiki Bizy
@@ -35,6 +35,7 @@ updated: 2026-07-10
 - [[prioridades-lancamento-bizy|Prioridades de Lancamento]]
 - [[identidade-visual-bizy-v2|Identidade Visual Bizy v2]]
 - [[auditoria-visual-frontend-bizy-v2|Auditoria Visual Frontend Bizy v2]]
+- [[auditoria-criticas-sistema-bizy|Auditoria Unificada das Criticas do Sistema]]
 
 ## Inventarios Tecnicos
 

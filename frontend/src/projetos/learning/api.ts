@@ -53,6 +53,8 @@ export interface LicaoLearning {
   tipo: "VIDEO" | "TEXTO" | "CHECKLIST" | "QUIZ" | "LIVE";
   duracaoMinutos: number;
   accaoBizy?: string;
+  assetIds?: string[];
+  conclusao?: string;
 }
 
 export interface ProgressoLearning {
@@ -149,6 +151,10 @@ export interface ProgramaLearning {
   } | null;
   modulosRelacionados: string[];
   licoes: LicaoLearning[];
+  assets?: Array<{ id: string; tipo: string; titulo: string; url: string; premium: boolean; legendaUrl?: string | null; transcricao?: string | null }>;
+  owners?: Array<{ perfil: string; permissoes: string[] }>;
+  versaoConteudo?: { numero: number; releaseNotes: string; publicadaEm: string | null; impacto: string; afectaCertificadosAntigos: boolean };
+  integracoes?: Array<{ id: string; tipo: string; estado: string; compatibilidadeFormal: false }>;
   origem: "BIZY" | "TEAM";
   progresso?: ProgressoLearning;
 }
@@ -328,6 +334,80 @@ export interface EventoExperienciaLearning {
   resultado: Record<string, unknown>;
   contexto: Record<string, unknown>;
   criadoEm: string;
+}
+
+export type TipoPerguntaLearning = "MULTIPLA_ESCOLHA" | "VERDADEIRO_FALSO" | "RESPOSTA_CURTA";
+
+export interface AvaliacaoLearning {
+  id: string;
+  programaSlug: string;
+  titulo: string;
+  descricao: string | null;
+  pontuacaoMinima: number;
+  tentativasMaximas: number;
+  feedback: "IMEDIATO" | "APOS_ENVIO" | "MANUAL";
+  perguntas: Array<{
+    id: string;
+    tipo: TipoPerguntaLearning;
+    enunciado: string;
+    peso: number;
+    alternativas: Array<{ id: string; texto: string; correta: boolean; feedback: string | null }>;
+    rubrica: string | null;
+  }>;
+  criadoPorId: string;
+  criadoEm: string;
+  atualizadoEm: string;
+}
+
+export interface AvaliacaoPlayerLearning {
+  avaliacao: Omit<AvaliacaoLearning, "perguntas" | "criadoPorId" | "criadoEm" | "atualizadoEm"> & {
+    perguntas: Array<{
+      id: string;
+      tipo: TipoPerguntaLearning;
+      enunciado: string;
+      peso: number;
+      alternativas: Array<{ id: string; texto: string }>;
+    }>;
+  };
+  tentativasRealizadas: number;
+  tentativasRestantes: number;
+}
+
+export interface TentativaAvaliacaoLearning {
+  id: string;
+  avaliacaoId: string;
+  programaSlug: string;
+  usuarioId: string;
+  numeroTentativa: number;
+  respostas: Array<{ perguntaId: string; alternativaIds: string[]; texto: string | null }>;
+  pontuacaoPercentual: number | null;
+  aprovado: boolean | null;
+  estado: "CORRIGIDA" | "PENDENTE_REVISAO";
+  feedback: Array<{ perguntaId: string; correto: boolean | null; mensagem: string }>;
+  submetidoEm: string;
+}
+
+export interface CriarAvaliacaoLearningInput {
+  titulo: string;
+  descricao?: string | null;
+  pontuacaoMinima?: number;
+  tentativasMaximas?: number;
+  feedback?: AvaliacaoLearning["feedback"];
+  perguntas: Array<{
+    tipo: TipoPerguntaLearning;
+    enunciado: string;
+    peso?: number;
+    alternativas?: Array<{ texto: string; correta?: boolean; feedback?: string | null }>;
+    rubrica?: string | null;
+  }>;
+}
+
+export interface ExportacaoAvaliacaoLearning {
+  formato: "bizy.learning.assessment.export.v1";
+  avaliacao: AvaliacaoLearning;
+  interoperabilidade: { formato: "qti-lite.v1"; assessmentTest: Record<string, unknown> };
+  reprocessamento: { tentativas: number; ids: string[]; preservaRespostasOriginais: boolean };
+  auditoria: { algoritmo: "sha256"; hash: string; preservaEventoOriginal: boolean; exportadoEm: string };
 }
 
 export interface PlayerProgramaLearning {
@@ -674,6 +754,39 @@ export function obterResumoLearningTeam(): Promise<ResumoLearningTeamResposta> {
   return requisitarApi<ResumoLearningTeamResposta>("/learning/team/resumo");
 }
 
+export function listarAvaliacoesLearningTeam(programaSlug?: string): Promise<{ avaliacoes: AvaliacaoLearning[] }> {
+  const query = programaSlug ? `?programaSlug=${encodeURIComponent(programaSlug)}` : "";
+  return requisitarApi(`/learning/team/avaliacoes${query}`);
+}
+
+export function criarAvaliacaoLearningTeam(
+  programaSlug: string,
+  dados: CriarAvaliacaoLearningInput
+): Promise<{ avaliacao: AvaliacaoLearning; duplicado: boolean }> {
+  return requisitarApi(`/learning/team/programas/${encodeURIComponent(programaSlug)}/avaliacoes`, {
+    method: "POST",
+    body: dados
+  });
+}
+
+export function obterAvaliacaoPlayerLearning(id: string): Promise<AvaliacaoPlayerLearning> {
+  return requisitarApi(`/learning/player/avaliacoes/${encodeURIComponent(id)}`);
+}
+
+export function submeterTentativaAvaliacaoLearning(
+  id: string,
+  dados: { respostas: Array<{ perguntaId: string; alternativaIds?: string[]; texto?: string | null }>; idempotencyKey?: string | null }
+): Promise<{ tentativa: TentativaAvaliacaoLearning; duplicado: boolean }> {
+  return requisitarApi(`/learning/player/avaliacoes/${encodeURIComponent(id)}/tentativas`, {
+    method: "POST",
+    body: dados
+  });
+}
+
+export function exportarAvaliacaoLearning(id: string): Promise<ExportacaoAvaliacaoLearning> {
+  return requisitarApi(`/learning/team/avaliacoes/${encodeURIComponent(id)}/exportar`);
+}
+
 export function criarProgramaLearningTeam(dados: CriarProgramaLearningInput): Promise<{ programa: ProgramaLearning }> {
   return requisitarApi<{ programa: ProgramaLearning }>("/learning/team/programas", {
     method: "POST",
@@ -905,3 +1018,28 @@ export function enviarMensagemChatLearning(dados: EnviarMensagemChatLearningInpu
     body: dados
   });
 }
+
+export interface RiscoLearning {
+  atribuicaoId: string;
+  usuarioId?: string | null;
+  perfilAlvo?: string | null;
+  programaSlug: string;
+  percentual: number;
+  tipo: "FORMACAO_VENCIDA" | "CERTIFICADO_PENDENTE" | "RISCO_ABANDONO";
+}
+
+export interface PortalProdutorLearning {
+  produtos: ProgramaLearning[];
+  cohorts: CohortLearning[];
+  receita: { confirmada: number; payouts: Array<Record<string, unknown>> };
+  moderacao: CasoModeracaoLearning[];
+  documentos: Array<Record<string, unknown>>;
+  assignments: { tarefas: Array<{ id: string; programaSlug: string; titulo: string; prazoAte?: string | null }>; submissoes: Array<{ id: string; tarefaId: string; estado: string; usuarioId: string }> };
+  riscos: { riscos: RiscoLearning[]; metricas: { total: number; vencidas: number; abandono: number; certificadosPendentes: number } };
+  privacidade: string;
+}
+
+export function obterPortalProdutorLearning(): Promise<PortalProdutorLearning> { return requisitarApi("/learning/team/portal-produtor"); }
+export function publicarVersaoLearning(slug: string, dados: { releaseNotes: string; impacto: string }): Promise<unknown> { return requisitarApi(`/learning/team/programas/${encodeURIComponent(slug)}/versoes`, { method: "POST", body: dados }); }
+export function criarTarefaProgramaLearning(slug: string, dados: { titulo: string; instrucoes: string; prazoAte?: string | null }): Promise<unknown> { return requisitarApi(`/learning/team/programas/${encodeURIComponent(slug)}/tarefas`, { method: "POST", body: dados }); }
+export function executarAutomacoesLearning(): Promise<unknown> { return requisitarApi("/learning/team/automacoes/executar", { method: "POST" }); }

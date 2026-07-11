@@ -43,6 +43,7 @@ export class RepassesFinanceirosUseCase {
   /** RF-072: Resumo financeiro para painel da loja */
   async resumoFinanceiroLoja(negocioId: string): Promise<{
     totalPendente: number;
+    totalRetido: number;
     totalConciliado: number;
     totalAprovado: number;
     totalPago: number;
@@ -54,12 +55,13 @@ export class RepassesFinanceirosUseCase {
     const reembolsosPendentes = await this.deps.reembolsos.listar(negocioId, { estado: "PENDENTE" });
 
     const totalPendente = repasses.filter((r) => r.estado === "PENDENTE").reduce((s, r) => s + r.valorLiquidoEmKwanza, 0);
+    const totalRetido = repasses.filter((r) => r.estado === "RETIDO" || r.estado === "EM_DISPUTA").reduce((s, r) => s + r.retencaoEmKwanza, 0);
     const totalConciliado = repasses.filter((r) => r.estado === "CONCILIADO").reduce((s, r) => s + r.valorLiquidoEmKwanza, 0);
     const totalAprovado = repasses.filter((r) => r.estado === "APROVADO").reduce((s, r) => s + r.valorLiquidoEmKwanza, 0);
     const totalPago = repasses.filter((r) => r.estado === "PAGO").reduce((s, r) => s + r.valorLiquidoEmKwanza, 0);
     const totalCancelado = repasses.filter((r) => r.estado === "CANCELADO").reduce((s, r) => s + r.valorLiquidoEmKwanza, 0);
 
-    return { totalPendente, totalConciliado, totalAprovado, totalPago, totalCancelado, repasses, reembolsosPendentes };
+    return { totalPendente, totalRetido, totalConciliado, totalAprovado, totalPago, totalCancelado, repasses, reembolsosPendentes };
   }
 
   /**
@@ -67,8 +69,21 @@ export class RepassesFinanceirosUseCase {
    * RN-032: Bloqueia repasse para pedidos cancelados ou não pagos.
    */
   async conciliarRepasse(repasseId: string, negocioId: string): Promise<RepasseFinanceiro | null> {
-    const repasse = await this.deps.repassesFinanceiros.buscarPorId(repasseId, negocioId);
+    let repasse = await this.deps.repassesFinanceiros.buscarPorId(repasseId, negocioId);
     if (!repasse) return null;
+
+    if (repasse.estado === "RETIDO") {
+      if (!repasse.retidoAte || repasse.retidoAte > new Date()) return null;
+      repasse = await this.deps.repassesFinanceiros.liberar(repasseId, negocioId, "Janela de risco concluída");
+      if (!repasse) return null;
+    }
+    if (repasse.estado === "EM_DISPUTA") return null;
+
+    const reembolsosBloqueantes = await this.deps.reembolsos.listar(negocioId, { pedidoId: repasse.pedidoId });
+    if (reembolsosBloqueantes.some((item) => item.estado === "PENDENTE" || item.estado === "APROVADO")) {
+      await this.deps.repassesFinanceiros.reter(repasseId, negocioId, { motivo: "REEMBOLSO_BLOQUEANTE" });
+      return null;
+    }
 
     // RN-032: Verificar que pedido não está cancelado/não pago
     const pedido = await this.deps.pedidos.buscarPorId(repasse.pedidoId, negocioId);
@@ -90,6 +105,13 @@ export class RepassesFinanceirosUseCase {
 
   /** RF-068: Aprovar repasse após conciliação */
   async aprovarRepasse(repasseId: string, negocioId: string): Promise<RepasseFinanceiro | null> {
+    const repasse = await this.deps.repassesFinanceiros.buscarPorId(repasseId, negocioId);
+    if (!repasse || repasse.estado !== "CONCILIADO") return null;
+    const reembolsos = await this.deps.reembolsos.listar(negocioId, { pedidoId: repasse.pedidoId });
+    if (reembolsos.some((item) => item.estado === "PENDENTE" || item.estado === "APROVADO")) {
+      await this.deps.repassesFinanceiros.reter(repasseId, negocioId, { motivo: "REEMBOLSO_BLOQUEANTE" });
+      return null;
+    }
     const aprovado = await this.deps.repassesFinanceiros.aprovar(repasseId, negocioId);
 
     if (aprovado) {
@@ -103,6 +125,8 @@ export class RepassesFinanceirosUseCase {
 
   /** RF-068: Registrar pagamento do repasse ao fornecedor */
   async pagarRepasse(repasseId: string, negocioId: string, referencia: string): Promise<RepasseFinanceiro | null> {
+    const repasse = await this.deps.repassesFinanceiros.buscarPorId(repasseId, negocioId);
+    if (!repasse || repasse.estado !== "APROVADO" || repasse.retencaoEmKwanza > 0) return null;
     const pago = await this.deps.repassesFinanceiros.pagar(repasseId, negocioId, referencia);
 
     if (pago) {
@@ -125,6 +149,19 @@ export class RepassesFinanceirosUseCase {
     }
 
     return cancelado;
+  }
+
+  async reterRepassesPedido(negocioId: string, pedidoId: string, motivo: string, valorEmKwanza?: number) {
+    const repasses = await this.deps.repassesFinanceiros.listar(negocioId, { pedidoId });
+    const retidos = [];
+    for (const repasse of repasses) {
+      const retido = await this.deps.repassesFinanceiros.reter(repasse.id, negocioId, { motivo, valorEmKwanza });
+      if (retido) retidos.push(retido);
+    }
+    if (retidos.length > 0) {
+      this.deps.eventos.emitir("REPASSES_RETIDOS", { negocioId, pedidoId, motivo, total: retidos.length, valorEmKwanza: valorEmKwanza ?? null });
+    }
+    return retidos;
   }
 
   /** RN-033: Listar reembolsos de um fornecedor, filtrando por pedido */

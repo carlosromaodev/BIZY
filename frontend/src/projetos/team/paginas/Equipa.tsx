@@ -62,6 +62,8 @@ import type {
 } from "../../../tipos";
 
 type TabEquipa = "membros" | "convites" | "actividade" | "desempenho";
+type DepartamentoEquipa = { id: string; nome: string };
+type CategoriaSkill = PerfilOperacional360Equipa["skills"][number]["categoria"];
 
 export function PaginaEquipa() {
   const [tabActiva, setTabActiva] = useState<TabEquipa>("membros");
@@ -74,6 +76,7 @@ export function PaginaEquipa() {
   const [modoSombra, setModoSombra] = useState<ModoSombraEquipa | null>(null);
   const [capacidade, setCapacidade] = useState<RespostaCapacidadeEquipa | null>(null);
   const [perfil360, setPerfil360] = useState<PerfilOperacional360Equipa | null>(null);
+  const [departamentos, setDepartamentos] = useState<DepartamentoEquipa[]>([]);
   const [modoSombraCarregando, setModoSombraCarregando] = useState<string | null>(null);
   const [carregando, setCarregando] = useState(true);
   const [mostrarForm, setMostrarForm] = useState(false);
@@ -82,11 +85,19 @@ export function PaginaEquipa() {
   const [novoNome, setNovoNome] = useState("");
   const [novoContacto, setNovoContacto] = useState("");
   const [novoPapel, setNovoPapel] = useState("VENDEDOR");
+  const [cargoPerfil, setCargoPerfil] = useState("");
+  const [departamentoPerfil, setDepartamentoPerfil] = useState("");
+  const [novaSkill, setNovaSkill] = useState("");
+  const [categoriaSkill, setCategoriaSkill] = useState<CategoriaSkill>("ATENDIMENTO");
+  const [nivelSkill, setNivelSkill] = useState(3);
+  const [objetivoDesenvolvimento, setObjetivoDesenvolvimento] = useState("");
+  const [acaoDesenvolvimento, setAcaoDesenvolvimento] = useState("");
+  const [prazoDesenvolvimento, setPrazoDesenvolvimento] = useState("");
 
   async function carregar() {
     setCarregando(true);
     try {
-      const [rm, rp, rc, rf, rd, rfm, rcap] = await Promise.allSettled([
+      const [rm, rp, rc, rf, rd, rfm, rcap, rdep] = await Promise.allSettled([
         requisitarApi<RespostaMembros>("/negocio/membros"),
         requisitarApi<RespostaPapeis>("/negocio/papeis"),
         requisitarApi<RespostaConvites>("/equipa/convites"),
@@ -94,6 +105,7 @@ export function PaginaEquipa() {
         requisitarApi<RespostaDesempenho>("/equipa/desempenho"),
         requisitarApi<RespostaFormularios>("/formularios?limite=5"),
         requisitarApi<RespostaCapacidadeEquipa>("/equipa/capacidade"),
+        requisitarApi<DepartamentoEquipa[]>("/projectos/departamentos"),
       ]);
       setMembros(rm.status === "fulfilled" ? rm.value.membros : []);
       setPapeis(rp.status === "fulfilled" ? rp.value.papeis : []);
@@ -102,6 +114,7 @@ export function PaginaEquipa() {
       setDesempenho(rd.status === "fulfilled" ? rd.value : null);
       setFormularios(rfm.status === "fulfilled" ? rfm.value.formularios : []);
       setCapacidade(rcap.status === "fulfilled" ? rcap.value : null);
+      setDepartamentos(rdep.status === "fulfilled" ? rdep.value : []);
     } catch { /* silencioso */ }
     finally { setCarregando(false); }
   }
@@ -153,6 +166,54 @@ export function PaginaEquipa() {
     try {
       const resposta = await requisitarApi<PerfilOperacional360Equipa>(`/equipa/membros/${id}/360`);
       setPerfil360(resposta);
+      setCargoPerfil(resposta.membro.cargo ?? "");
+      setDepartamentoPerfil(resposta.membro.departamento?.id ?? "");
+    } catch { /* silencioso */ }
+  }
+
+  async function guardarPerfilOperacional() {
+    if (!perfil360) return;
+    try {
+      await requisitarApi(`/equipa/membros/${perfil360.membro.id}/perfil-operacional`, {
+        method: "PATCH",
+        body: { cargo: cargoPerfil.trim() || null, departamentoId: departamentoPerfil || null }
+      });
+      await abrirPerfil360(perfil360.membro.id);
+    } catch { /* silencioso */ }
+  }
+
+  async function adicionarSkill() {
+    if (!perfil360 || !novaSkill.trim()) return;
+    try {
+      await requisitarApi(`/equipa/membros/${perfil360.membro.id}/skills`, {
+        method: "PUT",
+        body: {
+          skills: [
+            ...perfil360.skills.map(({ id, nome, categoria, nivel, estado, evidencias }) => ({ id, nome, categoria, nivel, estado, evidencias })),
+            { nome: novaSkill.trim(), categoria: categoriaSkill, nivel: nivelSkill, estado: "DECLARADA" }
+          ]
+        }
+      });
+      setNovaSkill("");
+      await abrirPerfil360(perfil360.membro.id);
+    } catch { /* silencioso */ }
+  }
+
+  async function criarDesenvolvimento() {
+    if (!perfil360 || !objetivoDesenvolvimento.trim() || !acaoDesenvolvimento.trim() || !prazoDesenvolvimento) return;
+    try {
+      await requisitarApi(`/equipa/membros/${perfil360.membro.id}/desenvolvimento`, {
+        method: "POST",
+        body: {
+          objetivo: objetivoDesenvolvimento.trim(),
+          acao: acaoDesenvolvimento.trim(),
+          prazoEm: new Date(`${prazoDesenvolvimento}T12:00:00`).toISOString()
+        }
+      });
+      setObjetivoDesenvolvimento("");
+      setAcaoDesenvolvimento("");
+      setPrazoDesenvolvimento("");
+      await abrirPerfil360(perfil360.membro.id);
     } catch { /* silencioso */ }
   }
 
@@ -389,6 +450,14 @@ export function PaginaEquipa() {
               acaoIcone={XCircle}
               onAcao={() => setModoSombra(null)}
             >
+              <div className="mb-4 grid gap-3 sm:grid-cols-[1fr_1fr_auto]">
+                <Input value={cargoPerfil} onChange={(evento) => setCargoPerfil(evento.target.value)} placeholder="Cargo operacional" aria-label="Cargo operacional" />
+                <select className="bz-toolbar-select-input" value={departamentoPerfil} onChange={(evento) => setDepartamentoPerfil(evento.target.value)} aria-label="Departamento">
+                  <option value="">Sem departamento</option>
+                  {departamentos.map((departamento) => <option key={departamento.id} value={departamento.id}>{departamento.nome}</option>)}
+                </select>
+                <BotaoBizy icone={CheckCircle2} onClick={() => void guardarPerfilOperacional()}>Guardar perfil</BotaoBizy>
+              </div>
               <KpiGrid>
                 <KpiCard icone={Shield} rotulo="Módulos visíveis" valor={modoSombra.modulos.modulosVisiveis.length} />
                 <KpiCard icone={Eye} cor="blue" rotulo="Widgets visíveis" valor={Object.keys(modoSombra.widgets.widgets).length} />
@@ -442,11 +511,12 @@ export function PaginaEquipa() {
               </KpiGrid>
               <div className="bz-rec-cards">
                 <div className="bz-rec-c">
-                  <strong className="bz-eq-role-name">Competências</strong>
+                  <strong className="bz-eq-role-name">Skills verificáveis</strong>
                   <div className="bz-eq-perms">
-                    {perfil360.competencias.map((competencia) => (
-                      <span key={competencia} className="bz-eq-perm">{competencia}</span>
+                    {perfil360.skills.map((skill) => (
+                      <span key={skill.id} className="bz-eq-perm">{skill.nome} · N{skill.nivel} · {skill.estado.toLowerCase()}</span>
                     ))}
+                    {perfil360.skills.length === 0 && <span className="bz-eq-role-desc">Sem skills registadas.</span>}
                   </div>
                 </div>
                 <div className="bz-rec-c">
@@ -464,6 +534,31 @@ export function PaginaEquipa() {
                   </div>
                 </div>
               </div>
+              <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_180px_100px_auto]">
+                <Input value={novaSkill} onChange={(evento) => setNovaSkill(evento.target.value)} placeholder="Nova skill" aria-label="Nova skill" />
+                <select className="bz-toolbar-select-input" value={categoriaSkill} onChange={(evento) => setCategoriaSkill(evento.target.value as CategoriaSkill)} aria-label="Categoria da skill">
+                  {(["ATENDIMENTO", "VENDAS", "LOGISTICA", "FINANCAS", "LIVE", "MODERACAO", "LEARNING", "MARKET", "SUPORTE"] as CategoriaSkill[]).map((categoria) => <option key={categoria} value={categoria}>{categoria}</option>)}
+                </select>
+                <select className="bz-toolbar-select-input" value={nivelSkill} onChange={(evento) => setNivelSkill(Number(evento.target.value))} aria-label="Nível da skill">
+                  {[1, 2, 3, 4, 5].map((nivel) => <option key={nivel} value={nivel}>Nível {nivel}</option>)}
+                </select>
+                <BotaoBizy icone={Plus} onClick={() => void adicionarSkill()}>Adicionar</BotaoBizy>
+              </div>
+              <div className="mt-5 border-t border-border pt-4">
+                <strong className="bz-eq-role-name">Plano de desenvolvimento</strong>
+                <div className="mt-3 grid gap-3 sm:grid-cols-[1fr_1fr_160px_auto]">
+                  <Input value={objetivoDesenvolvimento} onChange={(evento) => setObjetivoDesenvolvimento(evento.target.value)} placeholder="Objetivo" aria-label="Objetivo de desenvolvimento" />
+                  <Input value={acaoDesenvolvimento} onChange={(evento) => setAcaoDesenvolvimento(evento.target.value)} placeholder="Ação prática" aria-label="Ação de desenvolvimento" />
+                  <Input type="date" value={prazoDesenvolvimento} onChange={(evento) => setPrazoDesenvolvimento(evento.target.value)} aria-label="Prazo de desenvolvimento" />
+                  <BotaoBizy icone={Target} onClick={() => void criarDesenvolvimento()}>Criar plano</BotaoBizy>
+                </div>
+                <div className="mt-3 bz-eq-perms">
+                  {perfil360.desenvolvimento.map((item) => (
+                    <span key={item.id} className="bz-eq-perm">{item.objetivo} · {item.estado.toLowerCase()} · {new Date(item.prazoEm).toLocaleDateString("pt-AO")}</span>
+                  ))}
+                  {perfil360.desenvolvimento.length === 0 && <span className="bz-eq-role-desc">Sem plano ativo.</span>}
+                </div>
+              </div>
             </PanelCard>
           )}
 
@@ -471,16 +566,16 @@ export function PaginaEquipa() {
           {papeis.length > 0 && (
             <PanelCard titulo="Papéis e permissões">
               <div className="bz-rec-cards">
-                {papeis.map((p) => (
-                  <div key={p.id} className="bz-rec-c">
+                {papeis.map((p, indicePapel) => (
+                  <div key={p.id || `${p.nome}-${indicePapel}`} className="bz-rec-c">
                     <div className="bz-eq-role-head">
                       <Shield size={16} className="bz-icon-violet" />
                       <strong className="bz-eq-role-name">{p.nome}</strong>
                     </div>
                     {p.descricao && <div className="bz-eq-role-desc">{p.descricao}</div>}
                     <div className="bz-eq-perms">
-                      {p.permissoes.slice(0, 6).map((perm) => (
-                        <span key={perm} className="bz-eq-perm">{perm}</span>
+                      {p.permissoes.slice(0, 6).map((perm, indicePermissao) => (
+                        <span key={`${perm}-${indicePermissao}`} className="bz-eq-perm">{perm}</span>
                       ))}
                       {p.permissoes.length > 6 && <span className="bz-eq-perm-more">+{p.permissoes.length - 6}</span>}
                     </div>

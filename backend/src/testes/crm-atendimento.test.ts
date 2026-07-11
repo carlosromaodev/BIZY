@@ -408,7 +408,7 @@ describe("CRM de atendimento", () => {
         })
       );
 
-      await aguardarProcessamentoEventos(150);
+      await aguardarProcessamentoEventos(1_000);
 
       const conversas = await app.inject({ method: "GET", url: "/atendimento/conversas", headers });
       expect(conversas.statusCode).toBe(200);

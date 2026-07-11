@@ -360,7 +360,7 @@ P1 primeira operacao comercial:
 - [x] revisao textual para vendedora;
 - [x] templates WhatsApp por evento transacional;
 - [x] tarefas/fallbacks estruturados para automacoes;
-- [ ] sequenciador pos-venda;
+- [x] sequenciador pos-venda;
 - [x] prioridade visual VIP/reclamacao/pendencia.
 
 ## Regras Para Trabalhar Neste Repo

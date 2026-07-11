@@ -968,10 +968,36 @@ export interface PerfilOperacional360Equipa {
     telefone: string | null;
     avatarUrl: string | null;
     papel: string;
+    cargo: string | null;
+    departamento: { id: string; nome: string } | null;
     status: string;
     criadoEm: string;
   };
   competencias: string[];
+  skills: Array<{
+    id: string;
+    nome: string;
+    categoria: "ATENDIMENTO" | "VENDAS" | "LOGISTICA" | "FINANCAS" | "LIVE" | "MODERACAO" | "LEARNING" | "MARKET" | "SUPORTE";
+    nivel: number;
+    estado: "DECLARADA" | "VALIDADA" | "EXPIRADA";
+    evidencias: string[];
+    validadoPorId: string | null;
+    validadoEm: string | null;
+    atualizadoEm: string;
+  }>;
+  desenvolvimento: Array<{
+    id: string;
+    objetivo: string;
+    acao: string;
+    prazoEm: string;
+    evidencias: string[];
+    estado: "EM_ANDAMENTO" | "CONCLUIDO" | "CANCELADO";
+    gestorId: string | null;
+    acompanhadoEm: string;
+    criadoEm: string;
+    atualizadoEm: string;
+    observacao?: string | null;
+  }>;
   disponibilidade: {
     emTurno: boolean;
     presencaAtiva: boolean;

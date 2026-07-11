@@ -10,11 +10,14 @@ tags:
   - bizy/financas
   - bizy/estatistica
   - bizy/dados
-status: ativo
-updated: 2026-06-12
+status: historico
+updated: 2026-07-11
 ---
 
 # Auditoria Tripla do Bizy
+
+> [!warning] Documento historico
+> Este parecer retrata o codigo de junho de 2026. A reconciliacao atual e a classificacao dos achados estao em [[auditoria-criticas-sistema-bizy]].
 
 Parecer independente do ponto de vista de tres especialistas: contabilista, estatistico e engenheiro de dados. Analise feita sobre o estado do codigo em Jun 2026.
 

@@ -298,7 +298,7 @@ describe("Checkout Unificado multi-loja", () => {
 
       const detalhe = await app.inject({
         method: "GET",
-        url: `/publico/market/compras/${checkout.json().compra.id}`
+        url: `/publico/market/compras/${checkout.json().compra.id}?identificador=923800010`
       });
 
       expect(detalhe.statusCode).toBe(200);
@@ -322,7 +322,7 @@ describe("Checkout Unificado multi-loja", () => {
 
       const inexistente = await app.inject({
         method: "GET",
-        url: "/publico/market/compras/compra-inexistente"
+        url: "/publico/market/compras/compra-inexistente?identificador=923800010"
       });
       expect(inexistente.statusCode).toBe(404);
     } finally {
@@ -360,7 +360,7 @@ describe("Checkout Unificado multi-loja", () => {
       const pagamento = await app.inject({
         method: "POST",
         url: `/publico/market/compras/${compraId}/pagamento`,
-        payload: { comprovativoUrl: "https://example.com/comprovativo.jpg" }
+        payload: { comprovativoUrl: "https://example.com/comprovativo.jpg", identificador: "923800002" }
       });
       expect(pagamento.statusCode).toBe(200);
       const estadoPagamento = pagamento.json();
@@ -379,7 +379,7 @@ describe("Checkout Unificado multi-loja", () => {
       // Verificar estado separado (RF-067)
       const detalhe = await app.inject({
         method: "GET",
-        url: `/publico/market/compras/${compraId}`
+        url: `/publico/market/compras/${compraId}?identificador=923800002`
       });
       expect(detalhe.statusCode).toBe(200);
       const detalhes = detalhe.json();
@@ -462,7 +462,7 @@ describe("Checkout Unificado multi-loja", () => {
       // Compra deve ficar parcialmente cancelada
       const detalhe = await app.inject({
         method: "GET",
-        url: `/publico/market/compras/${compraId}`
+        url: `/publico/market/compras/${compraId}?identificador=923800003`
       });
       expect(detalhe.json().compra.estado).toBe("PARCIALMENTE_CANCELADA");
     } finally {
@@ -595,9 +595,9 @@ describe("Repasses Financeiros", () => {
       });
       expect(resumoA.statusCode).toBe(200);
       const dadosResumoA = resumoA.json();
-      expect(dadosResumoA.totalPendente).toBeGreaterThan(0);
+      expect(dadosResumoA.totalRetido).toBeGreaterThan(0);
       expect(dadosResumoA.repasses).toHaveLength(1);
-      expect(dadosResumoA.repasses[0].estado).toBe("PENDENTE");
+      expect(dadosResumoA.repasses[0].estado).toBe("RETIDO");
       expect(dadosResumoA.repasses[0].taxaBizyEmKwanza).toBeGreaterThan(0);
 
       // RF-072: Verificar resumo financeiro do fornecedor B

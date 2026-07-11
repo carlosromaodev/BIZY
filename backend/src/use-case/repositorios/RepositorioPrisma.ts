@@ -2,6 +2,8 @@ import { randomUUID } from "node:crypto";
 import { Prisma, type PrismaClient } from "@prisma/client";
 import type {
   RepositorioComentarios,
+  RepositorioComprasUnificadas,
+  RepositorioDenuncias,
   RepositorioAutenticacao,
   RepositorioAfiliados,
   RepositorioAtendimento,
@@ -13,6 +15,9 @@ import type {
   RepositorioInstanciasWhatsApp,
   RepositorioEventosOperacionais,
   RepositorioPecas,
+  RepositorioReembolsos,
+  RepositorioRepassesFinanceiros,
+  RepositorioReservasStockCheckout,
   RepositorioFunilComercial,
   RepositorioJobsOperacionais,
   RepositorioMembrosNegocio,
@@ -51,6 +56,8 @@ import type {
   Cliente360,
   CompartilhamentoClienteRecebido,
   CompartilhamentoClienteSeguro,
+  CompraUnificada,
+  DenunciaMarket,
   ComentarioLive,
   ConfirmacaoPagamentoPedido,
   ConversaAtendimento,
@@ -95,6 +102,7 @@ import type {
   ModuloNegocioConfigurado,
   MovimentoStock,
   NovaCampanhaCrm,
+  NovaCompraUnificada,
   NovaComissaoParceiro,
   NovaExecucaoPlaybookRecuperacao,
   NovaMensagemAtendimento,
@@ -109,6 +117,10 @@ import type {
   NovoLinkAfiliado,
   NovoMovimentoFunilComercial,
   NovoPlaybookRecuperacao,
+  NovaDenunciaMarket,
+  NovaReservaStockCheckout,
+  NovoReembolsoPedido,
+  NovoRepasseFinanceiro,
   NovoMovimentoStock,
   NovoParceiroComercial,
   NovoTemplateWhatsAppNegocio,
@@ -123,6 +135,7 @@ import type {
   Peca,
   OportunidadeRecuperacao,
   ParceiroComercial,
+  PedidoFilho,
   PlaybookRecuperacao,
   Pedido,
   RegistroComprovativoPagamentoPedido,
@@ -132,6 +145,10 @@ import type {
   RejeicaoPagamentoPedido,
   RegistroSessaoLive,
   Reserva,
+  ReservaStockCheckout,
+  ReembolsoPedido,
+  RepasseFinanceiro,
+  ResolucaoDenuncia,
   ResumoOutboxEventoN8n,
   ResumoOutboxMensagemWhatsApp,
   ResultadoInterpretacaoComentario,
@@ -6219,4 +6236,288 @@ export class RepositorioSeguidoresLojaPrisma implements RepositorioSeguidoresLoj
     ]);
     return { seguidores, total };
   }
+}
+
+type CompraPrisma = Prisma.CompraUnificadaGetPayload<{ include: { pedidosFilho: true } }>;
+type PedidoFilhoPrisma = Prisma.PedidoFilhoGetPayload<Record<string, never>>;
+type RepassePrisma = Prisma.RepasseFinanceiroGetPayload<Record<string, never>>;
+type ReembolsoPrisma = Prisma.ReembolsoPedidoGetPayload<Record<string, never>>;
+
+function mapearPedidoFilhoPrisma(item: PedidoFilhoPrisma): PedidoFilho {
+  let fulfillment: PedidoFilho["fulfillment"] = [];
+  try { fulfillment = JSON.parse(item.fulfillmentJson) as PedidoFilho["fulfillment"]; } catch { fulfillment = []; }
+  return {
+    ...item,
+    estado: item.estado as PedidoFilho["estado"],
+    estadoPagamento: item.estadoPagamento as PedidoFilho["estadoPagamento"],
+    estadoEntrega: item.estadoEntrega as PedidoFilho["estadoEntrega"],
+    estadoSeparacao: item.estadoSeparacao as PedidoFilho["estadoSeparacao"],
+    estadoEmbalagem: item.estadoEmbalagem as PedidoFilho["estadoEmbalagem"],
+    estadoDevolucao: item.estadoDevolucao as PedidoFilho["estadoDevolucao"],
+    fulfillment
+  };
+}
+
+function mapearCompraPrisma(item: CompraPrisma): CompraUnificada {
+  return {
+    ...item,
+    estado: item.estado as CompraUnificada["estado"],
+    estadoPagamento: item.estadoPagamento as CompraUnificada["estadoPagamento"],
+    pedidosFilhoIds: item.pedidosFilho.map((pedido) => pedido.id)
+  };
+}
+
+function mapearRepassePrisma(item: RepassePrisma): RepasseFinanceiro {
+  return { ...item, estado: item.estado as RepasseFinanceiro["estado"] };
+}
+
+function mapearReembolsoPrisma(item: ReembolsoPrisma): ReembolsoPedido {
+  let itensAfetados: ReembolsoPedido["itensAfetados"] = [];
+  try { itensAfetados = JSON.parse(item.itensAfetadosJson) as ReembolsoPedido["itensAfetados"]; } catch { itensAfetados = []; }
+  return {
+    id: item.id,
+    negocioId: item.negocioId,
+    pedidoId: item.pedidoId,
+    compraUnificadaId: item.compraUnificadaId,
+    tipo: item.tipo as ReembolsoPedido["tipo"],
+    valorEmKwanza: item.valorEmKwanza,
+    motivo: item.motivo,
+    itensAfetados,
+    estado: item.estado as ReembolsoPedido["estado"],
+    aprovadoPorId: item.aprovadoPorId,
+    processadoEm: item.processadoEm,
+    criadoEm: item.criadoEm,
+    atualizadoEm: item.atualizadoEm
+  };
+}
+
+export class RepositorioComprasUnificadasPrisma implements RepositorioComprasUnificadas {
+  constructor(private readonly prisma: PrismaClient) {}
+
+  async criar(dados: NovaCompraUnificada, pedidosFilho: PedidoFilho[]) {
+    const subtotalEmKwanza = pedidosFilho.reduce((total, pedido) => total + pedido.subtotalEmKwanza, 0);
+    const taxaEntregaTotalEmKwanza = pedidosFilho.reduce((total, pedido) => total + pedido.taxaEntregaEmKwanza, 0);
+    const criado = await this.prisma.compraUnificada.create({
+      data: {
+        idempotencyKey: dados.idempotencyKey ?? null,
+        compradorTelefone: dados.compradorTelefone,
+        compradorNome: dados.compradorNome ?? null,
+        compradorEmail: dados.compradorEmail ?? null,
+        subtotalEmKwanza,
+        taxaEntregaTotalEmKwanza,
+        totalEmKwanza: subtotalEmKwanza + taxaEntregaTotalEmKwanza,
+        metodoPagamento: dados.metodoPagamento ?? null,
+        comprovativoPagamentoUrl: dados.comprovativoPagamentoUrl ?? null,
+        enderecoEntrega: dados.enderecoEntrega ?? dados.entrega?.endereco ?? null,
+        observacao: dados.observacao ?? null,
+        origem: dados.origem ?? "market",
+        pedidosFilho: {
+          create: pedidosFilho.map((pedido) => ({
+            id: pedido.id,
+            negocioId: pedido.negocioId,
+            pedidoId: pedido.pedidoId,
+            estado: pedido.estado,
+            estadoPagamento: pedido.estadoPagamento,
+            estadoEntrega: pedido.estadoEntrega,
+            estadoSeparacao: pedido.estadoSeparacao ?? "PENDENTE",
+            estadoEmbalagem: pedido.estadoEmbalagem ?? "PENDENTE",
+            provaEntregaUrl: pedido.provaEntregaUrl ?? null,
+            tentativasEntrega: pedido.tentativasEntrega ?? 0,
+            motivoAtraso: pedido.motivoAtraso ?? null,
+            estadoDevolucao: pedido.estadoDevolucao ?? null,
+            fulfillmentJson: JSON.stringify(pedido.fulfillment ?? []),
+            subtotalEmKwanza: pedido.subtotalEmKwanza,
+            taxaEntregaEmKwanza: pedido.taxaEntregaEmKwanza,
+            totalEmKwanza: pedido.totalEmKwanza
+          }))
+        }
+      },
+      include: { pedidosFilho: true }
+    });
+    return mapearCompraPrisma(criado);
+  }
+
+  async buscarPorId(id: string) {
+    const item = await this.prisma.compraUnificada.findUnique({ where: { id }, include: { pedidosFilho: true } });
+    return item ? mapearCompraPrisma(item) : null;
+  }
+
+  async buscarPorNumero(numero: number) {
+    const item = await this.prisma.compraUnificada.findFirst({ where: { numero }, include: { pedidosFilho: true } });
+    return item ? mapearCompraPrisma(item) : null;
+  }
+
+  async buscarPorIdempotencyKey(idempotencyKey: string, compradorTelefone?: string) {
+    const item = await this.prisma.compraUnificada.findFirst({
+      where: { idempotencyKey, ...(compradorTelefone ? { compradorTelefone } : {}) },
+      include: { pedidosFilho: true }
+    });
+    return item ? mapearCompraPrisma(item) : null;
+  }
+
+  async listarPedidosFilho(compraUnificadaId: string) {
+    return (await this.prisma.pedidoFilho.findMany({ where: { compraUnificadaId }, orderBy: { criadoEm: "asc" } }))
+      .map(mapearPedidoFilhoPrisma);
+  }
+
+  async listarComprasPorComprador(identificador: string, limite = 50) {
+    const itens = await this.prisma.compraUnificada.findMany({
+      where: { OR: [{ compradorTelefone: identificador }, { compradorEmail: identificador }] },
+      include: { pedidosFilho: true },
+      orderBy: { criadoEm: "desc" },
+      take: limite
+    });
+    return itens.map(mapearCompraPrisma);
+  }
+
+  async listarPedidosFilhoPorNegocio(negocioId: string, limite = 100) {
+    const itens = await this.prisma.pedidoFilho.findMany({
+      where: { negocioId },
+      include: { compraUnificada: { include: { pedidosFilho: true } } },
+      orderBy: { criadoEm: "desc" },
+      take: limite
+    });
+    return itens.map((item) => ({ compra: mapearCompraPrisma(item.compraUnificada), pedido: mapearPedidoFilhoPrisma(item) }));
+  }
+
+  async atualizarEstado(id: string, estado: CompraUnificada["estado"]) {
+    const existe = await this.prisma.compraUnificada.findUnique({ where: { id }, select: { id: true } });
+    if (!existe) return null;
+    return mapearCompraPrisma(await this.prisma.compraUnificada.update({ where: { id }, data: { estado }, include: { pedidosFilho: true } }));
+  }
+
+  async atualizarEstadoPagamento(id: string, estadoPagamento: CompraUnificada["estadoPagamento"], comprovativoPagamentoUrl?: string | null) {
+    const existe = await this.prisma.compraUnificada.findUnique({ where: { id }, select: { id: true } });
+    if (!existe) return null;
+    return mapearCompraPrisma(await this.prisma.compraUnificada.update({
+      where: { id }, data: { estadoPagamento, ...(comprovativoPagamentoUrl !== undefined ? { comprovativoPagamentoUrl } : {}) }, include: { pedidosFilho: true }
+    }));
+  }
+
+  async atualizarPedidoFilhoEstado(compraUnificadaId: string, pedidoId: string, dados: Partial<Pick<PedidoFilho, "estado" | "estadoPagamento" | "estadoEntrega">>) {
+    const item = await this.prisma.pedidoFilho.findFirst({ where: { compraUnificadaId, pedidoId } });
+    if (!item) return null;
+    return mapearPedidoFilhoPrisma(await this.prisma.pedidoFilho.update({ where: { id: item.id }, data: dados }));
+  }
+
+  async atualizarFulfillment(
+    compraUnificadaId: string,
+    pedidoId: string,
+    dados: Partial<Pick<PedidoFilho, "estadoEntrega" | "estadoSeparacao" | "estadoEmbalagem" | "provaEntregaUrl" | "motivoAtraso" | "estadoDevolucao">> & { tentativaFalhada?: boolean; actorId?: string | null; motivo: string }
+  ) {
+    const actual = await this.prisma.pedidoFilho.findFirst({ where: { compraUnificadaId, pedidoId } });
+    if (!actual) return null;
+    let eventos: PedidoFilho["fulfillment"] = [];
+    try { eventos = JSON.parse(actual.fulfillmentJson) as PedidoFilho["fulfillment"]; } catch { eventos = []; }
+    eventos.push({ tipo: "MARKET_FULFILLMENT_CHANGED", ocorridoEm: new Date().toISOString(), actorId: dados.actorId ?? null, dados: { ...dados, motivo: dados.motivo } });
+    const { tentativaFalhada, actorId: _actorId, motivo: _motivo, ...estado } = dados;
+    return mapearPedidoFilhoPrisma(await this.prisma.pedidoFilho.update({
+      where: { id: actual.id },
+      data: { ...estado, tentativasEntrega: { increment: tentativaFalhada ? 1 : 0 }, fulfillmentJson: JSON.stringify(eventos) }
+    }));
+  }
+}
+
+export class RepositorioRepassesFinanceirosPrisma implements RepositorioRepassesFinanceiros {
+  constructor(private readonly prisma: PrismaClient) {}
+
+  async criar(dados: NovoRepasseFinanceiro) {
+    const valorProdutos = dados.valorProdutosEmKwanza ?? dados.valorBrutoEmKwanza;
+    const liquido = Math.max(0, dados.valorBrutoEmKwanza - (dados.taxaBizyEmKwanza ?? 0) - (dados.comissaoEmKwanza ?? 0) - (dados.descontoEmKwanza ?? 0) - (dados.retencaoEmKwanza ?? 0) - (dados.reembolsoEmKwanza ?? 0));
+    return mapearRepassePrisma(await this.prisma.repasseFinanceiro.create({ data: {
+      ...dados,
+      valorProdutosEmKwanza: valorProdutos,
+      valorEntregaEmKwanza: dados.valorEntregaEmKwanza ?? 0,
+      impostosEmKwanza: dados.impostosEmKwanza ?? 0,
+      taxaBizyEmKwanza: dados.taxaBizyEmKwanza ?? 0,
+      comissaoEmKwanza: dados.comissaoEmKwanza ?? 0,
+      descontoEmKwanza: dados.descontoEmKwanza ?? 0,
+      retencaoEmKwanza: dados.retencaoEmKwanza ?? 0,
+      reembolsoEmKwanza: dados.reembolsoEmKwanza ?? 0,
+      valorLiquidoEmKwanza: liquido,
+      valorDisponivelEmKwanza: dados.retidoAte ? 0 : liquido,
+      estado: dados.retidoAte ? "RETIDO" : "PENDENTE",
+      politicaCalculoVersao: dados.politicaCalculoVersao ?? "market.split.v1"
+    } }));
+  }
+
+  async listar(negocioId: string, filtros?: { estado?: RepasseFinanceiro["estado"]; pedidoId?: string; limite?: number }) {
+    return (await this.prisma.repasseFinanceiro.findMany({ where: { negocioId, ...(filtros?.estado ? { estado: filtros.estado } : {}), ...(filtros?.pedidoId ? { pedidoId: filtros.pedidoId } : {}) }, orderBy: { criadoEm: "desc" }, take: filtros?.limite ?? 200 })).map(mapearRepassePrisma);
+  }
+  async listarTodos(filtros?: { estado?: RepasseFinanceiro["estado"]; limite?: number }) {
+    return (await this.prisma.repasseFinanceiro.findMany({ where: filtros?.estado ? { estado: filtros.estado } : {}, orderBy: { criadoEm: "desc" }, take: filtros?.limite ?? 500 })).map(mapearRepassePrisma);
+  }
+  async buscarPorId(id: string, negocioId: string) { const item = await this.prisma.repasseFinanceiro.findFirst({ where: { id, negocioId } }); return item ? mapearRepassePrisma(item) : null; }
+  async conciliar(id: string, negocioId: string) { return this.transicionar(id, negocioId, { estado: "CONCILIADO", conciliadoEm: new Date() }); }
+  async aprovar(id: string, negocioId: string) { return this.transicionar(id, negocioId, { estado: "APROVADO", aprovadoEm: new Date() }); }
+  async pagar(id: string, negocioId: string, referencia: string) { return this.transicionar(id, negocioId, { estado: "PAGO", pagoEm: new Date(), referenciaPagamento: referencia }); }
+  async reter(id: string, negocioId: string, dados: { motivo: string; retidoAte?: Date | null; valorEmKwanza?: number }) {
+    const actual = await this.buscarPorId(id, negocioId); if (!actual) return null;
+    const retencao = Math.min(actual.valorLiquidoEmKwanza, Math.max(0, dados.valorEmKwanza ?? actual.valorLiquidoEmKwanza));
+    return this.transicionar(id, negocioId, { estado: "RETIDO", motivoRetencao: dados.motivo, retidoAte: dados.retidoAte ?? null, retencaoEmKwanza: retencao, valorDisponivelEmKwanza: Math.max(0, actual.valorLiquidoEmKwanza - retencao) });
+  }
+  async liberar(id: string, negocioId: string, motivo: string) {
+    const actual = await this.buscarPorId(id, negocioId); if (!actual) return null;
+    return this.transicionar(id, negocioId, { estado: "PENDENTE", motivo, motivoRetencao: null, retidoAte: null, retencaoEmKwanza: 0, valorDisponivelEmKwanza: actual.valorLiquidoEmKwanza });
+  }
+  async aplicarReembolso(id: string, negocioId: string, valorEmKwanza: number, motivo: string) {
+    const actual = await this.buscarPorId(id, negocioId); if (!actual) return null;
+    const reembolso = Math.min(actual.valorLiquidoEmKwanza, actual.reembolsoEmKwanza + Math.max(0, valorEmKwanza));
+    return this.transicionar(id, negocioId, { reembolsoEmKwanza: reembolso, valorDisponivelEmKwanza: Math.max(0, actual.valorLiquidoEmKwanza - reembolso - actual.retencaoEmKwanza), motivo });
+  }
+  async cancelar(id: string, negocioId: string, motivo: string) { return this.transicionar(id, negocioId, { estado: "CANCELADO", motivo, valorDisponivelEmKwanza: 0 }); }
+  private async transicionar(id: string, negocioId: string, dados: Prisma.RepasseFinanceiroUpdateInput) {
+    const existe = await this.prisma.repasseFinanceiro.findFirst({ where: { id, negocioId }, select: { id: true } }); if (!existe) return null;
+    return mapearRepassePrisma(await this.prisma.repasseFinanceiro.update({ where: { id }, data: dados }));
+  }
+}
+
+export class RepositorioReembolsosPrisma implements RepositorioReembolsos {
+  constructor(private readonly prisma: PrismaClient) {}
+  async criar(dados: NovoReembolsoPedido) { return mapearReembolsoPrisma(await this.prisma.reembolsoPedido.create({ data: { ...dados, compraUnificadaId: dados.compraUnificadaId ?? null, itensAfetadosJson: JSON.stringify(dados.itensAfetados ?? []) } })); }
+  async listar(negocioId: string, filtros?: { pedidoId?: string; estado?: ReembolsoPedido["estado"]; limite?: number }) { return (await this.prisma.reembolsoPedido.findMany({ where: { negocioId, ...(filtros?.pedidoId ? { pedidoId: filtros.pedidoId } : {}), ...(filtros?.estado ? { estado: filtros.estado } : {}) }, orderBy: { criadoEm: "desc" }, take: filtros?.limite ?? 200 })).map(mapearReembolsoPrisma); }
+  async buscarPorId(id: string, negocioId: string) { const item = await this.prisma.reembolsoPedido.findFirst({ where: { id, negocioId } }); return item ? mapearReembolsoPrisma(item) : null; }
+  async aprovar(id: string, negocioId: string, aprovadoPorId: string) { return this.transicionar(id, negocioId, { estado: "APROVADO", aprovadoPorId }); }
+  async processar(id: string, negocioId: string) { return this.transicionar(id, negocioId, { estado: "PROCESSADO", processadoEm: new Date() }); }
+  async rejeitar(id: string, negocioId: string) { return this.transicionar(id, negocioId, { estado: "REJEITADO" }); }
+  private async transicionar(id: string, negocioId: string, dados: Prisma.ReembolsoPedidoUpdateInput) { const existe = await this.prisma.reembolsoPedido.findFirst({ where: { id, negocioId }, select: { id: true } }); if (!existe) return null; return mapearReembolsoPrisma(await this.prisma.reembolsoPedido.update({ where: { id }, data: dados })); }
+}
+
+export class RepositorioDenunciasPrisma implements RepositorioDenuncias {
+  constructor(private readonly prisma: PrismaClient) {}
+  private mapear(item: Prisma.DenunciaMarketGetPayload<Record<string, never>>): DenunciaMarket {
+    let evidencias: string[] = [];
+    try { evidencias = JSON.parse(item.evidenciasJson) as string[]; } catch { evidencias = []; }
+    return { ...item, tipo: item.tipo as DenunciaMarket["tipo"], entidadeTipo: item.entidadeTipo as DenunciaMarket["entidadeTipo"], estado: item.estado as DenunciaMarket["estado"], origem: item.origem as DenunciaMarket["origem"], evidencias };
+  }
+  async criar(dados: NovaDenunciaMarket) {
+    return this.mapear(await this.prisma.denunciaMarket.create({ data: {
+      ...dados,
+      negocioAlvoId: dados.negocioAlvoId ?? null,
+      denuncianteId: dados.denuncianteId ?? null,
+      descricao: dados.descricao ?? null,
+      origem: dados.origem ?? "PUBLICO",
+      evidenciasJson: JSON.stringify(dados.evidencias ?? []),
+      responsavelId: dados.responsavelId ?? null,
+      prazoEm: dados.prazoEm ?? new Date(Date.now() + 7 * 86_400_000)
+    } }));
+  }
+  async listar(filtros?: { estado?: DenunciaMarket["estado"]; entidadeTipo?: DenunciaMarket["entidadeTipo"]; negocioAlvoId?: string; limite?: number }) {
+    return (await this.prisma.denunciaMarket.findMany({ where: { ...(filtros?.estado ? { estado: filtros.estado } : {}), ...(filtros?.entidadeTipo ? { entidadeTipo: filtros.entidadeTipo } : {}), ...(filtros?.negocioAlvoId ? { negocioAlvoId: filtros.negocioAlvoId } : {}) }, orderBy: { criadoEm: "desc" }, take: filtros?.limite ?? 200 })).map((item) => this.mapear(item));
+  }
+  async buscarPorId(id: string) { const item = await this.prisma.denunciaMarket.findUnique({ where: { id } }); return item ? this.mapear(item) : null; }
+  async resolver(id: string, dados: ResolucaoDenuncia) { const existe = await this.prisma.denunciaMarket.findUnique({ where: { id }, select: { id: true } }); if (!existe) return null; return this.mapear(await this.prisma.denunciaMarket.update({ where: { id }, data: { estado: dados.estado, resolvidoPorId: dados.resolvidoPorId, responsavelId: dados.resolvidoPorId, resolucao: dados.resolucao } })); }
+}
+
+export class RepositorioReservasStockCheckoutPrisma implements RepositorioReservasStockCheckout {
+  constructor(private readonly prisma: PrismaClient) {}
+  private mapear(item: Prisma.ReservaStockCheckoutGetPayload<Record<string, never>>): ReservaStockCheckout { return { ...item, estado: item.estado as ReservaStockCheckout["estado"] }; }
+  async reservar(dados: NovaReservaStockCheckout) { return this.mapear(await this.prisma.reservaStockCheckout.create({ data: dados })); }
+  async listarAtivasPorPeca(pecaId: string, negocioId: string) { return (await this.prisma.reservaStockCheckout.findMany({ where: { pecaId, negocioId, estado: "ATIVA", expiraEm: { gt: new Date() } } })).map((item) => this.mapear(item)); }
+  async confirmar(id: string) { return this.transicionar(id, "CONFIRMADA"); }
+  async liberar(id: string) { return this.transicionar(id, "LIBERADA"); }
+  async liberarPorSessao(sessaoId: string) { const resultado = await this.prisma.reservaStockCheckout.updateMany({ where: { sessaoId, estado: "ATIVA" }, data: { estado: "LIBERADA", liberadaEm: new Date() } }); return resultado.count; }
+  async listarExpiradas(agora: Date) { return (await this.prisma.reservaStockCheckout.findMany({ where: { estado: "ATIVA", expiraEm: { lte: agora } } })).map((item) => this.mapear(item)); }
+  async liberarExpiradas(agora: Date) { const resultado = await this.prisma.reservaStockCheckout.updateMany({ where: { estado: "ATIVA", expiraEm: { lte: agora } }, data: { estado: "EXPIRADA", liberadaEm: agora } }); return resultado.count; }
+  private async transicionar(id: string, estado: ReservaStockCheckout["estado"]) { const existe = await this.prisma.reservaStockCheckout.findUnique({ where: { id }, select: { id: true } }); if (!existe) return null; return this.mapear(await this.prisma.reservaStockCheckout.update({ where: { id }, data: { estado, ...(estado === "LIBERADA" || estado === "EXPIRADA" ? { liberadaEm: new Date() } : {}) } })); }
 }

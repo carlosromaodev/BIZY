@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { RelatoriosComerciaisUseCase } from "../use-case/RelatoriosComerciaisUseCase.js";
 import {
   RepositorioAtendimentoMemoria,
@@ -12,7 +12,11 @@ import {
 const diasAtras = (dias: number) => new Date(Date.now() - dias * 86_400_000);
 
 describe("Relatórios comerciais - retenção", () => {
+  afterEach(() => vi.useRealTimers());
+
   it("mede recompra, tempo entre compras, risco por recência e coortes mensais", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-07-20T12:00:00.000Z"));
     const negocioId = "negocio-retencao";
     const pedidos = new RepositorioPedidosMemoria();
     const clientes = new RepositorioClientesMemoria();

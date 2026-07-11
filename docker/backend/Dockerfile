@@ -1,4 +1,4 @@
-FROM node:20-alpine AS deps
+FROM node:22-alpine AS deps
 WORKDIR /app
 RUN apk add --no-cache openssl libc6-compat
 
@@ -7,7 +7,7 @@ COPY backend/package.json backend/package.json
 COPY frontend/package.json frontend/package.json
 RUN npm ci --workspace backend --include-workspace-root
 
-FROM node:20-alpine AS build
+FROM node:22-alpine AS build
 WORKDIR /app
 RUN apk add --no-cache openssl libc6-compat
 COPY --from=deps /app/node_modules ./node_modules
@@ -17,7 +17,7 @@ WORKDIR /app/backend
 RUN npx prisma generate
 RUN npm run build
 
-FROM node:20-alpine AS runtime
+FROM node:22-alpine AS runtime
 WORKDIR /app
 RUN apk add --no-cache openssl libc6-compat chromium nss freetype harfbuzz font-opensans
 ENV CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium-browser

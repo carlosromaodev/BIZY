@@ -60,15 +60,12 @@ describe("Bizy Learning frontend", () => {
     expect(pagina).toContain("denunciarConteudoLearning");
     expect(pagina).toContain("decidirModeracaoLearning");
     expect(pagina).toContain("atribuirProgramaLearningTeam");
-    expect(pagina).toContain("Ecossistema Learning");
-    expect(pagina).toContain("Famílias de produto digital");
+    expect(pagina).toContain("Como funciona a tua evolução");
+    expect(pagina).toContain("Formatos de Aprendizagem");
     expect(pagina).toContain("PaginaPerfilLearning");
-    expect(pagina).toContain("Perfis comerciais Learning");
-    expect(pagina).toContain("Permissões Learning no Team");
-    expect(pagina).toContain("Política de suporte digital");
     expect(pagina).toContain("obterPerfilLearning");
     expect(pagina).toContain("PerfilLearningPublicoCard");
-    expect(pagina).toContain("Ver produto");
+    expect(pagina).toContain("Aceder");
     expect(pagina).toContain("Views públicas");
     expect(pagina).toContain("Previews públicos");
     expect(pagina).toContain("Reembolsar e revogar");

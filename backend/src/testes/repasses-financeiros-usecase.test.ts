@@ -88,4 +88,49 @@ describe("RepassesFinanceirosUseCase", () => {
     });
     expect(new Date(resumo.atualizadoEm).toString()).not.toBe("Invalid Date");
   });
+
+  it("RF-117/RF-118: preserva split e bloqueia aprovação quando existe reembolso", async () => {
+    const repassesFinanceiros = new RepositorioRepassesFinanceirosMemoria();
+    const reembolsos = new RepositorioReembolsosMemoria();
+    const useCase = new RepassesFinanceirosUseCase({
+      repassesFinanceiros,
+      reembolsos,
+      comprasUnificadas: new RepositorioComprasUnificadasMemoria(),
+      pedidos: new RepositorioPedidosMemoria(),
+      eventos: new DespachadorEventos()
+    });
+    const repasse = await repassesFinanceiros.criar({
+      negocioId: "loja-split",
+      pedidoId: "pedido-split",
+      valorBrutoEmKwanza: 125_000,
+      valorProdutosEmKwanza: 100_000,
+      valorEntregaEmKwanza: 10_000,
+      impostosEmKwanza: 15_000,
+      taxaBizyEmKwanza: 5_000,
+      comissaoEmKwanza: 2_000,
+      descontoEmKwanza: 3_000
+    });
+    await repassesFinanceiros.conciliar(repasse.id, "loja-split");
+    await reembolsos.criar({
+      negocioId: "loja-split",
+      pedidoId: "pedido-split",
+      tipo: "PARCIAL",
+      valorEmKwanza: 20_000,
+      motivo: "Item devolvido"
+    });
+
+    const aprovado = await useCase.aprovarRepasse(repasse.id, "loja-split");
+    const retido = await repassesFinanceiros.buscarPorId(repasse.id, "loja-split");
+
+    expect(aprovado).toBeNull();
+    expect(retido).toEqual(expect.objectContaining({
+      valorProdutosEmKwanza: 100_000,
+      valorEntregaEmKwanza: 10_000,
+      impostosEmKwanza: 15_000,
+      valorLiquidoEmKwanza: 115_000,
+      estado: "RETIDO",
+      motivoRetencao: "REEMBOLSO_BLOQUEANTE",
+      valorDisponivelEmKwanza: 0
+    }));
+  });
 });

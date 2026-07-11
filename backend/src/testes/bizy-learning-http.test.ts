@@ -236,6 +236,80 @@ describe("Bizy Learning HTTP", () => {
         })
       );
 
+      const avaliacaoCriada = await app.inject({
+        method: "POST",
+        url: `/learning/team/programas/${programa.slug}/avaliacoes`,
+        headers,
+        payload: {
+          titulo: "Checklist de operação da live",
+          pontuacaoMinima: 70,
+          tentativasMaximas: 2,
+          feedback: "APOS_ENVIO",
+          perguntas: [{
+            tipo: "MULTIPLA_ESCOLHA",
+            enunciado: "Qual é a primeira validação antes de iniciar a live?",
+            peso: 2,
+            alternativas: [
+              { texto: "Confirmar oferta, stock e responsáveis", correta: true, feedback: "Preparação operacional confirmada." },
+              { texto: "Iniciar sem roteiro", correta: false, feedback: "Revê o checklist da live." }
+            ]
+          }]
+        }
+      });
+      expect(avaliacaoCriada.statusCode).toBe(201);
+      const avaliacao = avaliacaoCriada.json().avaliacao;
+      expect(avaliacao).toEqual(expect.objectContaining({
+        programaSlug: programa.slug,
+        pontuacaoMinima: 70,
+        tentativasMaximas: 2,
+        perguntas: [expect.objectContaining({ tipo: "MULTIPLA_ESCOLHA", peso: 2 })]
+      }));
+
+      const avaliacaoPlayer = await app.inject({
+        method: "GET",
+        url: `/learning/player/avaliacoes/${avaliacao.id}`,
+        headers
+      });
+      expect(avaliacaoPlayer.statusCode).toBe(200);
+      expect(avaliacaoPlayer.json()).toEqual(expect.objectContaining({
+        tentativasRealizadas: 0,
+        tentativasRestantes: 2,
+        avaliacao: expect.objectContaining({ id: avaliacao.id })
+      }));
+      expect(JSON.stringify(avaliacaoPlayer.json())).not.toContain("correta");
+
+      const alternativaCorreta = avaliacao.perguntas[0].alternativas.find((alternativa: { correta: boolean }) => alternativa.correta).id;
+      const tentativaAvaliacao = await app.inject({
+        method: "POST",
+        url: `/learning/player/avaliacoes/${avaliacao.id}/tentativas`,
+        headers,
+        payload: {
+          respostas: [{ perguntaId: avaliacao.perguntas[0].id, alternativaIds: [alternativaCorreta] }],
+          idempotencyKey: `avaliacao-${avaliacao.id}-tentativa-1`
+        }
+      });
+      expect(tentativaAvaliacao.statusCode).toBe(201);
+      expect(tentativaAvaliacao.json().tentativa).toEqual(expect.objectContaining({
+        avaliacaoId: avaliacao.id,
+        numeroTentativa: 1,
+        pontuacaoPercentual: 100,
+        aprovado: true,
+        estado: "CORRIGIDA"
+      }));
+
+      const avaliacaoExportada = await app.inject({
+        method: "GET",
+        url: `/learning/team/avaliacoes/${avaliacao.id}/exportar`,
+        headers
+      });
+      expect(avaliacaoExportada.statusCode).toBe(200);
+      expect(avaliacaoExportada.json()).toEqual(expect.objectContaining({
+        formato: "bizy.learning.assessment.export.v1",
+        interoperabilidade: expect.objectContaining({ formato: "qti-lite.v1" }),
+        reprocessamento: expect.objectContaining({ tentativas: 1, preservaRespostasOriginais: true }),
+        auditoria: expect.objectContaining({ algoritmo: "sha256", hash: expect.any(String), preservaEventoOriginal: true })
+      }));
+
       const publicacao = await app.inject({
         method: "PATCH",
         url: `/learning/team/programas/${programa.slug}/publicacao`,
@@ -248,6 +322,20 @@ describe("Bizy Learning HTTP", () => {
       });
       expect(publicacao.statusCode).toBe(200);
       expect(publicacao.json().programa).toEqual(expect.objectContaining({ estado: "PUBLICADO", visibilidade: "PUBLICO", destaque: true }));
+
+      const versao = await app.inject({
+        method: "POST", url: `/learning/team/programas/${programa.slug}/versoes`, headers,
+        payload: { releaseNotes: "Inclui material acessível e critérios de conclusão.", impacto: "ATUALIZAR_SEM_INVALIDAR", assets: [{ tipo: "PDF", titulo: "Checklist da live", url: "https://example.com/checklist.pdf", premium: true }] }
+      });
+      expect(versao.statusCode).toBe(201);
+      expect(versao.json().versao).toEqual(expect.objectContaining({ numero: 2, afectaCertificadosAntigos: false }));
+
+      const integracao = await app.inject({
+        method: "POST", url: `/learning/team/programas/${programa.slug}/integracoes`, headers,
+        payload: { tipo: "SCORM_ISOLADO", escopo: ["progresso"], pacoteHash: "aabbccddeeff00112233445566778899", retornoProgresso: true, revogavel: true }
+      });
+      expect(integracao.statusCode).toBe(201);
+      expect(integracao.json().integracao).toEqual(expect.objectContaining({ tipo: "SCORM_ISOLADO", compatibilidadeFormal: false }));
 
       const perfilPublicoComPrograma = await app.inject({ method: "GET", url: "/publico/learning/perfis/academia-qa-learning" });
       expect(perfilPublicoComPrograma.statusCode).toBe(200);
@@ -647,6 +735,23 @@ describe("Bizy Learning HTTP", () => {
       expect(inscricao.statusCode).toBe(201);
       expect(inscricao.json().inscricao).toEqual(expect.objectContaining({ programaSlug: programa.slug }));
 
+      const tarefa = await app.inject({
+        method: "POST", url: `/learning/team/programas/${programa.slug}/tarefas`, headers,
+        payload: { titulo: "Plano da live", instrucoes: "Submeter roteiro e checklist operacional." }
+      });
+      expect(tarefa.statusCode).toBe(201);
+      const submissao = await app.inject({
+        method: "POST", url: `/learning/player/tarefas/${tarefa.json().tarefa.id}/submissoes`, headers,
+        payload: { conteudo: "Roteiro validado com oferta, stock e responsáveis.", idempotencyKey: "submission-learning-qa-001" }
+      });
+      expect(submissao.statusCode).toBe(201);
+      const avaliacaoTarefa = await app.inject({
+        method: "PATCH", url: `/learning/team/submissoes/${submissao.json().submissao.id}`, headers,
+        payload: { estado: "APROVADA", nota: 95, feedback: "Evidência operacional suficiente." }
+      });
+      expect(avaliacaoTarefa.statusCode).toBe(200);
+      expect(avaliacaoTarefa.json().submissao).toEqual(expect.objectContaining({ estado: "APROVADA", nota: 95 }));
+
       const playerInicial = await app.inject({
         method: "GET",
         url: `/learning/player/programas/${programa.slug}`,
@@ -939,6 +1044,14 @@ describe("Bizy Learning HTTP", () => {
           expect.objectContaining({ programaSlug: programa.slug, estado: "REVOGADO" })
         ])
       );
+
+      const portalProdutor = await app.inject({ method: "GET", url: "/learning/team/portal-produtor", headers });
+      expect(portalProdutor.statusCode).toBe(200);
+      expect(portalProdutor.json()).toEqual(expect.objectContaining({ produtos: expect.any(Array), assignments: expect.objectContaining({ tarefas: expect.any(Array) }), riscos: expect.any(Object) }));
+
+      const automacoes = await app.inject({ method: "POST", url: "/learning/team/automacoes/executar", headers });
+      expect(automacoes.statusCode).toBe(200);
+      expect(automacoes.json()).toEqual(expect.objectContaining({ total: expect.any(Number), resultados: expect.any(Array) }));
     } finally {
       await app.close();
     }

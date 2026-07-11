@@ -1,5 +1,18 @@
 import type { PrismaClient } from "@prisma/client";
 
+type PrioridadeProjecto = "BAIXA" | "MEDIA" | "ALTA" | "CRITICA";
+type NivelRiscoProjecto = "BAIXO" | "MEDIO" | "ALTO" | "CRITICO";
+
+function lerListaJson<T>(valor: string | null | undefined): T[] {
+  if (!valor) return [];
+  try {
+    const resultado = JSON.parse(valor);
+    return Array.isArray(resultado) ? resultado as T[] : [];
+  } catch {
+    return [];
+  }
+}
+
 export class GestaoProjectosUseCase {
   constructor(private readonly prisma: PrismaClient) {}
 
@@ -21,11 +34,34 @@ export class GestaoProjectosUseCase {
     });
   }
 
+  async projectoPertenceAoNegocio(id: string, negocioId: string) {
+    return Boolean(await this.prisma.projecto.findFirst({
+      where: { id, negocioId },
+      select: { id: true }
+    }));
+  }
+
+  async projetoComercialPertenceAoNegocio(id: string, negocioId: string) {
+    return Boolean(await this.prisma.projetoComercial.findFirst({
+      where: { id, negocioId },
+      select: { id: true }
+    }));
+  }
+
+  async itemFilaPertenceAoNegocio(id: string, negocioId: string) {
+    return Boolean(await this.prisma.filaProjeto.findFirst({
+      where: { id, projetoComercial: { negocioId } },
+      select: { id: true }
+    }));
+  }
+
   async actualizarDepartamento(
     id: string,
     negocioId: string,
     dados: Partial<{ nome: string; descricao: string; liderId: string; paisId: string }>
   ) {
+    const departamento = await this.prisma.departamento.findFirst({ where: { id, negocioId }, select: { id: true } });
+    if (!departamento) throw new Error("Departamento não encontrado.");
     return this.prisma.departamento.update({
       where: { id },
       data: {
@@ -49,6 +85,14 @@ export class GestaoProjectosUseCase {
       dataFim?: Date;
       departamentoId?: string;
       gestorId?: string;
+      objetivo?: string;
+      stakeholders?: string[];
+      criteriosSucesso?: string[];
+      dependencias?: string[];
+      prioridade?: PrioridadeProjecto;
+      capacidadeConsumida?: number;
+      roiEsperado?: number;
+      nivelRisco?: NivelRiscoProjecto;
     }
   ) {
     let gestorId = dados.gestorId;
@@ -70,11 +114,27 @@ export class GestaoProjectosUseCase {
         negocioId,
         nome: dados.nome,
         descricao: dados.descricao,
+        objetivo: dados.objetivo,
+        stakeholdersJson: JSON.stringify(dados.stakeholders ?? []),
+        criteriosSucessoJson: JSON.stringify(dados.criteriosSucesso ?? []),
+        dependenciasJson: JSON.stringify(dados.dependencias ?? []),
         orcamento: dados.orcamento,
+        prioridade: dados.prioridade ?? "MEDIA",
+        capacidadeConsumida: dados.capacidadeConsumida ?? 0,
+        roiEsperado: dados.roiEsperado,
+        nivelRisco: dados.nivelRisco ?? "BAIXO",
         dataInicio: dados.dataInicio,
         dataFim: dados.dataFim,
         departamentoId: dados.departamentoId,
-        gestorId
+        gestorId,
+        eventosJson: JSON.stringify([{
+          id: crypto.randomUUID(),
+          tipo: "TEAM_PROJECT_CREATED",
+          versao: 1,
+          actorId: gestorId,
+          ocorridoEm: new Date().toISOString(),
+          dados: { prioridade: dados.prioridade ?? "MEDIA", nivelRisco: dados.nivelRisco ?? "BAIXO" }
+        }])
       }
     });
 
@@ -83,7 +143,8 @@ export class GestaoProjectosUseCase {
       data: {
         projectoId: projecto.id,
         membroId: gestorId,
-        papelProjecto: "GESTOR"
+        papelProjecto: "GESTOR",
+        capacidadePercentual: Math.max(1, Math.min(100, dados.capacidadeConsumida ?? 20))
       }
     });
 
@@ -92,13 +153,31 @@ export class GestaoProjectosUseCase {
 
   async listarProjectos(
     negocioId: string,
-    filtros?: { estado?: string; departamentoId?: string; limite?: number }
+    filtros?: {
+      estado?: string;
+      departamentoId?: string;
+      gestorId?: string;
+      prioridade?: PrioridadeProjecto;
+      nivelRisco?: NivelRiscoProjecto;
+      de?: Date;
+      ate?: Date;
+      limite?: number;
+    }
   ) {
     return this.prisma.projecto.findMany({
       where: {
         negocioId,
         ...(filtros?.estado ? { estado: filtros.estado } : {}),
-        ...(filtros?.departamentoId ? { departamentoId: filtros.departamentoId } : {})
+        ...(filtros?.departamentoId ? { departamentoId: filtros.departamentoId } : {}),
+        ...(filtros?.gestorId ? { gestorId: filtros.gestorId } : {}),
+        ...(filtros?.prioridade ? { prioridade: filtros.prioridade } : {}),
+        ...(filtros?.nivelRisco ? { nivelRisco: filtros.nivelRisco } : {}),
+        ...((filtros?.de || filtros?.ate) ? {
+          dataFim: {
+            ...(filtros.de ? { gte: filtros.de } : {}),
+            ...(filtros.ate ? { lte: filtros.ate } : {})
+          }
+        } : {})
       },
       include: {
         entregas: { select: { id: true, estado: true } },
@@ -162,13 +241,41 @@ export class GestaoProjectosUseCase {
 
   async adicionarMembroProjecto(
     projectoId: string,
-    dados: { membroId: string; papelProjecto?: string }
+    negocioId: string,
+    dados: { membroId: string; papelProjecto?: string; capacidadePercentual?: number; skillNecessaria?: string }
   ) {
+    if (!await this.projectoPertenceAoNegocio(projectoId, negocioId)) {
+      throw new Error("Projecto não encontrado.");
+    }
+    const membro = await this.prisma.membroNegocio.findFirst({
+      where: { id: dados.membroId, negocioId },
+      select: { status: true, skillsJson: true }
+    });
+    if (!membro || membro.status !== "ATIVO") {
+      throw new Error("Membro indisponível para atribuição.");
+    }
+    const capacidadeSolicitada = Math.max(1, Math.min(100, dados.capacidadePercentual ?? 20));
+    const alocacoes = await this.prisma.membroProjecto.aggregate({
+      where: { membroId: dados.membroId, activo: true },
+      _sum: { capacidadePercentual: true }
+    });
+    if ((alocacoes._sum.capacidadePercentual ?? 0) + capacidadeSolicitada > 100) {
+      throw new Error("RN-T048: A atribuição excede a capacidade disponível do membro.");
+    }
+    if (dados.skillNecessaria) {
+      const skills = lerListaJson<{ nome?: string }>(membro.skillsJson)
+        .map((skill) => skill.nome?.trim().toLowerCase());
+      if (!skills.includes(dados.skillNecessaria.trim().toLowerCase())) {
+        throw new Error("RN-T048: O membro não possui a skill necessária para esta atribuição.");
+      }
+    }
     return this.prisma.membroProjecto.create({
       data: {
         projectoId,
         membroId: dados.membroId,
-        papelProjecto: dados.papelProjecto ?? "MEMBRO"
+        papelProjecto: dados.papelProjecto ?? "MEMBRO",
+        capacidadePercentual: capacidadeSolicitada,
+        skillNecessaria: dados.skillNecessaria
       }
     });
   }
@@ -213,6 +320,9 @@ export class GestaoProjectosUseCase {
   // ── RF-T081 — Fechar projecto ─────────────────────────────────────────────
 
   async fecharProjecto(id: string, negocioId: string) {
+    if (!await this.projectoPertenceAoNegocio(id, negocioId)) {
+      throw new Error("Projecto não encontrado.");
+    }
     // RN-T023: só pode fechar quando todas as entregas são CONCLUIDA ou CANCELADA
     const entregas = await this.prisma.entregaProjecto.findMany({
       where: { projectoId: id }
@@ -463,14 +573,19 @@ export class GestaoProjectosUseCase {
 
   async adicionarPoolStock(
     projetoComercialId: string,
+    negocioId: string,
     dados: { pecaId: string; quantidadeReservada: number }
   ) {
+    if (!await this.projetoComercialPertenceAoNegocio(projetoComercialId, negocioId)) {
+      throw new Error("Projecto comercial não encontrado.");
+    }
     // RN-T045: verificar stock global do produto
-    const peca = await this.prisma.peca.findUniqueOrThrow({
-      where: { id: dados.pecaId },
+    const peca = await this.prisma.peca.findFirst({
+      where: { id: dados.pecaId, negocioId },
       select: { id: true, quantidade: true }
     });
 
+    if (!peca) throw new Error("Produto não encontrado.");
     if (peca.quantidade <= 0) {
       throw new Error("RN-T045: Stock global do produto esgotado. Não é possível reservar para o projecto.");
     }
@@ -566,8 +681,14 @@ export class GestaoProjectosUseCase {
 
   async adicionarEquipaProjeto(
     projetoComercialId: string,
+    negocioId: string,
     dados: { membroId: string; papelProjeto: string }
   ) {
+    if (!await this.projetoComercialPertenceAoNegocio(projetoComercialId, negocioId)) {
+      throw new Error("Projecto comercial não encontrado.");
+    }
+    const membro = await this.prisma.membroNegocio.findFirst({ where: { id: dados.membroId, negocioId }, select: { id: true } });
+    if (!membro) throw new Error("Membro não encontrado.");
     return this.prisma.equipaProjeto.create({
       data: {
         projetoComercialId,
@@ -1191,5 +1312,208 @@ export class GestaoProjectosUseCase {
         resumoJson: JSON.stringify(resumoJson)
       }
     });
+  }
+
+  // ── RF-T140-T145 — Portfolio e governança de projectos ──────────────────
+
+  async obterPortfolio(
+    negocioId: string,
+    filtros?: {
+      estado?: string;
+      gestorId?: string;
+      prioridade?: PrioridadeProjecto;
+      nivelRisco?: NivelRiscoProjecto;
+      de?: Date;
+      ate?: Date;
+      limite?: number;
+    }
+  ) {
+    const projectos = await this.listarProjectos(negocioId, filtros);
+    const itens = await Promise.all(projectos.map(async (projecto) => {
+      const total = projecto.entregas.length;
+      const concluidas = projecto.entregas.filter((entrega) => entrega.estado === "CONCLUIDA").length;
+      const bloqueios = lerListaJson<{ estado?: string }>(projecto.riscosJson)
+        .filter((risco) => risco.estado !== "ENCERRADO").length;
+      return {
+        ...projecto,
+        stakeholders: lerListaJson<string>(projecto.stakeholdersJson),
+        criteriosSucesso: lerListaJson<string>(projecto.criteriosSucessoJson),
+        dependencias: lerListaJson<string>(projecto.dependenciasJson),
+        progressoPercentual: total > 0 ? Math.round((concluidas / total) * 100) : 0,
+        bloqueios
+      };
+    }));
+    return {
+      itens,
+      metricas: {
+        total: itens.length,
+        activos: itens.filter((item) => item.estado !== "FECHADO").length,
+        emRisco: itens.filter((item) => ["ALTO", "CRITICO"].includes(item.nivelRisco)).length,
+        capacidadeConsumida: itens.reduce((total, item) => total + item.capacidadeConsumida, 0),
+        roiEsperado: itens.reduce((total, item) => total + (item.roiEsperado ?? 0), 0)
+      },
+      referenciaGovernanca: "ISO 21500/21502-inspired; não representa certificação formal"
+    };
+  }
+
+  async registarMudancaProjecto(
+    id: string,
+    negocioId: string,
+    actorId: string,
+    dados: {
+      motivo: string;
+      impacto: string;
+      aprovadoPorId: string;
+      alteracoes: Partial<{
+        nome: string;
+        descricao: string;
+        objetivo: string;
+        orcamento: number;
+        dataFim: Date;
+        gestorId: string;
+        estado: string;
+        prioridade: PrioridadeProjecto;
+        nivelRisco: NivelRiscoProjecto;
+        roiEsperado: number;
+      }>;
+    }
+  ) {
+    const projecto = await this.prisma.projecto.findFirst({ where: { id, negocioId } });
+    if (!projecto) throw new Error("Projecto não encontrado.");
+    const agora = new Date().toISOString();
+    const mudancas = lerListaJson<Record<string, unknown>>(projecto.mudancasJson);
+    const mudanca = {
+      id: crypto.randomUUID(),
+      motivo: dados.motivo,
+      impacto: dados.impacto,
+      actorId,
+      aprovadoPorId: dados.aprovadoPorId,
+      ocorridoEm: agora,
+      antes: Object.fromEntries(Object.keys(dados.alteracoes).map((chave) => [chave, projecto[chave as keyof typeof projecto]])),
+      depois: dados.alteracoes
+    };
+    mudancas.push(mudanca);
+    const actualizado = await this.prisma.projecto.update({
+      where: { id },
+      data: { ...dados.alteracoes, mudancasJson: JSON.stringify(mudancas) }
+    });
+    await this.anexarEventoProjecto(actualizado, "TEAM_PROJECT_CHANGED", actorId, mudanca);
+    return { projecto: actualizado, mudanca };
+  }
+
+  async registarRiscoOuIssue(
+    id: string,
+    negocioId: string,
+    actorId: string,
+    dados: {
+      tipo: "RISCO" | "ISSUE";
+      titulo: string;
+      severidade: NivelRiscoProjecto;
+      ownerId: string;
+      planoMitigacao: string;
+      dataAlvo?: Date;
+      escalonamento?: string;
+    }
+  ) {
+    const projecto = await this.prisma.projecto.findFirst({ where: { id, negocioId } });
+    if (!projecto) throw new Error("Projecto não encontrado.");
+    const riscos = lerListaJson<Record<string, unknown>>(projecto.riscosJson);
+    const item = {
+      id: crypto.randomUUID(),
+      ...dados,
+      dataAlvo: dados.dataAlvo?.toISOString() ?? null,
+      estado: "ABERTO",
+      criadoPorId: actorId,
+      criadoEm: new Date().toISOString()
+    };
+    riscos.push(item);
+    const nivelRisco = riscos.some((risco) => risco.estado !== "ENCERRADO" && risco.severidade === "CRITICO")
+      ? "CRITICO"
+      : riscos.some((risco) => risco.estado !== "ENCERRADO" && risco.severidade === "ALTO") ? "ALTO" : projecto.nivelRisco;
+    const actualizado = await this.prisma.projecto.update({
+      where: { id },
+      data: { riscosJson: JSON.stringify(riscos), nivelRisco }
+    });
+    await this.anexarEventoProjecto(actualizado, `TEAM_PROJECT_${dados.tipo}_CREATED`, actorId, item);
+    return { projecto: actualizado, item };
+  }
+
+  async actualizarRiscoOuIssue(
+    id: string,
+    negocioId: string,
+    itemId: string,
+    actorId: string,
+    dados: { estado: "ABERTO" | "EM_MITIGACAO" | "ESCALADO" | "ENCERRADO"; motivo: string }
+  ) {
+    const projecto = await this.prisma.projecto.findFirst({ where: { id, negocioId } });
+    if (!projecto) throw new Error("Projecto não encontrado.");
+    const riscos = lerListaJson<Record<string, unknown>>(projecto.riscosJson);
+    const indice = riscos.findIndex((item) => item.id === itemId);
+    if (indice < 0) throw new Error("Risco ou issue não encontrado.");
+    riscos[indice] = {
+      ...riscos[indice],
+      estado: dados.estado,
+      motivoEstado: dados.motivo,
+      actualizadoPorId: actorId,
+      actualizadoEm: new Date().toISOString()
+    };
+    const actualizado = await this.prisma.projecto.update({
+      where: { id },
+      data: { riscosJson: JSON.stringify(riscos) }
+    });
+    await this.anexarEventoProjecto(actualizado, "TEAM_PROJECT_RISK_CHANGED", actorId, riscos[indice]);
+    return riscos[indice];
+  }
+
+  async registarLicaoAprendida(
+    id: string,
+    negocioId: string,
+    actorId: string,
+    dados: { contexto: "PROJECTO" | "CAMPANHA" | "LIVE" | "INCIDENTE"; resultado: string; causa: string; melhoria: string; ownerId: string; dataAlvo?: Date }
+  ) {
+    const projecto = await this.prisma.projecto.findFirst({ where: { id, negocioId } });
+    if (!projecto) throw new Error("Projecto não encontrado.");
+    const licoes = lerListaJson<Record<string, unknown>>(projecto.licoesJson);
+    const licao = {
+      id: crypto.randomUUID(),
+      ...dados,
+      dataAlvo: dados.dataAlvo?.toISOString() ?? null,
+      actorId,
+      criadaEm: new Date().toISOString()
+    };
+    licoes.push(licao);
+    const actualizado = await this.prisma.projecto.update({ where: { id }, data: { licoesJson: JSON.stringify(licoes) } });
+    await this.anexarEventoProjecto(actualizado, "TEAM_PROJECT_LESSON_RECORDED", actorId, licao);
+    return licao;
+  }
+
+  async listarEventosProjecto(id: string, negocioId: string, desde?: string) {
+    const projecto = await this.prisma.projecto.findFirst({ where: { id, negocioId } });
+    if (!projecto) throw new Error("Projecto não encontrado.");
+    const eventos = lerListaJson<Record<string, unknown>>(projecto.eventosJson);
+    return {
+      schema: "bizy.team.events.v1",
+      projectoId: id,
+      reprocessavelDesde: desde ?? null,
+      eventos: desde ? eventos.filter((evento) => String(evento.ocorridoEm ?? "") >= desde) : eventos
+    };
+  }
+
+  private async anexarEventoProjecto(
+    projecto: { id: string; eventosJson: string | null },
+    tipo: string,
+    actorId: string,
+    dados: unknown
+  ) {
+    const eventos = lerListaJson<Record<string, unknown>>(projecto.eventosJson);
+    eventos.push({
+      id: crypto.randomUUID(),
+      tipo,
+      versao: 1,
+      actorId,
+      ocorridoEm: new Date().toISOString(),
+      dados
+    });
+    await this.prisma.projecto.update({ where: { id: projecto.id }, data: { eventosJson: JSON.stringify(eventos) } });
   }
 }

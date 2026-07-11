@@ -82,7 +82,7 @@ Links: [[mapa-de-modulos-bizy#Loja Publica, Checkout e Tracking]], [[inventario-
 
 P1 melhora a operacao diaria logo apos o lancamento inicial.
 
-- [ ] Kanban/lista visual de funil de pedidos.
+- [x] Kanban/lista visual de funil de pedidos.
 - [x] Perfil Cliente 360 completo na UI.
 - [x] Criar pedido diretamente na conversa.
 - [x] Envio real de imagem/documento pelo provider WhatsApp.
@@ -93,7 +93,7 @@ P1 melhora a operacao diaria logo apos o lancamento inicial.
 - [x] Templates WhatsApp por evento transacional.
 - [x] Tarefas automaticas para falhas de automacao.
 - [x] Fallback estruturado em mensagens.
-- [ ] Sequenciador pos-venda.
+- [x] Sequenciador pos-venda.
 - [x] Lista de clientes com WhatsApp e ultimo pedido.
 - [x] Aliases sociais completos.
 - [x] Prioridade visual para VIP, reclamacao e pagamento pendente.

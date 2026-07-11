@@ -60,6 +60,7 @@ const CriarProgramaLearningSchema = z.object({
     certificado: z.string().trim().min(3).max(300).optional()
   }).optional(),
   modulosRelacionados: z.array(z.string().trim().min(1).max(80)).max(20).optional(),
+  itensBundle: z.array(z.string().trim().min(2).max(120)).max(50).optional(),
   licoes: z.array(z.object({
     titulo: z.string().trim().min(3).max(140),
     tipo: TipoLicaoLearningSchema.optional(),
@@ -96,9 +97,13 @@ const RegistrarEventoPublicoLearningSchema = z.object({
 });
 
 const AjustarCompraLearningSchema = z.object({
-  estado: z.enum(["CANCELADO", "REEMBOLSADO"]),
+  estado: z.enum(["CANCELADO", "REEMBOLSADO", "PARCIALMENTE_REEMBOLSADO"]),
   motivo: z.string().trim().min(3).max(300).optional(),
-  revogarAcesso: z.boolean().optional()
+  revogarAcesso: z.boolean().optional(),
+  valorReembolso: z.coerce.number().int().positive().optional(),
+  itensReembolsados: z.array(z.object({ referencia: z.string().trim().min(1).max(160), valor: z.coerce.number().int().nonnegative() })).max(100).optional()
+}).superRefine((dados, ctx) => {
+  if (dados.estado === "PARCIALMENTE_REEMBOLSADO" && !dados.valorReembolso) ctx.addIssue({ code: "custom", message: "Reembolso parcial exige valorReembolso." });
 });
 
 const RevogarEntitlementSchema = z.object({
@@ -124,6 +129,38 @@ const QueryExperienciasLearningSchema = z.object({
   programaSlug: z.string().trim().min(2).max(120).optional(),
   usuarioId: z.string().trim().min(2).max(120).optional(),
   limite: z.coerce.number().int().min(1).max(500).optional()
+});
+
+const TipoPerguntaLearningSchema = z.enum(["MULTIPLA_ESCOLHA", "VERDADEIRO_FALSO", "RESPOSTA_CURTA"]);
+const PerguntaAvaliacaoLearningSchema = z.object({
+  tipo: TipoPerguntaLearningSchema,
+  enunciado: z.string().trim().min(3).max(1000),
+  peso: z.coerce.number().int().min(1).max(100).optional(),
+  alternativas: z.array(z.object({
+    texto: z.string().trim().min(1).max(500),
+    correta: z.boolean().optional(),
+    feedback: z.string().trim().min(2).max(500).nullable().optional()
+  })).max(20).optional(),
+  rubrica: z.string().trim().min(3).max(1200).nullable().optional()
+});
+const CriarAvaliacaoLearningSchema = z.object({
+  titulo: z.string().trim().min(3).max(180),
+  descricao: z.string().trim().min(3).max(1000).nullable().optional(),
+  pontuacaoMinima: z.coerce.number().int().min(0).max(100).optional(),
+  tentativasMaximas: z.coerce.number().int().min(1).max(20).optional(),
+  feedback: z.enum(["IMEDIATO", "APOS_ENVIO", "MANUAL"]).optional(),
+  perguntas: z.array(PerguntaAvaliacaoLearningSchema).min(1).max(100)
+});
+const SubmeterTentativaAvaliacaoSchema = z.object({
+  respostas: z.array(z.object({
+    perguntaId: z.string().uuid(),
+    alternativaIds: z.array(z.string().uuid()).max(20).optional(),
+    texto: z.string().trim().max(4000).nullable().optional()
+  })).min(1).max(100),
+  idempotencyKey: z.string().trim().min(8).max(180).nullable().optional()
+});
+const QueryAvaliacoesLearningSchema = z.object({
+  programaSlug: z.string().trim().min(2).max(120).optional()
 });
 
 const ParamCodigoCertificadoSchema = z.object({
@@ -216,6 +253,42 @@ const EnviarMensagemChatLearningSchema = z.object({
   mencoes: z.array(z.string().trim().min(1).max(80)).max(20).optional()
 });
 
+const AssetLearningSchema = z.object({
+  id: z.string().uuid().optional(),
+  tipo: z.enum(["PDF", "AUDIO", "VIDEO", "IMAGEM", "TEMPLATE", "PLANILHA", "ARQUIVO"]),
+  titulo: z.string().trim().min(2).max(160),
+  url: z.string().trim().url().max(2000),
+  mimeType: z.string().trim().max(120).nullable().optional(),
+  tamanhoBytes: z.coerce.number().int().nonnegative().nullable().optional(),
+  premium: z.boolean().default(true),
+  legendaUrl: z.string().trim().url().max(2000).nullable().optional(),
+  transcricao: z.string().trim().max(50_000).nullable().optional(),
+  textoAlternativo: z.string().trim().max(500).nullable().optional()
+}).transform((asset) => ({ ...asset, id: asset.id ?? crypto.randomUUID() }));
+
+const PublicarVersaoLearningSchema = z.object({
+  releaseNotes: z.string().trim().min(3).max(2000),
+  impacto: z.enum(["MANTER_VERSAO", "ATUALIZAR_SEM_INVALIDAR", "RECERTIFICAR"]),
+  assets: z.array(AssetLearningSchema).max(200).optional(),
+  licoes: CriarProgramaLearningSchema.shape.licoes.optional()
+});
+
+const IntegracaoLearningSchema = z.object({
+  tipo: z.enum(["LINK_CONTROLADO", "LTI_PREPARACAO", "SCORM_ISOLADO"]),
+  escopo: z.array(z.string().trim().min(1).max(120)).min(1).max(50),
+  origemUrl: z.string().trim().url().max(2000).nullable().optional(),
+  pacoteHash: z.string().trim().min(16).max(256).nullable().optional(),
+  retornoProgresso: z.boolean().default(false),
+  revogavel: z.literal(true).default(true)
+});
+
+const CriarTarefaLearningSchema = z.object({ titulo: z.string().trim().min(3).max(180), instrucoes: z.string().trim().min(3).max(5000), prazoAte: z.string().datetime().nullable().optional(), rubrica: z.array(z.string().trim().min(2).max(500)).max(30).optional() });
+const SubmeterTarefaLearningSchema = z.object({ conteudo: z.string().trim().min(1).max(20_000), anexos: z.array(z.string().url().max(2000)).max(20).optional(), idempotencyKey: z.string().trim().min(8).max(180).nullable().optional() });
+const AvaliarTarefaLearningSchema = z.object({ estado: z.enum(["APROVADA", "REVISAO_NECESSARIA"]), nota: z.coerce.number().min(0).max(100).nullable().optional(), feedback: z.string().trim().min(3).max(5000) });
+const AgendarMentoriaLearningSchema = z.object({ mentorId: z.string().trim().min(2).max(120), formandoId: z.string().trim().min(2).max(120), inicioEm: z.string().datetime(), fimEm: z.string().datetime() });
+const ConcluirMentoriaLearningSchema = z.object({ notas: z.string().trim().min(3).max(5000), tarefas: z.array(z.string().trim().min(2).max(500)).max(30).optional(), followUp: z.string().trim().max(2000).nullable().optional() });
+const BuscaLearningSchema = z.object({ busca: z.string().trim().max(160).optional(), categoria: z.string().trim().max(80).optional(), formato: FormatoProgramaLearningSchema.optional(), nivel: NivelLearningSchema.optional(), certificado: z.coerce.boolean().optional(), gratuito: z.coerce.boolean().optional(), limite: z.coerce.number().int().min(1).max(100).optional(), offset: z.coerce.number().int().min(0).optional() });
+
 export const moduloLearning: ModuloHttp = {
   nome: "bizy-learning",
   descricao: "Sistema público de aprendizagem com administração operacional pelo Team.",
@@ -223,6 +296,11 @@ export const moduloLearning: ModuloHttp = {
     app.get("/publico/learning", async (request, reply) => {
       aplicarCachePublico(reply);
       return contexto.bizyLearning.obterHomePublica();
+    });
+
+    app.get("/publico/learning/busca", async (request, reply) => {
+      aplicarCachePublico(reply);
+      return contexto.bizyLearning.buscarProdutosPublicos(BuscaLearningSchema.parse(request.query ?? {}));
     });
 
     app.get("/publico/learning/programas/:slug", async (request, reply) => {
@@ -279,6 +357,64 @@ export const moduloLearning: ModuloHttp = {
       return contexto.bizyLearning.resumirAnalyticsPublico(ctx.negocio.id, programas);
     });
 
+    app.get("/learning/team/recomendacoes", async (request, reply) => {
+      aplicarNoStore(reply);
+      const ctx = await exigirAcessoComercial(contexto, request, reply, { permissao: "learning:ler", mensagemPermissao: "Sem permissão para consultar recomendações Learning." });
+      if (!ctx) return;
+      const { perfil, limite } = z.object({ perfil: z.string().trim().min(2).max(40).optional(), limite: z.coerce.number().int().min(1).max(50).optional() }).parse(request.query ?? {});
+      return contexto.bizyLearning.recomendarProdutos(ctx.negocio.id, perfil ?? ctx.papel, limite);
+    });
+
+    app.get("/learning/team/governanca", async (request, reply) => {
+      aplicarNoStore(reply);
+      const ctx = await exigirAcessoComercial(contexto, request, reply, { permissao: "learning:administrar", mensagemPermissao: "Sem permissão para consultar governança Learning." });
+      if (!ctx) return;
+      return contexto.bizyLearning.obterGovernancaLearning(ctx.negocio.id);
+    });
+
+    app.put("/learning/team/governanca", async (request, reply) => {
+      aplicarNoStore(reply);
+      const ctx = await exigirAcessoComercial(contexto, request, reply, { permissao: "learning:administrar", mensagemPermissao: "Sem permissão para alterar governança Learning." });
+      if (!ctx) return;
+      const { motivo, ...configuracao } = z.object({ categorias: z.array(z.string().trim().min(2).max(80)).max(100).optional(), politicaPublicacao: z.string().trim().max(1000).optional(), idadeMinima: z.coerce.number().int().min(0).max(21).optional(), conteudoSensivel: z.string().trim().max(1000).optional(), propriedadeIntelectual: z.string().trim().max(1000).optional(), gamificacaoComparativa: z.enum(["OPT_IN", "DESATIVADA"]).optional(), motivo: z.string().trim().min(3).max(500) }).parse(request.body ?? {});
+      return contexto.bizyLearning.atualizarGovernancaLearning(ctx.negocio.id, ctx.usuario.id, configuracao, motivo);
+    });
+
+    app.get("/learning/team/avaliacoes", async (request, reply) => {
+      aplicarNoStore(reply);
+      const ctx = await exigirAcessoComercial(contexto, request, reply, {
+        permissao: "learning:administrar",
+        mensagemPermissao: "Sem permissão para consultar avaliações do Bizy Learning."
+      });
+      if (!ctx) return;
+      const { programaSlug } = QueryAvaliacoesLearningSchema.parse(request.query ?? {});
+      return { avaliacoes: await contexto.bizyLearning.listarAvaliacoes(ctx.negocio.id, programaSlug) };
+    });
+
+    app.post("/learning/team/programas/:slug/avaliacoes", async (request, reply) => {
+      aplicarNoStore(reply);
+      const ctx = await exigirAcessoComercial(contexto, request, reply, {
+        permissao: "learning:administrar",
+        mensagemPermissao: "Sem permissão para criar avaliações do Bizy Learning."
+      });
+      if (!ctx) return;
+      const { slug } = ParamSlugSchema.parse(request.params);
+      const dados = CriarAvaliacaoLearningSchema.parse(request.body ?? {});
+      const resultado = await contexto.bizyLearning.criarAvaliacao(ctx.negocio.id, ctx.usuario.id, slug, dados);
+      return reply.code(resultado.duplicado ? 200 : 201).send(resultado);
+    });
+
+    app.get("/learning/team/avaliacoes/:id/exportar", async (request, reply) => {
+      aplicarNoStore(reply);
+      const ctx = await exigirAcessoComercial(contexto, request, reply, {
+        permissao: "learning:administrar",
+        mensagemPermissao: "Sem permissão para exportar avaliações do Bizy Learning."
+      });
+      if (!ctx) return;
+      const { id } = ParamIdSchema.parse(request.params);
+      return contexto.bizyLearning.exportarAvaliacao(ctx.negocio.id, id);
+    });
+
     app.post("/learning/team/programas", async (request, reply) => {
       aplicarNoStore(reply);
       const ctx = await exigirAcessoComercial(contexto, request, reply, {
@@ -303,6 +439,100 @@ export const moduloLearning: ModuloHttp = {
       const dados = CriarProgramaLearningSchema.parse(request.body ?? {});
       const resultado = await contexto.bizyLearning.criarProgramaTeam(ctx.negocio.id, ctx.usuario.id, dados);
       return reply.code(201).send(resultado);
+    });
+
+    app.post("/learning/team/programas/:slug/versoes", async (request, reply) => {
+      aplicarNoStore(reply);
+      const ctx = await exigirAcessoComercial(contexto, request, reply, { permissao: "learning:administrar", mensagemPermissao: "Sem permissão para versionar conteúdo Learning." });
+      if (!ctx) return;
+      const { slug } = ParamSlugSchema.parse(request.params);
+      return reply.code(201).send(await contexto.bizyLearning.publicarVersaoConteudo(ctx.negocio.id, ctx.usuario.id, slug, PublicarVersaoLearningSchema.parse(request.body ?? {})));
+    });
+
+    app.post("/learning/team/programas/:slug/integracoes", async (request, reply) => {
+      aplicarNoStore(reply);
+      const ctx = await exigirAcessoComercial(contexto, request, reply, { permissao: "learning:administrar", mensagemPermissao: "Sem permissão para integrar conteúdo Learning." });
+      if (!ctx) return;
+      const { slug } = ParamSlugSchema.parse(request.params);
+      return reply.code(201).send(await contexto.bizyLearning.registarIntegracaoConteudo(ctx.negocio.id, ctx.usuario.id, slug, IntegracaoLearningSchema.parse(request.body ?? {})));
+    });
+
+    app.post("/learning/team/integracoes/:id/revogar", async (request, reply) => {
+      aplicarNoStore(reply);
+      const ctx = await exigirAcessoComercial(contexto, request, reply, { permissao: "learning:administrar", mensagemPermissao: "Sem permissão para revogar integração Learning." });
+      if (!ctx) return;
+      const { id } = ParamIdSchema.parse(request.params);
+      const { motivo } = z.object({ motivo: z.string().trim().min(3).max(500) }).parse(request.body ?? {});
+      return contexto.bizyLearning.revogarIntegracaoConteudo(ctx.negocio.id, ctx.usuario.id, id, motivo);
+    });
+
+    app.get("/learning/team/tarefas", async (request, reply) => {
+      aplicarNoStore(reply);
+      const ctx = await exigirAcessoComercial(contexto, request, reply, { permissao: "learning:ler", mensagemPermissao: "Sem permissão para consultar assignments Learning." });
+      if (!ctx) return;
+      const { programaSlug } = QueryAvaliacoesLearningSchema.parse(request.query ?? {});
+      return contexto.bizyLearning.listarTarefasLearning(ctx.negocio.id, programaSlug);
+    });
+
+    app.post("/learning/team/programas/:slug/tarefas", async (request, reply) => {
+      aplicarNoStore(reply);
+      const ctx = await exigirAcessoComercial(contexto, request, reply, { permissao: "learning:administrar", mensagemPermissao: "Sem permissão para criar assignments Learning." });
+      if (!ctx) return;
+      const { slug } = ParamSlugSchema.parse(request.params);
+      return reply.code(201).send(await contexto.bizyLearning.criarTarefaLearning(ctx.negocio.id, ctx.usuario.id, slug, CriarTarefaLearningSchema.parse(request.body ?? {})));
+    });
+
+    app.patch("/learning/team/submissoes/:id", async (request, reply) => {
+      aplicarNoStore(reply);
+      const ctx = await exigirAcessoComercial(contexto, request, reply, { permissao: "learning:administrar", mensagemPermissao: "Sem permissão para avaliar assignment Learning." });
+      if (!ctx) return;
+      const { id } = ParamIdSchema.parse(request.params);
+      return contexto.bizyLearning.avaliarTarefaLearning(ctx.negocio.id, ctx.usuario.id, id, AvaliarTarefaLearningSchema.parse(request.body ?? {}));
+    });
+
+    app.post("/learning/player/tarefas/:id/submissoes", async (request, reply) => {
+      aplicarNoStore(reply);
+      const ctx = await exigirAcessoComercial(contexto, request, reply, { permissao: "learning:ler", mensagemPermissao: "Sem permissão para submeter assignment Learning." });
+      if (!ctx) return;
+      const { id } = ParamIdSchema.parse(request.params);
+      return reply.code(201).send(await contexto.bizyLearning.submeterTarefaLearning(ctx.negocio.id, ctx.usuario.id, id, SubmeterTarefaLearningSchema.parse(request.body ?? {})));
+    });
+
+    app.post("/learning/team/programas/:slug/mentorias", async (request, reply) => {
+      aplicarNoStore(reply);
+      const ctx = await exigirAcessoComercial(contexto, request, reply, { permissao: "learning:administrar", mensagemPermissao: "Sem permissão para agendar mentoria Learning." });
+      if (!ctx) return;
+      const { slug } = ParamSlugSchema.parse(request.params);
+      return reply.code(201).send(await contexto.bizyLearning.agendarMentoria(ctx.negocio.id, ctx.usuario.id, slug, AgendarMentoriaLearningSchema.parse(request.body ?? {})));
+    });
+
+    app.patch("/learning/team/mentorias/:id/concluir", async (request, reply) => {
+      aplicarNoStore(reply);
+      const ctx = await exigirAcessoComercial(contexto, request, reply, { permissao: "learning:administrar", mensagemPermissao: "Sem permissão para concluir mentoria Learning." });
+      if (!ctx) return;
+      const { id } = ParamIdSchema.parse(request.params);
+      return contexto.bizyLearning.concluirMentoria(ctx.negocio.id, ctx.usuario.id, id, ConcluirMentoriaLearningSchema.parse(request.body ?? {}));
+    });
+
+    app.get("/learning/team/riscos", async (request, reply) => {
+      aplicarNoStore(reply);
+      const ctx = await exigirAcessoComercial(contexto, request, reply, { permissao: "learning:administrar", mensagemPermissao: "Sem permissão para consultar riscos Learning." });
+      if (!ctx) return;
+      return contexto.bizyLearning.obterRiscosEAutomacoesLearning(ctx.negocio.id);
+    });
+
+    app.post("/learning/team/automacoes/executar", async (request, reply) => {
+      aplicarNoStore(reply);
+      const ctx = await exigirAcessoComercial(contexto, request, reply, { permissao: "learning:administrar", mensagemPermissao: "Sem permissão para executar automações Learning." });
+      if (!ctx) return;
+      return contexto.bizyLearning.executarAutomacoesLearning(ctx.negocio.id, ctx.usuario.id);
+    });
+
+    app.get("/learning/team/portal-produtor", async (request, reply) => {
+      aplicarNoStore(reply);
+      const ctx = await exigirAcessoComercial(contexto, request, reply, { permissao: "learning:administrar", mensagemPermissao: "Sem permissão para consultar o portal do produtor." });
+      if (!ctx) return;
+      return contexto.bizyLearning.obterPortalProdutor(ctx.negocio.id, ctx.papel);
     });
 
     app.patch("/learning/team/programas/:slug/publicacao", async (request, reply) => {
@@ -533,6 +763,30 @@ export const moduloLearning: ModuloHttp = {
 
       const { slug } = ParamSlugSchema.parse(request.params);
       return contexto.bizyLearning.obterPlayerPrograma(ctx.negocio.id, ctx.usuario.id, slug);
+    });
+
+    app.get("/learning/player/avaliacoes/:id", async (request, reply) => {
+      aplicarNoStore(reply);
+      const ctx = await exigirAcessoComercial(contexto, request, reply, {
+        permissao: "learning:ler",
+        mensagemPermissao: "Sem permissão para aceder à avaliação do Bizy Learning."
+      });
+      if (!ctx) return;
+      const { id } = ParamIdSchema.parse(request.params);
+      return contexto.bizyLearning.obterAvaliacaoPlayer(ctx.negocio.id, ctx.usuario.id, id);
+    });
+
+    app.post("/learning/player/avaliacoes/:id/tentativas", async (request, reply) => {
+      aplicarNoStore(reply);
+      const ctx = await exigirAcessoComercial(contexto, request, reply, {
+        permissao: "learning:ler",
+        mensagemPermissao: "Sem permissão para responder à avaliação do Bizy Learning."
+      });
+      if (!ctx) return;
+      const { id } = ParamIdSchema.parse(request.params);
+      const dados = SubmeterTentativaAvaliacaoSchema.parse(request.body ?? {});
+      const resultado = await contexto.bizyLearning.submeterTentativaAvaliacao(ctx.negocio.id, ctx.usuario.id, id, dados);
+      return reply.code(resultado.duplicado ? 200 : 201).send(resultado);
     });
 
     app.post("/learning/player/eventos", async (request, reply) => {

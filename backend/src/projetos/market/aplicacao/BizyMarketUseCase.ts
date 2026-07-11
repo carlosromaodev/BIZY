@@ -279,7 +279,8 @@ export class BizyMarketUseCase {
 
   private async listarItensMarket(): Promise<ItemMarket[]> {
     const lojasPublicadas = (await this.autenticacao.listarNegociosPublicados())
-      .filter((loja) => this.lojaParticipaNoMarket(loja));
+      .filter((loja) => this.lojaParticipaNoMarket(loja))
+      .filter((loja) => this.extrairSellerOnboarding(loja).estado !== "SUSPENSO");
     const lojasPorId = new Map(lojasPublicadas.map((loja) => [loja.id, loja]));
 
     return (await this.pecas.listar())
@@ -350,19 +351,44 @@ export class BizyMarketUseCase {
   }
 
   private calcularScoreRelevancia(item: ItemMarket): number {
-    let score = 0;
-    if (item.peca.quantidade > 0) score += 30;
-    if (item.peca.fotos.length >= 3) score += 10;
-    if (item.peca.descricao && item.peca.descricao.length > 50) score += 10;
-    if (item.peca.vitrine.precoPromocionalEmKwanza) score += 5;
-    if (item.peca.estadoStock === "DISPONIVEL") score += 15;
-    if (item.peca.estadoStock === "BAIXO_STOCK") score += 5;
-    if (item.peca.vitrine.selos.includes("PATROCINADO")) score += 20;
-    if (item.peca.vitrine.selos.includes("DESTAQUE")) score += 15;
-    if (item.peca.vitrine.selos.includes("MAIS_VENDIDO")) score += 10;
-    if (item.peca.vitrine.selos.includes("NOVIDADE")) score += 5;
-    score -= item.peca.vitrine.prioridade;
-    return score;
+    return this.explicarRanking(item).score;
+  }
+
+  private explicarRanking(item: ItemMarket) {
+    const seller = this.avaliarSellerOnboarding(item.loja, [this.resumirProdutoLoja(item.peca, item.loja)]);
+    const marketplace = this.objeto(this.objeto(this.objeto(item.loja.entrega).lojaDigital).marketplace);
+    const operacao = this.objeto(marketplace.metricasOperacionais);
+    const cancelamentos = Number(operacao.cancelamentos ?? 0);
+    const reclamacoes = Number(operacao.reclamacoes ?? 0);
+    const disputas = Number(operacao.disputas ?? 0);
+    const cumprimentoEntrega = Math.max(0, Math.min(100, Number(operacao.cumprimentoEntregaPercentual ?? 80)));
+    const qualidadeCatalogo = [
+      item.peca.fotos.length >= 3,
+      Boolean(item.peca.descricao && item.peca.descricao.length > 50),
+      Boolean(item.peca.categoria?.trim()),
+      item.peca.precoEmKwanza > 0
+    ].filter(Boolean).length * 5;
+    const disponibilidade = item.peca.estadoStock === "DISPONIVEL" ? 20 : item.peca.estadoStock === "BAIXO_STOCK" ? 8 : 0;
+    const confianca = seller.elegivel ? 15 : Math.max(0, 10 - seller.pendencias.length * 2);
+    const frescorDias = Math.max(0, Math.floor((Date.now() - item.peca.atualizadoEm.getTime()) / 86_400_000));
+    const frescor = frescorDias <= 7 ? 10 : frescorDias <= 30 ? 5 : 0;
+    const penalizacoes = Math.min(35, cancelamentos * 3 + reclamacoes * 4 + disputas * 8);
+    const risco = disputas > 0 || reclamacoes >= 3;
+    const patrocinadoSolicitado = item.peca.vitrine.selos.includes("PATROCINADO");
+    const patrocinioElegivel = patrocinadoSolicitado && seller.elegivel && !risco && item.peca.quantidade > 0;
+    const score = Math.max(0, Math.round(qualidadeCatalogo + disponibilidade + confianca + frescor + cumprimentoEntrega * 0.2 + (patrocinioElegivel ? 5 : 0) - penalizacoes));
+    return {
+      score,
+      versao: "market.ranking.v1",
+      fatores: { qualidadeCatalogo, disponibilidade, confianca, frescor, cumprimentoEntrega, penalizacoes },
+      patrocinio: { solicitado: patrocinadoSolicitado, elegivel: patrocinioElegivel },
+      explicacao: [
+        `${qualidadeCatalogo}/20 em qualidade de catálogo`,
+        `${disponibilidade}/20 em disponibilidade`,
+        `${cumprimentoEntrega}% de cumprimento de entrega`,
+        penalizacoes > 0 ? `${penalizacoes} pontos de penalização operacional` : "sem penalização operacional"
+      ]
+    };
   }
 
   private ordenarItensMarket(a: ItemMarket, b: ItemMarket): number {
@@ -535,6 +561,7 @@ export class BizyMarketUseCase {
       vitrine: peca.vitrine,
       estadoStock: peca.estadoStock,
       patrocinado,
+      ranking: this.explicarRanking({ peca, loja }),
       urlProduto: `/lojas/${slug}/produtos/${peca.codigo}`,
       urlLoja: `/lojas/${slug}`,
       loja: this.mapearLojaMarket(loja)

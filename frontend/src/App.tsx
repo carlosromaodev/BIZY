@@ -1,4 +1,4 @@
-import { type ReactNode, useEffect, useState } from "react";
+import { Suspense, type ReactNode, useEffect, useState } from "react";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { EVENTO_SESSAO_ATUALIZADA, EVENTO_SESSAO_EXPIRADA, EVENTO_WORKSPACE_ALTERADO, obterUsuario, requisitarApi } from "./api";
 import { NativeFeedbackProvider } from "./componentes/NativeFeedbackProvider";
@@ -115,7 +115,8 @@ export function App() {
       <NativeFeedbackProvider>
         <ProvedorNotificacoes>
           <BrowserRouter>
-            <Routes>
+            <Suspense fallback={<div className="min-h-dvh bg-background" aria-busy="true" />}>
+              <Routes>
               {rotasPublicas.map((rota) => (
                 <Route key={rota.caminho} path={rota.caminho} element={rota.elemento} />
               ))}
@@ -137,7 +138,8 @@ export function App() {
               ))}
 
               <Route path="*" element={<Navigate to="/" replace />} />
-            </Routes>
+              </Routes>
+            </Suspense>
           </BrowserRouter>
         </ProvedorNotificacoes>
       </NativeFeedbackProvider>

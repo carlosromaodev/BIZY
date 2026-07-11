@@ -36,6 +36,7 @@ const rotasBackend = [
   "/learning/progresso",
   "/lives",
   "/loja-publica",
+  "/market",
   "/media",
   "/metas",
   "/n8n",
@@ -64,6 +65,17 @@ const rotasBackend = [
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          "vendor-icons": ["lucide-react"],
+          "vendor-motion": ["motion/react"],
+          "vendor-react": ["react", "react-dom", "react-router-dom"]
+        }
+      }
+    }
+  },
   resolve: {
     alias: {
       "@": fileURLToPath(new URL("./src", import.meta.url))

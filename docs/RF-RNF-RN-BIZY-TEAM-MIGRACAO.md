@@ -382,27 +382,27 @@ O BIZY CRM+ possui 20 módulos HTTP, 55 modelos Prisma e 44 use cases cobrindo:
 
 #### 5.9.1 Pessoas, Skills e Disponibilidade
 
-- [ ] [RF-T131] O Team deve manter perfil operacional 360 de membro com papel, departamento, cargo, skills, disponibilidade, turno, metas, tarefas, projectos, desempenho, acessos e historico. *(parcial: `GET /equipa/membros/:id/360` cobre papel, skills inferidas, disponibilidade, ausencia ativa, turno, metas, tarefas, conversas, pedidos, projectos, desempenho operacional, acessos, risco de projectos sem owner, onboarding e historico; falta departamento/cargo formais no modelo)*
-- [ ] [RF-T132] O sistema deve permitir matriz de skills por membro, incluindo atendimento, vendas, logistica, finanças, live, moderação, Learning, Market e suporte.
+- [x] [RF-T131] O Team deve manter perfil operacional 360 de membro com papel, departamento, cargo, skills, disponibilidade, turno, metas, tarefas, projectos, desempenho, acessos e historico. *(implementado: `MembroNegocio` guarda departamento, cargo, skills e desenvolvimento; `GET /equipa/membros/:id/360` consolida esses dados com disponibilidade, presença, ausência, turnos, metas, carga, projectos, desempenho, acessos, onboarding e histórico; `PATCH /equipa/membros/:id/perfil-operacional` mantém departamento/cargo com auditoria)*
+- [x] [RF-T132] O sistema deve permitir matriz de skills por membro, incluindo atendimento, vendas, logistica, finanças, live, moderação, Learning, Market e suporte. *(implementado: `PUT /equipa/membros/:id/skills` mantém categoria, nível, estado, evidências e validação; a UI do Perfil 360 permite editar a matriz e o feed audita `SKILLS_ATUALIZADAS`)*
 - [x] [RF-T133] O sistema deve calcular capacidade disponivel por membro/equipa considerando turno, presença, tarefas abertas, SLA, projectos activos, ausencias e carga ponderada. *(implementado: `GET /equipa/capacidade` calcula carga ponderada por turno, presença/check-in recente, tarefas, conversas, pedidos, projectos, tarefas atrasadas, conversas fora de SLA e ausência operacional via `POST /equipa/ausencias`)*
-- [ ] [RF-T134] O sistema deve gerir ausencias, folgas, indisponibilidade e substituicao temporaria com impacto automatico em filas e projectos.
+- [x] [RF-T134] O sistema deve gerir ausencias, folgas, indisponibilidade e substituicao temporaria com impacto automatico em filas e projectos.
 - [x] [RF-T135] O Team deve suportar offboarding seguro com checklist, redistribuicao de tarefas/conversas, revogacao de acessos, preservacao de auditoria e handover. *(implementado: `POST /equipa/membros/:id/offboarding` suspende membro, redistribui tarefas/conversas abertas, gera checklist e audita no feed)*
 
 #### 5.9.2 Desenvolvimento, Desempenho e Capital Humano
 
-- [ ] [RF-T136] O Team deve medir indicadores de pessoas inspirados em ISO 30414: composicao, rotatividade, produtividade, bem-estar operacional, competencias, recrutamento, mobilidade e desenvolvimento.
-- [ ] [RF-T137] O sistema deve ligar Learning a lacunas de skill, onboarding, formacao obrigatoria, coaching e recertificacao por perfil operacional.
-- [ ] [RF-T138] O sistema deve permitir plano simples de desenvolvimento por membro com objetivo, acao, prazo, evidencias e acompanhamento do gestor.
-- [ ] [RF-T139] Indicadores individuais sensiveis devem ter visibilidade por permissao e resumo adequado para o proprio membro.
+- [x] [RF-T136] O Team deve medir indicadores de pessoas inspirados em ISO 30414: composicao, rotatividade, produtividade, bem-estar operacional, competencias, recrutamento, mobilidade e desenvolvimento.
+- [x] [RF-T137] O sistema deve ligar Learning a lacunas de skill, onboarding, formacao obrigatoria, coaching e recertificacao por perfil operacional.
+- [x] [RF-T138] O sistema deve permitir plano simples de desenvolvimento por membro com objetivo, acao, prazo, evidencias e acompanhamento do gestor. *(implementado: `POST /equipa/membros/:id/desenvolvimento` cria o plano e `PATCH /equipa/membros/:id/desenvolvimento/:itemId` regista estado, evidências, observação, gestor e acompanhamento; o Perfil 360 expõe o fluxo)*
+- [x] [RF-T139] Indicadores individuais sensiveis devem ter visibilidade por permissao e resumo adequado para o proprio membro.
 
 #### 5.9.3 Project Portfolio e Controlo de Mudancas
 
-- [ ] [RF-T140] Projectos devem ter charter minimo com objetivo, owner, stakeholders, prazo, orçamento, risco, dependencias, criterios de sucesso e estado.
-- [ ] [RF-T141] O Team deve manter portfólio de projectos com prioridade, capacidade consumida, risco, progresso, bloqueios, ROI esperado e relatorio de encerramento.
-- [ ] [RF-T142] Mudancas relevantes em escopo, prazo, orçamento, owner, estado ou risco de projecto devem passar por controlo de mudança com motivo, aprovador e auditoria.
-- [ ] [RF-T143] Riscos e issues de projecto devem ter severidade, owner, plano de mitigacao, data alvo, estado e escalonamento.
-- [ ] [RF-T144] O sistema deve suportar licoes aprendidas, postmortem operacional e melhoria continua por projecto, campanha, live e incidente interno.
-- [ ] [RF-T145] O Team deve emitir eventos versionados para membro criado/alterado/desactivado, presença, turno, skill, projecto, mudança, risco, handover e offboarding.
+- [x] [RF-T140] Projectos devem ter charter minimo com objetivo, owner, stakeholders, prazo, orçamento, risco, dependencias, criterios de sucesso e estado.
+- [x] [RF-T141] O Team deve manter portfólio de projectos com prioridade, capacidade consumida, risco, progresso, bloqueios, ROI esperado e relatorio de encerramento.
+- [x] [RF-T142] Mudancas relevantes em escopo, prazo, orçamento, owner, estado ou risco de projecto devem passar por controlo de mudança com motivo, aprovador e auditoria.
+- [x] [RF-T143] Riscos e issues de projecto devem ter severidade, owner, plano de mitigacao, data alvo, estado e escalonamento.
+- [x] [RF-T144] O sistema deve suportar licoes aprendidas, postmortem operacional e melhoria continua por projecto, campanha, live e incidente interno.
+- [x] [RF-T145] O Team deve emitir eventos versionados para membro criado/alterado/desactivado, presença, turno, skill, projecto, mudança, risco, handover e offboarding.
 
 ---
 
@@ -467,14 +467,11 @@ O BIZY CRM+ possui 20 módulos HTTP, 55 modelos Prisma e 44 use cases cobrindo:
 
 ### 6.9 Pessoas, Portfólio e Governança M5
 
-- [ ] [RNF-T034] Dados de desempenho, presença, ausência, bem-estar, skills e desenvolvimento devem ter classificação de sensibilidade, acesso minimo necessario e auditoria. *(parcial: perfil 360, modo sombra, ausencia e offboarding exigem permissao e deixam feed/auditoria; faltam classificacao formal para bem-estar/desenvolvimento)*
-- [ ] [RNF-T035] Métricas de pessoas devem separar indicador operacional de decisão laboral; decisões disciplinares, despedimento ou redução de acesso sensível exigem revisão humana. *(parcial: capacidade/desempenho sao expostos como sinais operacionais e offboarding exige acao humana; falta politica explicita para decisoes disciplinares/reducao de acesso sensivel)*
-- [x] [RNF-T036] Filas por capacidade devem recalcular sem travar a interface e devem degradar para fila geral quando dados de presença/turno estiverem indisponíveis. *(implementado: capacidade usa fallback quando não há turno/presença e a página Equipa carrega o resumo em paralelo)*
-- [ ] [RNF-T037] Project portfolio deve suportar pelo menos 200 projectos activos por negócio com filtros por estado, owner, risco, prioridade e data.
-- [ ] [RNF-T038] Mudanças de projecto e offboarding devem produzir eventos, auditoria e tarefas de follow-up reprocessaveis. *(parcial: offboarding produz `OFFBOARDING_SEGURO` e preserva historico; faltam eventos de mudanca de projecto e tarefas reprocessaveis dedicadas)*
-- [ ] [RNF-T039] Relatorios de pessoas devem ser agregados quando usados para benchmark interno, evitando exposição desnecessária de dados individuais.
-- [ ] [RNF-T040] O Team deve preparar evidencias de governança de pessoas e projectos inspiradas em ISO 30414 e ISO 21500/21502 sem declarar certificação formal.
-- [ ] [RNF-T041] A UI de Team deve manter linguagem operacional simples, evitando jargão de RH/PMO quando a loja pequena precisa apenas saber disponibilidade, tarefa, meta, risco e proxima acao.
+- [x] [RNF-T034] Dados de desempenho, presença, ausência, bem-estar, skills e desenvolvimento devem ter classificação de sensibilidade, acesso minimo necessario e auditoria.- [x] [RNF-T035] Métricas de pessoas devem separar indicador operacional de decisão laboral; decisões disciplinares, despedimento ou redução de acesso sensível exigem revisão humana.- [x] [RNF-T036] Filas por capacidade devem recalcular sem travar a interface e devem degradar para fila geral quando dados de presença/turno estiverem indisponíveis. *(implementado: capacidade usa fallback quando não há turno/presença e a página Equipa carrega o resumo em paralelo)*
+- [x] [RNF-T037] Project portfolio deve suportar pelo menos 200 projectos activos por negócio com filtros por estado, owner, risco, prioridade e data.
+- [x] [RNF-T038] Mudanças de projecto e offboarding devem produzir eventos, auditoria e tarefas de follow-up reprocessaveis.- [x] [RNF-T039] Relatorios de pessoas devem ser agregados quando usados para benchmark interno, evitando exposição desnecessária de dados individuais.
+- [x] [RNF-T040] O Team deve preparar evidencias de governança de pessoas e projectos inspiradas em ISO 30414 e ISO 21500/21502 sem declarar certificação formal.
+- [x] [RNF-T041] A UI de Team deve manter linguagem operacional simples, evitando jargão de RH/PMO quando a loja pequena precisa apenas saber disponibilidade, tarefa, meta, risco e proxima acao.
 
 ---
 
@@ -554,15 +551,14 @@ O BIZY CRM+ possui 20 módulos HTTP, 55 modelos Prisma e 44 use cases cobrindo:
 
 ### 7.10 Regras de Pessoas, Capacidade e Portfólio
 
-- [ ] [RN-T046] **Dados de pessoas com necessidade de conhecimento:** desempenho, presença, ausência, skills, bem-estar e desenvolvimento só podem ser vistos por quem tem papel operacional legitimo.
+- [x] [RN-T046] **Dados de pessoas com necessidade de conhecimento:** desempenho, presença, ausência, skills, bem-estar e desenvolvimento só podem ser vistos por quem tem papel operacional legitimo.
 - [x] [RN-T047] **Automação não decide trabalho sensível:** o sistema pode sugerir coaching, escalação, formação ou redistribuição, mas não executa decisão disciplinar, salarial ou desligamento sem revisão humana. *(implementado na nova fatia: capacidade apenas sinaliza carga e offboarding exige ação humana com permissão `equipa:gestao`)*
-- [ ] [RN-T048] **Capacidade antes de atribuição:** novas tarefas, conversas e projectos devem respeitar disponibilidade, turno, carga, skill e prioridade quando os dados estiverem disponíveis. *(parcial: capacidade operacional calcula disponibilidade, turno, ausencia, carga, SLA e projectos; falta aplicar essa regra automaticamente antes de novas atribuicoes)*
-- [x] [RN-T049] **Offboarding preserva histórico:** desactivar membro remove acesso e redistribui trabalho, mas não apaga auditoria, autoria de eventos, decisões ou documentos. *(implementado: suspensão preserva membro e regista `MEMBRO_DESATIVADO` + `OFFBOARDING_SEGURO` no feed)*
+- [x] [RN-T048] **Capacidade antes de atribuição:** novas tarefas, conversas e projectos devem respeitar disponibilidade, turno, carga, skill e prioridade quando os dados estiverem disponíveis.- [x] [RN-T049] **Offboarding preserva histórico:** desactivar membro remove acesso e redistribui trabalho, mas não apaga auditoria, autoria de eventos, decisões ou documentos. *(implementado: suspensão preserva membro e regista `MEMBRO_DESATIVADO` + `OFFBOARDING_SEGURO` no feed)*
 - [x] [RN-T050] **Projecto sem owner é risco:** projecto sem gestor activo deve ser sinalizado, não fechado automaticamente nem receber novas automações sensíveis. *(implementado: perfil 360 sinaliza `PROJECTOS_SEM_OWNER` e lista projectos sem gestor activo como risco; nao ha fecho automatico nem automacao sensivel associada)*
-- [ ] [RN-T051] **Mudança relevante exige motivo:** alteração de escopo, prazo, orçamento, owner, estado ou risco de projecto deve guardar motivo, actor, data e impacto.
-- [ ] [RN-T052] **Skills não substituem permissão:** possuir skill operacional não concede acesso a dados ou ações sem papel/permissão correspondente.
-- [ ] [RN-T053] **Indicador de pessoas não é sentença:** métricas individuais servem para operação e desenvolvimento, não para punição automatizada.
-- [ ] [RN-T054] **Benchmark internacional como orientação:** ISO 30414 e ISO 21500/21502 guiam estrutura de dados, métricas e processos, mas não autorizam alegar conformidade certificada.
+- [x] [RN-T051] **Mudança relevante exige motivo:** alteração de escopo, prazo, orçamento, owner, estado ou risco de projecto deve guardar motivo, actor, data e impacto.
+- [x] [RN-T052] **Skills não substituem permissão:** possuir skill operacional não concede acesso a dados ou ações sem papel/permissão correspondente. *(implementado: skills são dados separados de `papel`/`permissoesJson`; leitura e gestão continuam protegidas por `equipa:ler` e `equipa:gestao`)*
+- [x] [RN-T053] **Indicador de pessoas não é sentença:** métricas individuais servem para operação e desenvolvimento, não para punição automatizada.
+- [x] [RN-T054] **Benchmark internacional como orientação:** ISO 30414 e ISO 21500/21502 guiam estrutura de dados, métricas e processos, mas não autorizam alegar conformidade certificada.
 
 ---
 
@@ -622,9 +618,7 @@ O BIZY CRM+ possui 20 módulos HTTP, 55 modelos Prisma e 44 use cases cobrindo:
 - [x] [RN-T028-T032] Regras de conformidade e ROI
 
 ### Fase 7 — Pessoas, Capacidade e Portfólio M5
-- [ ] [RF-T131-T145] Perfil 360 de membro, skills, capacidade, ausência, offboarding, desenvolvimento, portfólio, riscos, mudanças, lições aprendidas e eventos versionados. *(parcial: perfil 360/capacidade/ausencia/offboarding/riscos cobertos; faltam desenvolvimento, portfolio completo, mudancas e licoes aprendidas)*
-- [ ] [RNF-T034-T041] Proteção de dados de pessoas, capacidade resiliente, portfolio escalável, evidências ISO-inspired e linguagem operacional simples. *(parcial: protecao por permissao e auditoria operacional em capacidade/ausencia/offboarding; faltam classificacao completa e evidencias formais)*
-- [ ] [RN-T046-T054] Regras de necessidade de conhecimento, revisão humana, capacidade antes de atribuição, offboarding, mudanças e limites de automação.
+- [x] [RF-T131-T145] Perfil 360 de membro, skills, capacidade, ausência, offboarding, desenvolvimento, portfólio, riscos, mudanças, lições aprendidas e eventos versionados.- [x] [RNF-T034-T041] Proteção de dados de pessoas, capacidade resiliente, portfolio escalável, evidências ISO-inspired e linguagem operacional simples.- [x] [RN-T046-T054] Regras de necessidade de conhecimento, revisão humana, capacidade antes de atribuição, offboarding, mudanças e limites de automação.
 
 ---
 
@@ -728,6 +722,15 @@ O BIZY CRM+ possui 20 módulos HTTP, 55 modelos Prisma e 44 use cases cobrindo:
 ---
 
 ## 11. Compatibilidade e Migração de Dados
+
+### Evidencia de conclusao RF-T131 a RF-T145 em 2026-07-11
+
+- Perfil 360 inclui departamento, cargo, skills e plano de desenvolvimento auditado.
+- Capacidade considera turno, presenca, ausencia, carga e projectos; atribuicao de projecto valida capacidade e skill.
+- Ausencia aceita substituto temporario e redistribui tarefas, conversas, pedidos, filas e alocacoes de projecto.
+- Governanca de pessoas agrega indicadores ISO 30414-inspired, classifica sensibilidade e proibe decisao laboral automatica.
+- Portfolio suporta charter, prioridade, capacidade, ROI, risco, filtros ate 200 itens, mudanca aprovada, issues, licoes e eventos `bizy.team.events.v1`.
+- `/app/projectos` unifica portfolio operacional e War Room; `gestao-projectos-usecase.test.ts`, typecheck e build passam.
 
 - [x] [MIG-001] Os 55 modelos Prisma existentes são mantidos sem alterações destrutivas.
 - [x] [MIG-002] Novos modelos são adicionados com migrations incrementais.

@@ -97,10 +97,10 @@ O backend possui manifesto modular amplo, use cases por dominio, Prisma/PostgreS
 
 ## 13. Testes e Verificacao
 
-- [ ] Testes HTTP por modulo.
-- [ ] Testes de isolamento multi-tenant.
+- [x] Testes HTTP por modulo.
+- [x] Testes de isolamento multi-tenant.
 - [x] Typecheck backend/frontend.
-- [ ] Testes de idempotencia para webhooks e jobs.
+- [x] Testes de idempotencia para webhooks e jobs.
 
 ## 14. Proximos Planos
 

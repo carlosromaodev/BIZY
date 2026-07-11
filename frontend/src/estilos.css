@@ -83,7 +83,7 @@
   --secondary: #f0ede6;
   --secondary-foreground: #17211c;
   --muted: #f0ede6;
-  --muted-foreground: #6e7873;
+  --muted-foreground: #68736d;
   --accent: oklch(0.955 0.030 162);
   --accent-foreground: oklch(0.36 0.072 162);
   --destructive: oklch(0.60 0.150 18);
@@ -356,8 +356,7 @@ body { margin: 0; min-width: 320px; min-height: 100dvh; overflow-x: hidden; back
 }
 #root { min-height: 100dvh; }
 button, input, select, textarea { font: inherit; }
-button { cursor: pointer; }
-button:not([data-slot="button"]):not([class*="bg-"]):not([class*="border"]) { border: none; background: none; }
+button { cursor: pointer; border: none; background: none; }
 button:disabled { cursor: not-allowed; opacity: 0.5; }
 a:not([class]) { color: inherit; text-decoration: none; }
 h1, h2, h3, h4 { margin: 0; line-height: 1.2; letter-spacing: 0; }
@@ -24289,8 +24288,8 @@ button.bizy-upload-card:disabled {
 /* ---- Buttons ---- */
 .team-btn { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600; border-radius: var(--radius-panel); padding: 12px 20px; cursor: pointer; border: 1.5px solid transparent; letter-spacing: -0.01em; white-space: nowrap; transition: all 160ms ease; }
 .team-btn svg { width: 16px; height: 16px; }
-.team-btn-primary { background: var(--em, #0e8c68); color: #fff; border-color: var(--em, #0e8c68); }
-.team-btn-primary:hover { background: var(--em-2, #16a07a); }
+.team-btn-primary { background: #0e8c68; color: #fff; border-color: #0e8c68; }
+.team-btn-primary:hover { background: #16a07a; }
 .team-btn-ghost { background: var(--surface, #fff); color: var(--ink-2, #46514b); border-color: var(--line, #e7e4dc); }
 .team-btn-ghost:hover { border-color: var(--ink-4, #9aa39e); }
 

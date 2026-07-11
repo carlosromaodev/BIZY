@@ -518,17 +518,24 @@ export function criarCheckoutUnificado(payload: PayloadCheckoutUnificado): Promi
   }, false);
 }
 
-export function obterCompraUnificada(compraId: string): Promise<RespostaCompraEstados> {
-  return requisitarApi<RespostaCompraEstados>(ROTAS_API_LOJAS.compraUnificada(compraId), {}, false);
+export function obterCompraUnificada(compraId: string, identificador: string): Promise<RespostaCompraEstados> {
+  return requisitarApi<RespostaCompraEstados>(comQuery(ROTAS_API_LOJAS.compraUnificada(compraId), { identificador }), {}, false);
+}
+
+export function obterPortalCompradorMarket(identificador: string): Promise<{ compras: RespostaCompraEstados[]; total: number }> {
+  return requisitarApi<{ compras: RespostaCompraEstados[]; total: number }>(
+    comQuery("/publico/market/portal-comprador", { identificador }), {}, false
+  );
 }
 
 export function enviarComprovativoPagamentoUnificado(
   compraId: string,
-  comprovativoUrl: string
+  comprovativoUrl: string,
+  identificador: string
 ): Promise<RespostaCompraEstados> {
   return requisitarApi<RespostaCompraEstados>(ROTAS_API_LOJAS.pagamentoUnificado(compraId), {
     method: "POST",
-    body: { comprovativoUrl }
+    body: { comprovativoUrl, identificador }
   }, false);
 }
 

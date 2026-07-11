@@ -42,7 +42,7 @@ P1 melhora primeira operacao comercial:
 - [x] textos operacionais para vendedora nao tecnica;
 - [x] prioridade visual para VIP, reclamacao e pagamento pendente;
 - [x] resultados de campanha por webhook/status.
-- [ ] Bizy Learning separado como learning commerce engine, com home publica tipo Market, backoffice Team e Studio capaz de activar Market, Learning ou ambos.
+- [x] Bizy Learning separado como learning commerce engine, com home publica tipo Market, backoffice Team e Studio capaz de activar Market, Learning ou ambos.
 
 ## 3. P2
 

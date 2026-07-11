@@ -18,6 +18,7 @@ import type {
 
 const IVA_ANGOLA_PERCENTUAL = 14;
 const TAXA_BIZY_PERCENTUAL = 5;
+const DIAS_JANELA_RISCO_PAYOUT = 7;
 
 interface DependenciasCheckout {
   autenticacao: RepositorioAutenticacao;
@@ -137,6 +138,13 @@ export class CheckoutUnificadoUseCase {
         estado: pedido.estado,
         estadoPagamento: pedido.estadoPagamento ?? "PENDENTE",
         estadoEntrega: pedido.estadoEntrega ?? "PENDENTE",
+        estadoSeparacao: "PENDENTE",
+        estadoEmbalagem: "PENDENTE",
+        provaEntregaUrl: null,
+        tentativasEntrega: 0,
+        motivoAtraso: null,
+        estadoDevolucao: null,
+        fulfillment: [],
         subtotalEmKwanza: subtotal,
         taxaEntregaEmKwanza: taxaEntrega,
         totalEmKwanza: total,
@@ -149,12 +157,22 @@ export class CheckoutUnificadoUseCase {
 
     // RF-068: Criar repasses financeiros pendentes para cada fornecedor
     for (const filho of pedidosFilho) {
+      const impostosEmKwanza = Math.max(0, filho.totalEmKwanza - filho.subtotalEmKwanza - filho.taxaEntregaEmKwanza);
+      const taxaBizyEmKwanza = Math.round(filho.subtotalEmKwanza * TAXA_BIZY_PERCENTUAL / 100);
       await this.deps.repassesFinanceiros.criar({
         negocioId: filho.negocioId,
         compraUnificadaId: compra.id,
         pedidoId: filho.pedidoId,
         valorBrutoEmKwanza: filho.totalEmKwanza,
-        taxaBizyEmKwanza: Math.round(filho.totalEmKwanza * TAXA_BIZY_PERCENTUAL / 100),
+        valorProdutosEmKwanza: filho.subtotalEmKwanza,
+        valorEntregaEmKwanza: filho.taxaEntregaEmKwanza,
+        impostosEmKwanza,
+        taxaBizyEmKwanza,
+        comissaoEmKwanza: 0,
+        descontoEmKwanza: 0,
+        motivoRetencao: "JANELA_RISCO_PAYOUT",
+        retidoAte: new Date(Date.now() + DIAS_JANELA_RISCO_PAYOUT * 24 * 60 * 60 * 1000),
+        politicaCalculoVersao: "market.split.v1",
         motivo: `Repasse compra unificada #${compra.numero}`
       });
     }
@@ -181,6 +199,66 @@ export class CheckoutUnificadoUseCase {
     if (!compra) return null;
     const pedidosFilho = await this.deps.comprasUnificadas.listarPedidosFilho(compraId);
     return { compra, pedidosFilho };
+  }
+
+  async buscarPortalComprador(identificador: string, compraId?: string) {
+    const compras = await this.deps.comprasUnificadas.listarComprasPorComprador(identificador, 50);
+    const filtradas = compraId ? compras.filter((compra) => compra.id === compraId) : compras;
+    return Promise.all(filtradas.map(async (compra) => ({
+      compra,
+      pedidosFilho: await this.deps.comprasUnificadas.listarPedidosFilho(compra.id)
+    })));
+  }
+
+  async buscarPortalSeller(negocioId: string) {
+    const pedidos = await this.deps.comprasUnificadas.listarPedidosFilhoPorNegocio(negocioId, 200);
+    const seguros = pedidos.map(({ compra, pedido }) => ({
+      compra: { id: compra.id, numero: compra.numero, estado: compra.estado, estadoPagamento: compra.estadoPagamento, criadoEm: compra.criadoEm },
+      comprador: {
+        nome: compra.compradorNome,
+        telefoneFinal: compra.compradorTelefone.slice(-4),
+        emailMascarado: compra.compradorEmail ? compra.compradorEmail.replace(/^(.).+(@.+)$/, "$1***$2") : null
+      },
+      pedido
+    }));
+    const [repasses, reembolsos] = await Promise.all([
+      this.deps.repassesFinanceiros.listar(negocioId, { limite: 200 }),
+      this.deps.reembolsos.listar(negocioId, { limite: 200 })
+    ]);
+    return {
+      pedidos: seguros,
+      repasses,
+      reembolsos,
+      metricas: {
+        pedidos: seguros.length,
+        porPreparar: seguros.filter((item) => item.pedido.estadoSeparacao !== "SEPARADO").length,
+        entregasPendentes: seguros.filter((item) => !["ENTREGUE", "CANCELADA"].includes(item.pedido.estadoEntrega)).length,
+        disputas: repasses.filter((item) => item.estado === "EM_DISPUTA").length + reembolsos.filter((item) => item.estado === "PENDENTE").length
+      }
+    };
+  }
+
+  async atualizarFulfillmentSeller(
+    compraId: string,
+    negocioId: string,
+    actorId: string,
+    dados: Parameters<RepositorioComprasUnificadas["atualizarFulfillment"]>[2]
+  ) {
+    const filhos = await this.deps.comprasUnificadas.listarPedidosFilho(compraId);
+    const filho = filhos.find((item) => item.negocioId === negocioId);
+    if (!filho) return null;
+    const actualizado = await this.deps.comprasUnificadas.atualizarFulfillment(compraId, filho.pedidoId, { ...dados, actorId });
+    if (actualizado) {
+      this.deps.eventos.emitir("MARKET_FULFILLMENT_CHANGED", {
+        schema: "bizy.market.event.v1",
+        negocioId,
+        compraId,
+        pedidoId: filho.pedidoId,
+        actorId,
+        estado: actualizado
+      });
+    }
+    return actualizado;
   }
 
   /** RF-059: Receber comprovativo público sem confirmar pagamento pela loja */
@@ -258,6 +336,13 @@ export class CheckoutUnificadoUseCase {
   /** RF-071: Reembolso parcial ou total */
   async solicitarReembolso(dados: NovoReembolsoPedido): Promise<ReembolsoPedido> {
     const reembolso = await this.deps.reembolsos.criar(dados);
+    const repasses = await this.deps.repassesFinanceiros.listar(dados.negocioId, { pedidoId: dados.pedidoId });
+    for (const repasse of repasses) {
+      await this.deps.repassesFinanceiros.reter(repasse.id, dados.negocioId, {
+        motivo: `REEMBOLSO_${reembolso.id}`,
+        valorEmKwanza: Math.min(repasse.valorLiquidoEmKwanza, dados.valorEmKwanza)
+      });
+    }
 
     this.deps.eventos.emitir("REEMBOLSO_SOLICITADO", {
       reembolsoId: reembolso.id, pedidoId: dados.pedidoId, tipo: dados.tipo, valor: dados.valorEmKwanza
@@ -272,6 +357,18 @@ export class CheckoutUnificadoUseCase {
     if (!aprovado) return null;
 
     const processado = await this.deps.reembolsos.processar(reembolsoId, negocioId);
+
+    if (processado) {
+      const repasses = await this.deps.repassesFinanceiros.listar(negocioId, { pedidoId: processado.pedidoId });
+      for (const repasse of repasses) {
+        await this.deps.repassesFinanceiros.aplicarReembolso(
+          repasse.id,
+          negocioId,
+          processado.valorEmKwanza,
+          `Reembolso ${processado.id} processado`
+        );
+      }
+    }
 
     this.deps.eventos.emitir("REEMBOLSO_PROCESSADO", {
       reembolsoId, negocioId

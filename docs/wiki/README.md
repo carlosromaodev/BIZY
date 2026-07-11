@@ -5,7 +5,7 @@ aliases:
 tags:
   - bizy/wiki
 status: ativo
-updated: 2026-07-10
+updated: 2026-07-11
 ---
 
 # Wiki do Projeto Bizy
@@ -39,5 +39,6 @@ Esta wiki evita que requisitos, decisoes, deploys e memoria operacional fiquem e
 - [[guia-para-ia-bizy|Guia para IA no Bizy]]: como outra IA deve usar esta memoria.
 - [[mapa-de-modulos-bizy|Mapa de Modulos]]: leitura funcional do que o produto faz.
 - [[inventario-sistema-bizy|Inventario do Sistema Bizy]]: mapa do que ja existe no produto.
+- [[auditoria-criticas-sistema-bizy|Auditoria Unificada das Criticas do Sistema]]: estado canonico dos achados, decisoes e gates externos.
 - [[deploy-vps-antiga|Deploy na VPS Antiga]]: operacao especifica de subida na VPS antiga.
 - [[schema|Schema]]: regras de manutencao da propria wiki.

@@ -323,15 +323,15 @@ Inclui:
 
 - [x] **RF-115**: O Market deve ter seller onboarding com elegibilidade, documentos minimos, verificacao, estado de aprovacao, pendencias e historico de revisao. *(implementado: `/team/loja/seller/onboarding`, persistido em `entrega.lojaDigital.marketplace.sellerOnboarding`)*
 - [x] **RF-116**: O Market deve manter conta operacional por seller com saldo disponivel, saldo retido, saldo em disputa, taxas, comissoes e historico de payout. *(implementado: `/team/loja/seller/conta` consolidando repasses, reembolsos pendentes, taxas e disputas)*
-- [ ] **RF-117**: O checkout multi-loja deve calcular split por fornecedor, taxa Bizy, desconto, entrega, retencao, comissao e impostos quando aplicavel.
-- [ ] **RF-118**: O sistema deve suportar hold de repasse por regra de risco, prazo de entrega, disputa, reembolso ou politica de categoria.
-- [ ] **RF-119**: O seller deve ter portal/visao dedicada para pedidos, preparacao, entregas, repasses, disputas, documentos, notificacoes e suporte.
-- [ ] **RF-120**: O comprador deve ter portal de compra para acompanhar pedido unificado, pedidos-filho, pagamento, entrega, reembolso, disputa e suporte.
+- [x] **RF-117**: O checkout multi-loja deve calcular split por fornecedor, taxa Bizy, desconto, entrega, retencao, comissao e impostos quando aplicavel. *(implementado: cada `RepasseFinanceiro` preserva produto, entrega, imposto, desconto, taxa Bizy, comissão, retenção, reembolso, bruto, líquido, disponível e versão `market.split.v1`; a taxa Bizy usa o valor elegível de produto por fornecedor)*
+- [x] **RF-118**: O sistema deve suportar hold de repasse por regra de risco, prazo de entrega, disputa, reembolso ou politica de categoria. *(implementado: checkout cria janela de risco de sete dias; casos pós-venda, chargeback e reembolsos retêm apenas o repasse do pedido afetado; conciliação/aprovação/pagamento bloqueiam retenção e refund pendente)*
+- [x] **RF-119**: O seller deve ter portal/visao dedicada para pedidos, preparacao, entregas, repasses, disputas, documentos, notificacoes e suporte.
+- [x] **RF-120**: O comprador deve ter portal de compra para acompanhar pedido unificado, pedidos-filho, pagamento, entrega, reembolso, disputa e suporte.
 - [x] **RF-121**: O Market deve suportar fluxo formal de reembolso, troca, devolucao, disputa e chargeback com estados, evidencias, responsavel, prazo e decisao. *(implementado: disputas aceitam evidencias/prazo/responsavel, `PATCH /team/loja/disputas/:id/decisao` formaliza decisao, `/team/loja/reembolsos` cobre refund e `/team/loja/pos-venda/casos` abre troca/devolucao/chargeback com evento auditavel)*
 - [x] **RF-122**: O Market deve ter fila Trust & Safety para denuncias, fraude, produto proibido, loja com falhas recorrentes, abuso de checkout, spam e risco de reputacao. *(implementado: `/team/loja/trust-safety/fila` sobre denúncias Market)*
-- [ ] **RF-123**: O ranking do Market deve incorporar qualidade de catalogo, disponibilidade, cumprimento de entrega, cancelamentos, reclamacoes, disputas, confianca e frescor.
+- [x] **RF-123**: O ranking do Market deve incorporar qualidade de catalogo, disponibilidade, cumprimento de entrega, cancelamentos, reclamacoes, disputas, confianca e frescor.
 - [x] **RF-124**: O Market deve gerir qualidade de catalogo com checklist de imagem, preco, categoria, descricao, variacao, stock, entrega, politica e dados obrigatorios por tipo de produto. *(implementado: `/team/loja/catalogo/checklist` consolida checklist por produto e loja com imagem, preco, categoria, descricao, variacoes, stock, publicacao, entrega/politicas, seller e metricas de prontidao)*
-- [ ] **RF-125**: Fulfilment deve ligar pedido, separacao, embalagem, entrega, prova de entrega, atraso, tentativa falhada e devolucao ao Team e ao portal do comprador.
+- [x] **RF-125**: Fulfilment deve ligar pedido, separacao, embalagem, entrega, prova de entrega, atraso, tentativa falhada e devolucao ao Team e ao portal do comprador.
 - [x] **RF-126**: O Market deve expor eventos versionados para seller onboarding, checkout, pagamento, pedido-filho, entrega, disputa, payout e refund. *(implementado: `/team/loja/eventos-market` expõe eventos versionados de seller onboarding, checkout, pagamento, pedido-filho, entrega, disputa, payout, pos-venda e refund no tópico `bizy.market`)*
 
 ## 6. Requisitos Nao Funcionais
@@ -361,14 +361,14 @@ Inclui:
 - [x] **RNF-023**: Relatorios devem ser consistentes com pedidos e pagamentos confirmados, nao apenas eventos de tracking.
 - [x] **RNF-024**: O sistema deve suportar operacao em AOA/Kwanza e formatos locais de telefone, endereco e pagamento.
 - [x] **RNF-025**: A linguagem da UI deve ser curta, humana e orientada a acao, adequada a vendedores nao tecnicos.
-- [ ] **RNF-026**: Pagamentos Market devem reduzir escopo PCI usando provider/tokenizacao e nunca guardar PAN, CVV ou credenciais sensiveis de cartao no Bizy.
-- [ ] **RNF-027**: Payouts, saldos, holds, refunds e disputas devem ser idempotentes, auditaveis e reconciliaveis por seller, pedido, periodo e lote.
-- [ ] **RNF-028**: Portais de comprador e seller devem expor somente dados minimos necessarios, respeitando `negocioId`, pedido, papel e relacao operacional.
-- [ ] **RNF-029**: Eventos do Market devem ser versionados, assinaveis quando externos, reprocessaveis e observaveis por seller, pedido e compra unificada.
-- [ ] **RNF-030**: O Market deve ter SLOs para checkout, criacao de pedido-filho, upload de comprovativo, notificacao, payout e resolucao de disputa.
-- [ ] **RNF-031**: Trust & Safety deve registrar evidencias, origem, decisao, responsavel e prazo sem expor dados sensiveis fora do painel autorizado.
-- [ ] **RNF-032**: Ranking e recomendacao devem ser explicaveis em termos operacionais, sem favorecer patrocinio quando houver risco, produto indisponivel ou loja suspensa.
-- [ ] **RNF-033**: A experiencia de devolucao/disputa deve continuar utilizavel em mobile e conexao lenta, com estados claros para comprador e seller.
+- [x] **RNF-026**: Pagamentos Market devem reduzir escopo PCI usando provider/tokenizacao e nunca guardar PAN, CVV ou credenciais sensiveis de cartao no Bizy.
+- [x] **RNF-027**: Payouts, saldos, holds, refunds e disputas devem ser idempotentes, auditaveis e reconciliaveis por seller, pedido, periodo e lote.
+- [x] **RNF-028**: Portais de comprador e seller devem expor somente dados minimos necessarios, respeitando `negocioId`, pedido, papel e relacao operacional.
+- [x] **RNF-029**: Eventos do Market devem ser versionados, assinaveis quando externos, reprocessaveis e observaveis por seller, pedido e compra unificada.
+- [x] **RNF-030**: O Market deve ter SLOs para checkout, criacao de pedido-filho, upload de comprovativo, notificacao, payout e resolucao de disputa.
+- [x] **RNF-031**: Trust & Safety deve registrar evidencias, origem, decisao, responsavel e prazo sem expor dados sensiveis fora do painel autorizado.
+- [x] **RNF-032**: Ranking e recomendacao devem ser explicaveis em termos operacionais, sem favorecer patrocinio quando houver risco, produto indisponivel ou loja suspensa.
+- [x] **RNF-033**: A experiencia de devolucao/disputa deve continuar utilizavel em mobile e conexao lenta, com estados claros para comprador e seller.
 
 ## 7. Regras de Negocio
 
@@ -474,14 +474,14 @@ Inclui:
 
 ### 7.12 Marketplace, Repasses e Disputas
 
-- [ ] **RN-068**: Seller sem elegibilidade minima nao pode receber destaque, patrocinio, payout acelerado ou alto volume sem revisao Bizy.
-- [ ] **RN-069**: Saldo de seller so fica disponivel para payout apos pagamento confirmado, janela minima de risco e ausencia de disputa ou refund bloqueante.
-- [ ] **RN-070**: Split e comissao devem ser calculados sobre valor elegivel, separando produto, entrega, desconto, taxa, imposto, reembolso e chargeback.
-- [ ] **RN-071**: Disputa aberta deve congelar apenas os valores e pedidos afetados, sem bloquear operacao inteira da loja salvo risco grave.
-- [ ] **RN-072**: Reembolso parcial deve afetar somente itens, sellers e taxas correspondentes, preservando historico financeiro completo.
-- [ ] **RN-073**: Produto proibido, falsificado, inseguro ou sem owner responsavel deve ser suspenso mesmo que esteja pago, patrocinado ou em alta demanda.
-- [ ] **RN-074**: Ranking patrocinado nao pode ultrapassar bloqueios de seguranca, disponibilidade, denuncia grave, fraude, disputa critica ou baixa qualidade de catalogo.
-- [ ] **RN-075**: Buyer portal e seller portal nao substituem o Team; eles sao self-service externo para estados, documentos e suporte minimo.
+- [x] **RN-068**: Seller sem elegibilidade minima nao pode receber destaque, patrocinio, payout acelerado ou alto volume sem revisao Bizy.
+- [x] **RN-069**: Saldo de seller so fica disponivel para payout apos pagamento confirmado, janela minima de risco e ausencia de disputa ou refund bloqueante. *(implementado no `RepassesFinanceirosUseCase`: conciliação exige pedido pago, encerra somente janela de risco vencida e bloqueia disputa/reembolso; pagamento exige repasse aprovado sem retenção)*
+- [x] **RN-070**: Split e comissao devem ser calculados sobre valor elegivel, separando produto, entrega, desconto, taxa, imposto, reembolso e chargeback. *(implementado no contrato `market.split.v1`, preservando todos os componentes e recalculando líquido/disponível após reembolso)*
+- [x] **RN-071**: Disputa aberta deve congelar apenas os valores e pedidos afetados, sem bloquear operacao inteira da loja salvo risco grave. *(implementado: `reterRepassesPedido` atua pelo `pedidoId`; pós-venda e chargeback não bloqueiam os demais repasses da loja)*
+- [x] **RN-072**: Reembolso parcial deve afetar somente itens, sellers e taxas correspondentes, preservando historico financeiro completo.
+- [x] **RN-073**: Produto proibido, falsificado, inseguro ou sem owner responsavel deve ser suspenso mesmo que esteja pago, patrocinado ou em alta demanda.
+- [x] **RN-074**: Ranking patrocinado nao pode ultrapassar bloqueios de seguranca, disponibilidade, denuncia grave, fraude, disputa critica ou baixa qualidade de catalogo.
+- [x] **RN-075**: Buyer portal e seller portal nao substituem o Team; eles sao self-service externo para estados, documentos e suporte minimo.
 
 ## 8. Fases de Implementacao Sugeridas
 
@@ -574,6 +574,15 @@ Mapa detalhado: `docs/wiki/pages/bizy-market-rotas-roadmap.md`.
 - [x] Admin Bizy para categorias, suspensoes, patrocinados, denuncias, relatorios e repasses.
 
 ## 9. Decisoes Fechadas
+
+### Evidencia de conclusao 2026-07-11
+
+- Checkout, reservas, compras unificadas, pedidos-filho, repasses, refunds e denuncias usam repositorios Prisma no modo de producao.
+- `/compras` e `/compras/:id` formam o portal comprador com verificacao por telefone/email; `/app/market/seller` concentra o portal seller.
+- Fulfillment guarda separacao, embalagem, entrega, prova, tentativa falhada, atraso, devolucao e timeline versionada.
+- Ranking `market.ranking.v1` explica qualidade, disponibilidade, entrega, confianca, frescor e penalizacoes; patrocinio nao ultrapassa risco ou inelegibilidade.
+- Checkout rejeita PAN/CVV, payouts usam split/hold/refund auditavel e Trust & Safety preserva evidencia, origem, responsavel e prazo.
+- `bizy-market-http.test.ts`, testes de repasse, typecheck e build frontend passam.
 
 - [x] Dominio principal do Market definido como `market.usebizy.space`, mantendo `/market` como fallback local e compatibilidade.
 - [x] Compra multi-loja implementada no checkout unificado por `POST /publico/market/checkout`, com pedidos filhos por fornecedor.

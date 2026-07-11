@@ -1,5 +1,7 @@
 # Relatório Completo do Projeto ÉMeu
 
+> Documento historico. O estado atual das criticas e das evidencias esta consolidado em `docs/wiki/pages/auditoria-criticas-sistema-bizy.md`.
+
 Data da análise: 2026-05-21
 Projeto analisado: `/home/carlos/Documentos/project/ÉMeu`
 Escopo: produto, arquitetura, backend, frontend, integrações, dados, segurança, UX, testes, deploy, riscos e roadmap.
@@ -582,19 +584,19 @@ Riscos de escala comercial restantes:
 - [x] Criar endpoints e UI para revisão manual de comentários.
 - [x] Adicionar edição de peças e suporte visual a fotos.
 - [x] Implementar envio manual de mensagem no painel de conversas (chat funcional).
-- [ ] Trocar link fixo do n8n por variável `VITE_N8N_URL`.
+- [x] Trocar link fixo do n8n por variável `VITE_N8N_URL`.
 - [x] Atualizar documentação de requisitos e relatórios com progresso do projeto.
 - [x] Criar painel simples de outbox n8n: pendentes, falhados, publicados e retry manual (funcional no painel).
 
 ### Próximos 30 dias
 
-- [ ] Separar entidades comerciais `Pedido`, `Pagamento` e `Entrega` (CRM operacional com `ClienteAtendimento`, `ConversaAtendimento` e `MensagemAtendimento` já concluído).
-- [ ] Persistir `Live` e relacionar comentários/reservas a lives reais.
-- [ ] Adicionar RBAC básico: vendedor, gestor, admin.
-- [ ] Migrar rate limit para Redis.
-- [ ] Implementar testes com Postgres em Docker.
+- [x] Separar entidades comerciais `Pedido`, `Pagamento` e `Entrega` (CRM operacional com `ClienteAtendimento`, `ConversaAtendimento` e `MensagemAtendimento` já concluído).
+- [x] Persistir `Live` e relacionar comentários/reservas a lives reais.
+- [x] Adicionar RBAC básico: vendedor, gestor, admin.
+- [x] Migrar rate limit para Redis.
+- [x] Implementar testes com Postgres em Docker.
 - [x] Fixar imagens Docker de n8n/Evolution por versão/digest.
-- [ ] Adicionar Playwright para testes de fluxo do frontend.
+- [x] Adicionar Playwright para testes de fluxo do frontend.
 
 ### Próximos 60 a 90 dias
 

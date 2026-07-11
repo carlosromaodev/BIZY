@@ -1,14 +1,18 @@
 import {
   AlertTriangle,
+  BookOpenCheck,
+  BriefcaseBusiness,
+  GitPullRequestArrow,
   Kanban,
   Package,
+  Plus,
   Radio,
   RefreshCcw,
   ShoppingBag,
   UsersRound,
   Wallet,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { type FormEvent, useEffect, useMemo, useState } from "react";
 import { requisitarApi } from "../../../api";
 import { CrmPageMotion } from "../../../componentes/CrmInterno21st";
 import { CabecalhoPagina } from "../../../componentes/Shell";
@@ -67,7 +71,199 @@ interface WarRoom {
   atualizadoEm: string;
 }
 
+interface ProjectoPortfolio {
+  id: string;
+  nome: string;
+  objetivo: string | null;
+  estado: string;
+  prioridade: string;
+  nivelRisco: string;
+  gestorId: string | null;
+  orcamento: number | null;
+  roiEsperado: number | null;
+  capacidadeConsumida: number;
+  progressoPercentual: number;
+  bloqueios: number;
+  dataFim: string | null;
+  stakeholders: string[];
+  criteriosSucesso: string[];
+}
+
+interface PortfolioResposta {
+  itens: ProjectoPortfolio[];
+  metricas: { total: number; activos: number; emRisco: number; capacidadeConsumida: number; roiEsperado: number };
+  referenciaGovernanca: string;
+}
+
+interface MembroProjectoOpcao {
+  id: string;
+  usuario: { nome: string };
+}
+
 export function PaginaProjectos() {
+  const [vista, setVista] = useState<"PORTFOLIO" | "WAR_ROOM">("PORTFOLIO");
+  return (
+    <>
+      <div className="team-pgwrap" style={{ paddingBottom: 0 }}>
+        <div className="inline-flex rounded-md border bg-background p-1" aria-label="Vista de projectos">
+          <button type="button" className={`team-btn ${vista === "PORTFOLIO" ? "team-btn-primary" : ""}`} onClick={() => setVista("PORTFOLIO")}>
+            <BriefcaseBusiness size={16} /> Portfólio
+          </button>
+          <button type="button" className={`team-btn ${vista === "WAR_ROOM" ? "team-btn-primary" : ""}`} onClick={() => setVista("WAR_ROOM")}>
+            <Radio size={16} /> War Room
+          </button>
+        </div>
+      </div>
+      {vista === "PORTFOLIO" ? <PortfolioProjectos /> : <WarRoomProjectos />}
+    </>
+  );
+}
+
+function PortfolioProjectos() {
+  const [portfolio, setPortfolio] = useState<PortfolioResposta | null>(null);
+  const [membros, setMembros] = useState<MembroProjectoOpcao[]>([]);
+  const [seleccionadoId, setSeleccionadoId] = useState("");
+  const [carregando, setCarregando] = useState(true);
+  const [erro, setErro] = useState("");
+  const [acao, setAcao] = useState("");
+  const [novo, setNovo] = useState({ nome: "", objetivo: "", gestorId: "", prioridade: "MEDIA", nivelRisco: "BAIXO", dataFim: "" });
+  const [governanca, setGovernanca] = useState({ tipo: "RISCO", titulo: "", severidade: "MEDIO", plano: "", motivo: "", impacto: "", licao: "" });
+
+  const seleccionado = portfolio?.itens.find((item) => item.id === seleccionadoId) ?? null;
+
+  async function carregar() {
+    setCarregando(true);
+    setErro("");
+    try {
+      const [dados, equipa] = await Promise.all([
+        requisitarApi<PortfolioResposta>("/projectos/portfolio?limite=200"),
+        requisitarApi<{ membros: MembroProjectoOpcao[] }>("/equipa/membros?limite=200")
+      ]);
+      setPortfolio(dados);
+      setMembros(equipa.membros);
+      setSeleccionadoId((actual) => actual || dados.itens[0]?.id || "");
+      setNovo((actual) => ({ ...actual, gestorId: actual.gestorId || equipa.membros[0]?.id || "" }));
+    } catch (falha) {
+      setErro(falha instanceof Error ? falha.message : "Não foi possível carregar o portfólio.");
+    } finally {
+      setCarregando(false);
+    }
+  }
+
+  useEffect(() => { void carregar(); }, []);
+
+  async function executar(nome: string, trabalho: () => Promise<unknown>) {
+    setAcao(nome);
+    setErro("");
+    try {
+      await trabalho();
+      await carregar();
+    } catch (falha) {
+      setErro(falha instanceof Error ? falha.message : "Não foi possível concluir a acção.");
+    } finally {
+      setAcao("");
+    }
+  }
+
+  function criarProjecto(evento: FormEvent<HTMLFormElement>) {
+    evento.preventDefault();
+    if (!novo.nome.trim() || !novo.gestorId) return;
+    void executar("criar", () => requisitarApi("/projectos", {
+      method: "POST",
+      body: JSON.stringify({
+        nome: novo.nome.trim(),
+        objetivo: novo.objetivo.trim() || undefined,
+        gestorId: novo.gestorId,
+        prioridade: novo.prioridade,
+        nivelRisco: novo.nivelRisco,
+        dataFim: novo.dataFim ? new Date(`${novo.dataFim}T23:59:59`).toISOString() : undefined,
+        criteriosSucesso: novo.objetivo.trim() ? [novo.objetivo.trim()] : []
+      })
+    }));
+  }
+
+  function registarRisco(evento: FormEvent<HTMLFormElement>) {
+    evento.preventDefault();
+    if (!seleccionado || !governanca.titulo.trim() || !governanca.plano.trim() || !novo.gestorId) return;
+    void executar("risco", () => requisitarApi(`/projectos/${seleccionado.id}/riscos`, {
+      method: "POST",
+      body: JSON.stringify({ tipo: governanca.tipo, titulo: governanca.titulo, severidade: governanca.severidade, ownerId: novo.gestorId, planoMitigacao: governanca.plano })
+    }));
+  }
+
+  function registarMudanca(evento: FormEvent<HTMLFormElement>) {
+    evento.preventDefault();
+    if (!seleccionado || !governanca.motivo.trim() || !governanca.impacto.trim() || !novo.gestorId) return;
+    void executar("mudanca", () => requisitarApi(`/projectos/${seleccionado.id}/mudancas`, {
+      method: "POST",
+      body: JSON.stringify({ motivo: governanca.motivo, impacto: governanca.impacto, aprovadoPorId: novo.gestorId, alteracoes: { prioridade: governanca.severidade === "CRITICO" ? "CRITICA" : "ALTA", nivelRisco: governanca.severidade } })
+    }));
+  }
+
+  function registarLicao(evento: FormEvent<HTMLFormElement>) {
+    evento.preventDefault();
+    if (!seleccionado || !governanca.licao.trim() || !novo.gestorId) return;
+    void executar("licao", () => requisitarApi(`/projectos/${seleccionado.id}/licoes`, {
+      method: "POST",
+      body: JSON.stringify({ contexto: "PROJECTO", resultado: governanca.licao, causa: governanca.motivo || "Análise da equipa", melhoria: governanca.impacto || "Aplicar no próximo ciclo", ownerId: novo.gestorId })
+    }));
+  }
+
+  return (
+    <CrmPageMotion>
+      <div className="team-pgwrap">
+        <CabecalhoPagina rotulo="Projectos" titulo="Portfólio operacional">
+          <button type="button" className="team-btn" onClick={() => void carregar()} disabled={carregando} title="Actualizar portfólio"><RefreshCcw size={16} /></button>
+        </CabecalhoPagina>
+        {erro && <div className="cd-tudo-ok" style={{ borderColor: "var(--destructive)", marginBottom: "1rem" }}><AlertTriangle size={18} /><span>{erro}</span></div>}
+        <div className="team-kstrip" style={{ gridTemplateColumns: "repeat(4, minmax(0, 1fr))" }}>
+          <MiniKpi rotulo="Activos" valor={portfolio?.metricas.activos ?? 0} />
+          <MiniKpi rotulo="Em risco" valor={portfolio?.metricas.emRisco ?? 0} />
+          <MiniKpi rotulo="Capacidade" valor={portfolio?.metricas.capacidadeConsumida ?? 0} />
+          <MiniKpi rotulo="ROI esperado" valor={portfolio?.metricas.roiEsperado ?? 0} />
+        </div>
+
+        <div className="cd-grid-dupla" style={{ marginTop: "1rem", alignItems: "start" }}>
+          <section className="cd-pedidos-recentes">
+            <div className="cd-secao-head"><span className="cd-secao-titulo">Portfólio</span><span className="team-bdg" data-tone="blue">{portfolio?.metricas.total ?? 0}</span></div>
+            <div className="cd-pedidos-lista">
+              {(portfolio?.itens ?? []).map((projecto) => (
+                <button key={projecto.id} type="button" className="cd-pedido" onClick={() => setSeleccionadoId(projecto.id)} style={{ width: "100%", textAlign: "left", borderColor: projecto.id === seleccionadoId ? "var(--em)" : undefined }}>
+                  <div><strong>{projecto.nome}</strong><span>{projecto.prioridade} · {projecto.progressoPercentual}% · {projecto.estado}</span></div>
+                  <div className="cd-pedido-meta"><span>{projecto.nivelRisco}</span><span>{projecto.bloqueios} bloqueios</span></div>
+                </button>
+              ))}
+              {!carregando && !(portfolio?.itens.length) && <div className="cd-vazio"><Kanban size={22} /><span>Nenhum projecto no portfólio.</span></div>}
+            </div>
+          </section>
+
+          <form className="cd-pedidos-recentes" onSubmit={criarProjecto}>
+            <div className="cd-secao-head"><span className="cd-secao-titulo">Novo charter</span><Plus size={16} /></div>
+            <label className="team-field"><span>Nome</span><input value={novo.nome} onChange={(e) => setNovo({ ...novo, nome: e.target.value })} required /></label>
+            <label className="team-field"><span>Objectivo</span><textarea value={novo.objetivo} onChange={(e) => setNovo({ ...novo, objetivo: e.target.value })} /></label>
+            <label className="team-field"><span>Owner</span><select value={novo.gestorId} onChange={(e) => setNovo({ ...novo, gestorId: e.target.value })}>{membros.map((membro) => <option key={membro.id} value={membro.id}>{membro.usuario.nome}</option>)}</select></label>
+            <div className="grid grid-cols-2 gap-2"><label className="team-field"><span>Prioridade</span><select value={novo.prioridade} onChange={(e) => setNovo({ ...novo, prioridade: e.target.value })}><option>BAIXA</option><option>MEDIA</option><option>ALTA</option><option>CRITICA</option></select></label><label className="team-field"><span>Risco</span><select value={novo.nivelRisco} onChange={(e) => setNovo({ ...novo, nivelRisco: e.target.value })}><option>BAIXO</option><option>MEDIO</option><option>ALTO</option><option>CRITICO</option></select></label></div>
+            <label className="team-field"><span>Prazo</span><input type="date" value={novo.dataFim} onChange={(e) => setNovo({ ...novo, dataFim: e.target.value })} /></label>
+            <button className="team-btn team-btn-primary" type="submit" disabled={Boolean(acao) || !novo.gestorId}><Plus size={16} /> Criar projecto</button>
+          </form>
+        </div>
+
+        {seleccionado && <section className="cd-pedidos-recentes" style={{ marginTop: "1rem" }}>
+          <div className="cd-secao-head"><span className="cd-secao-titulo">Governança · {seleccionado.nome}</span><span className="team-bdg" data-tone={seleccionado.nivelRisco === "CRITICO" ? "amber" : "blue"}>{seleccionado.nivelRisco}</span></div>
+          <p className="text-sm text-muted-foreground">{seleccionado.objetivo || "Defina o objectivo na próxima mudança controlada."}</p>
+          <div className="grid gap-3 lg:grid-cols-3" style={{ marginTop: "1rem" }}>
+            <form onSubmit={registarRisco} className="space-y-2"><strong className="flex items-center gap-2 text-sm"><AlertTriangle size={15} /> Risco ou issue</strong><input className="w-full" placeholder="Título" value={governanca.titulo} onChange={(e) => setGovernanca({ ...governanca, titulo: e.target.value })} /><textarea className="w-full" placeholder="Plano de mitigação" value={governanca.plano} onChange={(e) => setGovernanca({ ...governanca, plano: e.target.value })} /><button className="team-btn" type="submit" disabled={Boolean(acao)}>Registar</button></form>
+            <form onSubmit={registarMudanca} className="space-y-2"><strong className="flex items-center gap-2 text-sm"><GitPullRequestArrow size={15} /> Mudança controlada</strong><input className="w-full" placeholder="Motivo" value={governanca.motivo} onChange={(e) => setGovernanca({ ...governanca, motivo: e.target.value })} /><textarea className="w-full" placeholder="Impacto" value={governanca.impacto} onChange={(e) => setGovernanca({ ...governanca, impacto: e.target.value })} /><button className="team-btn" type="submit" disabled={Boolean(acao)}>Submeter</button></form>
+            <form onSubmit={registarLicao} className="space-y-2"><strong className="flex items-center gap-2 text-sm"><BookOpenCheck size={15} /> Lição aprendida</strong><textarea className="w-full" placeholder="Resultado e aprendizagem" value={governanca.licao} onChange={(e) => setGovernanca({ ...governanca, licao: e.target.value })} /><button className="team-btn" type="submit" disabled={Boolean(acao)}>Guardar lição</button></form>
+          </div>
+        </section>}
+        <p className="mt-3 text-xs text-muted-foreground">{portfolio?.referenciaGovernanca}</p>
+      </div>
+    </CrmPageMotion>
+  );
+}
+
+function WarRoomProjectos() {
   const [projectos, setProjectos] = useState<ProjetoComercial[]>([]);
   const [projectoId, setProjectoId] = useState("");
   const [warRoom, setWarRoom] = useState<WarRoom | null>(null);

@@ -4056,6 +4056,10 @@ export class RepositorioDenunciasMemoria implements RepositorioDenuncias {
       denuncianteId: dados.denuncianteId ?? null,
       motivo: dados.motivo,
       descricao: dados.descricao ?? null,
+      origem: dados.origem ?? "PUBLICO",
+      evidencias: dados.evidencias ?? [],
+      responsavelId: dados.responsavelId ?? null,
+      prazoEm: dados.prazoEm ?? new Date(Date.now() + 7 * 86_400_000),
       estado: "PENDENTE",
       resolvidoPorId: null,
       resolucao: null,
@@ -4225,6 +4229,21 @@ export class RepositorioComprasUnificadasMemoria implements RepositorioComprasUn
     return this.pedidosFilho.filter((f) => f.compraUnificadaId === compraUnificadaId);
   }
 
+  async listarComprasPorComprador(identificador: string, limite = 50): Promise<CompraUnificada[]> {
+    const chave = identificador.trim().toLowerCase();
+    return this.compras
+      .filter((compra) => compra.compradorTelefone.trim().toLowerCase() === chave || compra.compradorEmail?.trim().toLowerCase() === chave)
+      .sort((a, b) => b.criadoEm.getTime() - a.criadoEm.getTime())
+      .slice(0, limite);
+  }
+
+  async listarPedidosFilhoPorNegocio(negocioId: string, limite = 100) {
+    return this.pedidosFilho.filter((pedido) => pedido.negocioId === negocioId).slice(0, limite).flatMap((pedido) => {
+      const compra = this.compras.find((item) => item.id === pedido.compraUnificadaId);
+      return compra ? [{ compra, pedido }] : [];
+    });
+  }
+
   async atualizarEstado(id: string, estado: CompraUnificada["estado"]): Promise<CompraUnificada | null> {
     const compra = this.compras.find((c) => c.id === id);
     if (!compra) return null;
@@ -4266,6 +4285,26 @@ export class RepositorioComprasUnificadasMemoria implements RepositorioComprasUn
     this.pedidosFilho[indice] = atualizado;
     return atualizado;
   }
+
+  async atualizarFulfillment(
+    compraUnificadaId: string,
+    pedidoId: string,
+    dados: Partial<Pick<PedidoFilho, "estadoEntrega" | "estadoSeparacao" | "estadoEmbalagem" | "provaEntregaUrl" | "motivoAtraso" | "estadoDevolucao">> & { tentativaFalhada?: boolean; actorId?: string | null; motivo: string }
+  ) {
+    const indice = this.pedidosFilho.findIndex((pedido) => pedido.compraUnificadaId === compraUnificadaId && pedido.pedidoId === pedidoId);
+    if (indice < 0) return null;
+    const actual = this.pedidosFilho[indice];
+    const evento = { tipo: "MARKET_FULFILLMENT_CHANGED", ocorridoEm: new Date().toISOString(), actorId: dados.actorId ?? null, dados: { ...dados, motivo: dados.motivo } };
+    const actualizado: PedidoFilho = {
+      ...actual,
+      ...dados,
+      tentativasEntrega: actual.tentativasEntrega + (dados.tentativaFalhada ? 1 : 0),
+      fulfillment: [...actual.fulfillment, evento],
+      atualizadoEm: new Date()
+    };
+    this.pedidosFilho[indice] = actualizado;
+    return actualizado;
+  }
 }
 
 export class RepositorioRepassesFinanceirosMemoria implements RepositorioRepassesFinanceiros {
@@ -4276,18 +4315,30 @@ export class RepositorioRepassesFinanceirosMemoria implements RepositorioRepasse
     const taxaBizy = dados.taxaBizyEmKwanza ?? 0;
     const comissao = dados.comissaoEmKwanza ?? 0;
     const desconto = dados.descontoEmKwanza ?? 0;
+    const reembolso = dados.reembolsoEmKwanza ?? 0;
+    const valorLiquido = Math.max(0, dados.valorBrutoEmKwanza - taxaBizy - comissao - desconto - reembolso);
+    const retencao = Math.min(valorLiquido, dados.retencaoEmKwanza ?? (dados.motivoRetencao || dados.retidoAte ? valorLiquido : 0));
     const repasse: RepasseFinanceiro = {
       id: randomUUID(),
       negocioId: dados.negocioId,
       compraUnificadaId: dados.compraUnificadaId ?? null,
       pedidoId: dados.pedidoId,
       valorBrutoEmKwanza: dados.valorBrutoEmKwanza,
+      valorProdutosEmKwanza: dados.valorProdutosEmKwanza ?? dados.valorBrutoEmKwanza,
+      valorEntregaEmKwanza: dados.valorEntregaEmKwanza ?? 0,
+      impostosEmKwanza: dados.impostosEmKwanza ?? 0,
       taxaBizyEmKwanza: taxaBizy,
       comissaoEmKwanza: comissao,
       descontoEmKwanza: desconto,
-      valorLiquidoEmKwanza: dados.valorBrutoEmKwanza - taxaBizy - comissao - desconto,
-      estado: "PENDENTE",
+      retencaoEmKwanza: retencao,
+      reembolsoEmKwanza: reembolso,
+      valorLiquidoEmKwanza: valorLiquido,
+      valorDisponivelEmKwanza: Math.max(0, valorLiquido - retencao),
+      estado: retencao > 0 ? "RETIDO" : "PENDENTE",
       motivo: dados.motivo ?? null,
+      motivoRetencao: retencao > 0 ? dados.motivoRetencao ?? "RETENCAO_OPERACIONAL" : null,
+      retidoAte: retencao > 0 ? dados.retidoAte ?? null : null,
+      politicaCalculoVersao: dados.politicaCalculoVersao ?? "market.split.v1",
       conciliadoEm: null,
       aprovadoEm: null,
       pagoEm: null,
@@ -4342,6 +4393,47 @@ export class RepositorioRepassesFinanceirosMemoria implements RepositorioRepasse
     r.estado = "PAGO";
     r.pagoEm = new Date();
     r.referenciaPagamento = referencia;
+    r.atualizadoEm = new Date();
+    return r;
+  }
+
+  async reter(
+    id: string,
+    negocioId: string,
+    dados: { motivo: string; retidoAte?: Date | null; valorEmKwanza?: number }
+  ): Promise<RepasseFinanceiro | null> {
+    const r = this.repasses.find((item) => item.id === id && item.negocioId === negocioId);
+    if (!r || r.estado === "PAGO" || r.estado === "CANCELADO") return null;
+    r.retencaoEmKwanza = Math.min(r.valorLiquidoEmKwanza, dados.valorEmKwanza ?? r.valorLiquidoEmKwanza);
+    r.valorDisponivelEmKwanza = Math.max(0, r.valorLiquidoEmKwanza - r.retencaoEmKwanza);
+    r.estado = dados.motivo.includes("DISPUTA") || dados.motivo.includes("CHARGEBACK") ? "EM_DISPUTA" : "RETIDO";
+    r.motivoRetencao = dados.motivo;
+    r.retidoAte = dados.retidoAte ?? null;
+    r.atualizadoEm = new Date();
+    return r;
+  }
+
+  async liberar(id: string, negocioId: string, motivo: string): Promise<RepasseFinanceiro | null> {
+    const r = this.repasses.find((item) => item.id === id && item.negocioId === negocioId);
+    if (!r || !["RETIDO", "EM_DISPUTA"].includes(r.estado)) return null;
+    r.estado = "PENDENTE";
+    r.retencaoEmKwanza = 0;
+    r.valorDisponivelEmKwanza = r.valorLiquidoEmKwanza;
+    r.motivo = [r.motivo, motivo].filter(Boolean).join(" | ");
+    r.motivoRetencao = null;
+    r.retidoAte = null;
+    r.atualizadoEm = new Date();
+    return r;
+  }
+
+  async aplicarReembolso(id: string, negocioId: string, valorEmKwanza: number, motivo: string): Promise<RepasseFinanceiro | null> {
+    const r = this.repasses.find((item) => item.id === id && item.negocioId === negocioId);
+    if (!r || r.estado === "PAGO" || r.estado === "CANCELADO") return null;
+    r.reembolsoEmKwanza = Math.min(r.valorBrutoEmKwanza, r.reembolsoEmKwanza + Math.max(0, valorEmKwanza));
+    r.valorLiquidoEmKwanza = Math.max(0, r.valorBrutoEmKwanza - r.taxaBizyEmKwanza - r.comissaoEmKwanza - r.descontoEmKwanza - r.reembolsoEmKwanza);
+    r.retencaoEmKwanza = Math.min(r.retencaoEmKwanza, r.valorLiquidoEmKwanza);
+    r.valorDisponivelEmKwanza = Math.max(0, r.valorLiquidoEmKwanza - r.retencaoEmKwanza);
+    r.motivo = [r.motivo, motivo].filter(Boolean).join(" | ");
     r.atualizadoEm = new Date();
     return r;
   }

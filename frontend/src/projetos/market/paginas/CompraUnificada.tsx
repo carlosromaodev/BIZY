@@ -1,11 +1,11 @@
-import { ArrowLeft, CheckCircle2, Clock3, CreditCard, Home, PackageCheck, PackageX, ReceiptText, ShieldCheck, Store, Truck } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Clock3, CreditCard, Home, PackageCheck, PackageX, ReceiptText, ShieldCheck, Store, Truck, UserRoundSearch } from "lucide-react";
 import type { FormEvent } from "react";
 import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { LogoBizy } from "../../../marca/bizy";
-import { enviarComprovativoPagamentoUnificado, obterCompraUnificada, ROTAS_LOJAS } from "../api";
+import { enviarComprovativoPagamentoUnificado, guardarIdentificadorCompradorMarket, obterCompraUnificada, obterIdentificadorCompradorMarket, ROTAS_LOJAS } from "../api";
 import type { PedidoFilhoAcompanhamento, RespostaCompraEstados } from "../api";
 import { formatarDataHoraCurta, formatarKwanza } from "../../../utilidades";
 
@@ -65,6 +65,14 @@ function resumoFornecedor(pedido: PedidoFilhoAcompanhamento, indice: number) {
           <dd className="font-semibold text-neutral-900">{formatarKwanza(pedido.totalEmKwanza)}</dd>
         </div>
       </dl>
+      <div className="mt-3 grid gap-2 border-t border-neutral-100 pt-3 text-xs text-neutral-600 sm:grid-cols-3">
+        <span>Separação: <strong>{textoEstado(pedido.estadoSeparacao)}</strong></span>
+        <span>Embalagem: <strong>{textoEstado(pedido.estadoEmbalagem)}</strong></span>
+        <span>Tentativas: <strong>{pedido.tentativasEntrega}</strong></span>
+        {pedido.motivoAtraso && <span className="sm:col-span-3 text-amber-700">Atraso: {pedido.motivoAtraso}</span>}
+        {pedido.estadoDevolucao && <span className="sm:col-span-3">Devolução: <strong>{textoEstado(pedido.estadoDevolucao)}</strong></span>}
+        {pedido.provaEntregaUrl && <a className="font-semibold text-neutral-900 underline" href={pedido.provaEntregaUrl} target="_blank" rel="noreferrer">Ver prova de entrega</a>}
+      </div>
     </article>
   );
 }
@@ -77,6 +85,8 @@ export function PaginaCompraUnificada() {
   const [mensagemPagamento, setMensagemPagamento] = useState("");
   const [carregando, setCarregando] = useState(true);
   const [enviandoComprovativo, setEnviandoComprovativo] = useState(false);
+  const [identificador, setIdentificador] = useState(() => obterIdentificadorCompradorMarket());
+  const [identificadorForm, setIdentificadorForm] = useState(() => obterIdentificadorCompradorMarket());
 
   useEffect(() => {
     let meta = document.querySelector('meta[name="robots"]') as HTMLMetaElement | null;
@@ -100,10 +110,14 @@ export function PaginaCompraUnificada() {
     let ativo = true;
 
     async function carregar() {
+      if (!identificador) {
+        setCarregando(false);
+        return;
+      }
       setCarregando(true);
       setErro("");
       try {
-        const resposta = await obterCompraUnificada(id);
+        const resposta = await obterCompraUnificada(id, identificador);
         if (!ativo) return;
         setDados(resposta);
       } catch {
@@ -123,7 +137,7 @@ export function PaginaCompraUnificada() {
     return () => {
       ativo = false;
     };
-  }, [id]);
+  }, [id, identificador]);
 
   const estadoPrincipal = dados?.compra.estado ?? "";
   const IconeEstado = useMemo(() => iconeEstado(estadoPrincipal), [estadoPrincipal]);
@@ -148,7 +162,7 @@ export function PaginaCompraUnificada() {
 
     setEnviandoComprovativo(true);
     try {
-      const resposta = await enviarComprovativoPagamentoUnificado(id, url.toString());
+      const resposta = await enviarComprovativoPagamentoUnificado(id, url.toString(), identificador);
       setDados(resposta);
       setComprovativoUrl("");
       setMensagemPagamento("Comprovativo recebido. A loja vai validar o pagamento.");
@@ -181,7 +195,21 @@ export function PaginaCompraUnificada() {
             Acompanhamento seguro
           </span>
 
-          {carregando ? (
+          {!identificador ? (
+            <form className="mt-6 grid max-w-md gap-3 py-6" onSubmit={(evento) => {
+              evento.preventDefault();
+              const valor = identificadorForm.trim();
+              if (valor.length < 5) return;
+              guardarIdentificadorCompradorMarket(valor);
+              setIdentificador(valor);
+            }}>
+              <span className="grid size-10 place-items-center rounded-lg bg-neutral-100 text-neutral-700"><UserRoundSearch size={18} /></span>
+              <h1 className="text-2xl font-bold text-neutral-950">Aceder à compra</h1>
+              <p className="text-sm text-neutral-600">Confirma o telefone ou email usado no checkout.</p>
+              <Input value={identificadorForm} onChange={(evento) => setIdentificadorForm(evento.target.value)} placeholder="Telefone ou email" autoComplete="tel" aria-label="Telefone ou email da compra" />
+              <Button type="submit" disabled={identificadorForm.trim().length < 5}>Continuar</Button>
+            </form>
+          ) : carregando ? (
             <div className="mt-6 grid place-items-center gap-3 py-12 text-center text-neutral-600">
               <Clock3 className="animate-spin" size={28} />
               <p>A carregar estado da compra...</p>

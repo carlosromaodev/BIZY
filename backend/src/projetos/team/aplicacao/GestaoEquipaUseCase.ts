@@ -545,6 +545,7 @@ export class GestaoEquipaUseCase {
     const membro = await this.prisma.membroNegocio.findFirst({
       where: { id: membroId, negocioId },
       include: {
+        departamento: { select: { id: true, nome: true } },
         usuario: {
           select: {
             id: true,
@@ -666,10 +667,14 @@ export class GestaoEquipaUseCase {
         telefone: membro.usuario.telefone,
         avatarUrl: membro.usuario.avatarUrl,
         papel: membro.papel,
+        cargo: membro.cargo,
+        departamento: membro.departamento,
         status: membro.status,
         criadoEm: membro.criadoEm
       },
       competencias: this.inferirCompetenciasMembro(membro),
+      skills: this.parseJsonArray(membro.skillsJson),
+      desenvolvimento: this.parseJsonArray(membro.desenvolvimentoJson),
       disponibilidade: {
         emTurno,
         presencaAtiva: ultimaPresenca?.tipo === "CHECK_IN",
@@ -732,6 +737,175 @@ export class GestaoEquipaUseCase {
       },
       actividadeRecente: feed
     };
+  }
+
+  async atualizarPerfilOperacional(
+    negocioId: string,
+    membroId: string,
+    dados: { departamentoId?: string | null; cargo?: string | null; autorId?: string | null }
+  ) {
+    const membro = await this.prisma.membroNegocio.findFirst({ where: { id: membroId, negocioId } });
+    if (!membro) throw new Error("Membro não encontrado neste negócio.");
+
+    if (dados.departamentoId) {
+      const departamento = await this.prisma.departamento.findFirst({
+        where: { id: dados.departamentoId, negocioId },
+        select: { id: true }
+      });
+      if (!departamento) throw new Error("Departamento não encontrado neste negócio.");
+    }
+
+    const atualizado = await this.prisma.membroNegocio.update({
+      where: { id: membroId },
+      data: {
+        ...(dados.departamentoId !== undefined ? { departamentoId: dados.departamentoId } : {}),
+        ...(dados.cargo !== undefined ? { cargo: dados.cargo?.trim() || null } : {})
+      },
+      include: { departamento: { select: { id: true, nome: true } } }
+    });
+
+    await this.registrarActividade(negocioId, {
+      autorId: dados.autorId ?? undefined,
+      tipo: "PERFIL_OPERACIONAL_ATUALIZADO",
+      entidadeTipo: "MembroNegocio",
+      entidadeId: membroId,
+      resumo: "Departamento e cargo do membro foram atualizados.",
+      detalhes: {
+        anterior: { departamentoId: membro.departamentoId, cargo: membro.cargo },
+        atual: { departamentoId: atualizado.departamentoId, cargo: atualizado.cargo }
+      }
+    });
+
+    return atualizado;
+  }
+
+  async atualizarSkillsMembro(
+    negocioId: string,
+    membroId: string,
+    skills: Array<{
+      id?: string;
+      nome: string;
+      categoria: string;
+      nivel: number;
+      estado?: "DECLARADA" | "VALIDADA" | "EXPIRADA";
+      evidencias?: string[];
+    }>,
+    autorId?: string | null
+  ) {
+    const membro = await this.prisma.membroNegocio.findFirst({ where: { id: membroId, negocioId } });
+    if (!membro) throw new Error("Membro não encontrado neste negócio.");
+
+    const agora = new Date().toISOString();
+    const normalizadas = skills.map((skill) => ({
+      id: skill.id ?? randomUUID(),
+      nome: skill.nome.trim(),
+      categoria: skill.categoria,
+      nivel: skill.nivel,
+      estado: skill.estado ?? "DECLARADA",
+      evidencias: [...new Set((skill.evidencias ?? []).map((item) => item.trim()).filter(Boolean))],
+      validadoPorId: skill.estado === "VALIDADA" ? autorId ?? null : null,
+      validadoEm: skill.estado === "VALIDADA" ? agora : null,
+      atualizadoEm: agora
+    }));
+
+    await this.prisma.membroNegocio.update({
+      where: { id: membroId },
+      data: { skillsJson: JSON.stringify(normalizadas) }
+    });
+    await this.registrarActividade(negocioId, {
+      autorId: autorId ?? undefined,
+      tipo: "SKILLS_ATUALIZADAS",
+      entidadeTipo: "MembroNegocio",
+      entidadeId: membroId,
+      resumo: `${normalizadas.length} skill(s) atualizadas no perfil operacional.`,
+      detalhes: { skills: normalizadas.map(({ id, nome, categoria, nivel, estado }) => ({ id, nome, categoria, nivel, estado })) }
+    });
+
+    return { membroId, skills: normalizadas };
+  }
+
+  async criarItemDesenvolvimento(
+    negocioId: string,
+    membroId: string,
+    dados: {
+      objetivo: string;
+      acao: string;
+      prazoEm: Date;
+      evidencias?: string[];
+      gestorId?: string | null;
+      autorId?: string | null;
+    }
+  ) {
+    const membro = await this.prisma.membroNegocio.findFirst({ where: { id: membroId, negocioId } });
+    if (!membro) throw new Error("Membro não encontrado neste negócio.");
+
+    const itens = this.parseJsonArray<Record<string, unknown>>(membro.desenvolvimentoJson);
+    const agora = new Date().toISOString();
+    const item = {
+      id: randomUUID(),
+      objetivo: dados.objetivo.trim(),
+      acao: dados.acao.trim(),
+      prazoEm: dados.prazoEm.toISOString(),
+      evidencias: [...new Set((dados.evidencias ?? []).map((valor) => valor.trim()).filter(Boolean))],
+      estado: "EM_ANDAMENTO",
+      gestorId: dados.gestorId ?? dados.autorId ?? null,
+      acompanhadoEm: agora,
+      criadoEm: agora,
+      atualizadoEm: agora
+    };
+    await this.prisma.membroNegocio.update({
+      where: { id: membroId },
+      data: { desenvolvimentoJson: JSON.stringify([...itens, item]) }
+    });
+    await this.registrarActividade(negocioId, {
+      autorId: dados.autorId ?? undefined,
+      tipo: "PLANO_DESENVOLVIMENTO_CRIADO",
+      entidadeTipo: "MembroNegocio",
+      entidadeId: membroId,
+      resumo: `Plano de desenvolvimento criado: ${item.objetivo}`,
+      detalhes: item
+    });
+    return { membroId, item };
+  }
+
+  async acompanharItemDesenvolvimento(
+    negocioId: string,
+    membroId: string,
+    itemId: string,
+    dados: { estado?: "EM_ANDAMENTO" | "CONCLUIDO" | "CANCELADO"; evidencias?: string[]; observacao?: string | null; autorId?: string | null }
+  ) {
+    const membro = await this.prisma.membroNegocio.findFirst({ where: { id: membroId, negocioId } });
+    if (!membro) throw new Error("Membro não encontrado neste negócio.");
+    const itens = this.parseJsonArray<Record<string, unknown>>(membro.desenvolvimentoJson);
+    const indice = itens.findIndex((item) => item.id === itemId);
+    if (indice < 0) throw new Error("Item de desenvolvimento não encontrado.");
+
+    const agora = new Date().toISOString();
+    const atual = itens[indice];
+    const evidenciasAtuais = Array.isArray(atual.evidencias) ? atual.evidencias.filter((item): item is string => typeof item === "string") : [];
+    const atualizado = {
+      ...atual,
+      ...(dados.estado ? { estado: dados.estado } : {}),
+      ...(dados.evidencias ? { evidencias: [...new Set([...evidenciasAtuais, ...dados.evidencias.map((item) => item.trim()).filter(Boolean)])] } : {}),
+      observacao: dados.observacao?.trim() || atual.observacao || null,
+      gestorId: dados.autorId ?? atual.gestorId ?? null,
+      acompanhadoEm: agora,
+      atualizadoEm: agora
+    };
+    itens[indice] = atualizado;
+    await this.prisma.membroNegocio.update({
+      where: { id: membroId },
+      data: { desenvolvimentoJson: JSON.stringify(itens) }
+    });
+    await this.registrarActividade(negocioId, {
+      autorId: dados.autorId ?? undefined,
+      tipo: "PLANO_DESENVOLVIMENTO_ACOMPANHADO",
+      entidadeTipo: "MembroNegocio",
+      entidadeId: membroId,
+      resumo: `Plano de desenvolvimento acompanhado: ${String(atual.objetivo ?? itemId)}`,
+      detalhes: atualizado
+    });
+    return { membroId, item: atualizado };
   }
 
   async calcularCapacidadeOperacional(negocioId: string) {
@@ -869,9 +1043,62 @@ export class GestaoEquipaUseCase {
     };
   }
 
+  async obterGovernancaPessoas(negocioId: string) {
+    const [membros, convites, presencas, capacidade] = await Promise.all([
+      this.prisma.membroNegocio.findMany({
+        where: { negocioId },
+        select: {
+          id: true,
+          papel: true,
+          status: true,
+          departamentoId: true,
+          skillsJson: true,
+          desenvolvimentoJson: true,
+          criadoEm: true,
+          atualizadoEm: true
+        }
+      }),
+      this.prisma.conviteEquipa.findMany({ where: { negocioId }, select: { estado: true, criadoEm: true } }),
+      this.prisma.registoPresenca.count({ where: { negocioId } }),
+      this.calcularCapacidadeOperacional(negocioId)
+    ]);
+    const ativos = membros.filter((membro) => membro.status === "ATIVO");
+    const desligados = membros.filter((membro) => membro.status !== "ATIVO");
+    const contar = (valores: Array<string | null>) => valores.reduce<Record<string, number>>((acc, valor) => {
+      const chave = valor || "NAO_DEFINIDO";
+      acc[chave] = (acc[chave] ?? 0) + 1;
+      return acc;
+    }, {});
+    const skills = membros.flatMap((membro) => this.parseJsonArray(membro.skillsJson));
+    const desenvolvimento = membros.flatMap((membro) => this.parseJsonArray(membro.desenvolvimentoJson));
+    const sobrecarga = capacidade.membros.filter((membro) => membro.estado === "SOBRECARREGADO").length;
+    return {
+      atualizadoEm: new Date().toISOString(),
+      classificacao: "CONFIDENCIAL_PESSOAS_AGREGADO",
+      indicadores: {
+        composicao: { total: membros.length, ativos: ativos.length, porPapel: contar(ativos.map((membro) => membro.papel)), porDepartamento: contar(ativos.map((membro) => membro.departamentoId)) },
+        rotatividade: { desligados: desligados.length, taxaPercentual: membros.length ? Math.round((desligados.length / membros.length) * 100) : 0 },
+        produtividadeOperacional: { disponiveis: capacidade.resumo.disponiveis, ocupados: capacidade.resumo.ocupados, sobrecarregados: sobrecarga, tarefasAtrasadas: capacidade.resumo.tarefasAtrasadas },
+        bemEstarOperacional: { sinalSobrecarga: sobrecarga, fonte: "carga operacional agregada; não é diagnóstico de saúde" },
+        competencias: { skillsRegistadas: skills.length, membrosComSkills: membros.filter((membro) => this.parseJsonArray(membro.skillsJson).length > 0).length },
+        recrutamento: { convites: convites.length, porEstado: contar(convites.map((convite) => convite.estado)) },
+        mobilidade: { departamentosRepresentados: new Set(ativos.map((membro) => membro.departamentoId).filter(Boolean)).size },
+        desenvolvimento: { planos: desenvolvimento.length, membrosComPlano: membros.filter((membro) => this.parseJsonArray(membro.desenvolvimentoJson).length > 0).length },
+        presenca: { registos: presencas, presentesAgora: capacidade.resumo.presentes }
+      },
+      politicaDecisao: {
+        finalidade: "operação, capacidade e desenvolvimento",
+        proibido: ["punição automática", "despedimento automático", "redução automática de acesso sensível"],
+        revisaoHumanaObrigatoria: true,
+        acesso: "necessidade de conhecimento e equipa:gestao"
+      },
+      referenciaGovernanca: "ISO 30414-inspired; não representa certificação formal"
+    };
+  }
+
   async registarAusenciaOperacional(
     negocioId: string,
-    dados: { membroId: string; motivo: string; inicioEm?: Date; fimEm?: Date; autorId?: string | null }
+    dados: { membroId: string; substitutoMembroId?: string; motivo: string; inicioEm?: Date; fimEm?: Date; autorId?: string | null }
   ) {
     const membro = await this.prisma.membroNegocio.findFirst({
       where: { id: dados.membroId, negocioId },
@@ -882,6 +1109,72 @@ export class GestaoEquipaUseCase {
     const inicioEm = dados.inicioEm ?? new Date();
     const fimEm = dados.fimEm ?? new Date(inicioEm.getFullYear(), inicioEm.getMonth(), inicioEm.getDate(), 23, 59, 59, 999);
     if (fimEm < inicioEm) throw new Error("Fim da ausência deve ser posterior ao início.");
+
+    let substituicao: Record<string, unknown> | null = null;
+    if (dados.substitutoMembroId) {
+      if (dados.substitutoMembroId === membro.id) throw new Error("O substituto deve ser outro membro.");
+      const substituto = await this.prisma.membroNegocio.findFirst({
+        where: { id: dados.substitutoMembroId, negocioId, status: "ATIVO" },
+        include: { usuario: { select: { id: true, nome: true } } }
+      });
+      if (!substituto) throw new Error("Substituto activo não encontrado neste negócio.");
+      const [tarefas, conversas, pedidos, filas, projectos, projectosComerciais] = await this.prisma.$transaction([
+        this.prisma.tarefaOperacional.updateMany({
+          where: { negocioId, responsavelId: membro.usuarioId, estado: { in: ["ABERTA", "PENDENTE", "EM_PROGRESSO"] } },
+          data: { responsavelId: substituto.usuarioId }
+        }),
+        this.prisma.conversaAtendimento.updateMany({
+          where: { negocioId, responsavelId: membro.usuarioId, estado: { in: ["ABERTA", "EM_ATENDIMENTO"] } },
+          data: { responsavelId: substituto.usuarioId }
+        }),
+        this.prisma.pedido.updateMany({
+          where: { negocioId, responsavelId: membro.usuarioId, estado: { in: ["AGUARDANDO_PAGAMENTO", "PENDENTE", "EM_PROCESSAMENTO"] } },
+          data: { responsavelId: substituto.usuarioId }
+        }),
+        this.prisma.filaProjeto.updateMany({
+          where: { atribuidoAId: membro.id, estado: { in: ["PENDENTE", "ATRIBUIDO"] } },
+          data: { atribuidoAId: substituto.id }
+        }),
+        this.prisma.membroProjecto.findMany({ where: { membroId: membro.id, activo: true } }),
+        this.prisma.equipaProjeto.findMany({ where: { membroId: membro.id, activo: true } })
+      ]);
+      for (const alocacao of projectos) {
+        await this.prisma.membroProjecto.upsert({
+          where: { projectoId_membroId: { projectoId: alocacao.projectoId, membroId: substituto.id } },
+          create: {
+            projectoId: alocacao.projectoId,
+            membroId: substituto.id,
+            papelProjecto: "SUBSTITUTO_TEMPORARIO",
+            capacidadePercentual: alocacao.capacidadePercentual,
+            alocadoAte: fimEm
+          },
+          update: { activo: true, papelProjecto: "SUBSTITUTO_TEMPORARIO", alocadoAte: fimEm }
+        });
+      }
+      for (const alocacao of projectosComerciais) {
+        await this.prisma.equipaProjeto.upsert({
+          where: { projetoComercialId_membroId: { projetoComercialId: alocacao.projetoComercialId, membroId: substituto.id } },
+          create: {
+            projetoComercialId: alocacao.projetoComercialId,
+            membroId: substituto.id,
+            papelProjeto: "SUBSTITUTO_TEMPORARIO",
+            alocadoAte: fimEm
+          },
+          update: { activo: true, papelProjeto: "SUBSTITUTO_TEMPORARIO", alocadoAte: fimEm }
+        });
+      }
+      substituicao = {
+        membroId: substituto.id,
+        nome: substituto.usuario.nome,
+        tarefas: tarefas.count,
+        conversas: conversas.count,
+        pedidos: pedidos.count,
+        filas: filas.count,
+        projectos: projectos.length,
+        projectosComerciais: projectosComerciais.length,
+        temporariaAte: fimEm.toISOString()
+      };
+    }
 
     const feed = await this.registrarActividade(negocioId, {
       autorId: dados.autorId ?? undefined,
@@ -894,7 +1187,8 @@ export class GestaoEquipaUseCase {
         usuarioId: membro.usuarioId,
         inicioEm: inicioEm.toISOString(),
         fimEm: fimEm.toISOString(),
-        motivo: dados.motivo
+        motivo: dados.motivo,
+        substituicao
       }
     });
 
@@ -906,7 +1200,8 @@ export class GestaoEquipaUseCase {
         nome: membro.usuario.nome,
         motivo: dados.motivo,
         inicioEm,
-        fimEm
+        fimEm,
+        substituicao
       }
     };
   }
@@ -2173,7 +2468,7 @@ export class GestaoEquipaUseCase {
     return turnos.some((turno) => turno.diaSemana === diaSemana && horaActual >= turno.horaInicio && horaActual <= turno.horaFim);
   }
 
-  private inferirCompetenciasMembro(membro: { papel: string; permissoesJson?: string | null }) {
+  private inferirCompetenciasMembro(membro: { papel: string; permissoesJson?: string | null; skillsJson?: string | null }) {
     const permissoes = this.parseJsonRecord(membro.permissoesJson);
     const explicitas = Array.isArray(permissoes.competencias)
       ? permissoes.competencias.filter((item): item is string => typeof item === "string" && item.trim().length > 0)
@@ -2186,7 +2481,10 @@ export class GestaoEquipaUseCase {
       VENDEDOR: ["vendas", "atendimento", "catalogo"],
       ATENDENTE: ["atendimento", "whatsapp", "pos-venda"]
     };
-    return [...new Set([...explicitas, ...(porPapel[membro.papel] ?? ["operacoes"])])];
+    const skills = this.parseJsonArray<{ nome?: unknown }>(membro.skillsJson)
+      .map((skill) => typeof skill.nome === "string" ? skill.nome.trim() : "")
+      .filter(Boolean);
+    return [...new Set([...skills, ...explicitas, ...(porPapel[membro.papel] ?? ["operacoes"])])];
   }
 
   private mapearUltimaPresencaPorMembro(
@@ -2255,6 +2553,16 @@ export class GestaoEquipaUseCase {
       return parseado && typeof parseado === "object" && !Array.isArray(parseado) ? parseado as Record<string, unknown> : {};
     } catch {
       return {};
+    }
+  }
+
+  private parseJsonArray<T = unknown>(valor?: string | null): T[] {
+    if (!valor) return [];
+    try {
+      const parseado = JSON.parse(valor);
+      return Array.isArray(parseado) ? parseado as T[] : [];
+    } catch {
+      return [];
     }
   }
 

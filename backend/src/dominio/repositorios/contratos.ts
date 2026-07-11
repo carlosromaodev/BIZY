@@ -581,6 +581,8 @@ export interface RepositorioComprasUnificadas {
   buscarPorNumero(numero: number): Promise<CompraUnificada | null>;
   buscarPorIdempotencyKey(idempotencyKey: string, compradorTelefone?: string): Promise<CompraUnificada | null>;
   listarPedidosFilho(compraUnificadaId: string): Promise<PedidoFilho[]>;
+  listarComprasPorComprador(identificador: string, limite?: number): Promise<CompraUnificada[]>;
+  listarPedidosFilhoPorNegocio(negocioId: string, limite?: number): Promise<Array<{ compra: CompraUnificada; pedido: PedidoFilho }>>;
   atualizarEstado(id: string, estado: CompraUnificada["estado"]): Promise<CompraUnificada | null>;
   atualizarEstadoPagamento(
     id: string,
@@ -591,6 +593,11 @@ export interface RepositorioComprasUnificadas {
     compraUnificadaId: string,
     pedidoId: string,
     dados: Partial<Pick<PedidoFilho, "estado" | "estadoPagamento" | "estadoEntrega">>
+  ): Promise<PedidoFilho | null>;
+  atualizarFulfillment(
+    compraUnificadaId: string,
+    pedidoId: string,
+    dados: Partial<Pick<PedidoFilho, "estadoEntrega" | "estadoSeparacao" | "estadoEmbalagem" | "provaEntregaUrl" | "motivoAtraso" | "estadoDevolucao">> & { tentativaFalhada?: boolean; actorId?: string | null; motivo: string }
   ): Promise<PedidoFilho | null>;
 }
 
@@ -609,6 +616,9 @@ export interface RepositorioRepassesFinanceiros {
   conciliar(id: string, negocioId: string): Promise<RepasseFinanceiro | null>;
   aprovar(id: string, negocioId: string): Promise<RepasseFinanceiro | null>;
   pagar(id: string, negocioId: string, referencia: string): Promise<RepasseFinanceiro | null>;
+  reter(id: string, negocioId: string, dados: { motivo: string; retidoAte?: Date | null; valorEmKwanza?: number }): Promise<RepasseFinanceiro | null>;
+  liberar(id: string, negocioId: string, motivo: string): Promise<RepasseFinanceiro | null>;
+  aplicarReembolso(id: string, negocioId: string, valorEmKwanza: number, motivo: string): Promise<RepasseFinanceiro | null>;
   cancelar(id: string, negocioId: string, motivo: string): Promise<RepasseFinanceiro | null>;
 }
 

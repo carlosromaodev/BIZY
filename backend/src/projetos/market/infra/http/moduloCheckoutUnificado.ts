@@ -78,6 +78,13 @@ function formatarCompraPublica({ compra, pedidosFilho }: { compra: CompraUnifica
       estado: pedido.estado,
       estadoPagamento: pedido.estadoPagamento,
       estadoEntrega: pedido.estadoEntrega,
+      estadoSeparacao: pedido.estadoSeparacao,
+      estadoEmbalagem: pedido.estadoEmbalagem,
+      provaEntregaUrl: pedido.provaEntregaUrl,
+      tentativasEntrega: pedido.tentativasEntrega,
+      motivoAtraso: pedido.motivoAtraso,
+      estadoDevolucao: pedido.estadoDevolucao,
+      fulfillment: pedido.fulfillment,
       subtotalEmKwanza: pedido.subtotalEmKwanza,
       taxaEntregaEmKwanza: pedido.taxaEntregaEmKwanza,
       totalEmKwanza: pedido.totalEmKwanza,
@@ -99,6 +106,10 @@ export const moduloCheckoutUnificado: ModuloHttp = {
     // --- Endpoints públicos (comprador Market) ---
 
     app.post("/publico/market/checkout", async (request, reply) => {
+      const chaves = JSON.stringify(request.body ?? {}).toLowerCase();
+      if (/"(pan|cvv|cvc|cardnumber|numero_cartao|n[uú]mero_cart[aã]o)"\s*:/.test(chaves)) {
+        return reply.code(400).send({ erro: "DADOS_CARTAO_PROIBIDOS", mensagem: "O Bizy aceita apenas referência tokenizada do provedor e nunca recebe PAN ou CVV." });
+      }
       const dados = CriarCompraUnificadaSchema.parse(request.body ?? {});
 
       // Resolver slugLoja → negocioId para cada item
@@ -161,9 +172,17 @@ export const moduloCheckoutUnificado: ModuloHttp = {
             compraId: resultado.compra.id,
             pedidoId: filho.pedidoId,
             valorBrutoEmKwanza: repasse.valorBrutoEmKwanza,
+            valorProdutosEmKwanza: repasse.valorProdutosEmKwanza,
+            valorEntregaEmKwanza: repasse.valorEntregaEmKwanza,
+            impostosEmKwanza: repasse.impostosEmKwanza,
             valorLiquidoEmKwanza: repasse.valorLiquidoEmKwanza,
+            valorDisponivelEmKwanza: repasse.valorDisponivelEmKwanza,
             taxaBizyEmKwanza: repasse.taxaBizyEmKwanza,
             comissaoEmKwanza: repasse.comissaoEmKwanza,
+            retencaoEmKwanza: repasse.retencaoEmKwanza,
+            motivoRetencao: repasse.motivoRetencao,
+            retidoAte: repasse.retidoAte,
+            politicaCalculoVersao: repasse.politicaCalculoVersao,
             estado: repasse.estado
           }));
         }
@@ -172,16 +191,27 @@ export const moduloCheckoutUnificado: ModuloHttp = {
       return reply.code(201).send(resultado);
     });
 
+    app.get("/publico/market/portal-comprador", async (request, reply) => {
+      const { identificador } = z.object({ identificador: z.string().trim().min(5).max(160) }).parse(request.query ?? {});
+      const compras = await contexto.checkoutUnificado.buscarPortalComprador(identificador);
+      return { compras: compras.map(formatarCompraPublica), total: compras.length };
+    });
+
     app.get("/publico/market/compras/:id", async (request, reply) => {
       const { id } = ParamIdSchema.parse(request.params);
-      const compra = await contexto.checkoutUnificado.buscarCompraComEstados(id);
+      const { identificador } = z.object({ identificador: z.string().trim().min(5).max(160) }).parse(request.query ?? {});
+      const [compra] = await contexto.checkoutUnificado.buscarPortalComprador(identificador, id);
       if (!compra) return reply.code(404).send({ erro: "Compra não encontrada." });
       return formatarCompraPublica(compra);
     });
 
     app.post("/publico/market/compras/:id/pagamento", async (request, reply) => {
       const { id } = ParamIdSchema.parse(request.params);
-      const { comprovativoUrl } = RegistrarComprovativoUnificadoSchema.parse(request.body ?? {});
+      const { comprovativoUrl, identificador } = RegistrarComprovativoUnificadoSchema.extend({
+        identificador: z.string().trim().min(5).max(160)
+      }).parse(request.body ?? {});
+      const [permitida] = await contexto.checkoutUnificado.buscarPortalComprador(identificador, id);
+      if (!permitida) return reply.code(404).send({ erro: "Compra não encontrada." });
       const compra = await contexto.checkoutUnificado.registrarComprovativoPagamentoUnificado(id, comprovativoUrl);
       if (!compra) return reply.code(404).send({ erro: "Compra não encontrada." });
       const estadoAtualizado = await contexto.checkoutUnificado.buscarCompraComEstados(id);
@@ -204,6 +234,52 @@ export const moduloCheckoutUnificado: ModuloHttp = {
     });
 
     // --- Endpoints fornecedor (loja) ---
+
+    app.get("/market/fornecedor/portal", async (request, reply) => {
+      const ctx = await exigirAcessoComercial(contexto, request, reply, {
+        permissao: "pedidos:ler", modulo: "market",
+        mensagemPermissao: "Sem permissão para ver o portal seller.", mensagemModulo: "Market desativado para este negócio."
+      });
+      if (!ctx) return;
+      return contexto.checkoutUnificado.buscarPortalSeller(ctx.negocio.id);
+    });
+
+    app.get("/market/fornecedor/governanca", async (request, reply) => {
+      const ctx = await exigirAcessoComercial(contexto, request, reply, {
+        permissao: "pedidos:ler", modulo: "market",
+        mensagemPermissao: "Sem permissão para ver a governança Market.", mensagemModulo: "Market desativado para este negócio."
+      });
+      if (!ctx) return;
+      return {
+        pagamentos: { escopoPciReduzido: true, aceitaSomenteTokenOuReferenciaProvider: true, dadosProibidos: ["PAN", "CVV", "CVC", "credencial de cartão"] },
+        eventos: { schema: "bizy.market.event.v1", reprocessavelPor: ["seller", "pedido", "compraUnificada"], assinaturaExterna: "HMAC-SHA256 quando webhook externo estiver configurado" },
+        slos: { checkoutP95Ms: 2500, criacaoPedidoFilhoP95Ms: 1500, uploadComprovativoP95Ms: 3000, notificacaoP95Segundos: 60, payoutConciliacaoHoras: 24, primeiraRespostaDisputaHoras: 24 },
+        portal: { dadosMinimos: true, mobileFirst: true, lowData: true },
+        atualizadoEm: new Date().toISOString()
+      };
+    });
+
+    app.patch("/market/fornecedor/compras/:compraId/fulfillment", async (request, reply) => {
+      const ctx = await exigirAcessoComercial(contexto, request, reply, {
+        permissao: "pedidos:gerir", modulo: "market",
+        mensagemPermissao: "Sem permissão para gerir fulfillment.", mensagemModulo: "Market desativado para este negócio."
+      });
+      if (!ctx) return;
+      const { compraId } = z.object({ compraId: z.string().uuid() }).parse(request.params);
+      const dados = z.object({
+        estadoEntrega: z.enum(["PENDENTE", "RETIRADA_LOJA", "EM_PREPARACAO", "PRONTO", "ENVIADO", "ENTREGUE", "FALHOU", "DEVOLVIDO"]).optional(),
+        estadoSeparacao: z.enum(["PENDENTE", "EM_SEPARACAO", "SEPARADO"]).optional(),
+        estadoEmbalagem: z.enum(["PENDENTE", "EM_EMBALAGEM", "EMBALADO"]).optional(),
+        provaEntregaUrl: z.string().url().max(2000).nullable().optional(),
+        motivoAtraso: z.string().trim().max(500).nullable().optional(),
+        estadoDevolucao: z.enum(["SOLICITADA", "EM_TRANSITO", "RECEBIDA", "REJEITADA"]).nullable().optional(),
+        tentativaFalhada: z.boolean().optional(),
+        motivo: z.string().trim().min(3).max(500)
+      }).parse(request.body ?? {});
+      const resultado = await contexto.checkoutUnificado.atualizarFulfillmentSeller(compraId, ctx.negocio.id, ctx.usuario.id, dados);
+      if (!resultado) return reply.code(404).send({ erro: "Pedido seller não encontrado." });
+      return resultado;
+    });
 
     app.get("/market/fornecedor/compras/:compraId", async (request, reply) => {
       const ctx = await exigirAcessoComercial(contexto, request, reply, {
@@ -316,7 +392,7 @@ async function registrarEventoMarketCheckout(
     entidadeId,
     idempotencyKey: `market:${tipo}:${entidadeId}`,
     payloadVersion: "market.checkout.v1",
-    payload,
+    payload: { schema: "bizy.market.event.v1", ...payload },
     estado: "PROCESSADO"
   });
 }

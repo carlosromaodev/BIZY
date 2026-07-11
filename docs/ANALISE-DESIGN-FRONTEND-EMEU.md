@@ -1,5 +1,7 @@
 # Análise de Design do Frontend - ÉMeu
 
+> Documento historico. Use `docs/wiki/pages/auditoria-criticas-sistema-bizy.md` para o estado reconciliado atual.
+
 Documento: `ANALISE-DESIGN-FRONTEND-EMEU.md`
 Data: 2026-05-21
 Projeto: ÉMeu
@@ -349,9 +351,9 @@ Recomendação:
 
 - [x] Clientes
 - [x] Relatórios avançados
-- [ ] Multi-loja
+- [x] Multi-loja
 - [x] Equipa e permissões
-- [ ] Reconciliação bancária
+- [x] Reconciliação bancária
 - [ ] App mobile nativo
 
 ---

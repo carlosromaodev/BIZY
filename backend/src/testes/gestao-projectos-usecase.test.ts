@@ -5,6 +5,21 @@ import { GestaoFinancasUseCase } from "../use-case/GestaoFinancasUseCase.js";
 import { GestaoProjectosUseCase } from "../use-case/GestaoProjectosUseCase.js";
 
 describe("GestaoProjectosUseCase", () => {
+  it("isola projectos, projectos comerciais e filas pelo negocio autenticado", async () => {
+    const projecto = { findFirst: vi.fn().mockResolvedValue(null) };
+    const projetoComercial = { findFirst: vi.fn().mockResolvedValue(null) };
+    const filaProjeto = { findFirst: vi.fn().mockResolvedValue(null) };
+    const useCase = new GestaoProjectosUseCase({ projecto, projetoComercial, filaProjeto } as unknown as PrismaClient);
+
+    await expect(useCase.projectoPertenceAoNegocio("projecto-b", "negocio-a")).resolves.toBe(false);
+    await expect(useCase.projetoComercialPertenceAoNegocio("comercial-b", "negocio-a")).resolves.toBe(false);
+    await expect(useCase.itemFilaPertenceAoNegocio("fila-b", "negocio-a")).resolves.toBe(false);
+
+    expect(projecto.findFirst).toHaveBeenCalledWith(expect.objectContaining({ where: { id: "projecto-b", negocioId: "negocio-a" } }));
+    expect(projetoComercial.findFirst).toHaveBeenCalledWith(expect.objectContaining({ where: { id: "comercial-b", negocioId: "negocio-a" } }));
+    expect(filaProjeto.findFirst).toHaveBeenCalledWith(expect.objectContaining({ where: { id: "fila-b", projetoComercial: { negocioId: "negocio-a" } } }));
+  });
+
   it("RNF-T008: lista 200 projectos activos com filtro indexável e paginação explícita", async () => {
     const projetosActivos = Array.from({ length: 200 }, (_, indice) => ({
       id: `projecto-${indice + 1}`,
@@ -218,6 +233,35 @@ describe("GestaoProjectosUseCase", () => {
         })
       })
     );
+  });
+
+  it("RF-T140-T145: consolida portfólio e regista mudança relevante com evento versionado", async () => {
+    const base = {
+      id: "projecto-1", negocioId: "negocio-1", nome: "Expansão Market", estado: "EM_ANDAMENTO",
+      prioridade: "ALTA", nivelRisco: "ALTO", capacidadeConsumida: 40, roiEsperado: 180_000,
+      stakeholdersJson: '["Dono","Operação"]', criteriosSucessoJson: '["Entregar no prazo"]', dependenciasJson: "[]",
+      riscosJson: '[{"id":"risco-1","estado":"ABERTO"}]', mudancasJson: "[]", eventosJson: "[]",
+      entregas: [{ id: "e-1", estado: "CONCLUIDA" }, { id: "e-2", estado: "PENDENTE" }], membrosProjecto: []
+    };
+    const projecto = {
+      findMany: vi.fn().mockResolvedValue([base]),
+      findFirst: vi.fn().mockResolvedValue(base),
+      update: vi.fn()
+        .mockImplementationOnce(({ data }) => Promise.resolve({ ...base, ...data }))
+        .mockImplementationOnce(({ data }) => Promise.resolve({ ...base, ...data }))
+    };
+    const useCase = new GestaoProjectosUseCase({ projecto } as unknown as PrismaClient);
+
+    const portfolio = await useCase.obterPortfolio("negocio-1", { limite: 200 });
+    expect(portfolio.metricas).toEqual(expect.objectContaining({ total: 1, emRisco: 1, capacidadeConsumida: 40, roiEsperado: 180_000 }));
+    expect(portfolio.itens[0]).toEqual(expect.objectContaining({ progressoPercentual: 50, bloqueios: 1, stakeholders: ["Dono", "Operação"] }));
+
+    const mudanca = await useCase.registarMudancaProjecto("projecto-1", "negocio-1", "actor-1", {
+      motivo: "Risco operacional confirmado", impacto: "Prazo revisto em uma semana", aprovadoPorId: "owner-1",
+      alteracoes: { prioridade: "CRITICA", nivelRisco: "CRITICO" }
+    });
+    expect(mudanca.mudanca).toEqual(expect.objectContaining({ actorId: "actor-1", aprovadoPorId: "owner-1" }));
+    expect(projecto.update).toHaveBeenLastCalledWith(expect.objectContaining({ data: expect.objectContaining({ eventosJson: expect.stringContaining("TEAM_PROJECT_CHANGED") }) }));
   });
 });
 

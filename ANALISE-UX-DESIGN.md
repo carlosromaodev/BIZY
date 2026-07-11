@@ -1,5 +1,7 @@
 # Analise de Estrutura, Design e UX — EMeu
 
+> Documento historico. Os achados foram reconciliados com o codigo atual em `docs/wiki/pages/auditoria-criticas-sistema-bizy.md`.
+
 Data da analise: 2026-05-03
 
 ---

@@ -426,8 +426,27 @@ export const moduloMarket: ModuloHttp = {
         valorEmKwanza: dados.valorEmKwanza ?? null,
         abertoPorId: ctx.usuario.id
       });
+      const repassesRetidos = await contexto.repassesFinanceiros.reterRepassesPedido(
+        ctx.negocio.id,
+        dados.pedidoId,
+        dados.tipo === "CHARGEBACK" ? `CHARGEBACK_${caso.id}` : `DISPUTA_POS_VENDA_${caso.id}`,
+        dados.valorEmKwanza ?? undefined
+      );
+      if (repassesRetidos.length > 0) {
+        await registrarEventoMarket(contexto, ctx.negocio.id, "PAYOUT_RETIDO", "PEDIDO", dados.pedidoId, {
+          casoId: caso.id,
+          pedidoId: dados.pedidoId,
+          tipo: dados.tipo,
+          repasses: repassesRetidos.map((repasse) => ({
+            repasseId: repasse.id,
+            estado: repasse.estado,
+            retencaoEmKwanza: repasse.retencaoEmKwanza,
+            motivoRetencao: repasse.motivoRetencao
+          }))
+        });
+      }
 
-      return reply.code(201).send({ caso, evento });
+      return reply.code(201).send({ caso, evento, repassesRetidos });
     });
 
     registrarLojaOperacional("get", "/trust-safety/fila", async (request, reply) => {
@@ -950,7 +969,7 @@ async function montarContaSeller(contexto: Parameters<ModuloHttp["registrar"]>[1
   return {
     saldos: {
       disponivelEmKwanza: resumo.totalAprovado,
-      retidoEmKwanza: resumo.totalPendente + resumo.totalConciliado,
+      retidoEmKwanza: resumo.totalRetido + resumo.totalPendente + resumo.totalConciliado,
       pagoEmKwanza: resumo.totalPago,
       canceladoEmKwanza: resumo.totalCancelado,
       emDisputaEmKwanza: valorEmDisputa

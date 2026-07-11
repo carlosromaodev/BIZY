@@ -32,6 +32,7 @@ import {
   UserCheck,
   UserPlus,
   UsersRound,
+  WifiOff,
   X
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -58,13 +59,16 @@ import {
   checkoutLearning,
   concluirLicaoLearning,
   criarComunidadeLearningTeam,
+  criarAvaliacaoLearningTeam,
   criarProdutoLearningTeam,
   decidirModeracaoLearning,
   denunciarConteudoLearning,
   emitirCertificadoLearning,
   enviarMensagemChatLearning,
+  exportarAvaliacaoLearning,
   inscreverProgramaLearning,
   listarChatInternoLearning,
+  listarAvaliacoesLearningTeam,
   obterPerfilLearning,
   obterHomeLearning,
   obterResumoLearningTeam,
@@ -72,6 +76,7 @@ import {
   registrarPresencaCohortLearning,
   revogarEntitlementLearning,
   type AcessoComunidadeLearning,
+  type AvaliacaoLearning,
   type AcaoModeracaoLearning,
   type CasoModeracaoLearning,
   type CertificadoLearning,
@@ -110,6 +115,7 @@ export function PaginaLearning() {
   const [formato, setFormato] = useState("");
   const [erro, setErro] = useState("");
   const [carregando, setCarregando] = useState(true);
+  const [lowData, setLowData] = useState(() => typeof window !== "undefined" && window.localStorage.getItem("bizy_learning_low_data") === "1");
 
   useEffect(() => {
     return aplicarSeoMetaTags(montarSeoPublico({
@@ -182,7 +188,7 @@ export function PaginaLearning() {
   const isHome = !categoria && !formato && !busca;
 
   return (
-    <main className="learn-page">
+    <main className={`learn-page ${lowData ? "learn-low-data" : ""}`}>
       <CabecalhoLearningComercial
         busca={busca}
         categoriaSelecionada={categoria}
@@ -192,6 +198,12 @@ export function PaginaLearning() {
         onCategoria={(cat) => { setCategoria(cat); setFormato(""); }}
         onFormato={(fmt) => { setFormato(fmt); setCategoria(""); }}
         onLimpar={() => { setBusca(""); setCategoria(""); setFormato(""); }}
+        lowData={lowData}
+        onLowData={() => {
+          const proximo = !lowData;
+          setLowData(proximo);
+          window.localStorage.setItem("bizy_learning_low_data", proximo ? "1" : "0");
+        }}
       />
 
       {!isHome ? (
@@ -655,6 +667,17 @@ export function PaginaLearningTeam() {
     licaoTitulo: ""
   });
   const [chat, setChat] = useState<ChatInternoLearning | null>(null);
+  const [avaliacoes, setAvaliacoes] = useState<AvaliacaoLearning[]>([]);
+  const [avaliacaoForm, setAvaliacaoForm] = useState({
+    programaSlug: "",
+    titulo: "",
+    pergunta: "",
+    alternativaCorreta: "",
+    alternativaIncorreta: "",
+    pontuacaoMinima: "70",
+    tentativasMaximas: "3"
+  });
+  const [hashExportacaoAvaliacao, setHashExportacaoAvaliacao] = useState("");
   const [chatForm, setChatForm] = useState({
     programaSlug: "",
     tipo: "MENSAGEM" as TipoMensagemChatLearning,
@@ -720,9 +743,17 @@ export function PaginaLearningTeam() {
     setCarregando(true);
     setErro("");
     try {
-      const resumo = await obterResumoLearningTeam();
+      const [resumo, respostaAvaliacoes] = await Promise.all([
+        obterResumoLearningTeam(),
+        listarAvaliacoesLearningTeam()
+      ]);
       setDados(resumo);
       setChat(resumo.chat);
+      setAvaliacoes(respostaAvaliacoes.avaliacoes);
+      setAvaliacaoForm((actual) => ({
+        ...actual,
+        programaSlug: actual.programaSlug || resumo.programas[0]?.slug || ""
+      }));
       setChatForm((actual) => ({
         ...actual,
         programaSlug: actual.programaSlug || resumo.programas[0]?.slug || ""
@@ -801,6 +832,35 @@ export function PaginaLearningTeam() {
     } finally {
       setCriando(false);
     }
+  }
+
+  async function criarAvaliacao(evento: FormEvent<HTMLFormElement>) {
+    evento.preventDefault();
+    if (!avaliacaoForm.programaSlug || !avaliacaoForm.titulo.trim() || !avaliacaoForm.pergunta.trim() || !avaliacaoForm.alternativaCorreta.trim() || !avaliacaoForm.alternativaIncorreta.trim()) return;
+    await executarAcao(`avaliacao-${avaliacaoForm.programaSlug}`, async () => {
+      await criarAvaliacaoLearningTeam(avaliacaoForm.programaSlug, {
+        titulo: avaliacaoForm.titulo.trim(),
+        pontuacaoMinima: Number(avaliacaoForm.pontuacaoMinima),
+        tentativasMaximas: Number(avaliacaoForm.tentativasMaximas),
+        feedback: "APOS_ENVIO",
+        perguntas: [{
+          tipo: "MULTIPLA_ESCOLHA",
+          enunciado: avaliacaoForm.pergunta.trim(),
+          alternativas: [
+            { texto: avaliacaoForm.alternativaCorreta.trim(), correta: true, feedback: "Resposta correta." },
+            { texto: avaliacaoForm.alternativaIncorreta.trim(), correta: false, feedback: "Revê o conteúdo antes de tentar novamente." }
+          ]
+        }]
+      });
+      setAvaliacaoForm((actual) => ({ ...actual, titulo: "", pergunta: "", alternativaCorreta: "", alternativaIncorreta: "" }));
+    });
+  }
+
+  async function exportarAvaliacao(avaliacao: AvaliacaoLearning) {
+    await executarAcao(`exportar-avaliacao-${avaliacao.id}`, async () => {
+      const exportacao = await exportarAvaliacaoLearning(avaliacao.id);
+      setHashExportacaoAvaliacao(exportacao.auditoria.hash);
+    });
   }
 
   async function publicar(programa: ProgramaLearning) {
@@ -1079,6 +1139,57 @@ export function PaginaLearningTeam() {
         <KpiCard icone={UsersRound} cor="blue" rotulo="Inscrições" valor={metricas?.inscritos ?? "-"} />
         <KpiCard icone={CheckCircle2} cor="green" rotulo="Concluídos" valor={metricas?.concluidos ?? "-"} />
       </KpiGrid>
+
+      <PanelCard
+        titulo="Avaliações"
+        descricao="Banco nativo de perguntas, tentativas, pontuação e exportação interoperável."
+      >
+        <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(340px,0.72fr)]">
+          <div className="grid content-start gap-3">
+            {avaliacoes.map((avaliacao) => (
+              <div key={avaliacao.id} className="flex flex-wrap items-center justify-between gap-3 border-b pb-3 last:border-b-0">
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <StatusBadge cor="blue">{avaliacao.perguntas.length} pergunta(s)</StatusBadge>
+                    <PillBizy>{avaliacao.pontuacaoMinima}% para aprovação</PillBizy>
+                    <PillBizy>{avaliacao.tentativasMaximas} tentativa(s)</PillBizy>
+                  </div>
+                  <strong className="mt-2 block text-sm">{avaliacao.titulo}</strong>
+                  <span className="text-xs text-muted-foreground">{programas.find((programa) => programa.slug === avaliacao.programaSlug)?.titulo ?? avaliacao.programaSlug}</span>
+                </div>
+                <BotaoBizy icone={FileText} variante="secondary" onClick={() => void exportarAvaliacao(avaliacao)} disabled={Boolean(acao)}>
+                  Exportar
+                </BotaoBizy>
+              </div>
+            ))}
+            {!avaliacoes.length && <p className="text-sm text-muted-foreground">Nenhuma avaliação criada.</p>}
+            {hashExportacaoAvaliacao && <p className="break-all text-xs text-muted-foreground">Última exportação verificada: {hashExportacaoAvaliacao}</p>}
+          </div>
+
+          <form onSubmit={(evento) => void criarAvaliacao(evento)} className="grid gap-3 border-l-0 xl:border-l xl:pl-5">
+            <strong className="text-sm">Nova avaliação objetiva</strong>
+            <select
+              value={avaliacaoForm.programaSlug}
+              onChange={(evento) => setAvaliacaoForm((actual) => ({ ...actual, programaSlug: evento.target.value }))}
+              className="h-10 rounded-md border bg-background px-3 text-sm"
+              aria-label="Programa da avaliação"
+            >
+              {programas.map((programa) => <option key={programa.slug} value={programa.slug}>{programa.titulo}</option>)}
+            </select>
+            <input value={avaliacaoForm.titulo} onChange={(evento) => setAvaliacaoForm((actual) => ({ ...actual, titulo: evento.target.value }))} className="h-10 rounded-md border bg-background px-3 text-sm" placeholder="Título da avaliação" />
+            <input value={avaliacaoForm.pergunta} onChange={(evento) => setAvaliacaoForm((actual) => ({ ...actual, pergunta: evento.target.value }))} className="h-10 rounded-md border bg-background px-3 text-sm" placeholder="Pergunta" />
+            <div className="grid gap-3 sm:grid-cols-2">
+              <input value={avaliacaoForm.alternativaCorreta} onChange={(evento) => setAvaliacaoForm((actual) => ({ ...actual, alternativaCorreta: evento.target.value }))} className="h-10 rounded-md border bg-background px-3 text-sm" placeholder="Alternativa correta" />
+              <input value={avaliacaoForm.alternativaIncorreta} onChange={(evento) => setAvaliacaoForm((actual) => ({ ...actual, alternativaIncorreta: evento.target.value }))} className="h-10 rounded-md border bg-background px-3 text-sm" placeholder="Alternativa incorreta" />
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <input type="number" min="0" max="100" value={avaliacaoForm.pontuacaoMinima} onChange={(evento) => setAvaliacaoForm((actual) => ({ ...actual, pontuacaoMinima: evento.target.value }))} className="h-10 rounded-md border bg-background px-3 text-sm" aria-label="Pontuação mínima" />
+              <input type="number" min="1" max="20" value={avaliacaoForm.tentativasMaximas} onChange={(evento) => setAvaliacaoForm((actual) => ({ ...actual, tentativasMaximas: evento.target.value }))} className="h-10 rounded-md border bg-background px-3 text-sm" aria-label="Tentativas máximas" />
+            </div>
+            <BotaoBizy icone={Plus} tipo="submit" disabled={Boolean(acao) || carregando}>Criar avaliação</BotaoBizy>
+          </form>
+        </div>
+      </PanelCard>
 
       <PanelCard
         titulo="Chat interno do Learning"
@@ -2362,6 +2473,8 @@ function CabecalhoLearningComercial({
   onCategoria,
   onFormato,
   onLimpar,
+  lowData = false,
+  onLowData = () => undefined,
   placeholder = "Buscar cursos, mentorias e comunidades..."
 }: {
   busca: string;
@@ -2372,6 +2485,8 @@ function CabecalhoLearningComercial({
   onCategoria: (categoria: string) => void;
   onFormato: (formato: string) => void;
   onLimpar: () => void;
+  lowData?: boolean;
+  onLowData?: () => void;
   placeholder?: string;
 }) {
   return (
@@ -2412,6 +2527,9 @@ function CabecalhoLearningComercial({
         </form>
 
         <div className="learn-nav-actions" aria-label="Ações rápidas">
+          <button type="button" className={`learn-nav-link ${lowData ? "active" : ""}`} onClick={onLowData} aria-pressed={lowData} aria-label="Alternar modo de dados reduzidos" title="Dados reduzidos">
+            <WifiOff size={18} />
+          </button>
           <Link to="/market" className="learn-nav-link" aria-label="Ir para o Market">
             <Store size={18} />
             <span>Market</span>

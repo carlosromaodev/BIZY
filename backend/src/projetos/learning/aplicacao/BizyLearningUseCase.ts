@@ -4,6 +4,7 @@ import type { EventoOperacional, NegocioBizy } from "../../../dominio/tipos.js";
 import {
   extrairEventoPublicoLearning,
   montarProdutoPublico,
+  sanitizarProgramaPublico,
   normalizarTipoEventoPublicoLearning,
   resumirEventosPublicosLearning,
   type AnalyticsLearningTeam,
@@ -30,7 +31,7 @@ export type FormatoProgramaLearning =
   | "COHORT";
 export type TipoAcessoLearning = "GRATUITO" | "PAGO" | "PRIVADO" | "CONVITE" | "OBRIGATORIO";
 export type ModeloOfertaLearning = "GRATUITO" | "PAGAMENTO_UNICO" | "ASSINATURA" | "BUNDLE" | "ACESSO_MANUAL";
-export type EstadoCompraLearning = "PENDENTE_VALIDACAO" | "CONFIRMADO" | "CANCELADO" | "REEMBOLSADO";
+export type EstadoCompraLearning = "PENDENTE_VALIDACAO" | "CONFIRMADO" | "PARCIALMENTE_REEMBOLSADO" | "CANCELADO" | "REEMBOLSADO";
 export type EstadoEntitlementLearning = "ATIVO" | "PENDENTE" | "EXPIRADO" | "REVOGADO";
 export type EstadoAtribuicaoLearning = "ATIVA" | "CONCLUIDA" | "ATRASADA" | "REVOGADA";
 export type EstadoCohortLearning = "AGENDADO" | "ABERTO" | "EM_ANDAMENTO" | "CONCLUIDO" | "CANCELADO";
@@ -63,6 +64,42 @@ export interface LicaoLearning {
   tipo: "VIDEO" | "TEXTO" | "CHECKLIST" | "QUIZ" | "LIVE";
   duracaoMinutos: number;
   accaoBizy?: string;
+  assetIds?: string[];
+  conclusao?: "TEMPO" | "CHECKLIST" | "QUIZ" | "PRESENCA" | "TAREFA" | "MANUAL";
+}
+
+export interface AssetLearning {
+  id: string;
+  tipo: "PDF" | "AUDIO" | "VIDEO" | "IMAGEM" | "TEMPLATE" | "PLANILHA" | "ARQUIVO";
+  titulo: string;
+  url: string;
+  mimeType?: string | null;
+  tamanhoBytes?: number | null;
+  premium: boolean;
+  legendaUrl?: string | null;
+  transcricao?: string | null;
+  textoAlternativo?: string | null;
+}
+
+export interface VersaoConteudoLearning {
+  numero: number;
+  releaseNotes: string;
+  publicadaEm: string | null;
+  impacto: "MANTER_VERSAO" | "ATUALIZAR_SEM_INVALIDAR" | "RECERTIFICAR";
+  afectaCertificadosAntigos: boolean;
+}
+
+export interface IntegracaoConteudoLearning {
+  id: string;
+  tipo: "LINK_CONTROLADO" | "LTI_PREPARACAO" | "SCORM_ISOLADO";
+  ownerId: string;
+  escopo: string[];
+  origemUrl?: string | null;
+  pacoteHash?: string | null;
+  retornoProgresso: boolean;
+  revogavel: boolean;
+  estado: "ATIVA" | "REVOGADA";
+  compatibilidadeFormal: false;
 }
 
 export interface ProgramaLearning {
@@ -108,7 +145,14 @@ export interface ProgramaLearning {
     topicos: string[];
   } | null;
   modulosRelacionados: string[];
+  itensBundle: string[];
   licoes: LicaoLearning[];
+  assets: AssetLearning[];
+  owners: Array<{ perfil: string; permissoes: Array<"CONTEUDO" | "COHORT" | "MENTORIA" | "FINANCEIRO" | "SUPORTE"> }>;
+  versaoConteudo: VersaoConteudoLearning;
+  integracoes: IntegracaoConteudoLearning[];
+  mentoria?: { sessoes: number; capacidade: number; regraRemarcacao: string; mentorResponsavel: string } | null;
+  membership?: { periodoDias: number | null; beneficios: string[]; canais: string[]; regras: string; moderadores: string[] } | null;
   origem: "BIZY" | "TEAM";
   criadoPorId?: string | null;
   criadoEm?: string | null;
@@ -167,6 +211,8 @@ export interface CompraLearning {
   ajustadoEm?: string | null;
   ajustadoPorId?: string | null;
   motivoAjuste?: string | null;
+  valorReembolsado?: number;
+  itensReembolsados?: Array<{ referencia: string; valor: number }>;
   criadoEm: string;
 }
 
@@ -223,6 +269,65 @@ export interface EventoExperienciaLearning {
   resultado: Record<string, unknown>;
   contexto: Record<string, unknown>;
   criadoEm: string;
+}
+
+export type TipoPerguntaLearning = "MULTIPLA_ESCOLHA" | "VERDADEIRO_FALSO" | "RESPOSTA_CURTA";
+
+export interface PerguntaAvaliacaoLearning {
+  id: string;
+  tipo: TipoPerguntaLearning;
+  enunciado: string;
+  peso: number;
+  alternativas: Array<{ id: string; texto: string; correta: boolean; feedback?: string | null }>;
+  rubrica?: string | null;
+}
+
+export interface AvaliacaoLearning {
+  id: string;
+  programaSlug: string;
+  titulo: string;
+  descricao?: string | null;
+  pontuacaoMinima: number;
+  tentativasMaximas: number;
+  feedback: "IMEDIATO" | "APOS_ENVIO" | "MANUAL";
+  perguntas: PerguntaAvaliacaoLearning[];
+  criadoPorId: string;
+  criadoEm: string;
+  atualizadoEm: string;
+}
+
+export interface TentativaAvaliacaoLearning {
+  id: string;
+  avaliacaoId: string;
+  programaSlug: string;
+  usuarioId: string;
+  numeroTentativa: number;
+  respostas: Array<{ perguntaId: string; alternativaIds: string[]; texto?: string | null }>;
+  pontuacaoPercentual: number | null;
+  aprovado: boolean | null;
+  estado: "CORRIGIDA" | "PENDENTE_REVISAO";
+  feedback: Array<{ perguntaId: string; correto: boolean | null; mensagem: string }>;
+  submetidoEm: string;
+}
+
+export interface CriarAvaliacaoLearningInput {
+  titulo: string;
+  descricao?: string | null;
+  pontuacaoMinima?: number;
+  tentativasMaximas?: number;
+  feedback?: AvaliacaoLearning["feedback"];
+  perguntas: Array<{
+    tipo: TipoPerguntaLearning;
+    enunciado: string;
+    peso?: number;
+    alternativas?: Array<{ texto: string; correta?: boolean; feedback?: string | null }>;
+    rubrica?: string | null;
+  }>;
+}
+
+export interface SubmeterTentativaAvaliacaoLearningInput {
+  respostas: Array<{ perguntaId: string; alternativaIds?: string[]; texto?: string | null }>;
+  idempotencyKey?: string | null;
 }
 
 export interface RegistrarExperienciaLearningInput {
@@ -429,12 +534,61 @@ export interface CriarProgramaLearningInput {
   oferta?: Partial<OfertaLearning>;
   politicaAcesso?: Partial<ProgramaLearning["politicaAcesso"]>;
   modulosRelacionados?: string[];
+  itensBundle?: string[];
+  assets?: AssetLearning[];
+  owners?: ProgramaLearning["owners"];
+  versaoConteudo?: Partial<VersaoConteudoLearning>;
+  integracoes?: IntegracaoConteudoLearning[];
+  mentoria?: ProgramaLearning["mentoria"];
+  membership?: ProgramaLearning["membership"];
   licoes?: Array<{
     titulo: string;
     tipo?: LicaoLearning["tipo"];
     duracaoMinutos?: number;
     accaoBizy?: string;
+    assetIds?: string[];
+    conclusao?: LicaoLearning["conclusao"];
   }>;
+}
+
+export interface TarefaLearning {
+  id: string;
+  programaSlug: string;
+  titulo: string;
+  instrucoes: string;
+  prazoAte?: string | null;
+  rubrica: string[];
+  criadoPorId: string;
+  criadoEm: string;
+}
+
+export interface SubmissaoTarefaLearning {
+  id: string;
+  tarefaId: string;
+  programaSlug: string;
+  usuarioId: string;
+  conteudo: string;
+  anexos: string[];
+  estado: "SUBMETIDA" | "APROVADA" | "REVISAO_NECESSARIA";
+  nota?: number | null;
+  feedback?: string | null;
+  avaliadoPorId?: string | null;
+  submetidoEm: string;
+  avaliadoEm?: string | null;
+}
+
+export interface SessaoMentoriaLearning {
+  id: string;
+  programaSlug: string;
+  mentorId: string;
+  formandoId: string;
+  inicioEm: string;
+  fimEm: string;
+  estado: "AGENDADA" | "REALIZADA" | "REMARCADA" | "CANCELADA";
+  notas?: string | null;
+  tarefas: string[];
+  followUp?: string | null;
+  criadoEm: string;
 }
 
 export interface CheckoutLearningInput {
@@ -450,9 +604,11 @@ export interface CheckoutLearningInput {
 }
 
 export interface AjustarCompraLearningInput {
-  estado: Extract<EstadoCompraLearning, "CANCELADO" | "REEMBOLSADO">;
+  estado: Extract<EstadoCompraLearning, "CANCELADO" | "REEMBOLSADO" | "PARCIALMENTE_REEMBOLSADO">;
   motivo?: string;
   revogarAcesso?: boolean;
+  valorReembolso?: number;
+  itensReembolsados?: Array<{ referencia: string; valor: number }>;
 }
 
 export interface EnviarMensagemChatLearningInput {
@@ -670,10 +826,10 @@ const PROGRAMAS_BASE: ProgramaLearning[] = [
 
 type ProgramaLearningSeed = Omit<
   ProgramaLearning,
-  "familiaProduto" | "tipoAcesso" | "oferta" | "previewSeguro" | "conteudoMinimoPublicado" | "certificadoConfigurado" | "politicaAcesso"
+  "familiaProduto" | "tipoAcesso" | "oferta" | "previewSeguro" | "conteudoMinimoPublicado" | "certificadoConfigurado" | "politicaAcesso" | "assets" | "owners" | "versaoConteudo" | "integracoes" | "mentoria" | "membership" | "itensBundle"
 > & Partial<Pick<
   ProgramaLearning,
-  "familiaProduto" | "tipoAcesso" | "oferta" | "previewSeguro" | "conteudoMinimoPublicado" | "certificadoConfigurado" | "politicaAcesso"
+  "familiaProduto" | "tipoAcesso" | "oferta" | "previewSeguro" | "conteudoMinimoPublicado" | "certificadoConfigurado" | "politicaAcesso" | "assets" | "owners" | "versaoConteudo" | "integracoes" | "mentoria" | "membership" | "itensBundle"
 >>;
 
 function programaBase(dados: ProgramaLearningSeed): ProgramaLearning {
@@ -682,6 +838,13 @@ function programaBase(dados: ProgramaLearningSeed): ProgramaLearning {
     ...dados,
     familiaProduto: dados.familiaProduto ?? inferirFamiliaProduto(dados.formato),
     tipoAcesso,
+    itensBundle: dados.itensBundle ?? [],
+    assets: dados.assets ?? [],
+    owners: dados.owners ?? [{ perfil: dados.ownerPerfil, permissoes: ["CONTEUDO", "COHORT", "MENTORIA", "FINANCEIRO", "SUPORTE"] }],
+    versaoConteudo: dados.versaoConteudo ?? { numero: 1, releaseNotes: "Versão inicial", publicadaEm: dados.estado === "PUBLICADO" ? dados.criadoEm ?? null : null, impacto: "ATUALIZAR_SEM_INVALIDAR", afectaCertificadosAntigos: false },
+    integracoes: dados.integracoes ?? [],
+    mentoria: dados.mentoria ?? (dados.formato === "MENTORIA" ? { sessoes: 1, capacidade: 1, regraRemarcacao: "Remarcação com 24 horas de antecedência.", mentorResponsavel: dados.mentorNome ?? dados.ownerPerfil } : null),
+    membership: dados.membership ?? (["MEMBERSHIP", "COMUNIDADE"].includes(dados.formato) ? { periodoDias: null, beneficios: [], canais: ["COMUNIDADE"], regras: "Participação sujeita à política da comunidade.", moderadores: [dados.ownerPerfil] } : null),
     oferta: normalizarOferta(dados.oferta, tipoAcesso),
     previewSeguro: dados.previewSeguro ?? {
       resumo: dados.subtitulo,
@@ -748,6 +911,8 @@ export class BizyLearningUseCase {
       ...programasBase,
       ...perfisPublicos.flatMap((perfil) => perfil.programas)
     ]);
+    const programasSeguros = programas.map(sanitizarProgramaPublico);
+    const perfisPublicosSeguros = perfisPublicos.map((perfil) => ({ ...perfil, programas: perfil.programas.map(sanitizarProgramaPublico) }));
     return {
       produto: "Bizy Learning",
       tese: "Plataforma de produtos digitais, formacao, comunidade e monetizacao de conhecimento do ecossistema Bizy.",
@@ -763,9 +928,9 @@ export class BizyLearningUseCase {
         receitaPotencial: programas.reduce((total, programa) => total + valorOferta(programa), 0)
       },
       perfis: PERFIS_LEARNING,
-      perfisPublicos,
-      destaques: programas.filter((programa) => programa.destaque),
-      programas,
+      perfisPublicos: perfisPublicosSeguros,
+      destaques: programasSeguros.filter((programa) => programa.destaque),
+      programas: programasSeguros,
       categorias: [...new Set(programas.map((programa) => programa.categoria))],
       familias: [...new Set(programas.map((programa) => programa.familiaProduto))]
     };
@@ -775,6 +940,70 @@ export class BizyLearningUseCase {
     const programa = (await this.obterHomePublica()).programas.find((item) => item.slug === slug);
     if (!programa) throw new Error("Programa Learning não encontrado ou não publicado.");
     return { programa };
+  }
+
+  async buscarProdutosPublicos(filtros: { busca?: string; categoria?: string; formato?: FormatoProgramaLearning; nivel?: NivelLearning; certificado?: boolean; gratuito?: boolean; limite?: number; offset?: number }) {
+    const home = await this.obterHomePublica();
+    const texto = filtros.busca?.trim().toLowerCase();
+    const todos = home.programas.filter((programa) => {
+      if (texto && ![programa.titulo, programa.descricao, programa.categoria, programa.mentorNome, programa.familiaProduto, ...programa.perfisAlvo].join(" ").toLowerCase().includes(texto)) return false;
+      if (filtros.categoria && programa.categoria.toLowerCase() !== filtros.categoria.toLowerCase()) return false;
+      if (filtros.formato && programa.formato !== filtros.formato) return false;
+      if (filtros.nivel && programa.nivel !== filtros.nivel) return false;
+      if (filtros.certificado === true && !programa.certificadoConfigurado) return false;
+      if (filtros.gratuito === true && programa.tipoAcesso === "PAGO") return false;
+      return true;
+    });
+    const limite = Math.max(1, Math.min(100, filtros.limite ?? 24));
+    const offset = Math.max(0, filtros.offset ?? 0);
+    return { produtos: todos.slice(offset, offset + limite), total: todos.length, paginacao: { limite, offset, temMais: offset + limite < todos.length } };
+  }
+
+  async recomendarProdutos(negocioId: string, perfil: string, limite = 12) {
+    const [home, eventos] = await Promise.all([
+      this.obterHomePublica(),
+      this.eventosOperacionais.listar(negocioId, { topico: TOPICO_LEARNING, limite: 1000 })
+    ]);
+    const compras = eventos.filter((evento) => evento.tipo === "LEARNING_COMPRA_DIGITAL_CRIADA").map(extrairCompra).filter((item): item is CompraLearning => Boolean(item));
+    const experiencia = eventos.filter((evento) => evento.tipo === "LEARNING_EXPERIENCIA_REGISTADA").map(extrairExperiencia).filter((item): item is EventoExperienciaLearning => Boolean(item));
+    const itens = home.programas.map((programa) => {
+      const factores = {
+        perfil: programa.perfisAlvo.includes(perfil.toUpperCase()) ? 35 : 0,
+        objectivoOperacional: programa.modulosRelacionados.some((modulo) => perfil.toLowerCase().includes(modulo.toLowerCase())) ? 15 : 0,
+        procuraConfirmada: Math.min(20, compras.filter((compra) => compra.programaSlug === programa.slug && compra.estado === "CONFIRMADO").length * 5),
+        progressoRelacionado: Math.min(15, experiencia.filter((evento) => evento.programaSlug === programa.slug).length * 2),
+        destaque: programa.destaque ? 10 : 0
+      };
+      return { programa, score: Object.values(factores).reduce((total, valor) => total + valor, 0), factores, explicacao: "Recomendação operacional; não matricula, cobra, certifica ou revoga acesso." };
+    });
+    return { recomendacoes: itens.sort((a, b) => b.score - a.score).slice(0, Math.max(1, Math.min(50, limite))), politica: "learning.recommendation.v1", acaoAutomatica: false };
+  }
+
+  async obterGovernancaLearning(negocioId: string) {
+    const eventos = await this.eventosOperacionais.listar(negocioId, { topico: TOPICO_LEARNING, tipo: "LEARNING_GOVERNANCA_ATUALIZADA", limite: 100 });
+    const configuracao = eventos.map((evento) => evento.payload.configuracao as Record<string, unknown> | undefined).find(Boolean) ?? {};
+    return {
+      configuracao: {
+        categorias: configuracao.categorias ?? ["Team", "Market", "Atendimento", "Financas", "Afiliados", "Criadores"],
+        politicaPublicacao: configuracao.politicaPublicacao ?? "Owner, conteúdo mínimo, acesso/preço, revisão e auditoria.",
+        idadeMinima: configuracao.idadeMinima ?? 16,
+        conteudoSensivel: configuracao.conteudoSensivel ?? "Revisão humana e ocultação temporária quando houver risco.",
+        propriedadeIntelectual: configuracao.propriedadeIntelectual ?? "Owner responsável e aceite de política obrigatórios.",
+        gamificacaoComparativa: configuracao.gamificacaoComparativa ?? "OPT_IN"
+      },
+      seguranca: { tenant: "negocioId", acesso: ["entitlement", "papel", "permissão"], cachePrivado: "no-store", minimizacao: true },
+      relatorios: { estados: ["CONFIRMADO", "ESTIMADO", "INCOMPLETO", "ANONIMIZADO"], benchmarking: "somente agregado, anonimizado e conforme consentimento" },
+      interoperabilidade: { nativo: "event store LRS-like", referencias: ["xAPI", "cmi5", "LTI", "Open Badges", "QTI", "SCORM"], compatibilidadeFormalDeclarada: false },
+      automacao: { policy: "learning.automation.v1", motivoObrigatorio: true, confiancaIaQuandoAplicavel: true, fallbackHumano: true, decisoesSensiveisAutomaticas: false },
+      acessibilidade: { baseline: "WCAG AA", teclado: true, captionsTranscricao: true, alternativaTextual: true },
+      atualizadoEm: new Date().toISOString()
+    };
+  }
+
+  async atualizarGovernancaLearning(negocioId: string, usuarioId: string, configuracao: Record<string, unknown>, motivo: string) {
+    const atualizadoEm = new Date().toISOString();
+    await this.eventosOperacionais.registrar({ negocioId, topico: TOPICO_LEARNING, tipo: "LEARNING_GOVERNANCA_ATUALIZADA", entidadeTipo: "learning_governance", entidadeId: negocioId, idempotencyKey: `learning:governanca:${negocioId}:${atualizadoEm}`, payload: { configuracao, motivo, usuarioId, atualizadoEm, policy: "alteração administrativa auditada" }, estado: "PROCESSADO" });
+    return this.obterGovernancaLearning(negocioId);
   }
 
   async obterProdutoPublico(slug: string) {
@@ -952,6 +1181,19 @@ export class BizyLearningUseCase {
       cohort: dados.formato === "COHORT" ? { titulo: `Cohort ${dados.titulo.trim()}`, inicio: null, vagas: null } : null,
       comunidade: { titulo: `Comunidade ${dados.titulo.trim()}`, membrosEstimados: 0, topicos: dados.modulosRelacionados ?? [] },
       modulosRelacionados: normalizarLista(dados.modulosRelacionados, ["team-core"]),
+      itensBundle: normalizarLista(dados.itensBundle, []),
+      assets: dados.assets ?? [],
+      owners: dados.owners,
+      versaoConteudo: {
+        numero: dados.versaoConteudo?.numero ?? 1,
+        releaseNotes: dados.versaoConteudo?.releaseNotes ?? "Versão inicial",
+        publicadaEm: dados.versaoConteudo?.publicadaEm ?? null,
+        impacto: dados.versaoConteudo?.impacto ?? "ATUALIZAR_SEM_INVALIDAR",
+        afectaCertificadosAntigos: dados.versaoConteudo?.afectaCertificadosAntigos ?? false
+      },
+      integracoes: dados.integracoes ?? [],
+      mentoria: dados.mentoria,
+      membership: dados.membership,
       licoes: normalizarLicoes(slug, dados.licoes),
       origem: "TEAM",
       criadoPorId: usuarioId,
@@ -1451,12 +1693,56 @@ export class BizyLearningUseCase {
       });
     }
 
+    if (valor > 0 && programa.origem === "TEAM") {
+      const payout = {
+        id: randomUUID(),
+        compraId,
+        programaSlug: programa.slug,
+        ownerPerfil: programa.ownerPerfil,
+        valorBruto: valor,
+        taxaBizy: Math.round(valor * 0.1),
+        reembolso: 0,
+        valorLiquido: Math.round(valor * 0.9),
+        estado: "RETIDO",
+        retidoAte: adicionarDias(criadoEm, 7),
+        politica: "learning.payout.v1",
+        criadoEm
+      };
+      await this.eventosOperacionais.registrar({
+        negocioId, topico: TOPICO_LEARNING, tipo: "LEARNING_PAYOUT_PRODUTOR_CRIADO",
+        entidadeTipo: "learning_payout", entidadeId: payout.id,
+        idempotencyKey: `learning:payout:${compraId}`, payload: { payout, policy: "compra confirmada, janela de reembolso e ausência de disputa" }, estado: "PROCESSADO"
+      });
+      if (dados.cupao) {
+        const comissao = {
+          id: randomUUID(), compraId, programaSlug: programa.slug, codigo: dados.cupao.trim().toUpperCase(),
+          valorElegivel: valor, valorComissao: Math.round(valor * 0.05), estado: "RETIDA", liberarEm: adicionarDias(criadoEm, 7), criadoEm
+        };
+        await this.eventosOperacionais.registrar({
+          negocioId, topico: TOPICO_LEARNING, tipo: "LEARNING_COMISSAO_AFILIADO_CRIADA",
+          entidadeTipo: "learning_affiliate_commission", entidadeId: comissao.id,
+          idempotencyKey: `learning:affiliate:${compraId}:${comissao.codigo}`, payload: { comissao, policy: "pagamento confirmado e fora da janela de anulação" }, estado: "PROCESSADO"
+        });
+      }
+    }
+
     const entitlement = await this.registrarEntitlement(negocioId, usuarioId, programa, "CHECKOUT", compraId);
     await this.registrarInscricao(negocioId, usuarioId, programa.slug, "CHECKOUT");
+    const entitlementsBundle: EntitlementLearning[] = [];
+    if (programa.formato === "BUNDLE" && programa.itensBundle.length > 0) {
+      const programas = await this.listarProgramasDoNegocio(negocioId);
+      for (const slugItem of programa.itensBundle) {
+        const item = programas.find((candidato) => candidato.slug === slugItem && candidato.estado === "PUBLICADO");
+        if (!item) continue;
+        entitlementsBundle.push(await this.registrarEntitlement(negocioId, usuarioId, item, "CHECKOUT", `${compraId}:${item.slug}`));
+        await this.registrarInscricao(negocioId, usuarioId, item.slug, "BUNDLE");
+      }
+    }
     return {
       compra: { ...compraPersistida, entitlementId: entitlement.id },
       duplicado,
-      entitlement
+      entitlement,
+      entitlementsBundle
     };
   }
 
@@ -1478,7 +1764,9 @@ export class BizyLearningUseCase {
       estado: dados.estado,
       ajustadoEm,
       ajustadoPorId: usuarioId,
-      motivoAjuste: dados.motivo?.trim() || (dados.estado === "REEMBOLSADO" ? "Reembolso registado pelo Team." : "Cancelamento registado pelo Team.")
+      motivoAjuste: dados.motivo?.trim() || (dados.estado === "REEMBOLSADO" ? "Reembolso registado pelo Team." : dados.estado === "PARCIALMENTE_REEMBOLSADO" ? "Reembolso parcial registado pelo Team." : "Cancelamento registado pelo Team."),
+      valorReembolsado: dados.estado === "REEMBOLSADO" ? compra.valor : Math.min(compra.valor, Math.max(0, dados.valorReembolso ?? 0)),
+      itensReembolsados: dados.itensReembolsados ?? []
     };
 
     const { evento, duplicado } = await this.eventosOperacionais.registrar({
@@ -1492,8 +1780,16 @@ export class BizyLearningUseCase {
       estado: "PROCESSADO"
     });
 
+    await this.eventosOperacionais.registrar({
+      negocioId, topico: TOPICO_LEARNING, tipo: "LEARNING_PAYOUT_PRODUTOR_AJUSTADO",
+      entidadeTipo: "learning_payout", entidadeId: compra.id,
+      idempotencyKey: `learning:payout:${compra.id}:ajuste:${compraAjustada.estado}`,
+      payload: { compraId: compra.id, programaSlug: compra.programaSlug, estado: "CANCELADO", motivo: compraAjustada.motivoAjuste, usuarioId, policy: "refund/cancelamento bloqueia payout" },
+      estado: "PROCESSADO"
+    });
+
     const entitlementsRevogados: EntitlementLearning[] = [];
-    if (dados.revogarAcesso !== false) {
+    if (dados.revogarAcesso === true || (dados.revogarAcesso !== false && dados.estado !== "PARCIALMENTE_REEMBOLSADO")) {
       const entitlements = await this.listarEntitlements(negocioId);
       const relacionados = entitlements.filter((entitlement) =>
         entitlement.estado === "ATIVO" &&
@@ -1594,6 +1890,237 @@ export class BizyLearningUseCase {
       .filter((experiencia) => !programaSlug || experiencia.programaSlug === programaSlug)
       .sort((a, b) => b.criadoEm.localeCompare(a.criadoEm))
       .slice(0, limite);
+  }
+
+  async criarAvaliacao(
+    negocioId: string,
+    criadoPorId: string,
+    programaSlug: string,
+    dados: CriarAvaliacaoLearningInput
+  ) {
+    const slug = slugify(programaSlug);
+    const programa = (await this.listarProgramasDoNegocio(negocioId)).find((item) => item.slug === slug);
+    if (!programa) throw new Error("Programa Learning não encontrado.");
+
+    const criadoEm = new Date().toISOString();
+    const perguntas = dados.perguntas.map((pergunta) => {
+      const alternativas = (pergunta.alternativas ?? []).map((alternativa) => ({
+        id: randomUUID(),
+        texto: alternativa.texto.trim(),
+        correta: alternativa.correta === true,
+        feedback: alternativa.feedback?.trim() || null
+      }));
+      if (pergunta.tipo !== "RESPOSTA_CURTA") {
+        if (alternativas.length < 2 || !alternativas.some((alternativa) => alternativa.correta)) {
+          throw new Error("Perguntas objetivas exigem pelo menos duas alternativas e uma resposta correta.");
+        }
+      }
+      return {
+        id: randomUUID(),
+        tipo: pergunta.tipo,
+        enunciado: pergunta.enunciado.trim(),
+        peso: Math.max(1, pergunta.peso ?? 1),
+        alternativas,
+        rubrica: pergunta.rubrica?.trim() || null
+      } satisfies PerguntaAvaliacaoLearning;
+    });
+    const avaliacao: AvaliacaoLearning = {
+      id: randomUUID(),
+      programaSlug: slug,
+      titulo: dados.titulo.trim(),
+      descricao: dados.descricao?.trim() || null,
+      pontuacaoMinima: Math.min(100, Math.max(0, dados.pontuacaoMinima ?? 70)),
+      tentativasMaximas: Math.max(1, dados.tentativasMaximas ?? 3),
+      feedback: dados.feedback ?? "APOS_ENVIO",
+      perguntas,
+      criadoPorId,
+      criadoEm,
+      atualizadoEm: criadoEm
+    };
+    const { evento, duplicado } = await this.eventosOperacionais.registrar({
+      negocioId,
+      topico: TOPICO_LEARNING,
+      tipo: "LEARNING_AVALIACAO_CRIADA",
+      entidadeTipo: "learning_assessment",
+      entidadeId: avaliacao.id,
+      idempotencyKey: `learning:avaliacao:${avaliacao.id}`,
+      payloadVersion: "learning-assessment.v1",
+      payload: { avaliacao, programaResumo: resumoFinanceiroPrograma(programa) },
+      estado: "PROCESSADO"
+    });
+    return { avaliacao: extrairAvaliacao(evento) ?? avaliacao, duplicado };
+  }
+
+  async listarAvaliacoes(negocioId: string, programaSlug?: string | null): Promise<AvaliacaoLearning[]> {
+    const slug = programaSlug ? slugify(programaSlug) : null;
+    const eventos = await this.eventosOperacionais.listar(negocioId, {
+      topico: TOPICO_LEARNING,
+      tipo: "LEARNING_AVALIACAO_CRIADA",
+      limite: 1000
+    });
+    return eventos
+      .map(extrairAvaliacao)
+      .filter((avaliacao): avaliacao is AvaliacaoLearning => Boolean(avaliacao))
+      .filter((avaliacao) => !slug || avaliacao.programaSlug === slug)
+      .sort((a, b) => b.criadoEm.localeCompare(a.criadoEm));
+  }
+
+  async obterAvaliacaoPlayer(negocioId: string, usuarioId: string, avaliacaoId: string) {
+    const avaliacao = (await this.listarAvaliacoes(negocioId)).find((item) => item.id === avaliacaoId);
+    if (!avaliacao) throw new Error("Avaliação Learning não encontrada.");
+    const programa = (await this.listarProgramasDoNegocio(negocioId)).find((item) => item.slug === avaliacao.programaSlug);
+    if (!programa) throw new Error("Programa da avaliação não encontrado.");
+    await this.garantirAcessoLearning(negocioId, usuarioId, programa);
+    const tentativas = (await this.listarTentativasAvaliacao(negocioId, avaliacao.id, usuarioId)).length;
+    return {
+      avaliacao: {
+        id: avaliacao.id,
+        programaSlug: avaliacao.programaSlug,
+        titulo: avaliacao.titulo,
+        descricao: avaliacao.descricao ?? null,
+        pontuacaoMinima: avaliacao.pontuacaoMinima,
+        tentativasMaximas: avaliacao.tentativasMaximas,
+        feedback: avaliacao.feedback,
+        perguntas: avaliacao.perguntas.map((pergunta) => ({
+          id: pergunta.id,
+          tipo: pergunta.tipo,
+          enunciado: pergunta.enunciado,
+          peso: pergunta.peso,
+          alternativas: pergunta.alternativas.map(({ id, texto }) => ({ id, texto }))
+        }))
+      },
+      tentativasRealizadas: tentativas,
+      tentativasRestantes: Math.max(0, avaliacao.tentativasMaximas - tentativas)
+    };
+  }
+
+  async submeterTentativaAvaliacao(
+    negocioId: string,
+    usuarioId: string,
+    avaliacaoId: string,
+    dados: SubmeterTentativaAvaliacaoLearningInput
+  ) {
+    const avaliacao = (await this.listarAvaliacoes(negocioId)).find((item) => item.id === avaliacaoId);
+    if (!avaliacao) throw new Error("Avaliação Learning não encontrada.");
+    const programa = (await this.listarProgramasDoNegocio(negocioId)).find((item) => item.slug === avaliacao.programaSlug);
+    if (!programa) throw new Error("Programa da avaliação não encontrado.");
+    await this.garantirAcessoLearning(negocioId, usuarioId, programa);
+
+    const anteriores = await this.listarTentativasAvaliacao(negocioId, avaliacao.id, usuarioId);
+    if (anteriores.length >= avaliacao.tentativasMaximas) throw new Error("Limite de tentativas desta avaliação atingido.");
+    const respostas = avaliacao.perguntas.map((pergunta) => {
+      const recebida = dados.respostas.find((resposta) => resposta.perguntaId === pergunta.id);
+      return {
+        perguntaId: pergunta.id,
+        alternativaIds: [...new Set(recebida?.alternativaIds ?? [])],
+        texto: recebida?.texto?.trim() || null
+      };
+    });
+    const temRevisaoManual = avaliacao.perguntas.some((pergunta) => pergunta.tipo === "RESPOSTA_CURTA");
+    let pontosObtidos = 0;
+    let pontosPossiveis = 0;
+    const feedback = avaliacao.perguntas.map((pergunta) => {
+      const resposta = respostas.find((item) => item.perguntaId === pergunta.id)!;
+      if (pergunta.tipo === "RESPOSTA_CURTA") {
+        return { perguntaId: pergunta.id, correto: null, mensagem: "Resposta enviada para revisão do mentor." };
+      }
+      pontosPossiveis += pergunta.peso;
+      const corretas = pergunta.alternativas.filter((item) => item.correta).map((item) => item.id).sort();
+      const recebidas = [...resposta.alternativaIds].sort();
+      const correto = corretas.length === recebidas.length && corretas.every((id, indice) => id === recebidas[indice]);
+      if (correto) pontosObtidos += pergunta.peso;
+      const alternativa = pergunta.alternativas.find((item) => recebidas.includes(item.id));
+      return { perguntaId: pergunta.id, correto, mensagem: alternativa?.feedback || (correto ? "Resposta correta." : "Resposta incorreta.") };
+    });
+    const pontuacaoPercentual = temRevisaoManual ? null : Math.round((pontosObtidos / Math.max(1, pontosPossiveis)) * 100);
+    const tentativa: TentativaAvaliacaoLearning = {
+      id: randomUUID(),
+      avaliacaoId: avaliacao.id,
+      programaSlug: avaliacao.programaSlug,
+      usuarioId,
+      numeroTentativa: anteriores.length + 1,
+      respostas,
+      pontuacaoPercentual,
+      aprovado: pontuacaoPercentual === null ? null : pontuacaoPercentual >= avaliacao.pontuacaoMinima,
+      estado: temRevisaoManual ? "PENDENTE_REVISAO" : "CORRIGIDA",
+      feedback,
+      submetidoEm: new Date().toISOString()
+    };
+    const { evento, duplicado } = await this.eventosOperacionais.registrar({
+      negocioId,
+      topico: TOPICO_LEARNING,
+      tipo: "LEARNING_AVALIACAO_TENTATIVA_SUBMETIDA",
+      entidadeTipo: "learning_assessment_attempt",
+      entidadeId: tentativa.id,
+      idempotencyKey: dados.idempotencyKey?.trim() || `learning:avaliacao:${avaliacao.id}:${usuarioId}:${tentativa.numeroTentativa}`,
+      payloadVersion: "learning-assessment-attempt.v1",
+      payload: { tentativa },
+      estado: "PROCESSADO"
+    });
+    const resultado = extrairTentativaAvaliacao(evento) ?? tentativa;
+    await this.registrarExperiencia(negocioId, usuarioId, {
+      programaSlug: avaliacao.programaSlug,
+      verbo: resultado.aprovado === true ? "PASSED" : resultado.aprovado === false ? "FAILED" : "EXPERIENCED",
+      objetoTipo: "QUIZ",
+      objetoId: avaliacao.id,
+      origem: "PLAYER",
+      resultado: { tentativaId: resultado.id, pontuacaoPercentual: resultado.pontuacaoPercentual, estado: resultado.estado },
+      idempotencyKey: `learning:avaliacao:experiencia:${resultado.id}`
+    });
+    return { tentativa: resultado, duplicado };
+  }
+
+  async listarTentativasAvaliacao(negocioId: string, avaliacaoId: string, usuarioId?: string | null) {
+    const eventos = await this.eventosOperacionais.listar(negocioId, {
+      topico: TOPICO_LEARNING,
+      tipo: "LEARNING_AVALIACAO_TENTATIVA_SUBMETIDA",
+      limite: 1000
+    });
+    return eventos
+      .map(extrairTentativaAvaliacao)
+      .filter((tentativa): tentativa is TentativaAvaliacaoLearning => Boolean(tentativa))
+      .filter((tentativa) => tentativa.avaliacaoId === avaliacaoId && (!usuarioId || tentativa.usuarioId === usuarioId))
+      .sort((a, b) => b.submetidoEm.localeCompare(a.submetidoEm));
+  }
+
+  async exportarAvaliacao(negocioId: string, avaliacaoId: string) {
+    const avaliacao = (await this.listarAvaliacoes(negocioId)).find((item) => item.id === avaliacaoId);
+    if (!avaliacao) throw new Error("Avaliação Learning não encontrada.");
+    const tentativas = await this.listarTentativasAvaliacao(negocioId, avaliacao.id);
+    const exportacao = {
+      formato: "bizy.learning.assessment.export.v1",
+      avaliacao,
+      interoperabilidade: {
+        formato: "qti-lite.v1",
+        assessmentTest: {
+          identifier: avaliacao.id,
+          title: avaliacao.titulo,
+          outcomeDeclaration: { identifier: "SCORE", masteryValue: avaliacao.pontuacaoMinima },
+          assessmentItems: avaliacao.perguntas.map((pergunta) => ({
+            identifier: pergunta.id,
+            type: pergunta.tipo,
+            prompt: pergunta.enunciado,
+            weight: pergunta.peso,
+            choices: pergunta.alternativas.map((item) => ({ identifier: item.id, text: item.texto, correct: item.correta })),
+            rubricBlock: pergunta.rubrica ?? null
+          }))
+        }
+      },
+      reprocessamento: {
+        tentativas: tentativas.length,
+        ids: tentativas.map((tentativa) => tentativa.id),
+        preservaRespostasOriginais: true
+      }
+    };
+    return {
+      ...exportacao,
+      auditoria: {
+        algoritmo: "sha256",
+        hash: createHash("sha256").update(JSON.stringify(exportacao)).digest("hex"),
+        preservaEventoOriginal: true,
+        exportadoEm: new Date().toISOString()
+      }
+    };
   }
 
   async emitirCertificado(negocioId: string, usuarioId: string, programaSlug: string) {
@@ -1799,8 +2326,8 @@ export class BizyLearningUseCase {
 
   async listarChatInterno(
     negocioId: string,
-    _usuarioId: string,
-    _papel: string,
+    usuarioId: string,
+    papel: string,
     programaSlug?: string
   ): Promise<ChatInternoLearning> {
     const programas = await this.listarProgramasDoNegocio(negocioId);
@@ -1812,10 +2339,12 @@ export class BizyLearningUseCase {
       tipo: "LEARNING_CHAT_MENSAGEM_ENVIADA",
       limite: 1000
     });
+    const podeVerOperacao = ["DONO", "ADMIN", "GESTOR", "CRIADOR"].includes(papel.toUpperCase());
     const mensagens = eventos
       .map(extrairMensagemChat)
       .filter((mensagem): mensagem is MensagemChatLearning => Boolean(mensagem))
-      .filter((mensagem) => !programaSlug || mensagem.programaSlug === programaSlug);
+      .filter((mensagem) => !programaSlug || mensagem.programaSlug === programaSlug)
+      .filter((mensagem) => podeVerOperacao || mensagem.autorId === usuarioId || mensagem.mencoes.includes(usuarioId) || mensagem.mencoes.includes(papel.toUpperCase()));
     const mensagensPorThread = new Map<string, MensagemChatLearning[]>();
 
     for (const mensagem of mensagens) {
@@ -1872,6 +2401,10 @@ export class BizyLearningUseCase {
     const programa = programas.find((item) => item.slug === dados.programaSlug);
     if (!programa) throw new Error("Programa Learning não encontrado para mensagem interna.");
     const contexto = normalizarContextoChat(dados.contexto);
+    const podeOperar = ["DONO", "ADMIN", "GESTOR", "CRIADOR"].includes(autorPapel.toUpperCase());
+    if (!podeOperar && (contexto !== "SUPORTE" || !["MENSAGEM", "SUPORTE"].includes(normalizarTipoMensagemChat(dados.tipo)))) {
+      throw new Error("Este papel pode usar apenas a thread de suporte Learning.");
+    }
     const mensagem: MensagemChatLearning = {
       id: randomUUID(),
       threadId: threadIdLearning(programa.slug, contexto),
@@ -2232,6 +2765,195 @@ export class BizyLearningUseCase {
     });
   }
 
+  // Conteúdo versionado, assignments, mentoria e operação do produtor.
+
+  async publicarVersaoConteudo(
+    negocioId: string,
+    usuarioId: string,
+    programaSlug: string,
+    dados: { releaseNotes: string; impacto: VersaoConteudoLearning["impacto"]; assets?: AssetLearning[]; licoes?: CriarProgramaLearningInput["licoes"] }
+  ) {
+    const programa = (await this.listarProgramasDoNegocio(negocioId)).find((item) => item.slug === programaSlug);
+    if (!programa) throw new Error("Programa Learning não encontrado.");
+    const versaoConteudo: VersaoConteudoLearning = {
+      numero: programa.versaoConteudo.numero + 1,
+      releaseNotes: dados.releaseNotes.trim(),
+      publicadaEm: new Date().toISOString(),
+      impacto: dados.impacto,
+      afectaCertificadosAntigos: false
+    };
+    const actualizado = programaBase({
+      ...programa,
+      assets: dados.assets ?? programa.assets,
+      licoes: dados.licoes ? normalizarLicoes(programa.slug, dados.licoes) : programa.licoes,
+      versaoConteudo
+    });
+    await this.eventosOperacionais.registrar({
+      negocioId, topico: TOPICO_LEARNING, tipo: "LEARNING_CONTEUDO_VERSIONADO", entidadeTipo: "learning_program", entidadeId: programa.slug,
+      idempotencyKey: `learning:programa:${programa.slug}:v${versaoConteudo.numero}`,
+      payload: { programa: actualizado, versaoAnterior: programa.versaoConteudo, usuarioId, policy: "certificados antigos preservados; recertificação somente quando publicada" }, estado: "PROCESSADO"
+    });
+    return { programa: actualizado, versao: versaoConteudo };
+  }
+
+  async registarIntegracaoConteudo(
+    negocioId: string,
+    usuarioId: string,
+    programaSlug: string,
+    dados: Omit<IntegracaoConteudoLearning, "id" | "estado" | "compatibilidadeFormal" | "ownerId">
+  ) {
+    const programa = (await this.listarProgramasDoNegocio(negocioId)).find((item) => item.slug === programaSlug);
+    if (!programa) throw new Error("Programa Learning não encontrado.");
+    const integracao: IntegracaoConteudoLearning = {
+      ...dados,
+      id: randomUUID(),
+      ownerId: usuarioId,
+      estado: "ATIVA",
+      compatibilidadeFormal: false
+    };
+    if (integracao.tipo === "SCORM_ISOLADO" && !integracao.pacoteHash) throw new Error("Pacote legado isolado exige hash de integridade.");
+    await this.eventosOperacionais.registrar({
+      negocioId, topico: TOPICO_LEARNING, tipo: "LEARNING_INTEGRACAO_CONTEUDO_REGISTADA", entidadeTipo: "learning_integration", entidadeId: integracao.id,
+      idempotencyKey: `learning:integration:${integracao.id}`, payload: { programaSlug, integracao, policy: "integração controlada, revogável e sem declaração de compatibilidade formal" }, estado: "PROCESSADO"
+    });
+    return { integracao };
+  }
+
+  async revogarIntegracaoConteudo(negocioId: string, usuarioId: string, integracaoId: string, motivo: string) {
+    const eventos = await this.eventosOperacionais.listar(negocioId, { topico: TOPICO_LEARNING, limite: 1000 });
+    const origem = eventos.find((evento) => evento.tipo === "LEARNING_INTEGRACAO_CONTEUDO_REGISTADA" && (evento.payload.integracao as { id?: string } | undefined)?.id === integracaoId);
+    if (!origem) throw new Error("Integração Learning não encontrada.");
+    await this.eventosOperacionais.registrar({
+      negocioId, topico: TOPICO_LEARNING, tipo: "LEARNING_INTEGRACAO_CONTEUDO_REVOGADA", entidadeTipo: "learning_integration", entidadeId: integracaoId,
+      idempotencyKey: `learning:integration:${integracaoId}:revogada`, payload: { integracaoId, programaSlug: origem.payload.programaSlug, motivo, usuarioId, revogadoEm: new Date().toISOString() }, estado: "PROCESSADO"
+    });
+    return { integracaoId, estado: "REVOGADA" as const };
+  }
+
+  async criarTarefaLearning(negocioId: string, usuarioId: string, programaSlug: string, dados: { titulo: string; instrucoes: string; prazoAte?: string | null; rubrica?: string[] }) {
+    const programa = (await this.listarProgramasDoNegocio(negocioId)).find((item) => item.slug === programaSlug);
+    if (!programa) throw new Error("Programa Learning não encontrado.");
+    const tarefa: TarefaLearning = { id: randomUUID(), programaSlug, titulo: dados.titulo.trim(), instrucoes: dados.instrucoes.trim(), prazoAte: normalizarDataIsoOpcional(dados.prazoAte, "Prazo da tarefa inválido."), rubrica: normalizarLista(dados.rubrica, []), criadoPorId: usuarioId, criadoEm: new Date().toISOString() };
+    await this.eventosOperacionais.registrar({ negocioId, topico: TOPICO_LEARNING, tipo: "LEARNING_TAREFA_CRIADA", entidadeTipo: "learning_assignment", entidadeId: tarefa.id, idempotencyKey: `learning:tarefa:${tarefa.id}`, payload: { tarefa }, estado: "PROCESSADO" });
+    return { tarefa };
+  }
+
+  async listarTarefasLearning(negocioId: string, programaSlug?: string) {
+    const eventos = await this.eventosOperacionais.listar(negocioId, { topico: TOPICO_LEARNING, limite: 1000 });
+    const tarefas = eventos.filter((evento) => evento.tipo === "LEARNING_TAREFA_CRIADA").map((evento) => evento.payload.tarefa as TarefaLearning).filter((tarefa) => tarefa && (!programaSlug || tarefa.programaSlug === programaSlug));
+    const submissoes = new Map<string, SubmissaoTarefaLearning>();
+    for (const evento of eventos.reverse()) {
+      if (evento.tipo !== "LEARNING_TAREFA_SUBMETIDA" && evento.tipo !== "LEARNING_TAREFA_AVALIADA") continue;
+      const submissao = evento.payload.submissao as SubmissaoTarefaLearning | undefined;
+      if (submissao) submissoes.set(submissao.id, submissao);
+    }
+    return { tarefas, submissoes: [...submissoes.values()] };
+  }
+
+  async submeterTarefaLearning(negocioId: string, usuarioId: string, tarefaId: string, dados: { conteudo: string; anexos?: string[]; idempotencyKey?: string | null }) {
+    const { tarefas } = await this.listarTarefasLearning(negocioId);
+    const tarefa = tarefas.find((item) => item.id === tarefaId);
+    if (!tarefa) throw new Error("Tarefa Learning não encontrada.");
+    const programa = (await this.listarProgramasDoNegocio(negocioId)).find((item) => item.slug === tarefa.programaSlug);
+    if (!programa) throw new Error("Programa Learning não encontrado.");
+    await this.garantirAcessoLearning(negocioId, usuarioId, programa);
+    const submissao: SubmissaoTarefaLearning = { id: randomUUID(), tarefaId, programaSlug: tarefa.programaSlug, usuarioId, conteudo: dados.conteudo.trim(), anexos: normalizarLista(dados.anexos, []), estado: "SUBMETIDA", nota: null, feedback: null, avaliadoPorId: null, submetidoEm: new Date().toISOString(), avaliadoEm: null };
+    const { evento } = await this.eventosOperacionais.registrar({ negocioId, topico: TOPICO_LEARNING, tipo: "LEARNING_TAREFA_SUBMETIDA", entidadeTipo: "learning_assignment_submission", entidadeId: submissao.id, idempotencyKey: dados.idempotencyKey?.trim() || `learning:submissao:${submissao.id}`, payload: { submissao }, estado: "PROCESSADO" });
+    return { submissao: evento.payload.submissao as SubmissaoTarefaLearning };
+  }
+
+  async avaliarTarefaLearning(negocioId: string, avaliadorId: string, submissaoId: string, dados: { estado: "APROVADA" | "REVISAO_NECESSARIA"; nota?: number | null; feedback: string }) {
+    const { submissoes } = await this.listarTarefasLearning(negocioId);
+    const actual = submissoes.find((item) => item.id === submissaoId);
+    if (!actual) throw new Error("Submissão Learning não encontrada.");
+    const submissao: SubmissaoTarefaLearning = { ...actual, estado: dados.estado, nota: dados.nota ?? null, feedback: dados.feedback.trim(), avaliadoPorId: avaliadorId, avaliadoEm: new Date().toISOString() };
+    await this.eventosOperacionais.registrar({ negocioId, topico: TOPICO_LEARNING, tipo: "LEARNING_TAREFA_AVALIADA", entidadeTipo: "learning_assignment_submission", entidadeId: submissao.id, idempotencyKey: `learning:submissao:${submissao.id}:avaliacao:${submissao.avaliadoEm}`, payload: { submissao, policy: "avaliação manual por perfil autorizado" }, estado: "PROCESSADO" });
+    return { submissao };
+  }
+
+  async agendarMentoria(negocioId: string, actorId: string, programaSlug: string, dados: { mentorId: string; formandoId: string; inicioEm: string; fimEm: string }) {
+    const programa = (await this.listarProgramasDoNegocio(negocioId)).find((item) => item.slug === programaSlug);
+    if (!programa?.mentoria) throw new Error("Produto não possui mentoria configurada.");
+    await this.garantirAcessoLearning(negocioId, dados.formandoId, programa);
+    const eventos = await this.eventosOperacionais.listar(negocioId, { topico: TOPICO_LEARNING, limite: 1000 });
+    const activas = eventos.filter((evento) => evento.tipo === "LEARNING_MENTORIA_AGENDADA" && evento.payload.programaSlug === programaSlug).length;
+    if (activas >= programa.mentoria.capacidade) throw new Error("Capacidade da mentoria esgotada.");
+    const sessao: SessaoMentoriaLearning = { id: randomUUID(), programaSlug, mentorId: dados.mentorId, formandoId: dados.formandoId, inicioEm: new Date(dados.inicioEm).toISOString(), fimEm: new Date(dados.fimEm).toISOString(), estado: "AGENDADA", notas: null, tarefas: [], followUp: null, criadoEm: new Date().toISOString() };
+    await this.eventosOperacionais.registrar({ negocioId, topico: TOPICO_LEARNING, tipo: "LEARNING_MENTORIA_AGENDADA", entidadeTipo: "learning_mentoring_session", entidadeId: sessao.id, idempotencyKey: `learning:mentoria:${sessao.id}`, payload: { programaSlug, sessao, actorId }, estado: "PROCESSADO" });
+    return { sessao };
+  }
+
+  async concluirMentoria(negocioId: string, actorId: string, sessaoId: string, dados: { notas: string; tarefas?: string[]; followUp?: string | null }) {
+    const eventos = await this.eventosOperacionais.listar(negocioId, { topico: TOPICO_LEARNING, limite: 1000 });
+    const origem = eventos.find((evento) => evento.tipo === "LEARNING_MENTORIA_AGENDADA" && (evento.payload.sessao as SessaoMentoriaLearning | undefined)?.id === sessaoId);
+    const actual = origem?.payload.sessao as SessaoMentoriaLearning | undefined;
+    if (!actual) throw new Error("Sessão de mentoria não encontrada.");
+    const sessao: SessaoMentoriaLearning = { ...actual, estado: "REALIZADA", notas: dados.notas.trim(), tarefas: normalizarLista(dados.tarefas, []), followUp: dados.followUp?.trim() || null };
+    await this.eventosOperacionais.registrar({ negocioId, topico: TOPICO_LEARNING, tipo: "LEARNING_MENTORIA_CONCLUIDA", entidadeTipo: "learning_mentoring_session", entidadeId: sessao.id, idempotencyKey: `learning:mentoria:${sessao.id}:concluida`, payload: { sessao, actorId }, estado: "PROCESSADO" });
+    return { sessao };
+  }
+
+  async obterRiscosEAutomacoesLearning(negocioId: string) {
+    const [programas, atribuicoes, entitlements, certificados, eventos] = await Promise.all([
+      this.listarProgramasDoNegocio(negocioId), this.listarAtribuicoes(negocioId), this.listarEntitlements(negocioId), this.listarCertificados(negocioId),
+      this.eventosOperacionais.listar(negocioId, { topico: TOPICO_LEARNING, limite: 1000 })
+    ]);
+    const agora = Date.now();
+    const conclusoes = eventos.filter((evento) => evento.tipo === "LEARNING_LICAO_CONCLUIDA");
+    const riscos = atribuicoes.flatMap((atribuicao) => {
+      const programa = programas.find((item) => item.slug === atribuicao.programaSlug);
+      const feitas = conclusoes.filter((evento) => evento.payload.usuarioId === atribuicao.usuarioId && evento.payload.programaSlug === atribuicao.programaSlug).length;
+      const percentual = programa?.licoes.length ? Math.round(feitas / programa.licoes.length * 100) : 0;
+      const vencida = Boolean(atribuicao.prazoAte && new Date(atribuicao.prazoAte).getTime() < agora && percentual < 100);
+      const certificadoPendente = Boolean(programa?.certificadoConfigurado && percentual >= 100 && !certificados.some((certificado) => certificado.usuarioId === atribuicao.usuarioId && certificado.programaSlug === atribuicao.programaSlug));
+      return vencida || certificadoPendente || (percentual > 0 && percentual < 50) ? [{ atribuicaoId: atribuicao.id, usuarioId: atribuicao.usuarioId, perfilAlvo: atribuicao.perfilAlvo, programaSlug: atribuicao.programaSlug, percentual, tipo: vencida ? "FORMACAO_VENCIDA" : certificadoPendente ? "CERTIFICADO_PENDENTE" : "RISCO_ABANDONO", departamento: null }] : [];
+    });
+    return {
+      riscos,
+      metricas: { total: riscos.length, vencidas: riscos.filter((risco) => risco.tipo === "FORMACAO_VENCIDA").length, abandono: riscos.filter((risco) => risco.tipo === "RISCO_ABANDONO").length, certificadosPendentes: riscos.filter((risco) => risco.tipo === "CERTIFICADO_PENDENTE").length, entitlementsAtivos: entitlements.filter((item) => item.estado === "ATIVO").length },
+      automacoes: [
+        { gatilho: "FORMACAO_VENCIDA", acao: "CRIAR_TAREFA_FOLLOW_UP", politica: "learning.automation.v1", fallbackHumano: true },
+        { gatilho: "RISCO_ABANDONO", acao: "LEMBRETE_E_TAREFA_GESTOR", politica: "learning.automation.v1", fallbackHumano: true },
+        { gatilho: "CERTIFICADO_PENDENTE", acao: "PEDIR_REVISAO_HUMANA", politica: "learning.automation.v1", fallbackHumano: true }
+      ],
+      ia: { usada: false, confianca: null, decisaoAutomaticaSensivel: false }
+    };
+  }
+
+  async executarAutomacoesLearning(negocioId: string, actorId: string) {
+    const resumo = await this.obterRiscosEAutomacoesLearning(negocioId);
+    const resultados = [];
+    for (const risco of resumo.riscos) {
+      const tarefa = { id: randomUUID(), tipo: "FOLLOW_UP_LEARNING", risco, estado: "ABERTA", ownerPerfil: "GESTOR", motivo: risco.tipo, politica: "learning.automation.v1", fallbackHumano: true, criadoEm: new Date().toISOString() };
+      const { duplicado } = await this.eventosOperacionais.registrar({ negocioId, topico: TOPICO_LEARNING, tipo: "LEARNING_AUTOMACAO_FOLLOW_UP", entidadeTipo: "learning_follow_up", entidadeId: tarefa.id, idempotencyKey: `learning:follow-up:${risco.atribuicaoId}:${risco.tipo}`, payload: { tarefa, actorId, confiancaIa: null, resultado: "TAREFA_HUMANA_CRIADA" }, estado: "PROCESSADO" });
+      resultados.push({ tarefa, duplicado });
+    }
+    return { total: resultados.length, resultados };
+  }
+
+  async obterPortalProdutor(negocioId: string, papel: string) {
+    const [resumo, tarefas, riscos, eventos] = await Promise.all([
+      this.obterResumoTeam(negocioId, "portal-produtor", papel, ["learning:gerir"]),
+      this.listarTarefasLearning(negocioId),
+      this.obterRiscosEAutomacoesLearning(negocioId),
+      this.eventosOperacionais.listar(negocioId, { topico: TOPICO_LEARNING, limite: 1000 })
+    ]);
+    const payouts = eventos.filter((evento) => evento.tipo.startsWith("LEARNING_PAYOUT_PRODUTOR_")).map((evento) => evento.payload.payout ?? evento.payload);
+    return {
+      produtos: resumo.programas.filter((programa) => programa.origem === "TEAM"),
+      cohorts: resumo.cohorts,
+      progresso: resumo.analytics,
+      receita: { confirmada: resumo.metricas.receitaLearning, payouts },
+      suporte: resumo.chat.threads.filter((thread) => thread.contexto === "SUPORTE"),
+      mensagensInternas: resumo.chat,
+      moderacao: resumo.moderacao,
+      documentos: resumo.compras.flatMap((compra) => compra.factura ? [compra.factura] : []),
+      assignments: tarefas,
+      riscos,
+      privacidade: "Apenas dados necessários de venda, suporte e aprendizagem; margens internas e dados de outros negócios não são expostos."
+    };
+  }
+
   async obterProgresso(negocioId: string, usuarioId: string) {
     const programas = await this.listarProgramasDoNegocio(negocioId);
     const eventos = await this.eventosOperacionais.listar(negocioId, { topico: TOPICO_LEARNING, limite: 1000 });
@@ -2272,6 +2994,22 @@ export class BizyLearningUseCase {
       if (evento.tipo === "LEARNING_PROGRAMA_CRIADO") {
         const programa = extrairPrograma(evento);
         if (programa) mapa.set(programa.slug, programa);
+      }
+      if (evento.tipo === "LEARNING_CONTEUDO_VERSIONADO") {
+        const programa = extrairPrograma(evento);
+        if (programa) mapa.set(programa.slug, programa);
+      }
+      if (evento.tipo === "LEARNING_INTEGRACAO_CONTEUDO_REGISTADA") {
+        const slug = String(evento.payload.programaSlug ?? "");
+        const atual = mapa.get(slug);
+        const integracao = evento.payload.integracao as IntegracaoConteudoLearning | undefined;
+        if (atual && integracao) mapa.set(slug, { ...atual, integracoes: [...atual.integracoes.filter((item) => item.id !== integracao.id), integracao] });
+      }
+      if (evento.tipo === "LEARNING_INTEGRACAO_CONTEUDO_REVOGADA") {
+        const slug = String(evento.payload.programaSlug ?? "");
+        const integracaoId = String(evento.payload.integracaoId ?? "");
+        const atual = mapa.get(slug);
+        if (atual) mapa.set(slug, { ...atual, integracoes: atual.integracoes.map((item) => item.id === integracaoId ? { ...item, estado: "REVOGADA" } : item) });
       }
       if (evento.tipo === "LEARNING_PROGRAMA_PUBLICACAO_ALTERADA") {
         const slug = String(evento.payload.slug ?? "");
@@ -2413,7 +3151,9 @@ function normalizarLicoes(slug: string, licoes?: CriarProgramaLearningInput["lic
     titulo: licao.titulo.trim(),
     tipo: licao.tipo ?? "CHECKLIST",
     duracaoMinutos: licao.duracaoMinutos ?? 8,
-    accaoBizy: licao.accaoBizy?.trim()
+    accaoBizy: licao.accaoBizy?.trim(),
+    assetIds: licao.assetIds ?? [],
+    conclusao: licao.conclusao ?? (licao.tipo === "QUIZ" ? "QUIZ" : licao.tipo === "LIVE" ? "PRESENCA" : licao.tipo === "CHECKLIST" ? "CHECKLIST" : "TEMPO")
   }));
 }
 
@@ -2589,6 +3329,20 @@ function extrairExperiencia(evento: EventoOperacional): EventoExperienciaLearnin
   const candidato = experiencia as EventoExperienciaLearning;
   if (!candidato.id || !candidato.programaSlug || !candidato.usuarioId || !candidato.objetoId) return null;
   return candidato;
+}
+
+function extrairAvaliacao(evento: EventoOperacional): AvaliacaoLearning | null {
+  const avaliacao = evento.payload.avaliacao;
+  if (!avaliacao || typeof avaliacao !== "object") return null;
+  const candidato = avaliacao as AvaliacaoLearning;
+  return candidato.id && candidato.programaSlug && Array.isArray(candidato.perguntas) ? candidato : null;
+}
+
+function extrairTentativaAvaliacao(evento: EventoOperacional): TentativaAvaliacaoLearning | null {
+  const tentativa = evento.payload.tentativa;
+  if (!tentativa || typeof tentativa !== "object") return null;
+  const candidato = tentativa as TentativaAvaliacaoLearning;
+  return candidato.id && candidato.avaliacaoId && candidato.usuarioId ? candidato : null;
 }
 
 function extrairAtribuicao(evento: EventoOperacional): AtribuicaoLearning | null {

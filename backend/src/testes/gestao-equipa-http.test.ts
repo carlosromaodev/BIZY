@@ -510,6 +510,102 @@ describe("GestaoEquipaUseCase — lógica pura", () => {
     );
   });
 
+  it("RF-T131/RF-T132: mantém departamento, cargo e matriz de skills auditável", async () => {
+    const membroBase = {
+      id: "membro-skills",
+      negocioId: "negocio-1",
+      usuarioId: "usuario-skills",
+      papel: "VENDEDOR",
+      departamentoId: null,
+      cargo: null,
+      skillsJson: "[]",
+      desenvolvimentoJson: "[]"
+    };
+    const membroNegocio = {
+      findFirst: vi.fn().mockResolvedValue(membroBase),
+      update: vi.fn()
+        .mockResolvedValueOnce({ ...membroBase, departamentoId: "departamento-1", cargo: "Supervisor de vendas", departamento: { id: "departamento-1", nome: "Comercial" } })
+        .mockResolvedValueOnce({ ...membroBase })
+    };
+    const prisma = {
+      membroNegocio,
+      departamento: { findFirst: vi.fn().mockResolvedValue({ id: "departamento-1" }) },
+      feedActividade: { create: vi.fn().mockResolvedValue({ id: "feed-skills" }) }
+    } as unknown as PrismaClient;
+    const uc = new GestaoEquipaUseCase(prisma);
+
+    const perfil = await uc.atualizarPerfilOperacional("negocio-1", "membro-skills", {
+      departamentoId: "departamento-1",
+      cargo: "Supervisor de vendas",
+      autorId: "usuario-gestor"
+    });
+    const matriz = await uc.atualizarSkillsMembro("negocio-1", "membro-skills", [{
+      nome: "Fecho consultivo",
+      categoria: "VENDAS",
+      nivel: 4,
+      estado: "VALIDADA",
+      evidencias: ["Meta trimestral atingida"]
+    }], "usuario-gestor");
+
+    expect(perfil).toEqual(expect.objectContaining({ cargo: "Supervisor de vendas", departamentoId: "departamento-1" }));
+    expect(matriz.skills[0]).toEqual(expect.objectContaining({
+      nome: "Fecho consultivo",
+      categoria: "VENDAS",
+      nivel: 4,
+      estado: "VALIDADA",
+      validadoPorId: "usuario-gestor"
+    }));
+    expect(membroNegocio.update).toHaveBeenLastCalledWith(expect.objectContaining({
+      data: { skillsJson: expect.stringContaining("Fecho consultivo") }
+    }));
+    expect(prisma.feedActividade.create).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({ tipo: "SKILLS_ATUALIZADAS" })
+    }));
+  });
+
+  it("RF-T138: cria e acompanha plano simples de desenvolvimento", async () => {
+    let desenvolvimentoJson = "[]";
+    const membroNegocio = {
+      findFirst: vi.fn()
+        .mockResolvedValueOnce({ id: "membro-dev", negocioId: "negocio-1", desenvolvimentoJson: "[]" })
+        .mockImplementation(async () => ({
+          id: "membro-dev",
+          negocioId: "negocio-1",
+          desenvolvimentoJson
+        })),
+      update: vi.fn().mockImplementation(async ({ data }: { data: { desenvolvimentoJson?: string } }) => {
+        desenvolvimentoJson = data.desenvolvimentoJson ?? desenvolvimentoJson;
+        return { id: "membro-dev" };
+      })
+    };
+    const prisma = {
+      membroNegocio,
+      feedActividade: { create: vi.fn().mockResolvedValue({ id: "feed-dev" }) }
+    } as unknown as PrismaClient;
+    const uc = new GestaoEquipaUseCase(prisma);
+
+    const criado = await uc.criarItemDesenvolvimento("negocio-1", "membro-dev", {
+      objetivo: "Conduzir uma live comercial",
+      acao: "Concluir formação e liderar uma live assistida",
+      prazoEm: new Date("2026-08-15T12:00:00.000Z"),
+      autorId: "usuario-gestor"
+    });
+    const acompanhado = await uc.acompanharItemDesenvolvimento("negocio-1", "membro-dev", criado.item.id, {
+      estado: "CONCLUIDO",
+      evidencias: ["Live 42 concluída"],
+      observacao: "Objetivo validado pelo gestor.",
+      autorId: "usuario-gestor"
+    });
+
+    expect(criado.item).toEqual(expect.objectContaining({ estado: "EM_ANDAMENTO", gestorId: "usuario-gestor" }));
+    expect(acompanhado.item).toEqual(expect.objectContaining({
+      estado: "CONCLUIDO",
+      evidencias: ["Live 42 concluída"],
+      observacao: "Objetivo validado pelo gestor."
+    }));
+    expect(prisma.feedActividade.create).toHaveBeenCalledTimes(2);
+  });
+
   it("RF-T135: executa offboarding seguro reaproveitando desativação e auditoria", async () => {
     const membro = {
       id: "membro-saida",

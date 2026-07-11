@@ -9,7 +9,7 @@ describe("navegação CRM", () => {
     const rotas = source("src/rotasApp.tsx");
     const shell = source("src/componentes/Shell.tsx");
 
-    expect(rotas).toContain('export type SecaoNavegacao = "Hoje" | "Vendas" | "CRM" | "Vitrine" | "Gestão" | "Admin/Sistema"');
+    expect(rotas).toContain('export type SecaoNavegacao = "Hoje" | "Vendas" | "Comercial" | "Vitrine" | "Gestão" | "Admin/Sistema"');
     expect(rotas).toContain('rotulo: "Comando do dia", secao: "Hoje"');
     expect(rotas).toContain('rotulo: "Central de live", secao: "Hoje"');
     expect(rotas).toContain('rotulo: "Pedidos", secao: "Vendas"');
@@ -32,10 +32,12 @@ describe("navegação CRM", () => {
   it("usa atalhos mobile orientados para atendimento diário", () => {
     const shell = source("src/componentes/Shell.tsx");
 
-    expect(shell).toContain('["/app", "/app/reservas", "/app/clientes", "/app/conversas"]');
-    expect(shell).not.toContain('["/app", "/app/comentarios", "/app/reservas", "/app/conversas"]');
-    expect(shell).toContain("rotasMaisMobile");
-    expect(shell).toContain("Live, recuperação, produtos, relatórios e administração ficam em Mais no telemóvel.");
+    expect(shell).toContain("crmV3BottomNavItems");
+    expect(shell).toContain('{ id: "inicio", label: "Início", icon: Home, path: "/app" }');
+    expect(shell).toContain('{ id: "pedidos", label: "Pedidos", icon: ShoppingBag, path: "/app/reservas" }');
+    expect(shell).toContain('{ id: "chat", label: "Chat", icon: MessageSquare, path: "/app/conversas" }');
+    expect(shell).toContain('{ id: "tarefas", label: "Tarefas", icon: CheckSquare, path: "/app/tarefas" }');
+    expect(shell).toContain('aria-label="Módulos"');
   });
 
   it("usa apenas o wordmark oficial no CRM, sem símbolo b. na navegação interna", () => {
@@ -48,26 +50,27 @@ describe("navegação CRM", () => {
     expect(css).toContain(".crm-brand-wordmark");
   });
 
-  it("aplica a navegação desktop em rail escuro com painel secundário e animação", () => {
+  it("aplica a navegação desktop unificada com módulos e abas primárias", () => {
     const shell = source("src/componentes/Shell.tsx");
     const css = source("src/estilos.css");
 
-    expect(shell).toContain("desktop-nav-system");
-    expect(shell).toContain("desktop-nav-rail");
-    expect(shell).toContain("desktop-nav-panel");
-    expect(shell).toContain('layoutId="desktop-nav-rail-active"');
-    expect(shell).toContain('layoutId="desktop-nav-panel-active"');
-    expect(css).toContain(".desktop-nav-rail-active");
-    expect(css).toContain("background:");
-    expect(css).toContain("#050607");
-    expect(css).toContain("border-radius: 28px");
+    expect(shell).toContain('className="team-shell hidden lg:block"');
+    expect(shell).toContain('className="team-head"');
+    expect(shell).toContain('className="team-tabs"');
+    expect(shell).toContain('key="modulos"');
+    expect(shell).toContain('className="team-modulos-drawer"');
+    expect(shell).toContain('key="tabs"');
+    expect(css).toContain(".team-shell");
+    expect(css).toContain(".team-modulos-drawer");
+    expect(css).toContain(".team-tabs-inner");
   });
 
   it("inclui pesquisa global comercial no shell sem expor dados técnicos", () => {
     const shell = source("src/componentes/Shell.tsx");
 
     expect(shell).toContain("BuscaGlobalComercial");
-    expect(shell).toContain('placeholder="Buscar cliente, telefone, produto, pedido..."');
+    expect(shell).toContain('placeholder = "Buscar cliente, telefone, produto, pedido..."');
+    expect(shell).toContain('placeholder="Buscar pedidos, clientes, produtos…"');
     expect(shell).toContain("/atendimento/conversas");
     expect(shell).toContain("/reservas");
     expect(shell).toContain("/pecas");

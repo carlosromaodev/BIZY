@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { ParamIdSchema } from "../../../../dominio/esquemas.js";
 import type { ContextoAplicacao } from "../../../../infra/http/ContextoAplicacao.js";
-import { exigirAcessoComercial, resolverContextoComercial } from "../../../../infra/http/contextoComercial.js";
+import { exigirAcessoComercial, resolverContextoComercial, temPermissao } from "../../../../infra/http/contextoComercial.js";
 import type { ModuloHttp } from "../../../../infra/http/modulos/ModuloHttp.js";
 
 /* ── Schemas de validação ─────────────────────────────────────── */
@@ -65,9 +65,46 @@ const OffboardingSeguroSchema = z.object({
 
 const RegistarAusenciaSchema = z.object({
   membroId: z.string().trim().min(1).max(120),
+  substitutoMembroId: z.string().uuid().optional(),
   motivo: z.string().trim().min(3).max(500),
   inicioEm: z.coerce.date().optional(),
   fimEm: z.coerce.date().optional()
+});
+
+const AtualizarPerfilOperacionalSchema = z.object({
+  departamentoId: z.string().uuid().nullable().optional(),
+  cargo: z.string().trim().min(2).max(120).nullable().optional()
+}).refine((dados) => dados.departamentoId !== undefined || dados.cargo !== undefined, {
+  message: "Informe departamento ou cargo."
+});
+
+const SkillMembroSchema = z.object({
+  id: z.string().uuid().optional(),
+  nome: z.string().trim().min(2).max(100),
+  categoria: z.enum(["ATENDIMENTO", "VENDAS", "LOGISTICA", "FINANCAS", "LIVE", "MODERACAO", "LEARNING", "MARKET", "SUPORTE"]),
+  nivel: z.number().int().min(1).max(5),
+  estado: z.enum(["DECLARADA", "VALIDADA", "EXPIRADA"]).optional(),
+  evidencias: z.array(z.string().trim().min(2).max(500)).max(20).optional()
+});
+
+const AtualizarSkillsSchema = z.object({
+  skills: z.array(SkillMembroSchema).max(50)
+});
+
+const CriarDesenvolvimentoSchema = z.object({
+  objetivo: z.string().trim().min(3).max(300),
+  acao: z.string().trim().min(3).max(500),
+  prazoEm: z.coerce.date(),
+  evidencias: z.array(z.string().trim().min(2).max(500)).max(20).optional(),
+  gestorId: z.string().uuid().nullable().optional()
+});
+
+const AcompanharDesenvolvimentoSchema = z.object({
+  estado: z.enum(["EM_ANDAMENTO", "CONCLUIDO", "CANCELADO"]).optional(),
+  evidencias: z.array(z.string().trim().min(2).max(500)).max(20).optional(),
+  observacao: z.string().trim().min(2).max(1000).nullable().optional()
+}).refine((dados) => dados.estado !== undefined || dados.evidencias !== undefined || dados.observacao !== undefined, {
+  message: "Informe estado, evidência ou observação."
 });
 
 /* ── Módulo HTTP ──────────────────────────────────────────────── */
@@ -94,10 +131,77 @@ export const moduloEquipa: ModuloHttp = {
 
       const { id } = ParamIdSchema.parse(request.params);
       try {
+        const membroActual = await contexto.gestaoEquipa.obterMembroPorUsuario(ctx.negocio.id, ctx.usuario.id);
+        if (membroActual?.id !== id && !temPermissao(ctx.permissoes, "equipa:gestao")) {
+          return reply.code(403).send({ erro: "PERFIL_SENSIVEL", mensagem: "O perfil 360 só está disponível ao próprio membro ou à gestão autorizada." });
+        }
         return await contexto.gestaoEquipa.obterPerfilOperacional360(ctx.negocio.id, id);
       } catch (erro: unknown) {
         const mensagem = erro instanceof Error ? erro.message : "Erro ao consultar membro.";
         return reply.code(404).send({ erro: "MEMBRO_NAO_ENCONTRADO", mensagem });
+      }
+    });
+
+    app.patch("/equipa/membros/:id/perfil-operacional", async (request, reply) => {
+      const ctx = await exigirEquipa(contexto, request, reply, "equipa:gestao");
+      if (!ctx) return;
+      const { id } = ParamIdSchema.parse(request.params);
+      const dados = AtualizarPerfilOperacionalSchema.parse(request.body ?? {});
+      try {
+        const membro = await contexto.gestaoEquipa.atualizarPerfilOperacional(ctx.negocio.id, id, {
+          ...dados,
+          autorId: ctx.usuario.id
+        });
+        return { membro };
+      } catch (erro: unknown) {
+        const mensagem = erro instanceof Error ? erro.message : "Erro ao atualizar perfil operacional.";
+        return reply.code(400).send({ erro: "PERFIL_OPERACIONAL_INVALIDO", mensagem });
+      }
+    });
+
+    app.put("/equipa/membros/:id/skills", async (request, reply) => {
+      const ctx = await exigirEquipa(contexto, request, reply, "equipa:gestao");
+      if (!ctx) return;
+      const { id } = ParamIdSchema.parse(request.params);
+      const { skills } = AtualizarSkillsSchema.parse(request.body ?? {});
+      try {
+        return await contexto.gestaoEquipa.atualizarSkillsMembro(ctx.negocio.id, id, skills, ctx.usuario.id);
+      } catch (erro: unknown) {
+        const mensagem = erro instanceof Error ? erro.message : "Erro ao atualizar skills.";
+        return reply.code(400).send({ erro: "SKILLS_INVALIDAS", mensagem });
+      }
+    });
+
+    app.post("/equipa/membros/:id/desenvolvimento", async (request, reply) => {
+      const ctx = await exigirEquipa(contexto, request, reply, "equipa:gestao");
+      if (!ctx) return;
+      const { id } = ParamIdSchema.parse(request.params);
+      const dados = CriarDesenvolvimentoSchema.parse(request.body ?? {});
+      try {
+        const resultado = await contexto.gestaoEquipa.criarItemDesenvolvimento(ctx.negocio.id, id, {
+          ...dados,
+          autorId: ctx.usuario.id
+        });
+        return reply.code(201).send(resultado);
+      } catch (erro: unknown) {
+        const mensagem = erro instanceof Error ? erro.message : "Erro ao criar plano de desenvolvimento.";
+        return reply.code(400).send({ erro: "DESENVOLVIMENTO_INVALIDO", mensagem });
+      }
+    });
+
+    app.patch("/equipa/membros/:id/desenvolvimento/:itemId", async (request, reply) => {
+      const ctx = await exigirEquipa(contexto, request, reply, "equipa:gestao");
+      if (!ctx) return;
+      const { id, itemId } = z.object({ id: z.string().uuid(), itemId: z.string().uuid() }).parse(request.params);
+      const dados = AcompanharDesenvolvimentoSchema.parse(request.body ?? {});
+      try {
+        return await contexto.gestaoEquipa.acompanharItemDesenvolvimento(ctx.negocio.id, id, itemId, {
+          ...dados,
+          autorId: ctx.usuario.id
+        });
+      } catch (erro: unknown) {
+        const mensagem = erro instanceof Error ? erro.message : "Erro ao acompanhar plano de desenvolvimento.";
+        return reply.code(400).send({ erro: "DESENVOLVIMENTO_INVALIDO", mensagem });
       }
     });
 
@@ -106,6 +210,12 @@ export const moduloEquipa: ModuloHttp = {
       if (!ctx) return;
 
       return contexto.gestaoEquipa.calcularCapacidadeOperacional(ctx.negocio.id);
+    });
+
+    app.get("/equipa/governanca-pessoas", async (request, reply) => {
+      const ctx = await exigirEquipa(contexto, request, reply, "equipa:gestao");
+      if (!ctx) return;
+      return contexto.gestaoEquipa.obterGovernancaPessoas(ctx.negocio.id);
     });
 
     app.post("/equipa/ausencias", async (request, reply) => {

@@ -22,7 +22,7 @@ describe("dashboard de live", () => {
     expect(tipos).toContain("espectadoresAtuais: number | null");
     expect(tipos).toContain("picoEspectadores: number | null");
     expect(live).toContain("LIVE_METRICS_UPDATED");
-    expect(live).toContain("espectadoresAtuaisTexto");
+    expect(live).toContain("formatarContagemLive(liveAtual.espectadoresAtuais)");
     expect(live).toContain("liveAtual.espectadoresAtuais");
     expect(live).not.toContain("resumo.comentariosRecebidos} a assistir");
   });
@@ -30,13 +30,13 @@ describe("dashboard de live", () => {
   it("transforma o painel em agenda operacional do dia", () => {
     const painel = source("src/paginas/Painel.tsx");
 
-    expect(painel).toContain("Prioridades operacionais");
+    expect(painel).toContain("Briefing do dia");
     expect(painel).toContain("Pedidos hoje");
-    expect(painel).toContain("Pagamentos pendentes");
-    expect(painel).toContain("Faturação do dia");
-    expect(painel).toContain("Tarefas atrasadas");
+    expect(painel).toContain("A confirmar");
+    expect(painel).toContain("Receita reservada hoje");
+    expect(painel).toContain("Stock em risco");
     expect(painel).toContain("/atendimento/conversas");
-    expect(painel).toContain("/tarefas?estado=ABERTA&limite=8");
+    expect(painel).toContain("/tarefas?limite=30");
     expect(painel).toContain("obterSaudacao");
     expect(painel).not.toContain("comentarioManual");
     expect(painel).not.toContain("providerLive");

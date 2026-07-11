@@ -254,17 +254,19 @@ function perfilOficialBizy(): PerfilResumoProdutoLearning {
   };
 }
 
-function sanitizarProgramaPublico(programa: ProgramaLearning): ProgramaLearning {
+export function sanitizarProgramaPublico(programa: ProgramaLearning): ProgramaLearning {
   const licoesLiberadas = Math.min(programa.previewSeguro.licoesLiberadas, programa.licoes.length);
   return {
     ...programa,
+    assets: programa.assets.filter((asset) => !asset.premium).map((asset) => ({ ...asset, transcricao: asset.transcricao?.slice(0, 2000) ?? null })),
+    integracoes: programa.integracoes.map((integracao) => ({ ...integracao, origemUrl: null, pacoteHash: null })),
     previewSeguro: {
       ...programa.previewSeguro,
       incluiConteudoPremium: false
     },
     licoes: programa.licoes.map((licao, indice) => indice < licoesLiberadas
       ? licao
-      : { ...licao, accaoBizy: undefined })
+      : { ...licao, accaoBizy: undefined, assetIds: [] })
   };
 }
 

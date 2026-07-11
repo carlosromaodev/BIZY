@@ -102,11 +102,11 @@ Backend possui afiliados, links, comissoes, lotes, campanhas, templates, Social 
 
 ## 13. Testes e Verificacao
 
-- [ ] Testes HTTP de afiliados.
+- [x] Testes HTTP de afiliados.
 - [x] Testes de campanhas e templates.
-- [ ] Testes de Social Inbox.
+- [x] Testes de Social Inbox.
 - [x] Testes de tracking sem dados pessoais.
-- [ ] Testes de reversao de comissao.
+- [x] Testes de reversao de comissao.
 
 ## 14. Proximos Planos
 

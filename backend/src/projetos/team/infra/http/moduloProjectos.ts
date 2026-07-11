@@ -18,7 +18,63 @@ const CriarProjectoSchema = z.object({
   dataInicio: z.coerce.date().optional(),
   dataFim: z.coerce.date().optional(),
   departamentoId: z.string().uuid().optional(),
-  gestorId: z.string().uuid().optional()
+  gestorId: z.string().uuid().optional(),
+  objetivo: z.string().trim().min(2).max(1000).optional(),
+  stakeholders: z.array(z.string().trim().min(1).max(120)).max(50).optional(),
+  criteriosSucesso: z.array(z.string().trim().min(1).max(300)).max(30).optional(),
+  dependencias: z.array(z.string().trim().min(1).max(200)).max(50).optional(),
+  prioridade: z.enum(["BAIXA", "MEDIA", "ALTA", "CRITICA"]).optional(),
+  capacidadeConsumida: z.number().int().min(0).max(100).optional(),
+  roiEsperado: z.number().int().optional(),
+  nivelRisco: z.enum(["BAIXO", "MEDIO", "ALTO", "CRITICO"]).optional()
+});
+
+const FiltrosPortfolioSchema = z.object({
+  estado: z.string().trim().max(20).optional(),
+  departamentoId: z.string().uuid().optional(),
+  gestorId: z.string().uuid().optional(),
+  prioridade: z.enum(["BAIXA", "MEDIA", "ALTA", "CRITICA"]).optional(),
+  nivelRisco: z.enum(["BAIXO", "MEDIO", "ALTO", "CRITICO"]).optional(),
+  de: z.coerce.date().optional(),
+  ate: z.coerce.date().optional(),
+  limite: z.coerce.number().int().min(1).max(200).optional()
+});
+
+const MudancaProjectoSchema = z.object({
+  motivo: z.string().trim().min(3).max(500),
+  impacto: z.string().trim().min(3).max(1000),
+  aprovadoPorId: z.string().uuid(),
+  alteracoes: z.object({
+    nome: z.string().trim().min(2).max(200).optional(),
+    descricao: z.string().trim().max(500).optional(),
+    objetivo: z.string().trim().max(1000).optional(),
+    orcamento: z.number().int().nonnegative().optional(),
+    dataFim: z.coerce.date().optional(),
+    gestorId: z.string().uuid().optional(),
+    estado: z.enum(["PLANEADO", "EM_ANDAMENTO", "PAUSADO", "FECHADO"]).optional(),
+    prioridade: z.enum(["BAIXA", "MEDIA", "ALTA", "CRITICA"]).optional(),
+    nivelRisco: z.enum(["BAIXO", "MEDIO", "ALTO", "CRITICO"]).optional(),
+    roiEsperado: z.number().int().optional()
+  }).refine((alteracoes) => Object.keys(alteracoes).length > 0, "Informe ao menos uma alteração.")
+});
+
+const RiscoProjectoSchema = z.object({
+  tipo: z.enum(["RISCO", "ISSUE"]),
+  titulo: z.string().trim().min(3).max(200),
+  severidade: z.enum(["BAIXO", "MEDIO", "ALTO", "CRITICO"]),
+  ownerId: z.string().uuid(),
+  planoMitigacao: z.string().trim().min(3).max(1000),
+  dataAlvo: z.coerce.date().optional(),
+  escalonamento: z.string().trim().max(500).optional()
+});
+
+const LicaoProjectoSchema = z.object({
+  contexto: z.enum(["PROJECTO", "CAMPANHA", "LIVE", "INCIDENTE"]),
+  resultado: z.string().trim().min(3).max(1000),
+  causa: z.string().trim().min(3).max(1000),
+  melhoria: z.string().trim().min(3).max(1000),
+  ownerId: z.string().uuid(),
+  dataAlvo: z.coerce.date().optional()
 });
 
 const CriarEntregaSchema = z.object({
@@ -51,6 +107,28 @@ async function exigirProjectos(
     permissao,
     mensagemPermissao: "Sem permissão para gerir projectos."
   });
+}
+
+async function exigirProjectoDoNegocio(
+  contexto: ContextoAplicacao,
+  reply: import("fastify").FastifyReply,
+  id: string,
+  negocioId: string
+) {
+  if (await contexto.gestaoProjectos.projectoPertenceAoNegocio(id, negocioId)) return true;
+  reply.status(404).send({ erro: "Projecto não encontrado." });
+  return false;
+}
+
+async function exigirProjetoComercialDoNegocio(
+  contexto: ContextoAplicacao,
+  reply: import("fastify").FastifyReply,
+  id: string,
+  negocioId: string
+) {
+  if (await contexto.gestaoProjectos.projetoComercialPertenceAoNegocio(id, negocioId)) return true;
+  reply.status(404).send({ erro: "Projecto comercial não encontrado." });
+  return false;
 }
 
 export const moduloProjectos: ModuloHttp = {
@@ -86,12 +164,60 @@ export const moduloProjectos: ModuloHttp = {
     app.get("/projectos", async (request, reply) => {
       const ctx = await exigirProjectos(contexto, request, reply, "equipa:ler");
       if (!ctx) return;
-      const filtros = z.object({
-        estado: z.string().trim().max(20).optional(),
-        departamentoId: z.string().uuid().optional(),
-        limite: z.coerce.number().int().min(1).max(200).optional()
-      }).parse(request.query ?? {});
+      const filtros = FiltrosPortfolioSchema.parse(request.query ?? {});
       return contexto.gestaoProjectos.listarProjectos(ctx.negocio.id, filtros);
+    });
+
+    app.get("/projectos/portfolio", async (request, reply) => {
+      const ctx = await exigirProjectos(contexto, request, reply, "equipa:ler");
+      if (!ctx) return;
+      return contexto.gestaoProjectos.obterPortfolio(ctx.negocio.id, FiltrosPortfolioSchema.parse(request.query ?? {}));
+    });
+
+    app.post("/projectos/:id/mudancas", async (request, reply) => {
+      const ctx = await exigirProjectos(contexto, request, reply, "negocio:gerir");
+      if (!ctx) return;
+      const { id } = ParamIdSchema.parse(request.params);
+      const resultado = await contexto.gestaoProjectos.registarMudancaProjecto(
+        id, ctx.negocio.id, ctx.usuario.id, MudancaProjectoSchema.parse(request.body)
+      );
+      return reply.status(201).send(resultado);
+    });
+
+    app.post("/projectos/:id/riscos", async (request, reply) => {
+      const ctx = await exigirProjectos(contexto, request, reply, "negocio:gerir");
+      if (!ctx) return;
+      const { id } = ParamIdSchema.parse(request.params);
+      const resultado = await contexto.gestaoProjectos.registarRiscoOuIssue(
+        id, ctx.negocio.id, ctx.usuario.id, RiscoProjectoSchema.parse(request.body)
+      );
+      return reply.status(201).send(resultado);
+    });
+
+    app.patch("/projectos/:id/riscos/:itemId", async (request, reply) => {
+      const ctx = await exigirProjectos(contexto, request, reply, "negocio:gerir");
+      if (!ctx) return;
+      const params = z.object({ id: z.string().uuid(), itemId: z.string().uuid() }).parse(request.params);
+      return contexto.gestaoProjectos.actualizarRiscoOuIssue(params.id, ctx.negocio.id, params.itemId, ctx.usuario.id,
+        z.object({ estado: z.enum(["ABERTO", "EM_MITIGACAO", "ESCALADO", "ENCERRADO"]), motivo: z.string().trim().min(3).max(500) }).parse(request.body));
+    });
+
+    app.post("/projectos/:id/licoes", async (request, reply) => {
+      const ctx = await exigirProjectos(contexto, request, reply, "negocio:gerir");
+      if (!ctx) return;
+      const { id } = ParamIdSchema.parse(request.params);
+      const resultado = await contexto.gestaoProjectos.registarLicaoAprendida(
+        id, ctx.negocio.id, ctx.usuario.id, LicaoProjectoSchema.parse(request.body)
+      );
+      return reply.status(201).send(resultado);
+    });
+
+    app.get("/projectos/:id/eventos", async (request, reply) => {
+      const ctx = await exigirProjectos(contexto, request, reply, "equipa:ler");
+      if (!ctx) return;
+      const { id } = ParamIdSchema.parse(request.params);
+      const { desde } = z.object({ desde: z.string().datetime().optional() }).parse(request.query ?? {});
+      return contexto.gestaoProjectos.listarEventosProjecto(id, ctx.negocio.id, desde);
     });
 
     app.get("/projectos/:id", async (request, reply) => {
@@ -139,6 +265,7 @@ export const moduloProjectos: ModuloHttp = {
       const ctx = await exigirProjectos(contexto, request, reply, "negocio:gerir");
       if (!ctx) return;
       const { id } = ParamIdSchema.parse(request.params);
+      if (!await exigirProjectoDoNegocio(contexto, reply, id, ctx.negocio.id)) return;
       const dados = CriarEntregaSchema.parse(request.body);
       return contexto.gestaoProjectos.criarEntrega(id, dados);
     });
@@ -147,6 +274,7 @@ export const moduloProjectos: ModuloHttp = {
       const ctx = await exigirProjectos(contexto, request, reply, "equipa:ler");
       if (!ctx) return;
       const { id } = ParamIdSchema.parse(request.params);
+      if (!await exigirProjectoDoNegocio(contexto, reply, id, ctx.negocio.id)) return;
       return contexto.gestaoProjectos.listarEntregas(id);
     });
 
@@ -157,6 +285,7 @@ export const moduloProjectos: ModuloHttp = {
         id: z.string().uuid(),
         entregaId: z.string().uuid()
       }).parse(request.params);
+      if (!await exigirProjectoDoNegocio(contexto, reply, id, ctx.negocio.id)) return;
       const dados = z.object({
         estado: z.string().trim().max(20).optional(),
         concluidaEm: z.coerce.date().optional(),
@@ -173,15 +302,22 @@ export const moduloProjectos: ModuloHttp = {
       const { id } = ParamIdSchema.parse(request.params);
       const dados = z.object({
         membroId: z.string().uuid(),
-        papelProjecto: z.string().trim().max(30).optional()
+        papelProjecto: z.string().trim().max(30).optional(),
+        capacidadePercentual: z.number().int().min(1).max(100).optional(),
+        skillNecessaria: z.string().trim().min(1).max(120).optional()
       }).parse(request.body);
-      return contexto.gestaoProjectos.adicionarMembroProjecto(id, dados);
+      if (!await exigirProjectoDoNegocio(contexto, reply, id, ctx.negocio.id)) return;
+      if (!await contexto.gestaoEquipa.obterMembroDetalhado(ctx.negocio.id, dados.membroId)) {
+        return reply.status(404).send({ erro: "Membro não encontrado." });
+      }
+      return contexto.gestaoProjectos.adicionarMembroProjecto(id, ctx.negocio.id, dados);
     });
 
     app.get("/projectos/:id/membros", async (request, reply) => {
       const ctx = await exigirProjectos(contexto, request, reply, "equipa:ler");
       if (!ctx) return;
       const { id } = ParamIdSchema.parse(request.params);
+      if (!await exigirProjectoDoNegocio(contexto, reply, id, ctx.negocio.id)) return;
       return contexto.gestaoProjectos.listarMembrosProjecto(id);
     });
 
@@ -208,6 +344,7 @@ export const moduloProjectos: ModuloHttp = {
       const ctx = await exigirProjectos(contexto, request, reply, "negocio:gerir");
       if (!ctx) return;
       const { id } = ParamIdSchema.parse(request.params);
+      if (!await exigirProjetoComercialDoNegocio(contexto, reply, id, ctx.negocio.id)) return;
       return contexto.gestaoProjectos.fecharProjetoComercial(id);
     });
 
@@ -217,14 +354,16 @@ export const moduloProjectos: ModuloHttp = {
       const ctx = await exigirProjectos(contexto, request, reply, "negocio:gerir");
       if (!ctx) return;
       const { id } = ParamIdSchema.parse(request.params);
+      if (!await exigirProjetoComercialDoNegocio(contexto, reply, id, ctx.negocio.id)) return;
       const dados = PoolStockSchema.parse(request.body);
-      return contexto.gestaoProjectos.adicionarPoolStock(id, dados);
+      return contexto.gestaoProjectos.adicionarPoolStock(id, ctx.negocio.id, dados);
     });
 
     app.get("/projectos/comerciais/:id/stock", async (request, reply) => {
       const ctx = await exigirProjectos(contexto, request, reply, "equipa:ler");
       if (!ctx) return;
       const { id } = ParamIdSchema.parse(request.params);
+      if (!await exigirProjetoComercialDoNegocio(contexto, reply, id, ctx.negocio.id)) return;
       return contexto.gestaoProjectos.listarPoolStock(id);
     });
 
@@ -238,13 +377,18 @@ export const moduloProjectos: ModuloHttp = {
         membroId: z.string().uuid(),
         papelProjeto: z.string().trim().max(30).default("MEMBRO")
       }).parse(request.body);
-      return contexto.gestaoProjectos.adicionarEquipaProjeto(id, dados);
+      if (!await exigirProjetoComercialDoNegocio(contexto, reply, id, ctx.negocio.id)) return;
+      if (!await contexto.gestaoEquipa.obterMembroDetalhado(ctx.negocio.id, dados.membroId)) {
+        return reply.status(404).send({ erro: "Membro não encontrado." });
+      }
+      return contexto.gestaoProjectos.adicionarEquipaProjeto(id, ctx.negocio.id, dados);
     });
 
     app.get("/projectos/comerciais/:id/equipa", async (request, reply) => {
       const ctx = await exigirProjectos(contexto, request, reply, "equipa:ler");
       if (!ctx) return;
       const { id } = ParamIdSchema.parse(request.params);
+      if (!await exigirProjetoComercialDoNegocio(contexto, reply, id, ctx.negocio.id)) return;
       return contexto.gestaoProjectos.listarEquipaProjeto(id);
     });
 
@@ -259,6 +403,7 @@ export const moduloProjectos: ModuloHttp = {
         entidadeId: z.string().uuid(),
         prioridade: z.number().int().min(0).max(100).optional()
       }).parse(request.body);
+      if (!await exigirProjetoComercialDoNegocio(contexto, reply, id, ctx.negocio.id)) return;
       return contexto.gestaoProjectos.adicionarFilaProjeto(id, dados);
     });
 
@@ -270,6 +415,7 @@ export const moduloProjectos: ModuloHttp = {
         entidadeTipo: z.string().trim().max(40).optional(),
         estado: z.string().trim().max(20).optional()
       }).parse(request.query ?? {});
+      if (!await exigirProjetoComercialDoNegocio(contexto, reply, id, ctx.negocio.id)) return;
       return contexto.gestaoProjectos.listarFilaProjeto(id, filtros);
     });
 
@@ -278,6 +424,12 @@ export const moduloProjectos: ModuloHttp = {
       if (!ctx) return;
       const { id } = ParamIdSchema.parse(request.params);
       const { membroId } = z.object({ membroId: z.string().uuid() }).parse(request.body);
+      if (!await contexto.gestaoProjectos.itemFilaPertenceAoNegocio(id, ctx.negocio.id)) {
+        return reply.status(404).send({ erro: "Item de fila não encontrado." });
+      }
+      if (!await contexto.gestaoEquipa.obterMembroDetalhado(ctx.negocio.id, membroId)) {
+        return reply.status(404).send({ erro: "Membro não encontrado." });
+      }
       return contexto.gestaoProjectos.atribuirItemFila(id, membroId);
     });
 
@@ -299,6 +451,7 @@ export const moduloProjectos: ModuloHttp = {
       const ctx = await exigirProjectos(contexto, request, reply, "negocio:gerir");
       if (!ctx) return;
       const { id } = ParamIdSchema.parse(request.params);
+      if (!await exigirProjetoComercialDoNegocio(contexto, reply, id, ctx.negocio.id)) return;
       return contexto.gestaoProjectos.etiquetarTransacoesProjeto(id);
     });
 
@@ -306,6 +459,7 @@ export const moduloProjectos: ModuloHttp = {
       const ctx = await exigirProjectos(contexto, request, reply, "equipa:ler");
       if (!ctx) return;
       const { id } = ParamIdSchema.parse(request.params);
+      if (!await exigirProjetoComercialDoNegocio(contexto, reply, id, ctx.negocio.id)) return;
       return contexto.gestaoProjectos.calcularReceitaPorProjeto(id);
     });
 
@@ -315,6 +469,7 @@ export const moduloProjectos: ModuloHttp = {
       const ctx = await resolverContextoComercial(contexto, request, reply);
       if (!ctx) return;
       const { id } = ParamIdSchema.parse(request.params);
+      if (!await exigirProjetoComercialDoNegocio(contexto, reply, id, ctx.negocio.id)) return;
       const membro = await contexto.gestaoEquipa.obterMembroPorUsuario(ctx.negocio.id, ctx.usuario.id);
       if (!membro) return reply.status(404).send({ erro: "Membro não encontrado." });
 
@@ -330,6 +485,7 @@ export const moduloProjectos: ModuloHttp = {
       const ctx = await resolverContextoComercial(contexto, request, reply);
       if (!ctx) return;
       const { id } = ParamIdSchema.parse(request.params);
+      if (!await exigirProjetoComercialDoNegocio(contexto, reply, id, ctx.negocio.id)) return;
       const membro = await contexto.gestaoEquipa.obterMembroPorUsuario(ctx.negocio.id, ctx.usuario.id);
       if (!membro) return reply.status(404).send({ erro: "Membro não encontrado." });
 
@@ -350,6 +506,7 @@ export const moduloProjectos: ModuloHttp = {
       const ctx = await exigirProjectos(contexto, request, reply, "negocio:gerir");
       if (!ctx) return;
       const { id } = ParamIdSchema.parse(request.params);
+      if (!await exigirProjetoComercialDoNegocio(contexto, reply, id, ctx.negocio.id)) return;
       return contexto.gestaoProjectos.executarHandoffPosProjeto(id);
     });
 
@@ -359,6 +516,7 @@ export const moduloProjectos: ModuloHttp = {
       const ctx = await exigirProjectos(contexto, request, reply, "equipa:ler");
       if (!ctx) return;
       const { id } = ParamIdSchema.parse(request.params);
+      if (!await exigirProjetoComercialDoNegocio(contexto, reply, id, ctx.negocio.id)) return;
       return contexto.gestaoProjectos.verificarIntegridadePoolStock(id);
     });
 

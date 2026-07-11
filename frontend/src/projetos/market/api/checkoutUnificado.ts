@@ -2,6 +2,15 @@ import type { ProdutoMarketNormalizado } from "./tiposLojas";
 
 export const CHAVE_CARRINHO_BIZY = "bizy_checkout_unificado_v1";
 export const CHAVE_IDEMPOTENCIA_CHECKOUT_BIZY = "bizy_checkout_idempotencia_v1";
+export const CHAVE_COMPRADOR_MARKET = "bizy_market_comprador_v1";
+
+export function guardarIdentificadorCompradorMarket(identificador: string): void {
+  ambienteComStorage()?.setItem(CHAVE_COMPRADOR_MARKET, identificador.trim());
+}
+
+export function obterIdentificadorCompradorMarket(): string {
+  return ambienteComStorage()?.getItem(CHAVE_COMPRADOR_MARKET)?.trim() ?? "";
+}
 
 export interface ItemCarrinhoCheckoutBizy {
   id: string;

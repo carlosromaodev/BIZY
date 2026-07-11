@@ -119,6 +119,8 @@ export const tiposEventoSistema = [
   "REPASSE_APROVADO",
   "REPASSE_PAGO",
   "REPASSE_CANCELADO",
+  "REPASSES_RETIDOS",
+  "MARKET_FULFILLMENT_CHANGED",
   "FINANCAS_MOVIMENTO_CRIADO",
   "FINANCAS_FACTURA_EMITIDA",
   "FINANCAS_FACTURA_ANULADA",
@@ -2561,6 +2563,10 @@ export interface DenunciaMarket {
   denuncianteId: string | null;
   motivo: string;
   descricao: string | null;
+  origem: "PUBLICO" | "SELLER" | "TEAM" | "SISTEMA";
+  evidencias: string[];
+  responsavelId: string | null;
+  prazoEm: Date | null;
   estado: EstadoDenuncia;
   resolvidoPorId: string | null;
   resolucao: string | null;
@@ -2576,6 +2582,10 @@ export interface NovaDenunciaMarket {
   denuncianteId?: string | null;
   motivo: string;
   descricao?: string | null;
+  origem?: DenunciaMarket["origem"];
+  evidencias?: string[];
+  responsavelId?: string | null;
+  prazoEm?: Date | null;
 }
 
 export interface ResolucaoDenuncia {
@@ -2678,6 +2688,13 @@ export interface PedidoFilho {
   estado: EstadoPedido;
   estadoPagamento: EstadoPagamentoPedido;
   estadoEntrega: EstadoEntregaPedido;
+  estadoSeparacao: "PENDENTE" | "EM_SEPARACAO" | "SEPARADO";
+  estadoEmbalagem: "PENDENTE" | "EM_EMBALAGEM" | "EMBALADO";
+  provaEntregaUrl: string | null;
+  tentativasEntrega: number;
+  motivoAtraso: string | null;
+  estadoDevolucao: "SOLICITADA" | "EM_TRANSITO" | "RECEBIDA" | "REJEITADA" | null;
+  fulfillment: Array<{ tipo: string; ocorridoEm: string; actorId?: string | null; dados?: Record<string, unknown> }>;
   subtotalEmKwanza: number;
   taxaEntregaEmKwanza: number;
   totalEmKwanza: number;
@@ -2687,6 +2704,7 @@ export interface PedidoFilho {
 
 export const estadosRepasse = [
   "PENDENTE",
+  "RETIDO",
   "CONCILIADO",
   "APROVADO",
   "PAGO",
@@ -2701,12 +2719,21 @@ export interface RepasseFinanceiro {
   compraUnificadaId: string | null;
   pedidoId: string;
   valorBrutoEmKwanza: number;
+  valorProdutosEmKwanza: number;
+  valorEntregaEmKwanza: number;
+  impostosEmKwanza: number;
   taxaBizyEmKwanza: number;
   comissaoEmKwanza: number;
   descontoEmKwanza: number;
+  retencaoEmKwanza: number;
+  reembolsoEmKwanza: number;
   valorLiquidoEmKwanza: number;
+  valorDisponivelEmKwanza: number;
   estado: EstadoRepasse;
   motivo: string | null;
+  motivoRetencao: string | null;
+  retidoAte: Date | null;
+  politicaCalculoVersao: "market.split.v1" | string;
   conciliadoEm: Date | null;
   aprovadoEm: Date | null;
   pagoEm: Date | null;
@@ -2720,9 +2747,17 @@ export interface NovoRepasseFinanceiro {
   compraUnificadaId?: string | null;
   pedidoId: string;
   valorBrutoEmKwanza: number;
+  valorProdutosEmKwanza?: number;
+  valorEntregaEmKwanza?: number;
+  impostosEmKwanza?: number;
   taxaBizyEmKwanza?: number;
   comissaoEmKwanza?: number;
   descontoEmKwanza?: number;
+  retencaoEmKwanza?: number;
+  reembolsoEmKwanza?: number;
+  motivoRetencao?: string | null;
+  retidoAte?: Date | null;
+  politicaCalculoVersao?: string;
   motivo?: string | null;
 }
 

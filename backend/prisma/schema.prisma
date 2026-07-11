@@ -1019,6 +1019,11 @@ model MembroNegocio {
   usuarioId    String
   usuario      UsuarioSistema @relation(fields: [usuarioId], references: [id])
   papel        String         @default("DONO")
+  departamentoId String?
+  departamento Departamento? @relation(fields: [departamentoId], references: [id], onDelete: SetNull)
+  cargo        String?
+  skillsJson   String         @default("[]")
+  desenvolvimentoJson String  @default("[]")
   status       String         @default("ATIVO")
   permissoesJson String       @default("{}")
   criadoEm     DateTime       @default(now())
@@ -1035,6 +1040,7 @@ model MembroNegocio {
   @@unique([negocioId, usuarioId])
   @@index([usuarioId])
   @@index([negocioId, papel, status])
+  @@index([negocioId, departamentoId, status])
   @@index([negocioId, status, criadoEm])
 }
 
@@ -1281,6 +1287,10 @@ model DenunciaMarket {
   denuncianteId   String?
   motivo          String
   descricao       String?
+  origem          String   @default("PUBLICO")
+  evidenciasJson  String   @default("[]")
+  responsavelId   String?
+  prazoEm         DateTime?
   estado          String   @default("PENDENTE")
   resolvidoPorId  String?
   resolucao       String?
@@ -1290,6 +1300,7 @@ model DenunciaMarket {
   @@index([estado])
   @@index([entidadeTipo, entidadeId])
   @@index([negocioAlvoId])
+  @@index([estado, prazoEm])
 }
 
 model ReservaStockCheckout {
@@ -1313,6 +1324,7 @@ model ReservaStockCheckout {
 model CompraUnificada {
   id                        String          @id @default(uuid())
   numero                    Int             @default(autoincrement())
+  idempotencyKey            String?
   compradorTelefone         String
   compradorNome             String?
   compradorEmail            String?
@@ -1332,6 +1344,7 @@ model CompraUnificada {
   pedidosFilho              PedidoFilho[]
 
   @@index([compradorTelefone])
+  @@unique([compradorTelefone, idempotencyKey])
   @@index([estado])
 }
 
@@ -1344,6 +1357,13 @@ model PedidoFilho {
   estado              String          @default("NOVO")
   estadoPagamento     String          @default("PENDENTE")
   estadoEntrega       String          @default("PENDENTE")
+  estadoSeparacao     String          @default("PENDENTE")
+  estadoEmbalagem     String          @default("PENDENTE")
+  provaEntregaUrl     String?
+  tentativasEntrega   Int             @default(0)
+  motivoAtraso        String?
+  estadoDevolucao     String?
+  fulfillmentJson     String          @default("[]")
   subtotalEmKwanza    Int             @default(0)
   taxaEntregaEmKwanza Int             @default(0)
   totalEmKwanza       Int             @default(0)
@@ -1353,6 +1373,7 @@ model PedidoFilho {
   @@index([compraUnificadaId])
   @@index([negocioId])
   @@index([pedidoId])
+  @@index([negocioId, estadoEntrega, estadoSeparacao])
 }
 
 model RepasseFinanceiro {
@@ -1361,12 +1382,21 @@ model RepasseFinanceiro {
   compraUnificadaId     String?
   pedidoId              String
   valorBrutoEmKwanza    Int
+  valorProdutosEmKwanza Int       @default(0)
+  valorEntregaEmKwanza  Int       @default(0)
+  impostosEmKwanza      Int       @default(0)
   taxaBizyEmKwanza      Int       @default(0)
   comissaoEmKwanza      Int       @default(0)
   descontoEmKwanza      Int       @default(0)
+  retencaoEmKwanza      Int       @default(0)
+  reembolsoEmKwanza     Int       @default(0)
   valorLiquidoEmKwanza  Int
+  valorDisponivelEmKwanza Int     @default(0)
   estado                String    @default("PENDENTE")
   motivo                String?
+  motivoRetencao        String?
+  retidoAte             DateTime?
+  politicaCalculoVersao String    @default("market.split.v1")
   conciliadoEm          DateTime?
   aprovadoEm            DateTime?
   pagoEm                DateTime?
@@ -1377,6 +1407,7 @@ model RepasseFinanceiro {
   @@index([negocioId])
   @@index([pedidoId])
   @@index([estado])
+  @@index([negocioId, estado, retidoAte])
   @@index([compraUnificadaId])
 }
 
@@ -2067,6 +2098,7 @@ model Departamento {
   paisId          String?
   criadoEm        DateTime @default(now())
   atualizadoEm    DateTime @updatedAt
+  membros         MembroNegocio[]
 
   @@unique([negocioId, nome])
   @@index([negocioId, paisId])
@@ -2078,7 +2110,15 @@ model Projecto {
   negocio         Negocio  @relation(fields: [negocioId], references: [id])
   nome            String
   descricao       String?
+  objetivo        String?
+  stakeholdersJson String?
+  criteriosSucessoJson String?
+  dependenciasJson String?
   orcamento       Int?
+  prioridade      String   @default("MEDIA")
+  capacidadeConsumida Int  @default(0)
+  roiEsperado     Int?
+  nivelRisco      String   @default("BAIXO")
   dataInicio      DateTime?
   dataFim         DateTime?
   estado          String   @default("PLANEADO") // PLANEADO | EM_ANDAMENTO | PAUSADO | FECHADO
@@ -2086,6 +2126,10 @@ model Projecto {
   gestorId        String?
   motivoFecho     String?
   relatorioFinalJson String?
+  mudancasJson    String?
+  riscosJson      String?
+  licoesJson      String?
+  eventosJson     String?
   criadoEm        DateTime @default(now())
   atualizadoEm    DateTime @updatedAt
   entregas        EntregaProjecto[]
@@ -2093,6 +2137,7 @@ model Projecto {
 
   @@index([negocioId, estado])
   @@index([negocioId, estado, criadoEm])
+  @@index([negocioId, prioridade, nivelRisco])
   @@index([negocioId, departamentoId])
 }
 
@@ -2119,6 +2164,8 @@ model MembroProjecto {
   projecto        Projecto @relation(fields: [projectoId], references: [id], onDelete: Cascade)
   membroId        String
   papelProjecto   String   @default("MEMBRO") // GESTOR | MEMBRO | REVISOR | SUPORTE_VENDAS | LOGISTICA
+  capacidadePercentual Int @default(20)
+  skillNecessaria String?
   alocadoDesde    DateTime @default(now())
   alocadoAte      DateTime?
   activo          Boolean  @default(true)
@@ -2126,6 +2173,7 @@ model MembroProjecto {
   @@unique([projectoId, membroId])
   @@index([projectoId, activo])
   @@index([membroId])
+  @@index([membroId, activo, capacidadePercentual])
 }
 
 model ProjetoComercial {

@@ -6,10 +6,18 @@ tags:
   - bizy/wiki
   - bizy/log
 status: ativo
-updated: 2026-07-10
+updated: 2026-07-11
 ---
 
 # Log da Wiki
+
+## [2026-07-11] auditoria | Criticas do sistema reconciliadas
+
+- [x] Criada [[auditoria-criticas-sistema-bizy]] como fonte canonica para achados tecnicos, decisoes e evidencias externas.
+- [x] Auditorias UX, frontend, tripla e relatorio completo anteriores foram marcados como historicos ou ligados a reconciliacao atual.
+- [x] Corrigidos proxy e responsividade do Portal Seller e actualizada a cadeia de dependencias ate `npm audit` reportar zero vulnerabilidades.
+- [x] Backlog RF/RNF/RN de Team, Market e Learning reconciliado sem itens `[ ]`.
+- [ ] Evidencias de staging, providers reais, carga, uptime, restore e validacao fiscal/independente continuam como gates externos explicitos.
 
 ## [2026-07-10] produto | Benchmark internacional V2 incorporado
 

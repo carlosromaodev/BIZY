@@ -499,21 +499,76 @@ describe("Bizy Market público HTTP", () => {
         }
       });
       expect(checkoutMarket.statusCode).toBe(201);
+      const pedidoCheckoutId = checkoutMarket.json().pedidosFilho[0].pedidoId as string;
+
+      const portalComprador = await app.inject({
+        method: "GET",
+        url: "/publico/market/portal-comprador?identificador=923777001"
+      });
+      expect(portalComprador.statusCode).toBe(200);
+      expect(portalComprador.json().compras).toEqual(expect.arrayContaining([
+        expect.objectContaining({ compra: expect.objectContaining({ id: checkoutMarket.json().compra.id }) })
+      ]));
+
+      const portalSeller = await app.inject({ method: "GET", url: "/market/fornecedor/portal", headers: lojaA });
+      expect(portalSeller.statusCode).toBe(200);
+      expect(portalSeller.json().pedidos).toEqual(expect.arrayContaining([
+        expect.objectContaining({ pedido: expect.objectContaining({ pedidoId: pedidoCheckoutId }) })
+      ]));
+
+      const fulfillment = await app.inject({
+        method: "PATCH",
+        url: `/market/fornecedor/compras/${checkoutMarket.json().compra.id}/fulfillment`,
+        headers: lojaA,
+        payload: { estadoSeparacao: "SEPARADO", estadoEmbalagem: "EMBALADO", estadoEntrega: "ENVIADO", motivo: "Pedido preparado no teste." }
+      });
+      expect(fulfillment.statusCode).toBe(200);
+      expect(fulfillment.json()).toEqual(expect.objectContaining({ estadoSeparacao: "SEPARADO", estadoEmbalagem: "EMBALADO", estadoEntrega: "ENVIADO" }));
+
+      const repassesCheckout = await app.inject({
+        method: "GET",
+        url: `/team/loja/repasses?pedidoId=${pedidoCheckoutId}`,
+        headers: lojaA
+      });
+      expect(repassesCheckout.statusCode).toBe(200);
+      expect(repassesCheckout.json()).toEqual([
+        expect.objectContaining({
+          pedidoId: pedidoCheckoutId,
+          valorProdutosEmKwanza: 22_000,
+          impostosEmKwanza: 3_080,
+          taxaBizyEmKwanza: 1_100,
+          valorBrutoEmKwanza: 25_080,
+          valorLiquidoEmKwanza: 23_980,
+          valorDisponivelEmKwanza: 0,
+          retencaoEmKwanza: 23_980,
+          estado: "RETIDO",
+          motivoRetencao: "JANELA_RISCO_PAYOUT",
+          politicaCalculoVersao: "market.split.v1"
+        })
+      ]);
 
       const comprovativoCheckout = await app.inject({
         method: "POST",
         url: `/publico/market/compras/${checkoutMarket.json().compra.id}/pagamento`,
-        payload: { comprovativoUrl: "https://example.com/comprovativo-market.png" }
+        payload: { comprovativoUrl: "https://example.com/comprovativo-market.png", identificador: "923777001" }
       });
       expect(comprovativoCheckout.statusCode).toBe(200);
+
+      const checkoutComPan = await app.inject({
+        method: "POST",
+        url: "/publico/market/checkout",
+        payload: { compradorTelefone: "923777001", pan: "4111111111111111", cvv: "123", itens: [{ slugLoja: "loja-market-studio-a", codigoPeca: "VESTIDO-DETALHE", quantidade: 1 }] }
+      });
+      expect(checkoutComPan.statusCode).toBe(400);
+      expect(checkoutComPan.json().erro).toBe("DADOS_CARTAO_PROIBIDOS");
 
       const reembolso = await app.inject({
         method: "POST",
         url: "/team/loja/reembolsos",
         headers: lojaA,
         payload: {
-          pedidoId: "PEDIDO-MARKET-001",
-          compraUnificadaId: "COMPRA-MARKET-001",
+          pedidoId: pedidoCheckoutId,
+          compraUnificadaId: checkoutMarket.json().compra.id,
           tipo: "PARCIAL",
           valorEmKwanza: 5000,
           motivo: "Ajuste comercial validado pelo seller."
@@ -523,7 +578,7 @@ describe("Bizy Market público HTTP", () => {
       expect(reembolso.json().reembolso).toEqual(
         expect.objectContaining({
           negocioId: expect.any(String),
-          pedidoId: "PEDIDO-MARKET-001",
+          pedidoId: pedidoCheckoutId,
           estado: "PENDENTE",
           valorEmKwanza: 5000
         })
@@ -531,13 +586,25 @@ describe("Bizy Market público HTTP", () => {
 
       const reembolsos = await app.inject({
         method: "GET",
-        url: "/team/loja/reembolsos?pedidoId=PEDIDO-MARKET-001",
+        url: `/team/loja/reembolsos?pedidoId=${pedidoCheckoutId}`,
         headers: lojaA
       });
       expect(reembolsos.statusCode).toBe(200);
       expect(reembolsos.json().reembolsos).toEqual([
-        expect.objectContaining({ pedidoId: "PEDIDO-MARKET-001", estado: "PENDENTE" })
+        expect.objectContaining({ pedidoId: pedidoCheckoutId, estado: "PENDENTE" })
       ]);
+
+      const repasseComHoldReembolso = await app.inject({
+        method: "GET",
+        url: `/team/loja/repasses?pedidoId=${pedidoCheckoutId}`,
+        headers: lojaA
+      });
+      expect(repasseComHoldReembolso.json()[0]).toEqual(expect.objectContaining({
+        estado: "RETIDO",
+        retencaoEmKwanza: 5_000,
+        valorDisponivelEmKwanza: 18_980,
+        motivoRetencao: expect.stringContaining("REEMBOLSO_")
+      }));
 
       const eventosMarket = await app.inject({
         method: "GET",
