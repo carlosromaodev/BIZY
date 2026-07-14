@@ -40,37 +40,60 @@ Estado: CONCLUIDA
 
 ## Fase 1 — Conta universal e seguranca do comprador
 
-Estado: EM EXECUCAO
+Estado: CONCLUIDA
 
 ### Implementado
 
-- [ ] Schema expansivo e migration.
-- [ ] Repositorio e caso de uso de `ContaBizy`.
-- [ ] OTP e sessoes revogaveis para comprador.
-- [ ] Perfil, enderecos, preferencias, consentimentos e dispositivos.
-- [ ] Compra guest com token restrito e associacao posterior.
-- [ ] Portal autenticado e remocao de PII em URLs.
-- [ ] Testes de IDOR, enumeracao, expiracao e ownership.
+- [x] Schema expansivo e migration sem remocao de `UsuarioSistema`.
+- [x] `ContaBizy` universal com contextos de comprador, afiliado, criador, seller, produtor Learning e membro de negocio.
+- [x] Compatibilidade progressiva com `UsuarioSistema` e isolamento dos contextos por negocio.
+- [x] OTP por telefone, limite por contacto, tentativas limitadas e codigo armazenado como hash.
+- [x] Sessoes opacas, revogaveis e associadas a dispositivo, IP e user-agent anonimizados.
+- [x] Perfil de comprador, enderecos, preferencias, consentimentos, dispositivos e favoritos persistentes.
+- [x] Compra guest com token de alta entropia, hash, expiracao, ownership e revogacao apos associacao.
+- [x] Associacao posterior de compras ao telefone verificado sem expor PII em URL ou resposta publica.
+- [x] Portal autenticado e pagina de compra autorizada por conta ou token especifico da compra.
+- [x] Remocao da rota e do use case que pesquisavam compras livremente por telefone ou email.
+- [x] Testes negativos de IDOR, enumeracao, token expirado, token de outra compra e ownership de endereco.
 
 ### Ficheiros alterados
 
-- A preencher durante a implementacao.
+- `backend/prisma/schema.prisma` e `backend/prisma/migrations/20260714223000_conta_bizy_comprador/migration.sql`.
+- `backend/src/projetos/commerce/` para dominio, aplicacao, repositorios e HTTP da conta universal.
+- `backend/src/infra/http/ContextoAplicacao.ts`, `criarAplicacao.ts` e manifesto de modulos.
+- Contratos, tipos e repositorios de compras unificadas em memoria e Prisma.
+- Checkout e portal do comprador em `backend/src/projetos/market/`.
+- APIs e paginas de checkout, compra, portal e produto em `frontend/src/projetos/market/`.
+- Testes de conta, checkout, Market e configuracao deterministica do Vitest.
 
 ### Migrations
 
-- A criar.
+- Expand: novas tabelas de conta, perfil, contexto, endereco, favorito, consentimento, dispositivo, sessao, OTP e acesso guest.
+- Compatibilidade: FK opcional `CompraUnificada.contaBizyId` e backfill conservador de `UsuarioSistema`/`MembroNegocio`.
+- Indices: contactos unicos, sessoes/tokens, contextos, ownership e expiracoes.
+- Rollback: nao apagar tabelas com dados; desligar o modulo novo, manter dual read e remover FK/coluna apenas numa contract migration posterior.
+- Validacao: 53 migrations aplicadas do zero numa base PostgreSQL descartavel; schema final actualizado.
 
 ### Testes
 
-- Linha de base aprovada; verificacao final pendente.
+- `npm run typecheck`: backend e frontend aprovados.
+- Backend focado: 21 testes aprovados.
+- Backend integral sequencial: 368 aprovados e 1 ignorado.
+- Frontend integral: 144 testes aprovados.
+- `npm run build`: backend e frontend aprovados.
+- Migration PostgreSQL do zero: 53/53 aplicadas e `migrate status` actualizado.
+- Browser QA: OTP, login e logout aprovados em 1440x900; layout sem overflow e rodape no fim em 1440x900 e 375x812.
+- Consola: nenhum erro de aplicacao ou resposta 5xx; apenas 401 esperados na sondagem de sessao anonima.
 
 ### Riscos restantes
 
-- Conflitos de contacto em dados historicos exigem backfill conservador.
+- Contactos historicos foram migrados sem os marcar como verificados; a verificacao ocorre apenas por OTP.
+- Email e persistido como contacto da identidade, mas nao concede autenticacao enquanto nao existir verificacao por provider dedicado.
+- O upload privado de comprovativos e a reserva transacional de stock pertencem as Fases 2 e 3.
 
 ### Proxima fase
 
-- Fase 2, somente depois dos gates da Fase 1.
+- Fase 2: produto, variantes reais, preco e stock por combinacao.
 
 ## Fases 2 a 12
 

@@ -6300,6 +6300,7 @@ export class RepositorioComprasUnificadasPrisma implements RepositorioComprasUni
     const criado = await this.prisma.compraUnificada.create({
       data: {
         idempotencyKey: dados.idempotencyKey ?? null,
+        contaBizyId: dados.contaBizyId ?? null,
         compradorTelefone: dados.compradorTelefone,
         compradorNome: dados.compradorNome ?? null,
         compradorEmail: dados.compradorEmail ?? null,
@@ -6368,6 +6369,32 @@ export class RepositorioComprasUnificadasPrisma implements RepositorioComprasUni
       take: limite
     });
     return itens.map(mapearCompraPrisma);
+  }
+
+  async listarComprasPorConta(contaBizyId: string, limite = 50) {
+    const compras = await this.prisma.compraUnificada.findMany({
+      where: { contaBizyId },
+      include: { pedidosFilho: true },
+      orderBy: { criadoEm: "desc" },
+      take: limite
+    });
+    return compras.map(mapearCompraPrisma);
+  }
+
+  async buscarPorIdEConta(id: string, contaBizyId: string) {
+    const compra = await this.prisma.compraUnificada.findFirst({
+      where: { id, contaBizyId },
+      include: { pedidosFilho: true }
+    });
+    return compra ? mapearCompraPrisma(compra) : null;
+  }
+
+  async associarConta(id: string, contaBizyId: string) {
+    const resultado = await this.prisma.compraUnificada.updateMany({
+      where: { id, OR: [{ contaBizyId: null }, { contaBizyId }] },
+      data: { contaBizyId }
+    });
+    return resultado.count === 1 ? this.buscarPorId(id) : null;
   }
 
   async listarPedidosFilhoPorNegocio(negocioId: string, limite = 100) {

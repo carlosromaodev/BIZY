@@ -499,19 +499,21 @@ describe("Bizy Market público HTTP", () => {
         }
       });
       expect(checkoutMarket.statusCode).toBe(201);
-      const pedidoCheckoutId = checkoutMarket.json().pedidosFilho[0].pedidoId as string;
+      const tokenCompra = checkoutMarket.json().acessoCompra.token as string;
 
       const portalComprador = await app.inject({
         method: "GET",
-        url: "/publico/market/portal-comprador?identificador=923777001"
+        url: `/publico/market/compras/${checkoutMarket.json().compra.id}`,
+        headers: { "x-bizy-compra-token": tokenCompra }
       });
       expect(portalComprador.statusCode).toBe(200);
-      expect(portalComprador.json().compras).toEqual(expect.arrayContaining([
-        expect.objectContaining({ compra: expect.objectContaining({ id: checkoutMarket.json().compra.id }) })
-      ]));
+      expect(portalComprador.json().compra.id).toBe(checkoutMarket.json().compra.id);
 
       const portalSeller = await app.inject({ method: "GET", url: "/market/fornecedor/portal", headers: lojaA });
       expect(portalSeller.statusCode).toBe(200);
+      const pedidoCheckoutId = portalSeller.json().pedidos.find(
+        (item: { compra: { id: string } }) => item.compra.id === checkoutMarket.json().compra.id
+      ).pedido.pedidoId as string;
       expect(portalSeller.json().pedidos).toEqual(expect.arrayContaining([
         expect.objectContaining({ pedido: expect.objectContaining({ pedidoId: pedidoCheckoutId }) })
       ]));
@@ -550,7 +552,8 @@ describe("Bizy Market público HTTP", () => {
       const comprovativoCheckout = await app.inject({
         method: "POST",
         url: `/publico/market/compras/${checkoutMarket.json().compra.id}/pagamento`,
-        payload: { comprovativoUrl: "https://example.com/comprovativo-market.png", identificador: "923777001" }
+        headers: { "x-bizy-compra-token": tokenCompra },
+        payload: { comprovativoUrl: "https://example.com/comprovativo-market.png" }
       });
       expect(comprovativoCheckout.statusCode).toBe(200);
 

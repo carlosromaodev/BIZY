@@ -29,7 +29,7 @@ import {
   carregarCarrinhoCheckoutBizy,
   criarCheckoutLojaPublica,
   criarCheckoutUnificado,
-  guardarIdentificadorCompradorMarket,
+  guardarAcessoCompraMarket,
   limparChaveIdempotenciaCheckoutBizy,
   limparCarrinhoCheckoutBizy,
   obterChaveIdempotenciaCheckoutBizy,
@@ -191,7 +191,7 @@ export function PaginaCheckoutBizy() {
         });
 
         setCompraUnificada(resposta);
-        guardarIdentificadorCompradorMarket(cliente.telefone);
+        guardarAcessoCompraMarket(resposta.compra.id, resposta.acessoCompra.token);
         limparCarrinhoCheckoutBizy();
         limparChaveIdempotenciaCheckoutBizy();
         setItens([]);

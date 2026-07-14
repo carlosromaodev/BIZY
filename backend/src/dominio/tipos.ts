@@ -121,6 +121,8 @@ export const tiposEventoSistema = [
   "REPASSE_CANCELADO",
   "REPASSES_RETIDOS",
   "MARKET_FULFILLMENT_CHANGED",
+  "CONTA_BIZY_OTP_SOLICITADO",
+  "CONTA_BIZY_AUTENTICADA",
   "FINANCAS_MOVIMENTO_CRIADO",
   "FINANCAS_FACTURA_EMITIDA",
   "FINANCAS_FACTURA_ANULADA",
@@ -2636,6 +2638,7 @@ export interface CompraUnificada {
   id: string;
   numero: number;
   idempotencyKey: string | null;
+  contaBizyId: string | null;
   compradorTelefone: string;
   compradorNome: string | null;
   compradorEmail: string | null;
@@ -2657,6 +2660,7 @@ export interface CompraUnificada {
 
 export interface NovaCompraUnificada {
   idempotencyKey?: string | null;
+  contaBizyId?: string | null;
   compradorTelefone: string;
   compradorNome?: string | null;
   compradorEmail?: string | null;

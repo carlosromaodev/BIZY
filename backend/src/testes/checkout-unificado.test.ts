@@ -145,16 +145,12 @@ describe("Checkout Unificado multi-loja", () => {
       expect(resultado.compra).toBeDefined();
       expect(resultado.compra.numero).toBeGreaterThan(0);
       expect(resultado.compra.estado).toBe("ABERTA");
-      expect(resultado.compra.compradorTelefone).toBe("923800001");
+      expect(resultado.compra).not.toHaveProperty("compradorTelefone");
       expect(resultado.pedidosFilho).toHaveLength(2);
 
-      // Cada fornecedor tem o seu pedido filho
-      const filhoA = resultado.pedidosFilho.find((f: any) => f.negocioId === pecaA.negocioId);
-      const filhoB = resultado.pedidosFilho.find((f: any) => f.negocioId === pecaB.negocioId);
-      expect(filhoA).toBeDefined();
-      expect(filhoB).toBeDefined();
-      expect(filhoA.subtotalEmKwanza).toBe(16_000); // 8000 x 2
-      expect(filhoB.subtotalEmKwanza).toBe(15_000); // 15000 x 1
+      // O comprador recebe os totais sem identificadores internos dos fornecedores.
+      expect(resultado.pedidosFilho.map((filho: { subtotalEmKwanza: number }) => filho.subtotalEmKwanza).sort((a: number, b: number) => a - b)).toEqual([15_000, 16_000]);
+      expect(resultado.pedidosFilho.every((filho: Record<string, unknown>) => !filho.negocioId && !filho.pedidoId)).toBe(true);
     } finally {
       await app.close();
     }
@@ -298,7 +294,8 @@ describe("Checkout Unificado multi-loja", () => {
 
       const detalhe = await app.inject({
         method: "GET",
-        url: `/publico/market/compras/${checkout.json().compra.id}?identificador=923800010`
+        url: `/publico/market/compras/${checkout.json().compra.id}`,
+        headers: { "x-bizy-compra-token": checkout.json().acessoCompra.token }
       });
 
       expect(detalhe.statusCode).toBe(200);
@@ -322,7 +319,8 @@ describe("Checkout Unificado multi-loja", () => {
 
       const inexistente = await app.inject({
         method: "GET",
-        url: "/publico/market/compras/compra-inexistente?identificador=923800010"
+        url: "/publico/market/compras/compra-inexistente",
+        headers: { "x-bizy-compra-token": checkout.json().acessoCompra.token }
       });
       expect(inexistente.statusCode).toBe(404);
     } finally {
@@ -355,12 +353,14 @@ describe("Checkout Unificado multi-loja", () => {
       });
       expect(checkout.statusCode).toBe(201);
       const compraId = checkout.json().compra.id;
+      const tokenCompra = checkout.json().acessoCompra.token;
 
       // Comprador envia comprovativo; validação/confirmação final continua com a loja.
       const pagamento = await app.inject({
         method: "POST",
         url: `/publico/market/compras/${compraId}/pagamento`,
-        payload: { comprovativoUrl: "https://example.com/comprovativo.jpg", identificador: "923800002" }
+        headers: { "x-bizy-compra-token": tokenCompra },
+        payload: { comprovativoUrl: "https://example.com/comprovativo.jpg" }
       });
       expect(pagamento.statusCode).toBe(200);
       const estadoPagamento = pagamento.json();
@@ -379,7 +379,8 @@ describe("Checkout Unificado multi-loja", () => {
       // Verificar estado separado (RF-067)
       const detalhe = await app.inject({
         method: "GET",
-        url: `/publico/market/compras/${compraId}?identificador=923800002`
+        url: `/publico/market/compras/${compraId}`,
+        headers: { "x-bizy-compra-token": tokenCompra }
       });
       expect(detalhe.statusCode).toBe(200);
       const detalhes = detalhe.json();
@@ -416,6 +417,7 @@ describe("Checkout Unificado multi-loja", () => {
       const pagamento = await app.inject({
         method: "POST",
         url: `/publico/market/compras/${compraId}/pagamento`,
+        headers: { "x-bizy-compra-token": checkout.json().acessoCompra.token },
         payload: { comprovativoUrl: "http://example.com/comprovativo.jpg" }
       });
 
@@ -462,7 +464,8 @@ describe("Checkout Unificado multi-loja", () => {
       // Compra deve ficar parcialmente cancelada
       const detalhe = await app.inject({
         method: "GET",
-        url: `/publico/market/compras/${compraId}?identificador=923800003`
+        url: `/publico/market/compras/${compraId}`,
+        headers: { "x-bizy-compra-token": checkout.json().acessoCompra.token }
       });
       expect(detalhe.json().compra.estado).toBe("PARCIALMENTE_CANCELADA");
     } finally {
@@ -490,7 +493,10 @@ describe("Checkout Unificado multi-loja", () => {
         }
       });
       const compra = checkout.json().compra;
-      const pedidoFilho = checkout.json().pedidosFilho[0];
+      const portalSeller = await app.inject({ method: "GET", url: "/market/fornecedor/portal", headers: loja });
+      const pedidoFilho = portalSeller.json().pedidos.find(
+        (item: { compra: { id: string } }) => item.compra.id === compra.id
+      ).pedido;
 
       // Solicitar reembolso parcial (autenticado como fornecedor)
       const reembolso = await app.inject({
@@ -632,7 +638,10 @@ describe("Repasses Financeiros", () => {
           ]
         }
       });
-      const pedidoFilho = checkout.json().pedidosFilho[0];
+      const portalSeller = await app.inject({ method: "GET", url: "/market/fornecedor/portal", headers: loja });
+      const pedidoFilho = portalSeller.json().pedidos.find(
+        (item: { compra: { id: string } }) => item.compra.id === checkout.json().compra.id
+      ).pedido;
 
       // Solicitar reembolso (autenticado)
       const reembolsoResp = await app.inject({

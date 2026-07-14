@@ -10,7 +10,8 @@ export default defineConfig({
       AUTH_SECRET: "test-secret-for-vitest-32chars00",
       AUTH_ALLOW_LEGACY_TOKENS: "true",
       LOGIN_SMS_DEV_MODE: "true",
-      LOGIN_SMS_EXPOR_CODIGO_DEV: "true"
+      LOGIN_SMS_EXPOR_CODIGO_DEV: "true",
+      WHATSAPP_PROVIDER: "console"
     }
   }
 });

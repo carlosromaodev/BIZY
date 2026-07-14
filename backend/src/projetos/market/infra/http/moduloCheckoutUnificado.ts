@@ -3,6 +3,11 @@ import { ParamIdSchema } from "../../../../dominio/esquemas.js";
 import type { CompraUnificada, PedidoFilho } from "../../../../dominio/tipos.js";
 import { exigirAcessoComercial } from "../../../../infra/http/contextoComercial.js";
 import type { ModuloHttp } from "../../../../infra/http/modulos/ModuloHttp.js";
+import {
+  exigirContaAutenticada,
+  obterTokenCompra,
+  resolverContaAutenticada
+} from "../../../commerce/infra/http/segurancaContaBizy.js";
 
 const ParamCompraIdSchema = z.object({ compraId: z.string().trim().min(1) });
 const TOPICO_MARKET = "bizy.market";
@@ -111,6 +116,8 @@ export const moduloCheckoutUnificado: ModuloHttp = {
         return reply.code(400).send({ erro: "DADOS_CARTAO_PROIBIDOS", mensagem: "O Bizy aceita apenas referência tokenizada do provedor e nunca recebe PAN ou CVV." });
       }
       const dados = CriarCompraUnificadaSchema.parse(request.body ?? {});
+      const acessoConta = await resolverContaAutenticada(contexto, request);
+      const compradorTelefone = contexto.autenticacaoTelefone.normalizarTelefoneOuFalhar(dados.compradorTelefone);
 
       // Resolver slugLoja → negocioId para cada item
       const slugsUnicos = [...new Set(dados.itens.map((i) => i.slugLoja))];
@@ -130,6 +137,8 @@ export const moduloCheckoutUnificado: ModuloHttp = {
 
       const resultado = await contexto.checkoutUnificado.criarCompraUnificada({
         ...dados,
+        compradorTelefone,
+        contaBizyId: acessoConta?.conta.id ?? null,
         itens: itensResolvidos
       });
       await Promise.all(resultado.pedidosFilho.map(async (filho) => {
@@ -188,29 +197,36 @@ export const moduloCheckoutUnificado: ModuloHttp = {
         }
         await Promise.all(eventos);
       }));
-      return reply.code(201).send(resultado);
+      return reply.code(201).send({
+        ...formatarCompraPublica(resultado),
+        acessoCompra: resultado.acessoCompra
+      });
     });
 
-    app.get("/publico/market/portal-comprador", async (request, reply) => {
-      const { identificador } = z.object({ identificador: z.string().trim().min(5).max(160) }).parse(request.query ?? {});
-      const compras = await contexto.checkoutUnificado.buscarPortalComprador(identificador);
+    app.get("/conta/comprador/compras", async (request, reply) => {
+      const acesso = await exigirContaAutenticada(contexto, request, reply);
+      if (!acesso) return;
+      const compras = await contexto.checkoutUnificado.buscarPortalCompradorConta(acesso.conta.id);
       return { compras: compras.map(formatarCompraPublica), total: compras.length };
     });
 
     app.get("/publico/market/compras/:id", async (request, reply) => {
       const { id } = ParamIdSchema.parse(request.params);
-      const { identificador } = z.object({ identificador: z.string().trim().min(5).max(160) }).parse(request.query ?? {});
-      const [compra] = await contexto.checkoutUnificado.buscarPortalComprador(identificador, id);
+      const acesso = await resolverContaAutenticada(contexto, request);
+      const compra = acesso
+        ? (await contexto.checkoutUnificado.buscarPortalCompradorConta(acesso.conta.id, id))[0] ?? null
+        : await contexto.checkoutUnificado.buscarCompraGuest(id, obterTokenCompra(request));
       if (!compra) return reply.code(404).send({ erro: "Compra não encontrada." });
       return formatarCompraPublica(compra);
     });
 
     app.post("/publico/market/compras/:id/pagamento", async (request, reply) => {
       const { id } = ParamIdSchema.parse(request.params);
-      const { comprovativoUrl, identificador } = RegistrarComprovativoUnificadoSchema.extend({
-        identificador: z.string().trim().min(5).max(160)
-      }).parse(request.body ?? {});
-      const [permitida] = await contexto.checkoutUnificado.buscarPortalComprador(identificador, id);
+      const { comprovativoUrl } = RegistrarComprovativoUnificadoSchema.parse(request.body ?? {});
+      const acesso = await resolverContaAutenticada(contexto, request);
+      const permitida = acesso
+        ? (await contexto.checkoutUnificado.buscarPortalCompradorConta(acesso.conta.id, id))[0] ?? null
+        : await contexto.checkoutUnificado.buscarCompraGuest(id, obterTokenCompra(request));
       if (!permitida) return reply.code(404).send({ erro: "Compra não encontrada." });
       const compra = await contexto.checkoutUnificado.registrarComprovativoPagamentoUnificado(id, comprovativoUrl);
       if (!compra) return reply.code(404).send({ erro: "Compra não encontrada." });

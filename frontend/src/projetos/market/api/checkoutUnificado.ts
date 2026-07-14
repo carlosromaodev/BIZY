@@ -2,14 +2,30 @@ import type { ProdutoMarketNormalizado } from "./tiposLojas";
 
 export const CHAVE_CARRINHO_BIZY = "bizy_checkout_unificado_v1";
 export const CHAVE_IDEMPOTENCIA_CHECKOUT_BIZY = "bizy_checkout_idempotencia_v1";
-export const CHAVE_COMPRADOR_MARKET = "bizy_market_comprador_v1";
+const CHAVE_ACESSOS_COMPRA_BIZY = "bizy_market_acessos_compra_v1";
+const CHAVE_DISPOSITIVO_BIZY = "bizy_device_id_v1";
 
-export function guardarIdentificadorCompradorMarket(identificador: string): void {
-  ambienteComStorage()?.setItem(CHAVE_COMPRADOR_MARKET, identificador.trim());
+export function guardarAcessoCompraMarket(compraId: string, token: string): void {
+  const storage = ambienteComStorage();
+  if (!storage || !compraId || !token) return;
+  const acessos = lerAcessosCompra(storage);
+  acessos[compraId] = token;
+  storage.setItem(CHAVE_ACESSOS_COMPRA_BIZY, JSON.stringify(acessos));
 }
 
-export function obterIdentificadorCompradorMarket(): string {
-  return ambienteComStorage()?.getItem(CHAVE_COMPRADOR_MARKET)?.trim() ?? "";
+export function obterAcessoCompraMarket(compraId: string): string {
+  const storage = ambienteComStorage();
+  return storage ? lerAcessosCompra(storage)[compraId] ?? "" : "";
+}
+
+export function obterIdentificadorDispositivoBizy(): string {
+  const storage = ambienteComStorage();
+  if (!storage) return "browser";
+  const existente = storage.getItem(CHAVE_DISPOSITIVO_BIZY);
+  if (existente) return existente;
+  const identificador = globalThis.crypto?.randomUUID?.() ?? `device-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  storage.setItem(CHAVE_DISPOSITIVO_BIZY, identificador);
+  return identificador;
 }
 
 export interface ItemCarrinhoCheckoutBizy {
@@ -53,6 +69,15 @@ interface ChaveIdempotenciaCheckoutBizy {
 function ambienteComStorage(): Storage | null {
   if (typeof window === "undefined") return null;
   return window.localStorage;
+}
+
+function lerAcessosCompra(storage: Storage): Record<string, string> {
+  try {
+    const valor = JSON.parse(storage.getItem(CHAVE_ACESSOS_COMPRA_BIZY) ?? "{}");
+    return valor && typeof valor === "object" && !Array.isArray(valor) ? valor as Record<string, string> : {};
+  } catch {
+    return {};
+  }
 }
 
 function chaveItemCheckout(item: Pick<ItemCarrinhoCheckoutBizy, "codigoProduto" | "slugLoja" | "variantes">): string {

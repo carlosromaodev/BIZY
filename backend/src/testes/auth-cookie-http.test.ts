@@ -22,6 +22,7 @@ describe("sessão por cookie HttpOnly", () => {
       MODO_ARMAZENAMENTO: "memoria",
       LOGIN_SMS_DEV_MODE: "true",
       LOGIN_SMS_EXPOR_CODIGO_DEV: "true",
+      WHATSAPP_PROVIDER: "console",
       INICIAR_AGENDADOR_EXPIRACAO: "false",
       RESTAURAR_LIVES_ATIVAS: "false",
       N8N_EVENTOS_ATIVOS: "false",

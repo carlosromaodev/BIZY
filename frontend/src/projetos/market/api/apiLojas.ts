@@ -1,5 +1,6 @@
 import { requisitarApi, resolverUrlMedia } from "../../../api";
 import { ROTAS_API_LOJAS, ROTAS_LOJAS } from "./rotasLojas";
+import { obterAcessoCompraMarket } from "./checkoutUnificado";
 import type {
   CatalogoPersonalizadoLoja,
   EventoTrackingPublicoPayload,
@@ -518,24 +519,28 @@ export function criarCheckoutUnificado(payload: PayloadCheckoutUnificado): Promi
   }, false);
 }
 
-export function obterCompraUnificada(compraId: string, identificador: string): Promise<RespostaCompraEstados> {
-  return requisitarApi<RespostaCompraEstados>(comQuery(ROTAS_API_LOJAS.compraUnificada(compraId), { identificador }), {}, false);
+export function obterCompraUnificada(compraId: string): Promise<RespostaCompraEstados> {
+  const tokenCompra = obterAcessoCompraMarket(compraId);
+  return requisitarApi<RespostaCompraEstados>(ROTAS_API_LOJAS.compraUnificada(compraId), {
+    headers: tokenCompra ? { "X-Bizy-Compra-Token": tokenCompra } : {}
+  }, false);
 }
 
-export function obterPortalCompradorMarket(identificador: string): Promise<{ compras: RespostaCompraEstados[]; total: number }> {
+export function obterPortalCompradorMarket(): Promise<{ compras: RespostaCompraEstados[]; total: number }> {
   return requisitarApi<{ compras: RespostaCompraEstados[]; total: number }>(
-    comQuery("/publico/market/portal-comprador", { identificador }), {}, false
+    "/conta/comprador/compras", {}, false
   );
 }
 
 export function enviarComprovativoPagamentoUnificado(
   compraId: string,
-  comprovativoUrl: string,
-  identificador: string
+  comprovativoUrl: string
 ): Promise<RespostaCompraEstados> {
+  const tokenCompra = obterAcessoCompraMarket(compraId);
   return requisitarApi<RespostaCompraEstados>(ROTAS_API_LOJAS.pagamentoUnificado(compraId), {
     method: "POST",
-    body: { comprovativoUrl, identificador }
+    body: { comprovativoUrl },
+    headers: tokenCompra ? { "X-Bizy-Compra-Token": tokenCompra } : {}
   }, false);
 }
 

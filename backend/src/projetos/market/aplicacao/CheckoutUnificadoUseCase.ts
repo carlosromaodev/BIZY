@@ -15,12 +15,14 @@ import type {
   ReembolsoPedido,
   NovoReembolsoPedido
 } from "../../../dominio/tipos.js";
+import type { ContaBizyUseCase } from "../../commerce/aplicacao/ContaBizyUseCase.js";
 
 const IVA_ANGOLA_PERCENTUAL = 14;
 const TAXA_BIZY_PERCENTUAL = 5;
 const DIAS_JANELA_RISCO_PAYOUT = 7;
 
 interface DependenciasCheckout {
+  contaBizy: ContaBizyUseCase;
   autenticacao: RepositorioAutenticacao;
   comprasUnificadas: RepositorioComprasUnificadas;
   pecas: RepositorioPecas;
@@ -47,7 +49,11 @@ export class CheckoutUnificadoUseCase {
    * RF-053: Cria compra unificada agrupando itens por fornecedor em pedidos filhos.
    * RF-054: Uma única transação de pagamento para o comprador.
    */
-  async criarCompraUnificada(dados: NovaCompraUnificada): Promise<{ compra: CompraUnificada; pedidosFilho: PedidoFilho[] }> {
+  async criarCompraUnificada(dados: NovaCompraUnificada): Promise<{
+    compra: CompraUnificada;
+    pedidosFilho: PedidoFilho[];
+    acessoCompra: { token: string; expiraEm: Date };
+  }> {
     const idempotencyKey = dados.idempotencyKey?.trim() || null;
     if (idempotencyKey) {
       const compraExistente = await this.deps.comprasUnificadas.buscarPorIdempotencyKey(
@@ -57,7 +63,8 @@ export class CheckoutUnificadoUseCase {
       if (compraExistente) {
         return {
           compra: compraExistente,
-          pedidosFilho: await this.deps.comprasUnificadas.listarPedidosFilho(compraExistente.id)
+          pedidosFilho: await this.deps.comprasUnificadas.listarPedidosFilho(compraExistente.id),
+          acessoCompra: await this.deps.contaBizy.emitirAcessoCompra(compraExistente.id)
         };
       }
     }
@@ -181,7 +188,11 @@ export class CheckoutUnificadoUseCase {
       compraId: compra.id, numero: compra.numero, totalFornecedores: pedidosFilho.length
     });
 
-    return { compra, pedidosFilho: await this.deps.comprasUnificadas.listarPedidosFilho(compra.id) };
+    return {
+      compra,
+      pedidosFilho: await this.deps.comprasUnificadas.listarPedidosFilho(compra.id),
+      acessoCompra: await this.deps.contaBizy.emitirAcessoCompra(compra.id)
+    };
   }
 
   /** RF-064: Fornecedor vê apenas os seus itens e valores */
@@ -201,13 +212,19 @@ export class CheckoutUnificadoUseCase {
     return { compra, pedidosFilho };
   }
 
-  async buscarPortalComprador(identificador: string, compraId?: string) {
-    const compras = await this.deps.comprasUnificadas.listarComprasPorComprador(identificador, 50);
-    const filtradas = compraId ? compras.filter((compra) => compra.id === compraId) : compras;
-    return Promise.all(filtradas.map(async (compra) => ({
+  async buscarPortalCompradorConta(contaId: string, compraId?: string) {
+    const compras = compraId
+      ? [await this.deps.comprasUnificadas.buscarPorIdEConta(compraId, contaId)].filter((compra): compra is CompraUnificada => Boolean(compra))
+      : await this.deps.comprasUnificadas.listarComprasPorConta(contaId, 50);
+    return Promise.all(compras.map(async (compra) => ({
       compra,
       pedidosFilho: await this.deps.comprasUnificadas.listarPedidosFilho(compra.id)
     })));
+  }
+
+  async buscarCompraGuest(compraId: string, token: string | null) {
+    if (!await this.deps.contaBizy.validarAcessoCompra(compraId, token)) return null;
+    return this.buscarCompraComEstados(compraId);
   }
 
   async buscarPortalSeller(negocioId: string) {

@@ -47,6 +47,10 @@ import { AutenticacaoTelefoneUseCase } from "../../use-case/AutenticacaoTelefone
 import { BizyLearningUseCase } from "../../projetos/learning/aplicacao/BizyLearningUseCase.js";
 import { BizyMarketUseCase } from "../../projetos/market/aplicacao/BizyMarketUseCase.js";
 import { CheckoutUnificadoUseCase } from "../../projetos/market/aplicacao/CheckoutUnificadoUseCase.js";
+import { ContaBizyUseCase } from "../../projetos/commerce/aplicacao/ContaBizyUseCase.js";
+import type { RepositorioContaBizy } from "../../projetos/commerce/dominio/contratos.js";
+import { RepositorioContaBizyMemoria } from "../../projetos/commerce/infra/repositorios/RepositorioContaBizyMemoria.js";
+import { RepositorioContaBizyPrisma } from "../../projetos/commerce/infra/repositorios/RepositorioContaBizyPrisma.js";
 import { RepassesFinanceirosUseCase } from "../../projetos/market/aplicacao/RepassesFinanceirosUseCase.js";
 import { ConsultaAtendimentoN8n } from "../../use-case/ConsultaAtendimentoN8n.js";
 import { ConsultaAtendimentoOperacionalUseCase } from "../../use-case/ConsultaAtendimentoOperacionalUseCase.js";
@@ -168,6 +172,7 @@ import { baixarMediaUrlComoDataUrl } from "../media/MediaDownloader.js";
 import { salvarMediaDataUrl } from "../media/MediaStorage.js";
 
 export interface RepositoriosAplicacao {
+  contaBizy: RepositorioContaBizy;
   pecas: RepositorioPecas;
   pedidos: RepositorioPedidos;
   reservas: RepositorioReservas;
@@ -233,6 +238,7 @@ export interface ContextoAplicacao {
   automacaoWhatsApp: AutomacaoWhatsApp;
   provedorSms: ReturnType<typeof criarProvedorSms>;
   autenticacaoTelefone: AutenticacaoTelefoneUseCase;
+  contaBizy: ContaBizyUseCase;
   autenticacaoEstudantil: AutenticacaoEstudantilUseCase;
   onboardingBizy: OnboardingBizyUseCase;
   gestaoWhatsAppEvolution: GestaoWhatsAppEvolutionUseCase;
@@ -324,6 +330,21 @@ export function criarContextoAplicacao(logger: FastifyBaseLogger): ContextoAplic
     remetenteSms: process.env.OMBALA_SMS_DEFAULT_SENDER ?? "BIZY",
     minutosExpiracaoCodigo: Number(process.env.LOGIN_SMS_MINUTOS_EXPIRACAO ?? 10),
     diasExpiracaoSessao: Number(process.env.LOGIN_SESSAO_DIAS_EXPIRACAO ?? 7),
+    permitirSmsDev: process.env.LOGIN_SMS_DEV_MODE === "true",
+    exporCodigoDev: process.env.LOGIN_SMS_EXPOR_CODIGO_DEV === "true"
+  });
+  const contaBizy = new ContaBizyUseCase({
+    contas: repositorios.contaBizy,
+    compras: repositorios.comprasUnificadas,
+    autenticacao: repositorios.autenticacao,
+    sms: provedorSms,
+    eventos
+  }, {
+    segredo: process.env.AUTH_SECRET ?? (() => { throw new Error("AUTH_SECRET não configurado."); })(),
+    remetenteSms: process.env.OMBALA_SMS_DEFAULT_SENDER ?? "BIZY",
+    minutosExpiracaoOtp: Number(process.env.CONTA_OTP_MINUTOS_EXPIRACAO ?? 10),
+    diasExpiracaoSessao: Number(process.env.CONTA_SESSAO_DIAS_EXPIRACAO ?? 30),
+    diasExpiracaoAcessoGuest: Number(process.env.COMPRA_GUEST_DIAS_EXPIRACAO ?? 7),
     permitirSmsDev: process.env.LOGIN_SMS_DEV_MODE === "true",
     exporCodigoDev: process.env.LOGIN_SMS_EXPOR_CODIGO_DEV === "true"
   });
@@ -516,6 +537,7 @@ export function criarContextoAplicacao(logger: FastifyBaseLogger): ContextoAplic
   const bizyLearning = new BizyLearningUseCase(repositorios.eventosOperacionais, repositorios.autenticacao);
 
   const checkoutUnificado = new CheckoutUnificadoUseCase({
+    contaBizy,
     autenticacao: repositorios.autenticacao,
     comprasUnificadas: repositorios.comprasUnificadas,
     pecas: repositorios.pecas,
@@ -580,6 +602,7 @@ export function criarContextoAplicacao(logger: FastifyBaseLogger): ContextoAplic
     automacaoWhatsApp,
     provedorSms,
     autenticacaoTelefone,
+    contaBizy,
     autenticacaoEstudantil,
     onboardingBizy,
     gestaoWhatsAppEvolution,
@@ -831,6 +854,7 @@ function criarRepositorios(): RepositoriosAplicacao {
   if ((process.env.MODO_ARMAZENAMENTO ?? "prisma") === "memoria") {
     const pecas = new RepositorioPecasMemoria();
     return {
+      contaBizy: new RepositorioContaBizyMemoria(),
       pecas,
       pedidos: new RepositorioPedidosMemoria(),
       reservas: new RepositorioReservasMemoria(pecas),
@@ -868,6 +892,7 @@ function criarRepositorios(): RepositoriosAplicacao {
   const prisma = criarPrismaCliente();
 
   return {
+    contaBizy: new RepositorioContaBizyPrisma(prisma),
     pecas: new RepositorioPecasPrisma(prisma),
     pedidos: new RepositorioPedidosPrisma(prisma),
     reservas: new RepositorioReservasPrisma(prisma),

@@ -835,8 +835,12 @@ export interface CompraUnificadaAcompanhamento {
 }
 
 export interface RespostaCheckoutUnificado {
-  compra: CompraUnificada;
+  compra: CompraUnificadaAcompanhamento;
   pedidosFilho: PedidoFilhoUnificado[];
+  acessoCompra: {
+    token: string;
+    expiraEm: string;
+  };
 }
 
 export interface RespostaCompraEstados {

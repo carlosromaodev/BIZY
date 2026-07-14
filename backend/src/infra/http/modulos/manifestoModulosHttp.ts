@@ -3,6 +3,7 @@ import { moduloAnaniGovernance } from "./ananiGovernance.js";
 import { moduloAfiliados } from "./afiliados.js";
 import { moduloCheckoutUnificado } from "../../../projetos/market/infra/http/moduloCheckoutUnificado.js";
 import { moduloAutenticacao } from "./autenticacao.js";
+import { moduloContaBizy } from "./contaBizy.js";
 import { moduloCampanhas } from "./campanhas.js";
 import { moduloCatalogo } from "./catalogo.js";
 import { moduloClientes } from "./clientes.js";
@@ -32,6 +33,7 @@ import { moduloSaude } from "./saude.js";
 export const modulosHttp = [
   moduloSaude,
   moduloAutenticacao,
+  moduloContaBizy,
   moduloLives,
   moduloCatalogo,
   moduloClientes,

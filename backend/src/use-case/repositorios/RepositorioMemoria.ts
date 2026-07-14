@@ -4185,6 +4185,7 @@ export class RepositorioComprasUnificadasMemoria implements RepositorioComprasUn
       id: randomUUID(),
       numero: this.contadorNumero++,
       idempotencyKey: dados.idempotencyKey ?? null,
+      contaBizyId: dados.contaBizyId ?? null,
       compradorTelefone: dados.compradorTelefone,
       compradorNome: dados.compradorNome ?? null,
       compradorEmail: dados.compradorEmail ?? null,
@@ -4235,6 +4236,27 @@ export class RepositorioComprasUnificadasMemoria implements RepositorioComprasUn
       .filter((compra) => compra.compradorTelefone.trim().toLowerCase() === chave || compra.compradorEmail?.trim().toLowerCase() === chave)
       .sort((a, b) => b.criadoEm.getTime() - a.criadoEm.getTime())
       .slice(0, limite);
+  }
+
+  async listarComprasPorConta(contaBizyId: string, limite = 50): Promise<CompraUnificada[]> {
+    return this.compras
+      .filter((compra) => compra.contaBizyId === contaBizyId)
+      .sort((a, b) => b.criadoEm.getTime() - a.criadoEm.getTime())
+      .slice(0, limite);
+  }
+
+  async buscarPorIdEConta(id: string, contaBizyId: string): Promise<CompraUnificada | null> {
+    const compra = this.compras.find((item) => item.id === id);
+    return compra?.contaBizyId === contaBizyId ? compra : null;
+  }
+
+  async associarConta(id: string, contaBizyId: string): Promise<CompraUnificada | null> {
+    const indice = this.compras.findIndex((item) => item.id === id);
+    const compra = this.compras[indice];
+    if (!compra || (compra.contaBizyId && compra.contaBizyId !== contaBizyId)) return null;
+    const atualizada = { ...compra, contaBizyId, atualizadoEm: new Date() };
+    this.compras[indice] = atualizada;
+    return atualizada;
   }
 
   async listarPedidosFilhoPorNegocio(negocioId: string, limite = 100) {

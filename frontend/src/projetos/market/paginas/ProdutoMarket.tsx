@@ -16,10 +16,13 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import {
   adicionarItemCheckoutBizy,
+  adicionarFavoritoContaBizy,
   criarItemCheckoutDeProdutoMarket,
   listarProdutosSimilaresMarket,
+  listarFavoritosContaBizy,
   normalizarProdutoMarket,
   obterProdutoMarket,
+  removerFavoritoContaBizy,
   ROTAS_LOJAS
 } from "../api";
 import type { ProdutoMarketNormalizado } from "../api";
@@ -86,6 +89,7 @@ export function PaginaProdutoMarket() {
   const [buscaTopo, setBuscaTopo] = useState("");
   const [erro, setErro] = useState("");
   const [carregando, setCarregando] = useState(true);
+  const [favorito, setFavorito] = useState(false);
 
   useEffect(() => {
     let ativo = true;
@@ -103,6 +107,8 @@ export function PaginaProdutoMarket() {
         }
         const normalizado = normalizarProdutoMarket(resposta.produto);
         setProduto(normalizado);
+        const favoritos = await listarFavoritosContaBizy().catch(() => null);
+        if (ativo) setFavorito(Boolean(favoritos?.favoritos.some((item) => item.slugLoja === normalizado.fornecedor.slug && item.codigoProduto === normalizado.codigo)));
         setSimilares((respostaSimilares?.produtos ?? resposta.similares ?? []).map(normalizarProdutoMarket));
         setFotoAtiva(0);
         setQuantidade(1);
@@ -137,6 +143,17 @@ export function PaginaProdutoMarket() {
   function submeterBusca(termoInformado = buscaTopo) {
     const termo = termoInformado.trim();
     navigate(termo ? `${ROTAS_LOJAS.market}?busca=${encodeURIComponent(termo)}` : ROTAS_LOJAS.market);
+  }
+
+  async function alternarFavorito() {
+    if (!produto) return;
+    try {
+      if (favorito) await removerFavoritoContaBizy(produto.fornecedor.slug, produto.codigo);
+      else await adicionarFavoritoContaBizy(produto.fornecedor.slug, produto.codigo);
+      setFavorito((valor) => !valor);
+    } catch {
+      navigate(ROTAS_LOJAS.compras);
+    }
   }
 
   function adicionarAoCheckoutBizy() {
@@ -223,8 +240,8 @@ export function PaginaProdutoMarket() {
         >
           <div className={`market-pdp-photo market-pdp-main-visual pdp-main ${fotoPrincipal ? "has-image" : "is-placeholder"}`}>
             <span className="off">{desconto}</span>
-            <button type="button" className="fav" aria-label="Adicionar aos favoritos">
-              <Heart size={16} />
+            <button type="button" className={`fav ${favorito ? "is-active" : ""}`} aria-label={favorito ? "Remover dos favoritos" : "Adicionar aos favoritos"} aria-pressed={favorito} onClick={() => void alternarFavorito()}>
+              <Heart size={16} fill={favorito ? "currentColor" : "none"} />
             </button>
             {fotoPrincipal ? <img src={fotoPrincipal} alt={produto.nome} /> : <Package size={64} />}
           </div>

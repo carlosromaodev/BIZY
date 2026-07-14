@@ -1,10 +1,10 @@
-import { CheckCircle2, Clock3, CreditCard, PackageCheck, PackageX, ReceiptText, ShieldCheck, Store, Truck, UserRoundSearch } from "lucide-react";
+import { CheckCircle2, Clock3, CreditCard, PackageCheck, PackageX, ReceiptText, ShieldCheck, Store, Truck } from "lucide-react";
 import type { FormEvent } from "react";
 import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { enviarComprovativoPagamentoUnificado, guardarIdentificadorCompradorMarket, obterCompraUnificada, obterIdentificadorCompradorMarket, ROTAS_LOJAS } from "../api";
+import { enviarComprovativoPagamentoUnificado, obterCompraUnificada, ROTAS_LOJAS } from "../api";
 import type { PedidoFilhoAcompanhamento, RespostaCompraEstados } from "../api";
 import { formatarDataHoraCurta, formatarKwanza } from "../../../utilidades";
 import { CabecalhoMarket, RodapeMarket } from "../componentes/MarketChrome";
@@ -85,8 +85,6 @@ export function PaginaCompraUnificada() {
   const [mensagemPagamento, setMensagemPagamento] = useState("");
   const [carregando, setCarregando] = useState(true);
   const [enviandoComprovativo, setEnviandoComprovativo] = useState(false);
-  const [identificador, setIdentificador] = useState(() => obterIdentificadorCompradorMarket());
-  const [identificadorForm, setIdentificadorForm] = useState(() => obterIdentificadorCompradorMarket());
 
   useEffect(() => {
     let meta = document.querySelector('meta[name="robots"]') as HTMLMetaElement | null;
@@ -110,14 +108,10 @@ export function PaginaCompraUnificada() {
     let ativo = true;
 
     async function carregar() {
-      if (!identificador) {
-        setCarregando(false);
-        return;
-      }
       setCarregando(true);
       setErro("");
       try {
-        const resposta = await obterCompraUnificada(id, identificador);
+        const resposta = await obterCompraUnificada(id);
         if (!ativo) return;
         setDados(resposta);
       } catch {
@@ -137,7 +131,7 @@ export function PaginaCompraUnificada() {
     return () => {
       ativo = false;
     };
-  }, [id, identificador]);
+  }, [id]);
 
   const estadoPrincipal = dados?.compra.estado ?? "";
   const IconeEstado = useMemo(() => iconeEstado(estadoPrincipal), [estadoPrincipal]);
@@ -162,7 +156,7 @@ export function PaginaCompraUnificada() {
 
     setEnviandoComprovativo(true);
     try {
-      const resposta = await enviarComprovativoPagamentoUnificado(id, url.toString(), identificador);
+      const resposta = await enviarComprovativoPagamentoUnificado(id, url.toString());
       setDados(resposta);
       setComprovativoUrl("");
       setMensagemPagamento("Comprovativo recebido. A loja vai validar o pagamento.");
@@ -184,26 +178,7 @@ export function PaginaCompraUnificada() {
             Acompanhamento seguro
           </span>
 
-          {!identificador ? (
-            <form className="market-order-access" onSubmit={(evento) => {
-              evento.preventDefault();
-              const valor = identificadorForm.trim();
-              if (valor.length < 5) return;
-              guardarIdentificadorCompradorMarket(valor);
-              setIdentificador(valor);
-            }}>
-              <div className="market-order-access-copy">
-                <span><UserRoundSearch size={20} /></span>
-                <h1>Aceder à compra</h1>
-                <p>Consulte pagamento, preparação e entrega de cada fornecedor usando o contacto informado no checkout.</p>
-              </div>
-              <div className="market-order-access-fields">
-                <label htmlFor="identificador-compra">Telefone ou email da compra</label>
-                <Input id="identificador-compra" value={identificadorForm} onChange={(evento) => setIdentificadorForm(evento.target.value)} placeholder="Telefone ou email" autoComplete="tel" />
-                <Button type="submit" disabled={identificadorForm.trim().length < 5}>Continuar</Button>
-              </div>
-            </form>
-          ) : carregando ? (
+          {carregando ? (
             <div className="mt-6 grid place-items-center gap-3 py-12 text-center text-neutral-600">
               <Clock3 className="animate-spin" size={28} />
               <p>A carregar estado da compra...</p>
@@ -213,7 +188,7 @@ export function PaginaCompraUnificada() {
               <h1 className="text-2xl font-bold text-neutral-950">Compra não encontrada</h1>
               <p className="max-w-xl text-sm text-neutral-600">{erro}</p>
               <Button asChild className="w-fit">
-                <Link to={ROTAS_LOJAS.market}>Voltar ao Market</Link>
+                <Link to={ROTAS_LOJAS.compras}>Entrar na conta de comprador</Link>
               </Button>
             </div>
           ) : dados ? (

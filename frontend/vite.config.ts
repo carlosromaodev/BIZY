@@ -17,6 +17,7 @@ const rotasBackend = [
   "/campanhas",
   "/clientes",
   "/comentarios",
+  "/conta",
   "/actividades",
   "/cotacoes",
   "/diagnosticos",

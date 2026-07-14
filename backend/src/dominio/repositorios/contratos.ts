@@ -582,6 +582,9 @@ export interface RepositorioComprasUnificadas {
   buscarPorIdempotencyKey(idempotencyKey: string, compradorTelefone?: string): Promise<CompraUnificada | null>;
   listarPedidosFilho(compraUnificadaId: string): Promise<PedidoFilho[]>;
   listarComprasPorComprador(identificador: string, limite?: number): Promise<CompraUnificada[]>;
+  listarComprasPorConta(contaBizyId: string, limite?: number): Promise<CompraUnificada[]>;
+  buscarPorIdEConta(id: string, contaBizyId: string): Promise<CompraUnificada | null>;
+  associarConta(id: string, contaBizyId: string): Promise<CompraUnificada | null>;
   listarPedidosFilhoPorNegocio(negocioId: string, limite?: number): Promise<Array<{ compra: CompraUnificada; pedido: PedidoFilho }>>;
   atualizarEstado(id: string, estado: CompraUnificada["estado"]): Promise<CompraUnificada | null>;
   atualizarEstadoPagamento(

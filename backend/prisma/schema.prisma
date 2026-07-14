@@ -407,6 +407,7 @@ model UsuarioSistema {
   convitesCriados        ConviteEquipa[] @relation("ConvitesCriados")
   notasInternas          NotaInterna[] @relation("NotasInternas")
   feedActividades        FeedActividade[] @relation("FeedActividades")
+  contaBizy              ContaBizy?
 }
 
 model IdentidadeAutenticacao {
@@ -1061,6 +1062,7 @@ model ClienteGlobal {
   clientesNegocio    ClienteNegocio[]
   clientesAtendimento ClienteAtendimento[]
   compartilhamentos  CompartilhamentoCliente[]
+  contaBizy           ContaBizy?
 
   @@index([telefoneCanonico])
   @@index([emailCanonico])
@@ -1220,6 +1222,181 @@ model SessaoUsuario {
   @@index([expiraEm])
 }
 
+model ContaBizy {
+  id                    String                 @id @default(uuid())
+  nome                  String?
+  telefoneCanonico      String?                @unique
+  emailCanonico         String?                @unique
+  telefoneVerificadoEm  DateTime?
+  emailVerificadoEm     DateTime?
+  status                String                 @default("ATIVA")
+  usuarioSistemaId      String?                @unique
+  usuarioSistema        UsuarioSistema?        @relation(fields: [usuarioSistemaId], references: [id])
+  clienteGlobalId       String?                @unique
+  clienteGlobal         ClienteGlobal?         @relation(fields: [clienteGlobalId], references: [id])
+  criadoEm              DateTime               @default(now())
+  atualizadoEm          DateTime               @updatedAt
+  perfilComprador       PerfilComprador?
+  contextos             ContextoContaBizy[]
+  enderecos             EnderecoComprador[]
+  favoritos             FavoritoComprador[]
+  consentimentos        ConsentimentoContaBizy[]
+  dispositivos          DispositivoContaBizy[]
+  sessoes               SessaoContaBizy[]
+  codigosOtp            CodigoOtpContaBizy[]
+  compras               CompraUnificada[]
+
+  @@index([status])
+  @@index([telefoneVerificadoEm])
+  @@index([emailVerificadoEm])
+}
+
+model PerfilComprador {
+  id                     String    @id @default(uuid())
+  contaId                String    @unique
+  conta                  ContaBizy @relation(fields: [contaId], references: [id], onDelete: Cascade)
+  nomeExibicao            String?
+  preferenciasJson       String    @default("{}")
+  consentimentoDados     Boolean   @default(false)
+  consentimentoMarketing Boolean   @default(false)
+  criadoEm               DateTime  @default(now())
+  atualizadoEm           DateTime  @updatedAt
+}
+
+model ContextoContaBizy {
+  id           String    @id @default(uuid())
+  contaId      String
+  conta        ContaBizy @relation(fields: [contaId], references: [id], onDelete: Cascade)
+  tipo         String
+  negocioId    String?
+  chave        String
+  estado       String    @default("ATIVO")
+  criadoEm     DateTime  @default(now())
+  atualizadoEm DateTime  @updatedAt
+
+  @@unique([contaId, chave])
+  @@index([tipo, negocioId])
+}
+
+model EnderecoComprador {
+  id           String    @id @default(uuid())
+  contaId      String
+  conta        ContaBizy @relation(fields: [contaId], references: [id], onDelete: Cascade)
+  rotulo       String
+  provincia    String?
+  municipio    String?
+  bairro       String?
+  endereco     String
+  referencia   String?
+  principal    Boolean   @default(false)
+  criadoEm     DateTime  @default(now())
+  atualizadoEm DateTime  @updatedAt
+
+  @@index([contaId, principal])
+}
+
+model FavoritoComprador {
+  id            String    @id @default(uuid())
+  contaId       String
+  conta         ContaBizy @relation(fields: [contaId], references: [id], onDelete: Cascade)
+  slugLoja      String
+  codigoProduto String
+  criadoEm      DateTime  @default(now())
+
+  @@unique([contaId, slugLoja, codigoProduto])
+  @@index([contaId, criadoEm])
+}
+
+model ConsentimentoContaBizy {
+  id        String    @id @default(uuid())
+  contaId   String
+  conta     ContaBizy @relation(fields: [contaId], references: [id], onDelete: Cascade)
+  tipo      String
+  versao    String
+  concedido Boolean
+  origem    String
+  ipHash    String?
+  criadoEm  DateTime  @default(now())
+
+  @@index([contaId, tipo, criadoEm])
+}
+
+model DispositivoContaBizy {
+  id                String             @id @default(uuid())
+  contaId           String
+  conta             ContaBizy          @relation(fields: [contaId], references: [id], onDelete: Cascade)
+  identificadorHash String
+  nome              String?
+  userAgent         String?
+  ultimoIpHash      String?
+  confiavelEm       DateTime?
+  revogadoEm        DateTime?
+  ultimoUsoEm       DateTime?
+  criadoEm          DateTime           @default(now())
+  atualizadoEm      DateTime           @updatedAt
+  sessoes           SessaoContaBizy[]
+
+  @@unique([contaId, identificadorHash])
+  @@index([contaId, revogadoEm])
+}
+
+model SessaoContaBizy {
+  id              String                @id @default(uuid())
+  tokenHash       String                @unique
+  contaId         String
+  conta           ContaBizy             @relation(fields: [contaId], references: [id], onDelete: Cascade)
+  dispositivoId   String?
+  dispositivo     DispositivoContaBizy? @relation(fields: [dispositivoId], references: [id])
+  ipHash          String?
+  userAgent       String?
+  expiraEm        DateTime
+  ultimoUsoEm     DateTime?
+  revogadaEm      DateTime?
+  motivoRevogacao String?
+  criadaEm        DateTime              @default(now())
+
+  @@index([contaId, revogadaEm, expiraEm])
+  @@index([expiraEm])
+}
+
+model CodigoOtpContaBizy {
+  id                String     @id @default(uuid())
+  contaId           String?
+  conta             ContaBizy? @relation(fields: [contaId], references: [id], onDelete: Cascade)
+  contactoTipo      String
+  contactoCanonico  String
+  finalidade        String
+  compraId          String?
+  codigoHash        String
+  codigoFinal       String
+  tentativas        Int        @default(0)
+  expiraEm          DateTime
+  usadoEm           DateTime?
+  revogadoEm        DateTime?
+  statusEnvio       String
+  provider          String
+  providerMessageId String?
+  criadoEm          DateTime   @default(now())
+
+  @@index([contactoTipo, contactoCanonico, finalidade, expiraEm])
+  @@index([compraId])
+}
+
+model AcessoCompraConvidado {
+  id              String          @id @default(uuid())
+  compraId        String
+  compra          CompraUnificada @relation(fields: [compraId], references: [id], onDelete: Cascade)
+  tokenHash       String          @unique
+  expiraEm        DateTime
+  ultimoAcessoEm  DateTime?
+  revogadoEm      DateTime?
+  motivoRevogacao String?
+  criadoEm        DateTime        @default(now())
+
+  @@index([compraId, revogadoEm, expiraEm])
+  @@index([expiraEm])
+}
+
 model InstanciaWhatsApp {
   id              String   @id @default(uuid())
   negocioId       String?
@@ -1341,11 +1518,15 @@ model CompraUnificada {
   origem                    String          @default("market")
   criadoEm                  DateTime        @default(now())
   atualizadoEm              DateTime        @updatedAt
+  contaBizyId               String?
+  contaBizy                 ContaBizy?      @relation(fields: [contaBizyId], references: [id])
   pedidosFilho              PedidoFilho[]
+  acessosConvidado          AcessoCompraConvidado[]
 
   @@index([compradorTelefone])
   @@unique([compradorTelefone, idempotencyKey])
   @@index([estado])
+  @@index([contaBizyId, criadoEm])
 }
 
 model PedidoFilho {
