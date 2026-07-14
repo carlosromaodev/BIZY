@@ -25,6 +25,11 @@ import type {
   RejeicaoPagamentoPedido,
   Reserva
 } from "../dominio/tipos.js";
+import {
+  criarChaveCombinacaoVariante,
+  encontrarCombinacaoVariante,
+  validarSelecaoVariante
+} from "../dominio/servicos/VariantesProduto.js";
 import { montarPaginacaoOffset, normalizarLimitePaginacao, normalizarOffsetPaginacao } from "./utils/paginacao.js";
 
 const estadosQueConsomemStock = new Set<Pedido["estado"]>([
@@ -727,11 +732,26 @@ export class GestaoPedidosUseCase {
   private async resolverItens(dados: NovoPedido, pedidoIgnoradoId?: string): Promise<DadosPedidoResolvido["itens"]> {
     const pedidosAtuais = await this.pedidos.listar(dados.negocioId, { limite: 10_000 });
     const quantidadeConsumida = new Map<string, number>();
+    const quantidadeConsumidaVarianteId = new Map<string, number>();
+    const quantidadeConsumidaVarianteSelecao = new Map<string, number>();
     for (const pedido of pedidosAtuais) {
       if (pedido.id === pedidoIgnoradoId) continue;
       if (!estadosQueConsomemStock.has(pedido.estado)) continue;
       for (const item of pedido.itens) {
         quantidadeConsumida.set(item.codigoPeca, (quantidadeConsumida.get(item.codigoPeca) ?? 0) + item.quantidade);
+        if (item.variantePecaId) {
+          quantidadeConsumidaVarianteId.set(
+            item.variantePecaId,
+            (quantidadeConsumidaVarianteId.get(item.variantePecaId) ?? 0) + item.quantidade
+          );
+        }
+        if (item.varianteSelecionada) {
+          const chave = `${item.codigoPeca}:${criarChaveCombinacaoVariante(item.varianteSelecionada)}`;
+          quantidadeConsumidaVarianteSelecao.set(
+            chave,
+            (quantidadeConsumidaVarianteSelecao.get(chave) ?? 0) + item.quantidade
+          );
+        }
       }
     }
 
@@ -752,12 +772,40 @@ export class GestaoPedidosUseCase {
         );
       }
 
+      const selecao = validarSelecaoVariante(peca.variantes, item.varianteSelecionada);
+      const combinacoes = Object.keys(peca.variantes).length > 0
+        ? await this.pecas.listarVariantesPeca(peca.id)
+        : [];
+      const variante = combinacoes.length > 0 ? encontrarCombinacaoVariante(combinacoes, selecao) : null;
+      if (Object.keys(peca.variantes).length > 0 && !variante) {
+        throw new Error(`Variante inválida ou indisponível para peça #${codigoPeca}.`);
+      }
+      if (variante && item.variantePecaId && item.variantePecaId !== variante.id) {
+        throw new Error(`Variante inválida para peça #${codigoPeca}.`);
+      }
+      if (variante) {
+        const chaveSelecao = `${codigoPeca}:${criarChaveCombinacaoVariante(selecao)}`;
+        const consumidaVariante = Math.max(
+          quantidadeConsumidaVarianteId.get(variante.id) ?? 0,
+          quantidadeConsumidaVarianteSelecao.get(chaveSelecao) ?? 0
+        );
+        const disponivelVariante = variante.quantidade - consumidaVariante;
+        if (item.quantidade > disponivelVariante) {
+          throw new Error(
+            `Stock insuficiente para variante da peça #${codigoPeca}. Disponível: ${Math.max(disponivelVariante, 0)}.`
+          );
+        }
+        quantidadeConsumidaVarianteId.set(variante.id, consumidaVariante + item.quantidade);
+        quantidadeConsumidaVarianteSelecao.set(chaveSelecao, consumidaVariante + item.quantidade);
+      }
+
       const precoUnitarioEmKwanza = item.precoUnitarioEmKwanza ?? peca.precoEmKwanza;
       itens.push({
         pecaId: peca.id,
         codigoPeca,
         nomeProduto: peca.nome,
-        varianteSelecionada: item.varianteSelecionada ?? null,
+        varianteSelecionada: Object.keys(selecao).length > 0 ? selecao : null,
+        variantePecaId: variante?.id ?? null,
         quantidade: item.quantidade,
         precoUnitarioEmKwanza,
         subtotalEmKwanza: precoUnitarioEmKwanza * item.quantidade

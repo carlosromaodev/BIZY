@@ -201,7 +201,8 @@ export function PaginaCheckoutBizy() {
         const grupo = grupoUnico!;
         const itensPayload = grupo.itens.map((item) => ({
           codigoPeca: item.codigoProduto,
-          quantidade: item.quantidade
+          quantidade: item.quantidade,
+          varianteSelecionada: item.variantes && Object.keys(item.variantes).length > 0 ? item.variantes : null
         }));
 
         await calcularEntregaLojaPublica(grupo.slugLoja, {

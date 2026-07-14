@@ -2,6 +2,7 @@ import type { DespachadorEventos } from "../dominio/eventos/DespachadorEventos.j
 import type { RepositorioEventosOperacionais, RepositorioPecas, RepositorioReservas } from "../dominio/repositorios/contratos.js";
 import type {
   AtualizarPeca,
+  ConfiguracaoCombinacaoVariantePeca,
   ConfiguracaoVitrineProduto,
   MovimentoStock,
   NovaPeca,
@@ -11,6 +12,7 @@ import type {
   TipoMovimentoStock
 } from "../dominio/tipos.js";
 import { lerInteiro, lerLista, parseCsv } from "./utils/csv.js";
+import { criarChaveCombinacaoVariante, gerarCombinacoesVariantes, validarSelecaoVariante } from "../dominio/servicos/VariantesProduto.js";
 
 interface DadosRegistroMovimentoStock {
   tipo: TipoMovimentoStock;
@@ -18,7 +20,7 @@ interface DadosRegistroMovimentoStock {
   motivo?: string | null;
   responsavelId?: string | null;
   origem?: string | null;
-  varianteSelecionada?: string | null;
+  varianteSelecionada?: string | Record<string, string> | null;
 }
 
 interface FiltrosExportacaoProdutos {
@@ -38,9 +40,44 @@ export class GestaoPecasUseCase {
   ) {}
 
   async cadastrarPeca(dados: NovaPeca) {
-    const peca = await this.repositorioPecas.criar(this.normalizarCriacao(dados));
+    const normalizados = this.normalizarCriacao(dados);
+    gerarCombinacoesVariantes(normalizados.variantes ?? {});
+    const peca = await this.repositorioPecas.criar(normalizados);
     this.eventos.emitir("STOCK_UPDATED", { peca });
     return peca;
+  }
+
+  async listarVariantesPeca(codigo: string, negocioId: string) {
+    const peca = await this.exigirPeca(this.normalizarCodigo(codigo), negocioId);
+    return this.repositorioPecas.listarVariantesPeca(peca.id);
+  }
+
+  async configurarVariantesPeca(
+    codigo: string,
+    combinacoes: ConfiguracaoCombinacaoVariantePeca[],
+    negocioId: string
+  ) {
+    const codigoNormalizado = this.normalizarCodigo(codigo);
+    const peca = await this.exigirPeca(codigoNormalizado, negocioId);
+    if (Object.keys(peca.variantes).length === 0 && combinacoes.length > 0) {
+      throw new Error("Variantes inválidas: defina primeiro as opções do produto.");
+    }
+    if (Object.keys(peca.variantes).length > 0 && combinacoes.length === 0) {
+      throw new Error("Variantes inválidas: configure pelo menos uma combinação.");
+    }
+
+    const chaves = new Set<string>();
+    const normalizadas = combinacoes.map((item) => {
+      const opcoes = validarSelecaoVariante(peca.variantes, item.opcoes);
+      const chave = criarChaveCombinacaoVariante(opcoes);
+      if (chaves.has(chave)) throw new Error("Variantes inválidas: combinação duplicada.");
+      chaves.add(chave);
+      return { ...item, opcoes };
+    });
+    const variantes = await this.repositorioPecas.configurarVariantesPeca(peca.id, normalizadas);
+    const produto = await this.exigirPeca(codigoNormalizado, negocioId);
+    this.eventos.emitir("STOCK_UPDATED", { peca: produto, variantes });
+    return { produto, variantes };
   }
 
   async importarCsv(negocioId: string, conteudo: string) {
@@ -208,9 +245,11 @@ export class GestaoPecasUseCase {
   async atualizarPeca(codigo: string, dados: AtualizarPeca, negocioId?: string | null) {
     const codigoNormalizado = this.normalizarCodigo(codigo);
     const pecaAtual = await this.exigirPeca(codigoNormalizado, negocioId);
+    const dadosNormalizados = this.normalizarAtualizacao(pecaAtual, dados);
+    if (dadosNormalizados.variantes !== undefined) gerarCombinacoesVariantes(dadosNormalizados.variantes);
     const peca = await this.repositorioPecas.atualizar(
       codigoNormalizado,
-      this.normalizarAtualizacao(pecaAtual, dados),
+      dadosNormalizados,
       negocioId
     );
     this.eventos.emitir("STOCK_UPDATED", { peca });
@@ -234,23 +273,31 @@ export class GestaoPecasUseCase {
   async registrarMovimentoStock(codigo: string, dados: DadosRegistroMovimentoStock, negocioId?: string | null) {
     const codigoNormalizado = this.normalizarCodigo(codigo);
     const pecaAtual = await this.exigirPeca(codigoNormalizado, negocioId);
-    const quantidadeNova = this.calcularQuantidadeNova(pecaAtual, dados);
-    const peca = await this.repositorioPecas.atualizar(
-      codigoNormalizado,
-      this.normalizarAtualizacao(pecaAtual, { quantidade: quantidadeNova }),
-      negocioId
-    );
+    const ehSaida = ["SAIDA", "VENDA", "RESERVA"].includes(dados.tipo);
+    const ehEntrada = ["ENTRADA", "CANCELAMENTO", "DEVOLUCAO"].includes(dados.tipo);
+    const temVariantes = Object.keys(pecaAtual.variantes).length > 0;
+    let quantidadeNova: number;
+    let peca: Peca;
 
-    if (dados.varianteSelecionada && this.repositorioPecas.decrementarStockVariante) {
-      const ehSaida = ["SAIDA", "VENDA", "RESERVA"].includes(dados.tipo);
-      const ehEntrada = ["ENTRADA", "CANCELAMENTO", "DEVOLUCAO"].includes(dados.tipo);
-      if (ehSaida || ehEntrada) {
-        await this.repositorioPecas.decrementarStockVariante(
-          peca.id,
-          dados.varianteSelecionada,
-          ehSaida ? dados.quantidade : -dados.quantidade
-        );
+    if (temVariantes && (ehSaida || ehEntrada)) {
+      if (!dados.varianteSelecionada) {
+        throw new Error("Variante inválida: seleccione a combinação para movimentar o stock deste produto.");
       }
+      const combinacao = typeof dados.varianteSelecionada === "string"
+        ? dados.varianteSelecionada
+        : criarChaveCombinacaoVariante(validarSelecaoVariante(pecaAtual.variantes, dados.varianteSelecionada));
+      const stock = await this.repositorioPecas.decrementarStockVariante(
+        pecaAtual.id, combinacao, ehSaida ? dados.quantidade : -dados.quantidade
+      );
+      quantidadeNova = stock.quantidadeTotal;
+      peca = await this.exigirPeca(codigoNormalizado, negocioId);
+    } else {
+      quantidadeNova = this.calcularQuantidadeNova(pecaAtual, dados);
+      peca = await this.repositorioPecas.atualizar(
+        codigoNormalizado,
+        this.normalizarAtualizacao(pecaAtual, { quantidade: quantidadeNova }),
+        negocioId
+      );
     }
 
     const movimento = await this.repositorioPecas.registrarMovimentoStock({

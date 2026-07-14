@@ -52,6 +52,8 @@ Hash SHA-256 do documento: `06f03970a9f2dcaf2bfa0407948f11b5da8c5caa9edaf2fcb943
 
 ## Estado funcional
 
+Os itens abaixo mantem o inventario de origem; a marcacao foi actualizada apos as fases verificadas.
+
 ### Completo e preservado
 
 - [x] OTP por telefone com codigo hasheado, expiracao, tentativas e revogacao de codigos anteriores.
@@ -65,20 +67,20 @@ Hash SHA-256 do documento: `06f03970a9f2dcaf2bfa0407948f11b5da8c5caa9edaf2fcb943
 
 ### Parcial
 
-- [ ] Identidade: `UsuarioSistema` representa o operador e `ClienteGlobal` o cliente, sem raiz universal nem ligacao unica entre ambos.
-- [ ] Sessao: falta dispositivo, revogacao explicita, motivo, IP/user-agent e listagem de sessoes activas.
-- [ ] OTP: existe somente para `UsuarioSistema`; nao associa de forma segura uma compra guest a uma conta de comprador.
-- [ ] Compra: guarda snapshots de contacto, mas nao `contaId`/`perfilCompradorId`.
-- [ ] Variantes: seleccao chega como JSON ao item, sem entidade de combinacao, preco e stock por variante.
+- [x] Identidade: `ContaBizy` universal criada com compatibilidade para `UsuarioSistema` e contextos de negocio.
+- [x] Sessao: dispositivo, revogacao, motivo e metadados anonimizados implementados na conta Bizy.
+- [x] OTP: associacao segura de compra guest a conta de comprador implementada por contacto verificado.
+- [x] Compra: FK opcional de conta e perfil de comprador disponiveis sem quebrar snapshots historicos.
+- [x] Variantes: entidade de combinacao, preco e stock real ligada ao carrinho, checkout e item do pedido.
 - [ ] Reserva: possui TTL, mas nao variante nem transacao unica entre reserva e pedido.
 - [ ] Afiliacao: possui seller backoffice e historico, mas nao portal universal de creator nem ledger imutavel completo.
 - [ ] Tracking: existem eventos operacionais e tracking comercial, mas nao sessao commerce e grafo explicavel versionado.
 
 ### Ausente
 
-- [ ] `ContaBizy` universal, contactos verificados, contextos, perfil do comprador, enderecos, preferencias, consentimentos e dispositivos.
-- [ ] Token guest especifico por compra, de alta entropia, hasheado, expiravel e revogavel.
-- [ ] Portal de comprador autenticado e associacao pos-compra por OTP.
+- [x] `ContaBizy` universal, contactos verificados, contextos, perfil do comprador, enderecos, preferencias, consentimentos e dispositivos.
+- [x] Token guest especifico por compra, de alta entropia, hasheado, expiravel e revogavel.
+- [x] Portal de comprador autenticado e associacao pos-compra por OTP.
 - [ ] Carrinho server-side e sincronizacao/fusao entre dispositivos.
 - [ ] Upload privado e scan de comprovativo.
 - [ ] Smart Links canonicos `/go/:codigo` e preview social.
@@ -164,16 +166,16 @@ Hash SHA-256 do documento: `06f03970a9f2dcaf2bfa0407948f11b5da8c5caa9edaf2fcb943
 
 ## Testes a adicionar
 
-- [ ] Unicidade de telefone/email verificado e coexistencia de contextos.
-- [ ] OTP correcto, incorrecto, expirado, reutilizado e limitado por contacto.
-- [ ] Sessao activa, expirada, revogada, de outro dispositivo e revogacao global.
-- [ ] Checkout guest devolve somente token opaco e persiste apenas hash.
-- [ ] Token guest acessa uma compra e nunca outra.
-- [ ] Conta autenticada lista apenas compras associadas.
-- [ ] Associacao pos-compra exige OTP do contacto da compra.
-- [ ] Respostas para compra inexistente, token errado e ownership errado sao indistinguiveis.
-- [ ] Nenhuma rota de comprador recebe telefone/email em query string.
-- [ ] Compatibilidade: operador Team autenticado resolve a mesma `ContaBizy` sem perder negocios.
+- [x] Unicidade de telefone/email verificado e coexistencia de contextos.
+- [x] OTP correcto, incorrecto, expirado, reutilizado e limitado por contacto.
+- [x] Sessao activa, expirada, revogada, de outro dispositivo e revogacao global.
+- [x] Checkout guest devolve somente token opaco e persiste apenas hash.
+- [x] Token guest acessa uma compra e nunca outra.
+- [x] Conta autenticada lista apenas compras associadas.
+- [x] Associacao pos-compra exige OTP do contacto da compra.
+- [x] Respostas para compra inexistente, token errado e ownership errado sao indistinguiveis.
+- [x] Nenhuma rota de comprador recebe telefone/email em query string.
+- [x] Compatibilidade: operador Team autenticado resolve a mesma `ContaBizy` sem perder negocios.
 
 ## Criterio de saida da Fase 1
 

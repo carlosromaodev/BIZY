@@ -30,6 +30,26 @@ export interface Peca {
   };
 }
 
+export interface CombinacaoVariantePeca {
+  id: string;
+  pecaId: string;
+  combinacao: string;
+  opcoes: Record<string, string>;
+  sku: string | null;
+  precoEmKwanza: number | null;
+  custoEmKwanza: number | null;
+  quantidade: number;
+  stockMinimo: number;
+  estado: "ATIVA" | "INATIVA";
+  criadoEm: string;
+  atualizadoEm: string;
+}
+
+export type ConfiguracaoCombinacaoVariantePeca = Pick<
+  CombinacaoVariantePeca,
+  "opcoes" | "sku" | "precoEmKwanza" | "custoEmKwanza" | "quantidade" | "stockMinimo" | "estado"
+>;
+
 export interface Reserva {
   id: string;
   codigoPeca: string;

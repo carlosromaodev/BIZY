@@ -266,7 +266,9 @@ export function calcularTotaisCheckoutBizy(itens: ItemCarrinhoCheckoutBizy[]): T
 export function criarItemCheckoutDeProdutoMarket(
   produto: ProdutoMarketNormalizado,
   quantidade = 1,
-  origem = "market"
+  origem = "market",
+  variantes: Record<string, string> = {},
+  precoUnitarioEmKwanza = produto.precoFinalEmKwanza
 ): ItemEntradaCheckoutBizy {
   return {
     slugLoja: produto.slugLoja,
@@ -274,11 +276,11 @@ export function criarItemCheckoutDeProdutoMarket(
     nomeProduto: produto.nome,
     nomeFornecedor: produto.nomeFornecedor,
     quantidade,
-    precoUnitarioEmKwanza: produto.precoFinalEmKwanza,
+    precoUnitarioEmKwanza,
     fotoUrl: produto.fotoPrincipal,
     urlProduto: produto.urlProduto,
     urlLoja: produto.urlLoja,
-    variantes: {},
+    variantes,
     origem
   };
 }

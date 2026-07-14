@@ -95,7 +95,66 @@ Estado: CONCLUIDA
 
 - Fase 2: produto, variantes reais, preco e stock por combinacao.
 
-## Fases 2 a 12
+## Fase 2 — Produto, variantes e checkout
+
+Estado: CONCLUIDA
+
+### Implementado
+
+- [x] Combinacoes de variante persistidas com seleccao canonica, SKU, preco, custo, stock, stock minimo e estado.
+- [x] Migration expansiva com FKs opcionais em item de pedido e reserva de checkout.
+- [x] Compatibilidade progressiva para produtos existentes e distribuicao conservadora do stock legado.
+- [x] Endpoints tenant-aware para listar e configurar combinacoes no catalogo.
+- [x] Editor Team para configurar stock, preco e SKU por combinacao em desktop e mobile.
+- [x] Pagina de produto com seleccao real, disponibilidade, preco e limite de quantidade por combinacao.
+- [x] Carrinho transporta a seleccao e o checkout recalcula preco e valida stock no backend.
+- [x] Checkout directo de uma loja, entrega e WhatsApp usam a mesma combinacao, preco e stock validados no backend.
+- [x] Item do pedido conserva a seleccao canonica e a FK da variante para devolucao e comissao.
+- [x] Movimentos de stock por variante actualizam combinacao e total do produto numa unica transaccao.
+- [x] Favorito do produto permanece persistido na conta Bizy autenticada.
+- [x] Testes negativos de variante incompleta, inexistente, inactiva, stock insuficiente, preco manipulado e IDOR entre lojas.
+- [x] Gate integral de typecheck, testes, build, migration local e QA visual.
+
+### Ficheiros alterados
+
+- `backend/prisma/schema.prisma` e `backend/prisma/migrations/20260714234500_variantes_reais_produto/migration.sql`.
+- `backend/src/dominio/servicos/VariantesProduto.ts`, tipos, esquemas e contratos de repositorio.
+- Catalogo, pedidos, checkout unificado, checkout de loja e Market publico no backend, com repositorios Prisma e memoria equivalentes.
+- `frontend/src/paginas/Catalogo.tsx`, produto do Market, loja publica e checkout Bizy.
+- Testes de variantes, catalogo, checkout unificado, loja publica, afiliacao e formularios do frontend.
+
+### Migrations
+
+- Expand: metadados reais em `VariantePeca`, FK opcional em `ItemPedido` e campos de variante em `ReservaStockCheckout`.
+- Backfill: combinacoes legadas que ja continham JSON sao copiadas para `opcoesJson`.
+- Dual read: produtos historicos com definicoes mas sem linhas materializadas geram combinacoes uma unica vez, preservando a soma do stock agregado.
+- Compatibilidade: pedidos historicos e produtos simples continuam validos; nenhuma coluna foi removida ou tornada obrigatoria.
+- Rollback: desligar dual read e remover FKs, indices e colunas apenas depois de confirmar ausencia de dados dependentes.
+- [x] 54 migrations aplicadas do zero numa base PostgreSQL descartavel.
+- [x] Migration aplicada e validada na base local de desenvolvimento; `migrate status` actualizado.
+- [x] Backfill legado validado no PostgreSQL: 4 combinacoes materializadas, stock 5 distribuido e total do produto mantido em 5.
+
+### Testes
+
+- [x] Backend focado: 34 testes aprovados em variantes, catalogo, checkout unificado e loja publica.
+- [x] Frontend focado: 9 testes aprovados em catalogo e checkout.
+- [x] Typecheck backend e frontend aprovado.
+- [x] Backend integral: 373 testes aprovados e 1 ignorado.
+- [x] Frontend integral: 144 testes aprovados.
+- [x] Build backend e frontend aprovado; frontend com 2.781 modulos transformados.
+- [x] Browser QA em 1440x900 e 375x812: variante `Preto / 40`, preco `24.000 Kz`, checkout directo coerente, sem erros de consola, respostas 5xx ou overflow.
+- [x] Revisao visual das capturas: detalhe desktop em duas colunas e checkout mobile com largura integral, fundo opaco e estados seleccionados consistentes.
+
+### Riscos restantes
+
+- A reserva transaccional com TTL por variante e o carrinho server-side pertencem a Fase 3.
+- Produtos com mais de 500 combinacoes sao rejeitados antes da persistencia para evitar explosao cartesiana.
+
+### Proxima fase
+
+- Fase 3: carrinho server-side, fusao entre dispositivos, reserva transaccional com TTL e upload privado de comprovativo.
+
+## Fases 3 a 12
 
 Estado: NAO INICIADAS
 

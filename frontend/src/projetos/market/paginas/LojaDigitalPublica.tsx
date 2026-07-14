@@ -106,6 +106,8 @@ import {
   resolverCorVisual,
   resolverModoNegocio,
   resolverPaletaLoja,
+  selecionarOpcaoProduto,
+  stockProduto,
   temVariantesProduto
 } from "../loja-publica/helpers";
 
@@ -425,8 +427,9 @@ export function PaginaLojaDigitalPublica() {
 
   function abrirCheckout(produto: ProdutoPublico, qtd = 1, variantes = selecoesVariantes) {
     const selecoes = Object.keys(variantes).length ? variantes : criarSelecoesIniciaisProduto(produto);
+    const stockDisponivel = stockProduto(produto, selecoes);
     setCheckoutProduto(produto);
-    setCheckoutQuantidade(Math.max(1, Math.min(qtd, produto.quantidade || 1)));
+    setCheckoutQuantidade(Math.max(1, Math.min(qtd, stockDisponivel || 1)));
     setCheckoutVariantes(selecoes);
     setEntregaCheckout((atual) => ({
       ...entregaInicial,
@@ -459,7 +462,7 @@ export function PaginaLojaDigitalPublica() {
       nomeProduto: produto.nome,
       nomeFornecedor: dados?.loja.nomeComercial ?? "Loja Bizy",
       quantidade: qtd,
-      precoUnitarioEmKwanza: precoProduto(produto),
+      precoUnitarioEmKwanza: precoProduto(produto, selecoes),
       fotoUrl: produto.fotos[0] ? resolverUrlMedia(produto.fotos[0]) : null,
       urlProduto: ROTAS_LOJAS.produtoLoja(slug, produto.codigo),
       urlLoja: ROTAS_LOJAS.loja(slug),
@@ -488,7 +491,11 @@ export function PaginaLojaDigitalPublica() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          itens: [{ codigoPeca: checkoutProduto.codigo, quantidade: checkoutQuantidade }],
+          itens: [{
+            codigoPeca: checkoutProduto.codigo,
+            quantidade: checkoutQuantidade,
+            varianteSelecionada: checkoutVariantes
+          }],
           entrega: montarEntregaPayload(entregaCheckout)
         })
       });
@@ -522,11 +529,15 @@ export function PaginaLojaDigitalPublica() {
       const entrega = montarEntregaPayload(entregaCheckout);
       const resumo = resumoEntrega ?? await calcularEntregaCheckout();
 
-      await fetch(`${obterBaseApiUrl()}/publico/lojas/${encodeURIComponent(slug)}/checkout`, {
+      const respostaCheckout = await fetch(`${obterBaseApiUrl()}/publico/lojas/${encodeURIComponent(slug)}/checkout`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          itens: [{ codigoPeca: checkoutProduto.codigo, quantidade: checkoutQuantidade }],
+          itens: [{
+            codigoPeca: checkoutProduto.codigo,
+            quantidade: checkoutQuantidade,
+            varianteSelecionada: checkoutVariantes
+          }],
           entrega,
           cliente: {
             nome: perfilCliente.nome,
@@ -540,7 +551,17 @@ export function PaginaLojaDigitalPublica() {
           canal: "site",
           observacao: montarResumoVariantes(checkoutVariantes)
         })
-      }).catch(() => null);
+      });
+      const corpoCheckout = (await respostaCheckout.json()) as {
+        mensagem?: string;
+        totalEmKwanza?: number;
+      };
+      if (!respostaCheckout.ok) {
+        throw new Error(corpoCheckout.mensagem ?? "Não foi possível confirmar o pedido.");
+      }
+      const totalConfirmado = corpoCheckout.totalEmKwanza
+        ?? resumo?.totalEmKwanza
+        ?? precoProduto(checkoutProduto, checkoutVariantes) * checkoutQuantidade;
 
       const respostaWhatsapp = await fetch(
         `${obterBaseApiUrl()}/publico/lojas/${encodeURIComponent(slug)}/produtos/${encodeURIComponent(checkoutProduto.codigo)}/whatsapp`,
@@ -564,7 +585,7 @@ export function PaginaLojaDigitalPublica() {
       const pedidoHistorico: PedidoHistoricoLoja = {
         codigo: checkoutProduto.codigo,
         nome: checkoutProduto.nome,
-        totalEmKwanza: resumo?.totalEmKwanza ?? precoProduto(checkoutProduto) * checkoutQuantidade,
+        totalEmKwanza: totalConfirmado,
         criadoEm: new Date().toISOString(),
         quantidade: checkoutQuantidade,
         variantes: checkoutVariantes
@@ -577,7 +598,7 @@ export function PaginaLojaDigitalPublica() {
         produto: checkoutProduto,
         quantidade: checkoutQuantidade,
         variantes: checkoutVariantes,
-        total: resumo?.totalEmKwanza ?? precoProduto(checkoutProduto) * checkoutQuantidade,
+        total: totalConfirmado,
         entrega: entregaCheckout,
         whatsappUrl: corpoWhatsapp.whatsappUrl
       });
@@ -1039,7 +1060,7 @@ export function PaginaLojaDigitalPublica() {
       <Sheet open={!!produtoAberto} onOpenChange={(aberto) => { if (!aberto) setProdutoAberto(null); }}>
         <SheetContent
           side="bottom"
-          className="loja-stitch loja-modal-responsivo loja-product-sheet h-[96dvh] overflow-hidden border-0 p-0 data-[side=bottom]:!border-0 sm:mx-auto sm:h-[92dvh] sm:max-w-[1180px] lg:h-[94dvh]"
+          className="loja-publica-v2 loja-stitch loja-modal-responsivo loja-product-sheet h-[96dvh] overflow-hidden border-0 p-0 data-[side=bottom]:!border-0 sm:mx-auto sm:h-[92dvh] sm:max-w-[1180px] lg:h-[94dvh]"
           showCloseButton={false}
           onOpenAutoFocus={(evento) => evento.preventDefault()}
         >
@@ -1061,7 +1082,10 @@ export function PaginaLojaDigitalPublica() {
               selecoesVariantes={selecoesVariantes}
               setFotoAtiva={setFotoAtiva}
               setQuantidade={setQuantidade}
-              onSelecionarVariante={(nome, valor) => setSelecoesVariantes((atual) => ({ ...atual, [nome]: valor }))}
+              onSelecionarVariante={(nome, valor) => {
+                setSelecoesVariantes((atual) => selecionarOpcaoProduto(produtoAberto, atual, nome, valor));
+                setQuantidade(1);
+              }}
               onFavorito={() => alternarFavorito(produtoAberto)}
               onComprar={() => abrirCheckout(produtoAberto, quantidade, selecoesVariantes)}
               onAdicionarCheckout={() => adicionarProdutoAoCheckoutBizy(produtoAberto, quantidade, selecoesVariantes)}
@@ -1079,7 +1103,7 @@ export function PaginaLojaDigitalPublica() {
       <Sheet open={checkoutAberto} onOpenChange={setCheckoutAberto}>
         <SheetContent
           side="right"
-          className="loja-modal-responsivo flex h-[100dvh] w-full max-w-full flex-col overflow-hidden p-0 data-[side=right]:sm:max-w-xl"
+          className="loja-publica-v2 loja-stitch loja-modal-responsivo flex h-[100dvh] !w-full max-w-full flex-col overflow-hidden p-0 data-[side=right]:sm:max-w-xl"
           showCloseButton={false}
         >
           <SheetHeader className="border-b border-neutral-100 px-5 py-4 text-left">
@@ -1105,9 +1129,15 @@ export function PaginaLojaDigitalPublica() {
               passo={checkoutPasso}
               setPasso={setCheckoutPasso}
               quantidade={checkoutQuantidade}
-              setQuantidade={setCheckoutQuantidade}
+              setQuantidade={(novaQuantidade) => {
+                setCheckoutQuantidade(novaQuantidade);
+                setResumoEntrega(null);
+              }}
               selecoesVariantes={checkoutVariantes}
-              setSelecoesVariantes={setCheckoutVariantes}
+              setSelecoesVariantes={(novasSelecoes) => {
+                setCheckoutVariantes(novasSelecoes);
+                setResumoEntrega(null);
+              }}
               perfil={perfilCliente}
               setPerfil={setPerfilCliente}
               entrega={entregaCheckout}
@@ -1126,7 +1156,7 @@ export function PaginaLojaDigitalPublica() {
       <Sheet open={!!pedidoConfirmado} onOpenChange={(aberto) => { if (!aberto) setPedidoConfirmado(null); }}>
         <SheetContent
           side="bottom"
-          className="loja-modal-responsivo h-[96dvh] overflow-hidden border-0 p-0 data-[side=bottom]:!border-0 sm:mx-auto sm:h-[90dvh] sm:max-w-lg"
+          className="loja-publica-v2 loja-stitch loja-modal-responsivo h-[96dvh] overflow-hidden border-0 p-0 data-[side=bottom]:!border-0 sm:mx-auto sm:h-[90dvh] sm:max-w-lg"
           showCloseButton={false}
         >
           <SheetHeader className="sr-only">
@@ -1652,7 +1682,8 @@ function DetalheProduto({
 }) {
   const temPromocao = Boolean(produto.precoPromocionalEmKwanza && produto.precoPromocionalEmKwanza < produto.precoEmKwanza);
   const desconto = temPromocao ? Math.round(((produto.precoEmKwanza - produto.precoPromocionalEmKwanza!) / produto.precoEmKwanza) * 100) : 0;
-  const semStock = produto.quantidade <= 0 || produto.estadoStock === "ESGOTADO" || produto.disponivel === false;
+  const stockDisponivel = stockProduto(produto, selecoesVariantes);
+  const semStock = stockDisponivel <= 0 || produto.estadoStock === "ESGOTADO" || produto.disponivel === false;
   const fotos = produto.fotos.length > 0 ? produto.fotos : [null];
   const ehNovidade = produto.vitrine?.selos?.some((s) => /novo|new|novidade/i.test(s));
   const reduzirMovimento = useReducedMotion();
@@ -1764,7 +1795,7 @@ function DetalheProduto({
                   </div>
 
                   <div className="loja-pdp-badges">
-                    {!semStock && produto.quantidade === 1 && <span className="lp-tag ultima-unidade">Última unidade</span>}
+                    {!semStock && stockDisponivel === 1 && <span className="lp-tag ultima-unidade">Última unidade</span>}
                     {temPromocao && <span className="lp-tag promo">-{desconto}%</span>}
                     {!temPromocao && ehNovidade && <span className="lp-tag novo">Novo</span>}
                     <span className="loja-pdp-shot-count">{fotoAtiva + 1}/{fotos.length}</span>
@@ -1803,7 +1834,7 @@ function DetalheProduto({
               <div className="loja-pdp-summary">
                 <div className="loja-pdp-price-row">
                   <span>A partir de</span>
-                  <strong>{formatarKwanza(precoProduto(produto))}</strong>
+                  <strong>{formatarKwanza(precoProduto(produto, selecoesVariantes))}</strong>
                 </div>
 
                 <h2 id="loja-product-title">{produto.nome}</h2>
@@ -1842,7 +1873,7 @@ function DetalheProduto({
                 {!semStock && (
                   <div className="loja-pdp-quantity-row">
                     <span className="loja-pdp-section-label">Quantidade</span>
-                    <QuantidadeSelector quantidade={quantidade} maximo={produto.quantidade} onChange={setQuantidade} />
+                    <QuantidadeSelector quantidade={quantidade} maximo={stockDisponivel} onChange={setQuantidade} />
                   </div>
                 )}
 
@@ -2139,7 +2170,8 @@ function CheckoutAssistido({
     setPasso(anterior.id);
   }
 
-  const subtotal = precoProduto(produto) * quantidade;
+  const stockDisponivel = stockProduto(produto, selecoesVariantes);
+  const subtotal = precoProduto(produto, selecoesVariantes) * quantidade;
   const taxaEntrega = resumoEntrega?.taxaEntregaEmKwanza ?? 0;
   const total = resumoEntrega?.totalEmKwanza ?? subtotal;
   const resumoVariantes = montarResumoVariantes(selecoesVariantes);
@@ -2178,12 +2210,12 @@ function CheckoutAssistido({
           <div className="lp-cart-body">
             <div className="lp-cart-nm">{produto.nome}</div>
             {resumoVariantes && <div className="lp-cart-meta">{resumoVariantes}</div>}
-            <div className="lp-cart-pr">{formatarKwanza(precoProduto(produto))}</div>
+            <div className="lp-cart-pr">{formatarKwanza(precoProduto(produto, selecoesVariantes))}</div>
           </div>
           <div className="lp-cart-qty">
             <button type="button" onClick={() => setQuantidade(Math.max(1, quantidade - 1))}>−</button>
             <span>{quantidade}</span>
-            <button type="button" onClick={() => setQuantidade(Math.min(produto.quantidade || 99, quantidade + 1))}>+</button>
+            <button type="button" onClick={() => setQuantidade(Math.min(stockDisponivel || 1, quantidade + 1))}>+</button>
           </div>
         </div>
 
@@ -2192,7 +2224,10 @@ function CheckoutAssistido({
             <SeletoresVariantes
               produto={produto}
               selecoesVariantes={selecoesVariantes}
-              onSelecionar={(nome, valor) => setSelecoesVariantes({ ...selecoesVariantes, [nome]: valor })}
+              onSelecionar={(nome, valor) => {
+                setSelecoesVariantes(selecionarOpcaoProduto(produto, selecoesVariantes, nome, valor));
+                setQuantidade(1);
+              }}
               corPrimaria={corPrimaria}
             />
           </div>
@@ -2391,7 +2426,7 @@ function ConfirmacaoPedido({
   onContinuar: () => void;
 }) {
   const resumoVariante = montarResumoVariantes(variantes);
-  const precoUnitario = precoProduto(produto);
+  const precoUnitario = precoProduto(produto, variantes);
 
   return (
     <div className="flex h-full flex-col">
@@ -2488,11 +2523,15 @@ function SeletoresVariantes({
           <div className={`loja-pdp-variant-options ${tipoTamanho ? "is-size-grid" : ""} ${tipoCor ? "is-color-rail" : ""}`}>
             {opcoes.map((opcao) => {
               const ativo = selecoesVariantes[nome] === opcao;
+              const disponivel = produto.combinacoesVariantes?.some((item) =>
+                item.estado === "ATIVA" && item.quantidade > 0 && item.opcoes[nome] === opcao
+              ) ?? true;
               return (
                 <button
                   key={opcao}
                   type="button"
                   onClick={() => onSelecionar(nome, opcao)}
+                  disabled={!disponivel}
                   className={ativo ? "is-active" : ""}
                   style={ativo ? { borderColor: corPrimaria } : undefined}
                   aria-pressed={ativo}
@@ -2586,7 +2625,7 @@ function ResumoConfirmacao({
       <div className="bg-foreground p-4 text-white">
         <div className="flex items-center justify-between text-sm text-white/62">
           <span>Subtotal</span>
-          <span>{formatarKwanza(resumoEntrega?.subtotalEmKwanza ?? precoProduto(produto) * quantidade)}</span>
+          <span>{formatarKwanza(resumoEntrega?.subtotalEmKwanza ?? precoProduto(produto, variantes) * quantidade)}</span>
         </div>
         <div className="mt-2 flex items-center justify-between text-sm text-white/62">
           <span>{calculandoEntrega ? "A calcular entrega..." : "Entrega"}</span>
@@ -2594,7 +2633,7 @@ function ResumoConfirmacao({
         </div>
         <div className="mt-3 flex items-center justify-between border-t border-white/10 pt-3 text-lg font-bold">
           <span>Total</span>
-          <span>{formatarKwanza(resumoEntrega?.totalEmKwanza ?? precoProduto(produto) * quantidade)}</span>
+          <span>{formatarKwanza(resumoEntrega?.totalEmKwanza ?? precoProduto(produto, variantes) * quantidade)}</span>
         </div>
         {resumoEntrega?.entrega.descricao && <p className="mt-3 text-xs leading-5 text-white/55">{resumoEntrega.entrega.descricao}</p>}
       </div>

@@ -500,6 +500,18 @@ export const CriarPecaSchema = z.object({
 
 export const AtualizarPecaSchema = CriarPecaSchema.partial().omit({ codigo: true });
 
+export const ConfigurarVariantesPecaSchema = z.object({
+  combinacoes: z.array(z.object({
+    opcoes: z.record(z.string().trim().min(1).max(60), z.string().trim().min(1).max(80)),
+    sku: TextoCatalogoOpcionalSchema,
+    precoEmKwanza: z.coerce.number().int().min(0).nullable().optional().transform((valor) => valor ?? null),
+    custoEmKwanza: z.coerce.number().int().min(0).nullable().optional().transform((valor) => valor ?? null),
+    quantidade: z.coerce.number().int().min(0),
+    stockMinimo: z.coerce.number().int().min(0).default(0),
+    estado: z.enum(["ATIVA", "INATIVA"]).default("ATIVA")
+  })).max(500)
+});
+
 export const ImportarCsvSchema = z.object({
   csv: z.string().trim().min(1).max(5_000_000)
 });
@@ -529,7 +541,10 @@ export const RegistrarMovimentoStockSchema = z.object({
   motivo: z.string().trim().min(3).max(500),
   responsavelId: z.string().trim().min(1).max(120).nullable().optional().transform((valor) => valor ?? null),
   origem: z.string().trim().min(1).max(80).nullable().optional().transform((valor) => valor ?? null),
-  varianteSelecionada: z.string().trim().min(1).max(200).nullable().optional().transform((valor) => valor ?? null)
+  varianteSelecionada: z.union([
+    z.string().trim().min(1).max(500),
+    z.record(z.string().trim().min(1).max(60), z.string().trim().min(1).max(80))
+  ]).nullable().optional().transform((valor) => valor ?? null)
 });
 
 const SlugLojaPublicaSchema = z
@@ -640,7 +655,9 @@ export const RegistrarEventoTrackingSchema = z.object({
 
 const ItemCheckoutPublicoSchema = z.object({
   codigoPeca: z.string().trim().min(1).max(32),
-  quantidade: z.coerce.number().int().min(1).max(999)
+  quantidade: z.coerce.number().int().min(1).max(999),
+  varianteSelecionada: z.record(z.string().trim().min(1).max(60), z.string().trim().min(1).max(80))
+    .nullable().optional().transform((valor) => valor ?? null)
 });
 
 const EntregaCheckoutPublicoSchema = z

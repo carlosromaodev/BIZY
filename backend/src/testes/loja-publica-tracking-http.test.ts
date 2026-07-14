@@ -613,7 +613,7 @@ describe("loja pública, catálogo digital e tracking HTTP", () => {
         method: "POST",
         url: "/publico/lojas/muanacacri/entrega/calcular",
         payload: {
-          itens: [{ codigoPeca: "GUIA1", quantidade: 1 }],
+          itens: [{ codigoPeca: "GUIA1", quantidade: 1, varianteSelecionada: { tamanho: "M" } }],
           entrega: { tipo: "ENTREGA", municipio: "Talatona", endereco: "Cliente, Talatona" }
         }
       });
@@ -1016,7 +1016,7 @@ describe("loja pública, catálogo digital e tracking HTTP", () => {
         method: "POST",
         url: "/publico/lojas/loja-cache/entrega/calcular",
         payload: {
-          itens: [{ codigoPeca: "CACHE1", quantidade: 1 }],
+          itens: [{ codigoPeca: "CACHE1", quantidade: 1, varianteSelecionada: { tamanho: "M" } }],
           entrega: {
             tipo: "RETIRADA"
           }
@@ -1335,6 +1335,19 @@ describe("loja pública, catálogo digital e tracking HTTP", () => {
 
       await criarProduto(app, loja, "C1", 8);
 
+      const configuracaoVariantes = await app.inject({
+        method: "PUT",
+        url: "/pecas/C1/variantes",
+        headers: loja,
+        payload: {
+          combinacoes: [
+            { opcoes: { tamanho: "M" }, sku: "C1-M", precoEmKwanza: 13_500, quantidade: 3 },
+            { opcoes: { tamanho: "G" }, sku: "C1-G", precoEmKwanza: 10_000, quantidade: 5, estado: "INATIVA" }
+          ]
+        }
+      });
+      expect(configuracaoVariantes.statusCode).toBe(200);
+
       const publicacao = await app.inject({
         method: "PUT",
         url: "/loja-publica/configuracao",
@@ -1347,11 +1360,44 @@ describe("loja pública, catálogo digital e tracking HTTP", () => {
       });
       expect(publicacao.statusCode).toBe(200);
 
+      const entregaSemVariante = await app.inject({
+        method: "POST",
+        url: "/publico/lojas/loja-checkout/entrega/calcular",
+        payload: {
+          itens: [{ codigoPeca: "C1", quantidade: 1 }],
+          entrega: { tipo: "RETIRADA" }
+        }
+      });
+      expect(entregaSemVariante.statusCode).toBe(400);
+
+      const entregaVarianteInativa = await app.inject({
+        method: "POST",
+        url: "/publico/lojas/loja-checkout/entrega/calcular",
+        payload: {
+          itens: [{ codigoPeca: "C1", quantidade: 1, varianteSelecionada: { tamanho: "G" } }],
+          entrega: { tipo: "RETIRADA" }
+        }
+      });
+      expect(entregaVarianteInativa.statusCode).toBe(400);
+
+      const entregaStockAcumulado = await app.inject({
+        method: "POST",
+        url: "/publico/lojas/loja-checkout/entrega/calcular",
+        payload: {
+          itens: [
+            { codigoPeca: "C1", quantidade: 2, varianteSelecionada: { tamanho: "M" } },
+            { codigoPeca: "C1", quantidade: 2, varianteSelecionada: { tamanho: "M" } }
+          ],
+          entrega: { tipo: "RETIRADA" }
+        }
+      });
+      expect(entregaStockAcumulado.statusCode).toBe(400);
+
       const entrega = await app.inject({
         method: "POST",
         url: "/publico/lojas/loja-checkout/entrega/calcular",
         payload: {
-          itens: [{ codigoPeca: "C1", quantidade: 2 }],
+          itens: [{ codigoPeca: "C1", quantidade: 2, varianteSelecionada: { tamanho: "M" } }],
           entrega: {
             tipo: "ENTREGA",
             provincia: "Luanda",
@@ -1364,9 +1410,9 @@ describe("loja pública, catálogo digital e tracking HTTP", () => {
       expect(entrega.statusCode).toBe(200);
       expect(entrega.json()).toEqual(
         expect.objectContaining({
-          subtotalEmKwanza: 25_000,
+          subtotalEmKwanza: 27_000,
           taxaEntregaEmKwanza: 1_500,
-          totalEmKwanza: 26_500,
+          totalEmKwanza: 28_500,
           moeda: "AOA"
         })
       );
@@ -1397,7 +1443,8 @@ describe("loja pública, catálogo digital e tracking HTTP", () => {
       });
       expect(whatsapp.statusCode).toBe(200);
       expect(whatsapp.json().mensagem).toContain("Entrega estimada: 1 500 Kz");
-      expect(whatsapp.json().mensagem).toContain("Total estimado: 26 500 Kz");
+      expect(whatsapp.json().mensagem).toContain("Preço unitário: 13 500 Kz");
+      expect(whatsapp.json().mensagem).toContain("Total estimado: 28 500 Kz");
 
       const checkoutSemConsentimento = await app.inject({
         method: "POST",
@@ -1409,7 +1456,7 @@ describe("loja pública, catálogo digital e tracking HTTP", () => {
             consentimentoDados: false,
             consentimentoMarketing: false
           },
-          itens: [{ codigoPeca: "C1", quantidade: 1 }],
+          itens: [{ codigoPeca: "C1", quantidade: 1, varianteSelecionada: { tamanho: "M" } }],
           entrega: {
             tipo: "RETIRADA"
           },
@@ -1429,7 +1476,7 @@ describe("loja pública, catálogo digital e tracking HTTP", () => {
             consentimentoDados: true,
             consentimentoMarketing: false
           },
-          itens: [{ codigoPeca: "C1", quantidade: 2 }],
+          itens: [{ codigoPeca: "C1", quantidade: 2, varianteSelecionada: { tamanho: "M" } }],
           entrega: {
             tipo: "ENTREGA",
             provincia: "Luanda",
@@ -1446,9 +1493,9 @@ describe("loja pública, catálogo digital e tracking HTTP", () => {
         expect.objectContaining({
           origem: "link-afiliado-ana",
           canal: "site",
-          subtotalEmKwanza: 25_000,
+          subtotalEmKwanza: 27_000,
           taxaEntregaEmKwanza: 1_500,
-          totalEmKwanza: 30_000
+          totalEmKwanza: 32_280
         })
       );
       expect(checkout.json().pedido).toEqual(
@@ -1458,6 +1505,19 @@ describe("loja pública, catálogo digital e tracking HTTP", () => {
           estadoPagamento: "PENDENTE"
         })
       );
+
+      const detalhePedido = await app.inject({
+        method: "GET",
+        url: `/pedidos/${checkout.json().pedido.id}`,
+        headers: loja
+      });
+      expect(detalhePedido.statusCode).toBe(200);
+      expect(detalhePedido.json().pedido.itens[0]).toEqual(expect.objectContaining({
+        varianteSelecionada: { tamanho: "M" },
+        variantePecaId: expect.any(String),
+        precoUnitarioEmKwanza: 13_500,
+        subtotalEmKwanza: 27_000
+      }));
 
       const pedidos = await app.inject({
         method: "GET",
@@ -1470,7 +1530,7 @@ describe("loja pública, catálogo digital e tracking HTTP", () => {
           origem: "link-afiliado-ana",
           canal: "site",
           taxaEntregaEmKwanza: 1_500,
-          totalEmKwanza: 30_000,
+          totalEmKwanza: 32_280,
           enderecoEntrega: expect.stringContaining("Talatona")
         })
       ]);
@@ -1501,7 +1561,7 @@ describe("loja pública, catálogo digital e tracking HTTP", () => {
           checkoutsIniciados: 1,
           pedidosCriados: 1,
           leadsIdentificados: 1,
-          receitaAtribuidaEmKwanza: 30_000,
+          receitaAtribuidaEmKwanza: 32_280,
           taxaPedidoPorCheckout: 100
         })
       );
@@ -1625,7 +1685,7 @@ describe("loja pública, catálogo digital e tracking HTTP", () => {
             consentimentoDados: true,
             consentimentoMarketing: true
           },
-          itens: [{ codigoPeca: "CAMP1", quantidade: 1 }],
+          itens: [{ codigoPeca: "CAMP1", quantidade: 1, varianteSelecionada: { tamanho: "M" } }],
           entrega: { tipo: "RETIRADA" },
           referencia: "LIA-CAMP-1",
           trackingId: "trk-campanha-lia",
@@ -1723,7 +1783,7 @@ describe("loja pública, catálogo digital e tracking HTTP", () => {
         method: "POST",
         url: "/publico/lojas/loja-entrega-orcamento/entrega/calcular",
         payload: {
-          itens: [{ codigoPeca: "O1", quantidade: 1 }],
+          itens: [{ codigoPeca: "O1", quantidade: 1, varianteSelecionada: { tamanho: "M" } }],
           entrega: {
             tipo: "ORCAMENTO",
             provincia: "Luanda",
@@ -1838,7 +1898,7 @@ describe("loja pública, catálogo digital e tracking HTTP", () => {
             consentimentoDados: true,
             consentimentoMarketing: true
           },
-          itens: [{ codigoPeca: "SSE1", quantidade: 1 }],
+          itens: [{ codigoPeca: "SSE1", quantidade: 1, varianteSelecionada: { tamanho: "M" } }],
           entrega: { tipo: "RETIRADA" },
           trackingId: "trk-capi-1",
           origem: "anuncio-instagram",

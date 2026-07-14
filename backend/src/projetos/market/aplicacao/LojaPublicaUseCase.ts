@@ -10,6 +10,7 @@ import type {
 } from "../../../dominio/repositorios/contratos.js";
 import { normalizarEmail, normalizarTelefone } from "../../../dominio/servicos/normalizarContato.js";
 import type {
+  CombinacaoVariantePeca,
   DadosPublicacaoLoja,
   EtapaFunilComercial,
   EventoTrackingComercial,
@@ -17,6 +18,11 @@ import type {
   NovoEventoTrackingComercial,
   Peca
 } from "../../../dominio/tipos.js";
+import {
+  criarChaveCombinacaoVariante,
+  encontrarCombinacaoVariante,
+  validarSelecaoVariante
+} from "../../../dominio/servicos/VariantesProduto.js";
 import type { GestaoClientesCrmUseCase } from "../../../use-case/GestaoClientesCrmUseCase.js";
 import type {
   AtribuicaoAfiliadoResolvida,
@@ -60,6 +66,7 @@ interface DadosCheckoutWhatsAppPublico {
 interface ItemCheckoutPublico {
   codigoPeca: string;
   quantidade: number;
+  varianteSelecionada?: Record<string, string> | null;
 }
 
 interface DadosEntregaCheckoutPublico {
@@ -127,7 +134,13 @@ interface DadosFormularioLeadPublico {
 }
 
 interface ResumoCheckoutPublico {
-  itens: Array<ItemCheckoutPublico & { peca: Peca; subtotalEmKwanza: number }>;
+  itens: Array<ItemCheckoutPublico & {
+    peca: Peca;
+    variantePecaId: string | null;
+    varianteSelecionada: Record<string, string> | null;
+    precoUnitarioEmKwanza: number;
+    subtotalEmKwanza: number;
+  }>;
   subtotalEmKwanza: number;
   entrega: EntregaCalculadaPublica;
   taxaEntregaEmKwanza: number;
@@ -223,7 +236,9 @@ export class LojaPublicaUseCase {
     });
 
     const totalSeguidores = await this.seguidoresLoja?.contarSeguidores(negocio.id) ?? 0;
-    const produtosPublicos = produtos.map((peca) => this.mapearProdutoPublico(peca));
+    const variantes = await this.pecas.listarVariantesPecas(produtos.map((peca) => peca.id));
+    const variantesPorPeca = this.agruparVariantesPorPeca(variantes);
+    const produtosPublicos = produtos.map((peca) => this.mapearProdutoPublico(peca, variantesPorPeca.get(peca.id) ?? []));
 
     return {
       loja: this.mapearLojaPublica(negocio),
@@ -256,7 +271,7 @@ export class LojaPublicaUseCase {
 
     return {
       loja: this.mapearLojaPublica(negocio),
-      produto: this.mapearProdutoPublico(peca),
+      produto: this.mapearProdutoPublico(peca, await this.pecas.listarVariantesPeca(peca.id)),
       seo: this.mapearSeoProduto(negocio, peca)
     };
   }
@@ -278,7 +293,7 @@ export class LojaPublicaUseCase {
 
     const resumo = await this.resolverResumoCheckout(
       negocio,
-      [{ codigoPeca: codigo, quantidade: dados.quantidade }],
+      [{ codigoPeca: codigo, quantidade: dados.quantidade, varianteSelecionada: dados.variante }],
       dados.entrega ?? { tipo: "RETIRADA" }
     );
     const politicaAtribuicao = this.resolverPoliticaAtribuicao(negocio, dados.atribuicao);
@@ -450,8 +465,10 @@ export class LojaPublicaUseCase {
       clienteNegocioId: cliente.id,
       itens: resumo.itens.map((item) => ({
         codigoPeca: item.peca.codigo,
+        varianteSelecionada: item.varianteSelecionada,
+        variantePecaId: item.variantePecaId,
         quantidade: item.quantidade,
-        precoUnitarioEmKwanza: item.peca.precoEmKwanza
+        precoUnitarioEmKwanza: item.precoUnitarioEmKwanza
       })),
       origem: origemEfetiva,
       canal: canalEfetivo,
@@ -904,7 +921,7 @@ export class LojaPublicaUseCase {
     };
   }
 
-  private mapearProdutoPublico(peca: Peca) {
+  private mapearProdutoPublico(peca: Peca, combinacoesVariantes: CombinacaoVariantePeca[] = []) {
     const selosAutomaticos = this.gerarSelosAutomaticos(peca);
     const selosCombinados = [...new Set([...peca.vitrine.selos, ...selosAutomaticos])];
 
@@ -920,10 +937,28 @@ export class LojaPublicaUseCase {
       quantidade: peca.quantidade,
       fotos: peca.fotos,
       variantes: peca.variantes,
+      combinacoesVariantes: combinacoesVariantes.map((variante) => ({
+        id: variante.id,
+        opcoes: variante.opcoes,
+        sku: variante.sku,
+        precoEmKwanza: variante.precoEmKwanza,
+        quantidade: variante.quantidade,
+        estado: variante.estado
+      })),
       vitrine: { ...peca.vitrine, selos: selosCombinados },
       estadoStock: peca.estadoStock,
       disponivel: this.pecaVendavel(peca)
     };
+  }
+
+  private agruparVariantesPorPeca(variantes: CombinacaoVariantePeca[]): Map<string, CombinacaoVariantePeca[]> {
+    const agrupadas = new Map<string, CombinacaoVariantePeca[]>();
+    for (const variante of variantes) {
+      const lista = agrupadas.get(variante.pecaId) ?? [];
+      lista.push(variante);
+      agrupadas.set(variante.pecaId, lista);
+    }
+    return agrupadas;
   }
 
   private gerarSelosAutomaticos(peca: Peca): Peca["vitrine"]["selos"] {
@@ -1175,19 +1210,52 @@ export class LojaPublicaUseCase {
     entregaSolicitada: DadosEntregaCheckoutPublico
   ): Promise<ResumoCheckoutPublico> {
     const resolvidos: ResumoCheckoutPublico["itens"] = [];
+    const quantidadesProduto = new Map<string, number>();
+    const quantidadesVariante = new Map<string, number>();
+    const combinacoesPorPeca = new Map<string, CombinacaoVariantePeca[]>();
 
     for (const item of itens) {
       const peca = await this.exigirProdutoVendavel(negocio, item.codigoPeca);
-      if (item.quantidade > peca.quantidade) {
+      const selecao = validarSelecaoVariante(peca.variantes, item.varianteSelecionada);
+      const quantidadeProduto = (quantidadesProduto.get(peca.id) ?? 0) + item.quantidade;
+      quantidadesProduto.set(peca.id, quantidadeProduto);
+      if (quantidadeProduto > peca.quantidade) {
         throw new Error(
           `Stock insuficiente para produto #${peca.codigo}. Disponível para checkout público: ${peca.quantidade}.`
         );
       }
 
+      let combinacoes = combinacoesPorPeca.get(peca.id);
+      if (!combinacoes) {
+        combinacoes = await this.pecas.listarVariantesPeca(peca.id);
+        combinacoesPorPeca.set(peca.id, combinacoes);
+      }
+      const variante = Object.keys(peca.variantes).length > 0
+        ? encontrarCombinacaoVariante(combinacoes, selecao)
+        : null;
+      if (Object.keys(peca.variantes).length > 0 && !variante) {
+        throw new Error("Variante inválida ou indisponível para este produto.");
+      }
+      if (variante) {
+        const chave = `${peca.id}:${criarChaveCombinacaoVariante(selecao)}`;
+        const quantidadeVariante = (quantidadesVariante.get(chave) ?? 0) + item.quantidade;
+        quantidadesVariante.set(chave, quantidadeVariante);
+        if (quantidadeVariante > variante.quantidade) {
+          throw new Error(`Stock insuficiente para a variante do produto #${peca.codigo}. Disponível: ${variante.quantidade}.`);
+        }
+      }
+
+      const precoUnitarioEmKwanza = variante?.precoEmKwanza
+        ?? peca.vitrine.precoPromocionalEmKwanza
+        ?? peca.precoEmKwanza;
+
       resolvidos.push({
         ...item,
         peca,
-        subtotalEmKwanza: peca.precoEmKwanza * item.quantidade
+        variantePecaId: variante?.id ?? null,
+        varianteSelecionada: Object.keys(selecao).length > 0 ? selecao : null,
+        precoUnitarioEmKwanza,
+        subtotalEmKwanza: precoUnitarioEmKwanza * item.quantidade
       });
     }
 
@@ -1309,7 +1377,8 @@ export class LojaPublicaUseCase {
         codigoPeca: item.peca.codigo,
         nomeProduto: item.peca.nome,
         quantidade: item.quantidade,
-        precoUnitarioEmKwanza: item.peca.precoEmKwanza,
+        varianteSelecionada: item.varianteSelecionada,
+        precoUnitarioEmKwanza: item.precoUnitarioEmKwanza,
         subtotalEmKwanza: item.subtotalEmKwanza
       }))
     };
@@ -1330,7 +1399,7 @@ export class LojaPublicaUseCase {
       `Olá, ${negocio.nomeComercial}. Quero comprar:`,
       `Produto: ${peca.codigo} ${peca.nome}`,
       `Quantidade: ${dados.quantidade}`,
-      `Preço unitário: ${this.formatarKwanza(peca.precoEmKwanza)}`,
+      `Preço unitário: ${this.formatarKwanza(resumo.itens[0]?.precoUnitarioEmKwanza ?? peca.precoEmKwanza)}`,
       resumo.entrega.regra === "orcamento"
         ? `Entrega: ${resumo.entrega.descricao}`
         : `Entrega estimada: ${this.formatarKwanza(resumo.taxaEntregaEmKwanza)}`,

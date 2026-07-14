@@ -260,7 +260,19 @@ export function resolverPaletaLoja(corPrimaria: string): PaletaLojaPublica {
   };
 }
 
-export function precoProduto(produto: ProdutoPublico): number {
+export function encontrarCombinacaoProduto(
+  produto: ProdutoPublico,
+  selecao?: Record<string, string>
+) {
+  if (!selecao) return null;
+  return produto.combinacoesVariantes?.find((item) =>
+    item.estado === "ATIVA" && Object.entries(item.opcoes).every(([nome, valor]) => selecao[nome] === valor)
+  ) ?? null;
+}
+
+export function precoProduto(produto: ProdutoPublico, selecao?: Record<string, string>): number {
+  const precoVariante = encontrarCombinacaoProduto(produto, selecao)?.precoEmKwanza;
+  if (precoVariante != null) return precoVariante;
   return produto.precoPromocionalEmKwanza && produto.precoPromocionalEmKwanza < produto.precoEmKwanza
     ? produto.precoPromocionalEmKwanza
     : produto.precoEmKwanza;
@@ -280,11 +292,40 @@ export function temVariantesProduto(produto: ProdutoPublico): boolean {
 }
 
 export function criarSelecoesIniciaisProduto(produto: ProdutoPublico): Record<string, string> {
+  const combinacao = produto.combinacoesVariantes?.find((item) => item.estado === "ATIVA" && item.quantidade > 0)
+    ?? produto.combinacoesVariantes?.find((item) => item.estado === "ATIVA");
+  if (combinacao) return combinacao.opcoes;
   return Object.fromEntries(
     Object.entries(produto.variantes ?? {})
       .filter(([, opcoes]) => opcoes.length > 0)
       .map(([nome, opcoes]) => [nome, opcoes[0]])
   );
+}
+
+export function stockProduto(produto: ProdutoPublico, selecao?: Record<string, string>): number {
+  if (!temVariantesProduto(produto)) return produto.quantidade;
+  return encontrarCombinacaoProduto(produto, selecao)?.quantidade ?? 0;
+}
+
+export function selecionarOpcaoProduto(
+  produto: ProdutoPublico,
+  selecaoAtual: Record<string, string>,
+  nome: string,
+  valor: string
+): Record<string, string> {
+  const tentativa = { ...selecaoAtual, [nome]: valor };
+  const combinacoes = produto.combinacoesVariantes ?? [];
+  const exactaDisponivel = combinacoes.find((item) =>
+    item.estado === "ATIVA" && item.quantidade > 0
+      && Object.entries(item.opcoes).every(([chave, opcao]) => tentativa[chave] === opcao)
+  );
+  const compativel = combinacoes.find((item) =>
+    item.estado === "ATIVA" && item.quantidade > 0 && item.opcoes[nome] === valor
+  );
+  const exacta = combinacoes.find((item) =>
+    item.estado === "ATIVA" && Object.entries(item.opcoes).every(([chave, opcao]) => tentativa[chave] === opcao)
+  );
+  return exactaDisponivel?.opcoes ?? compativel?.opcoes ?? exacta?.opcoes ?? tentativa;
 }
 
 export function montarResumoVariantes(variantes: Record<string, string>): string {

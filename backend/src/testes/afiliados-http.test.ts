@@ -41,7 +41,6 @@ async function criarProduto(
       stockMinimo: 1,
       categoria: "Roupas",
       colecao: "Afiliados",
-      variantes: { tamanho: ["M", "G"] },
       fotos: [`https://example.com/${codigo}.png`]
     }
   });
@@ -515,7 +514,6 @@ describe("afiliados, criadores e comissões HTTP", () => {
         url: "/publico/lojas/loja-whatsapp-afiliado/produtos/WAF1/whatsapp",
         payload: {
           quantidade: 1,
-          variante: { tamanho: "M" },
           trackingId: "trk-whatsapp-afiliado",
           origem: "bio-instagram",
           referencia: "ANA-WA-LINK"

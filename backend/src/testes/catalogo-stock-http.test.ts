@@ -86,6 +86,54 @@ describe("catálogo e movimentos de stock HTTP", () => {
       );
       expect(criacao.json().variantes).toEqual({ tamanho: ["M", "G"], cor: ["Preto"] });
 
+      const variantesIniciais = await app.inject({
+        method: "GET",
+        url: "/pecas/SKU-01/variantes",
+        headers: loja
+      });
+      expect(variantesIniciais.statusCode).toBe(200);
+      expect(variantesIniciais.json().variantes).toEqual(expect.arrayContaining([
+        expect.objectContaining({ opcoes: { cor: "Preto", tamanho: "M" }, quantidade: 1, estado: "ATIVA" }),
+        expect.objectContaining({ opcoes: { cor: "Preto", tamanho: "G" }, quantidade: 1, estado: "ATIVA" })
+      ]));
+
+      const configuracaoVariantes = await app.inject({
+        method: "PUT",
+        url: "/pecas/SKU-01/variantes",
+        headers: loja,
+        payload: {
+          combinacoes: [
+            { opcoes: { tamanho: "M", cor: "Preto" }, sku: "BIZY-001-M", precoEmKwanza: 14_000, quantidade: 1, stockMinimo: 1 },
+            { opcoes: { tamanho: "G", cor: "Preto" }, sku: "BIZY-001-G", precoEmKwanza: 16_000, quantidade: 1, stockMinimo: 1 }
+          ]
+        }
+      });
+      expect(configuracaoVariantes.statusCode).toBe(200);
+      expect(configuracaoVariantes.json().produto.quantidade).toBe(2);
+
+      const outraLoja = await autenticar(app, "923333002", "Outra Loja Catálogo");
+      const tentativaIdor = await app.inject({
+        method: "GET",
+        url: "/pecas/SKU-01/variantes",
+        headers: outraLoja
+      });
+      expect(tentativaIdor.statusCode).toBe(404);
+      const tentativaIdorEscrita = await app.inject({
+        method: "PUT",
+        url: "/pecas/SKU-01/variantes",
+        headers: outraLoja,
+        payload: { combinacoes: [{ opcoes: { tamanho: "M", cor: "Preto" }, quantidade: 999 }] }
+      });
+      expect(tentativaIdorEscrita.statusCode).toBe(404);
+
+      const movimentoSemVariante = await app.inject({
+        method: "POST",
+        url: "/pecas/SKU-01/movimentos",
+        headers: loja,
+        payload: { tipo: "SAIDA", quantidade: 1, motivo: "Sem combinação" }
+      });
+      expect(movimentoSemVariante.statusCode).toBe(400);
+
       const resumoInicial = await app.inject({
         method: "GET",
         url: "/pecas/resumo",
@@ -116,7 +164,8 @@ describe("catálogo e movimentos de stock HTTP", () => {
           quantidade: 5,
           motivo: "Reposição semanal",
           responsavelId: "operador_1",
-          origem: "admin"
+          origem: "admin",
+          varianteSelecionada: { tamanho: "M", cor: "Preto" }
         }
       });
       expect(entrada.statusCode).toBe(201);
@@ -146,11 +195,28 @@ describe("catálogo e movimentos de stock HTTP", () => {
         payload: {
           tipo: "SAIDA",
           quantidade: 2,
-          motivo: "Venda balcão"
+          motivo: "Venda balcão",
+          varianteSelecionada: { tamanho: "M", cor: "Preto" }
         }
       });
       expect(saida.statusCode).toBe(201);
       expect(saida.json().peca).toEqual(expect.objectContaining({ quantidade: 5 }));
+
+      const stockVarianteInsuficiente = await app.inject({
+        method: "POST",
+        url: "/pecas/SKU-01/movimentos",
+        headers: loja,
+        payload: {
+          tipo: "SAIDA",
+          quantidade: 2,
+          motivo: "Tentativa acima da combinação",
+          varianteSelecionada: { tamanho: "G", cor: "Preto" }
+        }
+      });
+      expect(stockVarianteInsuficiente.statusCode).toBe(400);
+
+      const produtoAposFalha = await app.inject({ method: "GET", url: "/pecas", headers: loja });
+      expect(produtoAposFalha.json()[0].quantidade).toBe(5);
 
       const movimentos = await app.inject({
         method: "GET",

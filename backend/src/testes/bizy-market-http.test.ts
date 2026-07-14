@@ -485,7 +485,12 @@ describe("Bizy Market público HTTP", () => {
           compradorTelefone: "923777001",
           compradorNome: "Cliente Market Checkout",
           itens: [
-            { slugLoja: "loja-market-studio-a", codigoPeca: "VESTIDO-DETALHE", quantidade: 1 }
+            {
+              slugLoja: "loja-market-studio-a",
+              codigoPeca: "VESTIDO-DETALHE",
+              quantidade: 1,
+              varianteSelecionada: { tamanho: "M" }
+            }
           ],
           entrega: {
             tipo: "ENTREGA",

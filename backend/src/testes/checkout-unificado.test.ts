@@ -156,6 +156,84 @@ describe("Checkout Unificado multi-loja", () => {
     }
   });
 
+  it("Fase 2: valida combinação, preço e stock de variante no backend", async () => {
+    const app = await criarAplicacao();
+    try {
+      const loja = await autenticar(app, "923700099", "Fornecedor Variantes");
+      const produto = await app.inject({
+        method: "POST", url: "/pecas", headers: loja,
+        payload: {
+          codigo: "PROD-VAR-1", sku: "SKU-PROD-VAR-1", nome: "Ténis configurável",
+          descricao: "Produto com preço e stock por combinação", precoEmKwanza: 10_000,
+          custoEmKwanza: 5_000, quantidade: 10, stockMinimo: 1, categoria: "Calçado",
+          fotos: ["https://example.com/prod-var-1.png"],
+          variantes: { tamanho: ["40", "41"], cor: ["Preto", "Branco"] },
+          vitrine: { selos: ["DESTAQUE"], prioridade: 1 }
+        }
+      });
+      expect(produto.statusCode).toBe(201);
+
+      const configuracao = await app.inject({
+        method: "PUT", url: "/pecas/PROD-VAR-1/variantes", headers: loja,
+        payload: {
+          combinacoes: [
+            { opcoes: { tamanho: "40", cor: "Preto" }, sku: "TEN-40-P", precoEmKwanza: 12_000, quantidade: 1 },
+            { opcoes: { tamanho: "41", cor: "Branco" }, sku: "TEN-41-B", precoEmKwanza: 15_000, quantidade: 2 }
+          ]
+        }
+      });
+      expect(configuracao.statusCode).toBe(200);
+      expect(configuracao.json().produto.quantidade).toBe(3);
+      await publicarLoja(app, loja, "fornecedor-variantes");
+
+      const publico = await app.inject({ method: "GET", url: "/publico/market/produtos/PROD-VAR-1" });
+      expect(publico.statusCode).toBe(200);
+      expect(publico.json().produto.combinacoesVariantes).toEqual(expect.arrayContaining([
+        expect.objectContaining({ opcoes: { cor: "Preto", tamanho: "40" }, precoEmKwanza: 12_000, quantidade: 1, estado: "ATIVA" }),
+        expect.objectContaining({ opcoes: { cor: "Branco", tamanho: "41" }, precoEmKwanza: 15_000, quantidade: 2, estado: "ATIVA" })
+      ]));
+
+      const checkout = (itens: Array<Record<string, unknown>>) => app.inject({
+        method: "POST", url: "/publico/market/checkout",
+        payload: { compradorTelefone: "923800099", itens }
+      });
+      const base = { slugLoja: "fornecedor-variantes", codigoPeca: "PROD-VAR-1" };
+
+      expect((await checkout([{ ...base, quantidade: 1 }])).statusCode).toBe(400);
+      expect((await checkout([{ ...base, quantidade: 1, varianteSelecionada: { tamanho: "99", cor: "Preto" } }])).statusCode).toBe(400);
+      expect((await checkout([{ ...base, quantidade: 1, varianteSelecionada: { tamanho: "40", cor: "Branco" } }])).statusCode).toBe(400);
+      expect((await checkout([{ ...base, quantidade: 2, varianteSelecionada: { tamanho: "40", cor: "Preto" } }])).statusCode).toBe(400);
+      expect((await checkout([
+        { ...base, quantidade: 1, varianteSelecionada: { tamanho: "40", cor: "Preto" } },
+        { ...base, quantidade: 1, varianteSelecionada: { tamanho: "40", cor: "Preto" } }
+      ])).statusCode).toBe(400);
+
+      const valida = await checkout([{
+        ...base,
+        quantidade: 2,
+        varianteSelecionada: { tamanho: "41", cor: "Branco" },
+        precoUnitarioEmKwanza: 1
+      }]);
+      expect(valida.statusCode).toBe(201);
+      expect(valida.json().compra.subtotalEmKwanza).toBe(30_000);
+
+      const portalSeller = await app.inject({ method: "GET", url: "/market/fornecedor/portal", headers: loja });
+      const pedidoId = portalSeller.json().pedidos.find(
+        (item: { compra: { id: string } }) => item.compra.id === valida.json().compra.id
+      ).pedido.pedidoId;
+      const pedido = await app.inject({ method: "GET", url: `/pedidos/${pedidoId}`, headers: loja });
+      expect(pedido.statusCode).toBe(200);
+      expect(pedido.json().pedido.itens[0]).toEqual(expect.objectContaining({
+        varianteSelecionada: { cor: "Branco", tamanho: "41" },
+        precoUnitarioEmKwanza: 15_000,
+        quantidade: 2
+      }));
+      expect(pedido.json().pedido.itens[0].variantePecaId).toBeTruthy();
+    } finally {
+      await app.close();
+    }
+  });
+
   it("RF-055: calcula entrega por loja usando zona, taxa padrão e regra de gratuidade", async () => {
     const app = await criarAplicacao();
     try {

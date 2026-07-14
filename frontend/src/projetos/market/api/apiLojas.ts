@@ -398,7 +398,17 @@ export function normalizarProdutoMarket(produto: ProdutoMarket): ProdutoMarketNo
     urlMarket: montarUrlProdutoMarket(produto.codigo),
     urlProduto,
     selos: produto.vitrine?.selos ?? [],
-    variantes: normalizarVariantes(produto.variantes)
+    variantes: normalizarVariantes(produto.variantes),
+    combinacoesVariantes: (produto.combinacoesVariantes ?? [])
+      .filter((item) => item && item.opcoes && typeof item.opcoes === "object")
+      .map((item) => ({
+        id: texto(item.id),
+        opcoes: Object.fromEntries(Object.entries(item.opcoes).filter(([nome, valor]) => texto(nome) && texto(valor))),
+        sku: texto(item.sku),
+        precoEmKwanza: Number.isFinite(item.precoEmKwanza) ? Math.max(0, Math.round(item.precoEmKwanza ?? 0)) : null,
+        quantidade: Math.max(0, Math.round(Number(item.quantidade) || 0)),
+        estado: item.estado === "INATIVA" ? "INATIVA" : "ATIVA"
+      }))
   };
 }
 

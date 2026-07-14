@@ -91,9 +91,20 @@ export class BizyMarketUseCase {
   async obterProduto(codigo: string) {
     const item = await this.exigirItemMarket(codigo);
     const similares = await this.listarProdutosSimilares(codigo, { limite: 6 });
+    const combinacoesVariantes = await this.pecas.listarVariantesPeca(item.peca.id);
 
     return {
-      produto: this.mapearProdutoMarket(item.peca, item.loja),
+      produto: {
+        ...this.mapearProdutoMarket(item.peca, item.loja),
+        combinacoesVariantes: combinacoesVariantes.map((variante) => ({
+          id: variante.id,
+          opcoes: variante.opcoes,
+          sku: variante.sku,
+          precoEmKwanza: variante.precoEmKwanza,
+          quantidade: variante.quantidade,
+          estado: variante.estado
+        }))
+      },
       similares: similares.produtos,
       seo: this.mapearSeoProdutoMarket(item)
     };

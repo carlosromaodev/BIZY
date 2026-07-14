@@ -23,7 +23,7 @@ import {
   SelectValue
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import type { EstadoPeca, Peca } from "../tipos";
+import type { CombinacaoVariantePeca, ConfiguracaoCombinacaoVariantePeca, EstadoPeca, Peca } from "../tipos";
 import { formatarKwanza, traduzirEstadoPeca } from "../utilidades";
 
 type SeloProduto = "DESTAQUE" | "PROMOCAO" | "NOVIDADE" | "MAIS_VENDIDO" | "REPOSICAO" | "KIT" | "PATROCINADO";
@@ -58,6 +58,7 @@ const formularioInicial = {
   quantidade: 1,
   stockMinimo: 1,
   variantesTexto: "",
+  combinacoesVariantes: [] as ConfiguracaoCombinacaoVariantePeca[],
   fotos: [] as string[],
   estado: "DISPONIVEL" as EstadoPeca,
   selos: [] as SeloProduto[],
@@ -105,6 +106,7 @@ export function PaginaCatalogo() {
 
     setCarregando(true);
     try {
+      const variantes = extrairVariantes(formPeca.variantesTexto);
       const dadosBase = {
         sku: formPeca.sku.trim() || null,
         nome: formPeca.nome,
@@ -115,7 +117,7 @@ export function PaginaCatalogo() {
         custoEmKwanza: formPeca.custoEmKwanza || null,
         quantidade: formPeca.quantidade,
         stockMinimo: formPeca.stockMinimo,
-        variantes: extrairVariantes(formPeca.variantesTexto),
+        variantes,
         fotos: formPeca.fotos,
         vitrine: {
           selos: formPeca.selos,
@@ -128,15 +130,20 @@ export function PaginaCatalogo() {
         }
       };
 
-      if (codigoEditando) {
-        await requisitarApi(`/pecas/${encodeURIComponent(codigoEditando)}`, {
+      const produto = codigoEditando
+        ? await requisitarApi<Peca>(`/pecas/${encodeURIComponent(codigoEditando)}`, {
           method: "PATCH",
           body: { ...dadosBase, estado: formPeca.estado }
-        });
-      } else {
-        await requisitarApi("/pecas", {
+        })
+        : await requisitarApi<Peca>("/pecas", {
           method: "POST",
           body: { ...dadosBase, codigo: formPeca.codigo.trim() }
+        });
+
+      if (Object.keys(variantes).length > 0) {
+        await requisitarApi(`/pecas/${encodeURIComponent(produto.codigo)}/variantes`, {
+          method: "PUT",
+          body: { combinacoes: formPeca.combinacoesVariantes }
         });
       }
 
@@ -162,7 +169,24 @@ export function PaginaCatalogo() {
     setModalProdutoAberto(false);
   }
 
-  function iniciarEdicao(peca: Peca) {
+  async function iniciarEdicao(peca: Peca) {
+    setCarregando(true);
+    let combinacoesVariantes: ConfiguracaoCombinacaoVariantePeca[] = [];
+    try {
+      const resposta = await requisitarApi<{ variantes: CombinacaoVariantePeca[] }>(
+        `/pecas/${encodeURIComponent(peca.codigo)}/variantes`
+      );
+      const carregadas = resposta.variantes.map(({ opcoes, sku, precoEmKwanza, custoEmKwanza, quantidade, stockMinimo, estado }) => ({
+        opcoes, sku, precoEmKwanza, custoEmKwanza, quantidade, stockMinimo, estado
+      }));
+      combinacoesVariantes = reconciliarCombinacoesVariantes(
+        peca.variantes ?? {}, carregadas, peca.quantidade, peca.stockMinimo ?? 0
+      );
+    } catch (erro) {
+      setMensagem(erro instanceof Error ? erro.message : "Não foi possível carregar as variantes do produto.");
+      setCarregando(false);
+      return;
+    }
     setCodigoEditando(peca.codigo);
     setFormPeca({
       codigo: peca.codigo,
@@ -177,6 +201,7 @@ export function PaginaCatalogo() {
       quantidade: peca.quantidade,
       stockMinimo: peca.stockMinimo ?? 1,
       variantesTexto: formatarVariantes(peca.variantes),
+      combinacoesVariantes,
       fotos: peca.fotos,
       estado: peca.estado,
       selos: (peca.vitrine?.selos ?? []) as SeloProduto[],
@@ -184,6 +209,7 @@ export function PaginaCatalogo() {
       visibilidade: ((peca.vitrine as Record<string, unknown>)?.visibilidade as VisibilidadeProduto) ?? (peca.vitrine?.publicacaoMarket?.publicado === false ? "loja" : "market")
     });
     setModalProdutoAberto(true);
+    setCarregando(false);
   }
 
   async function confirmarDesativarPeca() {
@@ -382,7 +408,7 @@ export function PaginaCatalogo() {
                 : "green";
 
             return (
-              <div key={peca.id} className="cat-card" onClick={() => iniciarEdicao(peca)} role="button" tabIndex={0}>
+              <div key={peca.id} className="cat-card" onClick={() => void iniciarEdicao(peca)} role="button" tabIndex={0}>
                 <div className="cat-card-photo">
                   {peca.fotos[0] ? (
                     <img src={resolverUrlMedia(peca.fotos[0])} alt={peca.nome} loading="lazy" />
@@ -405,7 +431,7 @@ export function PaginaCatalogo() {
                   <div className="cat-card-foot">
                     <span className="cat-card-price">{formatarKwanza(peca.precoEmKwanza)}</span>
                     <div className="cat-card-actions">
-                      <button type="button" onClick={(e) => { e.stopPropagation(); iniciarEdicao(peca); }} title="Editar">
+                      <button type="button" onClick={(e) => { e.stopPropagation(); void iniciarEdicao(peca); }} title="Editar">
                         <PencilLine size={13} />
                       </button>
                       <button type="button" onClick={(e) => { e.stopPropagation(); setPecaParaDesativar(peca); }} title="Desativar" disabled={peca.estado === "ESGOTADA"}>
@@ -612,6 +638,32 @@ function ModalProduto({
 }) {
   const [arrastando, setArrastando] = useState(false);
   const [secaoAberta, setSecaoAberta] = useState<string | null>(null);
+  const temVariantes = formPeca.combinacoesVariantes.length > 0;
+
+  const atualizarDefinicoesVariantes = useCallback((texto: string) => {
+    setFormPeca((atual) => {
+      const combinacoesVariantes = reconciliarCombinacoesVariantes(
+        extrairVariantes(texto), atual.combinacoesVariantes, atual.quantidade, atual.stockMinimo
+      );
+      return {
+        ...atual,
+        variantesTexto: texto,
+        combinacoesVariantes,
+        quantidade: combinacoesVariantes.length > 0
+          ? calcularStockTotalVariantes(combinacoesVariantes)
+          : atual.quantidade
+      };
+    });
+  }, [setFormPeca]);
+
+  const atualizarCombinacaoVariante = useCallback((indice: number, dados: Partial<ConfiguracaoCombinacaoVariantePeca>) => {
+    setFormPeca((atual) => {
+      const combinacoesVariantes = atual.combinacoesVariantes.map((item, posicao) =>
+        posicao === indice ? { ...item, ...dados } : item
+      );
+      return { ...atual, combinacoesVariantes, quantidade: calcularStockTotalVariantes(combinacoesVariantes) };
+    });
+  }, [setFormPeca]);
 
   const alternarSecao = useCallback((id: string) => {
     setSecaoAberta((atual) => (atual === id ? null : id));
@@ -725,12 +777,14 @@ function ModalProduto({
                     />
                   </label>
                   <label>
-                    Stock
+                    {temVariantes ? "Stock total" : "Stock"}
                     <Input
                       type="number"
                       min={0}
                       value={formPeca.quantidade}
                       onChange={(e) => setFormPeca({ ...formPeca, quantidade: Number(e.target.value) })}
+                      disabled={temVariantes}
+                      title={temVariantes ? "Calculado a partir das combinações ativas" : undefined}
                       required
                     />
                   </label>
@@ -824,12 +878,83 @@ function ModalProduto({
               <Textarea
                 rows={3}
                 value={formPeca.variantesTexto}
-                onChange={(e) => setFormPeca({ ...formPeca, variantesTexto: e.target.value })}
+                onChange={(e) => atualizarDefinicoesVariantes(e.target.value)}
                 placeholder={"cor: vermelho, azul, preto\ntamanho: S, M, L, XL"}
               />
               <p className="text-xs mt-1" style={{ color: "var(--ink-3)" }}>
                 Uma variante por linha. Formato: <strong>nome: opção1, opção2</strong>
               </p>
+              {temVariantes && (
+                <div className="bz-variant-list">
+                  <div className="bz-variant-list-head">
+                    <strong>{formPeca.combinacoesVariantes.length} combinações</strong>
+                    <span>{formPeca.quantidade} unidades ativas</span>
+                  </div>
+                  {formPeca.combinacoesVariantes.map((combinacao, indice) => (
+                    <div className="bz-variant-row" key={criarChaveVariante(combinacao.opcoes)}>
+                      <div className="bz-variant-row-head">
+                        <strong>{formatarSelecaoVariante(combinacao.opcoes)}</strong>
+                        <label className="bz-variant-state">
+                          <input
+                            type="checkbox"
+                            checked={combinacao.estado === "ATIVA"}
+                            onChange={(e) => atualizarCombinacaoVariante(indice, { estado: e.target.checked ? "ATIVA" : "INATIVA" })}
+                          />
+                          Ativa
+                        </label>
+                      </div>
+                      <div className="bz-variant-fields">
+                        <label>
+                          SKU
+                          <Input
+                            value={combinacao.sku ?? ""}
+                            onChange={(e) => atualizarCombinacaoVariante(indice, { sku: e.target.value || null })}
+                            placeholder="Opcional"
+                          />
+                        </label>
+                        <label>
+                          Preço (Kz)
+                          <Input
+                            type="number"
+                            min={0}
+                            value={combinacao.precoEmKwanza ?? ""}
+                            onChange={(e) => atualizarCombinacaoVariante(indice, { precoEmKwanza: lerNumeroOpcional(e.target.value) })}
+                            placeholder={String(formPeca.precoEmKwanza)}
+                          />
+                        </label>
+                        <label>
+                          Stock
+                          <Input
+                            type="number"
+                            min={0}
+                            value={combinacao.quantidade}
+                            onChange={(e) => atualizarCombinacaoVariante(indice, { quantidade: Math.max(0, Number(e.target.value)) })}
+                          />
+                        </label>
+                        <label>
+                          Stock mínimo
+                          <Input
+                            type="number"
+                            min={0}
+                            value={combinacao.stockMinimo}
+                            onChange={(e) => atualizarCombinacaoVariante(indice, { stockMinimo: Math.max(0, Number(e.target.value)) })}
+                          />
+                        </label>
+                        <label>
+                          Custo (Kz)
+                          <Input
+                            type="number"
+                            min={0}
+                            value={combinacao.custoEmKwanza ?? ""}
+                            onChange={(e) => atualizarCombinacaoVariante(indice, { custoEmKwanza: lerNumeroOpcional(e.target.value) })}
+                            placeholder="Opcional"
+                          />
+                        </label>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </SecaoColapsavel>
 
             {/* ── 5. DETALHES AVANÇADOS (colapsável) ── */}
@@ -1043,4 +1168,51 @@ function formatarVariantes(variantes?: Peca["variantes"]): string {
     .filter(([, opcoes]) => opcoes.length > 0)
     .map(([nome, opcoes]) => `${nome}: ${opcoes.join(", ")}`)
     .join("\n");
+}
+
+function gerarCombinacoesVariantes(definicoes: Record<string, string[]>): Array<Record<string, string>> {
+  const dimensoes = Object.entries(definicoes).filter(([, opcoes]) => opcoes.length > 0);
+  if (dimensoes.length === 0) return [];
+  return dimensoes.reduce<Array<Record<string, string>>>((combinacoes, [nome, opcoes]) =>
+    combinacoes.flatMap((combinacao) => opcoes.map((opcao) => ({ ...combinacao, [nome]: opcao }))),
+  [{}]).slice(0, 500);
+}
+
+function criarChaveVariante(opcoes: Record<string, string>): string {
+  return JSON.stringify(Object.fromEntries(Object.entries(opcoes).sort(([a], [b]) => a.localeCompare(b))));
+}
+
+function reconciliarCombinacoesVariantes(
+  definicoes: Record<string, string[]>,
+  existentes: ConfiguracaoCombinacaoVariantePeca[],
+  stockTotal: number,
+  stockMinimo: number
+): ConfiguracaoCombinacaoVariantePeca[] {
+  const combinacoes = gerarCombinacoesVariantes(definicoes);
+  const porChave = new Map(existentes.map((item) => [criarChaveVariante(item.opcoes), item]));
+  return combinacoes.map((opcoes, indice) => porChave.get(criarChaveVariante(opcoes)) ?? {
+    opcoes,
+    sku: null,
+    precoEmKwanza: null,
+    custoEmKwanza: null,
+    quantidade: existentes.length === 0
+      ? Math.floor(stockTotal / combinacoes.length) + (indice < stockTotal % combinacoes.length ? 1 : 0)
+      : 0,
+    stockMinimo,
+    estado: "ATIVA"
+  });
+}
+
+function calcularStockTotalVariantes(combinacoes: ConfiguracaoCombinacaoVariantePeca[]): number {
+  return combinacoes
+    .filter((item) => item.estado === "ATIVA")
+    .reduce((total, item) => total + item.quantidade, 0);
+}
+
+function formatarSelecaoVariante(opcoes: Record<string, string>): string {
+  return Object.entries(opcoes).map(([nome, valor]) => `${nome}: ${valor}`).join(" · ");
+}
+
+function lerNumeroOpcional(valor: string): number | null {
+  return valor === "" ? null : Math.max(0, Number(valor));
 }

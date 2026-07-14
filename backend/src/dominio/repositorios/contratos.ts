@@ -36,6 +36,8 @@ import type {
   DadosPedidoResolvido,
   DadosCliente360,
   ComissaoParceiro,
+  CombinacaoVariantePeca,
+  ConfiguracaoCombinacaoVariantePeca,
   ExecucaoPlaybookRecuperacao,
   FiltrosExecucoesPlaybookRecuperacao,
   FiltrosMovimentosFunilComercial,
@@ -137,7 +139,10 @@ export interface RepositorioPecas {
   atualizarEstado(codigo: string, estado: EstadoPeca, negocioId?: string | null): Promise<Peca>;
   registrarMovimentoStock(dados: NovoMovimentoStock): Promise<MovimentoStock>;
   listarMovimentosStock(codigoPeca: string, negocioId?: string | null): Promise<MovimentoStock[]>;
-  decrementarStockVariante?(pecaId: string, combinacao: string, quantidade: number): Promise<{ quantidade: number }>;
+  decrementarStockVariante(pecaId: string, combinacao: string, quantidade: number): Promise<{ quantidade: number; quantidadeTotal: number }>;
+  listarVariantesPeca(pecaId: string): Promise<CombinacaoVariantePeca[]>;
+  listarVariantesPecas(pecaIds: string[]): Promise<CombinacaoVariantePeca[]>;
+  configurarVariantesPeca(pecaId: string, combinacoes: ConfiguracaoCombinacaoVariantePeca[]): Promise<CombinacaoVariantePeca[]>;
   renomearColecao(negocioId: string, de: string, para: string): Promise<number>;
   limparColecao(negocioId: string, colecao: string): Promise<number>;
 }

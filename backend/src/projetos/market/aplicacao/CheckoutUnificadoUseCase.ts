@@ -16,6 +16,11 @@ import type {
   NovoReembolsoPedido
 } from "../../../dominio/tipos.js";
 import type { ContaBizyUseCase } from "../../commerce/aplicacao/ContaBizyUseCase.js";
+import {
+  criarChaveCombinacaoVariante,
+  encontrarCombinacaoVariante,
+  validarSelecaoVariante
+} from "../../../dominio/servicos/VariantesProduto.js";
 
 const IVA_ANGOLA_PERCENTUAL = 14;
 const TAXA_BIZY_PERCENTUAL = 5;
@@ -80,11 +85,14 @@ export class CheckoutUnificadoUseCase {
 
     for (const [negocioId, itens] of itensPorNegocio) {
       let subtotal = 0;
+      const quantidadesProduto = new Map<string, number>();
+      const quantidadesVariante = new Map<string, number>();
       const itensResolvidos: Array<{
         pecaId: string;
         codigoPeca: string;
         nomeProduto: string;
         varianteSelecionada?: Record<string, string> | null;
+        variantePecaId?: string | null;
         quantidade: number;
         precoUnitarioEmKwanza: number;
         subtotalEmKwanza: number;
@@ -93,17 +101,41 @@ export class CheckoutUnificadoUseCase {
       for (const item of itens) {
         const peca = await this.deps.pecas.buscarPorCodigo(item.codigoPeca, negocioId);
         if (!peca) throw new Error(`Produto ${item.codigoPeca} não encontrado na loja ${negocioId}`);
-        if (peca.quantidade < item.quantidade) {
-          throw new Error(`Stock insuficiente para ${item.codigoPeca}: disponível=${peca.quantidade}, pedido=${item.quantidade}`);
+        const selecao = validarSelecaoVariante(peca.variantes, item.varianteSelecionada);
+        const quantidadeProduto = (quantidadesProduto.get(peca.id) ?? 0) + item.quantidade;
+        quantidadesProduto.set(peca.id, quantidadeProduto);
+        if (peca.quantidade < quantidadeProduto) {
+          throw new Error(`Quantidade inválida para ${item.codigoPeca}: stock disponível ${peca.quantidade}.`);
         }
-        const preco = peca.vitrine?.precoPromocionalEmKwanza ?? peca.precoEmKwanza ?? 0;
+
+        const combinacoes = await this.deps.pecas.listarVariantesPeca(peca.id);
+        const variante = Object.keys(peca.variantes).length > 0
+          ? encontrarCombinacaoVariante(combinacoes, selecao)
+          : null;
+        if (Object.keys(peca.variantes).length > 0 && !variante) {
+          throw new Error("Variante inválida ou indisponível para este produto.");
+        }
+        if (variante) {
+          const chave = `${peca.id}:${criarChaveCombinacaoVariante(selecao)}`;
+          const quantidadeVariante = (quantidadesVariante.get(chave) ?? 0) + item.quantidade;
+          quantidadesVariante.set(chave, quantidadeVariante);
+          if (variante.quantidade < quantidadeVariante) {
+            throw new Error(`Quantidade inválida para a variante de ${item.codigoPeca}: stock disponível ${variante.quantidade}.`);
+          }
+        }
+
+        const preco = variante?.precoEmKwanza
+          ?? peca.vitrine?.precoPromocionalEmKwanza
+          ?? peca.precoEmKwanza
+          ?? 0;
         const itemSubtotal = preco * item.quantidade;
         subtotal += itemSubtotal;
         itensResolvidos.push({
           pecaId: peca.id,
           codigoPeca: item.codigoPeca,
           nomeProduto: peca.nome,
-          varianteSelecionada: item.varianteSelecionada,
+          varianteSelecionada: Object.keys(selecao).length ? selecao : null,
+          variantePecaId: variante?.id ?? null,
           quantidade: item.quantidade,
           precoUnitarioEmKwanza: preco,
           subtotalEmKwanza: itemSubtotal

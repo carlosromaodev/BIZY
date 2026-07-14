@@ -90,6 +90,7 @@ export function PaginaProdutoMarket() {
   const [erro, setErro] = useState("");
   const [carregando, setCarregando] = useState(true);
   const [favorito, setFavorito] = useState(false);
+  const [variantesSelecionadas, setVariantesSelecionadas] = useState<Record<string, string>>({});
 
   useEffect(() => {
     let ativo = true;
@@ -107,6 +108,9 @@ export function PaginaProdutoMarket() {
         }
         const normalizado = normalizarProdutoMarket(resposta.produto);
         setProduto(normalizado);
+        const combinacaoInicial = normalizado.combinacoesVariantes.find((item) => item.estado === "ATIVA" && item.quantidade > 0)
+          ?? normalizado.combinacoesVariantes.find((item) => item.estado === "ATIVA");
+        setVariantesSelecionadas(combinacaoInicial?.opcoes ?? {});
         const favoritos = await listarFavoritosContaBizy().catch(() => null);
         if (ativo) setFavorito(Boolean(favoritos?.favoritos.some((item) => item.slugLoja === normalizado.fornecedor.slug && item.codigoProduto === normalizado.codigo)));
         setSimilares((respostaSimilares?.produtos ?? resposta.similares ?? []).map(normalizarProdutoMarket));
@@ -158,8 +162,34 @@ export function PaginaProdutoMarket() {
 
   function adicionarAoCheckoutBizy() {
     if (!produto) return;
-    adicionarItemCheckoutBizy(criarItemCheckoutDeProdutoMarket(produto, quantidade, "market-pdp"));
+    const combinacao = produto.combinacoesVariantes.find((item) =>
+      item.estado === "ATIVA" && Object.entries(item.opcoes).every(([nome, valor]) => variantesSelecionadas[nome] === valor)
+    );
+    if (Object.keys(produto.variantes).length > 0 && (!combinacao || combinacao.quantidade < quantidade)) return;
+    adicionarItemCheckoutBizy(criarItemCheckoutDeProdutoMarket(
+      produto,
+      quantidade,
+      "market-pdp",
+      variantesSelecionadas,
+      combinacao?.precoEmKwanza ?? produto.precoFinalEmKwanza
+    ));
     navigate(ROTAS_LOJAS.checkout);
+  }
+
+  function selecionarOpcaoVariante(nome: string, opcao: string) {
+    if (!produto) return;
+    setVariantesSelecionadas((actual) => {
+      const tentativa = { ...actual, [nome]: opcao };
+      const exacta = produto.combinacoesVariantes.find((item) =>
+        item.estado === "ATIVA" && Object.entries(item.opcoes).every(([chave, valor]) => tentativa[chave] === valor)
+      );
+      if (exacta) return exacta.opcoes;
+      const compativel = produto.combinacoesVariantes.find((item) =>
+        item.estado === "ATIVA" && item.opcoes[nome] === opcao && item.quantidade > 0
+      );
+      return compativel?.opcoes ?? tentativa;
+    });
+    setQuantidade(1);
   }
 
   const cabecalhoBase = (
@@ -201,14 +231,21 @@ export function PaginaProdutoMarket() {
   }
 
   const variantesVisiveis = Object.entries(produto.variantes ?? {})
-    .filter(([, opcoes]) => opcoes.length > 0)
-    .slice(0, 2);
-  const stockMaximo = Math.max(1, produto.quantidade || 1);
-  const desconto = produto.descontoPercentual ? `-${produto.descontoPercentual}%` : produto.disponivel ? "Em stock" : "Indisponível";
+    .filter(([, opcoes]) => opcoes.length > 0);
+  const combinacaoSelecionada = produto.combinacoesVariantes.find((item) =>
+    item.estado === "ATIVA" && Object.entries(item.opcoes).every(([nome, valor]) => variantesSelecionadas[nome] === valor)
+  );
+  const stockMaximo = variantesVisiveis.length > 0 ? combinacaoSelecionada?.quantidade ?? 0 : produto.quantidade;
+  const precoSelecionado = combinacaoSelecionada?.precoEmKwanza ?? produto.precoFinalEmKwanza;
+  const precoAntigoSelecionado = combinacaoSelecionada?.precoEmKwanza == null
+    ? produto.precoAntigoEmKwanza
+    : null;
+  const disponivelSelecao = produto.disponivel && stockMaximo > 0;
+  const desconto = produto.descontoPercentual ? `-${produto.descontoPercentual}%` : disponivelSelecao ? "Em stock" : "Indisponível";
   const seloPrincipal = produto.selos.find((selo) => selo !== "PATROCINADO" && selo !== "VERIFICADO");
   const lojaVerificada = produto.selos.includes("VERIFICADO");
   const selecaoResumo = variantesVisiveis
-    .map(([nome, opcoes]) => `${nome}: ${opcoes[0]}`)
+    .map(([nome]) => `${nome}: ${variantesSelecionadas[nome] ?? "-"}`)
     .join(" · ");
 
   return (
@@ -301,28 +338,41 @@ export function PaginaProdutoMarket() {
           </div>
 
           <div className="market-pdp-price prrow">
-            <span className="pr">{formatarKwanza(produto.precoFinalEmKwanza)}</span>
-            {produto.precoAntigoEmKwanza && <span className="old">{formatarKwanza(produto.precoAntigoEmKwanza)}</span>}
+            <span className="pr">{formatarKwanza(precoSelecionado)}</span>
+            {precoAntigoSelecionado && <span className="old">{formatarKwanza(precoAntigoSelecionado)}</span>}
           </div>
 
           {variantesVisiveis.length > 0 && (
             <div className="market-pdp-options" aria-label="Variações disponíveis">
               {variantesVisiveis.map(([nome, opcoes]) => (
                 <div key={nome} className="market-pdp-option-group">
-                  <span className="lab2">{nome}{variantePareceCor(nome) && opcoes[0] ? ` · ${opcoes[0]}` : ""}</span>
+                  <span className="lab2">{nome}{variantePareceCor(nome) && variantesSelecionadas[nome] ? ` · ${variantesSelecionadas[nome]}` : ""}</span>
                   <div className="pick-row">
-                    {opcoes.slice(0, 5).map((opcao, indice) => (
-                      <button key={opcao} type="button" className={indice === 0 ? "is-active" : ""}>
-                        {variantePareceCor(nome) ? (
-                          <span
-                            className="market-pdp-color-dot"
-                            style={{ background: resolverCorVisual(opcao, produto.fornecedor.corPrimaria) }}
-                          />
-                        ) : (
-                          opcao
-                        )}
-                      </button>
-                    ))}
+                    {opcoes.slice(0, 5).map((opcao) => {
+                      const disponivel = produto.combinacoesVariantes.some((item) => item.estado === "ATIVA" && item.quantidade > 0 && item.opcoes[nome] === opcao);
+                      const seleccionada = variantesSelecionadas[nome] === opcao;
+                      return (
+                        <button
+                          key={opcao}
+                          type="button"
+                          className={seleccionada ? "is-active" : ""}
+                          aria-label={`${nome}: ${opcao}`}
+                          aria-pressed={seleccionada}
+                          title={`${nome}: ${opcao}`}
+                          disabled={!disponivel}
+                          onClick={() => selecionarOpcaoVariante(nome, opcao)}
+                        >
+                          {variantePareceCor(nome) ? (
+                            <span
+                              className="market-pdp-color-dot"
+                              style={{ background: resolverCorVisual(opcao, produto.fornecedor.corPrimaria) }}
+                            />
+                          ) : (
+                            opcao
+                          )}
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
               ))}
@@ -336,14 +386,14 @@ export function PaginaProdutoMarket() {
                 <Minus size={14} />
               </button>
               <strong className="v">{quantidade}</strong>
-              <button type="button" className="b" disabled={quantidade >= stockMaximo} onClick={() => setQuantidade((valor) => Math.min(stockMaximo, valor + 1))} aria-label="Aumentar quantidade">
+              <button type="button" className="b" disabled={stockMaximo <= 0 || quantidade >= stockMaximo} onClick={() => setQuantidade((valor) => Math.min(stockMaximo, valor + 1))} aria-label="Aumentar quantidade">
                 <Plus size={14} />
               </button>
             </div>
           </div>
 
           <div className="market-pdp-actions pdp-cta">
-            <button type="button" className="market-pdp-checkout" onClick={adicionarAoCheckoutBizy}>
+            <button type="button" className="market-pdp-checkout" disabled={!disponivelSelecao} onClick={adicionarAoCheckoutBizy}>
               <ShoppingBag size={18} />
               Adicionar ao checkout
             </button>

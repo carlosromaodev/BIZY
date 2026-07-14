@@ -1,6 +1,7 @@
 import {
   ArquivarPecaSchema,
   AtualizarPecaSchema,
+  ConfigurarVariantesPecaSchema,
   CriarPecaSchema,
   ImportarCsvSchema,
   LimparColecaoSchema,
@@ -185,6 +186,32 @@ export const moduloCatalogo: ModuloHttp = {
         }
       });
       return reply.code(201).send(resultado);
+    });
+
+    app.get("/pecas/:codigo/variantes", async (request, reply) => {
+      const contextoComercial = await exigirAcessoComercial(contexto, request, reply, {
+        permissao: "catalogo:ler",
+        modulo: "catalogo",
+        mensagemPermissao: "Sem permissão para consultar variantes.",
+        mensagemModulo: "Catálogo desativado para este negócio."
+      });
+      if (!contextoComercial) return;
+      const { codigo } = ParamCodigoSchema.parse(request.params);
+      return { variantes: await contexto.gestaoPecas.listarVariantesPeca(codigo, contextoComercial.negocio.id) };
+    });
+
+    app.put("/pecas/:codigo/variantes", async (request, reply) => {
+      const contextoComercial = await exigirAcessoComercial(contexto, request, reply, {
+        permissao: "catalogo:gerir",
+        modulo: "catalogo",
+        mensagemPermissao: "Sem permissão para gerir variantes.",
+        mensagemModulo: "Catálogo desativado para este negócio."
+      });
+      if (!contextoComercial) return;
+      const { codigo } = ParamCodigoSchema.parse(request.params);
+      const dados = ConfigurarVariantesPecaSchema.parse(request.body ?? {});
+      const resultado = await contexto.gestaoPecas.configurarVariantesPeca(codigo, dados.combinacoes, contextoComercial.negocio.id);
+      return reply.code(200).send(resultado);
     });
 
     app.post("/pecas/:codigo/arquivar", async (request, reply) => {

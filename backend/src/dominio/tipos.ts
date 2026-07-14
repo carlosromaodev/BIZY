@@ -272,6 +272,31 @@ export interface Peca {
   atualizadoEm: Date;
 }
 
+export interface CombinacaoVariantePeca {
+  id: string;
+  pecaId: string;
+  combinacao: string;
+  opcoes: Record<string, string>;
+  sku: string | null;
+  precoEmKwanza: number | null;
+  custoEmKwanza: number | null;
+  quantidade: number;
+  stockMinimo: number;
+  estado: "ATIVA" | "INATIVA";
+  criadoEm: Date;
+  atualizadoEm: Date;
+}
+
+export interface ConfiguracaoCombinacaoVariantePeca {
+  opcoes: Record<string, string>;
+  sku?: string | null;
+  precoEmKwanza?: number | null;
+  custoEmKwanza?: number | null;
+  quantidade: number;
+  stockMinimo?: number;
+  estado?: "ATIVA" | "INATIVA";
+}
+
 export interface ComponenteKitProduto {
   codigoPeca: string;
   quantidade: number;
@@ -1576,6 +1601,7 @@ export interface ItemPedido {
   pecaId: string;
   codigoPeca: string;
   varianteSelecionada?: Record<string, string> | null;
+  variantePecaId?: string | null;
   nomeProduto: string;
   quantidade: number;
   precoUnitarioEmKwanza: number;
@@ -1617,6 +1643,7 @@ export interface Pedido {
 export interface ItemNovoPedido {
   codigoPeca: string;
   varianteSelecionada?: Record<string, string> | null;
+  variantePecaId?: string | null;
   quantidade: number;
   precoUnitarioEmKwanza?: number;
 }
@@ -1656,6 +1683,7 @@ export interface DadosPedidoResolvido extends Omit<NovoPedido, "itens"> {
     codigoPeca: string;
     nomeProduto: string;
     varianteSelecionada?: Record<string, string> | null;
+    variantePecaId?: string | null;
     quantidade: number;
     precoUnitarioEmKwanza: number;
     subtotalEmKwanza: number;
@@ -2604,6 +2632,8 @@ export interface ReservaStockCheckout {
   negocioId: string;
   pecaId: string;
   codigoPeca: string;
+  variantePecaId: string | null;
+  combinacaoVariante: string | null;
   quantidade: number;
   sessaoId: string;
   estado: EstadoReservaStockCheckout;
@@ -2617,6 +2647,8 @@ export interface NovaReservaStockCheckout {
   negocioId: string;
   pecaId: string;
   codigoPeca: string;
+  variantePecaId?: string | null;
+  combinacaoVariante?: string | null;
   quantidade: number;
   sessaoId: string;
   expiraEm: Date;

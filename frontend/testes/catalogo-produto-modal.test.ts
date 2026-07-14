@@ -18,6 +18,10 @@ describe("cadastro de produtos no catálogo", () => {
     expect(catalogo).not.toContain("@/components/ui/sheet");
     expect(catalogo).not.toContain("Fotos por URL");
     expect(catalogo).not.toContain("VPS");
+    expect(catalogo).toContain('/variantes`');
+    expect(catalogo).toContain("reconciliarCombinacoesVariantes");
+    expect(catalogo).toContain("Stock total");
+    expect(catalogo).toContain("precoEmKwanza");
   });
 
   it("mantém o formulário de produto usável no mobile com ação fixa de cadastro", () => {

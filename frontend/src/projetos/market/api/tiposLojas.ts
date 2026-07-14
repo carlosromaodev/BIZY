@@ -60,6 +60,14 @@ export interface ProdutoMarket {
   quantidade: number;
   fotos: string[];
   variantes?: Record<string, string[]> | null;
+  combinacoesVariantes?: Array<{
+    id: string;
+    opcoes: Record<string, string>;
+    sku?: string | null;
+    precoEmKwanza?: number | null;
+    quantidade: number;
+    estado: "ATIVA" | "INATIVA";
+  }> | null;
   vitrine?: VitrineProdutoPublico | null;
   estadoStock?: EstadoStockPublico | null;
   disponivel?: boolean;
@@ -104,6 +112,14 @@ export interface ProdutoMarketNormalizado {
   urlMarket: string;
   urlProduto: string;
   variantes: Record<string, string[]>;
+  combinacoesVariantes: Array<{
+    id: string;
+    opcoes: Record<string, string>;
+    sku: string;
+    precoEmKwanza: number | null;
+    quantidade: number;
+    estado: "ATIVA" | "INATIVA";
+  }>;
 }
 
 export interface CategoriaMarket {
@@ -407,6 +423,7 @@ export interface EntregaCheckoutPublico {
 export interface ItemCheckoutPublico {
   codigoPeca: string;
   quantidade: number;
+  varianteSelecionada?: Record<string, string> | null;
 }
 
 export interface ClienteCheckoutPublico {

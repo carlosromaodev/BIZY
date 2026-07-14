@@ -18,6 +18,14 @@ export interface ProdutoPublico {
   quantidade: number;
   fotos: string[];
   variantes?: Record<string, string[]>;
+  combinacoesVariantes?: Array<{
+    id: string;
+    opcoes: Record<string, string>;
+    sku?: string | null;
+    precoEmKwanza?: number | null;
+    quantidade: number;
+    estado: "ATIVA" | "INATIVA";
+  }>;
   vitrine?: {
     selos?: string[];
     prioridade?: number;

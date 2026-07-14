@@ -70,6 +70,7 @@ describe("checkout unificado progressivo", () => {
     expect(checkout).toContain("obterChaveIdempotenciaCheckoutBizy");
     expect(checkout).toContain("idempotencyKey");
     expect(checkout).toContain("entrega,");
+    expect(checkout).toContain("varianteSelecionada");
   });
 
   it("fecha checkout visual completo com passos, quantidade e revisão operacional", () => {
@@ -93,9 +94,20 @@ describe("checkout unificado progressivo", () => {
     const lojaProduto = source("src/projetos/market/paginas/LojaDigitalPublica.tsx");
 
     expect(marketProduto).toContain("adicionarItemCheckoutBizy");
+    expect(marketProduto).toContain("variantesSelecionadas");
+    expect(marketProduto).toContain("combinacaoSelecionada");
+    expect(marketProduto).toContain("precoSelecionado");
+    expect(marketProduto).toContain("aria-pressed={seleccionada}");
+    expect(marketProduto).toContain('aria-label={`${nome}: ${opcao}`}');
     expect(marketProduto).toContain("ROTAS_LOJAS.checkout");
     expect(lojaProduto).toContain("adicionarItemCheckoutBizy");
     expect(lojaProduto).toContain("ROTAS_LOJAS.checkout");
     expect(lojaProduto).toContain("Comprar agora");
+    expect(lojaProduto).toContain("varianteSelecionada: checkoutVariantes");
+    expect(lojaProduto).toContain("selecionarOpcaoProduto");
+    expect(lojaProduto).toContain("stockProduto");
+    expect(lojaProduto).toContain("combinacoesVariantes");
+    expect(lojaProduto).toContain("totalConfirmado");
+    expect(lojaProduto).toContain("setResumoEntrega(null)");
   });
 });

@@ -43,15 +43,21 @@ model Peca {
 }
 
 model VariantePeca {
-  id            String   @id @default(uuid())
-  pecaId        String
-  peca          Peca     @relation(fields: [pecaId], references: [id], onDelete: Cascade)
-  combinacao    String
-  sku           String?
-  quantidade    Int      @default(0)
-  stockMinimo   Int      @default(0)
-  criadoEm      DateTime @default(now())
-  atualizadoEm  DateTime @updatedAt
+  id              String   @id @default(uuid())
+  pecaId          String
+  peca            Peca     @relation(fields: [pecaId], references: [id], onDelete: Cascade)
+  combinacao      String
+  opcoesJson      String   @default("{}")
+  sku             String?
+  precoEmKwanza   Int?
+  custoEmKwanza   Int?
+  quantidade      Int      @default(0)
+  stockMinimo     Int      @default(0)
+  estado          String   @default("ATIVA")
+  criadoEm        DateTime @default(now())
+  atualizadoEm    DateTime @updatedAt
+  itensPedido     ItemPedido[]
+  reservasCheckout ReservaStockCheckout[]
 
   @@unique([pecaId, combinacao])
   @@index([pecaId])
@@ -164,6 +170,8 @@ model ItemPedido {
   peca                  Peca     @relation(fields: [pecaId], references: [id])
   codigoPeca            String
   varianteSelecionada   String?
+  variantePecaId        String?
+  variantePeca          VariantePeca? @relation(fields: [variantePecaId], references: [id])
   nomeProduto           String
   quantidade            Int
   precoUnitarioEmKwanza Int
@@ -173,6 +181,7 @@ model ItemPedido {
 
   @@index([pedidoId])
   @@index([pecaId])
+  @@index([variantePecaId])
   @@index([codigoPeca])
 }
 
@@ -1485,6 +1494,9 @@ model ReservaStockCheckout {
   negocioId     String
   pecaId        String
   codigoPeca    String
+  variantePecaId String?
+  variantePeca   VariantePeca? @relation(fields: [variantePecaId], references: [id])
+  combinacaoVariante String?
   quantidade    Int
   sessaoId      String
   estado        String   @default("ATIVA")
@@ -1494,6 +1506,7 @@ model ReservaStockCheckout {
   atualizadoEm  DateTime @updatedAt
 
   @@index([negocioId, pecaId])
+  @@index([variantePecaId, estado, expiraEm])
   @@index([estado, expiraEm])
   @@index([sessaoId])
 }

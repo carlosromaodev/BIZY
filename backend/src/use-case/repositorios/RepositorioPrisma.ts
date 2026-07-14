@@ -63,6 +63,8 @@ import type {
   ConversaAtendimento,
   ConversaAtendimentoComMensagens,
   ComissaoParceiro,
+  CombinacaoVariantePeca,
+  ConfiguracaoCombinacaoVariantePeca,
   DadosCriacaoReservaComControleStock,
   DadosCliente360,
   DadosPedidoResolvido,
@@ -171,6 +173,7 @@ import type {
 } from "../../dominio/tipos.js";
 import { modulosNegocioPadrao, normalizarModuloNegocio } from "../../dominio/tipos.js";
 import { normalizarEmail, normalizarTelefone } from "../../dominio/servicos/normalizarContato.js";
+import { criarChaveCombinacaoVariante, gerarCombinacoesVariantes } from "../../dominio/servicos/VariantesProduto.js";
 
 const estadosQueBloqueiamStock: EstadoReserva[] = ["PENDING", "RESERVED", "WAITING_PAYMENT", "PAID"];
 const estadosAtivosParaDuplicidade: EstadoReserva[] = ["PENDING", "RESERVED", "WAITING_PAYMENT", "WAITLISTED"];
@@ -215,7 +218,9 @@ export class RepositorioPecasPrisma implements RepositorioPecas {
       }
     });
 
-    return this.mapearPeca(peca);
+    const mapeada = this.mapearPeca(peca);
+    await this.sincronizarDefinicoesVariantes(mapeada);
+    return mapeada;
   }
 
   async listar(negocioId?: string | null): Promise<Peca[]> {
@@ -264,7 +269,9 @@ export class RepositorioPecasPrisma implements RepositorioPecas {
       }
     });
 
-    return this.mapearPeca(peca);
+    const mapeada = this.mapearPeca(peca);
+    if (dados.variantes !== undefined) await this.sincronizarDefinicoesVariantes(mapeada);
+    return mapeada;
   }
 
   async atualizarEstado(codigo: string, estado: EstadoPeca, negocioId?: string | null): Promise<Peca> {
@@ -302,22 +309,158 @@ export class RepositorioPecasPrisma implements RepositorioPecas {
     return movimentos.map((movimento) => this.mapearMovimentoStock(movimento));
   }
 
-  async decrementarStockVariante(pecaId: string, combinacao: string, quantidade: number): Promise<{ quantidade: number }> {
-    const variante = await this.prisma.variantePeca.findUnique({
-      where: { pecaId_combinacao: { pecaId, combinacao } }
+  async decrementarStockVariante(pecaId: string, combinacao: string, quantidade: number): Promise<{ quantidade: number; quantidadeTotal: number }> {
+    return this.prisma.$transaction(async (tx) => {
+      const resultado = quantidade > 0
+        ? await tx.variantePeca.updateMany({
+          where: { pecaId, combinacao, estado: "ATIVA", quantidade: { gte: quantidade } },
+          data: { quantidade: { decrement: quantidade } }
+        })
+        : await tx.variantePeca.updateMany({
+          where: { pecaId, combinacao, estado: "ATIVA" },
+          data: { quantidade: { increment: -quantidade } }
+        });
+      if (resultado.count === 0) {
+        throw new Error(quantidade > 0
+          ? "Stock insuficiente para a variante selecionada."
+          : "Variante inválida ou indisponível para este produto.");
+      }
+      const [atualizada, agregado] = await Promise.all([
+        tx.variantePeca.findUniqueOrThrow({
+          where: { pecaId_combinacao: { pecaId, combinacao } }, select: { quantidade: true }
+        }),
+        tx.variantePeca.aggregate({
+          where: { pecaId, estado: "ATIVA" }, _sum: { quantidade: true }
+        })
+      ]);
+      const quantidadeTotal = agregado._sum.quantidade ?? 0;
+      await tx.peca.update({
+        where: { id: pecaId },
+        data: { quantidade: quantidadeTotal, estado: quantidadeTotal > 0 ? "DISPONIVEL" : "ESGOTADA" }
+      });
+      return { quantidade: atualizada.quantidade, quantidadeTotal };
     });
+  }
 
-    if (!variante) {
-      return { quantidade: 0 };
+  async listarVariantesPeca(pecaId: string): Promise<CombinacaoVariantePeca[]> {
+    return this.listarVariantesPecas([pecaId]);
+  }
+
+  async listarVariantesPecas(pecaIds: string[]): Promise<CombinacaoVariantePeca[]> {
+    if (pecaIds.length === 0) return [];
+    const ids = [...new Set(pecaIds)];
+    let variantes = await this.buscarVariantesPersistidas(ids);
+    const idsComVariantes = new Set(variantes.map((variante) => variante.pecaId));
+    const idsSemVariantes = ids.filter((id) => !idsComVariantes.has(id));
+
+    if (idsSemVariantes.length > 0) {
+      const pecasLegadas = await this.prisma.peca.findMany({ where: { id: { in: idsSemVariantes } } });
+      for (const registro of pecasLegadas) {
+        const peca = this.mapearPeca(registro);
+        const combinacoes = gerarCombinacoesVariantes(peca.variantes);
+        if (combinacoes.length === 0) continue;
+        await this.configurarVariantesPeca(peca.id, combinacoes.map((opcoes, indice) => ({
+          opcoes,
+          quantidade: Math.floor(peca.quantidade / combinacoes.length)
+            + (indice < peca.quantidade % combinacoes.length ? 1 : 0),
+          stockMinimo: peca.stockMinimo,
+          estado: "ATIVA"
+        })));
+      }
+      variantes = await this.buscarVariantesPersistidas(ids);
     }
 
-    const novaQuantidade = Math.max(0, variante.quantidade - quantidade);
-    const atualizada = await this.prisma.variantePeca.update({
-      where: { id: variante.id },
-      data: { quantidade: novaQuantidade }
-    });
+    return variantes.map((variante) => this.mapearVariantePeca(variante));
+  }
 
-    return { quantidade: atualizada.quantidade };
+  private buscarVariantesPersistidas(pecaIds: string[]) {
+    return this.prisma.variantePeca.findMany({
+      where: { pecaId: { in: pecaIds } },
+      orderBy: [{ pecaId: "asc" }, { estado: "asc" }, { combinacao: "asc" }]
+    });
+  }
+
+  async configurarVariantesPeca(
+    pecaId: string,
+    combinacoes: ConfiguracaoCombinacaoVariantePeca[]
+  ): Promise<CombinacaoVariantePeca[]> {
+    const chaves = combinacoes.map((item) => criarChaveCombinacaoVariante(item.opcoes));
+    await this.prisma.$transaction(async (tx) => {
+      await tx.variantePeca.updateMany({
+        where: { pecaId, ...(chaves.length ? { combinacao: { notIn: chaves } } : {}) },
+        data: { estado: "INATIVA" }
+      });
+      for (const item of combinacoes) {
+        const combinacao = criarChaveCombinacaoVariante(item.opcoes);
+        await tx.variantePeca.upsert({
+          where: { pecaId_combinacao: { pecaId, combinacao } },
+          create: {
+            pecaId,
+            combinacao,
+            opcoesJson: JSON.stringify(item.opcoes),
+            sku: item.sku ?? null,
+            precoEmKwanza: item.precoEmKwanza ?? null,
+            custoEmKwanza: item.custoEmKwanza ?? null,
+            quantidade: item.quantidade,
+            stockMinimo: item.stockMinimo ?? 0,
+            estado: item.estado ?? "ATIVA"
+          },
+          update: {
+            opcoesJson: JSON.stringify(item.opcoes),
+            sku: item.sku ?? null,
+            precoEmKwanza: item.precoEmKwanza ?? null,
+            custoEmKwanza: item.custoEmKwanza ?? null,
+            quantidade: item.quantidade,
+            stockMinimo: item.stockMinimo ?? 0,
+            estado: item.estado ?? "ATIVA"
+          }
+        });
+      }
+      if (combinacoes.length > 0) {
+        const quantidade = combinacoes
+          .filter((item) => (item.estado ?? "ATIVA") === "ATIVA")
+          .reduce((total, item) => total + item.quantidade, 0);
+        await tx.peca.update({
+          where: { id: pecaId },
+          data: { quantidade, estado: quantidade > 0 ? "DISPONIVEL" : "ESGOTADA" }
+        });
+      }
+    });
+    return this.listarVariantesPeca(pecaId);
+  }
+
+  private async sincronizarDefinicoesVariantes(peca: Peca): Promise<void> {
+    const combinacoes = gerarCombinacoesVariantes(peca.variantes);
+    const listaExistentes = (await this.buscarVariantesPersistidas([peca.id]))
+      .map((variante) => this.mapearVariantePeca(variante));
+    const existentes = new Map(listaExistentes.map((item) => [item.combinacao, item]));
+    await this.configurarVariantesPeca(peca.id, combinacoes.map((opcoes, indice) => {
+      const existente = existentes.get(criarChaveCombinacaoVariante(opcoes));
+      return {
+        opcoes,
+        sku: existente?.sku ?? null,
+        precoEmKwanza: existente?.precoEmKwanza ?? null,
+        custoEmKwanza: existente?.custoEmKwanza ?? null,
+        quantidade: existente?.quantidade ?? (listaExistentes.length === 0
+          ? Math.floor(peca.quantidade / combinacoes.length) + (indice < peca.quantidade % combinacoes.length ? 1 : 0)
+          : 0),
+        stockMinimo: existente?.stockMinimo ?? peca.stockMinimo,
+        estado: "ATIVA" as const
+      };
+    }));
+  }
+
+  private mapearVariantePeca(variante: {
+    id: string; pecaId: string; combinacao: string; opcoesJson: string; sku: string | null;
+    precoEmKwanza: number | null; custoEmKwanza: number | null; quantidade: number;
+    stockMinimo: number; estado: string; criadoEm: Date; atualizadoEm: Date;
+  }): CombinacaoVariantePeca {
+    let opcoes: Record<string, string> = {};
+    try {
+      const valor = JSON.parse(variante.opcoesJson);
+      if (valor && typeof valor === "object" && !Array.isArray(valor)) opcoes = valor as Record<string, string>;
+    } catch {}
+    return { ...variante, opcoes, estado: variante.estado === "INATIVA" ? "INATIVA" : "ATIVA" };
   }
 
   async renomearColecao(negocioId: string, de: string, para: string): Promise<number> {
@@ -2671,6 +2814,7 @@ export class RepositorioPedidosPrisma implements RepositorioPedidos {
                 pecaId: item.pecaId,
                 codigoPeca: item.codigoPeca,
                 varianteSelecionada: item.varianteSelecionada ? JSON.stringify(item.varianteSelecionada) : null,
+                variantePecaId: item.variantePecaId ?? null,
                 nomeProduto: item.nomeProduto,
                 quantidade: item.quantidade,
                 precoUnitarioEmKwanza: item.precoUnitarioEmKwanza,

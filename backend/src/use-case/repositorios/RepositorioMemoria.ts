@@ -58,6 +58,8 @@ import type {
   ConversaAtendimento,
   ConversaAtendimentoComMensagens,
   ComissaoParceiro,
+  CombinacaoVariantePeca,
+  ConfiguracaoCombinacaoVariantePeca,
   DadosCriacaoReservaComControleStock,
   DadosCliente360,
   DadosPedidoResolvido,
@@ -156,6 +158,7 @@ import type {
   NovoReembolsoPedido
 } from "../../dominio/tipos.js";
 import { normalizarEmail, normalizarTelefone } from "../../dominio/servicos/normalizarContato.js";
+import { criarChaveCombinacaoVariante, gerarCombinacoesVariantes } from "../../dominio/servicos/VariantesProduto.js";
 import type {
   DadosIdentidadeAutenticacao,
   DadosNegocioBizy,
@@ -189,6 +192,7 @@ const estadosAtivosParaDuplicidade: EstadoReserva[] = ["PENDING", "RESERVED", "W
 export class RepositorioPecasMemoria implements RepositorioPecas {
   private readonly pecas = new Map<string, Peca>();
   private readonly movimentosStock = new Map<string, MovimentoStock>();
+  private readonly variantesPeca = new Map<string, CombinacaoVariantePeca>();
 
   async criar(dados: NovaPeca): Promise<Peca> {
     const chave = this.chavePeca(dados.codigo, dados.negocioId ?? null);
@@ -224,6 +228,7 @@ export class RepositorioPecasMemoria implements RepositorioPecas {
     const enriquecida = this.enriquecerPeca(peca);
 
     this.pecas.set(chave, enriquecida);
+    await this.sincronizarDefinicoesVariantes(enriquecida);
     return enriquecida;
   }
 
@@ -256,6 +261,7 @@ export class RepositorioPecasMemoria implements RepositorioPecas {
 
     this.pecas.delete(this.chavePeca(peca.codigo, peca.negocioId));
     this.pecas.set(this.chavePeca(enriquecida.codigo, enriquecida.negocioId), enriquecida);
+    if (dados.variantes !== undefined) await this.sincronizarDefinicoesVariantes(enriquecida);
     return enriquecida;
   }
 
@@ -293,8 +299,95 @@ export class RepositorioPecasMemoria implements RepositorioPecas {
       .sort((a, b) => b.criadoEm.getTime() - a.criadoEm.getTime());
   }
 
-  async decrementarStockVariante(_pecaId: string, _combinacao: string, _quantidade: number): Promise<{ quantidade: number }> {
-    return { quantidade: 0 };
+  async decrementarStockVariante(pecaId: string, combinacao: string, quantidade: number): Promise<{ quantidade: number; quantidadeTotal: number }> {
+    const chave = `${pecaId}:${combinacao}`;
+    const variante = this.variantesPeca.get(chave);
+    if (!variante || variante.estado !== "ATIVA") throw new Error("Variante inválida ou indisponível para este produto.");
+    if (quantidade > 0 && variante.quantidade < quantidade) {
+      throw new Error("Stock insuficiente para a variante selecionada.");
+    }
+    const atualizada = { ...variante, quantidade: variante.quantidade - quantidade, atualizadoEm: new Date() };
+    this.variantesPeca.set(chave, atualizada);
+    const quantidadeTotal = [...this.variantesPeca.values()]
+      .filter((item) => item.pecaId === pecaId && item.estado === "ATIVA")
+      .reduce((total, item) => total + item.quantidade, 0);
+    for (const [chavePeca, peca] of this.pecas) {
+      if (peca.id !== pecaId) continue;
+      this.pecas.set(chavePeca, this.enriquecerPeca({
+        ...peca, quantidade: quantidadeTotal,
+        estado: quantidadeTotal > 0 ? "DISPONIVEL" : "ESGOTADA", atualizadoEm: new Date()
+      }));
+      break;
+    }
+    return { quantidade: atualizada.quantidade, quantidadeTotal };
+  }
+
+  async listarVariantesPeca(pecaId: string): Promise<CombinacaoVariantePeca[]> {
+    return this.listarVariantesPecas([pecaId]);
+  }
+
+  async listarVariantesPecas(pecaIds: string[]): Promise<CombinacaoVariantePeca[]> {
+    const ids = new Set(pecaIds);
+    return [...this.variantesPeca.values()].filter((item) => ids.has(item.pecaId));
+  }
+
+  async configurarVariantesPeca(
+    pecaId: string,
+    combinacoes: ConfiguracaoCombinacaoVariantePeca[]
+  ): Promise<CombinacaoVariantePeca[]> {
+    const chavesAtivas = new Set(combinacoes.map((item) => criarChaveCombinacaoVariante(item.opcoes)));
+    for (const [chave, variante] of this.variantesPeca) {
+      if (variante.pecaId === pecaId && !chavesAtivas.has(variante.combinacao)) {
+        this.variantesPeca.set(chave, { ...variante, estado: "INATIVA", atualizadoEm: new Date() });
+      }
+    }
+    for (const item of combinacoes) {
+      const combinacao = criarChaveCombinacaoVariante(item.opcoes);
+      const chave = `${pecaId}:${combinacao}`;
+      const existente = this.variantesPeca.get(chave);
+      const agora = new Date();
+      this.variantesPeca.set(chave, {
+        id: existente?.id ?? randomUUID(), pecaId, combinacao, opcoes: item.opcoes,
+        sku: item.sku ?? null, precoEmKwanza: item.precoEmKwanza ?? null,
+        custoEmKwanza: item.custoEmKwanza ?? null, quantidade: item.quantidade,
+        stockMinimo: item.stockMinimo ?? 0, estado: item.estado ?? "ATIVA",
+        criadoEm: existente?.criadoEm ?? agora, atualizadoEm: agora
+      });
+    }
+    if (combinacoes.length > 0) {
+      const quantidade = combinacoes
+        .filter((item) => (item.estado ?? "ATIVA") === "ATIVA")
+        .reduce((total, item) => total + item.quantidade, 0);
+      for (const [chave, peca] of this.pecas) {
+        if (peca.id === pecaId) {
+          this.pecas.set(chave, this.enriquecerPeca({
+            ...peca,
+            quantidade,
+            estado: quantidade > 0 ? "DISPONIVEL" : "ESGOTADA",
+            atualizadoEm: new Date()
+          }));
+          break;
+        }
+      }
+    }
+    return this.listarVariantesPeca(pecaId);
+  }
+
+  private async sincronizarDefinicoesVariantes(peca: Peca): Promise<void> {
+    const listaExistentes = await this.listarVariantesPeca(peca.id);
+    const existentes = new Map(listaExistentes.map((item) => [item.combinacao, item]));
+    const combinacoes = gerarCombinacoesVariantes(peca.variantes);
+    await this.configurarVariantesPeca(peca.id, combinacoes.map((opcoes, indice) => {
+      const existente = existentes.get(criarChaveCombinacaoVariante(opcoes));
+      return {
+        opcoes, sku: existente?.sku ?? null, precoEmKwanza: existente?.precoEmKwanza ?? null,
+        custoEmKwanza: existente?.custoEmKwanza ?? null,
+        quantidade: existente?.quantidade ?? (listaExistentes.length === 0
+          ? Math.floor(peca.quantidade / combinacoes.length) + (indice < peca.quantidade % combinacoes.length ? 1 : 0)
+          : 0),
+        stockMinimo: existente?.stockMinimo ?? peca.stockMinimo, estado: "ATIVA" as const
+      };
+    }));
   }
 
   async renomearColecao(negocioId: string, de: string, para: string): Promise<number> {
@@ -4108,6 +4201,8 @@ export class RepositorioReservasStockCheckoutMemoria implements RepositorioReser
       negocioId: dados.negocioId,
       pecaId: dados.pecaId,
       codigoPeca: dados.codigoPeca,
+      variantePecaId: dados.variantePecaId ?? null,
+      combinacaoVariante: dados.combinacaoVariante ?? null,
       quantidade: dados.quantidade,
       sessaoId: dados.sessaoId,
       estado: "ATIVA",

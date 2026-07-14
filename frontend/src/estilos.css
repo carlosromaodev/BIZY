@@ -10462,6 +10462,67 @@ body.mobile-chat-imersivo .atendimento-message-bubble {
   color: var(--green-ink);
 }
 
+.bz-variant-list {
+  display: grid;
+  gap: 0;
+  overflow: hidden;
+  border: 1px solid var(--line);
+}
+
+.bz-variant-list-head,
+.bz-variant-row-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.bz-variant-list-head {
+  padding: 10px 12px;
+  background: var(--bg);
+  color: var(--ink-2);
+  font-size: 12px;
+}
+
+.bz-variant-list-head span {
+  color: var(--ink-3);
+}
+
+.bz-variant-row {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border-top: 1px solid var(--line);
+}
+
+.bz-variant-row-head > strong {
+  color: var(--ink);
+  font-size: 12.5px;
+}
+
+.bz-variant-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.bz-variant-fields {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+}
+
+@media (max-width: 760px) {
+  .bz-variant-fields {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .bz-variant-fields label:last-child {
+    grid-column: 1 / -1;
+  }
+}
+
 .bz-form-help,
 .bz-upload-empty {
   color: var(--ink-3);
@@ -10672,6 +10733,7 @@ body.mobile-chat-imersivo .atendimento-message-bubble {
 
 .bz-product-dialog {
   width: min(calc(100vw - 1rem), 48rem);
+  max-width: 48rem !important;
   max-height: calc(100dvh - 1rem) !important;
   overflow: hidden !important;
 }
@@ -30035,8 +30097,14 @@ button.bizy-upload-card:disabled {
 
 .loja-publica-v2.loja-stitch .loja-pdp-shell {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 16px;
   padding: 16px 16px 18px;
+}
+
+.loja-publica-v2.loja-stitch.loja-modal-responsivo {
+  background: #ffffff !important;
+  color: #111111 !important;
 }
 
 .loja-publica-v2.loja-stitch .loja-pdp-tabs + .loja-pdp-scroll .loja-pdp-shell {
@@ -30044,7 +30112,13 @@ button.bizy-upload-card:disabled {
 }
 
 .loja-publica-v2.loja-stitch .loja-pdp-summary {
+  display: grid;
   gap: 14px;
+}
+
+.loja-publica-v2.loja-stitch .loja-pdp-variant-options button:disabled {
+  opacity: 0.38;
+  cursor: not-allowed;
 }
 
 .loja-publica-v2.loja-stitch .loja-pdp-proof-row + .loja-pdp-description,
@@ -30183,6 +30257,16 @@ button.bizy-upload-card:disabled {
 
   .loja-publica-v2.loja-stitch .loja-pdp-panel {
     gap: 18px;
+  }
+
+  .loja-publica-v2.loja-stitch .loja-pdp-buy-panel {
+    grid-template-columns: minmax(0, 1.08fr) minmax(340px, 0.92fr);
+    align-items: start;
+  }
+
+  .loja-publica-v2.loja-stitch .loja-pdp-summary {
+    position: sticky;
+    top: 1rem;
   }
 }
 
