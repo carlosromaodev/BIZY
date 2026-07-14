@@ -35,11 +35,11 @@ export const entregaInicial: EntregaCheckout = {
 };
 
 export const TITULOS_ABAS_LOJA: Record<AbaLojaPublica, string> = {
-  home: "Home",
-  item: "Item",
-  new: "New",
-  promo: "Promo",
-  review: "Review"
+  home: "Início",
+  item: "Produtos",
+  new: "Novidades",
+  promo: "Promoções",
+  review: "Avaliações"
 };
 
 export function obterVisuaisProduto(produto: ProdutoPublico): VisualProdutoLoja {

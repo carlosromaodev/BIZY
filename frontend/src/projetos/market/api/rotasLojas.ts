@@ -12,6 +12,7 @@ function segmento(valor: string): string {
 export const ROTAS_LOJAS = {
   categoriaMarket: (categoria: string) => montarUrlCategoriaMarketPublico(categoria),
   checkout: "/checkout",
+  compras: "/compras",
   compra: (id: string) => `/compras/${segmento(id)}`,
   formularioLead: (slug: string) => `/f/${segmento(slug)}/lead`,
   loja: (slug: string) => `/lojas/${segmento(slug)}`,

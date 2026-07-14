@@ -1,18 +1,13 @@
-import { ArrowLeft, Heart, Loader2, MapPin, Package, ShieldCheck, Store, Tags } from "lucide-react";
+import { ArrowLeft, Loader2, MapPin, Package, Store } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { obterCatalogoPublico, normalizarProdutoLojaPublica, ROTAS_LOJAS } from "../api";
 import type { RespostaCatalogoPublico } from "../api";
 import type { ProdutoMarketNormalizado } from "../api";
-import { formatarKwanza, aplicarSeoMetaTags, montarSeoPublico } from "../../../utilidades";
+import { aplicarSeoMetaTags, montarSeoPublico } from "../../../utilidades";
 import { resolverUrlMedia } from "../../../api";
-
-function formatarSeloCatalogo(selo: string): string {
-  return selo
-    .toLowerCase()
-    .replace(/_/g, " ")
-    .replace(/^\w/, (letra) => letra.toUpperCase());
-}
+import { CabecalhoMarket, RodapeMarket } from "../componentes/MarketChrome";
+import { CartaoProdutoMarket } from "../componentes/CartaoProdutoMarket";
 
 export function PaginaCatalogoPublico() {
   const { slug = "", catalogo: catalogoId = "" } = useParams<{ slug: string; catalogo: string }>();
@@ -52,19 +47,24 @@ export function PaginaCatalogoPublico() {
     return () => { ativo = false; limparSeo(); };
   }, [slug, catalogoId]);
 
+  const cabecalhoBase = <CabecalhoMarket />;
+
   if (carregando) {
     return (
-      <main className="bizy-market-page market-commerce-page min-h-dvh bg-[#faf8f4] text-neutral-950">
+      <main className="bizy-market-page market-commerce-page market-public-page">
+        {cabecalhoBase}
         <div className="flex min-h-[60dvh] items-center justify-center">
           <Loader2 className="animate-spin text-neutral-400" size={28} />
         </div>
+        <RodapeMarket />
       </main>
     );
   }
 
   if (erro || !dados) {
     return (
-      <main className="bizy-market-page market-commerce-page min-h-dvh bg-[#faf8f4] text-neutral-950">
+      <main className="bizy-market-page market-commerce-page market-public-page">
+        {cabecalhoBase}
         <div className="flex min-h-[60dvh] flex-col items-center justify-center gap-3 px-4 text-center">
           <Package className="text-neutral-300" size={40} />
           <p className="text-sm text-neutral-500">{erro || "Catálogo não encontrado."}</p>
@@ -75,6 +75,7 @@ export function PaginaCatalogoPublico() {
             Voltar
           </button>
         </div>
+        <RodapeMarket />
       </main>
     );
   }
@@ -85,98 +86,61 @@ export function PaginaCatalogoPublico() {
   const localizacao = [loja?.municipio, loja?.provincia].filter(Boolean).join(", ");
 
   return (
-    <main className="bizy-market-page market-commerce-page min-h-dvh bg-[#faf8f4] text-neutral-950">
-      <header className="sticky top-0 z-30 border-b border-neutral-200/60 bg-[#faf8f4]/95 backdrop-blur-sm">
-        <div className="mx-auto flex max-w-6xl items-center gap-3 px-4 py-3">
+    <main className="bizy-market-page market-commerce-page market-public-page market-catalog-page">
+      {cabecalhoBase}
+      <section className="market-catalog-heading">
+        <div className="market-catalog-breadcrumb">
           <button
-            className="flex items-center gap-1.5 text-sm text-neutral-500 transition-colors hover:text-neutral-800"
+            type="button"
             onClick={() => navigate(ROTAS_LOJAS.loja(slug))}
           >
             <ArrowLeft size={16} />
-            <span className="hidden sm:inline">{nomeLoja}</span>
+            {nomeLoja}
           </button>
-          <span className="text-neutral-300">/</span>
-          <h1 className="truncate text-sm font-semibold text-neutral-900">{catalogo.nome}</h1>
-          <span className="ml-auto text-xs text-neutral-400">{catalogo.totalProdutos} produto{catalogo.totalProdutos !== 1 ? "s" : ""}</span>
+          <span>/</span>
+          <span>{catalogo.nome}</span>
         </div>
-      </header>
-
-      <section className="mx-auto max-w-6xl px-4 pb-16 pt-6">
-        <div className="mb-6 flex items-start gap-3">
+        <div className="market-catalog-title-row">
           {logoUrl ? (
-            <Link to={ROTAS_LOJAS.loja(slug)}>
-              <img src={logoUrl} alt={nomeLoja} className="size-10 rounded-full object-cover" />
+            <Link to={ROTAS_LOJAS.loja(slug)} className="market-catalog-logo">
+              <img src={logoUrl} alt={nomeLoja} />
             </Link>
           ) : (
-            <Link to={ROTAS_LOJAS.loja(slug)} className="grid size-10 place-items-center rounded-full bg-neutral-200">
-              <Store size={16} className="text-neutral-500" />
+            <Link to={ROTAS_LOJAS.loja(slug)} className="market-catalog-logo">
+              <Store size={18} />
             </Link>
           )}
-          <div className="min-w-0 flex-1">
-            <Link to={ROTAS_LOJAS.loja(slug)} className="text-sm font-medium text-neutral-700 hover:underline">{nomeLoja}</Link>
-            {catalogo.descricao && <p className="mt-0.5 text-xs text-neutral-500">{catalogo.descricao}</p>}
+          <div>
+            <span>Catálogo de {nomeLoja}</span>
+            <h1>{catalogo.nome}</h1>
+            {catalogo.descricao && <p>{catalogo.descricao}</p>}
             {localizacao && (
-              <p className="mt-0.5 flex items-center gap-1 text-xs text-neutral-400">
+              <small>
                 <MapPin size={11} />
                 {localizacao}
-              </p>
+              </small>
             )}
           </div>
+          <strong>{catalogo.totalProdutos} produto{catalogo.totalProdutos !== 1 ? "s" : ""}</strong>
         </div>
+      </section>
 
+      <section className="market-catalog-products">
         {produtos.length === 0 ? (
-          <div className="flex flex-col items-center justify-center gap-2 py-20 text-center">
-            <Package className="text-neutral-300" size={32} />
-            <p className="text-sm text-neutral-500">Este catálogo ainda não tem produtos disponíveis.</p>
+          <div className="market-empty-state">
+            <Package size={32} />
+            <strong>Catálogo sem produtos disponíveis</strong>
+            <span>Volte à loja para explorar as outras coleções.</span>
           </div>
         ) : (
           <div className="market-product-grid">
             {produtos.map((produto) => (
-              <CartaoProdutoCatalogo key={produto.codigo} produto={produto} />
+              <CartaoProdutoMarket key={produto.codigo} produto={produto} href={produto.urlProduto} mostrarFornecedor={false} />
             ))}
           </div>
         )}
       </section>
+      <RodapeMarket />
     </main>
-  );
-}
-
-function CartaoProdutoCatalogo({ produto }: { produto: ProdutoMarketNormalizado }) {
-  const seloPrincipal = produto.selos.find((selo) => selo !== "PATROCINADO");
-  return (
-    <article className="market-product-card">
-      <Link to={produto.urlProduto} className="market-product-media" aria-label={`Ver ${produto.nome}`}>
-        {produto.fotoPrincipal ? <img src={produto.fotoPrincipal} alt={produto.nome} /> : <Package size={34} />}
-        <span className="market-product-favorite" aria-hidden="true"><Heart size={14} /></span>
-        {produto.descontoPercentual && <span>-{produto.descontoPercentual}%</span>}
-      </Link>
-      <div className="market-product-body">
-        <Link to={produto.urlProduto} className="market-product-name">{produto.nome}</Link>
-        <div className="market-product-price">
-          <strong>{formatarKwanza(produto.precoFinalEmKwanza)}</strong>
-          {produto.precoAntigoEmKwanza && <span>{formatarKwanza(produto.precoAntigoEmKwanza)}</span>}
-        </div>
-        <div className="market-product-signal" aria-label="Sinais reais do produto">
-          {seloPrincipal ? (
-            <span><Tags size={13} />{formatarSeloCatalogo(seloPrincipal)}</span>
-          ) : (
-            <span><ShieldCheck size={13} />Fornecedor identificado</span>
-          )}
-          {produto.emPromocao && <span>Promoção</span>}
-        </div>
-        <div className="market-product-meta">
-          <span className={produto.quantidade > 3 ? "is-stocked" : "is-low"}>
-            <i />
-            {produto.quantidade > 3 ? "Em stock" : produto.quantidade > 0 ? `Restam ${produto.quantidade}` : "Sob consulta"}
-          </span>
-          {produto.fornecedor.localizacao && (
-            <span>
-              <MapPin size={11} />
-              {produto.fornecedor.localizacao}
-            </span>
-          )}
-        </div>
-      </div>
-    </article>
   );
 }

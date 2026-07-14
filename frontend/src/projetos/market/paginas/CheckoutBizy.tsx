@@ -1,10 +1,8 @@
 import {
-  ArrowLeft,
   Banknote,
   CheckCircle2,
   ClipboardCheck,
   CreditCard,
-  Home,
   Loader2,
   Lock,
   MapPin,
@@ -20,7 +18,7 @@ import {
   Upload
 } from "lucide-react";
 import { useMemo, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -40,8 +38,8 @@ import {
   ROTAS_LOJAS
 } from "../api";
 import type { EntregaCheckoutPublico, ItemCarrinhoCheckoutBizy, RespostaCheckoutLojaPublica, RespostaCheckoutUnificado } from "../api";
-import { LogoBizy } from "../../../marca/bizy";
 import { formatarKwanza } from "../../../utilidades";
+import { CabecalhoMarket, RodapeMarket } from "../componentes/MarketChrome";
 
 interface ClienteCheckoutBizy {
   nome: string;
@@ -84,7 +82,6 @@ const ETAPAS_CHECKOUT = [
 ] as const;
 
 export function PaginaCheckoutBizy() {
-  const navigate = useNavigate();
   const [itens, setItens] = useState<ItemCarrinhoCheckoutBizy[]>(() => carregarCarrinhoCheckoutBizy());
   const [cliente, setCliente] = useState<ClienteCheckoutBizy>(clienteInicial);
   const [entrega, setEntrega] = useState<EntregaCheckoutPublico>(entregaInicial);
@@ -243,19 +240,8 @@ export function PaginaCheckoutBizy() {
   }
 
   return (
-    <main className="checkout-bizy-page min-h-[100dvh] bg-[#f5f3ed] text-neutral-950">
-      <header className="checkout-bizy-topbar">
-        <button type="button" onClick={() => navigate(-1)} aria-label="Voltar">
-          <ArrowLeft size={18} />
-        </button>
-        <Link to={ROTAS_LOJAS.market} className="checkout-bizy-brand">
-          <LogoBizy variante="icone" style={{ width: 20, height: 20 }} />
-          <span>Checkout Bizy</span>
-        </Link>
-        <Link to="/" aria-label="Início">
-          <Home size={18} />
-        </Link>
-      </header>
+    <main className="bizy-market-page market-commerce-page market-public-page checkout-bizy-page">
+      <CabecalhoMarket />
 
       <section className="checkout-bizy-hero">
         <span><Lock size={14} /> Checkout unificado Bizy</span>
@@ -325,7 +311,7 @@ export function PaginaCheckoutBizy() {
           </Button>
         </section>
       ) : (
-        <section className="checkout-bizy-layout">
+        <section className={`checkout-bizy-layout${itens.length ? "" : " is-empty"}`}>
           <div className="checkout-bizy-cart">
             <div className="checkout-section-head">
               <span><ShoppingBag size={16} /> Carrinho</span>
@@ -400,7 +386,7 @@ export function PaginaCheckoutBizy() {
             )}
           </div>
 
-          <aside className="checkout-bizy-form">
+          {itens.length > 0 && <aside className="checkout-bizy-form">
             <div className="checkout-section-head">
               <span><Truck size={16} /> Dados e entrega</span>
               <em>{totais.totalLojas} loja{totais.totalLojas === 1 ? "" : "s"}</em>
@@ -527,9 +513,10 @@ export function PaginaCheckoutBizy() {
               {finalizando ? <Loader2 className="animate-spin" size={18} /> : <Lock size={18} />}
               {checkoutMultiLoja ? "Finalizar compra multi-loja" : "Finalizar checkout seguro"}
             </Button>
-          </aside>
+          </aside>}
         </section>
       )}
+      <RodapeMarket />
     </main>
   );
 }

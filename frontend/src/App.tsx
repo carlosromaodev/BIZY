@@ -133,7 +133,9 @@ export function App() {
                 <Route
                   key={rota.caminho}
                   path={rota.caminho}
-                  element={<RotaPrivada modulo={rota.modulo} requerGovernancaAnani={rota.requerGovernancaAnani}>{rota.elemento}</RotaPrivada>}
+                  element={rota.usarLayoutApp
+                    ? <LayoutApp modulo={rota.modulo}>{rota.elemento}</LayoutApp>
+                    : <RotaPrivada modulo={rota.modulo} requerGovernancaAnani={rota.requerGovernancaAnani}>{rota.elemento}</RotaPrivada>}
                 />
               ))}
 

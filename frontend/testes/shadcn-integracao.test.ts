@@ -24,7 +24,8 @@ describe("integração shadcn/ui", () => {
     expect(css).toContain('@import "shadcn/tailwind.css";');
     expect(vite).toContain("@tailwindcss/vite");
     expect(vite).toContain("allowedHosts: true");
-    expect(vite).toContain("proxy: Object.fromEntries");
+    expect(vite).toContain("...Object.fromEntries");
+    expect(vite).toContain('"^/market/(fornecedor|reembolsos|resumo)"');
     expect(vite).toContain('"/webhooks"');
     expect(vite).toContain('"/saude"');
     expect(tsconfig).toContain('"@/*": ["./src/*"]');

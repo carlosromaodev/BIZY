@@ -111,6 +111,7 @@ export interface RotaPrivada {
 export interface RotaPrivadaOculta extends RotaPublica {
   modulo?: string;
   requerGovernancaAnani?: boolean;
+  usarLayoutApp?: boolean;
 }
 
 function PaginaEntradaPublica() {
@@ -204,7 +205,19 @@ export const rotasPrivadas: RotaPrivada[] = [...rotasComerciais, ...rotasAdminSi
 export const rotasPrivadasOcultas: RotaPrivadaOculta[] = [
   { caminho: "/onboarding", elemento: <PaginaOnboarding /> },
   { caminho: "/app/governance/anani", elemento: <PaginaAnaniGovernance />, requerGovernancaAnani: true },
-  { caminho: "/app/loja-publica", elemento: <PaginaLojaPublica />, modulo: "loja-publica" }
+  { caminho: "/app/loja-publica", elemento: <PaginaLojaPublica />, modulo: "loja-publica" },
+  { caminho: "/app/learning/programas", elemento: <PaginaLearningTeam />, usarLayoutApp: true },
+  { caminho: "/app/learning/conteudos", elemento: <PaginaLearningTeam />, usarLayoutApp: true },
+  { caminho: "/app/learning/pessoas", elemento: <PaginaLearningTeam />, usarLayoutApp: true },
+  { caminho: "/app/learning/avaliacoes", elemento: <PaginaLearningTeam />, usarLayoutApp: true },
+  { caminho: "/app/learning/certificados", elemento: <PaginaLearningTeam />, usarLayoutApp: true },
+  { caminho: "/app/learning/turmas", elemento: <PaginaLearningTeam />, usarLayoutApp: true },
+  { caminho: "/app/learning/comunidade", elemento: <PaginaLearningTeam />, usarLayoutApp: true },
+  { caminho: "/app/learning/biblioteca", elemento: <PaginaLearningTeam />, usarLayoutApp: true },
+  { caminho: "/app/learning/relatorios", elemento: <PaginaLearningTeam />, usarLayoutApp: true },
+  { caminho: "/app/learning/chat", elemento: <PaginaLearningTeam />, usarLayoutApp: true },
+  { caminho: "/app/learning/compras", elemento: <PaginaLearningTeam />, usarLayoutApp: true },
+  { caminho: "/app/learning/configuracoes", elemento: <PaginaLearningTeam />, usarLayoutApp: true }
 ];
 
 export const secoesNavegacao: SecaoNavegacao[] = ["Hoje", "Vendas", "Comercial", "Vitrine", "Gestão", "Admin/Sistema"];

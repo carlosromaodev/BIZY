@@ -11,11 +11,19 @@ describe("Bizy Learning frontend", () => {
     const api = source("src/projetos/learning/api.ts");
     const apiPublica = source("src/projetos/learning/apiPublica.ts");
     const rotas = source("src/rotasApp.tsx");
+    const navegacaoTeam = source("src/projetos/learning/team/LearningTeamNavigation.tsx");
 
     expect(rotas).toContain('caminho: "/learning"');
     expect(rotas).toContain('caminho: "/learning/produtos/:slug"');
     expect(rotas).toContain('caminho: "/learning/:slug"');
     expect(rotas).toContain('caminho: "/app/learning"');
+    expect(rotas).toContain('caminho: "/app/learning/programas"');
+    expect(rotas).toContain('caminho: "/app/learning/avaliacoes"');
+    expect(rotas).toContain('caminho: "/app/learning/configuracoes"');
+    expect(navegacaoTeam).toContain("NavegacaoLearningTeam");
+    expect(navegacaoTeam).toContain("resolverAreaLearningTeam");
+    expect(navegacaoTeam).toContain('rotulo: "Certificados"');
+    expect(navegacaoTeam).toContain('rotulo: "Biblioteca"');
     expect(api).toContain("/publico/learning");
     expect(api).toContain("/publico/learning/perfis/${encodeURIComponent(slug)}");
     expect(api).toContain("PerfilLearningPublico");
@@ -66,8 +74,8 @@ describe("Bizy Learning frontend", () => {
     expect(pagina).toContain("obterPerfilLearning");
     expect(pagina).toContain("PerfilLearningPublicoCard");
     expect(pagina).toContain("Aceder");
-    expect(pagina).toContain("Views públicas");
-    expect(pagina).toContain("Previews públicos");
+    expect(pagina).toContain("Visualizações públicas");
+    expect(pagina).toContain("Pré-visualizações");
     expect(pagina).toContain("Reembolsar e revogar");
     expect(pagina).toContain("Revogar acesso");
     expect(pagina).toContain("enviarMensagemChatLearning");

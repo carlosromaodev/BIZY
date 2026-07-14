@@ -35,20 +35,21 @@ describe("loja pública e-commerce fase 1", () => {
     expect(pagina).toContain("loja-profile-shell");
   });
 
-  it("continua a loja pública com catálogos, confiança e navegação personalizada", () => {
+  it("continua a loja pública com catálogos, confiança e navegação comercial", () => {
     const pagina = fonteLojaPublica();
 
     expect(pagina).toContain("montarCatalogosPorBlocos");
     expect(pagina).toContain("calcularTopProdutos");
-    expect(pagina).toContain("ProdutosVistosRecentemente");
-    expect(pagina).toContain("HistoricoEncomendasCliente");
+    expect(pagina).toContain("loja-storefront-collections");
+    expect(pagina).toContain("loja-storefront-product-grid");
+    expect(pagina).toContain("RodapeMarket");
     expect(pagina).toContain("politicaTroca");
     expect(pagina).toContain("LinhaTabelaMedidasLoja");
     expect(pagina).toContain("resolverModoNegocio");
     expect(pagina).toContain("modoNegocio");
     expect(pagina).toContain("calcularTopProdutos");
     expect(pagina).toContain("guardarProdutoVisto");
-    expect(pagina).toContain("catálogos");
+    expect(pagina).toContain("Catálogo");
   });
 
   it("oferece editor Team para experiência pública da loja", () => {
@@ -118,15 +119,16 @@ describe("loja pública e-commerce fase 1", () => {
 
     expect(pagina).toContain("loja-modal-responsivo");
     expect(pagina).toContain("BotaoComprarLoja");
-    expect(pagina).toContain("Destaques da loja");
-    expect(pagina).toContain("loja-profile-action-row");
-    expect(pagina).toContain("trends");
+    expect(pagina).toContain("Escolhas da loja");
+    expect(pagina).toContain("loja-storefront-actions");
+    expect(pagina).toContain("loja-storefront-results-head");
+    expect(pagina).not.toContain("loja-profile-trends-banner");
     expect(pagina).not.toContain("Powered by Bizy");
     expect(pagina).not.toContain("tracking num CRM");
     expect(pagina).not.toContain("Dados com finalidade");
   });
 
-  it("inicia a nova experiência social-comercial inspirada no Bizy Market", () => {
+  it("mantém uma experiência comercial rica e coerente com o Bizy Market", () => {
     const pagina = fonteLojaPublica();
     const estilos = source("src/estilos.css");
 
@@ -134,17 +136,18 @@ describe("loja pública e-commerce fase 1", () => {
     expect(pagina).toContain("registrarEventoTrackingPublico");
     expect(pagina).toContain("PerfilLojaSocial");
     expect(pagina).toContain("loja-profile-shell");
-    expect(pagina).toContain("loja-profile-cover");
-    expect(pagina).toContain("loja-profile-avatar");
-    expect(pagina).toContain("loja-profile-badges");
+    expect(pagina).toContain("loja-storefront-cover");
+    expect(pagina).toContain("loja-storefront-avatar");
+    expect(pagina).toContain("loja-storefront-collections");
+    expect(pagina).toContain("loja-storefront-feature");
     expect(pagina).toContain("--loja-accent");
     expect(pagina).toContain("reviewsReais");
     expect(pagina).toContain("Ainda sem avaliações públicas");
     expect(pagina).toContain("motion.section");
     expect(pagina).not.toContain("bg-neutral-950 py-1.5 pl-1.5 pr-4 text-white");
-    expect(estilos).toContain("--loja-action: var(--green)");
-    expect(estilos).toContain("background: var(--loja-action) !important");
-    expect(estilos).not.toContain("background: var(--loja-accent) !important");
+    expect(estilos).toContain("Storefront v4: commerce-first");
+    expect(estilos).toContain(".loja-storefront-product-grid");
+    expect(estilos).toContain(".market-ecom-footer.market-footer-v2");
   });
 
   it("liga os catálogos do perfil à grelha de produtos sem sair da loja", () => {

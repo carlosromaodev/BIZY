@@ -6,7 +6,6 @@ import {
   ChevronLeft,
   ChevronRight,
   Clock,
-  Filter,
   Heart,
   Loader2,
   Mail,
@@ -18,7 +17,6 @@ import {
   Phone,
   Plus,
   Ruler,
-  Search,
   Share2,
   ShieldCheck,
   ShoppingBag,
@@ -28,7 +26,6 @@ import {
   Truck,
   User,
   Sparkles,
-  ArrowUpDown,
   X
 } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
@@ -55,9 +52,9 @@ import {
 import { obterBaseApiUrl, resolverUrlMedia } from "../../../api";
 import { resolverSlugLojaPublica } from "../dominio/lojaSubdominio";
 import { adicionarItemCheckoutBizy, deixarDeSeguirLoja, obterLojaPublica, ROTAS_LOJAS, seguirLoja, verificarSeSegueLoja } from "../api";
-import { LogoBizy } from "../../../marca/bizy";
 import { AvisoPrivacidade } from "../../../componentes/BizyDesignSystem";
 import { formatarKwanza, aplicarSeoMetaTags, montarSeoPublico } from "../../../utilidades";
+import { CabecalhoMarket, RodapeMarket } from "../componentes/MarketChrome";
 import type {
   AbaDetalheProduto,
   AbaLojaPublica,
@@ -86,7 +83,6 @@ import {
   carregarFavoritos,
   carregarHistoricoPedidos,
   carregarPerfilCliente,
-  carregarProdutosVistos,
   criarFiltroDeCatalogoBloco,
   criarFiltroDeColecaoPerfil,
   criarSelecoesIniciaisProduto,
@@ -133,7 +129,6 @@ export function PaginaLojaDigitalPublica() {
   const [leadModalAberto, setLeadModalAberto] = useState(false);
   const [leadMotivo, setLeadMotivo] = useState("Receba disponibilidade, preco e novidades pelo WhatsApp.");
   const [produtosVistos, setProdutosVistos] = useState(0);
-  const [produtosVistosRecentemente, setProdutosVistosRecentemente] = useState<ProdutoPublico[]>([]);
   const [historicoEncomendas, setHistoricoEncomendas] = useState<PedidoHistoricoLoja[]>(() => carregarHistoricoPedidos(slug));
   const [favoritos, setFavoritos] = useState<Set<string>>(() => carregarFavoritos(slug));
   const [checkoutProduto, setCheckoutProduto] = useState<ProdutoPublico | null>(null);
@@ -231,10 +226,6 @@ export function PaginaLojaDigitalPublica() {
   useEffect(() => {
     setHistoricoEncomendas(carregarHistoricoPedidos(slug));
   }, [slug]);
-
-  useEffect(() => {
-    setProdutosVistosRecentemente(carregarProdutosVistos(slug, dados?.produtos ?? []));
-  }, [dados?.produtos, slug]);
 
   useEffect(() => {
     if (!codigoProdutoRota || !dados?.produtos.length) return;
@@ -395,7 +386,6 @@ export function PaginaLojaDigitalPublica() {
     setFotoAtiva(0);
     setSelecoesVariantes(criarSelecoesIniciaisProduto(produto));
     guardarProdutoVisto(slug, produto.codigo);
-    setProdutosVistosRecentemente(carregarProdutosVistos(slug, dados?.produtos ?? []));
     registrarEvento("PRODUTO_VISTO", {
       produto,
       entidadeTipo: "PRODUTO",
@@ -600,39 +590,45 @@ export function PaginaLojaDigitalPublica() {
 
   if (carregando) {
     return (
-      <main className="loja-publica-v2 grid min-h-[100dvh] place-items-center bg-[var(--bg)]">
-        <div className="flex flex-col items-center gap-4">
-          <div className="relative size-16 animate-pulse">
-            <div className="absolute inset-0 opacity-10" style={{ backgroundColor: corPrimaria }} />
-            <div className="grid size-full place-items-center">
-              <ShoppingBag size={28} className="text-neutral-400" />
+      <main className="bizy-market-page market-commerce-page market-public-page loja-publica-v2 loja-stitch">
+        <CabecalhoMarket />
+        <section className="market-route-state" aria-busy="true">
+          <div className="flex flex-col items-center gap-4">
+            <div className="relative size-16 animate-pulse">
+              <div className="absolute inset-0 opacity-10" style={{ backgroundColor: corPrimaria }} />
+              <div className="grid size-full place-items-center">
+                <ShoppingBag size={28} className="text-neutral-400" />
+              </div>
+            </div>
+            <div className="flex items-center gap-2.5 text-sm text-neutral-500">
+              <Loader2 className="animate-spin" size={16} />
+              A carregar a loja...
             </div>
           </div>
-          <div className="flex items-center gap-2.5 text-sm text-neutral-500">
-            <Loader2 className="animate-spin" size={16} />
-            A carregar a loja...
-          </div>
-        </div>
+        </section>
+        <RodapeMarket />
       </main>
     );
   }
 
   if (erro && !dados) {
     return (
-      <main className="loja-publica-v2 grid min-h-[100dvh] place-items-center bg-[var(--bg)] px-4">
-        <section className="w-full max-w-sm text-center">
-          <div className="mx-auto grid size-20 place-items-center bg-neutral-100">
+      <main className="bizy-market-page market-commerce-page market-public-page loja-publica-v2 loja-stitch">
+        <CabecalhoMarket />
+        <section className="market-route-state">
+          <div className="grid size-20 place-items-center bg-neutral-100">
             <Store size={32} className="text-neutral-400" />
           </div>
-          <h1 className="mt-6 text-2xl font-semibold tracking-tight text-neutral-900">Loja indisponível</h1>
+          <h1 className="mt-6 text-2xl font-semibold tracking-normal text-neutral-900">Loja indisponível</h1>
           <p className="mt-3 text-sm leading-6 text-neutral-500">{erro || "Esta loja ainda não está publicada."}</p>
-          <Button asChild className="mt-8 h-12 w-full text-sm font-medium">
-            <Link to="/">
+          <Button asChild className="mt-8 h-12 text-sm font-medium">
+            <Link to={ROTAS_LOJAS.market}>
               <ArrowLeft size={16} />
-              Voltar ao início
+              Voltar ao Market
             </Link>
           </Button>
         </section>
+        <RodapeMarket />
       </main>
     );
   }
@@ -669,91 +665,40 @@ export function PaginaLojaDigitalPublica() {
 
   return (
     <main
-      className="loja-publica-v2 loja-stitch lp-body-pad min-h-[100dvh] bg-white text-foreground"
+      className="bizy-market-page market-commerce-page loja-publica-v2 loja-stitch market-public-page bg-white text-foreground"
       style={{ "--loja-accent": corPrimaria } as React.CSSProperties}
     >
-      <header className="loja-store-topbar sticky top-0 z-50 border-0 bg-transparent">
-        <div className="mx-auto max-w-[1280px] px-4 pt-3 sm:px-10 sm:pt-5">
-          <div className="loja-store-topbar-row flex items-center gap-3">
-            <button
-              type="button"
-              onClick={() => {
-                if (window.history.length > 1) window.history.back();
-              }}
-              className="grid size-10 shrink-0 place-items-center border border-white/15 bg-white/10 text-white transition-colors hover:bg-white/18"
-              aria-label="Voltar"
-            >
-              <ArrowLeft size={18} />
-            </button>
+      <CabecalhoMarket
+        busca={busca}
+        categoriaSelecionada={catalogoAtivo?.valor ?? ""}
+        categorias={categorias.map((categoria) => ({
+          categoria,
+          total: dados.produtos.filter((produto) => produto.categoria === categoria).length
+        }))}
+        onBusca={(valor) => {
+          setBusca(valor);
+          registrarEvento("CATALOGO_VISTO", { metadata: { acao: "pesquisa_topbar" } });
+        }}
+        onCategoria={(categoria) => selecionarCatalogoAtivo({
+          id: `categoria-${categoria}`,
+          nome: categoria,
+          criterio: "categoria",
+          valor: categoria,
+          totalProdutos: dados.produtos.filter((produto) => produto.categoria === categoria).length,
+          origem: "categoria"
+        })}
+        onLimpar={() => {
+          setBusca("");
+          setCatalogoAtivo(null);
+        }}
+        onSubmitBusca={() => {
+          setAbaAtiva("item");
+          rolarParaGrelhaProdutos();
+        }}
+        placeholder={`Pesquisar em ${dados.loja.nomeComercial}`}
+      />
 
-            <form className="loja-store-search-bar" role="search" onSubmit={(e) => e.preventDefault()}>
-              <Search className="loja-store-search-bar-icon" size={18} aria-hidden="true" />
-              <input
-                value={busca}
-                onChange={(e) => {
-                  setBusca(e.target.value);
-                  registrarEvento("CATALOGO_VISTO", { metadata: { acao: "pesquisa_topbar" } });
-                }}
-                placeholder={`Pesquisar em ${dados.loja.nomeComercial}`}
-                aria-label={`Pesquisar em ${dados.loja.nomeComercial}`}
-              />
-              {busca && (
-                <button
-                  type="button"
-                  onClick={() => setBusca("")}
-                  className="loja-store-search-bar-clear"
-                  aria-label="Limpar pesquisa"
-                >
-                  <X size={15} />
-                </button>
-              )}
-              <button type="submit" className="loja-store-search-bar-submit">
-                <Search size={15} />
-                Pesquisar
-              </button>
-            </form>
-
-            <div className="flex shrink-0 items-center gap-2">
-              <button
-                type="button"
-                onClick={() => {
-                  if (historicoEncomendas.length > 0) setAbaAtiva("item");
-                }}
-                className="relative grid size-10 place-items-center border border-white/15 bg-white/10 text-white transition-colors hover:bg-white/18"
-                aria-label="Sacola"
-              >
-                <ShoppingBag size={18} />
-                {historicoEncomendas.length > 0 && (
-                  <span className="absolute -right-0.5 -top-0.5 grid size-4 place-items-center rounded-full bg-foreground text-[9px] font-bold text-white">
-                    {Math.min(historicoEncomendas.length, 9)}
-                  </span>
-                )}
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  registrarEvento("CATALOGO_VISTO", { metadata: { acao: "partilhar_loja" } });
-                  void navigator.share?.({ title: dados.loja.nomeComercial, url: window.location.href })
-                    .catch(() => { void navigator.clipboard.writeText(window.location.href); });
-                }}
-                className="grid size-10 place-items-center border border-white/15 bg-white/10 text-white transition-colors hover:bg-white/18"
-                aria-label="Partilhar"
-              >
-                <Share2 size={18} />
-              </button>
-              <button
-                type="button"
-                className="grid size-10 place-items-center border border-white/15 bg-white/10 text-white transition-colors hover:bg-white/18"
-                aria-label="Mais opções"
-              >
-                <MoreHorizontal size={18} />
-              </button>
-            </div>
-          </div>
-        </div>
-      </header>
-
-      <div className="mx-auto max-w-[1280px] px-4 pt-3 sm:px-10 sm:pt-4">
+      <div className="loja-storefront-hero-wrap mx-auto max-w-[1280px]">
         <PerfilLojaSocial
           colecoes={colecoesPerfil}
           corPrimaria={corPrimaria}
@@ -784,95 +729,63 @@ export function PaginaLojaDigitalPublica() {
         <div key={abaAtiva} className="animate-in fade-in duration-200">
           {abaAtiva === "home" && (
             <div id="loja-tabpanel-home" role="tabpanel" aria-labelledby="loja-tab-home" className="space-y-6">
-              <section className="loja-home-hero">
-                <div className="loja-home-hero-copy">
-                  <span className="loja-home-hero-pill">SHOP NOW</span>
-                  <h2>{dados.loja.nomeComercial}</h2>
-                  <p>{dados.loja.descricaoPublica || "Escolhas prontas para comprar, com estilo de vitrine mobile e acesso rápido às novidades."}</p>
-                  <div className="loja-home-hero-actions">
-                    <button type="button" className="loja-home-hero-cta" onClick={() => mudarAba("item")}>Explorar coleção</button>
-                    <button type="button" className="loja-home-hero-secondary" onClick={() => mudarAba("promo")}>Ver promoções</button>
-                  </div>
+              <section className="loja-storefront-feature">
+                <div className="loja-storefront-feature-media">
+                  {topProdutos[0]?.fotos[0]
+                    ? <img src={resolverUrlMedia(topProdutos[0].fotos[0])} alt={topProdutos[0].nome} />
+                    : <Package size={42} />}
                 </div>
-                <div className="loja-home-hero-collage" aria-hidden="true">
-                  {produtosPromoHome.slice(0, 3).map((produto, indice) => (
-                    <figure key={`hero-${produto.codigo}`} className={`loja-home-hero-card is-${indice + 1}`}>
-                      {produto.fotos[0] ? <img src={resolverUrlMedia(produto.fotos[0])} alt="" /> : <Package size={32} />}
-                    </figure>
-                  ))}
+                <div className="loja-storefront-feature-copy">
+                  <span>Seleção da loja</span>
+                  <h2>{topProdutos[0]?.nome ?? "Descubra a coleção atual"}</h2>
+                  <p>{topProdutos[0]?.descricao || dados.loja.descricaoPublica || "Produtos escolhidos pela loja e disponíveis para compra direta."}</p>
+                  {topProdutos[0] && <strong>{formatarKwanza(precoProduto(topProdutos[0]))}</strong>}
+                  <div>
+                    {topProdutos[0] && (
+                      <button type="button" className="is-primary" onClick={() => abrirProduto(topProdutos[0])}>
+                        Ver produto <ArrowRight size={15} />
+                      </button>
+                    )}
+                    <button type="button" onClick={() => mudarAba("item")}>Explorar catálogo</button>
+                  </div>
                 </div>
               </section>
 
-              <section className="loja-home-showcase">
-                <div className="loja-home-showcase-art">
-                  {topProdutos[0]?.fotos[0] ? <img src={resolverUrlMedia(topProdutos[0].fotos[0])} alt={topProdutos[0].nome} /> : <Package size={36} />}
+              <section className="loja-storefront-section">
+                <div className="loja-storefront-section-head">
+                  <div>
+                    <span>Coleções</span>
+                    <h2>Compre pelo seu interesse</h2>
+                  </div>
+                  <button type="button" onClick={() => mudarAba("item")}>Ver catálogo completo</button>
                 </div>
-                <div className="loja-home-showcase-grid">
+                <div className="loja-storefront-category-grid">
                   {(colecoesPerfil.length > 0 ? colecoesPerfil : categorias.slice(0, 4).map((categoria) => ({ id: categoria, nome: categoria, tipo: "categoria" as const, totalProdutos: dados.produtos.filter((produto) => produto.categoria === categoria).length, imagem: dados.produtos.find((produto) => produto.categoria === categoria)?.fotos[0] ?? null, mensagem: null, url: "#", ativa: false }))).slice(0, 4).map((colecao) => (
                     <button
                       key={colecao.id}
                       type="button"
-                      className="loja-home-category-card"
+                      className="loja-storefront-category"
                       onClick={() => selecionarCatalogoPublico(colecao)}
                     >
-                      <span className="loja-home-category-thumb">
-                        {colecao.imagem ? <img src={resolverUrlMedia(colecao.imagem)} alt="" /> : <Package size={16} />}
+                      <span className="loja-storefront-category-media">
+                        {colecao.imagem ? <img src={resolverUrlMedia(colecao.imagem)} alt="" /> : <Package size={20} />}
                       </span>
-                      <strong>{colecao.nome}</strong>
+                      <span><strong>{colecao.nome}</strong><small>{colecao.totalProdutos} produtos</small></span>
+                      <ArrowRight size={15} />
                     </button>
                   ))}
                 </div>
               </section>
 
-              <section className="loja-home-popular">
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <p className="text-xs font-semibold uppercase tracking-[0.12em] text-neutral-400">Os mais procurados</p>
-                    <h3 className="mt-1 text-base font-semibold text-neutral-950">Atalhos para navegar mais rápido</h3>
-                  </div>
-                  <button type="button" className="text-xs font-semibold text-neutral-500" onClick={() => mudarAba("item")}>
-                    Ver tudo
-                  </button>
+              <div className="loja-storefront-section-head loja-storefront-products-head">
+                <div>
+                  <span>Em destaque</span>
+                  <h2>Escolhas da loja</h2>
                 </div>
-                <div className="loja-home-popular-chips">
-                  {[
-                    ...categorias.slice(0, 3),
-                    ...colecoesPerfil.slice(0, 3).map((colecao) => colecao.nome),
-                    "Novelty Cases"
-                  ]
-                    .filter(Boolean)
-                    .slice(0, 6)
-                    .map((chip) => (
-                      <button
-                        key={chip}
-                        type="button"
-                        className="loja-home-popular-chip"
-                        onClick={() => {
-                          const colecao = colecoesPerfil.find((item) => item.nome === chip);
-                          if (colecao) {
-                            selecionarCatalogoPublico(colecao);
-                            return;
-                          }
-                          const categoria = categorias.find((item) => item === chip);
-                          if (categoria) {
-                            selecionarCatalogoAtivo({
-                              id: `categoria-${categoria}`,
-                              nome: categoria,
-                              criterio: "categoria",
-                              valor: categoria,
-                              totalProdutos: dados.produtos.filter((produto) => produto.categoria === categoria).length,
-                              origem: "categoria"
-                            });
-                          }
-                        }}
-                      >
-                        {chip}
-                      </button>
-                    ))}
-                </div>
-              </section>
+                <button type="button" onClick={() => mudarAba("item")}>Ver todos os produtos</button>
+              </div>
 
-              <div className="grid gap-3 sm:grid-cols-2">
+              <div className="loja-storefront-product-grid">
                 {topProdutos.slice(0, 4).map((produto) => (
                   <CartaoProduto
                     key={`home-${produto.codigo}`}
@@ -931,42 +844,35 @@ export function PaginaLojaDigitalPublica() {
                 </div>
               </section>
 
-              <div className="loja-item-toolbar">
-                <button type="button" className="is-active">
-                  <Sparkles size={14} />
-                  Recomendar
-                </button>
-                <button type="button">
-                  <ArrowUpDown size={14} />
-                  Mais Popular
-                </button>
-                <button type="button">
-                  <ArrowUpDown size={14} />
-                  Preço
-                </button>
-                <button type="button">
-                  <Filter size={14} />
-                  Filtro
-                </button>
+              <div className="loja-storefront-results-head">
+                <div>
+                  <span>Catálogo</span>
+                  <h2>{catalogoAtivo?.nome ?? "Todos os produtos"}</h2>
+                </div>
+                <strong>{produtosFiltrados.length} produto{produtosFiltrados.length === 1 ? "" : "s"}</strong>
               </div>
 
               {categorias.length > 0 && (
-                <div className="loja-item-filter-pills">
-                  <button type="button" className={!catalogoAtivo ? "is-active" : ""} onClick={limparCatalogoAtivo} aria-pressed={!catalogoAtivo}>
-                    Categoria <ChevronDown size={12} />
-                  </button>
-                  <button type="button">
-                    Size <ChevronDown size={12} />
-                  </button>
-                  <button type="button">
-                    Color <ChevronDown size={12} />
-                  </button>
-                  <button type="button">
-                    Material <ChevronDown size={12} />
-                  </button>
-                  <button type="button">
-                    Pattern Type <ChevronDown size={12} />
-                  </button>
+                <div className="loja-item-filter-pills" aria-label="Filtrar por categoria">
+                  <button type="button" className={!catalogoAtivo ? "is-active" : ""} onClick={limparCatalogoAtivo} aria-pressed={!catalogoAtivo}>Todos</button>
+                  {categorias.map((categoria) => (
+                    <button
+                      key={categoria}
+                      type="button"
+                      className={catalogoAtivo?.valor === categoria ? "is-active" : ""}
+                      aria-pressed={catalogoAtivo?.valor === categoria}
+                      onClick={() => selecionarCatalogoAtivo({
+                        id: `categoria-${categoria}`,
+                        nome: categoria,
+                        criterio: "categoria",
+                        valor: categoria,
+                        totalProdutos: dados.produtos.filter((produto) => produto.categoria === categoria).length,
+                        origem: "categoria"
+                      })}
+                    >
+                      {categoria}
+                    </button>
+                  ))}
                 </div>
               )}
 
@@ -999,48 +905,31 @@ export function PaginaLojaDigitalPublica() {
 
           {abaAtiva === "new" && (
             <div id="loja-tabpanel-new" role="tabpanel" aria-labelledby="loja-tab-new" className="space-y-6">
-              <div className="loja-new-date-strip">
-                {Array.from({ length: 7 }).map((_, indice) => {
-                  const data = new Date();
-                  data.setDate(data.getDate() - (6 - indice));
-                  const rotulo = data.toLocaleDateString("en-US", { month: "short", day: "2-digit" });
-                  const ativa = indice === 6;
-                  return (
-                    <button key={rotulo} type="button" className={ativa ? "is-active" : ""}>
-                      <span>{data.toLocaleDateString("en-US", { month: "short" })}</span>
-                      <strong>{data.getDate().toString().padStart(2, "0")}</strong>
-                    </button>
-                  );
-                })}
+              <div className="loja-storefront-results-head">
+                <div>
+                  <span>Acabaram de chegar</span>
+                  <h2>Novidades da loja</h2>
+                </div>
+                <strong>{produtosNovos.length} produto{produtosNovos.length === 1 ? "" : "s"}</strong>
               </div>
 
-              <section className="space-y-5">
-                {[0, 1, 2].map((grupo) => {
-                  const fatia = produtosNovos.slice(grupo * 4, grupo * 4 + 4);
-                  if (!fatia.length) return null;
-                  const data = new Date();
-                  data.setDate(data.getDate() - grupo);
-                  const rotulo = data.toLocaleDateString("en-US", { month: "short", day: "2-digit" });
-                  return (
-                    <div key={rotulo} className="space-y-3">
-                      <h3 className="text-lg font-semibold text-neutral-950">{rotulo}</h3>
-                      <div className="grid gap-3 sm:grid-cols-2">
-                        {fatia.map((produto) => (
-                          <CartaoProduto
-                            key={`new-${produto.codigo}`}
-                            produto={produto}
-                            corPrimaria={corPrimaria}
-                            favorito={favoritos.has(produto.codigo)}
-                            onFavorito={() => alternarFavorito(produto)}
-                            onComprar={() => abrirCheckout(produto, 1, criarSelecoesIniciaisProduto(produto))}
-                            onVerDetalhes={() => abrirProduto(produto)}
-                          />
-                        ))}
-                      </div>
-                    </div>
-                  );
-                })}
-              </section>
+              {produtosNovos.length > 0 ? (
+                <div className="loja-storefront-product-grid">
+                  {produtosNovos.slice(0, 12).map((produto) => (
+                    <CartaoProduto
+                      key={`new-${produto.codigo}`}
+                      produto={produto}
+                      corPrimaria={corPrimaria}
+                      favorito={favoritos.has(produto.codigo)}
+                      onFavorito={() => alternarFavorito(produto)}
+                      onComprar={() => abrirCheckout(produto, 1, criarSelecoesIniciaisProduto(produto))}
+                      onVerDetalhes={() => abrirProduto(produto)}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <div className="loja-storefront-empty"><Package size={24} /><strong>Sem novidades por agora</strong><span>Volte em breve para ver novos produtos.</span></div>
+              )}
             </div>
           )}
 
@@ -1048,7 +937,7 @@ export function PaginaLojaDigitalPublica() {
             <div id="loja-tabpanel-promo" role="tabpanel" aria-labelledby="loja-tab-promo" className="space-y-6">
               <section className="loja-promo-hero">
                 <div className="loja-promo-hero-copy">
-                  <span className="loja-promo-hero-pill">SHOP NOW</span>
+                  <span className="loja-promo-hero-pill">Ofertas da loja</span>
                   <h2>Promoções em destaque</h2>
                   <p>Preços especiais, novas chegadas e peças que merecem atenção imediata.</p>
                 </div>
@@ -1064,7 +953,7 @@ export function PaginaLojaDigitalPublica() {
               {experienciaLoja?.cupomDestaque && <SeloCupomLoja cupom={experienciaLoja.cupomDestaque} corPrimaria={corPrimaria} />}
 
               {produtosPromoHome.length > 0 && (
-                <div className="grid gap-3 sm:grid-cols-2">
+                <div className="loja-storefront-product-grid">
                   {produtosPromoHome.slice(0, 6).map((produto) => (
                     <CartaoProduto
                       key={`promo-${produto.codigo}`}
@@ -1090,306 +979,62 @@ export function PaginaLojaDigitalPublica() {
           )}
 
           {abaAtiva === "review" && (
-            <div id="loja-tabpanel-review" role="tabpanel" aria-labelledby="loja-tab-review" className="space-y-6">
-              {/* Filtros primários — sem contagens falsas */}
-              <div className="loja-review-filter-row">
-                <button type="button" className="is-active">Tudo</button>
-                <button type="button">Com imagem</button>
-                <button type="button">5 ⭐</button>
-                <button type="button">4 ⭐</button>
+            <div id="loja-tabpanel-review" role="tabpanel" aria-labelledby="loja-tab-review" className="space-y-8">
+              <div className="loja-storefront-results-head">
+                <div>
+                  <span>Experiência de compra</span>
+                  <h2>Avaliações verificadas</h2>
+                </div>
+                <strong>{reviewsReais.length} avaliação{reviewsReais.length === 1 ? "" : "ões"}</strong>
               </div>
-              {/* Filtros de atributos — reais se disponíveis, senão placeholder subtil */}
-              {dados.produtos.length > 0 && (
-                <div className="loja-review-filter-row is-secondary">
-                  {[...new Set(dados.produtos.map((p) => p.categoria).filter(Boolean))].slice(0, 3).map((cat) => (
-                    <button key={cat} type="button">{cat}</button>
+
+              {reviewsReais.length > 0 ? (
+                <div className="loja-storefront-review-list">
+                  {reviewsReais.map((review) => (
+                    <article key={review.id} className="loja-storefront-review">
+                      <div><strong>{review.autor}</strong><time>{review.data}</time></div>
+                      {review.variante && <span>Variante: {review.variante}</span>}
+                      <p>{review.comentario}</p>
+                      <small>Compra associada a {review.produtoNome}</small>
+                    </article>
                   ))}
-                  <button type="button">Mais</button>
+                </div>
+              ) : (
+                <div className="loja-storefront-empty">
+                  <MessageCircle size={24} />
+                  <strong>Ainda sem avaliações públicas</strong>
+                  <span>As opiniões aparecem aqui apenas quando forem recolhidas de compras reais.</span>
                 </div>
               )}
 
-              <div className="space-y-6">
-                {reviewsReais.length > 0 ? reviewsReais.map((review, indice) => {
-                  const estrelas = Array.from({ length: 5 }).map((_, i) => (
-                    <Star key={i} size={14} className={i < 4 ? "fill-[#f5c518] text-[#f5c518]" : "text-neutral-300"} />
-                  ));
-                  return (
-                    <article key={review.id} className="loja-review-card">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-2">
-                            <strong className="text-sm text-neutral-950">{review.autor}</strong>
-                            <span className="flex items-center gap-0.5 text-[#f5c518]">{estrelas}</span>
-                          </div>
-                          {review.variante && (
-                            <p className="mt-1 text-xs text-neutral-500">Variante: {review.variante}</p>
-                          )}
-                        </div>
-                        <span className="shrink-0 text-xs font-medium text-neutral-400">{review.data}</span>
-                      </div>
-                      <p className="mt-4 text-base font-medium leading-7 text-neutral-950">{review.comentario}</p>
-                      {review.produtoImagem && (
-                        <div className="mt-4 overflow-hidden border border-neutral-200 bg-neutral-50">
-                          <img src={review.produtoImagem} alt={review.produtoNome} className="h-64 w-full object-cover" />
-                        </div>
-                      )}
-                      <div className="mt-4 border border-neutral-200 bg-neutral-50 p-3">
-                        <div className="flex items-center gap-3">
-                          <div className="size-14 overflow-hidden bg-white">
-                            {review.produtoImagem
-                              ? <img src={review.produtoImagem} alt="" className="size-full object-cover" />
-                              : <Package className="m-auto mt-4 text-neutral-300" size={18} />}
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <p className="truncate text-sm font-semibold text-neutral-950">{review.produtoNome}</p>
-                            <p className="mt-1 text-xs text-neutral-500">{formatarKwanza(precoProduto(dados.produtos[indice] ?? dados.produtos[0]))}</p>
-                          </div>
-                          <button
-                            type="button"
-                            className="grid size-10 shrink-0 place-items-center border border-neutral-200 bg-white text-neutral-950"
-                            onClick={() => {
-                              const produto = dados.produtos[indice] ?? dados.produtos[0];
-                              if (produto) abrirCheckout(produto, 1, criarSelecoesIniciaisProduto(produto));
-                            }}
-                          >
-                            <ShoppingBag size={16} />
-                          </button>
-                        </div>
-                      </div>
-                    </article>
-                  );
-                }) : (
-                  <div className="loja-review-card text-center">
-                    <MessageCircle className="mx-auto text-neutral-300" size={28} />
-                    <strong className="mt-3 block text-sm text-neutral-950">Ainda sem avaliações públicas</strong>
-                    <p className="mt-1 text-sm text-neutral-500">Quando houver avaliações reais, elas aparecem aqui sem dados simulados.</p>
+              {topProdutos.length > 0 && (
+                <section className="loja-storefront-section">
+                  <div className="loja-storefront-section-head">
+                    <div><span>Enquanto isso</span><h2>Conheça os produtos da loja</h2></div>
+                    <button type="button" onClick={() => mudarAba("item")}>Ver catálogo</button>
                   </div>
-                )}
-              </div>
-
-              {/* Banner seguir — dados reais da loja */}
-              <section className="loja-review-follow-banner">
-                <div className="loja-review-follow-brand">
-                  <span className="loja-review-follow-avatar">
-                    {dados.loja.logoUrl
-                      ? <img src={resolverUrlMedia(dados.loja.logoUrl)} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: "999px" }} />
-                      : dados.loja.nomeComercial.slice(0, 2).toUpperCase()}
-                  </span>
-                  <div>
-                    <h3>Siga {dados.loja.nomeComercial} para novidades</h3>
-                    {dados.loja.descricaoPublica
-                      ? <p className="mt-1 text-sm text-neutral-500 line-clamp-1">{dados.loja.descricaoPublica}</p>
-                      : <p className="mt-1 text-sm text-neutral-400 italic">Novidades e promoções em primeira mão</p>}
-                  </div>
-                </div>
-                <button type="button" className="loja-review-follow-btn" onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}>
-                  + Seguir
-                </button>
-              </section>
-
-              {/* Recomendações — categorias reais da loja */}
-              <section className="space-y-4">
-                <div className="flex items-end justify-between gap-3">
-                  <div>
-                    <p className="text-xs font-semibold uppercase tracking-[0.12em] text-neutral-400">Também pode gostar</p>
-                    <h3 className="mt-1 text-lg font-semibold text-neutral-950">Recomendações da loja</h3>
-                  </div>
-                  <button type="button" className="text-xs font-semibold text-neutral-500" onClick={() => mudarAba("item")}>
-                    Ver mais
-                  </button>
-                </div>
-                {dados.produtos.length > 0 && (
-                  <div className="loja-review-category-tabs">
-                    <button type="button" className="is-active">Recomendados</button>
-                    {[...new Set(dados.produtos.map((p) => p.categoria).filter(Boolean))].slice(0, 3).map((cat) => (
-                      <button key={cat} type="button">{cat}</button>
+                  <div className="loja-storefront-product-grid">
+                    {topProdutos.slice(0, 4).map((produto) => (
+                      <CartaoProduto
+                        key={`review-${produto.codigo}`}
+                        produto={produto}
+                        corPrimaria={corPrimaria}
+                        favorito={favoritos.has(produto.codigo)}
+                        onFavorito={() => alternarFavorito(produto)}
+                        onComprar={() => abrirCheckout(produto, 1, criarSelecoesIniciaisProduto(produto))}
+                        onVerDetalhes={() => abrirProduto(produto)}
+                      />
                     ))}
                   </div>
-                )}
-                <div className="grid gap-3 sm:grid-cols-2">
-                  {topProdutos.slice(0, 4).map((produto) => (
-                    <CartaoProduto
-                      key={`review-${produto.codigo}`}
-                      produto={produto}
-                      corPrimaria={corPrimaria}
-                      favorito={favoritos.has(produto.codigo)}
-                      onFavorito={() => alternarFavorito(produto)}
-                      onComprar={() => abrirCheckout(produto, 1, criarSelecoesIniciaisProduto(produto))}
-                      onVerDetalhes={() => abrirProduto(produto)}
-                    />
-                  ))}
-                </div>
-              </section>
-
-              <div className="grid gap-4 lg:grid-cols-[1fr_.9fr]">
-                <ProdutosVistosRecentemente produtos={produtosVistosRecentemente} corPrimaria={corPrimaria} favoritos={favoritos} onComprar={(p) => abrirCheckout(p, 1, criarSelecoesIniciaisProduto(p))} onFavorito={alternarFavorito} onVerProduto={abrirProduto} />
-                <HistoricoEncomendasCliente historico={historicoEncomendas} />
-              </div>
+                </section>
+              )}
             </div>
           )}
         </div>
       </div>
 
-      <footer className="loja-sf" aria-label="Rodapé da loja">
-        <div className="loja-sf-beam" aria-hidden="true" />
-
-        {/* ── HERO: identidade da loja + stats + contactos ── */}
-        <motion.div
-          className="loja-sf-hero"
-          initial={{ opacity: 0, y: 16 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: "-40px" }}
-          transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-        >
-          {/* Esquerda: avatar + info textual */}
-          <div className="loja-sf-identity">
-            <div className="loja-sf-avatar">
-              {(dados.perfil?.avatarUrl ?? dados.loja.logoUrl)
-                ? <img src={resolverUrlMedia(dados.perfil?.avatarUrl ?? dados.loja.logoUrl ?? "")} alt="" className="loja-sf-avatar-img" />
-                : <span className="loja-sf-avatar-init">{dados.loja.nomeComercial.slice(0, 2).toUpperCase()}</span>}
-            </div>
-            <div className="loja-sf-info">
-              <h2 className="loja-sf-nome">{dados.loja.nomeComercial}</h2>
-              <div className="loja-sf-meta">
-                {dados.loja.segmento && <span className="loja-sf-seg">{dados.loja.segmento}</span>}
-                {localizacao && <span className="loja-sf-loc"><MapPin size={11} aria-hidden="true" />{localizacao}</span>}
-              </div>
-              {(dados.perfil?.bio ?? dados.loja.descricaoPublica) && (
-                <p className="loja-sf-desc">{dados.perfil?.bio ?? dados.loja.descricaoPublica}</p>
-              )}
-            </div>
-          </div>
-
-          {/* Direita: contadores + botões de contacto */}
-          <div className="loja-sf-side">
-            <div className="loja-sf-stats">
-              <div className="loja-sf-stat">
-                <strong>{totalProdutos}</strong>
-                <span>Produtos</span>
-              </div>
-              <div className="loja-sf-stat-div" aria-hidden="true" />
-              <div className="loja-sf-stat">
-                <strong>{dados.perfil?.contadores?.seguidores ?? 0}</strong>
-                <span>Seguidores</span>
-              </div>
-            </div>
-            <div className="loja-sf-contacts">
-              {dados.loja.whatsapp && (
-                <motion.a
-                  href={`https://wa.me/${dados.loja.whatsapp.replace(/\D/g, "")}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="loja-sf-contact loja-sf-contact--wa"
-                  whileHover={{ y: -2 }}
-                  transition={{ duration: 0.14 }}
-                >
-                  <MessageCircle size={15} />
-                  <span>WhatsApp</span>
-                </motion.a>
-              )}
-              {dados.loja.instagram && (
-                <motion.a
-                  href={`https://instagram.com/${dados.loja.instagram.replace(/^@/, "")}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="loja-sf-contact loja-sf-contact--ig"
-                  whileHover={{ y: -2 }}
-                  transition={{ duration: 0.14 }}
-                >
-                  <Share2 size={15} />
-                  <span>Instagram</span>
-                </motion.a>
-              )}
-            </div>
-          </div>
-        </motion.div>
-
-        <div className="loja-sf-sep" aria-hidden="true" />
-
-        {/* ── GRID 3 colunas: Explorar / Políticas / Bizy ── */}
-        <motion.div
-          className="loja-sf-grid"
-          initial={{ opacity: 0 }}
-          whileInView={{ opacity: 1 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.4, delay: 0.1 }}
-        >
-          {/* Col 1 — Explorar */}
-          <div className="loja-sf-col">
-            <p className="loja-sf-col-title">Explorar</p>
-            <nav aria-label="Secções da loja">
-              {(["home", "item", "new", "promo", "review"] as AbaLojaPublica[]).map((aba) => (
-                <motion.button
-                  key={aba}
-                  type="button"
-                  className="loja-sf-nav-link"
-                  onClick={() => { mudarAba(aba); window.scrollTo({ top: 0, behavior: "smooth" }); }}
-                  whileHover={{ x: 5 }}
-                  transition={{ duration: 0.14 }}
-                >
-                  {({ home: "Início", item: "Todos os produtos", new: "Novidades", promo: "Promoções", review: "Avaliações" } as Record<AbaLojaPublica, string>)[aba]}
-                </motion.button>
-              ))}
-            </nav>
-          </div>
-
-          {/* Col 2 — Políticas */}
-          <div className="loja-sf-col">
-            {experienciaLoja?.politicaEntrega ? (
-              <>
-                <p className="loja-sf-col-title">Entrega</p>
-                <p className="loja-sf-policy">{experienciaLoja.politicaEntrega}</p>
-              </>
-            ) : null}
-            {experienciaLoja?.politicaTroca ? (
-              <>
-                <p className="loja-sf-col-title" style={{ marginTop: experienciaLoja?.politicaEntrega ? "1.25rem" : undefined }}>Trocas</p>
-                <p className="loja-sf-policy">{experienciaLoja.politicaTroca}</p>
-              </>
-            ) : null}
-            {!experienciaLoja?.politicaEntrega && !experienciaLoja?.politicaTroca && (
-              <>
-                <p className="loja-sf-col-title">Políticas</p>
-                <p className="loja-sf-policy loja-sf-policy--empty">As políticas da loja serão adicionadas em breve.</p>
-              </>
-            )}
-          </div>
-
-          {/* Col 3 — Bizy */}
-          <div className="loja-sf-col">
-            <p className="loja-sf-col-title">Plataforma</p>
-            <motion.div
-              className="loja-sf-bizy"
-              whileHover={{ y: -3 }}
-              transition={{ duration: 0.2, ease: "easeOut" }}
-            >
-              <div className="loja-sf-bizy-header">
-                <motion.div
-                  className="loja-sf-bizy-icon"
-                  whileHover={{ scale: 1.08 }}
-                  transition={{ duration: 0.18 }}
-                >
-                  <LogoBizy variante="icone" style={{ width: 20, height: 20 }} />
-                </motion.div>
-                <div>
-                  <p className="loja-sf-bizy-name">Bizy</p>
-                  <p className="loja-sf-bizy-sub">Lojas digitais em Angola</p>
-                </div>
-              </div>
-              <p className="loja-sf-bizy-desc">Cria e gere a tua loja online em minutos. Vende mais, cresce mais.</p>
-              <Link to="/" className="loja-sf-bizy-cta">
-                Criar a minha loja
-                <ArrowRight size={14} aria-hidden="true" />
-              </Link>
-            </motion.div>
-          </div>
-        </motion.div>
-
-        <div className="loja-sf-base">
-          <span>© {new Date().getFullYear()} {dados.loja.nomeComercial} · Criado com Bizy</span>
-          <span>Bizy · Todos os direitos reservados</span>
-        </div>
-      </footer>
+      <AvisoPrivacidade escopo={`loja-${slug}`} texto={experienciaLoja?.politicaPrivacidade} />
+      <RodapeMarket />
 
       <Sheet open={!!produtoAberto} onOpenChange={(aberto) => { if (!aberto) setProdutoAberto(null); }}>
         <SheetContent
@@ -1534,17 +1179,16 @@ export function PaginaLojaDigitalPublica() {
         </div>
       )}
 
-      <AvisoPrivacidade escopo={`loja-${slug}`} texto={experienciaLoja?.politicaPrivacidade} />
     </main>
   );
 }
 
 const ABAS_LOJA = [
-  { id: "home", rotulo: "Home" },
-  { id: "item", rotulo: "Item" },
-  { id: "new", rotulo: "New" },
-  { id: "promo", rotulo: "Promo" },
-  { id: "review", rotulo: "Review" }
+  { id: "home", rotulo: "Início" },
+  { id: "item", rotulo: "Produtos" },
+  { id: "new", rotulo: "Novidades" },
+  { id: "promo", rotulo: "Promoções" },
+  { id: "review", rotulo: "Avaliações" }
 ] as const satisfies ReadonlyArray<{ id: AbaLojaPublica; rotulo: string }>;
 
 function PerfilLojaSocial({
@@ -1611,12 +1255,13 @@ function PerfilLojaSocial({
   const totalColecoes = perfil?.contadores?.colecoes ?? colecoes.length;
   const capaEstilo = capaUrl
     ? {
-        backgroundImage: `linear-gradient(180deg, color-mix(in srgb, ${corPrimaria} 70%, #000) 0%, color-mix(in srgb, ${corPrimaria} 40%, #000) 100%), url(${capaUrl})`,
-        backgroundSize: "cover, cover",
-        backgroundPosition: "center, center"
+        backgroundImage: `url(${capaUrl})`,
+        backgroundColor: corPrimaria,
+        backgroundSize: "cover",
+        backgroundPosition: "center"
       }
     : {
-        backgroundImage: `linear-gradient(145deg, color-mix(in srgb, ${corPrimaria} 60%, #000) 0%, color-mix(in srgb, ${corPrimaria} 30%, #000) 100%)`
+        backgroundColor: corPrimaria
       };
   const totalProdutosReal = perfil?.contadores?.produtos ?? totalProdutos;
   const urlMarket = perfil?.acoes?.urlMarket ?? market?.url;
@@ -1628,107 +1273,84 @@ function PerfilLojaSocial({
 
   return (
     <motion.section
-      className="loja-profile-shell"
+      className="loja-profile-shell loja-storefront-hero"
       initial={{ opacity: 0, y: 14 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
     >
-      <div className="loja-profile-cover">
-        <div className="loja-profile-cover-fallback" style={capaEstilo} />
-        <div className="loja-profile-cover-glow" />
-      </div>
-
-      <div className="loja-profile-content">
-        <div className="loja-profile-head">
-          <div className="loja-profile-head-copy">
-            <span className="loja-profile-avatar" aria-hidden="true">
-              {avatarUrl ? <img src={avatarUrl} alt="" /> : <span>{(perfil?.nomeComercial ?? loja.nomeComercial).slice(0, 3).toUpperCase()}</span>}
-              <small>trends</small>
+      <div className="loja-storefront-cover">
+        <div className="loja-storefront-cover-media" style={capaEstilo} />
+        <div className="loja-storefront-cover-shade" />
+        <div className="loja-storefront-identity">
+          <div className="loja-storefront-heading">
+            <span className="loja-storefront-avatar" aria-hidden="true">
+              {avatarUrl ? <img src={avatarUrl} alt="" /> : <span>{(perfil?.nomeComercial ?? loja.nomeComercial).slice(0, 2).toUpperCase()}</span>}
             </span>
-            <div className="loja-profile-head-text">
-              <div className="loja-profile-name-row">
-                <h1>{perfil?.nomeComercial ?? loja.nomeComercial}</h1>
-                <ChevronRight size={18} />
-              </div>
-              {totalSeguidores > 0 && (
-                <p>
-                  <strong>{formatarNumeroCurto(totalSeguidores)} Seguidores</strong>
-                </p>
-              )}
+            <div>
+              <span className="loja-storefront-eyebrow">Loja independente no Bizy</span>
+              <h1>{perfil?.nomeComercial ?? loja.nomeComercial}</h1>
             </div>
           </div>
-        </div>
 
-        {bio && <p className="loja-profile-bio">{bio}</p>}
-        {localizacao && (
-          <p className="loja-profile-location">
-            <MapPin size={13} />
-            <span>{localizacao}</span>
-            {totalColecoes > 0 && <small>{formatarNumeroCurto(totalColecoes)} catálogos</small>}
-          </p>
-        )}
+          {bio && <p className="loja-storefront-bio">{bio}</p>}
 
-        {estatisticas.length > 0 && (
-          <div className="loja-profile-badges" aria-label="Destaques da loja">
-            {estatisticas.map((badge) => (
-              <span key={badge.label} className="loja-profile-badge">
-                <span className="loja-profile-badge-icon">{badge.icon}</span>
-                <span>{badge.label}</span>
-              </span>
-            ))}
+          <div className="loja-storefront-meta" aria-label="Informações da loja">
+            {localizacao && <span><MapPin size={14} />{localizacao}</span>}
+            {estatisticas.map((item) => <span key={item.label}>{item.icon}{item.label}</span>)}
+            {totalColecoes > 0 && <span><Package size={14} />{formatarNumeroCurto(totalColecoes)} coleções</span>}
           </div>
-        )}
 
-        <button type="button" className="loja-profile-trends-banner" onClick={onVerItens}>
-          <span className="loja-profile-trends-brand">market</span>
-          <span className="loja-profile-trends-copy">Produtos, catálogos e novidades publicados pela loja.</span>
-          <ChevronRight size={18} />
-        </button>
-
-        <div className="loja-profile-action-row loja-profile-commerce-tools">
-          {perfil?.acoes?.seguirDisponivel !== false && (
-            <button
-              type="button"
-              className={`loja-profile-action-pill is-primary${seguindo ? " is-following" : ""}`}
-              onClick={alternarFollow}
-              disabled={carregandoFollow}
-              aria-pressed={seguindo}
-            >
-              {carregandoFollow ? <Loader2 size={15} className="animate-spin" /> : seguindo ? "A seguir" : "+ Seguir"}
+          <div className="loja-storefront-actions">
+            <button type="button" className="loja-storefront-action is-primary" onClick={onVerItens}>
+              <ShoppingBag size={16} />
+              Ver produtos
             </button>
-          )}
-          <button type="button" className="loja-profile-action-pill" onClick={onVerItens}>
-            Todos os itens
-          </button>
-          {urlMarket && (
-            <Link to={urlMarket} className="loja-profile-action-pill loja-profile-market-link">
-              Bizy Market
-            </Link>
-          )}
-        </div>
-
-        {colecoes.length > 0 && (
-          <div className="loja-profile-catalogos loja-profile-filter-chips" aria-label="Catálogos da loja">
-            {colecoes.slice(0, 8).map((colecao) => (
-              <button
-                key={colecao.id}
-                type="button"
-                className={`loja-profile-catalogo-chip ${colecao.ativa ? "is-active" : ""}`}
-                aria-pressed={colecao.ativa}
-                onClick={() => onSelecionarColecao(colecao)}
-              >
-                <span className="loja-profile-catalogo-thumb">
-                  {colecao.imagem ? <img src={resolverUrlMedia(colecao.imagem)} alt="" /> : <Package size={16} />}
-                </span>
-                <span className="loja-profile-catalogo-copy">
-                  <strong>{colecao.nome}</strong>
-                  <small>{colecao.totalProdutos}</small>
-                </span>
+            {perfil?.acoes?.contactoDisponivel !== false && (
+              <button type="button" className="loja-storefront-action" onClick={onContacto}>
+                <MessageCircle size={16} />
+                Contactar
               </button>
-            ))}
+            )}
+            {perfil?.acoes?.seguirDisponivel !== false && (
+              <button
+                type="button"
+                className={seguindo ? "loja-storefront-action is-following" : "loja-storefront-action"}
+                onClick={alternarFollow}
+                disabled={carregandoFollow}
+                aria-pressed={seguindo}
+              >
+                {carregandoFollow ? <Loader2 size={15} className="animate-spin" /> : <Heart size={16} />}
+                {seguindo ? "A seguir" : "Seguir loja"}
+              </button>
+            )}
+            {urlMarket && (
+              <Link to={urlMarket} className="loja-storefront-action is-market">
+                <Store size={16} />
+                Ver no Market
+              </Link>
+            )}
           </div>
-        )}
+        </div>
       </div>
+
+      {colecoes.length > 0 && (
+        <div className="loja-storefront-collections" aria-label="Coleções da loja">
+          {colecoes.slice(0, 8).map((colecao) => (
+            <button
+              key={colecao.id}
+              type="button"
+              className={colecao.ativa ? "loja-storefront-collection is-active" : "loja-storefront-collection"}
+              aria-pressed={colecao.ativa}
+              onClick={() => onSelecionarColecao(colecao)}
+            >
+              <span className="loja-storefront-collection-media">
+                {colecao.imagem ? <img src={resolverUrlMedia(colecao.imagem)} alt="" /> : <Package size={18} />}
+              </span>
+              <span><strong>{colecao.nome}</strong><small>{colecao.totalProdutos} produtos</small></span>
+            </button>
+          ))}
+        </div>
+      )}
     </motion.section>
   );
 }
@@ -1792,16 +1414,16 @@ function SeloCupomLoja({ corPrimaria, cupom }: { corPrimaria: string; cupom?: st
             <Tag size={19} />
           </span>
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-white/45">Incentivo ativo</p>
-            <h2 className="mt-1 text-lg font-semibold tracking-tight">Use este código na conversa com a loja</h2>
+            <p className="text-xs font-semibold uppercase tracking-normal text-white/45">Incentivo ativo</p>
+            <h2 className="mt-1 text-lg font-semibold tracking-normal">Use este código na conversa com a loja</h2>
             <p className="mt-1 text-sm leading-6 text-white/62">
               O desconto ou condição especial é confirmado pelo atendimento antes da compra.
             </p>
           </div>
         </div>
         <div className="border border-white/10 bg-white px-4 py-3 text-center text-neutral-950">
-          <span className="block text-[0.65rem] font-bold uppercase tracking-wide text-neutral-400">Código</span>
-          <strong className="mt-1 block text-lg tracking-wide">{cupomLimpo}</strong>
+          <span className="block text-[0.65rem] font-bold uppercase tracking-normal text-neutral-400">Código</span>
+          <strong className="mt-1 block text-lg tracking-normal">{cupomLimpo}</strong>
         </div>
       </div>
     </section>
@@ -1868,7 +1490,7 @@ function SinaisConfiancaLoja({
     <section className="mt-10 bg-white p-4 ring-1 ring-neutral-100 sm:p-5">
       <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-wide text-neutral-400">Sinais de confiança</p>
+          <p className="text-xs font-semibold uppercase tracking-normal text-neutral-400">Sinais de confiança</p>
           <h2 className="mt-1 text-base font-semibold text-neutral-950">Compra clara antes de falar com {loja.nomeComercial}</h2>
         </div>
         <Badge variant="outline">Sem surpresas</Badge>
@@ -1882,90 +1504,6 @@ function SinaisConfiancaLoja({
           </div>
         ))}
       </div>
-    </section>
-  );
-}
-
-function ProdutosVistosRecentemente({
-  corPrimaria,
-  favoritos,
-  onComprar,
-  onFavorito,
-  onVerProduto,
-  produtos
-}: {
-  corPrimaria: string;
-  favoritos: Set<string>;
-  onComprar: (produto: ProdutoPublico) => void;
-  onFavorito: (produto: ProdutoPublico) => void;
-  onVerProduto: (produto: ProdutoPublico) => void;
-  produtos: ProdutoPublico[];
-}) {
-  if (!produtos.length) return null;
-
-  return (
-    <section className="bg-white p-4 ring-1 ring-neutral-100 sm:p-5">
-      <div className="mb-4 flex items-center justify-between gap-3">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-wide text-neutral-400">vistos recentemente</p>
-          <h2 className="mt-1 text-base font-semibold text-neutral-950">Continue de onde parou</h2>
-        </div>
-        <Clock size={17} className="text-neutral-400" />
-      </div>
-      <div className="hide-scrollbar flex gap-3 overflow-x-auto pb-1">
-        {produtos.slice(0, 6).map((produto) => (
-          <div key={`visto-${produto.codigo}`} className="w-36 shrink-0 sm:w-40">
-            <CartaoProduto
-              produto={produto}
-              corPrimaria={corPrimaria}
-              favorito={favoritos.has(produto.codigo)}
-              onComprar={() => onComprar(produto)}
-              onFavorito={() => onFavorito(produto)}
-              onVerDetalhes={() => onVerProduto(produto)}
-              compacto
-            />
-          </div>
-        ))}
-      </div>
-    </section>
-  );
-}
-
-function HistoricoEncomendasCliente({ historico }: { historico: PedidoHistoricoLoja[] }) {
-  return (
-    <section className="bg-white p-4 ring-1 ring-neutral-100 sm:p-5">
-      <div className="mb-4 flex items-center justify-between gap-3">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-wide text-neutral-400">histórico</p>
-          <h2 className="mt-1 text-base font-semibold text-neutral-950">Encomendas neste dispositivo</h2>
-        </div>
-        <ShoppingBag size={17} className="text-neutral-400" />
-      </div>
-      {historico.length > 0 ? (
-        <div className="space-y-2">
-          {historico.slice(0, 3).map((pedido) => (
-            <div key={`${pedido.codigo}-${pedido.criadoEm}`} className="border border-neutral-200 bg-neutral-50 p-3">
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <strong className="line-clamp-1 text-sm text-neutral-950">{pedido.nome}</strong>
-                  <p className="mt-1 text-xs text-neutral-500">
-                    {new Date(pedido.criadoEm).toLocaleDateString("pt-AO", { day: "2-digit", month: "short" })}
-                    {pedido.quantidade ? ` · qtd. ${pedido.quantidade}` : ""}
-                  </p>
-                </div>
-                <span className="shrink-0 text-sm font-semibold text-neutral-950">{formatarKwanza(pedido.totalEmKwanza)}</span>
-              </div>
-              {pedido.variantes && Object.keys(pedido.variantes).length > 0 && (
-                <p className="mt-2 line-clamp-1 text-xs text-neutral-500">{montarResumoVariantes(pedido.variantes)}</p>
-              )}
-            </div>
-          ))}
-        </div>
-      ) : (
-        <div className="border border-dashed border-neutral-200 bg-neutral-50 p-4 text-sm leading-6 text-neutral-500">
-          As próximas compras ficam guardadas aqui para o cliente voltar ao mesmo produto com menos esforço.
-        </div>
-      )}
     </section>
   );
 }

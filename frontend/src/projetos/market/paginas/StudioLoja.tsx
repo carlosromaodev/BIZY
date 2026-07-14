@@ -603,7 +603,7 @@ export function PaginaLojaPublica() {
               <div className="bz-store-view">
                 <div className="bz-store-hero-mock">
                   <div className="bz-store-mk">BIZY · Moda</div>
-                  <h2 style={{ fontSize: 20, fontWeight: 800, color: "#fff", margin: "8px 0" }}>{form.identidade.nomeComercial || "Minha Loja"}</h2>
+                  <h2 style={{ fontSize: 20, fontWeight: 700, color: "#fff", margin: "8px 0" }}>{form.identidade.nomeComercial || "Minha Loja"}</h2>
                   <p style={{ fontSize: 13, color: "rgba(255,255,255,0.7)" }}>{form.identidade.descricaoPublica || "Peças selecionadas, entregas em toda a cidade."}</p>
                 </div>
                 <div className="bz-store-body-mock">
@@ -1004,7 +1004,7 @@ function TelaInicioCriacaoLoja({
         </span>
         <div className="space-y-2">
           <Badge variant="outline" className="mx-auto w-fit bg-card">Criação manual</Badge>
-          <h2 className="text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">Vamos criar sua loja digital</h2>
+          <h2 className="text-3xl font-semibold tracking-normal text-foreground sm:text-4xl">Vamos criar sua loja digital</h2>
           <p className="mx-auto max-w-xl text-sm leading-6 text-muted-foreground">
             A loja só fica criada depois de passar pelo assistente e guardar o rascunho ou publicar. Antes disso, vamos verificar o catálogo e escolher quais produtos entram.
           </p>

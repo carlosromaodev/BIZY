@@ -36,7 +36,6 @@ const rotasBackend = [
   "/learning/progresso",
   "/lives",
   "/loja-publica",
-  "/market",
   "/media",
   "/metas",
   "/n8n",
@@ -85,16 +84,23 @@ export default defineConfig({
     host: "0.0.0.0",
     port: Number(process.env.FRONTEND_PORT ?? 5173),
     allowedHosts: true,
-    proxy: Object.fromEntries(
-      rotasBackend.map((rota) => [
-        rota,
-        {
-          target: backendUrl,
-          changeOrigin: true,
-          secure: false,
-          ws: rota === "/eventos"
-        }
-      ])
-    )
+    proxy: {
+      ...Object.fromEntries(
+        rotasBackend.map((rota) => [
+          rota,
+          {
+            target: backendUrl,
+            changeOrigin: true,
+            secure: false,
+            ws: rota === "/eventos"
+          }
+        ])
+      ),
+      "^/market/(fornecedor|reembolsos|resumo)": {
+        target: backendUrl,
+        changeOrigin: true,
+        secure: false
+      }
+    }
   }
 });

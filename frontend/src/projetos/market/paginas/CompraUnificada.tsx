@@ -1,13 +1,13 @@
-import { ArrowLeft, CheckCircle2, Clock3, CreditCard, Home, PackageCheck, PackageX, ReceiptText, ShieldCheck, Store, Truck, UserRoundSearch } from "lucide-react";
+import { CheckCircle2, Clock3, CreditCard, PackageCheck, PackageX, ReceiptText, ShieldCheck, Store, Truck, UserRoundSearch } from "lucide-react";
 import type { FormEvent } from "react";
 import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { LogoBizy } from "../../../marca/bizy";
 import { enviarComprovativoPagamentoUnificado, guardarIdentificadorCompradorMarket, obterCompraUnificada, obterIdentificadorCompradorMarket, ROTAS_LOJAS } from "../api";
 import type { PedidoFilhoAcompanhamento, RespostaCompraEstados } from "../api";
 import { formatarDataHoraCurta, formatarKwanza } from "../../../utilidades";
+import { CabecalhoMarket, RodapeMarket } from "../componentes/MarketChrome";
 
 function textoEstado(valor: string | null | undefined): string {
   if (!valor) return "Em análise";
@@ -174,19 +174,8 @@ export function PaginaCompraUnificada() {
   }
 
   return (
-    <main className="min-h-[100dvh] bg-[#f5f3ed] text-neutral-950">
-      <header className="mx-auto flex w-full max-w-5xl items-center justify-between px-4 py-4">
-        <Link to={ROTAS_LOJAS.checkout} className="grid size-10 place-items-center rounded-lg border border-neutral-200 bg-white text-neutral-700" aria-label="Voltar ao checkout">
-          <ArrowLeft size={18} />
-        </Link>
-        <Link to={ROTAS_LOJAS.market} className="inline-flex items-center gap-2 text-sm font-semibold text-neutral-900">
-          <LogoBizy variante="icone" style={{ width: 22, height: 22 }} />
-          <span>Bizy Market</span>
-        </Link>
-        <Link to="/" className="grid size-10 place-items-center rounded-lg border border-neutral-200 bg-white text-neutral-700" aria-label="Início">
-          <Home size={18} />
-        </Link>
-      </header>
+    <main className="bizy-market-page market-commerce-page market-public-page market-order-detail-page">
+      <CabecalhoMarket />
 
       <section className="mx-auto grid w-full max-w-5xl gap-5 px-4 pb-10">
         <div className="rounded-lg border border-neutral-200 bg-white p-5 shadow-sm sm:p-6">
@@ -196,18 +185,23 @@ export function PaginaCompraUnificada() {
           </span>
 
           {!identificador ? (
-            <form className="mt-6 grid max-w-md gap-3 py-6" onSubmit={(evento) => {
+            <form className="market-order-access" onSubmit={(evento) => {
               evento.preventDefault();
               const valor = identificadorForm.trim();
               if (valor.length < 5) return;
               guardarIdentificadorCompradorMarket(valor);
               setIdentificador(valor);
             }}>
-              <span className="grid size-10 place-items-center rounded-lg bg-neutral-100 text-neutral-700"><UserRoundSearch size={18} /></span>
-              <h1 className="text-2xl font-bold text-neutral-950">Aceder à compra</h1>
-              <p className="text-sm text-neutral-600">Confirma o telefone ou email usado no checkout.</p>
-              <Input value={identificadorForm} onChange={(evento) => setIdentificadorForm(evento.target.value)} placeholder="Telefone ou email" autoComplete="tel" aria-label="Telefone ou email da compra" />
-              <Button type="submit" disabled={identificadorForm.trim().length < 5}>Continuar</Button>
+              <div className="market-order-access-copy">
+                <span><UserRoundSearch size={20} /></span>
+                <h1>Aceder à compra</h1>
+                <p>Consulte pagamento, preparação e entrega de cada fornecedor usando o contacto informado no checkout.</p>
+              </div>
+              <div className="market-order-access-fields">
+                <label htmlFor="identificador-compra">Telefone ou email da compra</label>
+                <Input id="identificador-compra" value={identificadorForm} onChange={(evento) => setIdentificadorForm(evento.target.value)} placeholder="Telefone ou email" autoComplete="tel" />
+                <Button type="submit" disabled={identificadorForm.trim().length < 5}>Continuar</Button>
+              </div>
             </form>
           ) : carregando ? (
             <div className="mt-6 grid place-items-center gap-3 py-12 text-center text-neutral-600">
@@ -305,6 +299,7 @@ export function PaginaCompraUnificada() {
           </section>
         )}
       </section>
+      <RodapeMarket />
     </main>
   );
 }

@@ -28,7 +28,7 @@ describe("marca Bizy", () => {
     expect(svg).toContain("<tspan");
     expect(svg).toContain('fill="#ffffff"');
     expect(svg).toContain('fill="#16A07A"');
-    expect(svg).toContain("letter-spacing=\"-0.055em\"");
+    expect(svg).toContain("letter-spacing=\"0\"");
     expect(svg).toContain('aria-label="Bizy"');
   });
 

@@ -7,39 +7,35 @@ import {
   Heart,
   Home,
   MapPin,
-  Menu,
   Package,
-  Search,
   ShieldCheck,
   ShoppingBag,
   SlidersHorizontal,
   Store,
   Tags,
   Truck,
-  User,
-  X
+  Search
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { NativeBottomNav } from "@/components/ui/native-bottom-nav";
+import { Link, Navigate, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import {
   listarCategoriasMarket,
   listarLojasMarket,
   listarProdutosMarket,
   normalizarFornecedorMarket,
   normalizarProdutoMarket,
-  obterLojaMarket,
   ROTAS_LOJAS
 } from "../api";
 import type { CategoriaMarket, LojaMarket, ProdutoMarketNormalizado } from "../api";
 import { formatarKwanza, aplicarSeoMetaTags, montarSeoPublico } from "../../../utilidades";
 import { AvisoPrivacidade } from "../../../componentes/BizyDesignSystem";
+import { CabecalhoMarket, RodapeMarket } from "../componentes/MarketChrome";
+import { CartaoProdutoMarket } from "../componentes/CartaoProdutoMarket";
 
 type FiltroTexto = "busca" | "provincia" | "municipio" | "loja" | "precoMinimo" | "precoMaximo";
 
-const DEPARTAMENTOS_MARKET = ["Moda", "Beleza", "Casa", "Tecnologia", "Comida", "Serviços"];
 const IMAGEM_SEO_MARKET = "/bizy-live-commerce-hero.png";
 const DESCRICAO_SEO_MARKET = "Descubra produtos de lojas angolanas no Bizy Market, com fornecedor visível e checkout unificado.";
 const CATEGORIAS_EDITORIAIS: Array<{ titulo: string; subtitulo: string; acento: string; icone: LucideIcon }> = [
@@ -68,6 +64,7 @@ export function PaginaMarket() {
   const [total, setTotal] = useState(0);
   const [erro, setErro] = useState("");
   const [carregando, setCarregando] = useState(true);
+  const [filtrosAbertos, setFiltrosAbertos] = useState(false);
 
   const categoriaSelecionada = decodeURIComponent(categoriaRota || searchParams.get("categoria") || "").trim();
   const busca = searchParams.get("busca") ?? "";
@@ -93,7 +90,6 @@ export function PaginaMarket() {
   }, [produtos]);
 
   const filtrosAtivos = [categoriaSelecionada, busca, provincia, municipio, loja, precoMinimo, precoMaximo, apenasDisponivel, apenasPromocao].filter(Boolean).length;
-  const produtosDestaque = useMemo(() => produtos.slice(0, 10), [produtos]);
   const totalLojas = fornecedores.length;
 
   const atualizarFiltro = useCallback(
@@ -183,8 +179,8 @@ export function PaginaMarket() {
   }
 
   return (
-    <main className="bizy-market-page market-commerce-page min-h-[100dvh] bg-[#faf8f4] text-neutral-950">
-      <CabecalhoMarketComercial
+    <main className="bizy-market-page market-commerce-page market-public-page">
+      <CabecalhoMarket
         busca={busca}
         categoriaSelecionada={categoriaSelecionada}
         categorias={categorias}
@@ -245,7 +241,7 @@ export function PaginaMarket() {
       )}
 
       {!categoriaSelecionada && (
-        <SecaoCategoriasMarket categorias={categorias} onCategoria={abrirCategoria} />
+        <SecaoCategoriasMarket categorias={categorias} produtos={produtos} onCategoria={abrirCategoria} />
       )}
 
       {fornecedores.length > 0 && (
@@ -257,7 +253,10 @@ export function PaginaMarket() {
           <div className="market-store-row">
             {fornecedores.map((fornecedor) => (
               <Link key={fornecedor.slug || fornecedor.nomeComercial} to={fornecedor.urlLoja} className="market-store-card">
-                <span className="market-store-cover" />
+                <span
+                  className="market-store-cover"
+                  style={fornecedor.capaUrl ? { backgroundImage: `url(${fornecedor.capaUrl})` } : undefined}
+                />
                 <span className="market-store-avatar">
                   {fornecedor.logoUrl ? <img src={fornecedor.logoUrl} alt="" /> : <Store size={20} />}
                 </span>
@@ -273,26 +272,19 @@ export function PaginaMarket() {
         </section>
       )}
 
-      {!categoriaSelecionada && produtosDestaque.length > 0 && (
-        <section className="market-commerce-strip" aria-label="Produtos em alta">
-          <div className="market-section-title">
-            <span>Market</span>
-            <strong>Produtos em alta</strong>
-          </div>
-          <div className="market-product-grid">
-            {produtosDestaque.slice(0, 5).map((produto) => (
-              <CartaoProdutoMarket key={`destaque-${produto.slugLoja}-${produto.codigo}`} produto={produto} />
-            ))}
-          </div>
-        </section>
-      )}
-
       <section className="market-content-grid">
-        <aside className="market-discovery-panel">
-          <div className="market-panel-heading">
+        <aside className={`market-discovery-panel${filtrosAbertos ? " is-open" : ""}`}>
+          <button
+            type="button"
+            className="market-panel-heading"
+            onClick={() => setFiltrosAbertos((aberto) => !aberto)}
+            aria-expanded={filtrosAbertos}
+          >
             <SlidersHorizontal size={18} />
             <span>Filtros {filtrosAtivos > 0 && `(${filtrosAtivos})`}</span>
-          </div>
+            <ChevronDown className="market-panel-chevron" size={16} />
+          </button>
+          <div className="market-filter-body">
           {filtrosAtivos > 0 && (
             <div className="market-active-filter-list">
               {categoriaSelecionada && <span><Tags size={13} />{categoriaSelecionada}</span>}
@@ -306,7 +298,7 @@ export function PaginaMarket() {
               {apenasPromocao && <span><Tags size={13} />Promoção</span>}
             </div>
           )}
-          <button type="button" onClick={limparFiltros} disabled={!filtrosAtivos}>
+          <button type="button" className="market-filter-clear" onClick={limparFiltros} disabled={!filtrosAtivos}>
             Limpar filtros
           </button>
 
@@ -344,6 +336,7 @@ export function PaginaMarket() {
               <input type="checkbox" checked={apenasPromocao} onChange={() => alternarFiltroBooleano("apenasPromocao")} />
               <span>Apenas com promoção</span>
             </label>
+          </div>
           </div>
         </aside>
 
@@ -384,21 +377,8 @@ export function PaginaMarket() {
         </section>
       </section>
 
-      <RodapeMarket />
-
-      <NativeBottomNav
-        activePillId="bizy-market-bottom-nav"
-        className="lp-nav market-bottom-nav"
-        label="Navegação do Market"
-        items={[
-          { id: "inicio", label: "Início", icon: Home, onClick: () => navigate("/") },
-          { id: "market", label: "Market", icon: Compass, active: true, onClick: () => navigate(ROTAS_LOJAS.market) },
-          { id: "lojas", label: "Lojas", icon: Store, onClick: () => navigate(ROTAS_LOJAS.lojasMarket) },
-          { id: "sacola", label: "Comprar", icon: ShoppingBag, variant: "cta", onClick: () => navigate(ROTAS_LOJAS.checkout) }
-        ]}
-      />
-
       <AvisoPrivacidade escopo="market" texto="O Bizy Market mede buscas, origem e produtos vistos para melhorar descoberta entre lojas." />
+      <RodapeMarket />
     </main>
   );
 }
@@ -406,6 +386,7 @@ export function PaginaMarket() {
 export function PaginaDiretorioLojasMarket() {
   const navigate = useNavigate();
   const [busca, setBusca] = useState("");
+  const [filtroRapido, setFiltroRapido] = useState("Todas");
   const [lojas, setLojas] = useState<LojaMarket[]>([]);
   const [erro, setErro] = useState("");
   const [carregando, setCarregando] = useState(true);
@@ -445,17 +426,19 @@ export function PaginaDiretorioLojasMarket() {
 
   const lojasFiltradas = useMemo(() => {
     const termo = busca.trim().toLowerCase();
-    if (!termo) return lojas;
-    return lojas.filter((loja) =>
-      [loja.nomeComercial, loja.descricaoPublica, loja.segmento, loja.tipo, loja.provincia, loja.municipio]
+    return lojas.filter((loja) => {
+      const valores = [loja.nomeComercial, loja.descricaoPublica, loja.segmento, loja.tipo, loja.provincia, loja.municipio, ...(loja.categorias ?? [])]
         .filter(Boolean)
-        .some((valor) => String(valor).toLowerCase().includes(termo))
-    );
-  }, [busca, lojas]);
+        .map((valor) => String(valor).toLowerCase());
+      const correspondeBusca = !termo || valores.some((valor) => valor.includes(termo));
+      const correspondeFiltro = filtroRapido === "Todas" || valores.some((valor) => valor.includes(filtroRapido.toLowerCase()));
+      return correspondeBusca && correspondeFiltro;
+    });
+  }, [busca, filtroRapido, lojas]);
 
   return (
-    <main className="bizy-market-page market-commerce-page market-stores-directory min-h-[100dvh] bg-[#faf8f4] text-neutral-950">
-      <CabecalhoMarketComercial
+    <main className="bizy-market-page market-commerce-page market-public-page market-stores-directory">
+      <CabecalhoMarket
         busca={busca}
         categoriaSelecionada=""
         categorias={[]}
@@ -470,8 +453,16 @@ export function PaginaDiretorioLojasMarket() {
         <h1>Lojas no Bizy</h1>
         <p>{carregando ? "A carregar fornecedores" : `${lojasFiltradas.length} lojas ativas encontradas no shopping center`}</p>
         <div className="market-directory-chips" aria-label="Filtros rápidos de lojas">
-          {["Todas", "Moda", "Beleza", "Tecnologia", "Luanda", "Verificadas"].map((chip, indice) => (
-            <span key={chip} className={indice === 0 ? "is-active" : ""}>{chip}</span>
+          {["Todas", "Moda", "Beleza", "Tecnologia", "Luanda"].map((chip) => (
+            <button
+              key={chip}
+              type="button"
+              className={filtroRapido === chip ? "is-active" : ""}
+              onClick={() => setFiltroRapido(chip)}
+              aria-pressed={filtroRapido === chip}
+            >
+              {chip}
+            </button>
           ))}
         </div>
       </section>
@@ -523,118 +514,7 @@ export function PaginaDiretorioLojasMarket() {
       </section>
 
       <RodapeMarket />
-
-      <NativeBottomNav
-        activePillId="bizy-market-stores-bottom-nav"
-        className="lp-nav market-bottom-nav"
-        label="Navegação do diretório de lojas"
-        items={[
-          { id: "inicio", label: "Início", icon: Home, onClick: () => navigate("/") },
-          { id: "market", label: "Market", icon: Compass, onClick: () => navigate(ROTAS_LOJAS.market) },
-          { id: "lojas", label: "Lojas", icon: Store, active: true, onClick: () => navigate(ROTAS_LOJAS.lojasMarket) },
-          { id: "sacola", label: "Comprar", icon: ShoppingBag, variant: "cta", onClick: () => navigate(ROTAS_LOJAS.checkout) }
-        ]}
-      />
     </main>
-  );
-}
-
-function CabecalhoMarketComercial({
-  busca,
-  categoriaSelecionada,
-  categorias,
-  onBusca,
-  onCategoria,
-  onLimpar,
-  placeholder = "Buscar produtos, lojas e categorias"
-}: {
-  busca: string;
-  categoriaSelecionada: string;
-  categorias: CategoriaMarket[];
-  onBusca: (valor: string) => void;
-  onCategoria: (categoria: string) => void;
-  onLimpar: () => void;
-  placeholder?: string;
-}) {
-  const departamentos = categorias.length ? categorias.slice(0, 6).map((categoria) => categoria.categoria) : DEPARTAMENTOS_MARKET;
-
-  return (
-    <header className="market-ecom-shell" aria-label="Cabeçalho do Bizy Market">
-      <div className="market-util util" aria-label="Benefícios do Bizy Market">
-        <span className="l"><Truck size={14} />Fornecedor visível · checkout unificado · preços em Kz</span>
-        <span className="r"><span>Vender no Bizy</span><span>Acompanhar pedido</span><span>Ajuda</span><span>PT · Kz</span></span>
-      </div>
-
-      <div className="market-ecom-header hd2">
-        <Link to={ROTAS_LOJAS.market} className="market-brand-lockup" aria-label="Abrir Bizy Market">
-          <span className="market-wordmark-text wm">bizy<span className="dot">.</span></span>
-          <span className="market-tag mtag">Market</span>
-        </Link>
-
-        <form className="market-ecom-search searchbar" role="search" onSubmit={(evento) => evento.preventDefault()}>
-          <span className="market-ecom-search-dept catsel">
-            Todas as categorias
-            <ChevronDown size={14} />
-          </span>
-          <Search className="market-ecom-search-icon" size={18} aria-hidden="true" />
-          <input
-            aria-label="Buscar no Bizy Market"
-            value={busca}
-            onChange={(evento) => onBusca(evento.target.value)}
-            placeholder={categoriaSelecionada ? `Buscar em ${categoriaSelecionada}` : placeholder}
-          />
-          {busca && (
-            <button type="button" className="market-ecom-clear" onClick={onLimpar} aria-label="Limpar busca e filtros">
-              <X size={15} />
-            </button>
-          )}
-          <button type="submit" className="market-ecom-submit go">
-            <Search size={15} />
-            Buscar
-          </button>
-        </form>
-
-        <div className="market-ecom-actions" aria-label="Ações rápidas">
-          <Link to={ROTAS_LOJAS.lojasMarket} className="market-action-icon act" aria-label="Abrir lojas">
-            <Store size={20} />
-            <span>Lojas</span>
-          </Link>
-          <Link to={ROTAS_LOJAS.checkout} className="market-action-icon act" aria-label="Abrir sacola">
-            <ShoppingBag size={20} />
-            <span>Sacola</span>
-          </Link>
-          <Link to="/login" className="market-action-icon act" aria-label="Abrir conta">
-            <User size={20} />
-            <span>Conta</span>
-          </Link>
-        </div>
-      </div>
-
-      <nav className="market-ecom-dept dept" aria-label="Departamentos do Market">
-        <button type="button" className="market-ecom-menu all">
-          <Menu size={16} />
-          Todas as categorias
-        </button>
-        <button type="button" className={!categoriaSelecionada ? "is-active" : ""} onClick={onLimpar}>
-          Início
-        </button>
-        {departamentos.map((departamento) => (
-          <button
-            key={departamento}
-            type="button"
-            className={categoriaSelecionada === departamento ? "is-active" : ""}
-            onClick={() => onCategoria(departamento)}
-          >
-            {departamento}
-          </button>
-        ))}
-        <span className="market-dept-special sp">
-          <button type="button" className="fire" onClick={() => onCategoria(departamentos[0] ?? "Promoções")}>Promoções</button>
-          <button type="button" className="nw" onClick={() => onCategoria(departamentos[1] ?? "Novidades")}>Novidades</button>
-          <Link to={ROTAS_LOJAS.lojasMarket}>Lojas</Link>
-        </span>
-      </nav>
-    </header>
   );
 }
 
@@ -694,19 +574,33 @@ function SecaoProdutosEmDestaque({ produtos }: { produtos: ProdutoMarketNormaliz
 
 function SecaoCategoriasMarket({
   categorias,
+  produtos,
   onCategoria
 }: {
   categorias: CategoriaMarket[];
+  produtos: ProdutoMarketNormalizado[];
   onCategoria: (categoria: string) => void;
 }) {
-  const tiles = categorias.length
-    ? categorias.slice(0, 6).map((categoria, indice) => ({
-      titulo: categoria.categoria,
-      subtitulo: `${categoria.total} produto${categoria.total === 1 ? "" : "s"} no Market`,
-      acento: CATEGORIAS_EDITORIAIS[indice % CATEGORIAS_EDITORIAIS.length].acento,
-      icone: CATEGORIAS_EDITORIAIS[indice % CATEGORIAS_EDITORIAIS.length].icone
-    }))
-    : CATEGORIAS_EDITORIAIS;
+  const categoriasPorNome = new Map(categorias.map((categoria) => [categoria.categoria.toLowerCase(), categoria]));
+  const nomes = Array.from(new Set([
+    ...categorias.map((categoria) => categoria.categoria),
+    ...CATEGORIAS_EDITORIAIS.map((categoria) => categoria.titulo)
+  ])).slice(0, 6);
+  const tiles = nomes.map((titulo, indice) => {
+    const categoria = categoriasPorNome.get(titulo.toLowerCase());
+    const editorial = CATEGORIAS_EDITORIAIS.find((item) => item.titulo.toLowerCase() === titulo.toLowerCase())
+      ?? CATEGORIAS_EDITORIAIS[indice % CATEGORIAS_EDITORIAIS.length];
+    const produtoRepresentativo = produtos.find((produto) => produto.categoria.toLowerCase() === titulo.toLowerCase() && produto.fotoPrincipal);
+    return {
+      titulo,
+      subtitulo: categoria
+        ? `${categoria.total} produto${categoria.total === 1 ? "" : "s"} disponíveis`
+        : editorial.subtitulo,
+      acento: editorial.acento,
+      icone: editorial.icone,
+      imagem: produtoRepresentativo?.fotoPrincipal ?? ""
+    };
+  });
 
   return (
     <section className="market-category-tiles" aria-label="Categorias em destaque">
@@ -723,48 +617,19 @@ function SecaoCategoriasMarket({
             className={`market-category-tile accent-${tile.acento}`}
             onClick={() => onCategoria(tile.titulo)}
           >
-            <span className="market-category-icon" aria-hidden="true"><Icone size={22} /></span>
-            <span className="market-category-name">{tile.titulo}</span>
-            <strong>{tile.subtitulo}</strong>
+            <span className="market-category-media" aria-hidden="true">
+              {tile.imagem ? <img src={tile.imagem} alt="" /> : <Icone size={22} />}
+            </span>
+            <span className="market-category-copy">
+              <span className="market-category-name">{tile.titulo}</span>
+              <strong>{tile.subtitulo}</strong>
+            </span>
+            <ArrowRight size={15} aria-hidden="true" />
           </button>
         );
         })}
       </div>
     </section>
-  );
-}
-
-function RodapeMarket() {
-  const ano = new Date().getFullYear();
-  return (
-    <footer className="market-ecom-footer market-footer-v2">
-      <div className="market-footer-top">
-        <div className="market-footer-brand">
-          <Link to={ROTAS_LOJAS.market} className="market-brand-lockup">
-            <span className="market-wordmark-text wm">bizy<span className="dot">.</span></span>
-            <span className="market-tag mtag">Market</span>
-          </Link>
-          <p>O shopping digital de Angola — lojas independentes, catálogo próprio e compra segura Bizy.</p>
-        </div>
-        <div className="market-footer-cols">
-          <div className="market-footer-col">
-            <strong>Explorar</strong>
-            <Link to={ROTAS_LOJAS.lojasMarket}>Lojas</Link>
-            <Link to={ROTAS_LOJAS.market}>Produtos</Link>
-            <Link to={ROTAS_LOJAS.checkout}>Finalizar compra</Link>
-          </div>
-          <div className="market-footer-col">
-            <strong>Para vendedores</strong>
-            <Link to="/login">Vender no Bizy</Link>
-            <Link to="/onboarding">Criar loja</Link>
-          </div>
-        </div>
-      </div>
-      <div className="market-footer-bottom">
-        <span>&copy; {ano} Bizy. Todos os direitos reservados.</span>
-        <span>Luanda, Angola</span>
-      </div>
-    </footer>
   );
 }
 
@@ -777,195 +642,7 @@ function FiltroCampo({ label, onChange, value, tipo = "text" }: { label: string;
   );
 }
 
-function CartaoProdutoMarket({ produto }: { produto: ProdutoMarketNormalizado }) {
-  // Prova social no Market deve vir do backend; na ausência dela, mostramos apenas sinais reais.
-  const seloPrincipal = produto.selos.find((selo) => selo !== "PATROCINADO");
-  return (
-    <article className="market-product-card">
-      <Link to={produto.urlMarket} className="market-product-media" aria-label={`Ver ${produto.nome}`}>
-        {produto.fotoPrincipal ? <img src={produto.fotoPrincipal} alt={produto.nome} /> : <Package size={34} />}
-        <span className="market-product-favorite" aria-hidden="true"><Heart size={14} /></span>
-        {produto.descontoPercentual && <span>-{produto.descontoPercentual}%</span>}
-        {produto.selos?.includes("PATROCINADO") && <span className="market-product-sponsored">Patrocinado</span>}
-      </Link>
-      <div className="market-product-body">
-        <Link to={produto.urlMarket} className="market-product-name">{produto.nome}</Link>
-        <div className="market-product-price">
-          <strong>{formatarKwanza(produto.precoFinalEmKwanza)}</strong>
-          {produto.precoAntigoEmKwanza && <span>{formatarKwanza(produto.precoAntigoEmKwanza)}</span>}
-        </div>
-        <div className="market-product-signal" aria-label="Sinais reais do produto">
-          {seloPrincipal ? (
-            <span><Tags size={13} />{formatarSeloProdutoMarket(seloPrincipal)}</span>
-          ) : (
-            <span><ShieldCheck size={13} />Fornecedor identificado</span>
-          )}
-          {produto.emPromocao && <span>Promoção</span>}
-        </div>
-        <Link to={produto.urlLoja} className="market-product-supplier">
-          <Store size={13} />
-          <span>{produto.nomeFornecedor}</span>
-        </Link>
-        <div className="market-product-meta">
-          <span className={produto.quantidade > 3 ? "is-stocked" : "is-low"}>
-            <i />
-            {produto.quantidade > 3 ? "Em stock" : produto.quantidade > 0 ? `Restam ${produto.quantidade}` : "Sob consulta"}
-          </span>
-          <span>
-            <MapPin size={11} />
-            {produto.fornecedor.localizacao || "Angola"}
-          </span>
-        </div>
-      </div>
-    </article>
-  );
-}
-
 export function PaginaLojaMarket() {
   const { slug = "" } = useParams<{ slug: string }>();
-  const navigate = useNavigate();
-  const [loja, setLoja] = useState<LojaMarket | null>(null);
-  const [produtos, setProdutos] = useState<ProdutoMarketNormalizado[]>([]);
-  const [erro, setErro] = useState("");
-  const [carregando, setCarregando] = useState(true);
-
-  useEffect(() => {
-    let ativo = true;
-
-    let limparSeo = () => {};
-
-    async function carregar() {
-      setCarregando(true);
-      setErro("");
-      try {
-        const resposta = await obterLojaMarket(slug);
-        if (!ativo) return;
-        setLoja(resposta.loja ?? null);
-        setProdutos((resposta.produtos ?? []).map(normalizarProdutoMarket));
-        limparSeo = aplicarSeoMetaTags(resposta.seo ?? montarSeoPublico({
-          titulo: `${resposta.loja?.nomeComercial ?? slug} | Bizy Market`,
-          descricao: resposta.loja?.descricaoPublica ?? "Loja publicada no Bizy Market com produtos, stock e fornecedor visível.",
-          canonicalPath: `/market/lojas/${encodeURIComponent(resposta.loja?.slug ?? slug)}`,
-          imagem: resposta.loja?.logoUrl ?? resposta.loja?.capaUrl ?? IMAGEM_SEO_MARKET
-        }));
-      } catch (falha) {
-        if (!ativo) return;
-        setErro(falha instanceof Error ? falha.message : "Não foi possível carregar a loja.");
-      } finally {
-        if (ativo) setCarregando(false);
-      }
-    }
-
-    if (slug) void carregar();
-    return () => { ativo = false; limparSeo(); };
-  }, [slug]);
-
-  const localizacao = [loja?.municipio, loja?.provincia].filter(Boolean).join(", ");
-
-  return (
-    <main className="bizy-market-page market-commerce-page min-h-[100dvh] bg-[#faf8f4] text-neutral-950">
-      <CabecalhoMarketComercial
-        busca=""
-        categoriaSelecionada=""
-        categorias={[]}
-        onBusca={() => {}}
-        onCategoria={(categoria) => navigate(ROTAS_LOJAS.categoriaMarket(categoria))}
-        onLimpar={() => {}}
-      />
-
-      {carregando && (
-        <section className="market-store-profile-skeleton" aria-busy="true">
-          <div className="market-store-cover market-store-skeleton" style={{ height: 180 }} />
-          <div style={{ padding: "24px 16px", display: "flex", flexDirection: "column", gap: 12 }}>
-            <div className="market-store-skeleton" style={{ width: 120, height: 20, borderRadius: 8 }} />
-            <div className="market-store-skeleton" style={{ width: 200, height: 14, borderRadius: 6 }} />
-          </div>
-        </section>
-      )}
-
-      {erro && (
-        <section className="market-empty-state" role="alert" style={{ marginTop: 48 }}>
-          <Store size={34} />
-          <strong>Loja não encontrada</strong>
-          <span>{erro}</span>
-          <button type="button" className="market-btn-outline" onClick={() => navigate(ROTAS_LOJAS.lojasMarket)}>
-            Ver todas as lojas
-          </button>
-        </section>
-      )}
-
-      {!carregando && !erro && loja && (
-        <>
-          <section className="market-store-profile-hero">
-            <div className="market-store-cover" style={loja.capaUrl ? { backgroundImage: `url(${loja.capaUrl})` } : undefined} />
-            <div className="market-store-profile-info">
-              <span className="market-store-avatar market-store-avatar-lg">
-                {loja.logoUrl ? <img src={loja.logoUrl} alt="" /> : <Store size={28} />}
-              </span>
-              <div>
-                <h1>{loja.nomeComercial}</h1>
-                {loja.descricaoPublica && <p>{loja.descricaoPublica}</p>}
-                <div className="market-store-meta-row">
-                  {localizacao && <span><MapPin size={13} />{localizacao}</span>}
-                  {loja.segmento && <span>{loja.segmento}</span>}
-                  <span><Package size={13} />{loja.totalProdutos} produto{loja.totalProdutos === 1 ? "" : "s"}</span>
-                </div>
-              </div>
-              <Link to={loja.slug ? `/lojas/${loja.slug}` : "#"} className="market-btn-outline">
-                Ver perfil completo
-                <ArrowRight size={15} />
-              </Link>
-            </div>
-          </section>
-
-          {(loja.categorias ?? []).length > 0 && (
-            <section className="market-store-cats" aria-label="Categorias desta loja">
-              {loja.categorias.map((categoria) => (
-                <button
-                  key={categoria}
-                  type="button"
-                  className="market-chip"
-                  onClick={() => navigate(ROTAS_LOJAS.categoriaMarket(categoria))}
-                >
-                  {categoria}
-                </button>
-              ))}
-            </section>
-          )}
-
-          <section className="market-main-products" aria-label={`Produtos de ${loja.nomeComercial}`}>
-            <div className="market-section-title">
-              <span>Produtos no Market</span>
-              <strong>{produtos.length} produto{produtos.length === 1 ? "" : "s"} publicados por {loja.nomeComercial}</strong>
-            </div>
-            {produtos.length > 0 ? (
-              <div className="market-product-grid">
-                {produtos.map((produto) => <CartaoProdutoMarket key={`${produto.slugLoja}-${produto.codigo}`} produto={produto} />)}
-              </div>
-            ) : (
-              <div className="market-empty-state">
-                <Package size={28} />
-                <strong>Nenhum produto publicado</strong>
-                <span>Esta loja ainda não tem produtos no Bizy Market.</span>
-              </div>
-            )}
-          </section>
-        </>
-      )}
-
-      <RodapeMarket />
-
-      <NativeBottomNav
-        activePillId="bizy-market-store-profile-nav"
-        className="lp-nav market-bottom-nav"
-        label="Navegação do perfil da loja"
-        items={[
-          { id: "inicio", label: "Início", icon: Home, onClick: () => navigate("/") },
-          { id: "market", label: "Market", icon: Compass, onClick: () => navigate(ROTAS_LOJAS.market) },
-          { id: "lojas", label: "Lojas", icon: Store, onClick: () => navigate(ROTAS_LOJAS.lojasMarket) },
-          { id: "sacola", label: "Comprar", icon: ShoppingBag, variant: "cta", onClick: () => navigate(ROTAS_LOJAS.checkout) }
-        ]}
-      />
-    </main>
-  );
+  return <Navigate replace to={slug ? ROTAS_LOJAS.loja(slug) : ROTAS_LOJAS.lojasMarket} />;
 }

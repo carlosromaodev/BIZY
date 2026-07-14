@@ -3,6 +3,7 @@ import ReactDOM from "react-dom/client";
 import { App } from "./App";
 import "@fontsource-variable/geist";
 import "./estilos.css";
+import "./projetos/market/market.css";
 import { aplicarIdentidadeBizy } from "./marca/bizy";
 
 aplicarIdentidadeBizy();

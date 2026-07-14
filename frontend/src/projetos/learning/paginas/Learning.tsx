@@ -38,7 +38,7 @@ import {
 import type { LucideIcon } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import type { FormEvent } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useLocation, useParams } from "react-router-dom";
 import { motion, useReducedMotion } from "motion/react";
 import "../learning.css";
 import { CrmPageMotion } from "../../../componentes/CrmInterno21st";
@@ -103,6 +103,12 @@ import {
   type TipoPostComunidadeLearning
 } from "../api";
 import { aplicarSeoMetaTags, montarSeoPublico } from "../../../utilidades";
+import { LogoBizy } from "../../../marca/bizy";
+import {
+  AtalhosLearningTeam,
+  NavegacaoLearningTeam,
+  resolverAreaLearningTeam
+} from "../team/LearningTeamNavigation";
 
 const PERFIS_PADRAO = ["DONO", "ADMIN", "GESTOR", "VENDEDOR", "ATENDENTE", "FINANCEIRO", "AFILIADO", "CRIADOR"];
 const CATEGORIAS_PADRAO = ["Team", "Market", "Atendimento", "Financas", "Afiliados", "Criadores"];
@@ -211,7 +217,7 @@ export function PaginaLearning() {
           <span style={{ fontSize: "12px", color: "var(--learn-ink-3)", textTransform: "uppercase", fontWeight: 600 }}>
             Explorar / <b>{categoria || (formato === "CURSO" ? "Cursos" : formato === "MENTORIA" ? "Mentorias" : formato === "COHORT" ? "Turmas ao Vivo" : formato)}</b>
           </span>
-          <h1 style={{ fontSize: "28px", fontWeight: 800, marginTop: "8px", color: "var(--learn-ink)" }}>
+          <h1 style={{ fontSize: "28px", fontWeight: 700, marginTop: "8px", color: "var(--learn-ink)" }}>
             {categoria || (formato === "CURSO" ? "Cursos Práticos" : formato === "MENTORIA" ? "Mentorias Individuais" : formato === "COHORT" ? "Turmas ao Vivo" : formato)}
           </h1>
           <p style={{ fontSize: "14px", color: "var(--learn-ink-2)", marginTop: "4px" }}>
@@ -532,7 +538,7 @@ export function PaginaPerfilLearning() {
               <BriefcaseBusiness size={14} />
               Especialista
             </span>
-            <h1 className="mt-5 text-4xl font-extrabold text-white sm:text-5xl leading-tight">
+            <h1 className="mt-5 text-4xl font-bold text-white sm:text-5xl leading-tight">
               {carregando ? "A carregar perfil..." : perfil?.nomePublico ?? "Perfil Learning"}
             </h1>
             <p className="mt-4 text-base leading-relaxed text-white/80 sm:text-lg">
@@ -553,20 +559,20 @@ export function PaginaPerfilLearning() {
           </div>
           <div className="grid grid-cols-2 gap-3 sm:max-w-lg lg:ml-auto w-full">
             <div className="learn-stat-card" style={{ background: "rgba(255, 255, 255, 0.08)", borderColor: "rgba(255, 255, 255, 0.1)", color: "#fff" }}>
-              <strong className="block text-2xl font-black text-white">{perfil?.metricas.programas ?? 0}</strong>
-              <span className="mt-1 block text-[10px] font-bold uppercase tracking-wider text-white/70">Programas</span>
+              <strong className="block text-2xl font-bold text-white">{perfil?.metricas.programas ?? 0}</strong>
+              <span className="mt-1 block text-[10px] font-bold uppercase tracking-normal text-white/70">Programas</span>
             </div>
             <div className="learn-stat-card" style={{ background: "rgba(255, 255, 255, 0.08)", borderColor: "rgba(255, 255, 255, 0.1)", color: "#fff" }}>
-              <strong className="block text-2xl font-black text-white">{perfil?.metricas.pagos ?? 0}</strong>
-              <span className="mt-1 block text-[10px] font-bold uppercase tracking-wider text-white/70">Premium</span>
+              <strong className="block text-2xl font-bold text-white">{perfil?.metricas.pagos ?? 0}</strong>
+              <span className="mt-1 block text-[10px] font-bold uppercase tracking-normal text-white/70">Premium</span>
             </div>
             <div className="learn-stat-card" style={{ background: "rgba(255, 255, 255, 0.08)", borderColor: "rgba(255, 255, 255, 0.1)", color: "#fff" }}>
-              <strong className="block text-2xl font-black text-white">{perfil?.metricas.comunidades ?? 0}</strong>
-              <span className="mt-1 block text-[10px] font-bold uppercase tracking-wider text-white/70">Grupos</span>
+              <strong className="block text-2xl font-bold text-white">{perfil?.metricas.comunidades ?? 0}</strong>
+              <span className="mt-1 block text-[10px] font-bold uppercase tracking-normal text-white/70">Grupos</span>
             </div>
             <div className="learn-stat-card" style={{ background: "rgba(255, 255, 255, 0.08)", borderColor: "rgba(255, 255, 255, 0.1)", color: "#fff" }}>
-              <strong className="block text-2xl font-black text-white">{perfil?.metricas.minutos ? `${Math.round(perfil.metricas.minutos / 60)}h` : "0h"}</strong>
-              <span className="mt-1 block text-[10px] font-bold uppercase tracking-wider text-white/70">Aulas</span>
+              <strong className="block text-2xl font-bold text-white">{perfil?.metricas.minutos ? `${Math.round(perfil.metricas.minutos / 60)}h` : "0h"}</strong>
+              <span className="mt-1 block text-[10px] font-bold uppercase tracking-normal text-white/70">Aulas</span>
             </div>
           </div>
         </div>
@@ -595,8 +601,8 @@ export function PaginaPerfilLearning() {
         <div className="bg-white border border-neutral-200 p-6">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <span className="text-[11px] font-bold text-neutral-400 uppercase tracking-wide">Canais de Ajuda</span>
-              <h3 className="text-lg font-extrabold text-neutral-900 mt-1">Esclarece as tuas dúvidas diretamente com o mentor</h3>
+              <span className="text-[11px] font-bold text-neutral-400 uppercase tracking-normal">Canais de Ajuda</span>
+              <h3 className="text-lg font-bold text-neutral-900 mt-1">Esclarece as tuas dúvidas diretamente com o mentor</h3>
             </div>
             <div className="flex flex-wrap gap-2">
               {(canaisSuporte.length ? canaisSuporte : ["Plataforma", "Comunidade", "E-mail"]).map((canal) => (
@@ -648,6 +654,8 @@ export function PaginaPerfilLearning() {
 }
 
 export function PaginaLearningTeam() {
+  const location = useLocation();
+  const area = resolverAreaLearningTeam(location.pathname);
   const [dados, setDados] = useState<ResumoLearningTeamResposta | null>(null);
   const [erro, setErro] = useState("");
   const [carregando, setCarregando] = useState(true);
@@ -1098,13 +1106,31 @@ export function PaginaLearningTeam() {
     }))
   );
   const opcoesModeracao = opcoesAlvoModeracao(moderacaoForm.alvoTipo, programas, dados?.comunidades ?? [], postsModeraveis, dados?.certificados ?? []);
+  const contextoArea = {
+    "visao-geral": ["Learning", "Estado operacional e acessos rápidos do Learning."],
+    programas: ["Programas", "Criação, publicação e gestão do catálogo formativo."],
+    conteudos: ["Conteúdos", "Lições, progresso e estrutura dos programas."],
+    pessoas: ["Pessoas", "Atribuições, formação obrigatória e prazos."],
+    avaliacoes: ["Avaliações", "Perguntas, tentativas, pontuação e exportação."],
+    certificados: ["Certificados", "Credenciais emitidas, validade e verificação."],
+    turmas: ["Turmas", "Cohorts, sessões ao vivo, presenças e replays."],
+    comunidade: ["Comunidade", "Espaços, publicações e memberships."],
+    biblioteca: ["Biblioteca", "Materiais e programas de consulta ou download."],
+    relatorios: ["Relatórios", "Indicadores de adoção, receita e conclusão."],
+    chat: ["Chat", "Alinhamento interno por programa, turma ou comunidade."],
+    compras: ["Compras e acessos", "Pagamentos, documentos e entitlements Learning."],
+    configuracoes: ["Configurações", "Governança, moderação e regras operacionais."]
+  }[area];
+  const programasDaArea = area === "biblioteca"
+    ? programas.filter((programa) => ["DOWNLOAD", "BUNDLE", "MICROLEARNING"].includes(programa.formato))
+    : programas;
 
   return (
-    <CrmPageMotion>
+    <CrmPageMotion className="learning-team-page">
       <PageHead
         eyebrow="Bizy Learning · administração Team"
-        titulo="Learning"
-        descricao="Backoffice para perfis, donos de programa, publicação, inscrição e progresso. A home pública continua separada em /learning."
+        titulo={contextoArea[0]}
+        descricao={contextoArea[1]}
         tamanhoTitulo="sm"
       >
         <BotaoBizy icone={RefreshCcw} variante="secondary" onClick={() => void carregar()} disabled={carregando}>
@@ -1116,31 +1142,47 @@ export function PaginaLearningTeam() {
         </Link>
       </PageHead>
 
-      {erro && <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{erro}</div>}
+      <NavegacaoLearningTeam />
 
-      <KpiGrid>
-        <KpiCard hero icone={GraduationCap} rotulo="Programas" valor={metricas?.programas ?? "-"} delta={`${metricas?.publicados ?? 0} publicados`} deltaPositivo />
-        <KpiCard icone={CreditCard} cor="green" rotulo="Receita Learning" valor={formatarKwanzaCompacto(metricas?.receitaLearning ?? 0)} delta={`${metricas?.comprasConfirmadas ?? 0} compras`} deltaPositivo />
-        <KpiCard icone={Compass} cor="blue" rotulo="Views públicas" valor={metricas?.visualizacoesPublicas ?? "-"} />
-        <KpiCard icone={PlayCircle} cor="green" rotulo="Previews públicos" valor={metricas?.previewsPublicos ?? "-"} />
-        <KpiCard icone={ArrowRight} cor="amber" rotulo="CTAs Learning" valor={(metricas?.ctasCheckoutLearning ?? 0) + (metricas?.ctasInscricaoLearning ?? 0)} />
-        <KpiCard icone={LockKeyhole} cor="blue" rotulo="Acessos ativos" valor={metricas?.entitlementsAtivos ?? "-"} />
-        <KpiCard icone={BadgeCheck} cor="green" rotulo="Certificados" valor={metricas?.certificados ?? "-"} />
-        <KpiCard icone={UserPlus} cor="blue" rotulo="Atribuições" valor={metricas?.atribuicoesAtivas ?? "-"} />
-        <KpiCard icone={CalendarClock} cor="amber" rotulo="Obrigatórias" valor={metricas?.formacoesObrigatorias ?? "-"} />
-        <KpiCard icone={AlertTriangle} cor="amber" rotulo="Atrasadas" valor={metricas?.atribuicoesAtrasadas ?? "-"} />
-        <KpiCard icone={UsersRound} cor="blue" rotulo="Cohorts" valor={metricas?.cohortsAtivos ?? "-"} />
-        <KpiCard icone={UserCheck} cor="green" rotulo="Presenças" valor={metricas?.presencasCohorts ?? "-"} delta={`${metricas?.vagasCohorts ?? 0} vagas`} />
-        <KpiCard icone={PlayCircle} cor="green" rotulo="Replays" valor={metricas?.replaysDisponiveis ?? "-"} />
-        <KpiCard icone={MessageSquareText} cor="blue" rotulo="Comunidades" valor={metricas?.comunidadesAtivas ?? "-"} />
-        <KpiCard icone={Megaphone} cor="amber" rotulo="Posts" valor={metricas?.postsComunidade ?? "-"} delta={`${metricas?.perguntasComunidade ?? 0} perguntas`} />
-        <KpiCard icone={ShieldCheck} cor={(metricas?.casosModeracaoAbertos ?? 0) > 0 ? "rose" : "green"} rotulo="Moderação" valor={metricas?.casosModeracaoAbertos ?? "-"} delta={`${metricas?.conteudosOcultosLearning ?? 0} ocultos`} />
-        <KpiCard icone={Layers3} cor="amber" rotulo="Rascunhos" valor={metricas?.rascunhos ?? "-"} />
-        <KpiCard icone={UsersRound} cor="blue" rotulo="Inscrições" valor={metricas?.inscritos ?? "-"} />
-        <KpiCard icone={CheckCircle2} cor="green" rotulo="Concluídos" valor={metricas?.concluidos ?? "-"} />
-      </KpiGrid>
+      {erro && (
+        <div className="learning-team-feedback is-error" role="alert">
+          <span>{erro}</span>
+          <BotaoBizy variante="secondary" icone={RefreshCcw} onClick={() => void carregar()}>Tentar novamente</BotaoBizy>
+        </div>
+      )}
 
-      <PanelCard
+      {area === "visao-geral" && (
+        <>
+          <KpiGrid>
+            <KpiCard hero icone={GraduationCap} rotulo="Programas" valor={metricas?.programas ?? "-"} delta={`${metricas?.publicados ?? 0} publicados`} deltaPositivo />
+            <KpiCard icone={UsersRound} cor="blue" rotulo="Inscrições" valor={metricas?.inscritos ?? "-"} />
+            <KpiCard icone={CheckCircle2} cor="green" rotulo="Concluídos" valor={metricas?.concluidos ?? "-"} />
+            <KpiCard icone={LockKeyhole} cor="blue" rotulo="Acessos ativos" valor={metricas?.entitlementsAtivos ?? "-"} />
+            <KpiCard icone={AlertTriangle} cor="amber" rotulo="Atribuições atrasadas" valor={metricas?.atribuicoesAtrasadas ?? "-"} />
+            <KpiCard icone={ShieldCheck} cor={(metricas?.casosModeracaoAbertos ?? 0) > 0 ? "rose" : "green"} rotulo="Casos de moderação" valor={metricas?.casosModeracaoAbertos ?? "-"} />
+          </KpiGrid>
+          <AtalhosLearningTeam />
+        </>
+      )}
+
+      {area === "relatorios" && (
+        <KpiGrid>
+          <KpiCard hero icone={GraduationCap} rotulo="Programas" valor={metricas?.programas ?? "-"} delta={`${metricas?.publicados ?? 0} publicados`} deltaPositivo />
+          <KpiCard icone={CreditCard} cor="green" rotulo="Receita Learning" valor={formatarKwanzaCompacto(metricas?.receitaLearning ?? 0)} delta={`${metricas?.comprasConfirmadas ?? 0} compras`} deltaPositivo />
+          <KpiCard icone={Compass} cor="blue" rotulo="Visualizações públicas" valor={metricas?.visualizacoesPublicas ?? "-"} />
+          <KpiCard icone={PlayCircle} cor="green" rotulo="Pré-visualizações" valor={metricas?.previewsPublicos ?? "-"} />
+          <KpiCard icone={ArrowRight} cor="amber" rotulo="Conversões" valor={(metricas?.ctasCheckoutLearning ?? 0) + (metricas?.ctasInscricaoLearning ?? 0)} />
+          <KpiCard icone={BadgeCheck} cor="green" rotulo="Certificados" valor={metricas?.certificados ?? "-"} />
+          <KpiCard icone={UserPlus} cor="blue" rotulo="Atribuições ativas" valor={metricas?.atribuicoesAtivas ?? "-"} />
+          <KpiCard icone={UsersRound} cor="blue" rotulo="Turmas ativas" valor={metricas?.cohortsAtivos ?? "-"} />
+          <KpiCard icone={MessageSquareText} cor="blue" rotulo="Comunidades" valor={metricas?.comunidadesAtivas ?? "-"} />
+          <KpiCard icone={Layers3} cor="amber" rotulo="Rascunhos" valor={metricas?.rascunhos ?? "-"} />
+          <KpiCard icone={UsersRound} cor="blue" rotulo="Inscrições" valor={metricas?.inscritos ?? "-"} />
+          <KpiCard icone={CheckCircle2} cor="green" rotulo="Concluídos" valor={metricas?.concluidos ?? "-"} />
+        </KpiGrid>
+      )}
+
+      {area === "avaliacoes" && <PanelCard
         titulo="Avaliações"
         descricao="Banco nativo de perguntas, tentativas, pontuação e exportação interoperável."
       >
@@ -1189,9 +1231,9 @@ export function PaginaLearningTeam() {
             <BotaoBizy icone={Plus} tipo="submit" disabled={Boolean(acao) || carregando}>Criar avaliação</BotaoBizy>
           </form>
         </div>
-      </PanelCard>
+      </PanelCard>}
 
-      <PanelCard
+      {area === "chat" && <PanelCard
         titulo="Chat interno do Learning"
         descricao="Alinha decisões, tarefas, suporte e mentoria por produto digital sem misturar com WhatsApp ou atendimento externo."
       >
@@ -1299,9 +1341,9 @@ export function PaginaLearningTeam() {
             </div>
           </form>
         </div>
-      </PanelCard>
+      </PanelCard>}
 
-      <PanelCard
+      {area === "pessoas" && <PanelCard
         titulo="Atribuições e formação obrigatória"
         descricao="Transforma produto Learning em obrigação operacional do Team, com prazo, alvo e entitlement quando houver membro definido."
       >
@@ -1417,9 +1459,9 @@ export function PaginaLearningTeam() {
             )}
           </div>
         </div>
-      </PanelCard>
+      </PanelCard>}
 
-      <PanelCard
+      {area === "turmas" && <PanelCard
         titulo="Cohorts, lives e presenças"
         descricao="Abre turmas operacionais com vagas, sala, replay e presença ligada a acesso Learning."
       >
@@ -1619,9 +1661,9 @@ export function PaginaLearningTeam() {
             )}
           </div>
         </div>
-      </PanelCard>
+      </PanelCard>}
 
-      <PanelCard
+      {area === "comunidade" && <PanelCard
         titulo="Comunidades e memberships"
         descricao="Cria espaços de discussão, anúncios e materiais ligados a programas, cohorts ou memberships sem misturar com atendimento externo."
       >
@@ -1826,9 +1868,9 @@ export function PaginaLearningTeam() {
             )}
           </div>
         </div>
-      </PanelCard>
+      </PanelCard>}
 
-      <PanelCard
+      {area === "configuracoes" && <PanelCard
         titulo="Governança e moderação Learning"
         descricao="Regista denúncias, revisão humana, ocultação temporária e decisão auditável para produtos, comunidades, posts, mentores e certificados."
       >
@@ -2049,9 +2091,9 @@ export function PaginaLearningTeam() {
             )}
           </div>
         </div>
-      </PanelCard>
+      </PanelCard>}
 
-      <PanelCard
+      {area === "programas" && <PanelCard
         titulo="Criar programa administrado pelo Team"
         descricao="Define perfil dono, perfis-alvo, formato e primeira lição aplicável ao Bizy."
         acaoTexto={dados?.podeAdministrar ? undefined : "Sem permissão"}
@@ -2195,15 +2237,15 @@ export function PaginaLearningTeam() {
             />
           </label>
         </form>
-      </PanelCard>
+      </PanelCard>}
 
-      <PanelCard
-        titulo="Programas, publicação e progresso"
-        descricao="Tudo aqui administra o Learning; o Team não é consumidor passivo, é o backoffice operacional."
+      {["programas", "conteudos", "biblioteca"].includes(area) && <PanelCard
+        titulo={area === "conteudos" ? "Lições e progresso" : area === "biblioteca" ? "Biblioteca Learning" : "Programas, publicação e progresso"}
+        descricao={area === "biblioteca" ? "Materiais de consulta, downloads e conjuntos de conteúdo disponíveis." : "Gestão operacional do catálogo, da estrutura e do progresso."}
       >
         <div className="grid gap-3">
           {carregando && Array.from({ length: 4 }).map((_, index) => <div key={index} className="h-32 animate-pulse rounded-lg bg-muted" />)}
-          {!carregando && programas.map((programa) => (
+          {!carregando && programasDaArea.map((programa) => (
             <article key={programa.slug} className="rounded-lg border bg-background p-4">
               <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(220px,0.32fr)] lg:items-start">
                 <div className="min-w-0">
@@ -2222,6 +2264,14 @@ export function PaginaLearningTeam() {
                   </div>
                   <h3 className="mt-3 text-base font-semibold text-foreground">{programa.titulo}</h3>
                   <p className="mt-1 max-w-3xl text-sm leading-6 text-muted-foreground">{programa.subtitulo}</p>
+                  {area === "conteudos" && (
+                    <div className="learning-team-lessons" aria-label={`Lições de ${programa.titulo}`}>
+                      {programa.licoes.slice(0, 5).map((licao, indice) => (
+                        <span key={licao.id}><b>{indice + 1}</b>{licao.titulo}</span>
+                      ))}
+                      {!programa.licoes.length && <span>Nenhuma lição configurada.</span>}
+                    </div>
+                  )}
                   <div className="mt-3 flex flex-wrap gap-2 text-xs text-muted-foreground">
                     <span className="inline-flex items-center gap-1"><BriefcaseBusiness size={13} /> Owner {programa.ownerPerfil}</span>
                     <span className="inline-flex items-center gap-1"><Clock3 size={13} /> {programa.duracaoMinutos} min</span>
@@ -2267,10 +2317,42 @@ export function PaginaLearningTeam() {
               </div>
             </article>
           ))}
+          {!carregando && !programasDaArea.length && (
+            <div className="learning-team-empty">
+              <BookOpenCheck size={22} aria-hidden="true" />
+              <strong>Nenhum conteúdo nesta área</strong>
+              <span>Publique um programa compatível para o tornar disponível aqui.</span>
+            </div>
+          )}
         </div>
-      </PanelCard>
+      </PanelCard>}
 
-      <PanelCard
+      {area === "certificados" && <PanelCard
+        titulo="Certificados emitidos"
+        descricao="Credenciais verificáveis e respetivo estado de validade."
+      >
+        <div className="learning-team-record-list">
+          {(dados?.certificados ?? []).map((certificado) => (
+            <article key={certificado.id} className="learning-team-record">
+              <BadgeCheck size={18} aria-hidden="true" />
+              <div>
+                <strong>{programas.find((programa) => programa.slug === certificado.programaSlug)?.titulo ?? certificado.programaSlug}</strong>
+                <span>Emitido em {formatarDataCurta(certificado.emitidoEm)} · código {certificado.codigoVerificacao}</span>
+              </div>
+              <StatusBadge cor={certificado.estado === "VALIDO" ? "green" : "mute"}>{certificado.estado.toLowerCase()}</StatusBadge>
+            </article>
+          ))}
+          {!(dados?.certificados ?? []).length && (
+            <div className="learning-team-empty">
+              <BadgeCheck size={22} aria-hidden="true" />
+              <strong>Nenhum certificado emitido</strong>
+              <span>Os certificados aparecem quando uma pessoa conclui um programa elegível.</span>
+            </div>
+          )}
+        </div>
+      </PanelCard>}
+
+      {area === "compras" && <PanelCard
         titulo="Compras digitais e acessos"
         descricao="Checkout Learning gera compra, documento, origem financeira e entitlement rastreável."
       >
@@ -2352,7 +2434,7 @@ export function PaginaLearningTeam() {
             </div>
           </div>
         </div>
-      </PanelCard>
+      </PanelCard>}
     </CrmPageMotion>
   );
 }
@@ -2361,7 +2443,7 @@ function MetricHero({ rotulo, valor }: { rotulo: string; valor: number | string 
   return (
     <div className="rounded-lg border border-white/18 bg-white/12 p-4 text-white backdrop-blur">
       <strong className="block text-2xl font-semibold">{valor}</strong>
-      <span className="mt-1 block text-xs font-medium uppercase tracking-[0.08em] text-white/62">{rotulo}</span>
+      <span className="mt-1 block text-xs font-medium uppercase tracking-normal text-white/62">{rotulo}</span>
     </div>
   );
 }
@@ -2380,7 +2462,7 @@ function SinalLearning({
       <span className="inline-flex size-10 items-center justify-center bg-neutral-100 text-neutral-700 mb-3">
         <Icone size={18} />
       </span>
-      <h3 className="text-sm font-extrabold text-neutral-900">{titulo}</h3>
+      <h3 className="text-sm font-bold text-neutral-900">{titulo}</h3>
       <p className="mt-2 text-xs leading-relaxed text-neutral-500">{texto}</p>
     </div>
   );
@@ -2410,13 +2492,13 @@ function FamiliaLearningPublica({
       <span className="inline-flex size-10 items-center justify-center bg-white/10 text-white mb-3">
         <Icone size={18} />
       </span>
-      <h3 className="text-sm font-extrabold text-white">{familia}</h3>
+      <h3 className="text-sm font-bold text-white">{familia}</h3>
       <p className="mt-2 text-xs leading-5 text-white/70">
         Programa didático estruturado com progresso rastreável, regras claras e apoio.
       </p>
       <div className="mt-4 flex items-center justify-between gap-3 text-xs text-white/50 border-t border-white/10 pt-3">
         <span>{totalProdutos || "Novo"} produto(s)</span>
-        <span className="font-semibold uppercase tracking-wider text-white/40">Learning</span>
+        <span className="font-semibold uppercase tracking-normalr text-white/40">Learning</span>
       </div>
     </article>
   );
@@ -2442,26 +2524,6 @@ function obterIconeFormato(formato: FormatoProgramaLearning): LucideIcon {
     COHORT: UsersRound
   };
   return icones[formato] || BookOpenCheck;
-}
-
-function obterGradienteFormato(formato: FormatoProgramaLearning): string {
-  const gradientes: Record<FormatoProgramaLearning, string> = {
-    CURSO: "linear-gradient(135deg, #0e8c68 0%, #075e44 100%)",
-    MICROLEARNING: "linear-gradient(135deg, #10b981 0%, #047857 100%)",
-    LIVE: "linear-gradient(135deg, #ef4444 0%, #b91c1c 100%)",
-    WORKSHOP: "linear-gradient(135deg, #f59e0b 0%, #b45309 100%)",
-    MENTORIA: "linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)",
-    CERTIFICACAO: "linear-gradient(135deg, #8b5cf6 0%, #5d33a6 100%)",
-    COMUNIDADE: "linear-gradient(135deg, #ec4899 0%, #be185d 100%)",
-    MEMBERSHIP: "linear-gradient(135deg, #14b8a6 0%, #0f766e 100%)",
-    BUNDLE: "linear-gradient(135deg, #6366f1 0%, #4338ca 100%)",
-    TRILHO: "linear-gradient(135deg, #64748b 0%, #334155 100%)",
-    TRILHA: "linear-gradient(135deg, #64748b 0%, #334155 100%)",
-    ACADEMIA: "linear-gradient(135deg, #0f172a 0%, #020617 100%)",
-    DOWNLOAD: "linear-gradient(135deg, #22c55e 0%, #15803d 100%)",
-    COHORT: "linear-gradient(135deg, #a855f7 0%, #7e22ce 100%)"
-  };
-  return gradientes[formato] || "linear-gradient(135deg, #0e8c68 0%, #075e44 100%)";
 }
 
 function CabecalhoLearningComercial({
@@ -2507,7 +2569,7 @@ function CabecalhoLearningComercial({
 
       <div className="learn-navbar">
         <Link to="/learning" className="learn-brand" aria-label="Abrir Bizy Learning">
-          <span className="learn-brand-text">bizy<span className="dot">.</span></span>
+          <LogoBizy className="learn-brand-logo" titulo="Bizy" />
           <span className="learn-brand-tag">Learning</span>
         </Link>
 
@@ -2649,14 +2711,12 @@ function PerfilLearningPublicoCard({ perfil }: { perfil: PerfilLearningPublico }
 
 function ProgramaLearningPublico({ programa }: { programa: ProgramaLearning }) {
   const Icone = obterIconeFormato(programa.formato);
-  const corDeFundoGradient = obterGradienteFormato(programa.formato);
 
   return (
     <article className="learn-program-card">
       <Link
         to={`/learning/produtos/${programa.slug}`}
-        className="learn-program-media"
-        style={{ background: corDeFundoGradient }}
+        className={`learn-program-media format-${programa.formato.toLowerCase()}`}
       >
         <Icone size={40} className="learn-program-media-icon" />
         <span className="learn-program-badge">

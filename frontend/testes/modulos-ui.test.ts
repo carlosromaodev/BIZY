@@ -49,7 +49,7 @@ describe("módulos desativados na UI", () => {
     expect(app).toContain('requisitarApi<{ modulosAtivos?: string[] }>("/negocio/modulos")');
     expect(app).toContain('if (estadoModulo === "bloqueado") return <Navigate to="/app" replace />;');
     expect(app).toContain("element={<LayoutApp modulo={rota.modulo}");
-    expect(app).toContain("element={<RotaPrivada modulo={rota.modulo} requerGovernancaAnani={rota.requerGovernancaAnani}>");
+    expect(app).toContain(": <RotaPrivada modulo={rota.modulo} requerGovernancaAnani={rota.requerGovernancaAnani}>");
     expect(rotas).toContain('{ caminho: "/app/loja-publica", elemento: <PaginaLojaPublica />, modulo: "loja-publica" }');
     expect(rotas).not.toContain("if (modulosAtivos.length === 0) return rotas");
   });

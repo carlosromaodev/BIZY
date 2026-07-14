@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { AvisoPrivacidade } from "../../../componentes/BizyDesignSystem";
 import { obterLojaPublica, submeterFormularioLeadLojaPublica, ROTAS_LOJAS } from "../api";
 import type { LojaPublica, PayloadFormularioLeadLojaPublica } from "../api/tiposLojas";
-import { LogoBizy } from "../../../marca/bizy";
+import { CabecalhoMarket, RodapeMarket } from "../componentes/MarketChrome";
 
 export function PaginaFormularioLeadPublico() {
   const { slug = "" } = useParams();
@@ -87,101 +87,85 @@ export function PaginaFormularioLeadPublico() {
 
   if (carregandoLoja) {
     return (
-      <main className="min-h-screen bg-background text-foreground">
-        <div className="mx-auto flex min-h-screen w-full max-w-2xl items-center justify-center px-4 py-10">
+      <main className="bizy-market-page market-commerce-page market-public-page market-lead-page">
+        <CabecalhoMarket />
+        <section className="market-route-state" aria-busy="true">
           <div className="flex items-center gap-3 text-sm text-muted-foreground">
             <Loader2 className="h-4 w-4 animate-spin" />
             A carregar formulário...
           </div>
-        </div>
+        </section>
+        <RodapeMarket />
       </main>
     );
   }
 
   if (erroLoja || !slug) {
     return (
-      <main className="min-h-screen bg-background text-foreground">
-        <div className="mx-auto flex min-h-screen w-full max-w-2xl items-center justify-center px-4 py-10">
-          <div className="w-full rounded-lg border bg-card p-6 shadow-sm">
-            <div className="flex items-center gap-3">
-              <LogoBizy className="h-7 w-auto" />
-              <span className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Bizy</span>
-            </div>
-            <h1 className="mt-6 text-2xl font-semibold">{erroLoja ?? "Link inválido"}</h1>
-            <p className="mt-2 text-sm text-muted-foreground">
-              Confirma se o link foi copiado completo ou volta à loja pública.
-            </p>
-            <div className="mt-6">
-              <Button asChild variant="outline">
-                <Link to={ROTAS_LOJAS.market}>Abrir Market</Link>
-              </Button>
-            </div>
+      <main className="bizy-market-page market-commerce-page market-public-page market-lead-page">
+        <CabecalhoMarket />
+        <section className="market-route-state">
+          <Store size={32} />
+          <h1>{erroLoja ?? "Link inválido"}</h1>
+          <p>Confirme se o link foi copiado completo ou volte ao Bizy Market.</p>
+          <div>
+            <Button asChild variant="outline">
+              <Link to={ROTAS_LOJAS.market}>Abrir Market</Link>
+            </Button>
           </div>
-        </div>
+        </section>
+        <RodapeMarket />
       </main>
     );
   }
 
   if (enviado) {
     return (
-      <main className="min-h-screen bg-background text-foreground">
-        <div className="mx-auto flex min-h-screen w-full max-w-2xl items-center justify-center px-4 py-10">
-          <div className="w-full rounded-lg border bg-card p-6 shadow-sm">
-            <div className="flex items-center gap-3">
-              <LogoBizy className="h-7 w-auto" />
-              <span className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Bizy Team</span>
-            </div>
-            <div className="mt-6 flex items-start gap-3">
-              <CheckCircle2 className="mt-0.5 h-5 w-5 text-emerald-500" />
-              <div>
-                <h1 className="text-2xl font-semibold">Lead recebido</h1>
-                <p className="mt-2 text-sm text-muted-foreground">
-                  A tua mensagem entrou no Bizy e a equipa pode seguir o contacto agora.
-                </p>
-              </div>
-            </div>
-            <div className="mt-6 flex flex-wrap gap-3">
-              <Button asChild>
-                <Link to={ROTAS_LOJAS.loja(slug)}>Voltar à loja</Link>
-              </Button>
-            </div>
+      <main className="bizy-market-page market-commerce-page market-public-page market-lead-page">
+        <CabecalhoMarket />
+        <section className="market-route-state is-success">
+          <CheckCircle2 size={36} />
+          <h1>Pedido de contacto recebido</h1>
+          <p>A mensagem entrou no Bizy Team da loja e já pode ser acompanhada pela equipa.</p>
+          <div>
+            <Button asChild>
+              <Link to={ROTAS_LOJAS.loja(slug)}>Voltar à loja</Link>
+            </Button>
           </div>
-        </div>
+        </section>
+        <RodapeMarket />
       </main>
     );
   }
 
   return (
-    <main className="min-h-screen bg-background text-foreground">
-      <div className="mx-auto flex min-h-screen w-full max-w-3xl items-center px-4 py-8 md:py-12">
-        <div className="w-full rounded-lg border bg-card p-6 shadow-sm md:p-8">
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <LogoBizy className="h-7 w-auto" />
-              <div>
-                <p className="text-[0.65rem] uppercase tracking-[0.2em] text-muted-foreground">Formulário público</p>
-                <h1 className="text-2xl font-semibold">{titulo}</h1>
-              </div>
-            </div>
-            <Button asChild variant="outline">
-              <Link to={ROTAS_LOJAS.loja(slug)}>
-                <Store className="mr-2 h-4 w-4" />
-                Abrir loja
-              </Link>
-            </Button>
-          </div>
+    <main className="bizy-market-page market-commerce-page market-public-page market-lead-page">
+      <CabecalhoMarket />
+      <section className="market-flow-heading">
+        <span>Contacto da loja</span>
+        <h1>Falar com {titulo}</h1>
+        <p>Envie o pedido diretamente para a equipa responsável pelo atendimento.</p>
+      </section>
 
-          <p className="mt-4 max-w-2xl text-sm text-muted-foreground">
-            Deixa os teus dados e o Bizy encaminha este lead para a equipa certa com a tag automática da origem.
-          </p>
+      <section className="market-lead-shell">
+        <aside className="market-lead-context">
+          <span><Store size={18} /> Loja no Bizy Market</span>
+          <h2>{titulo}</h2>
+          <p>Os dados são usados apenas para responder a este pedido e manter o atendimento organizado.</p>
+          <Link to={ROTAS_LOJAS.loja(slug)}>
+            Abrir loja
+          </Link>
+        </aside>
+
+        <div className="market-lead-form-panel">
 
           {erroEnvio && (
-            <div className="mt-4 rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
+            <div className="market-lead-error">
               {erroEnvio}
             </div>
           )}
 
-          <form className="mt-6 grid gap-4" onSubmit={(evento) => void submeter(evento)}>
+          <form className="market-lead-form" onSubmit={(evento) => void submeter(evento)}>
             <div className="grid gap-4 md:grid-cols-2">
               <div className="grid gap-2">
                 <Label htmlFor="nome">Nome</Label>
@@ -254,7 +238,7 @@ export function PaginaFormularioLeadPublico() {
               />
             </div>
 
-            <div className="grid gap-3 rounded-lg border p-4">
+            <div className="market-lead-consent">
               <label htmlFor="consentimento-dados" className="flex items-start gap-3 text-sm">
                 <Checkbox
                   id="consentimento-dados"
@@ -278,7 +262,7 @@ export function PaginaFormularioLeadPublico() {
             <div className="flex flex-wrap items-center gap-3">
               <Button type="submit" disabled={!consentimentoDados || enviando}>
                 {enviando ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
-                Enviar lead
+                Enviar pedido
               </Button>
               <Button asChild variant="outline">
                 <Link to={ROTAS_LOJAS.loja(slug)}>Cancelar</Link>
@@ -290,7 +274,8 @@ export function PaginaFormularioLeadPublico() {
             <AvisoPrivacidade />
           </div>
         </div>
-      </div>
+      </section>
+      <RodapeMarket />
     </main>
   );
 }

@@ -33,7 +33,7 @@ export const CORES_LOGO_BIZY_ESCURA: CoresBizy = {
 };
 
 const FAMILIA_LOGOTIPO = "Geist, 'Plus Jakarta Sans', system-ui, sans-serif";
-const LETTER_SPACING_WORDMARK = "-0.055em";
+const LETTER_SPACING_WORDMARK = "0";
 
 function escaparAtributo(valor: string) {
   return valor.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");

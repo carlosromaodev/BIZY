@@ -698,17 +698,16 @@ export function AvisoPrivacidade({
   return (
     <div
       role="alert"
-      className="fixed bottom-0 left-0 right-0 z-9999 border-t bg-white/95 px-4 py-3 shadow-[0_-2px_12px_rgba(0,0,0,0.08)] backdrop-blur-sm"
-      style={{ borderColor: "#e2e2e2" }}
+      className="bz-privacy-notice"
     >
-      <div className="mx-auto flex max-w-2xl flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <p className="text-xs leading-relaxed text-neutral-600">
+      <div className="bz-privacy-notice-inner">
+        <p>
           {texto ? `${texto} ${textoBase}` : textoBase}
         </p>
         <button
           type="button"
           onClick={aceitar}
-          className="shrink-0 rounded-md bg-neutral-900 px-4 py-1.5 text-xs font-medium text-white transition-colors hover:bg-neutral-700"
+          className="bz-privacy-notice-action"
         >
           Entendi
         </button>

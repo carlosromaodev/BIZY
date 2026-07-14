@@ -39,7 +39,7 @@ Não usar cor funcional como decoração genérica. Sempre que a cor comunicar e
 
 ## Marca Bizy
 
-A marca final usa o wordmark lowercase `bizy.` em Geist 700, letter spacing `-0.055em`, texto `#0B1014` em fundo claro e ponto esmeralda `#16A07A`. Dentro do CRM, sidebar, header mobile e sheets usam apenas este wordmark; não usar o símbolo `b.` como marca de navegação interna. O favicon/app icon oficial continua `b.` branco em quadrado arredondado `#0B1014`. O logo e o favicon ficam centralizados em `frontend/src/marca/bizy.tsx`.
+A marca final usa o wordmark lowercase `bizy.` em Geist 700, `letter-spacing: 0`, texto `#0B1014` em fundo claro e ponto esmeralda `#16A07A`. Dentro do CRM, sidebar, header mobile e sheets usam apenas este wordmark; não recriar o logo com texto ou CSS local. O favicon/app icon oficial continua `b.` branco em quadrado arredondado `#0B1014`. O logo e o favicon ficam centralizados em `frontend/src/marca/bizy.tsx`.
 
 - `LogoBizy`: componente React para o logo horizontal ou ícone.
 - `resolverCoresBizy`: combina cores parciais com a paleta padrão.
@@ -106,4 +106,9 @@ aplicarIdentidadeBizy({
 - Não duplicar seletores estruturais base como `.shell`, `.sidebar`, `.shell-conteudo`, `.pagina-cabecalho`, `.indicador` e `.conversas-layout`.
 - Não criar novos hexadecimais para superfícies, texto, bordas ou acento sem antes verificar se já existe token.
 - Não usar linguagem visual de IA no atendimento ao cliente; tratar como automação, rascunho ou operação.
+- Módulos com três ou mais subáreas usam navegação interna e URL própria por área; estado de página não pode existir apenas em `useState`.
+- Pesos tipográficos ficam entre 400 e 700 e `letter-spacing` é sempre zero.
+- Raios canónicos: 6px em controlos, 10px em painéis/cards e 14px em sheets; `9999px` apenas para pills e elementos circulares.
+- Páginas públicas usam footer em fluxo com `min-height: 100dvh`; footer fixo é proibido fora de um padrão mobile que reserve espaço.
+- Market Home, diretório, produto, checkout e acompanhamento partilham marca, tokens e chrome; não criar um segundo shell local.
 - Antes de entregar mudanças visuais, rodar testes, typecheck, build e uma verificação mobile quando a alteração tocar navegação ou Conversas.

@@ -4,34 +4,29 @@
    Font: Geist. Corners: sharp. Accent: deep indigo.
    ═══════════════════════════════════════════════════════════════ */
 
-/* ── Learning-specific tokens (layered on top of Bizy OS) ── */
+/* Learning-specific aliases. Canonical values live in estilos.css. */
 :root {
-  --learn-ink:          #0f172a;
-  --learn-ink-2:        #475569;
-  --learn-ink-3:        #94a3b8;
-  --learn-bg:           #f8f8f6;
-  --learn-surface:      #ffffff;
-  --learn-border:       #e2e8f0;
-  --learn-border-strong:#cbd5e1;
-
-  /* One accent — deep indigo, used sparingly */
-  --learn-accent:       #4338ca;
-  --learn-accent-hover: #3730a3;
-  --learn-accent-soft:  #eef2ff;
-  --learn-accent-text:  #312e81;
-
-  /* Status */
-  --learn-free:         #059669;
-  --learn-free-soft:    #ecfdf5;
+  --learn-ink: var(--color-text);
+  --learn-ink-2: var(--color-text-muted);
+  --learn-ink-3: var(--color-text-subtle);
+  --learn-bg: var(--color-bg);
+  --learn-surface: var(--color-surface);
+  --learn-border: var(--color-border);
+  --learn-border-strong: var(--color-border-strong);
+  --learn-accent: var(--color-accent);
+  --learn-accent-hover: var(--color-accent-hover);
+  --learn-accent-soft: var(--color-accent-soft);
+  --learn-accent-text: var(--green-ink);
+  --learn-free: var(--color-success);
+  --learn-free-soft: var(--color-success-soft);
 
   /* Shadow system (matches Bizy OS) */
   --learn-sh-xs:  0 1px 2px rgba(15,23,42,.04);
   --learn-sh-sm:  0 1px 3px rgba(15,23,42,.06), 0 4px 12px rgba(15,23,42,.04);
   --learn-sh-md:  0 2px 8px rgba(15,23,42,.06), 0 12px 32px rgba(15,23,42,.06);
 
-  /* No border-radius — follows Bizy OS --radius: 0 */
-  --learn-r: 0;
-  --learn-r-sm: 0;
+  --learn-r: var(--radius-panel);
+  --learn-r-sm: var(--radius-control);
   --learn-r-pill: 9999px;
 }
 
@@ -56,13 +51,6 @@
 }
 
 
-/* Force sharp corners on everything inside .learn-page */
-.learn-page *,
-.learn-page *::before,
-.learn-page *::after {
-  border-radius: 0 !important;
-}
-
 /* ══════════════════════════════════════════════
    TOPBAR — thin utility strip
    ══════════════════════════════════════════════ */
@@ -76,7 +64,7 @@
   color: rgba(255,255,255,.64);
   font-size: 12px;
   font-weight: 500;
-  letter-spacing: 0.01em;
+  letter-spacing: 0;
 }
 .learn-topbar a {
   color: rgba(255,255,255,.64);
@@ -111,18 +99,12 @@
   text-decoration: none;
   flex-shrink: 0;
 }
-.learn-brand-text {
-  font-size: 20px;
-  font-weight: 800;
-  color: var(--learn-ink);
-  letter-spacing: -0.5px;
-}
-.learn-brand-text .dot { color: var(--learn-accent); }
+.learn-brand-logo { width: 84px; height: 28px; }
 .learn-brand-tag {
   font-size: 10px;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.1em;
+  letter-spacing: 0;
   color: var(--learn-accent);
   border: 1.5px solid var(--learn-accent);
   padding: 1px 7px;
@@ -246,25 +228,24 @@
    HERO — typographic, no heavy gradient
    ══════════════════════════════════════════════ */
 .learn-hero {
-  background: var(--learn-ink);
+  background: var(--learn-ink) url("/bizy-login-team.png") center 44% / cover no-repeat;
   color: #fff;
   padding: 72px 24px 64px;
   position: relative;
   overflow: hidden;
 }
-/* Subtle texture overlay */
 .learn-hero::after {
   content: '';
   position: absolute;
   inset: 0;
-  background-image: radial-gradient(circle at 70% 50%, rgba(67,56,202,.18) 0%, transparent 60%);
+  background: rgb(5 16 12 / 0.7);
   pointer-events: none;
 }
 .learn-hero h1 {
   font-size: clamp(32px, 5vw, 52px);
-  font-weight: 800;
+  font-weight: 700;
   line-height: 1.06;
-  letter-spacing: -1.5px;
+  letter-spacing: 0;
   max-width: 720px;
   margin: 0 auto;
   text-align: center;
@@ -318,9 +299,9 @@
 }
 .learn-stat-value {
   font-size: 26px;
-  font-weight: 800;
+  font-weight: 700;
   color: var(--learn-ink);
-  letter-spacing: -1px;
+  letter-spacing: 0;
 }
 .learn-stat-label {
   font-size: 11.5px;
@@ -328,7 +309,7 @@
   margin-top: 2px;
   font-weight: 500;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: 0;
 }
 
 /* ══════════════════════════════════════════════
@@ -347,15 +328,15 @@
   font-size: 11px;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.1em;
+  letter-spacing: 0;
   color: var(--learn-accent);
   margin-bottom: 10px;
 }
 .learn-section-title {
   font-size: clamp(22px, 3vw, 30px);
-  font-weight: 800;
+  font-weight: 700;
   color: var(--learn-ink);
-  letter-spacing: -0.5px;
+  letter-spacing: 0;
   line-height: 1.15;
 }
 .learn-section-subtitle {
@@ -372,7 +353,7 @@
 .learn-formats-grid {
   display: grid;
   gap: 1px;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   background: var(--learn-border);
   border: 1px solid var(--learn-border);
 }
@@ -435,9 +416,17 @@
   position: relative;
   text-decoration: none;
   overflow: hidden;
+  background: var(--learn-accent-soft);
 }
+.learn-program-media.format-live { background: var(--color-danger-soft); }
+.learn-program-media.format-workshop,
+.learn-program-media.format-cohort { background: var(--color-warning-soft); }
+.learn-program-media.format-mentoria,
+.learn-program-media.format-certificacao { background: var(--color-info-soft); }
+.learn-program-media.format-download,
+.learn-program-media.format-bundle { background: var(--color-surface-muted); }
 .learn-program-media-icon {
-  color: rgba(255,255,255,.85);
+  color: var(--learn-accent-text);
   transition: transform .2s;
 }
 .learn-program-card:hover .learn-program-media-icon { transform: scale(1.08); }
@@ -445,13 +434,13 @@
   position: absolute;
   top: 10px;
   left: 10px;
-  background: rgba(0,0,0,.45);
-  color: #fff;
+  background: var(--learn-surface);
+  color: var(--learn-ink-2);
   font-size: 10px;
   font-weight: 600;
   padding: 3px 8px;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: 0;
 }
 .learn-program-destaque {
   position: absolute;
@@ -465,7 +454,7 @@
   display: flex;
   align-items: center;
   gap: 4px;
-  letter-spacing: 0.04em;
+  letter-spacing: 0;
 }
 .learn-program-body {
   flex: 1;
@@ -484,7 +473,7 @@
   font-weight: 700;
   color: var(--learn-accent);
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: 0;
 }
 .learn-program-level {
   font-size: 11px;
@@ -501,7 +490,7 @@
   -webkit-box-orient: vertical;
   overflow: hidden;
   margin-bottom: 6px;
-  letter-spacing: -0.1px;
+  letter-spacing: 0;
 }
 .learn-program-title:hover { color: var(--learn-accent); }
 .learn-program-subtitle {
@@ -516,10 +505,10 @@
 }
 .learn-program-price {
   font-size: 18px;
-  font-weight: 800;
+  font-weight: 700;
   color: var(--learn-ink);
   margin-bottom: 12px;
-  letter-spacing: -0.3px;
+  letter-spacing: 0;
 }
 .learn-program-price.free { color: var(--learn-free); }
 .learn-program-signals {
@@ -566,7 +555,7 @@
   font-size: 12px;
   font-weight: 600;
   text-decoration: none;
-  letter-spacing: 0.01em;
+  letter-spacing: 0;
   border: 1px solid var(--learn-ink);
   transition: background .15s;
   flex-shrink: 0;
@@ -579,7 +568,8 @@
 .learn-programs-grid {
   display: grid;
   gap: 16px;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 360px));
+  justify-content: start;
 }
 
 /* ══════════════════════════════════════════════
@@ -605,7 +595,7 @@
 .learn-profile-hero {
   position: relative;
   padding: 80px 24px 60px;
-  background: var(--learn-ink);
+  background: var(--learn-ink) url("/bizy-login-team.png") center 42% / cover no-repeat;
   color: #fff;
   overflow: hidden;
 }
@@ -613,7 +603,7 @@
   content: '';
   position: absolute;
   inset: 0;
-  background: radial-gradient(circle at 80% 20%, rgba(67,56,202,.22) 0%, transparent 55%);
+  background: rgb(5 10 18 / 0.68);
   pointer-events: none;
 }
 
@@ -723,7 +713,208 @@
     width: 100%;
   }
   .learn-formats-grid { grid-template-columns: 1fr; }
-  .learn-hero h1 { letter-spacing: -0.8px; }
+  .learn-hero h1 { letter-spacing: 0; }
   .learn-dark-section { padding: 44px 16px; }
   .learn-profile-hero { padding: 60px 16px 44px; }
+}
+
+/* Team Learning: operational navigation and states */
+.learning-team-nav {
+  display: flex;
+  gap: var(--space-1);
+  overflow-x: auto;
+  border-bottom: 1px solid var(--color-border);
+  padding-bottom: var(--space-2);
+  scrollbar-width: thin;
+}
+
+.learning-team-nav-item {
+  display: inline-flex;
+  min-height: 38px;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: var(--space-2);
+  border-radius: var(--radius-control);
+  padding: 0 var(--space-3);
+  color: var(--color-text-muted);
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.learning-team-nav-item:hover {
+  background: var(--color-surface-muted);
+  color: var(--color-text);
+}
+
+.learning-team-nav-item.is-active {
+  background: var(--color-accent-soft);
+  color: var(--green-ink);
+}
+
+.learning-team-nav-item:focus-visible,
+.learning-team-shortcut:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+.learning-team-shortcuts {
+  display: grid;
+  gap: var(--space-5);
+  border-top: 1px solid var(--color-border);
+  padding-top: var(--space-6);
+}
+
+.learning-team-shortcuts h2 {
+  margin: 0;
+  color: var(--color-text);
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.learning-team-shortcuts p {
+  margin: var(--space-1) 0 0;
+  color: var(--color-text-muted);
+  font-size: 14px;
+}
+
+.learning-team-shortcuts-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-2);
+}
+
+.learning-team-shortcut {
+  display: flex;
+  min-height: 48px;
+  align-items: center;
+  gap: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+  background: var(--color-surface);
+  padding: var(--space-3);
+  color: var(--color-text);
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.learning-team-shortcut:hover {
+  border-color: var(--color-border-strong);
+  background: var(--color-surface-muted);
+}
+
+.learning-team-feedback {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  border: 1px solid var(--color-danger);
+  border-radius: var(--radius-control);
+  background: var(--color-danger-soft);
+  padding: var(--space-3) var(--space-4);
+  color: var(--rose-ink);
+  font-size: 14px;
+}
+
+.learning-team-lessons {
+  display: grid;
+  gap: var(--space-1);
+  margin-top: var(--space-3);
+}
+
+.learning-team-lessons span {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--color-text-muted);
+  font-size: 12px;
+}
+
+.learning-team-lessons b {
+  display: grid;
+  width: 20px;
+  height: 20px;
+  place-items: center;
+  border-radius: var(--radius-control);
+  background: var(--color-surface-muted);
+  color: var(--color-text);
+  font-size: 11px;
+}
+
+.learning-team-record-list {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.learning-team-record {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-3);
+  border-bottom: 1px solid var(--color-border-soft);
+  padding: var(--space-3) 0;
+}
+
+.learning-team-record strong,
+.learning-team-record span {
+  display: block;
+}
+
+.learning-team-record strong { font-size: 14px; }
+.learning-team-record div > span { margin-top: var(--space-1); color: var(--color-text-muted); font-size: 12px; }
+
+.learning-team-empty {
+  display: grid;
+  justify-items: start;
+  gap: var(--space-2);
+  border: 1px dashed var(--color-border-strong);
+  border-radius: var(--radius-control);
+  padding: var(--space-6);
+  color: var(--color-text-muted);
+}
+
+.learning-team-empty strong { color: var(--color-text); font-size: 14px; }
+.learning-team-empty span { font-size: 13px; }
+
+@media (max-width: 1024px) {
+  .learning-team-shortcuts-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+
+@media (max-width: 640px) {
+  .learning-team-nav { margin-inline: calc(var(--space-4) * -1); padding-inline: var(--space-4); }
+  .learning-team-nav-item { min-height: 44px; }
+  .learning-team-page .bz-head-aside {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    width: 100%;
+  }
+  .learning-team-page .bz-head-aside .bz-btn { min-width: 0; width: 100%; }
+  .learning-team-page .bz-kpi-grid { gap: var(--space-2); margin-top: var(--space-3); }
+  .learning-team-page .bz-kpi { min-height: 104px; padding: var(--space-3); }
+  .learning-team-page .bz-kpi-label {
+    white-space: normal;
+    overflow-wrap: anywhere;
+    line-height: 1.3;
+  }
+  .learning-team-shortcuts-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .learning-team-feedback { align-items: stretch; flex-direction: column; }
+  .learning-team-record { grid-template-columns: auto minmax(0, 1fr); }
+  .learning-team-record > :last-child { grid-column: 2; justify-self: start; }
+}
+
+@media (min-width: 1024px) {
+  .learning-team-nav { flex-wrap: wrap; overflow: visible; }
+}
+
+@media (min-width: 1200px) {
+  .learning-team-nav {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+  }
+  .learning-team-nav-item { justify-content: center; padding-inline: var(--space-2); }
+}
+
+@media (max-width: 360px) {
+  .learning-team-shortcuts-grid { grid-template-columns: 1fr; }
 }

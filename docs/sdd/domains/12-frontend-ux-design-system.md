@@ -3,7 +3,7 @@
 Status: ativo
 Owner logico: Produto Frontend
 Fontes: `docs/wiki/pages/identidade-visual-bizy-v2.md`, `docs/wiki/pages/inventario-frontend.md`, `frontend/src/rotasApp.tsx`
-Ultima atualizacao: 2026-06-28
+Ultima atualizacao: 2026-07-12
 
 ## 1. Proposito
 
@@ -77,16 +77,21 @@ Telas: Home, Login, Painel, Live, Pedidos, Conversas, Clientes, Catalogo, Loja P
 - Nao usar texto visivel para explicar funcionalidades obvias.
 - Nao expor tokens/providers/debug para perfis comerciais.
 - Nao introduzir tema paralelo fora dos tokens v2.
+- Nao recriar a marca Bizy em texto/CSS; usar `LogoBizy`.
+- Nao usar peso tipografico acima de 700 nem letter spacing diferente de zero.
+- Modulo com tres ou mais areas deve ter navegacao interna e rota enderecavel por area.
+- Superficies operacionais nao usam hero promocional, metricas ficticias ou cards decorativos.
+- Market publico partilha o mesmo chrome visual entre home, produto, checkout e acompanhamento.
 
 ## 11. Estado Atual
 
-Frontend possui Vite/React, rotas publicas e privadas, design system v2, paginas CRM, Market/lojas, checkout e testes frontend. Identidade visual v2 esta documentada.
+Frontend possui Vite/React, rotas publicas e privadas, design system v2, paginas CRM, Market/lojas, checkout e testes frontend. Market usa chrome publico partilhado e Learning Team possui navegacao interna por rota.
 
 ## 12. Lacunas
 
 - P0 fechado: modulos desativados na UI, mobile 360px sem scroll horizontal, SEO publico, checkout visual, privacidade/tracking e paginacao.
 - P1: [x] Cliente 360; [x] colecoes visuais; [x] envio binario na conversa; [x] revisao textual.
-- P2: painel personalizavel e war rooms.
+- P2: [] painel personalizavel e war rooms, fora do escopo do guardrail visual.
 
 ## 13. Testes e Verificacao
 

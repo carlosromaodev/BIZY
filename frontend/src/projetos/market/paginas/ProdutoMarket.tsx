@@ -1,25 +1,19 @@
 import {
-  ArrowLeft,
   CheckCircle2,
-  Compass,
   Heart,
-  Home,
   MessageCircle,
   Minus,
   Package,
   Plus,
-  Search,
   ShieldCheck,
   ShoppingBag,
   Store,
   Tags,
   Truck,
-  User
 } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
-import { type FormEvent, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { NativeBottomNav } from "@/components/ui/native-bottom-nav";
 import {
   adicionarItemCheckoutBizy,
   criarItemCheckoutDeProdutoMarket,
@@ -30,6 +24,8 @@ import {
 } from "../api";
 import type { ProdutoMarketNormalizado } from "../api";
 import { aplicarSeoMetaTags, formatarKwanza, montarSeoPublico } from "../../../utilidades";
+import { CabecalhoMarket, RodapeMarket } from "../componentes/MarketChrome";
+import { CartaoProdutoMarket } from "../componentes/CartaoProdutoMarket";
 
 const CORES_VARIANTES: Record<string, string> = {
   amarelo: "#d9a441",
@@ -70,14 +66,6 @@ function resolverCorVisual(opcao: string, fallback: string) {
 
 function variantePareceCor(nome: string) {
   return /cor|color|tom/i.test(normalizarTextoCor(nome));
-}
-
-function obterGradienteProduto(produto: ProdutoMarketNormalizado) {
-  const cor = produto.fornecedor.corPrimaria || "#0e8c68";
-  if (produto.categoria.toLowerCase().includes("beleza")) return "linear-gradient(150deg,#c97a8a,#92485c)";
-  if (produto.categoria.toLowerCase().includes("tecnologia")) return "linear-gradient(150deg,#5a87c5,#2f5588)";
-  if (produto.categoria.toLowerCase().includes("comida")) return "linear-gradient(150deg,#d9a441,#9c6b1c)";
-  return `linear-gradient(150deg, ${cor}, #0a5740)`;
 }
 
 function formatarSeloPdpMarket(selo: string): string {
@@ -146,9 +134,8 @@ export function PaginaProdutoMarket() {
   const thumbs = fotos.length ? fotos : ["", "", "", ""];
   const fotoPrincipal = fotos[fotoAtiva] || produto?.fotoPrincipal || "";
 
-  function submeterBusca(evento: FormEvent<HTMLFormElement>) {
-    evento.preventDefault();
-    const termo = buscaTopo.trim();
+  function submeterBusca(termoInformado = buscaTopo) {
+    const termo = termoInformado.trim();
     navigate(termo ? `${ROTAS_LOJAS.market}?busca=${encodeURIComponent(termo)}` : ROTAS_LOJAS.market);
   }
 
@@ -158,23 +145,40 @@ export function PaginaProdutoMarket() {
     navigate(ROTAS_LOJAS.checkout);
   }
 
+  const cabecalhoBase = (
+    <CabecalhoMarket
+      busca={buscaTopo}
+      onBusca={setBuscaTopo}
+      onCategoria={(categoria) => navigate(ROTAS_LOJAS.categoriaMarket(categoria))}
+      onLimpar={() => {
+        setBuscaTopo("");
+        navigate(ROTAS_LOJAS.market);
+      }}
+      onSubmitBusca={submeterBusca}
+    />
+  );
+
   if (carregando) {
     return (
-      <main className="bizy-market-page market-pdp-page min-h-[100dvh] bg-[#f5f3ed]">
-        <div className="market-pdp-loading">A carregar produto...</div>
+      <main className="bizy-market-page market-commerce-page market-public-page market-pdp-page" aria-busy="true">
+        {cabecalhoBase}
+        <div className="market-pdp-loading"><span className="market-state-spinner" aria-hidden="true" />A carregar produto...</div>
+        <RodapeMarket />
       </main>
     );
   }
 
   if (erro || !produto) {
     return (
-      <main className="bizy-market-page market-pdp-page min-h-[100dvh] bg-[#f5f3ed] text-neutral-950">
+      <main className="bizy-market-page market-commerce-page market-public-page market-pdp-page">
+        {cabecalhoBase}
         <div className="market-pdp-error">
           <Package size={36} />
           <h1>Produto fora do Market</h1>
           <p>{erro || "Este produto não está disponível no shopping center Bizy."}</p>
           <Link to={ROTAS_LOJAS.market}>Voltar ao Market</Link>
         </div>
+        <RodapeMarket />
       </main>
     );
   }
@@ -182,7 +186,6 @@ export function PaginaProdutoMarket() {
   const variantesVisiveis = Object.entries(produto.variantes ?? {})
     .filter(([, opcoes]) => opcoes.length > 0)
     .slice(0, 2);
-  const gradienteProduto = obterGradienteProduto(produto);
   const stockMaximo = Math.max(1, produto.quantidade || 1);
   const desconto = produto.descontoPercentual ? `-${produto.descontoPercentual}%` : produto.disponivel ? "Em stock" : "Indisponível";
   const seloPrincipal = produto.selos.find((selo) => selo !== "PATROCINADO" && selo !== "VERIFICADO");
@@ -192,34 +195,18 @@ export function PaginaProdutoMarket() {
     .join(" · ");
 
   return (
-    <main className="bizy-market-page market-commerce-page market-pdp-page market-pdp-design min-h-[100dvh] bg-[#faf8f4] text-neutral-950">
-      <header className="market-pdp-design-top mkt-top market-pdp-commerce-top">
-        <button type="button" className="market-pdp-back" onClick={() => navigate(-1)} aria-label="Voltar">
-          <ArrowLeft size={18} />
-        </button>
-        <Link to={ROTAS_LOJAS.market} className="market-wordmark-text wm" aria-label="Bizy Market">
-          bizy<span className="dot">.</span>
-        </Link>
-        <Link to={ROTAS_LOJAS.market} className="market-tag mtag">Market</Link>
-        <form className="market-pdp-search mkt-search" onSubmit={submeterBusca}>
-          <Search size={17} />
-          <input
-            value={buscaTopo}
-            onChange={(evento) => setBuscaTopo(evento.target.value)}
-            placeholder="Buscar produtos, lojas e categorias..."
-            aria-label="Buscar no Bizy Market"
-          />
-        </form>
-        <button type="button" className="market-pdp-header-action mkt-ic" aria-label="Favoritos">
-          <Heart size={18} />
-        </button>
-        <Link to={ROTAS_LOJAS.checkout} className="market-pdp-header-action mkt-ic" aria-label="Sacola">
-          <ShoppingBag size={18} />
-        </Link>
-        <span className="market-pdp-avatar mkt-av" aria-hidden="true">
-          <User size={16} />
-        </span>
-      </header>
+    <main className="bizy-market-page market-commerce-page market-public-page market-pdp-page market-pdp-design">
+      <CabecalhoMarket
+        busca={buscaTopo}
+        categoriaSelecionada={produto.categoria}
+        onBusca={setBuscaTopo}
+        onCategoria={(categoria) => navigate(ROTAS_LOJAS.categoriaMarket(categoria))}
+        onLimpar={() => {
+          setBuscaTopo("");
+          navigate(ROTAS_LOJAS.market);
+        }}
+        onSubmitBusca={submeterBusca}
+      />
 
       <section className="market-pdp-crumbbar cat-head">
         <div className="market-pdp-breadcrumb crumb2">
@@ -234,7 +221,7 @@ export function PaginaProdutoMarket() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
         >
-          <div className="market-pdp-photo market-pdp-main-visual pdp-main" style={{ background: gradienteProduto }}>
+          <div className={`market-pdp-photo market-pdp-main-visual pdp-main ${fotoPrincipal ? "has-image" : "is-placeholder"}`}>
             <span className="off">{desconto}</span>
             <button type="button" className="fav" aria-label="Adicionar aos favoritos">
               <Heart size={16} />
@@ -254,7 +241,7 @@ export function PaginaProdutoMarket() {
                   <img src={foto} alt="" />
                 </button>
               ) : (
-                <span key={`placeholder-${indice}`} className={`th ${indice === 0 ? "on" : ""}`} style={{ background: gradienteProduto }} />
+                <span key={`placeholder-${indice}`} className={`th is-placeholder ${indice === 0 ? "on" : ""}`} />
               )
             ))}
           </div>
@@ -369,21 +356,7 @@ export function PaginaProdutoMarket() {
         </div>
         {similares.length ? (
           <div className="market-product-grid">
-            {similares.map((similar) => (
-              <article key={`${similar.slugLoja}-${similar.codigo}`} className="market-product-card">
-                <Link to={similar.urlMarket} className="market-product-media">
-                  {similar.fotoPrincipal ? <img src={similar.fotoPrincipal} alt={similar.nome} /> : <Package size={34} />}
-                </Link>
-                <div className="market-product-body">
-                  <Link to={similar.urlMarket} className="market-product-name">{similar.nome}</Link>
-                  <div className="market-product-price"><strong>{formatarKwanza(similar.precoFinalEmKwanza)}</strong></div>
-                  <Link to={similar.urlLoja} className="market-product-supplier">
-                    <Store size={13} />
-                    <span>{similar.nomeFornecedor}</span>
-                  </Link>
-                </div>
-              </article>
-            ))}
+            {similares.map((similar) => <CartaoProdutoMarket key={`${similar.slugLoja}-${similar.codigo}`} produto={similar} />)}
           </div>
         ) : (
           <div className="market-empty-state">
@@ -394,17 +367,7 @@ export function PaginaProdutoMarket() {
         )}
       </section>
 
-      <NativeBottomNav
-        activePillId="bizy-market-product-bottom-nav"
-        className="lp-nav market-bottom-nav"
-        label="Navegação do produto"
-        items={[
-          { id: "inicio", label: "Início", icon: Home, onClick: () => navigate("/") },
-          { id: "market", label: "Market", icon: Compass, active: true, onClick: () => navigate(ROTAS_LOJAS.market) },
-          { id: "loja", label: "Loja", icon: Store, onClick: () => navigate(produto.urlLoja) },
-          { id: "comprar", label: "Comprar", icon: ShoppingBag, variant: "cta", onClick: adicionarAoCheckoutBizy }
-        ]}
-      />
+      <RodapeMarket />
     </main>
   );
 }

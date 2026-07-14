@@ -21,6 +21,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import type { ProgramaLearning } from "../api";
 import { obterProdutoLearning, registrarEventoPublicoLearning, type ProdutoLearningPublico, type TipoEventoPublicoLearning } from "../apiPublica";
 import { aplicarSeoMetaTags, montarSeoPublico } from "../../../utilidades";
+import { CORES_LOGO_BIZY_ESCURA, LogoBizy } from "../../../marca/bizy";
 import "../learning.css";
 
 const IMAGEM_SEO_LEARNING = "/bizy-live-commerce-hero.png";
@@ -143,7 +144,7 @@ export function PaginaProdutoLearning() {
       <header className="absolute inset-x-0 top-0 z-20">
         <div className="mx-auto flex w-full max-w-7xl items-center justify-between px-5 py-4 sm:px-8">
           <Link to="/learning" className="learn-brand" style={{ textDecoration: "none" }}>
-            <span className="learn-brand-text text-white">bizy<span className="dot">.</span></span>
+            <LogoBizy className="learn-brand-logo" cores={CORES_LOGO_BIZY_ESCURA} titulo="Bizy" />
             <span className="learn-brand-tag">Learning</span>
           </Link>
           <nav className="flex items-center gap-2 text-sm">
@@ -158,18 +159,17 @@ export function PaginaProdutoLearning() {
       </header>
 
       <section className="learn-profile-hero flex min-h-[78dvh] items-end" aria-label={programa.titulo}>
-        <div className="absolute inset-0 bg-black/60 z-0" />
-        <div className="relative z-10 mx-auto grid w-full max-w-7xl gap-7 lg:grid-cols-[minmax(0,1.05fr)_minmax(300px,0.48fr)] lg:items-end w-full">
+        <div className="relative z-10 mx-auto grid w-full max-w-7xl gap-7 lg:grid-cols-[minmax(0,1.05fr)_minmax(300px,0.48fr)] lg:items-end">
           <div className="max-w-3xl">
             <div className="flex flex-wrap items-center gap-2">
               <span className="learn-section-badge" style={{ backgroundColor: "rgba(255,255,255,0.15)", color: "#fff" }}>
                 <GraduationCap size={15} />
                 {programa.familiaProduto}
               </span>
-              <span className="bg-white/15 px-3 py-1 text-xs font-black text-white uppercase tracking-wide">{programa.formato.toLowerCase()}</span>
-              <span className="bg-white/10 px-3 py-1 text-xs font-bold text-white uppercase tracking-wide">{programa.tipoAcesso.toLowerCase()}</span>
+              <span className="bg-white/15 px-3 py-1 text-xs font-bold text-white uppercase tracking-normal">{programa.formato.toLowerCase()}</span>
+              <span className="bg-white/10 px-3 py-1 text-xs font-bold text-white uppercase tracking-normal">{programa.tipoAcesso.toLowerCase()}</span>
             </div>
-            <h1 className="mt-5 text-4xl font-extrabold text-white sm:text-6xl leading-[1.1] tracking-tight">
+            <h1 className="mt-5 text-4xl font-bold text-white sm:text-6xl leading-[1.1] tracking-normal">
               {programa.titulo}
             </h1>
             <p className="mt-5 max-w-2xl text-base leading-relaxed text-white/80 sm:text-lg">
@@ -198,8 +198,8 @@ export function PaginaProdutoLearning() {
           </div>
 
           <aside className="learn-stat-card text-left" style={{ background: "rgba(255, 255, 255, 0.08)", borderColor: "rgba(255, 255, 255, 0.15)", color: "#fff", backdropFilter: "blur(12px)" }}>
-            <span className="text-[10px] font-bold uppercase tracking-wider text-white/60">Oferta digital</span>
-            <strong className="mt-2 block text-3xl font-black text-white">{precoPrincipal}</strong>
+            <span className="text-[10px] font-bold uppercase tracking-normal text-white/60">Oferta digital</span>
+            <strong className="mt-2 block text-3xl font-bold text-white">{precoPrincipal}</strong>
             {produto.checkout.valorPromocional && produto.checkout.valorPromocional > 0 && produto.checkout.valorPromocional < produto.checkout.valor && (
               <span className="mt-1 block text-xs text-white/50 line-through">antes {formatarKwanza(produto.checkout.valor, produto.checkout.moeda)}</span>
             )}
@@ -241,7 +241,7 @@ export function PaginaProdutoLearning() {
               <div className="mt-5 flex flex-wrap gap-2">
                 <span className="bg-white/10 px-3 py-1.5 text-xs font-bold text-white/80">{produto.preview.licoesLiberadas} abertas</span>
                 <span className="bg-white/10 px-3 py-1.5 text-xs font-bold text-white/80">{produto.preview.licoesBloqueadas} protegidas</span>
-                {produto.preview.conteudoPremiumProtegido && <span className="bg-white/15 px-3 py-1.5 text-xs font-extrabold text-white">conteúdo premium protegido</span>}
+                {produto.preview.conteudoPremiumProtegido && <span className="bg-white/15 px-3 py-1.5 text-xs font-bold text-white">conteúdo premium protegido</span>}
               </div>
             </div>
             <div className="grid gap-3">
@@ -249,7 +249,7 @@ export function PaginaProdutoLearning() {
                 <article key={licao.id} className="learn-format-card" style={{ background: "rgba(255,255,255,0.05)", borderColor: "rgba(255,255,255,0.12)", cursor: "default" }}>
                   <div className="flex items-start justify-between gap-4">
                     <div>
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-white/50">Lição {indice + 1}</span>
+                      <span className="text-[10px] font-bold uppercase tracking-normal text-white/50">Lição {indice + 1}</span>
                       <h3 className="mt-1 text-sm font-bold text-white">{licao.titulo}</h3>
                       <p className="mt-1 text-xs text-white/60">{licao.tipo.toLowerCase()} · {licao.duracaoMinutos} min</p>
                     </div>
@@ -286,7 +286,7 @@ export function PaginaProdutoLearning() {
                 <BriefcaseBusiness size={20} />
               </span>
               <div>
-                <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wide">Perfil Vendedor</span>
+                <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-normal">Perfil Vendedor</span>
                 <h2 className="mt-1 text-xl font-bold text-neutral-900">{produto.perfil.nomePublico}</h2>
                 <p className="mt-2 text-sm leading-relaxed text-neutral-500">{produto.perfil.descricaoPublica}</p>
                 <div className="mt-4 flex flex-wrap gap-2">
@@ -303,7 +303,7 @@ export function PaginaProdutoLearning() {
           </article>
 
           <article className="learn-profile-card">
-            <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wide">Confiança e Segurança</span>
+            <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-normal">Confiança e Segurança</span>
             <h3 className="text-lg font-bold text-neutral-900 mt-1">Garantias do Aluno</h3>
             <div className="mt-4 grid gap-2 sm:grid-cols-2">
               {produto.sinaisConfianca.map((sinal) => (
@@ -370,7 +370,7 @@ function SinalProduto({
       <span className="inline-flex size-10 items-center justify-center bg-neutral-100 text-neutral-700 mb-3">
         <Icone size={18} />
       </span>
-      <h3 className="text-sm font-extrabold text-neutral-900">{titulo}</h3>
+      <h3 className="text-sm font-bold text-neutral-900">{titulo}</h3>
       <p className="mt-2 text-xs leading-relaxed text-neutral-500">{texto}</p>
     </article>
   );
@@ -390,7 +390,7 @@ function PoliticaProduto({
       <span className="inline-flex size-10 items-center justify-center bg-neutral-100 text-neutral-700 mb-3">
         <Icone size={18} />
       </span>
-      <h3 className="text-sm font-extrabold text-neutral-900">{titulo}</h3>
+      <h3 className="text-sm font-bold text-neutral-900">{titulo}</h3>
       <p className="mt-2 text-xs leading-relaxed text-neutral-500">{texto}</p>
     </article>
   );
@@ -401,7 +401,7 @@ function ProdutoRelacionado({ programa }: { programa: ProgramaLearning }) {
     <article className="learn-profile-card">
       <div className="flex flex-wrap gap-2">
         <span className="bg-neutral-100 border border-neutral-200 px-3 py-1 text-xs font-bold text-neutral-600">{programa.categoria}</span>
-        <span className="bg-neutral-800 px-3 py-1 text-xs font-bold text-white uppercase tracking-wide">{programa.tipoAcesso.toLowerCase()}</span>
+        <span className="bg-neutral-800 px-3 py-1 text-xs font-bold text-white uppercase tracking-normal">{programa.tipoAcesso.toLowerCase()}</span>
       </div>
       <h3 className="mt-4 text-base font-bold text-neutral-900">{programa.titulo}</h3>
       <p className="mt-2 line-clamp-2 text-sm leading-relaxed text-neutral-500">{programa.subtitulo}</p>

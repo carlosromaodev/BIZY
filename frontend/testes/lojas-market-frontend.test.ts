@@ -23,6 +23,8 @@ describe("frontend do Bizy Market e Studio", () => {
   it("implementa shopping center com busca, filtros sincronizados e fornecedor visível", () => {
     expect(exists("src/projetos/market/paginas/Market.tsx")).toBe(true);
     const market = source("src/projetos/market/paginas/Market.tsx");
+    const chrome = source("src/projetos/market/componentes/MarketChrome.tsx");
+    const cartaoProduto = source("src/projetos/market/componentes/CartaoProdutoMarket.tsx");
 
     expect(market).toContain("listarProdutosMarket");
     expect(market).toContain("listarCategoriasMarket");
@@ -33,26 +35,29 @@ describe("frontend do Bizy Market e Studio", () => {
     expect(market).toContain("loja");
     expect(market).toContain("normalizarProdutoMarket");
     expect(market).toContain("market-commerce-page");
-    expect(market).toContain("CabecalhoMarketComercial");
-    expect(market).toContain("market-ecom-shell");
-    expect(market).toContain("market-ecom-search");
-    expect(market).toContain("market-ecom-dept");
+    expect(market).toContain("CabecalhoMarket");
+    expect(market).toContain("RodapeMarket");
+    expect(chrome).toContain("market-ecom-shell");
+    expect(chrome).toContain("market-ecom-search");
+    expect(chrome).toContain("market-ecom-dept");
+    expect(chrome).toContain("LogoBizy");
     expect(market).toContain("SecaoProdutosEmDestaque");
     expect(market).toContain("SecaoCategoriasMarket");
     expect(market).toContain("heroX");
     expect(market).toContain("Produtos de lojas reais, fornecedor sempre visível.");
-    expect(market).toContain("market-wordmark-text");
+    expect(chrome).not.toContain("market-wordmark-text");
     expect(market).toContain("market-commerce-stores");
     expect(market).toContain("PaginaDiretorioLojasMarket");
     expect(market).toContain("market-stores-directory");
     expect(market).toContain("market-directory-chips");
     expect(market).toContain("ROTAS_LOJAS.lojasMarket");
-    expect(market).toContain("ROTAS_LOJAS.checkout");
-    expect(market).toContain("market-product-supplier");
-    expect(market).toContain("market-product-signal");
-    expect(market).toContain("market-product-meta");
+    expect(chrome).toContain("ROTAS_LOJAS.checkout");
+    expect(cartaoProduto).toContain("market-product-supplier");
+    expect(cartaoProduto).toContain("market-product-signal");
+    expect(cartaoProduto).toContain("market-product-meta");
     expect(market).toContain("market-empty-state");
-    expect(market).toContain("NativeBottomNav");
+    expect(market).not.toContain("NativeBottomNav");
+    expect(source("src/projetos/market/paginas/ProdutoMarket.tsx")).not.toContain("NativeBottomNav");
   });
 
   it("implementa detalhe do produto no Market com fornecedor e similares sem ambiguidade", () => {
@@ -70,18 +75,38 @@ describe("frontend do Bizy Market e Studio", () => {
     expect(produto).toContain("ROTAS_LOJAS.loja");
   });
 
-  it("fecha pendências do produto da loja: badge do fornecedor, accordions e link ao Market", () => {
+  it("oferece uma loja rica, orientada a comércio e integrada ao Market", () => {
     const loja = source("src/projetos/market/paginas/LojaDigitalPublica.tsx");
 
     expect(loja).toContain("loja-pdp-store-badge");
     expect(loja).toContain("loja-pdp-accordions");
     expect(loja).toContain("loja-pdp-similar-link");
-    expect(loja).toContain("loja-profile-catalogo-chip");
-    expect(loja).toContain("loja-profile-market-link");
-    expect(loja).toContain("loja-profile-commerce-tools");
-    expect(loja).toContain("loja-profile-filter-chips");
+    expect(loja).toContain("loja-storefront-hero");
+    expect(loja).toContain("loja-storefront-feature");
+    expect(loja).toContain("loja-storefront-product-grid");
+    expect(loja).toContain("loja-storefront-action is-market");
+    expect(loja).toContain("CabecalhoMarket");
+    expect(loja).toContain("RodapeMarket");
     expect(loja).toContain("ROTAS_LOJAS.produtoMarket");
     expect(loja).toContain("aria-expanded={aberto}");
+  });
+
+  it("mantém o chrome e a pesquisa funcional em todos os fluxos públicos do Market", () => {
+    const catalogo = source("src/projetos/market/paginas/CatalogoPublico.tsx");
+    const fluxos = [
+      catalogo,
+      source("src/projetos/market/paginas/CheckoutBizy.tsx"),
+      source("src/projetos/market/paginas/PortalComprador.tsx"),
+      source("src/projetos/market/paginas/CompraUnificada.tsx"),
+      source("src/projetos/market/paginas/FormularioLeadPublico.tsx")
+    ];
+
+    for (const fluxo of fluxos) {
+      expect(fluxo).toContain("CabecalhoMarket");
+      expect(fluxo).toContain("RodapeMarket");
+    }
+    expect(catalogo).toContain("const cabecalhoBase = <CabecalhoMarket />");
+    expect(catalogo).not.toContain('busca=""');
   });
 
   it("completa Studio com resumo do Market, publicação individual e publicação em massa", () => {
@@ -98,7 +123,9 @@ describe("frontend do Bizy Market e Studio", () => {
   });
 
   it("mantém a identidade visual do handoff com responsividade desktop e mobile", () => {
-    const estilos = source("src/estilos.css");
+    const estilosGlobais = source("src/estilos.css");
+    const estilosMarket = source("src/projetos/market/market.css");
+    const estilos = `${estilosGlobais}\n${estilosMarket}`;
 
     expect(estilos).toContain("Bizy Market + Lojas — final handoff alignment");
     expect(estilos).toContain("Bizy Market v2 — ecommerce shell handoff");
@@ -107,13 +134,15 @@ describe("frontend do Bizy Market e Studio", () => {
     expect(estilos).toContain(".market-flash-grid");
     expect(estilos).toContain(".market-category-tile-grid");
     expect(estilos).toContain(".market-directory-grid");
-    expect(estilos).toContain(".loja-stitch .loja-profile-commerce-tools");
-    expect(estilos).toContain(".loja-stitch .loja-profile-catalogo-chip");
+    expect(estilos).toContain(".loja-storefront-hero");
+    expect(estilos).toContain(".loja-storefront-product-grid");
     expect(estilos).toContain(".loja-product-sheet[data-side=\"bottom\"]");
     expect(estilos).toContain(".bz-market-studio-panel");
     expect(estilos).toContain("@media (max-width: 767px)");
     expect(estilos).toContain("@media (min-width: 1100px)");
     expect(estilos).toContain("prefers-reduced-motion");
+    expect(estilosMarket).toContain("Canonical Bizy Market surface");
+    expect(estilosMarket).toContain("border-radius: 0 !important");
   });
 
   it("não usa mock data nas páginas conectadas do Market e Studio", () => {
