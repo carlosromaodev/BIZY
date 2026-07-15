@@ -514,10 +514,43 @@ Estado: CONCLUIDA
 
 - Fase 10: confianca, risco, disputas e proteccao do comprador.
 
-## Fases 10 a 12
+## Fase 10 — Confianca, risco e proteccao
+
+Estado: CONCLUIDA
+
+### Implementado
+
+- [x] Avaliacao verificada apenas para ContaBizy proprietaria de pedido entregue.
+- [x] Produto avaliado deve pertencer ao pedido; duplicacao bloqueada por conta, pedido e produto.
+- [x] Seller score versionado e recalculado a partir de avaliacoes verificadas.
+- [x] Casos de risco com severidade, score, sinais, evidencias e revisao humana.
+- [x] Deteccao de autoindicacao, contas relacionadas, cliques artificiais, multiplas contas, comprovativo repetido, abuso de cupoes, devolucoes anormais, manipulacao de atribuicao e payout duplicado.
+- [x] Proteccao do comprador ligada a compra autenticada, pedido e evidencias.
+- [x] Operacao Team tenant-aware para analisar, listar e decidir casos.
+- [x] Denuncias, disputas e retencoes existentes preservadas como fluxo operacional.
+
+### Migrations
+
+- [x] `20260715160000_confianca_risco_protecao` aplicada localmente como expand-only.
+- [x] Constraints de notas e scores, unicidade de avaliacao e indices de revisao/ownership.
+
+### Testes
+
+- [x] Testes de limiar, severidade, sinais combinados, pedido entregue e produto alheio ao pedido.
+- [x] Typecheck e build backend aprovados.
+
+### Riscos restantes
+
+- Regras de risco sao versionaveis no codigo, mas calibracao estatistica depende de volume produtivo e revisao de falsos positivos.
+- Evidencias externas continuam sujeitas ao scanner e armazenamento privado implementados na Fase 3.
+
+### Proxima fase
+
+- Fase 11: live afiliada e carrinhos partilhaveis.
+
+## Fases 11 a 12
 
 Estado: NAO INICIADAS
 
-- [ ] Fase 10 — Confianca, risco e proteccao.
 - [ ] Fase 11 — Live afiliada e carrinhos partilhaveis.
 - [ ] Fase 12 — Consolidacao, testes e remocao de legado.

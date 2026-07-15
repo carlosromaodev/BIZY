@@ -1436,6 +1436,86 @@ model PayoutComissao {
   @@index([negocioId, estado, criadoEm])
 }
 
+model AvaliacaoVerificadaCommerce {
+  id               String   @id @default(uuid())
+  negocioId        String
+  contaBizyId      String
+  compraId         String
+  pedidoId         String
+  pecaId           String?
+  notaProduto      Int
+  notaEntrega      Int
+  notaSeller       Int
+  titulo           String?
+  comentario       String?
+  compraVerificada Boolean  @default(true)
+  estado           String   @default("PUBLICADA")
+  criadoEm         DateTime @default(now())
+  atualizadoEm     DateTime @updatedAt
+
+  @@unique([contaBizyId, pedidoId, pecaId])
+  @@index([negocioId, estado, criadoEm])
+  @@index([pecaId, estado, criadoEm])
+}
+
+model ScoreConfiancaCommerce {
+  id              String   @id @default(uuid())
+  negocioId       String?
+  sujeitoTipo     String
+  sujeitoId       String
+  score           Int
+  versao          String
+  componentesJson String   @default("{}")
+  calculadoEm     DateTime @default(now())
+
+  @@unique([sujeitoTipo, sujeitoId, versao])
+  @@index([negocioId, sujeitoTipo, score])
+}
+
+model CasoRiscoCommerce {
+  id             String   @id @default(uuid())
+  negocioId      String?
+  contaBizyId    String?
+  parceiroId     String?
+  pedidoId       String?
+  payoutId       String?
+  tipo           String
+  severidade     String
+  scoreRisco     Int
+  sinaisJson     String   @default("[]")
+  evidenciasJson String   @default("[]")
+  estado         String   @default("REVISAO_HUMANA")
+  decisao        String?
+  responsavelId  String?
+  criadoEm       DateTime @default(now())
+  atualizadoEm   DateTime @updatedAt
+
+  @@index([negocioId, estado, severidade])
+  @@index([contaBizyId, criadoEm])
+  @@index([parceiroId, criadoEm])
+  @@index([pedidoId])
+  @@index([payoutId])
+}
+
+model CasoProtecaoComprador {
+  id             String   @id @default(uuid())
+  contaBizyId    String
+  compraId       String
+  pedidoId       String?
+  negocioId      String?
+  tipo           String
+  descricao      String
+  evidenciasJson String   @default("[]")
+  estado         String   @default("ABERTO")
+  resolucao      String?
+  criadoEm       DateTime @default(now())
+  atualizadoEm   DateTime @updatedAt
+
+  @@index([contaBizyId, estado, criadoEm])
+  @@index([negocioId, estado, criadoEm])
+  @@index([compraId])
+}
+
 model MembroNegocio {
   id                  String         @id @default(uuid())
   negocioId           String
