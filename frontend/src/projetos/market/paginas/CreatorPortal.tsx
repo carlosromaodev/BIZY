@@ -8,6 +8,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { confirmarOtpContaBizy, encerrarSessaoContaBizy, solicitarOtpContaBizy } from "../api/contaBizy";
 import { criarSmartLinkCreator, obterCreatorPortal, type CreatorPortalDados } from "../api/creatorPortal";
 import { criarConteudoCreator, listarConteudosCreator, type ConteudoCommerceDados } from "../api/conteudoCompravel";
+import { aceitarMissaoCreator, candidatarOfertaCreator, obterCreatorMarketplace, solicitarAmostraCreator, type CreatorMarketplaceDados } from "../api/creatorMarketplace";
 import { MarcaMarket, MarketPublicPage } from "../componentes/MarketChrome";
 
 const NAVEGACAO = [
@@ -124,6 +125,7 @@ function ConteudoCreator({ rota, dados, atualizar }: { rota: string; dados: Crea
 
   if (rota === "/creator/links") return <LinksCreator dados={dados} atualizar={atualizar} />;
   if (rota === "/creator/conteudos") return <ConteudosCreator dados={dados} />;
+  if (["/creator/oportunidades", "/creator/produtos", "/creator/campanhas", "/creator/missoes"].includes(rota)) return <MarketplaceCreator rota={rota} />;
   if (rota === "/creator/comissoes") return <TabelaComissoes dados={dados} />;
   if (rota === "/creator/pagamentos") return <TabelaPagamentos dados={dados} />;
   if (rota === "/creator/desempenho") return <FunilCreator dados={dados} />;
@@ -158,6 +160,28 @@ function ConteudosCreator({ dados }: { dados: CreatorPortalDados }) {
   useEffect(() => { void carregar(); }, []);
   async function criar(evento: FormEvent) { evento.preventDefault(); setErro(""); try { const referencias = produtos.split("\n").map((linha) => linha.split(",").map((v) => v.trim())).filter((p) => p[0] && p[1]).map(([slugLoja, codigoProduto]) => ({ slugLoja, codigoProduto })); await criarConteudoCreator({ parceiroId: dados.parceiros[0]?.id, slug, tipo: "PUBLICACAO", titulo, divulgacaoComercial: true, produtos: referencias }); setTitulo(""); setSlug(""); setProdutos(""); await carregar(); } catch (falha) { setErro(falha instanceof Error ? falha.message : "Conteúdo inválido."); } }
   return <section className="creator-panel"><div className="creator-panel-head"><div><span>Social commerce</span><h2>Conteúdos compráveis</h2></div><FileVideo size={20} /></div><form className="creator-content-form" onSubmit={criar}><label>Título<input value={titulo} onChange={(e) => setTitulo(e.target.value)} required /></label><label>Slug<input value={slug} onChange={(e) => setSlug(e.target.value)} placeholder="guia-de-verao" required /></label><label className="wide">Produtos, um por linha no formato loja,código<textarea value={produtos} onChange={(e) => setProdutos(e.target.value)} placeholder={"minha-loja,PROD-01\noutra-loja,PROD-22"} required /></label>{erro && <p role="alert">{erro}</p>}<button type="submit">Enviar para revisão</button></form>{conteudos.map((item) => <div className="creator-row" key={item.id}><div><strong>{item.titulo}</strong><span>{item.tipo} · {item.produtos.length} produto(s) · /c/{item.slug}</span></div><span className="creator-status">{item.estado}</span></div>)}{!conteudos.length && <p className="creator-empty">Ainda não existem conteúdos neste perfil.</p>}</section>;
+}
+
+function MarketplaceCreator({ rota }: { rota: string }) {
+  const [dados, setDados] = useState<CreatorMarketplaceDados | null>(null); const [erro, setErro] = useState("");
+  const carregar = () => obterCreatorMarketplace().then(setDados).catch((falha) => setErro(falha instanceof Error ? falha.message : "Não foi possível carregar oportunidades."));
+  useEffect(() => { void carregar(); }, []);
+  if (erro) return <section className="creator-panel"><p role="alert">{erro}</p></section>;
+  if (!dados) return <section className="creator-panel"><p className="creator-empty">A carregar oportunidades...</p></section>;
+  const parceiroId = dados.parceiros[0]?.id;
+  if (rota === "/creator/produtos") {
+    const produtos = dados.ofertas.flatMap((oferta) => oferta.produtos.map((produto) => ({ ...produto, oferta })));
+    return <section className="creator-market-grid">{produtos.map(({ oferta, ...produto }) => <article className="creator-market-product" key={`${oferta.id}-${produto.id}`}>{produto.fotoUrl ? <img src={produto.fotoUrl} alt={produto.nome} /> : <div><Boxes size={28} /></div>}<span>{oferta.loja.nome}</span><h2>{produto.nome}</h2><strong>{formatarKwanza(produto.precoEmKwanza)}</strong><small>{oferta.comissaoTipo === "PERCENTUAL" ? `${oferta.comissaoValor / 100}% de comissão` : `${formatarKwanza(oferta.comissaoValor)} por venda`}</small></article>)}</section>;
+  }
+  if (rota === "/creator/missoes") {
+    const candidaturasAprovadas = new Set(dados.candidaturas.filter((item) => item.estado === "APROVADA").map((item) => item.ofertaId));
+    const missoes = dados.ofertas.filter((oferta) => candidaturasAprovadas.has(oferta.id)).flatMap((oferta) => oferta.missoes.map((missao) => ({ ...missao, oferta })));
+    return <section className="creator-panel"><div className="creator-panel-head"><div><span>Execução</span><h2>Missões activas</h2></div><CheckCircle2 size={20} /></div>{missoes.map(({ oferta, ...missao }) => { const aceite = dados.participacoes.some((item) => item.missaoId === missao.id); return <div className="creator-market-mission" key={missao.id}><div><strong>{missao.titulo}</strong><span>{oferta.titulo} · Bónus {formatarKwanza(missao.bonusEmKwanza)}</span><p>{missao.descricao}</p></div><button type="button" disabled={aceite} onClick={async () => { await aceitarMissaoCreator(missao.id); await carregar(); }}>{aceite ? "Aceite" : "Aceitar missão"}</button></div>; })}{!missoes.length && <p className="creator-empty">As missões aparecem depois de uma candidatura aprovada.</p>}</section>;
+  }
+  return <section className="creator-market-opportunities">{dados.ofertas.map((oferta) => {
+    const candidatura = dados.candidaturas.find((item) => item.ofertaId === oferta.id); const amostra = candidatura ? dados.amostras.find((item) => item.candidaturaId === candidatura.id) : null;
+    return <article className="creator-opportunity" key={oferta.id}><header><div><span>{oferta.loja.nome}</span><h2>{oferta.titulo}</h2></div><strong>{oferta.comissaoTipo === "PERCENTUAL" ? `${oferta.comissaoValor / 100}%` : formatarKwanza(oferta.comissaoValor)}</strong></header><p>{oferta.descricao}</p><div className="creator-opportunity-facts"><span>{oferta.produtos.length} produto(s)</span><span>{oferta.missoes.length} missão(ões)</span><span>{oferta.stockAmostras} amostra(s)</span></div><footer>{candidatura ? <span className="creator-status">{candidatura.estado}</span> : <button type="button" disabled={!parceiroId} onClick={async () => { if (!parceiroId) return; await candidatarOfertaCreator(oferta.id, parceiroId); await carregar(); }}>Candidatar-me</button>}{candidatura?.estado === "APROVADA" && oferta.stockAmostras > 0 && <button type="button" disabled={Boolean(amostra)} onClick={async () => { await solicitarAmostraCreator(candidatura.id); await carregar(); }}>{amostra ? `Amostra ${amostra.estado.toLowerCase()}` : "Pedir amostra"}</button>}</footer></article>;
+  })}{!dados.ofertas.length && <section className="creator-panel"><p className="creator-empty">Nenhuma oportunidade publicada neste momento.</p></section>}</section>;
 }
 
 function EstadoDominio({ rota }: { rota: string }) {

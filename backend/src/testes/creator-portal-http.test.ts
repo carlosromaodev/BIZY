@@ -76,7 +76,7 @@ describe("Portal Creator autenticado", () => {
       expect(JSON.stringify(portal.json())).not.toContain("923777099");
 
       const link = await app.inject({
-        method: "POST", url: "/creator/links", headers: { cookie },
+        method: "POST", url: "/creator/links/criar", headers: { cookie },
         payload: { parceiroId: parceiro.json().id, destinoTipo: "PRODUTO", slugLoja: "loja-creator", codigoProduto: "PROD-1" }
       });
       expect(link.statusCode).toBe(201);
@@ -87,7 +87,7 @@ describe("Portal Creator autenticado", () => {
       expect(portalAlheio.statusCode).toBe(200);
       expect(portalAlheio.json().parceiros).toEqual([]);
       const idor = await app.inject({
-        method: "POST", url: "/creator/links", headers: { cookie: cookieAlheio },
+        method: "POST", url: "/creator/links/criar", headers: { cookie: cookieAlheio },
         payload: { parceiroId: parceiro.json().id, destinoTipo: "LOJA", slugLoja: "loja-creator" }
       });
       expect(idor.statusCode).toBe(404);

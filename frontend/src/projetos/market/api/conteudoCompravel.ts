@@ -11,5 +11,5 @@ export interface ConteudoCompravelPublico {
   divulgacao: string | null;
 }
 export function listarConteudosCreator(): Promise<{ conteudos: ConteudoCommerceDados[] }> { return requisitarApi("/creator/conteudos/dados", {}, false); }
-export function criarConteudoCreator(dados: Record<string, unknown>): Promise<ConteudoCommerceDados> { return requisitarApi("/creator/conteudos", { method: "POST", body: dados }, false); }
+export function criarConteudoCreator(dados: Record<string, unknown>): Promise<ConteudoCommerceDados> { return requisitarApi("/creator/conteudos/criar", { method: "POST", body: dados }, false); }
 export function obterConteudoCompravel(slug: string): Promise<ConteudoCompravelPublico> { return requisitarApi(`/publico/conteudos/${encodeURIComponent(slug)}`, {}, false); }

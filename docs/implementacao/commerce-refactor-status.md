@@ -414,11 +414,59 @@ Estado: CONCLUIDA
 
 - Fase 8: Creator Marketplace com ofertas, candidaturas, amostras e missoes.
 
-## Fases 8 a 12
+## Fase 8 — Creator Marketplace
+
+Estado: CONCLUIDA
+
+### Implementado
+
+- [x] Ofertas publicadas por sellers com produtos e variantes reais, comissao em basis points, periodo, stock de amostras e criterios.
+- [x] Descoberta autenticada de oportunidades validas no portal Creator.
+- [x] Candidaturas cross-tenant com origem auditavel e decisao exclusiva do seller proprietario.
+- [x] Aprovacao cria ou reutiliza o parceiro comercial da mesma ContaBizy no negocio de destino.
+- [x] Solicitacao de amostra com stock atomico e proteccao contra duplicacao.
+- [x] Missoes e participacao idempotente do criador.
+- [x] Dados reais nas paginas de oportunidades, produtos, campanhas e missoes.
+- [x] Gestao Team integrada em `/app/afiliados`, sem receita ou vendas inferidas por multiplicadores.
+- [x] Rotas API separadas das rotas SPA para evitar intercepcao indevida pelo proxy de desenvolvimento.
+- [x] Ownership, tenant isolation, estados e datas validados no backend.
+
+### Ficheiros alterados
+
+- `backend/prisma/schema.prisma` e `backend/prisma/migrations/20260715110000_creator_marketplace/migration.sql`.
+- Dominio, use case e repositorios Prisma/memoria do Creator Marketplace em `backend/src/projetos/market/`.
+- Contexto da aplicacao e modulo HTTP do portal Creator.
+- `frontend/src/projetos/market/paginas/CreatorPortal.tsx`, API, estilos e proxy.
+- `frontend/src/paginas/Afiliados.tsx` para operacao seller no Team.
+- `backend/src/testes/creator-marketplace-http.test.ts` e ajustes de contratos das rotas Creator.
+
+### Migrations
+
+- [x] `20260715110000_creator_marketplace`: cria ofertas, produtos elegiveis, candidaturas, amostras, missoes e participacoes sem remover estruturas existentes.
+- [x] Aplicada na base local; 60 migrations aplicadas do zero num schema PostgreSQL descartavel e schema removido apos validacao.
+- [x] FKs, indices, unicidade de amostra/participacao e origem cross-tenant documentados com rollback nao destrutivo.
+
+### Testes
+
+- [x] Integracao HTTP das Fases 6 a 8: portal, conteudo compravel e Creator Marketplace aprovados.
+- [x] Backend integral deterministico: 92 ficheiros e 387 testes aprovados; 1 ficheiro e 1 teste ignorados conforme configuracao existente.
+- [x] Frontend integral: 39 ficheiros e 144 testes aprovados.
+- [x] Typecheck e build aprovados no backend e frontend.
+- [x] QA Creator em 1440x900 e 375x812 e Team seller em 1440x900: ofertas reais, candidatura, gestao e zero overflow ou erro de consola.
+
+### Riscos restantes
+
+- A movimentacao financeira das comissoes ainda depende do modelo legado e sera substituida pelo ledger imutavel da Fase 9.
+- Integracao logistica externa para envio de amostras exige provider futuro; estado, stock e auditoria ja estao persistidos.
+
+### Proxima fase
+
+- Fase 9: ledger imutavel, distribuicao colaborativa, retencoes e payouts.
+
+## Fases 9 a 12
 
 Estado: NAO INICIADAS
 
-- [ ] Fase 8 — Creator Marketplace.
 - [ ] Fase 9 — Ledger, comissoes e payouts.
 - [ ] Fase 10 — Confianca, risco e proteccao.
 - [ ] Fase 11 — Live afiliada e carrinhos partilhaveis.

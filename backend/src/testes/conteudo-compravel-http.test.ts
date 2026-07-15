@@ -85,7 +85,7 @@ describe("Conteúdo comprável", () => {
       const creator = await entrarCreator(app, "923791099");
 
       const invalido = await app.inject({
-        method: "POST", url: "/creator/conteudos", headers: creator,
+        method: "POST", url: "/creator/conteudos/criar", headers: creator,
         payload: {
           parceiroId: parceiro.json().id, slug: "conteudo-invalido", tipo: "REEL", titulo: "Conteúdo inválido",
           produtos: [{ slugLoja: "loja-conteudo-a", codigoProduto: "NAO-EXISTE" }]
@@ -95,7 +95,7 @@ describe("Conteúdo comprável", () => {
       expect(invalido.json().erro).toBe("PRODUTO_NAO_DISPONIVEL");
 
       const criado = await app.inject({
-        method: "POST", url: "/creator/conteudos", headers: creator,
+        method: "POST", url: "/creator/conteudos/criar", headers: creator,
         payload: {
           parceiroId: parceiro.json().id, slug: "Guia Multi Loja", tipo: "REEL", titulo: "Guia Multi Loja",
           legenda: "Seleção real de produtos de fornecedores diferentes.", divulgacaoComercial: true,

@@ -607,6 +607,9 @@ export interface ResumoAfiliados {
   comissaoEstimadaEmKwanza?: number;
   comissaoConfirmadaEmKwanza?: number;
   comissaoPagaEmKwanza?: number;
+  pedidosAtribuidos?: number;
+  receitaAtribuidaEmKwanza?: number;
+  ranking?: Array<{ afiliadoId: string; pedidos: number; receitaAtribuidaEmKwanza: number; comissaoConfirmadaEmKwanza: number }>;
   [chave: string]: unknown;
 }
 

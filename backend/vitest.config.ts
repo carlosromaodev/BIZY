@@ -5,6 +5,7 @@ export default defineConfig({
     include: ["src/**/*.test.ts"],
     environment: "node",
     globals: true,
+    maxWorkers: 1,
     env: {
       MODULOS_TODOS_ATIVOS: "true",
       AUTH_SECRET: "test-secret-for-vitest-32chars00",

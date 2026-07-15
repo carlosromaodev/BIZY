@@ -39,5 +39,5 @@ export function criarSmartLinkCreator(dados: {
   slugLoja?: string | null;
   codigoProduto?: string | null;
 }): Promise<CreatorPortalDados["links"][number]> {
-  return requisitarApi("/creator/links", { method: "POST", body: dados }, false);
+  return requisitarApi("/creator/links/criar", { method: "POST", body: dados }, false);
 }

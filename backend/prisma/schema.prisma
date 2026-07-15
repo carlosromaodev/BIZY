@@ -35,6 +35,7 @@ model Peca {
   variantesPeca    VariantePeca[]
   itensCarrinho    ItemCarrinhoCommerce[]
   produtosConteudo ProdutoConteudoCommerce[]
+  produtosOferta   ProdutoOfertaCreator[]
 
   @@unique([negocioId, codigo])
   @@index([negocioId])
@@ -62,6 +63,7 @@ model VariantePeca {
   reservasCheckout ReservaStockCheckout[]
   itensCarrinho    ItemCarrinhoCommerce[]
   produtosConteudo ProdutoConteudoCommerce[]
+  produtosOferta   ProdutoOfertaCreator[]
 
   @@unique([pecaId, combinacao])
   @@index([pecaId])
@@ -527,6 +529,11 @@ model Negocio {
   historicoComissoesParceiro     HistoricoComissaoParceiro[]
   lotesPagamentoComissao         LotePagamentoComissao[]
   conteudosCommerce              ConteudoCommerce[]
+  ofertasCreator                 OfertaCreator[]
+  produtosOfertaCreator          ProdutoOfertaCreator[]
+  candidaturasCreator            CandidaturaCreator[]
+  amostrasCreator                AmostraCreator[]
+  missoesCreator                 MissaoCreator[]
   tarefasOperacionais            TarefaOperacional[]
   socialInboxItens               SocialInboxItem[]
   playbooksRecuperacao           PlaybookRecuperacao[]
@@ -898,6 +905,9 @@ model ParceiroComercial {
   toquesCommerce         ToqueAtribuicaoCommerce[]
   participacoesConversao ParticipanteConversaoCommerce[]
   conteudosCommerce      ConteudoCommerce[]
+  candidaturasCreator    CandidaturaCreator[]
+  amostrasCreator        AmostraCreator[]
+  participacoesMissao    ParticipacaoMissaoCreator[]
 
   @@unique([negocioId, codigo])
   @@unique([negocioId, contaBizyId])
@@ -980,6 +990,133 @@ model ProdutoConteudoCommerce {
   @@index([conteudoId, ordem])
   @@index([negocioId, pecaId])
   @@index([variantePecaId])
+}
+
+model OfertaCreator {
+  id            String                 @id @default(uuid())
+  negocioId     String
+  negocio       Negocio                @relation(fields: [negocioId], references: [id])
+  codigo        String
+  titulo        String
+  descricao     String
+  estado        String                 @default("RASCUNHO")
+  comissaoTipo  String
+  comissaoValor Int
+  moeda         String                 @default("AOA")
+  criteriosJson String                 @default("{}")
+  regrasJson    String                 @default("{}")
+  bonusJson     String                 @default("{}")
+  stockAmostras Int                    @default(0)
+  iniciaEm      DateTime?
+  terminaEm     DateTime?
+  publicadaEm   DateTime?
+  criadoEm      DateTime               @default(now())
+  atualizadoEm  DateTime               @updatedAt
+  produtos      ProdutoOfertaCreator[]
+  candidaturas  CandidaturaCreator[]
+  missoes       MissaoCreator[]
+
+  @@unique([negocioId, codigo])
+  @@index([estado, iniciaEm, terminaEm])
+  @@index([negocioId, estado, criadoEm])
+}
+
+model ProdutoOfertaCreator {
+  id             String        @id @default(uuid())
+  ofertaId       String
+  oferta         OfertaCreator @relation(fields: [ofertaId], references: [id], onDelete: Cascade)
+  negocioId      String
+  negocio        Negocio       @relation(fields: [negocioId], references: [id])
+  pecaId         String
+  peca           Peca          @relation(fields: [pecaId], references: [id])
+  variantePecaId String?
+  variantePeca   VariantePeca? @relation(fields: [variantePecaId], references: [id], onDelete: SetNull)
+  ordem          Int           @default(0)
+
+  @@unique([ofertaId, pecaId, variantePecaId])
+  @@index([negocioId, pecaId])
+}
+
+model CandidaturaCreator {
+  id                      String                      @id @default(uuid())
+  ofertaId                String
+  oferta                  OfertaCreator               @relation(fields: [ofertaId], references: [id], onDelete: Cascade)
+  negocioId               String
+  negocio                 Negocio                     @relation(fields: [negocioId], references: [id])
+  parceiroId              String
+  parceiro                ParceiroComercial           @relation(fields: [parceiroId], references: [id])
+  parceiroNegocioOrigemId String
+  estado                  String                      @default("PENDENTE")
+  mensagem                String?
+  motivoDecisao           String?
+  decididaEm              DateTime?
+  criadoEm                DateTime                    @default(now())
+  atualizadoEm            DateTime                    @updatedAt
+  amostras                AmostraCreator[]
+  participacoes           ParticipacaoMissaoCreator[]
+
+  @@unique([ofertaId, parceiroId])
+  @@index([negocioId, estado, criadoEm])
+  @@index([parceiroId, estado, criadoEm])
+  @@index([parceiroNegocioOrigemId])
+}
+
+model AmostraCreator {
+  id            String             @id @default(uuid())
+  candidaturaId String
+  candidatura   CandidaturaCreator @relation(fields: [candidaturaId], references: [id], onDelete: Cascade)
+  negocioId     String
+  negocio       Negocio            @relation(fields: [negocioId], references: [id])
+  parceiroId    String
+  parceiro      ParceiroComercial  @relation(fields: [parceiroId], references: [id])
+  estado        String             @default("SOLICITADA")
+  observacao    String?
+  trackingEnvio String?
+  criadaEm      DateTime           @default(now())
+  atualizadaEm  DateTime           @updatedAt
+
+  @@unique([candidaturaId])
+  @@index([negocioId, estado, criadaEm])
+  @@index([parceiroId, estado])
+}
+
+model MissaoCreator {
+  id            String                      @id @default(uuid())
+  ofertaId      String
+  oferta        OfertaCreator               @relation(fields: [ofertaId], references: [id], onDelete: Cascade)
+  negocioId     String
+  negocio       Negocio                     @relation(fields: [negocioId], references: [id])
+  titulo        String
+  descricao     String
+  criteriosJson String                      @default("{}")
+  bonusEmKwanza Int                         @default(0)
+  iniciaEm      DateTime?
+  terminaEm     DateTime?
+  estado        String                      @default("ATIVA")
+  criadaEm      DateTime                    @default(now())
+  atualizadaEm  DateTime                    @updatedAt
+  participacoes ParticipacaoMissaoCreator[]
+
+  @@index([negocioId, estado, terminaEm])
+  @@index([ofertaId, estado])
+}
+
+model ParticipacaoMissaoCreator {
+  id            String             @id @default(uuid())
+  missaoId      String
+  missao        MissaoCreator      @relation(fields: [missaoId], references: [id], onDelete: Cascade)
+  candidaturaId String
+  candidatura   CandidaturaCreator @relation(fields: [candidaturaId], references: [id], onDelete: Cascade)
+  parceiroId    String
+  parceiro      ParceiroComercial  @relation(fields: [parceiroId], references: [id])
+  estado        String             @default("ACEITE")
+  progressoJson String             @default("{}")
+  aceiteEm      DateTime           @default(now())
+  concluidaEm   DateTime?
+
+  @@unique([missaoId, parceiroId])
+  @@index([parceiroId, estado])
+  @@index([candidaturaId])
 }
 
 model SessaoCommerce {

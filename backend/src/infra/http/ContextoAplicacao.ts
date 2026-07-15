@@ -54,9 +54,13 @@ import type { RepositorioSmartLinksCommerce } from "../../projetos/market/domini
 import { AtribuicaoCommerceUseCase } from "../../projetos/market/aplicacao/AtribuicaoCommerceUseCase.js";
 import { CreatorPortalUseCase } from "../../projetos/market/aplicacao/CreatorPortalUseCase.js";
 import { ConteudoCompravelUseCase } from "../../projetos/market/aplicacao/ConteudoCompravelUseCase.js";
+import { CreatorMarketplaceUseCase } from "../../projetos/market/aplicacao/CreatorMarketplaceUseCase.js";
 import type { RepositorioConteudosCommerce } from "../../projetos/market/dominio/conteudoCommerce.js";
+import type { RepositorioCreatorMarketplace } from "../../projetos/market/dominio/creatorMarketplace.js";
 import { RepositorioConteudosCommerceMemoria } from "../../projetos/market/infra/repositorios/RepositorioConteudosCommerceMemoria.js";
 import { RepositorioConteudosCommercePrisma } from "../../projetos/market/infra/repositorios/RepositorioConteudosCommercePrisma.js";
+import { RepositorioCreatorMarketplaceMemoria } from "../../projetos/market/infra/repositorios/RepositorioCreatorMarketplaceMemoria.js";
+import { RepositorioCreatorMarketplacePrisma } from "../../projetos/market/infra/repositorios/RepositorioCreatorMarketplacePrisma.js";
 import type { RepositorioAtribuicaoCommerce } from "../../projetos/market/dominio/atribuicaoCommerce.js";
 import { RepositorioCarrinhosCommerceMemoria } from "../../projetos/market/infra/repositorios/RepositorioCarrinhosCommerceMemoria.js";
 import { RepositorioCarrinhosCommercePrisma } from "../../projetos/market/infra/repositorios/RepositorioCarrinhosCommercePrisma.js";
@@ -221,6 +225,7 @@ export interface RepositoriosAplicacao {
   smartLinksCommerce: RepositorioSmartLinksCommerce;
   atribuicaoCommerce: RepositorioAtribuicaoCommerce;
   conteudosCommerce: RepositorioConteudosCommerce;
+  creatorMarketplace: RepositorioCreatorMarketplace;
   comprasUnificadas: RepositorioComprasUnificadas;
   repassesFinanceiros: RepositorioRepassesFinanceiros;
   reembolsos: RepositorioReembolsos;
@@ -304,6 +309,7 @@ export interface ContextoAplicacao {
   atribuicaoCommerce: AtribuicaoCommerceUseCase;
   creatorPortal: CreatorPortalUseCase;
   conteudoCompravel: ConteudoCompravelUseCase;
+  creatorMarketplace: CreatorMarketplaceUseCase;
   repassesFinanceiros: RepassesFinanceirosUseCase;
   gestaoEquipa: GestaoEquipaUseCase;
   gestaoFinancas: GestaoFinancasUseCase;
@@ -591,6 +597,13 @@ export function criarContextoAplicacao(logger: FastifyBaseLogger): ContextoAplic
     pecas: repositorios.pecas,
     tracking: repositorios.trackingComercial
   });
+  const creatorMarketplace = new CreatorMarketplaceUseCase({
+    marketplace: repositorios.creatorMarketplace,
+    contas: repositorios.contaBizy,
+    afiliados: repositorios.afiliados,
+    autenticacao: repositorios.autenticacao,
+    pecas: repositorios.pecas
+  });
 
   const carrinhoCommerce = new CarrinhoCommerceUseCase({
     carrinhos: repositorios.carrinhosCommerce,
@@ -710,6 +723,7 @@ export function criarContextoAplicacao(logger: FastifyBaseLogger): ContextoAplic
     atribuicaoCommerce,
     creatorPortal,
     conteudoCompravel,
+    creatorMarketplace,
     repassesFinanceiros: repassesFinanceirosUseCase,
     gestaoEquipa,
     gestaoFinancas,
@@ -954,6 +968,7 @@ function criarRepositorios(): RepositoriosAplicacao {
       smartLinksCommerce: new RepositorioSmartLinksCommerceMemoria(),
       atribuicaoCommerce: new RepositorioAtribuicaoCommerceMemoria(),
       conteudosCommerce: new RepositorioConteudosCommerceMemoria(),
+      creatorMarketplace: new RepositorioCreatorMarketplaceMemoria(),
       comprasUnificadas: new RepositorioComprasUnificadasMemoria(),
       repassesFinanceiros: new RepositorioRepassesFinanceirosMemoria(),
       reembolsos: new RepositorioReembolsosMemoria(),
@@ -996,6 +1011,7 @@ function criarRepositorios(): RepositoriosAplicacao {
     smartLinksCommerce: new RepositorioSmartLinksCommercePrisma(prisma),
     atribuicaoCommerce: new RepositorioAtribuicaoCommercePrisma(prisma),
     conteudosCommerce: new RepositorioConteudosCommercePrisma(prisma),
+    creatorMarketplace: new RepositorioCreatorMarketplacePrisma(prisma),
     comprasUnificadas: new RepositorioComprasUnificadasPrisma(prisma),
     repassesFinanceiros: new RepositorioRepassesFinanceirosPrisma(prisma),
     reembolsos: new RepositorioReembolsosPrisma(prisma),
