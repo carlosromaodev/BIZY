@@ -49,8 +49,12 @@ import { BizyMarketUseCase } from "../../projetos/market/aplicacao/BizyMarketUse
 import { CheckoutUnificadoUseCase } from "../../projetos/market/aplicacao/CheckoutUnificadoUseCase.js";
 import { CarrinhoCommerceUseCase } from "../../projetos/market/aplicacao/CarrinhoCommerceUseCase.js";
 import type { RepositorioCarrinhosCommerce } from "../../projetos/market/dominio/carrinhoCommerce.js";
+import { SmartLinksCommerceUseCase } from "../../projetos/market/aplicacao/SmartLinksCommerceUseCase.js";
+import type { RepositorioSmartLinksCommerce } from "../../projetos/market/dominio/smartLinksCommerce.js";
 import { RepositorioCarrinhosCommerceMemoria } from "../../projetos/market/infra/repositorios/RepositorioCarrinhosCommerceMemoria.js";
 import { RepositorioCarrinhosCommercePrisma } from "../../projetos/market/infra/repositorios/RepositorioCarrinhosCommercePrisma.js";
+import { RepositorioSmartLinksCommerceMemoria } from "../../projetos/market/infra/repositorios/RepositorioSmartLinksCommerceMemoria.js";
+import { RepositorioSmartLinksCommercePrisma } from "../../projetos/market/infra/repositorios/RepositorioSmartLinksCommercePrisma.js";
 import { ContaBizyUseCase } from "../../projetos/commerce/aplicacao/ContaBizyUseCase.js";
 import type { RepositorioContaBizy } from "../../projetos/commerce/dominio/contratos.js";
 import { RepositorioContaBizyMemoria } from "../../projetos/commerce/infra/repositorios/RepositorioContaBizyMemoria.js";
@@ -205,6 +209,7 @@ export interface RepositoriosAplicacao {
   denuncias: RepositorioDenuncias;
   reservasStockCheckout: RepositorioReservasStockCheckout;
   carrinhosCommerce: RepositorioCarrinhosCommerce;
+  smartLinksCommerce: RepositorioSmartLinksCommerce;
   comprasUnificadas: RepositorioComprasUnificadas;
   repassesFinanceiros: RepositorioRepassesFinanceiros;
   reembolsos: RepositorioReembolsos;
@@ -284,6 +289,7 @@ export interface ContextoAplicacao {
   bizyMarket: BizyMarketUseCase;
   checkoutUnificado: CheckoutUnificadoUseCase;
   carrinhoCommerce: CarrinhoCommerceUseCase;
+  smartLinksCommerce: SmartLinksCommerceUseCase;
   repassesFinanceiros: RepassesFinanceirosUseCase;
   gestaoEquipa: GestaoEquipaUseCase;
   gestaoFinancas: GestaoFinancasUseCase;
@@ -541,12 +547,21 @@ export function criarContextoAplicacao(logger: FastifyBaseLogger): ContextoAplic
   );
   const bizyMarket = new BizyMarketUseCase(repositorios.autenticacao, repositorios.pecas);
   const bizyLearning = new BizyLearningUseCase(repositorios.eventosOperacionais, repositorios.autenticacao);
+  const segredoAuth = process.env.AUTH_SECRET ?? (() => { throw new Error("AUTH_SECRET não configurado."); })();
+
+  const smartLinksCommerce = new SmartLinksCommerceUseCase({
+    smartLinks: repositorios.smartLinksCommerce,
+    afiliados: repositorios.afiliados,
+    autenticacao: repositorios.autenticacao,
+    pecas: repositorios.pecas,
+    tracking: repositorios.trackingComercial
+  }, segredoAuth);
 
   const carrinhoCommerce = new CarrinhoCommerceUseCase({
     carrinhos: repositorios.carrinhosCommerce,
     autenticacao: repositorios.autenticacao,
     pecas: repositorios.pecas
-  }, process.env.AUTH_SECRET ?? (() => { throw new Error("AUTH_SECRET não configurado."); })(), repositorios.prisma ? 30 : 30);
+  }, segredoAuth, 30);
 
   const checkoutUnificado = new CheckoutUnificadoUseCase({
     contaBizy,
@@ -656,6 +671,7 @@ export function criarContextoAplicacao(logger: FastifyBaseLogger): ContextoAplic
     bizyMarket,
     checkoutUnificado,
     carrinhoCommerce,
+    smartLinksCommerce,
     repassesFinanceiros: repassesFinanceirosUseCase,
     gestaoEquipa,
     gestaoFinancas,
@@ -897,6 +913,7 @@ function criarRepositorios(): RepositoriosAplicacao {
       denuncias: new RepositorioDenunciasMemoria(),
       reservasStockCheckout: new RepositorioReservasStockCheckoutMemoria(),
       carrinhosCommerce: new RepositorioCarrinhosCommerceMemoria(pecas),
+      smartLinksCommerce: new RepositorioSmartLinksCommerceMemoria(),
       comprasUnificadas: new RepositorioComprasUnificadasMemoria(),
       repassesFinanceiros: new RepositorioRepassesFinanceirosMemoria(),
       reembolsos: new RepositorioReembolsosMemoria(),
@@ -936,6 +953,7 @@ function criarRepositorios(): RepositoriosAplicacao {
     denuncias: new RepositorioDenunciasPrisma(prisma),
     reservasStockCheckout: new RepositorioReservasStockCheckoutPrisma(prisma),
     carrinhosCommerce: new RepositorioCarrinhosCommercePrisma(prisma),
+    smartLinksCommerce: new RepositorioSmartLinksCommercePrisma(prisma),
     comprasUnificadas: new RepositorioComprasUnificadasPrisma(prisma),
     repassesFinanceiros: new RepositorioRepassesFinanceirosPrisma(prisma),
     reembolsos: new RepositorioReembolsosPrisma(prisma),

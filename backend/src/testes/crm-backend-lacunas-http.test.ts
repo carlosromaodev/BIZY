@@ -93,7 +93,8 @@ describe("CRM+ lacunas backend dos RF/RNF/RN", () => {
       INICIAR_AGENDADOR_EXPIRACAO: "false",
       N8N_BACKEND_TOKEN: "",
       EVOLUTION_WEBHOOK_TOKEN: "",
-      PUBLIC_STORE_BASE_URL: "https://usebozy.com"
+      PUBLIC_STORE_BASE_URL: "https://usebozy.com",
+      PUBLIC_SMART_LINK_BASE_URL: "https://links.usebozy.com"
     };
   });
 
@@ -286,7 +287,7 @@ describe("CRM+ lacunas backend dos RF/RNF/RN", () => {
         }
       });
       expect(link.statusCode).toBe(201);
-      expect(link.json().urlPublica).toBe("https://usebozy.com/lojas/loja-lacunas/produtos/AFF-1?ref=ANA-AFF-1&canal=instagram&conteudo=reels");
+      expect(link.json().urlPublica).toBe("https://links.usebozy.com/go/ANA-AFF-1");
 
       const resolvido = await app.inject({ method: "GET", url: "/publico/links/ANA-AFF-1" });
       expect(resolvido.statusCode).toBe(200);

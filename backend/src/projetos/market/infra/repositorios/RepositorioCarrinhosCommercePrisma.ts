@@ -11,7 +11,7 @@ const incluirItens = { itens: { orderBy: { criadoEm: "asc" as const } } };
 export class RepositorioCarrinhosCommercePrisma implements RepositorioCarrinhosCommerce {
   constructor(private readonly prisma: PrismaClient) {}
 
-  async criar(dados: { tokenHash: string | null; contaBizyId: string | null; expiraEm: Date }) {
+  async criar(dados: { tokenHash: string | null; contaBizyId: string | null; sessaoCommerceId: string | null; expiraEm: Date }) {
     return this.mapear(await this.prisma.carrinhoCommerce.create({ data: dados, include: incluirItens }));
   }
 
@@ -98,6 +98,14 @@ export class RepositorioCarrinhosCommercePrisma implements RepositorioCarrinhosC
     return this.mapear(await this.prisma.carrinhoCommerce.update({ where: { id }, data: { contaBizyId, tokenHash: null }, include: incluirItens }));
   }
 
+  async vincularSessao(id: string, sessaoCommerceId: string) {
+    const existe = await this.prisma.carrinhoCommerce.findFirst({ where: { id, estado: "ABERTO" } });
+    if (!existe) return null;
+    return this.mapear(await this.prisma.carrinhoCommerce.update({
+      where: { id }, data: { sessaoCommerceId }, include: incluirItens
+    }));
+  }
+
   async abandonar(id: string) {
     await this.prisma.$transaction([
       this.prisma.reservaStockCheckout.updateMany({ where: { sessaoId: id, estado: "ATIVA" }, data: { estado: "LIBERADA", liberadaEm: new Date() } }),
@@ -173,7 +181,7 @@ export class RepositorioCarrinhosCommercePrisma implements RepositorioCarrinhosC
 
   private mapear(item: Prisma.CarrinhoCommerceGetPayload<{ include: typeof incluirItens }>): CarrinhoCommerce {
     return {
-      id: item.id, contaBizyId: item.contaBizyId, estado: item.estado as CarrinhoCommerce["estado"],
+      id: item.id, contaBizyId: item.contaBizyId, sessaoCommerceId: item.sessaoCommerceId, estado: item.estado as CarrinhoCommerce["estado"],
       expiraEm: item.expiraEm, convertidoEm: item.convertidoEm, criadoEm: item.criadoEm, atualizadoEm: item.atualizadoEm,
       itens: item.itens.map((linha): ItemCarrinhoCommerce => ({
         id: linha.id, carrinhoId: linha.carrinhoId, negocioId: linha.negocioId, slugLoja: linha.slugLoja,

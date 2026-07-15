@@ -25,6 +25,7 @@ const link: LinkAfiliado = {
   id: "link-1",
   afiliadoId: "parceiro-1",
   codigo: "CRIADOR01-LOJA",
+  urlPublica: "https://links.example.com/go/CRIADOR01-LOJA",
   destinoTipo: "LOJA",
   slugLoja: null,
   codigoProduto: null,

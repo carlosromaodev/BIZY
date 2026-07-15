@@ -245,7 +245,7 @@ describe("afiliados, criadores e comissões HTTP", () => {
           afiliadoId: afiliado.json().id,
           codigoProduto: "AF1",
           ativo: true,
-          urlPublica: expect.stringContaining("ref=ANA-AF1")
+          urlPublica: expect.stringContaining("/go/ANA-AF1")
         })
       );
 
@@ -427,12 +427,12 @@ describe("afiliados, criadores e comissões HTTP", () => {
             liveId: "live-maio-01",
             utmCampaign: "inverno-2026"
           }),
-          urlPublica: expect.stringContaining("campanha=campanha-inverno-2026")
+          urlPublica: expect.stringContaining("/go/MAYA-CAMP-01")
         })
       );
-      expect(link.json().urlPublica).toContain("vendedor=vend-ana");
-      expect(link.json().urlPublica).toContain("post=ig-post-991");
-      expect(link.json().urlPublica).toContain("live=live-maio-01");
+      expect(link.json().urlPublica).not.toContain("vendedor=vend-ana");
+      expect(link.json().urlPublica).not.toContain("post=ig-post-991");
+      expect(link.json().urlPublica).not.toContain("live=live-maio-01");
 
       const publico = await app.inject({
         method: "GET",
@@ -1687,7 +1687,7 @@ describe("afiliados, criadores e comissões HTTP", () => {
           codigo: "ML1",
           link: expect.objectContaining({
             codigo: "NIA-ML1",
-            urlPublica: expect.stringContaining("ref=NIA-ML1")
+            urlPublica: expect.stringContaining("/go/NIA-ML1")
           })
         })
       );

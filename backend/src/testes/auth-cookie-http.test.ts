@@ -117,7 +117,9 @@ describe("sessão por cookie HttpOnly", () => {
       expect(autenticada.statusCode).toBe(200);
       expect(autenticada.json().usuario.nome).toBe("Bearer JWT");
 
-      const adulterado = `${token.slice(0, -1)}${token.endsWith("a") ? "b" : "a"}`;
+      const [cabecalho, payload, assinatura] = token.split(".");
+      const assinaturaAdulterada = `${assinatura.startsWith("a") ? "b" : "a"}${assinatura.slice(1)}`;
+      const adulterado = `${cabecalho}.${payload}.${assinaturaAdulterada}`;
       const rejeitada = await app.inject({
         method: "GET",
         url: "/auth/sessao",

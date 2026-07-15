@@ -20,6 +20,7 @@ export const tiposMovimentoStock = [
 export type TipoMovimentoStock = (typeof tiposMovimentoStock)[number];
 
 export const tiposEventoTrackingComercial = [
+  "SMART_LINK_CLICK",
   "LOJA_VISITADA",
   "PRODUTO_VISTO",
   "CATALOGO_VISTO",
@@ -2672,6 +2673,7 @@ export interface CompraUnificada {
   idempotencyKey: string | null;
   contaBizyId: string | null;
   carrinhoId: string | null;
+  sessaoCommerceId: string | null;
   compradorTelefone: string;
   compradorNome: string | null;
   compradorEmail: string | null;
@@ -2695,6 +2697,7 @@ export interface NovaCompraUnificada {
   idempotencyKey?: string | null;
   contaBizyId?: string | null;
   carrinhoId?: string | null;
+  sessaoCommerceId?: string | null;
   compradorTelefone: string;
   compradorNome?: string | null;
   compradorEmail?: string | null;

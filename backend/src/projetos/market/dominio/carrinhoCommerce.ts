@@ -26,6 +26,7 @@ export interface ItemCarrinhoCommerce {
 export interface CarrinhoCommerce {
   id: string;
   contaBizyId: string | null;
+  sessaoCommerceId: string | null;
   estado: EstadoCarrinhoCommerce;
   expiraEm: Date;
   convertidoEm: Date | null;
@@ -39,12 +40,13 @@ export interface ItemCarrinhoResolvido extends Omit<ItemCarrinhoCommerce, "id" |
 }
 
 export interface RepositorioCarrinhosCommerce {
-  criar(dados: { tokenHash: string | null; contaBizyId: string | null; expiraEm: Date }): Promise<CarrinhoCommerce>;
+  criar(dados: { tokenHash: string | null; contaBizyId: string | null; sessaoCommerceId: string | null; expiraEm: Date }): Promise<CarrinhoCommerce>;
   buscarPorTokenHash(tokenHash: string, agora: Date): Promise<CarrinhoCommerce | null>;
   buscarAbertoPorConta(contaBizyId: string, agora: Date): Promise<CarrinhoCommerce | null>;
   buscarPorIdEConta(id: string, contaBizyId: string, agora: Date): Promise<CarrinhoCommerce | null>;
   substituirItens(id: string, itens: ItemCarrinhoResolvido[], carrinhoExpiraEm: Date, reservaExpiraEm: Date): Promise<CarrinhoCommerce>;
   associarConta(id: string, contaBizyId: string): Promise<CarrinhoCommerce | null>;
+  vincularSessao(id: string, sessaoCommerceId: string): Promise<CarrinhoCommerce | null>;
   abandonar(id: string): Promise<void>;
   converter(id: string): Promise<CarrinhoCommerce>;
 }

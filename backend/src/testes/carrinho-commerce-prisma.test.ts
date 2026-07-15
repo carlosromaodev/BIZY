@@ -42,8 +42,8 @@ suite("Carrinho Commerce no PostgreSQL", () => {
   it("serializa reservas concorrentes sem ultrapassar o stock", async () => {
     const expiraEm = new Date(Date.now() + 30 * 60_000);
     const [a, b] = await Promise.all([
-      repositorio.criar({ tokenHash: `hash-a-${sufixo}`, contaBizyId: null, expiraEm }),
-      repositorio.criar({ tokenHash: `hash-b-${sufixo}`, contaBizyId: null, expiraEm })
+      repositorio.criar({ tokenHash: `hash-a-${sufixo}`, contaBizyId: null, sessaoCommerceId: null, expiraEm }),
+      repositorio.criar({ tokenHash: `hash-b-${sufixo}`, contaBizyId: null, sessaoCommerceId: null, expiraEm })
     ]);
     carrinhos.push(a.id, b.id);
     const item: ItemCarrinhoResolvido = {

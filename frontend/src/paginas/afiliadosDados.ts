@@ -17,6 +17,7 @@ export interface LinkAfiliado {
   id: string;
   afiliadoId: string;
   codigo: string;
+  urlPublica: string;
   destinoTipo: string;
   slugLoja: string | null;
   codigoProduto: string | null;

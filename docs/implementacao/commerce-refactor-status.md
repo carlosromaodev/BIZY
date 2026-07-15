@@ -207,8 +207,71 @@ Estado: CONCLUIDA
 
 - Fase 4: Smart Links e tracking server-side da jornada publica.
 
-## Fases 4 a 12
+## Fase 4 — Smart Links
+
+Estado: CONCLUIDA
+
+### Implementado
+
+- [x] Rota canonica `GET /go/:codigo` com redireccionamento HTTP real e destino construido por allowlist.
+- [x] Destinos suportados para produto, loja, colecao, conteudo, campanha, carrinho, mini-loja, formulario e produto Learning.
+- [x] Sessao commerce opaca, reutilizavel por cookie seguro e armazenada exclusivamente como hash.
+- [x] Clique, toque de atribuicao, campanha, conteudo, afiliado, produto e origem persistidos no servidor.
+- [x] Contexto do Smart Link propagado para carrinho server-side e compra unificada sem confiar em atribuicao enviada pelo cliente.
+- [x] Preview Open Graph e Twitter para crawlers sem criar clique ou sessao artificial.
+- [x] URL publica gerada pela afiliacao migrada para `/go/:codigo`, preservando o endpoint JSON legado durante o dual read.
+- [x] Proteccao contra open redirect, link expirado, parceiro suspenso, destino nao suportado e enumeracao diferenciada.
+- [x] Testes negativos, migration, typecheck, suites integrais, builds e QA desktop/mobile concluidos.
+
+### Ficheiros alterados
+
+- `backend/prisma/schema.prisma` e `backend/prisma/migrations/20260715020000_smart_links_sessions/migration.sql`.
+- `backend/src/projetos/market/dominio/smartLinksCommerce.ts`.
+- `backend/src/projetos/market/aplicacao/SmartLinksCommerceUseCase.ts`.
+- Repositorios Prisma e memoria de Smart Links, carrinho e compras unificadas.
+- `backend/src/infra/http/modulos/afiliados.ts`, contexto HTTP, rate limit e seguranca de cookies commerce.
+- `frontend/src/paginas/Afiliados.tsx` e contrato de dados de afiliacao.
+- Configuracoes de ambiente e Compose para a base publica canonica dos Smart Links.
+
+### Migrations
+
+- [x] `20260715020000_smart_links_sessions`: cria sessoes commerce e toques de atribuicao e associa opcionalmente carrinho e compra.
+- [x] Migration expand-only, com indices, FKs opcionais, estrategia de rollback e nenhuma remocao de dados legados.
+- [x] Aplicada na base local; `prisma validate`, `prisma generate` e `migrate status` aprovados.
+- [x] As 56 migrations foram aplicadas do zero numa base PostgreSQL descartavel e a base foi removida apos a validacao.
+
+### Testes
+
+- [x] Backend focado: Smart Links, afiliacao, carrinho, checkout e regressoes de auth/CRM aprovados.
+- [x] Backend integral: 87 ficheiros e 381 testes passaram; 1 ficheiro e 1 teste ficaram ignorados conforme configuracao existente.
+- [x] Frontend integral: 39 ficheiros e 144 testes passaram.
+- [x] Integracao PostgreSQL real: token armazenado como hash, sessao reutilizada, toques auditados e associacao ao carrinho e compra.
+- [x] Jornada HTTP real: Smart Link, cookie seguro, carrinho server-side e checkout concluida.
+- [x] Seguranca: open redirect ignorado, resposta 404 uniforme, expiracao, parceiro suspenso e destino desconhecido rejeitados.
+- [x] `npm run typecheck` e `npm run build` passaram no backend e frontend; frontend transformou 2.781 modulos.
+- [x] QA em 1440x900 e 375x812: preview, redireccionamento, produto real, cookie HttpOnly, zero overflow, erros de consola ou falhas HTTP inesperadas.
+
+### Riscos restantes
+
+- As rotas publicas de conteudo compravel e carrinho partilhavel ficam reservadas na allowlist, mas so serao activadas pelas Fases 7 e 11.
+- O dominio publico configurado em `PUBLIC_SMART_LINK_BASE_URL` deve apontar para o backend no ambiente de deploy; o fallback local permanece funcional.
+- O endpoint JSON legado sera removido apenas no cutover da Fase 12, depois de confirmar ausencia de consumidores antigos.
+
+### Proxima fase
+
+- Fase 5: atribuicao comercial versionada, explicavel e ligada a conversoes.
+
+## Fases 5 a 12
 
 Estado: NAO INICIADAS
+
+- [ ] Fase 5 — Atribuicao comercial.
+- [ ] Fase 6 — Portal Creator e afiliados.
+- [ ] Fase 7 — Conteudo compravel.
+- [ ] Fase 8 — Creator Marketplace.
+- [ ] Fase 9 — Ledger, comissoes e payouts.
+- [ ] Fase 10 — Confianca, risco e proteccao.
+- [ ] Fase 11 — Live afiliada e carrinhos partilhaveis.
+- [ ] Fase 12 — Consolidacao, testes e remocao de legado.
 
 O detalhe de cada fase sera aberto apenas quando a fase anterior cumprir migrations, autorizacao, testes negativos, typecheck, testes e build.

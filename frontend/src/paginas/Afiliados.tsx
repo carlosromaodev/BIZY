@@ -156,7 +156,7 @@ export function PaginaAfiliados() {
           ativo: true
         }
       });
-      await navigator.clipboard.writeText(`/publico/links/${link.codigo}`);
+      await navigator.clipboard.writeText(link.urlPublica || `/go/${link.codigo}`);
       await carregar();
       setMensagem("Link criado e caminho público copiado.");
     } catch (erro) {

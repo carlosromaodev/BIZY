@@ -108,7 +108,8 @@ export function criarRateLimit(opcoes: OpcoesRateLimit) {
 
     const agora = Date.now();
     const caminho = request.url.split("?")[0];
-    const limite = caminho.startsWith("/publico") ? opcoes.maximoPublicoPorJanela ?? opcoes.maximoPorJanela : opcoes.maximoPorJanela;
+    const rotaPublica = caminho.startsWith("/publico") || caminho.startsWith("/go/");
+    const limite = rotaPublica ? opcoes.maximoPublicoPorJanela ?? opcoes.maximoPorJanela : opcoes.maximoPorJanela;
     const chave = `${request.ip}:${request.method}:${caminho}`;
     let resultado: ResultadoRateLimit;
 

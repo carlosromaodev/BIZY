@@ -14,10 +14,10 @@ export class RepositorioCarrinhosCommerceMemoria implements RepositorioCarrinhos
 
   constructor(private readonly pecas?: RepositorioPecas) {}
 
-  async criar(dados: { tokenHash: string | null; contaBizyId: string | null; expiraEm: Date }) {
+  async criar(dados: { tokenHash: string | null; contaBizyId: string | null; sessaoCommerceId: string | null; expiraEm: Date }) {
     const agora = new Date();
     const carrinho: CarrinhoCommerce & { tokenHash: string | null } = {
-      id: randomUUID(), tokenHash: dados.tokenHash, contaBizyId: dados.contaBizyId,
+      id: randomUUID(), tokenHash: dados.tokenHash, contaBizyId: dados.contaBizyId, sessaoCommerceId: dados.sessaoCommerceId,
       estado: "ABERTO", expiraEm: dados.expiraEm, convertidoEm: null,
       criadoEm: agora, atualizadoEm: agora, itens: []
     };
@@ -69,6 +69,14 @@ export class RepositorioCarrinhosCommerceMemoria implements RepositorioCarrinhos
     const carrinho = this.carrinhos.find((item) => item.id === id && item.estado === "ABERTO");
     if (!carrinho) return null;
     carrinho.contaBizyId = contaBizyId;
+    carrinho.atualizadoEm = new Date();
+    return this.publicar(carrinho);
+  }
+
+  async vincularSessao(id: string, sessaoCommerceId: string) {
+    const carrinho = this.carrinhos.find((item) => item.id === id && item.estado === "ABERTO");
+    if (!carrinho) return null;
+    carrinho.sessaoCommerceId = sessaoCommerceId;
     carrinho.atualizadoEm = new Date();
     return this.publicar(carrinho);
   }

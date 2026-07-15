@@ -4,9 +4,26 @@ import type { ContextoAplicacao } from "../../../../infra/http/ContextoAplicacao
 import { resolverSessaoJwt } from "../../../../infra/http/seguranca.js";
 
 const COOKIE_CONTA = "bizy_conta_sessao";
+const COOKIE_COMMERCE = "bizy_commerce_session";
 
 export function obterTokenSessaoConta(request: FastifyRequest): string | null {
   return request.cookies?.[COOKIE_CONTA] ?? null;
+}
+
+export function obterTokenSessaoCommerce(request: FastifyRequest): string | null {
+  return request.cookies?.[COOKIE_COMMERCE] ?? null;
+}
+
+export function definirCookieSessaoCommerce(reply: FastifyReply, token: string, expiraEm: Date): void {
+  reply.setCookie(COOKIE_COMMERCE, token, {
+    path: "/",
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.AUTH_COOKIE_SECURE === "true" || process.env.NODE_ENV === "production",
+    priority: "high",
+    maxAge: Math.max(1, Math.floor((expiraEm.getTime() - Date.now()) / 1000)),
+    expires: expiraEm
+  });
 }
 
 export function definirCookieConta(reply: FastifyReply, token: string, expiraEm: Date): void {

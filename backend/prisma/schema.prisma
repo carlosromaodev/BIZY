@@ -515,6 +515,7 @@ model Negocio {
   compartilhamentosOrigem CompartilhamentoCliente[] @relation("CompartilhamentoClienteNegocioOrigem")
   compartilhamentosDestino CompartilhamentoCliente[] @relation("CompartilhamentoClienteNegocioDestino")
   eventosTrackingComercial EventoTrackingComercial[]
+  toquesAtribuicaoCommerce ToqueAtribuicaoCommerce[]
   parceirosComerciais     ParceiroComercial[]
   linksAfiliados          LinkAfiliado[]
   comissoesParceiro       ComissaoParceiro[]
@@ -886,6 +887,7 @@ model ParceiroComercial {
   atualizadoEm        DateTime            @updatedAt
   links               LinkAfiliado[]
   comissoes           ComissaoParceiro[]
+  toquesCommerce      ToqueAtribuicaoCommerce[]
 
   @@unique([negocioId, codigo])
   @@index([negocioId, estado])
@@ -911,11 +913,61 @@ model LinkAfiliado {
   criadoEm        DateTime            @default(now())
   atualizadoEm    DateTime            @updatedAt
   comissoes       ComissaoParceiro[]
+  toquesCommerce  ToqueAtribuicaoCommerce[]
 
   @@index([negocioId, afiliadoId])
   @@index([negocioId, ativo])
   @@index([negocioId, destinoTipo, destinoId])
   @@index([slugLoja, codigoProduto])
+}
+
+model SessaoCommerce {
+  id            String                     @id @default(uuid())
+  tokenHash     String                     @unique
+  trackingId    String                     @unique
+  contaBizyId   String?
+  contaBizy     ContaBizy?                 @relation(fields: [contaBizyId], references: [id], onDelete: SetNull)
+  expiraEm      DateTime
+  ultimoToqueEm DateTime?
+  encerradaEm   DateTime?
+  metadataJson  String                     @default("{}")
+  criadaEm      DateTime                   @default(now())
+  atualizadoEm  DateTime                   @updatedAt
+  toques        ToqueAtribuicaoCommerce[]
+  carrinhos     CarrinhoCommerce[]
+  compras       CompraUnificada[]
+
+  @@index([contaBizyId, expiraEm])
+  @@index([expiraEm, encerradaEm])
+}
+
+model ToqueAtribuicaoCommerce {
+  id            String             @id @default(uuid())
+  sessaoId      String
+  sessao        SessaoCommerce     @relation(fields: [sessaoId], references: [id], onDelete: Cascade)
+  negocioId     String
+  negocio       Negocio            @relation(fields: [negocioId], references: [id])
+  linkId        String
+  link          LinkAfiliado       @relation(fields: [linkId], references: [id])
+  afiliadoId    String
+  afiliado      ParceiroComercial  @relation(fields: [afiliadoId], references: [id])
+  tipo          String             @default("SMART_LINK_CLICK")
+  destinoTipo   String
+  destinoId     String?
+  campanhaId    String?
+  conteudoId    String?
+  codigoProduto String?
+  canal         String?
+  origem        String?
+  metadataJson  String             @default("{}")
+  criadoEm      DateTime           @default(now())
+
+  @@index([sessaoId, criadoEm])
+  @@index([negocioId, tipo, criadoEm])
+  @@index([linkId, criadoEm])
+  @@index([afiliadoId, criadoEm])
+  @@index([campanhaId, criadoEm])
+  @@index([conteudoId, criadoEm])
 }
 
 model ComissaoParceiro {
@@ -1257,6 +1309,7 @@ model ContaBizy {
   codigosOtp            CodigoOtpContaBizy[]
   compras               CompraUnificada[]
   carrinhos            CarrinhoCommerce[]
+  sessoesCommerce      SessaoCommerce[]
 
   @@index([status])
   @@index([telefoneVerificadoEm])
@@ -1521,6 +1574,8 @@ model CarrinhoCommerce {
   tokenHash    String?                @unique
   contaBizyId  String?
   contaBizy    ContaBizy?             @relation(fields: [contaBizyId], references: [id], onDelete: SetNull)
+  sessaoCommerceId String?
+  sessaoCommerce   SessaoCommerce?    @relation(fields: [sessaoCommerceId], references: [id], onDelete: SetNull)
   estado       String                 @default("ABERTO")
   expiraEm     DateTime
   convertidoEm DateTime?
@@ -1530,6 +1585,7 @@ model CarrinhoCommerce {
   compra       CompraUnificada?
 
   @@index([contaBizyId, estado, atualizadoEm])
+  @@index([sessaoCommerceId, estado])
   @@index([estado, expiraEm])
 }
 
@@ -1589,6 +1645,8 @@ model CompraUnificada {
   contaBizy                 ContaBizy?      @relation(fields: [contaBizyId], references: [id])
   carrinhoId               String?             @unique
   carrinho                 CarrinhoCommerce?   @relation(fields: [carrinhoId], references: [id], onDelete: SetNull)
+  sessaoCommerceId         String?
+  sessaoCommerce           SessaoCommerce?     @relation(fields: [sessaoCommerceId], references: [id], onDelete: SetNull)
   pedidosFilho              PedidoFilho[]
   acessosConvidado          AcessoCompraConvidado[]
 
@@ -1596,6 +1654,7 @@ model CompraUnificada {
   @@unique([compradorTelefone, idempotencyKey])
   @@index([estado])
   @@index([contaBizyId, criadoEm])
+  @@index([sessaoCommerceId, criadoEm])
 }
 
 model PedidoFilho {

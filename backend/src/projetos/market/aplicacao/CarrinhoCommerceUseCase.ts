@@ -40,6 +40,7 @@ export class CarrinhoCommerceUseCase {
 
   async sincronizar(dados: {
     contaBizyId: string | null;
+    sessaoCommerceId: string | null;
     token: string | null;
     itens: ItemEntradaCarrinhoCommerce[];
     modo: "MESCLAR" | "SUBSTITUIR";
@@ -65,11 +66,15 @@ export class CarrinhoCommerceUseCase {
 
     if (!carrinho) {
       if (dados.contaBizyId) {
-        carrinho = await this.deps.carrinhos.criar({ tokenHash: null, contaBizyId: dados.contaBizyId, expiraEm: this.expiracaoCarrinho() });
+        carrinho = await this.deps.carrinhos.criar({ tokenHash: null, contaBizyId: dados.contaBizyId, sessaoCommerceId: dados.sessaoCommerceId, expiraEm: this.expiracaoCarrinho() });
       } else {
         tokenNovo = randomBytes(32).toString("base64url");
-        carrinho = await this.deps.carrinhos.criar({ tokenHash: this.hashToken(tokenNovo), contaBizyId: null, expiraEm: this.expiracaoCarrinho() });
+        carrinho = await this.deps.carrinhos.criar({ tokenHash: this.hashToken(tokenNovo), contaBizyId: null, sessaoCommerceId: dados.sessaoCommerceId, expiraEm: this.expiracaoCarrinho() });
       }
+    }
+
+    if (dados.sessaoCommerceId && carrinho.sessaoCommerceId !== dados.sessaoCommerceId) {
+      carrinho = await this.deps.carrinhos.vincularSessao(carrinho.id, dados.sessaoCommerceId) ?? carrinho;
     }
 
     const entradas = dados.modo === "MESCLAR"

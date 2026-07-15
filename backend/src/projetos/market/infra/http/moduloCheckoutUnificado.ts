@@ -9,6 +9,7 @@ import {
   exigirContaAutenticada,
   obterTokenCarrinho,
   obterTokenCompra,
+  obterTokenSessaoCommerce,
   resolverContaAutenticada
 } from "../../../commerce/infra/http/segurancaContaBizy.js";
 
@@ -150,10 +151,22 @@ export const moduloCheckoutUnificado: ModuloHttp = {
     app.post("/publico/market/carrinho/sincronizar", async (request, reply) => {
       const acesso = await resolverContaAutenticada(contexto, request);
       const dados = SincronizarCarrinhoSchema.parse(request.body ?? {});
+      const contextoSmartLink = await contexto.smartLinksCommerce.obterContexto(obterTokenSessaoCommerce(request));
       const resultado = await contexto.carrinhoCommerce.sincronizar({
         contaBizyId: acesso?.conta.id ?? null,
+        sessaoCommerceId: contextoSmartLink?.sessao.id ?? null,
         token: obterTokenCarrinho(request),
-        itens: dados.itens,
+        itens: dados.itens.map((item) => {
+          const atribuicaoSmartLink = contextoSmartLink?.atribuicao;
+          const correspondeAoSmartLink = Boolean(atribuicaoSmartLink && (
+            !contextoSmartLink.toque?.codigoProduto || contextoSmartLink.toque.codigoProduto === item.codigoPeca.toUpperCase()
+          ));
+          return {
+            ...item,
+            origem: correspondeAoSmartLink ? "smart-link" : item.origem,
+            atribuicao: correspondeAoSmartLink ? atribuicaoSmartLink ?? undefined : item.atribuicao
+          };
+        }),
         modo: dados.modo
       });
       return reply.code(200).send({ carrinho: formatarCarrinho(resultado.carrinho), token: resultado.token });
@@ -173,6 +186,7 @@ export const moduloCheckoutUnificado: ModuloHttp = {
       }
       const dados = CriarCompraUnificadaSchema.parse(request.body ?? {});
       const acessoConta = await resolverContaAutenticada(contexto, request);
+      const contextoSmartLink = await contexto.smartLinksCommerce.obterContexto(obterTokenSessaoCommerce(request));
       const compradorTelefone = contexto.autenticacaoTelefone.normalizarTelefoneOuFalhar(dados.compradorTelefone);
 
       let carrinho = dados.carrinhoId
@@ -195,6 +209,7 @@ export const moduloCheckoutUnificado: ModuloHttp = {
       if (carrinho) {
         carrinho = (await contexto.carrinhoCommerce.sincronizar({
           contaBizyId: acessoConta?.conta.id ?? null,
+          sessaoCommerceId: contextoSmartLink?.sessao.id ?? carrinho.sessaoCommerceId,
           token: obterTokenCarrinho(request),
           modo: "SUBSTITUIR",
           itens: carrinho.itens.map((item) => ({
@@ -229,6 +244,7 @@ export const moduloCheckoutUnificado: ModuloHttp = {
         ...dados,
         compradorTelefone,
         contaBizyId: acessoConta?.conta.id ?? null,
+        sessaoCommerceId: contextoSmartLink?.sessao.id ?? carrinho?.sessaoCommerceId ?? null,
         itens: itensResolvidos
       });
       await Promise.all(resultado.pedidosFilho.map(async (filho) => {

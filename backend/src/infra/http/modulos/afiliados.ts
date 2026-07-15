@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import {
   AjustarAtribuicaoManualSchema,
   CriarAfiliadoSchema,
@@ -10,17 +11,77 @@ import {
   QueryTrackingIdAfiliadoSchema
 } from "../../../dominio/esquemas.js";
 import { exigirAcessoComercial } from "../contextoComercial.js";
+import {
+  definirCookieSessaoCommerce,
+  metadadosAcesso,
+  obterTokenSessaoCommerce
+} from "../../../projetos/commerce/infra/http/segurancaContaBizy.js";
 import type { ModuloHttp } from "./ModuloHttp.js";
+
+const ERRO_LINK_PUBLICO = { erro: "LINK_NAO_ENCONTRADO", mensagem: "Link de venda não encontrado ou inativo." };
+
+function ehCrawlerPreview(userAgent: string | undefined, preview: unknown): boolean {
+  if (preview === "1") return true;
+  return /facebookexternalhit|facebot|whatsapp|twitterbot|linkedinbot|telegrambot|discordbot|slackbot/i.test(userAgent ?? "");
+}
+
+function escaparHtml(valor: string): string {
+  return valor.replace(/[&<>"']/g, (caractere) => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+  }[caractere] ?? caractere));
+}
+
+function htmlPreview(dados: {
+  titulo: string;
+  descricao: string;
+  imagemUrl: string | null;
+  urlCanonica: string;
+}, destinoUrl: string): string {
+  const titulo = escaparHtml(dados.titulo);
+  const descricao = escaparHtml(dados.descricao);
+  const canonica = escaparHtml(dados.urlCanonica);
+  const destino = escaparHtml(destinoUrl);
+  const imagem = dados.imagemUrl
+    ? `<meta property="og:image" content="${escaparHtml(dados.imagemUrl)}">`
+    : "";
+  return `<!doctype html><html lang="pt"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${titulo}</title><meta name="description" content="${descricao}"><meta property="og:type" content="website"><meta property="og:title" content="${titulo}"><meta property="og:description" content="${descricao}"><meta property="og:url" content="${canonica}">${imagem}<meta name="twitter:card" content="summary_large_image"><link rel="canonical" href="${canonica}"></head><body><main><h1>${titulo}</h1><p>${descricao}</p><a href="${destino}">Abrir no Bizy</a></main></body></html>`;
+}
 
 export const moduloAfiliados: ModuloHttp = {
   nome: "afiliados",
   descricao: "Afiliados, criadores, links de venda e comissões comerciais.",
   registrar(app, contexto) {
+    app.get("/go/:codigo", async (request, reply) => {
+      const { codigo } = ParamCodigoSchema.parse(request.params);
+      const query = request.query as { preview?: string } | undefined;
+      if (ehCrawlerPreview(request.headers["user-agent"], query?.preview)) {
+        const resolvido = await contexto.smartLinksCommerce.resolverPreview(codigo);
+        if (!resolvido) return reply.code(404).send(ERRO_LINK_PUBLICO);
+        reply.header("Cache-Control", "public, max-age=60");
+        return reply.type("text/html; charset=utf-8").send(htmlPreview(resolvido.preview, resolvido.destinoUrl));
+      }
+
+      const acesso = metadadosAcesso(request);
+      const userAgentHash = acesso.userAgent
+        ? createHash("sha256").update(acesso.userAgent).digest("hex")
+        : null;
+      const resolvido = await contexto.smartLinksCommerce.resolverClique(
+        codigo,
+        obterTokenSessaoCommerce(request),
+        { ipHash: acesso.ipHash, userAgentHash, requestId: request.id }
+      );
+      if (!resolvido) return reply.code(404).send(ERRO_LINK_PUBLICO);
+
+      definirCookieSessaoCommerce(reply, resolvido.token, resolvido.sessao.expiraEm);
+      reply.header("Cache-Control", "private, no-store");
+      return reply.code(302).redirect(resolvido.destinoUrl);
+    });
+
     app.get("/publico/links/:codigo", async (request, reply) => {
       const { codigo } = ParamCodigoSchema.parse(request.params);
       const link = await contexto.gestaoAfiliados.resolverLinkPublico(codigo);
       if (!link) {
-        return reply.code(404).send({ erro: "LINK_NAO_ENCONTRADO", mensagem: "Link de venda não encontrado ou inativo." });
+        return reply.code(404).send(ERRO_LINK_PUBLICO);
       }
       return link;
     });

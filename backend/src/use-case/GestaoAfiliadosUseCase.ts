@@ -884,34 +884,8 @@ export class GestaoAfiliadosUseCase {
   }
 
   private montarUrlPublica(link: LinkAfiliado): string {
-    const base = (process.env.PUBLIC_STORE_BASE_URL ?? process.env.FRONTEND_URL ?? "").replace(/\/$/, "");
-    const slug = link.slugLoja ?? "loja";
-    const caminho =
-      link.destinoTipo === "PRODUTO" && link.codigoProduto
-        ? `/lojas/${slug}/produtos/${link.codigoProduto}`
-        : `/lojas/${slug}`;
-    const params = new URLSearchParams({ ref: link.codigo });
-    if (link.canal) params.set("canal", link.canal);
-    if (link.origemConteudo) params.set("conteudo", link.origemConteudo);
-    if (link.destinoId) {
-      params.set(link.destinoTipo === "CAMPANHA" ? "campanha" : "destino", link.destinoId);
-    }
-    const vendedorId = this.textoMetadata(link.metadata.vendedorId);
-    const postSocialId = this.textoMetadata(link.metadata.postSocialId);
-    const liveId = this.textoMetadata(link.metadata.liveId);
-    const utmSource = this.textoMetadata(link.metadata.utmSource);
-    const utmMedium = this.textoMetadata(link.metadata.utmMedium);
-    const utmCampaign = this.textoMetadata(link.metadata.utmCampaign);
-    const utmContent = this.textoMetadata(link.metadata.utmContent);
-    if (vendedorId) params.set("vendedor", vendedorId);
-    if (postSocialId) params.set("post", postSocialId);
-    if (liveId) params.set("live", liveId);
-    if (utmSource) params.set("utm_source", utmSource);
-    if (utmMedium) params.set("utm_medium", utmMedium);
-    if (utmCampaign) params.set("utm_campaign", utmCampaign);
-    if (utmContent) params.set("utm_content", utmContent);
-
-    return `${base}${caminho}?${params.toString()}`;
+    const base = (process.env.PUBLIC_SMART_LINK_BASE_URL ?? process.env.BACKEND_PUBLIC_URL ?? "").replace(/\/$/, "");
+    return `${base}/go/${encodeURIComponent(link.codigo)}`;
   }
 
   private textoMetadata(valor: unknown): string | null {

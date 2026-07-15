@@ -255,6 +255,7 @@ function deveExigirSessaoOperacional(url: string): boolean {
   if (caminho.startsWith("/media/files/") && !isPrivateStoredMediaUrl(caminho)) return false;
   if (caminho.startsWith("/n8n/")) return false;
   if (caminho.startsWith("/publico/")) return false;
+  if (caminho.startsWith("/go/")) return false;
   if (caminho.startsWith("/webhooks/")) return false;
 
   return true;
