@@ -3,16 +3,20 @@ import { criarAplicacao } from "../infra/http/criarAplicacao.js";
 
 const ambienteOriginal = { ...process.env };
 
-async function autenticar(app: Awaited<ReturnType<typeof criarAplicacao>>) {
+async function autenticar(
+  app: Awaited<ReturnType<typeof criarAplicacao>>,
+  telefone = "923811001",
+  nome = "Loja Smart Links"
+) {
   const codigo = await app.inject({
     method: "POST",
     url: "/auth/telefone/solicitar-codigo",
-    payload: { telefone: "923811001", nome: "Loja Smart Links" }
+    payload: { telefone, nome }
   });
   const sessao = await app.inject({
     method: "POST",
     url: "/auth/telefone/confirmar-codigo",
-    payload: { telefone: "923811001", codigo: codigo.json().codigoDev }
+    payload: { telefone, codigo: codigo.json().codigoDev }
   });
   return { authorization: `Bearer ${sessao.json().token}` };
 }
@@ -207,8 +211,62 @@ describe("Smart Links commerce HTTP", () => {
       expect(checkout.statusCode).toBe(201);
       expect(checkout.json().compra.id).toBeTruthy();
 
+      const repetido = await app.inject({
+        method: "POST",
+        url: "/publico/market/checkout",
+        headers: { cookie, "x-bizy-cart-token": carrinho.json().token },
+        payload: {
+          idempotencyKey: "checkout-smart-link-001",
+          carrinhoId: carrinho.json().carrinho.id,
+          compradorTelefone: "923811009",
+          compradorNome: "Comprador Smart",
+          itens: [],
+          entrega: { tipo: "RETIRADA" },
+          metodoPagamento: "TRANSFERENCIA"
+        }
+      });
+      expect(repetido.statusCode).toBe(201);
+      expect(repetido.json().compra.id).toBe(checkout.json().compra.id);
+
+      const atribuicao = await app.inject({
+        method: "GET",
+        url: `/market/fornecedor/compras/${checkout.json().compra.id}/atribuicao`,
+        headers
+      });
+      expect(atribuicao.statusCode).toBe(200);
+      expect(atribuicao.json().total).toBe(1);
+      expect(atribuicao.json().conversoes[0]).toEqual(expect.objectContaining({
+        modelo: "ULTIMO_TOQUE",
+        politicaCodigo: "market-default",
+        valorBaseEmKwanza: 30_000
+      }));
+      expect(atribuicao.json().conversoes[0].politicaVersao).toMatch(/^v-[a-f0-9]{12}$/);
+      expect(atribuicao.json().conversoes[0].participantes).toHaveLength(1);
+      expect(atribuicao.json().conversoes[0].participantes[0]).toEqual(expect.objectContaining({
+        papel: "PRINCIPAL",
+        pesoBasisPoints: 10_000,
+        valorAtribuidoEmKwanza: 18_000
+      }));
+      expect(atribuicao.json().conversoes[0].explicacao).toEqual(expect.objectContaining({
+        schema: "bizy.commerce.attribution.v1",
+        valorBaseEmKwanza: 30_000,
+        valorAtribuivelEmKwanza: 18_000
+      }));
+
+      const headersOutroNegocio = await autenticar(app, "923811099", "Outro Negocio");
+      const isolado = await app.inject({
+        method: "GET",
+        url: `/market/fornecedor/compras/${checkout.json().compra.id}/atribuicao`,
+        headers: headersOutroNegocio
+      });
+      expect(isolado.statusCode).toBe(404);
+
       const resumoDepois = await app.inject({ method: "GET", url: "/loja-publica/tracking/resumo", headers });
       expect(resumoDepois.json().porTipo.SMART_LINK_CLICK).toBe(2);
+      expect(resumoDepois.json().porTipo.ADD_TO_CART).toBe(2);
+      expect(resumoDepois.json().porTipo.CHECKOUT_STARTED).toBe(1);
+      expect(resumoDepois.json().porTipo.BUYER_IDENTIFIED).toBe(1);
+      expect(resumoDepois.json().porTipo.ORDER_CREATED).toBe(1);
 
       const legado = await app.inject({ method: "GET", url: "/publico/links/LINK-SMART-001" });
       expect(legado.statusCode).toBe(200);

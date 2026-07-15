@@ -52,4 +52,33 @@ export class RepositorioSmartLinksCommerceMemoria implements RepositorioSmartLin
       .filter((toque) => toque.sessaoId === sessaoId)
       .sort((a, b) => b.criadoEm.getTime() - a.criadoEm.getTime())[0] ?? null;
   }
+
+  async vincularConta(sessaoId: string, contaBizyId: string) {
+    const sessao = this.sessoes.get(sessaoId);
+    if (!sessao || (sessao.contaBizyId && sessao.contaBizyId !== contaBizyId)) return null;
+    sessao.contaBizyId = contaBizyId;
+    sessao.atualizadoEm = new Date();
+    return sessao;
+  }
+
+  async listarToquesAtribuiveis(filtro: {
+    sessaoId: string | null;
+    contaBizyId: string | null;
+    negocioId: string;
+    desde: Date;
+    ate: Date;
+  }) {
+    if (!filtro.sessaoId && !filtro.contaBizyId) return [];
+    return [...this.toques.values()]
+      .filter((toque) => {
+        const sessao = this.sessoes.get(toque.sessaoId);
+        const sessaoPermitida = toque.sessaoId === filtro.sessaoId || Boolean(
+          filtro.contaBizyId && sessao?.contaBizyId === filtro.contaBizyId
+        );
+        return sessaoPermitida && toque.negocioId === filtro.negocioId &&
+          toque.criadoEm >= filtro.desde && toque.criadoEm <= filtro.ate;
+      })
+      .sort((a, b) => a.criadoEm.getTime() - b.criadoEm.getTime())
+      .map((toque) => ({ ...toque, sessaoContaBizyId: this.sessoes.get(toque.sessaoId)?.contaBizyId ?? null }));
+  }
 }

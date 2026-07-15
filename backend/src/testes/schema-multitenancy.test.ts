@@ -31,8 +31,8 @@ describe("schema Prisma multi-loja CRM+", () => {
     const clienteAtendimento = blocoModelo("ClienteAtendimento");
     const conversaAtendimento = blocoModelo("ConversaAtendimento");
 
-    expect(clienteAtendimento).toContain("telefone             String");
-    expect(clienteAtendimento).not.toContain("telefone             String                 @unique");
+    expect(clienteAtendimento).toMatch(/^\s*telefone\s+String\s*$/m);
+    expect(clienteAtendimento).not.toMatch(/^\s*telefone\s+String\s+@unique\b/m);
     expect(clienteAtendimento).toContain("@@unique([negocioId, telefone])");
     expect(conversaAtendimento).not.toContain("@@unique([telefone, canal])");
     expect(conversaAtendimento).toContain("@@unique([negocioId, telefone, canal])");

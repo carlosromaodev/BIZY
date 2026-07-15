@@ -42,4 +42,12 @@ export interface RepositorioSmartLinksCommerce {
   buscarSessaoPorTokenHash(tokenHash: string, agora: Date): Promise<SessaoCommerce | null>;
   registrarToque(dados: NovoToqueAtribuicaoCommerce): Promise<ToqueAtribuicaoCommerce>;
   buscarUltimoToque(sessaoId: string): Promise<ToqueAtribuicaoCommerce | null>;
+  vincularConta(sessaoId: string, contaBizyId: string): Promise<SessaoCommerce | null>;
+  listarToquesAtribuiveis(filtro: {
+    sessaoId: string | null;
+    contaBizyId: string | null;
+    negocioId: string;
+    desde: Date;
+    ate: Date;
+  }): Promise<Array<ToqueAtribuicaoCommerce & { sessaoContaBizyId: string | null }>>;
 }

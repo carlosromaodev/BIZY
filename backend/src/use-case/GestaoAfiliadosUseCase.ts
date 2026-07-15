@@ -264,8 +264,8 @@ export class GestaoAfiliadosUseCase {
       if (!afiliadoId) continue;
 
       const metricas = metricasPorAfiliado.get(afiliadoId) ?? { cliques: 0, leads: 0 };
-      if (evento.tipo === "WHATSAPP_CLICK") metricas.cliques += 1;
-      if (evento.tipo === "CHECKOUT_INICIADO") metricas.leads += 1;
+      if (evento.tipo === "WHATSAPP_CLICK" || evento.tipo === "SMART_LINK_CLICK") metricas.cliques += 1;
+      if (evento.tipo === "CHECKOUT_INICIADO" || evento.tipo === "CHECKOUT_STARTED") metricas.leads += 1;
       metricasPorAfiliado.set(afiliadoId, metricas);
     }
 
@@ -641,7 +641,8 @@ export class GestaoAfiliadosUseCase {
   ): string | null {
     const metadata = this.objeto(evento.metadata);
     const atribuicao = this.objeto(metadata.atribuicao);
-    const principal = this.objeto(atribuicao.principal);
+    const participantes = Array.isArray(atribuicao.participantes) ? atribuicao.participantes : [];
+    const principal = this.objeto(atribuicao.principal ?? participantes[0]);
     const afiliadoId = this.textoMetadata(metadata.afiliadoId) ?? this.textoMetadata(principal.parceiroId);
     if (afiliadoId) return afiliadoId;
 

@@ -71,6 +71,46 @@ export class RepositorioSmartLinksCommercePrisma implements RepositorioSmartLink
     return toque ? this.mapearToque(toque) : null;
   }
 
+  async vincularConta(sessaoId: string, contaBizyId: string) {
+    const atualizado = await this.prisma.sessaoCommerce.updateMany({
+      where: {
+        id: sessaoId,
+        OR: [{ contaBizyId: null }, { contaBizyId }]
+      },
+      data: { contaBizyId }
+    });
+    if (!atualizado.count) return null;
+    const sessao = await this.prisma.sessaoCommerce.findUnique({ where: { id: sessaoId } });
+    return sessao ? this.mapearSessao(sessao) : null;
+  }
+
+  async listarToquesAtribuiveis(filtro: {
+    sessaoId: string | null;
+    contaBizyId: string | null;
+    negocioId: string;
+    desde: Date;
+    ate: Date;
+  }) {
+    const sessoesPermitidas = [
+      ...(filtro.sessaoId ? [{ sessaoId: filtro.sessaoId }] : []),
+      ...(filtro.contaBizyId ? [{ sessao: { contaBizyId: filtro.contaBizyId } }] : [])
+    ];
+    if (!sessoesPermitidas.length) return [];
+    const toques = await this.prisma.toqueAtribuicaoCommerce.findMany({
+      where: {
+        negocioId: filtro.negocioId,
+        criadoEm: { gte: filtro.desde, lte: filtro.ate },
+        OR: sessoesPermitidas
+      },
+      include: { sessao: { select: { contaBizyId: true } } },
+      orderBy: { criadoEm: "asc" }
+    });
+    return toques.map(({ sessao, ...toque }) => ({
+      ...this.mapearToque(toque),
+      sessaoContaBizyId: sessao.contaBizyId
+    }));
+  }
+
   private mapearSessao(sessao: {
     id: string;
     tokenHash: string;

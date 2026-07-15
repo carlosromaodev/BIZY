@@ -151,7 +151,10 @@ export const moduloCheckoutUnificado: ModuloHttp = {
     app.post("/publico/market/carrinho/sincronizar", async (request, reply) => {
       const acesso = await resolverContaAutenticada(contexto, request);
       const dados = SincronizarCarrinhoSchema.parse(request.body ?? {});
-      const contextoSmartLink = await contexto.smartLinksCommerce.obterContexto(obterTokenSessaoCommerce(request));
+      const contextoSmartLink = await contexto.smartLinksCommerce.obterContexto(
+        obterTokenSessaoCommerce(request),
+        acesso?.conta.id ?? null
+      );
       const resultado = await contexto.carrinhoCommerce.sincronizar({
         contaBizyId: acesso?.conta.id ?? null,
         sessaoCommerceId: contextoSmartLink?.sessao.id ?? null,
@@ -169,6 +172,21 @@ export const moduloCheckoutUnificado: ModuloHttp = {
         }),
         modo: dados.modo
       });
+      await Promise.all(resultado.carrinho.itens.map((item) =>
+        contexto.lojaPublica.registrarEventoPublico(item.slugLoja, {
+          tipo: "ADD_TO_CART",
+          entidadeTipo: "CARRINHO_COMMERCE",
+          entidadeId: resultado.carrinho.id,
+          codigoProduto: item.codigoPeca,
+          trackingId: contextoSmartLink?.sessao.trackingId ?? null,
+          origem: item.origem,
+          metadata: {
+            idempotencyKey: `cart:${resultado.carrinho.id}:${item.chaveItem}`,
+            sessaoCommerceId: contextoSmartLink?.sessao.id ?? null,
+            quantidade: item.quantidade
+          }
+        }).catch(() => undefined)
+      ));
       return reply.code(200).send({ carrinho: formatarCarrinho(resultado.carrinho), token: resultado.token });
     });
 
@@ -186,7 +204,10 @@ export const moduloCheckoutUnificado: ModuloHttp = {
       }
       const dados = CriarCompraUnificadaSchema.parse(request.body ?? {});
       const acessoConta = await resolverContaAutenticada(contexto, request);
-      const contextoSmartLink = await contexto.smartLinksCommerce.obterContexto(obterTokenSessaoCommerce(request));
+      const contextoSmartLink = await contexto.smartLinksCommerce.obterContexto(
+        obterTokenSessaoCommerce(request),
+        acessoConta?.conta.id ?? null
+      );
       const compradorTelefone = contexto.autenticacaoTelefone.normalizarTelefoneOuFalhar(dados.compradorTelefone);
 
       let carrinho = dados.carrinhoId
@@ -199,6 +220,13 @@ export const moduloCheckoutUnificado: ModuloHttp = {
         if (existente?.carrinhoId === dados.carrinhoId) {
           const repetida = await contexto.checkoutUnificado.criarCompraUnificada({
             ...dados, compradorTelefone, contaBizyId: acessoConta?.conta.id ?? null, itens: []
+          });
+          await contexto.atribuicaoCommerce.registrarConversoesCompra({
+            compra: repetida.compra,
+            pedidosFilho: repetida.pedidosFilho,
+            contaBizyId: acessoConta?.conta.id ?? repetida.compra.contaBizyId,
+            sessaoCommerceId: contextoSmartLink?.sessao.id ?? repetida.compra.sessaoCommerceId,
+            trackingId: contextoSmartLink?.sessao.trackingId ?? null
           });
           return reply.code(201).send({ ...formatarCompraPublica(repetida), acessoCompra: repetida.acessoCompra });
         }
@@ -240,12 +268,49 @@ export const moduloCheckoutUnificado: ModuloHttp = {
         quantidade: item.quantidade
       }));
 
+      const entidadeCheckoutId = carrinho?.id ?? dados.idempotencyKey ?? request.id;
+      await Promise.all(slugsUnicos.flatMap((slug) => [
+        contexto.lojaPublica.registrarEventoPublico(slug, {
+          tipo: "CHECKOUT_STARTED",
+          entidadeTipo: "CHECKOUT",
+          entidadeId: entidadeCheckoutId,
+          trackingId: contextoSmartLink?.sessao.trackingId ?? null,
+          origem: contextoSmartLink ? "smart-link" : "market",
+          metadata: { idempotencyKey: `checkout:${entidadeCheckoutId}:${slug}` }
+        }).catch(() => undefined),
+        contexto.lojaPublica.registrarEventoPublico(slug, {
+          tipo: "BUYER_IDENTIFIED",
+          entidadeTipo: "CHECKOUT",
+          entidadeId: entidadeCheckoutId,
+          trackingId: contextoSmartLink?.sessao.trackingId ?? null,
+          origem: acessoConta ? "conta-bizy" : "guest",
+          metadata: {
+            idempotencyKey: `buyer:${entidadeCheckoutId}:${slug}`,
+            contaAutenticada: Boolean(acessoConta)
+          }
+        }).catch(() => undefined)
+      ]));
+
       const resultado = await contexto.checkoutUnificado.criarCompraUnificada({
         ...dados,
         compradorTelefone,
         contaBizyId: acessoConta?.conta.id ?? null,
         sessaoCommerceId: contextoSmartLink?.sessao.id ?? carrinho?.sessaoCommerceId ?? null,
         itens: itensResolvidos
+      });
+      const codigosProdutoPorNegocio = new Map<string, string[]>();
+      for (const item of itensResolvidos) {
+        const codigos = codigosProdutoPorNegocio.get(item.negocioId) ?? [];
+        codigos.push(item.codigoPeca);
+        codigosProdutoPorNegocio.set(item.negocioId, codigos);
+      }
+      await contexto.atribuicaoCommerce.registrarConversoesCompra({
+        compra: resultado.compra,
+        pedidosFilho: resultado.pedidosFilho,
+        contaBizyId: acessoConta?.conta.id ?? null,
+        sessaoCommerceId: contextoSmartLink?.sessao.id ?? carrinho?.sessaoCommerceId ?? null,
+        trackingId: contextoSmartLink?.sessao.trackingId ?? null,
+        codigosProdutoPorNegocio
       });
       await Promise.all(resultado.pedidosFilho.map(async (filho) => {
         const eventos = [
@@ -396,6 +461,20 @@ export const moduloCheckoutUnificado: ModuloHttp = {
       });
       if (!ctx) return;
       return contexto.checkoutUnificado.buscarPortalSeller(ctx.negocio.id);
+    });
+
+    app.get("/market/fornecedor/compras/:compraId/atribuicao", async (request, reply) => {
+      const ctx = await exigirAcessoComercial(contexto, request, reply, {
+        permissao: "pedidos:ler", modulo: "market",
+        mensagemPermissao: "Sem permissão para consultar atribuição.", mensagemModulo: "Market desativado para este negócio."
+      });
+      if (!ctx) return;
+      const { compraId } = ParamCompraIdSchema.parse(request.params);
+      const pedido = await contexto.checkoutUnificado.buscarVistaFornecedor(compraId, ctx.negocio.id);
+      if (!pedido) return reply.code(404).send({ erro: "COMPRA_NAO_ENCONTRADA" });
+      const conversoes = await contexto.atribuicaoCommerce.listarConversoesCompra(compraId);
+      const autorizadas = conversoes.filter((conversao) => conversao.negocioId === ctx.negocio.id);
+      return { conversoes: autorizadas, total: autorizadas.length };
     });
 
     app.get("/market/fornecedor/governanca", async (request, reply) => {

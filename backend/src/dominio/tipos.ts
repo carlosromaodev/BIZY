@@ -20,7 +20,22 @@ export const tiposMovimentoStock = [
 export type TipoMovimentoStock = (typeof tiposMovimentoStock)[number];
 
 export const tiposEventoTrackingComercial = [
+  "CONTENT_IMPRESSION",
+  "CONTENT_VIEW",
   "SMART_LINK_CLICK",
+  "PRODUCT_VIEW",
+  "VARIANT_SELECTED",
+  "ADD_TO_CART",
+  "CHECKOUT_STARTED",
+  "BUYER_IDENTIFIED",
+  "ACCOUNT_CREATED",
+  "ORDER_CREATED",
+  "PAYMENT_CONFIRMED",
+  "ORDER_DELIVERED",
+  "RETURN_REQUESTED",
+  "REFUND_COMPLETED",
+  "COMMISSION_CONFIRMED",
+  "COMMISSION_PAID",
   "LOJA_VISITADA",
   "PRODUTO_VISTO",
   "CATALOGO_VISTO",

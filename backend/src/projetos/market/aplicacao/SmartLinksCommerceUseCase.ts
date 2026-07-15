@@ -129,10 +129,14 @@ export class SmartLinksCommerceUseCase {
     return { ...resolvido, sessao, toque, token: tokenSessao as string };
   }
 
-  async obterContexto(token: string | null): Promise<ContextoSmartLinkCommerce | null> {
+  async obterContexto(token: string | null, contaBizyId: string | null = null): Promise<ContextoSmartLinkCommerce | null> {
     if (!token?.trim()) return null;
-    const sessao = await this.deps.smartLinks.buscarSessaoPorTokenHash(this.hashToken(token.trim()), new Date());
+    let sessao = await this.deps.smartLinks.buscarSessaoPorTokenHash(this.hashToken(token.trim()), new Date());
     if (!sessao) return null;
+    if (contaBizyId) {
+      sessao = await this.deps.smartLinks.vincularConta(sessao.id, contaBizyId);
+      if (!sessao) return null;
+    }
     const toque = await this.deps.smartLinks.buscarUltimoToque(sessao.id);
     return {
       sessao,

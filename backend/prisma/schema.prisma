@@ -8,27 +8,27 @@ datasource db {
 }
 
 model Peca {
-  id              String           @id @default(uuid())
+  id              String                 @id @default(uuid())
   codigo          String
   negocioId       String?
-  negocio         Negocio?         @relation(fields: [negocioId], references: [id])
+  negocio         Negocio?               @relation(fields: [negocioId], references: [id])
   sku             String?
   nome            String
   descricao       String
   categoria       String?
   colecao         String?
-  tipoProduto     String           @default("FISICO")
+  tipoProduto     String                 @default("FISICO")
   precoEmKwanza   Int
   custoEmKwanza   Int?
   quantidade      Int
-  stockMinimo     Int              @default(0)
-  fotosJson       String           @default("[]")
-  variantesJson   String           @default("{}")
-  vitrineJson     String           @default("{}")
-  estado          String           @default("DISPONIVEL")
+  stockMinimo     Int                    @default(0)
+  fotosJson       String                 @default("[]")
+  variantesJson   String                 @default("{}")
+  vitrineJson     String                 @default("{}")
+  estado          String                 @default("DISPONIVEL")
   arquivadaEm     DateTime?
-  criadoEm        DateTime         @default(now())
-  atualizadoEm    DateTime         @updatedAt
+  criadoEm        DateTime               @default(now())
+  atualizadoEm    DateTime               @updatedAt
   reservas        Reserva[]
   itensPedido     ItemPedido[]
   movimentosStock MovimentoStock[]
@@ -44,20 +44,20 @@ model Peca {
 }
 
 model VariantePeca {
-  id              String   @id @default(uuid())
-  pecaId          String
-  peca            Peca     @relation(fields: [pecaId], references: [id], onDelete: Cascade)
-  combinacao      String
-  opcoesJson      String   @default("{}")
-  sku             String?
-  precoEmKwanza   Int?
-  custoEmKwanza   Int?
-  quantidade      Int      @default(0)
-  stockMinimo     Int      @default(0)
-  estado          String   @default("ATIVA")
-  criadoEm        DateTime @default(now())
-  atualizadoEm    DateTime @updatedAt
-  itensPedido     ItemPedido[]
+  id               String                 @id @default(uuid())
+  pecaId           String
+  peca             Peca                   @relation(fields: [pecaId], references: [id], onDelete: Cascade)
+  combinacao       String
+  opcoesJson       String                 @default("{}")
+  sku              String?
+  precoEmKwanza    Int?
+  custoEmKwanza    Int?
+  quantidade       Int                    @default(0)
+  stockMinimo      Int                    @default(0)
+  estado           String                 @default("ATIVA")
+  criadoEm         DateTime               @default(now())
+  atualizadoEm     DateTime               @updatedAt
+  itensPedido      ItemPedido[]
   reservasCheckout ReservaStockCheckout[]
   itensCarrinho    ItemCarrinhoCommerce[]
 
@@ -88,31 +88,31 @@ model MovimentoStock {
 }
 
 model Reserva {
-  id                String   @id @default(uuid())
-  negocioId         String?
-  negocio           Negocio? @relation(fields: [negocioId], references: [id])
-  clienteNegocioId  String?
-  clienteNegocio    ClienteNegocio? @relation(fields: [clienteNegocioId], references: [id])
-  pecaId            String
-  peca              Peca     @relation(fields: [pecaId], references: [id])
-  codigoPeca            String
-  varianteSelecionada   String?
-  telefoneCliente   String
-  nomeCliente       String
-  usernameCliente   String
-  userIdCliente     String?
-  avatarUrlCliente  String?
-  estado            String
-  estadoPagamento   String   @default("AGUARDANDO_COMPROVATIVO")
-  comentarioOriginal String
-  liveId            String
-  origem            String?
-  expiraEm          DateTime?
-  enderecoEntrega   String?
+  id                       String          @id @default(uuid())
+  negocioId                String?
+  negocio                  Negocio?        @relation(fields: [negocioId], references: [id])
+  clienteNegocioId         String?
+  clienteNegocio           ClienteNegocio? @relation(fields: [clienteNegocioId], references: [id])
+  pecaId                   String
+  peca                     Peca            @relation(fields: [pecaId], references: [id])
+  codigoPeca               String
+  varianteSelecionada      String?
+  telefoneCliente          String
+  nomeCliente              String
+  usernameCliente          String
+  userIdCliente            String?
+  avatarUrlCliente         String?
+  estado                   String
+  estadoPagamento          String          @default("AGUARDANDO_COMPROVATIVO")
+  comentarioOriginal       String
+  liveId                   String
+  origem                   String?
+  expiraEm                 DateTime?
+  enderecoEntrega          String?
   comprovativoPagamentoUrl String?
-  criadaEm          DateTime @default(now())
-  atualizadaEm      DateTime @updatedAt
-  pedidos           Pedido[]
+  criadaEm                 DateTime        @default(now())
+  atualizadaEm             DateTime        @updatedAt
+  pedidos                  Pedido[]
 
   @@index([codigoPeca, estado])
   @@index([telefoneCliente, codigoPeca])
@@ -123,37 +123,38 @@ model Reserva {
 }
 
 model Pedido {
-  id                      String          @id @default(uuid())
-  negocioId               String
-  negocio                 Negocio         @relation(fields: [negocioId], references: [id])
-  clienteNegocioId        String
-  clienteNegocio          ClienteNegocio  @relation(fields: [clienteNegocioId], references: [id])
-  reservaId               String?
-  reserva                 Reserva?        @relation(fields: [reservaId], references: [id])
-  numero                  Int
-  estado                  String          @default("AGUARDANDO_PAGAMENTO")
-  estadoPagamento         String          @default("PENDENTE")
-  estadoEntrega           String          @default("PENDENTE")
-  origem                  String          @default("manual")
-  canal                   String          @default("whatsapp")
-  subtotalEmKwanza        Int
-  descontoEmKwanza        Int             @default(0)
-  taxaEntregaEmKwanza     Int             @default(0)
-  totalEmKwanza           Int
-  ivaPercentual           Float           @default(14)
-  ivaEmKwanza             Int             @default(0)
-  motivoDesconto          String?
-  enderecoEntrega         String?
+  id                       String                        @id @default(uuid())
+  negocioId                String
+  negocio                  Negocio                       @relation(fields: [negocioId], references: [id])
+  clienteNegocioId         String
+  clienteNegocio           ClienteNegocio                @relation(fields: [clienteNegocioId], references: [id])
+  reservaId                String?
+  reserva                  Reserva?                      @relation(fields: [reservaId], references: [id])
+  numero                   Int
+  estado                   String                        @default("AGUARDANDO_PAGAMENTO")
+  estadoPagamento          String                        @default("PENDENTE")
+  estadoEntrega            String                        @default("PENDENTE")
+  origem                   String                        @default("manual")
+  canal                    String                        @default("whatsapp")
+  subtotalEmKwanza         Int
+  descontoEmKwanza         Int                           @default(0)
+  taxaEntregaEmKwanza      Int                           @default(0)
+  totalEmKwanza            Int
+  ivaPercentual            Float                         @default(14)
+  ivaEmKwanza              Int                           @default(0)
+  motivoDesconto           String?
+  enderecoEntrega          String?
   comprovativoPagamentoUrl String?
-  observacao              String?
-  responsavelId           String?
-  pagoEm                  DateTime?
-  entregueEm              DateTime?
-  canceladoEm             DateTime?
-  criadoEm                DateTime        @default(now())
-  atualizadoEm            DateTime        @updatedAt
-  itens                   ItemPedido[]
-  comissoesParceiro       ComissaoParceiro[]
+  observacao               String?
+  responsavelId            String?
+  pagoEm                   DateTime?
+  entregueEm               DateTime?
+  canceladoEm              DateTime?
+  criadoEm                 DateTime                      @default(now())
+  atualizadoEm             DateTime                      @updatedAt
+  itens                    ItemPedido[]
+  comissoesParceiro        ComissaoParceiro[]
+  conversoesAtribuicao     ConversaoAtribuicaoCommerce[]
 
   @@unique([negocioId, numero])
   @@index([negocioId, estado, criadoEm])
@@ -165,11 +166,11 @@ model Pedido {
 }
 
 model ItemPedido {
-  id                    String   @id @default(uuid())
+  id                    String        @id @default(uuid())
   pedidoId              String
-  pedido                Pedido   @relation(fields: [pedidoId], references: [id], onDelete: Cascade)
+  pedido                Pedido        @relation(fields: [pedidoId], references: [id], onDelete: Cascade)
   pecaId                String
-  peca                  Peca     @relation(fields: [pecaId], references: [id])
+  peca                  Peca          @relation(fields: [pecaId], references: [id])
   codigoPeca            String
   varianteSelecionada   String?
   variantePecaId        String?
@@ -178,8 +179,8 @@ model ItemPedido {
   quantidade            Int
   precoUnitarioEmKwanza Int
   subtotalEmKwanza      Int
-  criadoEm              DateTime @default(now())
-  atualizadoEm          DateTime @updatedAt
+  criadoEm              DateTime      @default(now())
+  atualizadoEm          DateTime      @updatedAt
 
   @@index([pedidoId])
   @@index([pecaId])
@@ -188,51 +189,51 @@ model ItemPedido {
 }
 
 model ComentarioRecebido {
-  id                    String   @id @default(uuid())
-  negocioId             String?
-  negocio               Negocio? @relation(fields: [negocioId], references: [id])
-  source                String
-  provider              String
-  liveId                String
-  username              String
-  userId                String?
-  displayName           String
-  avatarUrl             String?
-  commentText           String
-  timestamp             DateTime
-  perfilUsuarioJson     String   @default("{}")
-  eventoBrutoJson       String   @default("{}")
-  intent                String?
-  phone                 String?
-  productCode           String?
-  confidence            Float?
-  requiresManualReview  Boolean?
-  estado                String
-  motivo                String?
-  criadoEm              DateTime @default(now())
-  atualizadoEm          DateTime @updatedAt
+  id                   String   @id @default(uuid())
+  negocioId            String?
+  negocio              Negocio? @relation(fields: [negocioId], references: [id])
+  source               String
+  provider             String
+  liveId               String
+  username             String
+  userId               String?
+  displayName          String
+  avatarUrl            String?
+  commentText          String
+  timestamp            DateTime
+  perfilUsuarioJson    String   @default("{}")
+  eventoBrutoJson      String   @default("{}")
+  intent               String?
+  phone                String?
+  productCode          String?
+  confidence           Float?
+  requiresManualReview Boolean?
+  estado               String
+  motivo               String?
+  criadoEm             DateTime @default(now())
+  atualizadoEm         DateTime @updatedAt
 
   @@index([liveId, estado])
   @@index([negocioId, liveId, estado])
 }
 
 model SessaoLive {
-  id                      String    @id
-  negocioId               String?
-  negocio                 Negocio?  @relation(fields: [negocioId], references: [id])
-  username                String
-  providerNome            String
-  status                  String
-  ativa                   Boolean   @default(true)
-  iniciadaEm              DateTime
-  encerradaEm             DateTime?
-  comentariosRecebidos    Int       @default(0)
-  comentariosProcessados  Int       @default(0)
-  comentariosComErro      Int       @default(0)
-  ultimoComentarioEm      DateTime?
-  ultimoErro              String?
-  criadaEm                DateTime  @default(now())
-  atualizadaEm            DateTime  @updatedAt
+  id                     String    @id
+  negocioId              String?
+  negocio                Negocio?  @relation(fields: [negocioId], references: [id])
+  username               String
+  providerNome           String
+  status                 String
+  ativa                  Boolean   @default(true)
+  iniciadaEm             DateTime
+  encerradaEm            DateTime?
+  comentariosRecebidos   Int       @default(0)
+  comentariosProcessados Int       @default(0)
+  comentariosComErro     Int       @default(0)
+  ultimoComentarioEm     DateTime?
+  ultimoErro             String?
+  criadaEm               DateTime  @default(now())
+  atualizadaEm           DateTime  @updatedAt
 
   @@index([ativa, status])
   @@index([username])
@@ -240,64 +241,64 @@ model SessaoLive {
 }
 
 model MensagemWhatsapp {
-  id              String   @id @default(uuid())
-  negocioId       String?
-  negocio         Negocio? @relation(fields: [negocioId], references: [id])
-  telefone        String
-  tipo            String
-  conteudo        String
-  provider        String
-  idExterno       String?
-  enviadaEm       DateTime @default(now())
+  id        String   @id @default(uuid())
+  negocioId String?
+  negocio   Negocio? @relation(fields: [negocioId], references: [id])
+  telefone  String
+  tipo      String
+  conteudo  String
+  provider  String
+  idExterno String?
+  enviadaEm DateTime @default(now())
 
   @@index([negocioId, telefone])
 }
 
 model ClienteAtendimento {
-  id                   String                 @id @default(uuid())
-  negocioId            String?
-  negocio              Negocio?               @relation(fields: [negocioId], references: [id])
-  clienteGlobalId      String?
-  clienteGlobal        ClienteGlobal?         @relation(fields: [clienteGlobalId], references: [id])
-  telefone             String
-  nome                 String?
-  username             String?
-  userId               String?
-  avatarUrl            String?
-  origem               String?
-  tagsJson             String                 @default("[]")
-  consentimento        Boolean                @default(true)
-  primeiraInteracaoEm  DateTime               @default(now())
-  ultimaInteracaoEm    DateTime               @default(now())
-  criadoEm             DateTime               @default(now())
-  atualizadoEm         DateTime               @updatedAt
-  conversas            ConversaAtendimento[]
+  id                  String                @id @default(uuid())
+  negocioId           String?
+  negocio             Negocio?              @relation(fields: [negocioId], references: [id])
+  clienteGlobalId     String?
+  clienteGlobal       ClienteGlobal?        @relation(fields: [clienteGlobalId], references: [id])
+  telefone            String
+  nome                String?
+  username            String?
+  userId              String?
+  avatarUrl           String?
+  origem              String?
+  tagsJson            String                @default("[]")
+  consentimento       Boolean               @default(true)
+  primeiraInteracaoEm DateTime              @default(now())
+  ultimaInteracaoEm   DateTime              @default(now())
+  criadoEm            DateTime              @default(now())
+  atualizadoEm        DateTime              @updatedAt
+  conversas           ConversaAtendimento[]
 
+  @@unique([negocioId, telefone])
   @@index([ultimaInteracaoEm])
   @@index([userId])
   @@index([negocioId, ultimaInteracaoEm])
-  @@unique([negocioId, telefone])
   @@index([clienteGlobalId])
 }
 
 model ConversaAtendimento {
-  id                String                  @id @default(uuid())
-  negocioId         String?
-  negocio           Negocio?                @relation(fields: [negocioId], references: [id])
-  clienteNegocioId  String?
-  clienteNegocio    ClienteNegocio?         @relation(fields: [clienteNegocioId], references: [id])
-  clienteId         String
-  cliente           ClienteAtendimento      @relation(fields: [clienteId], references: [id])
-  telefone          String
-  canal             String                  @default("whatsapp")
-  estado            String                  @default("ABERTA")
-  prioridade        String                  @default("NORMAL")
-  responsavelId     String?
-  tagsJson          String                  @default("[]")
-  ultimaMensagemEm  DateTime?
-  criadaEm          DateTime                @default(now())
-  atualizadoEm      DateTime                @updatedAt
-  mensagens         MensagemAtendimento[]
+  id               String                @id @default(uuid())
+  negocioId        String?
+  negocio          Negocio?              @relation(fields: [negocioId], references: [id])
+  clienteNegocioId String?
+  clienteNegocio   ClienteNegocio?       @relation(fields: [clienteNegocioId], references: [id])
+  clienteId        String
+  cliente          ClienteAtendimento    @relation(fields: [clienteId], references: [id])
+  telefone         String
+  canal            String                @default("whatsapp")
+  estado           String                @default("ABERTA")
+  prioridade       String                @default("NORMAL")
+  responsavelId    String?
+  tagsJson         String                @default("[]")
+  ultimaMensagemEm DateTime?
+  criadaEm         DateTime              @default(now())
+  atualizadoEm     DateTime              @updatedAt
+  mensagens        MensagemAtendimento[]
 
   @@unique([negocioId, telefone, canal])
   @@index([estado, ultimaMensagemEm])
@@ -307,28 +308,28 @@ model ConversaAtendimento {
 }
 
 model MensagemAtendimento {
-  id                 String              @id @default(uuid())
-  negocioId          String?
-  negocio            Negocio?            @relation(fields: [negocioId], references: [id])
-  conversaId         String
-  conversa           ConversaAtendimento @relation(fields: [conversaId], references: [id])
-  telefone           String
-  direcao            String
-  remetente          String
-  canal              String              @default("whatsapp")
-  tipo               String
-  conteudo           String
-  provider           String?
-  providerMessageId  String?             @unique
-  status             String
-  origem             String
-  reservaId          String?
-  comentarioId       String?
-  erro               String?
-  contextoJson       String              @default("{}")
-  enviadaEm          DateTime            @default(now())
-  criadoEm           DateTime            @default(now())
-  atualizadoEm       DateTime            @updatedAt
+  id                String              @id @default(uuid())
+  negocioId         String?
+  negocio           Negocio?            @relation(fields: [negocioId], references: [id])
+  conversaId        String
+  conversa          ConversaAtendimento @relation(fields: [conversaId], references: [id])
+  telefone          String
+  direcao           String
+  remetente         String
+  canal             String              @default("whatsapp")
+  tipo              String
+  conteudo          String
+  provider          String?
+  providerMessageId String?             @unique
+  status            String
+  origem            String
+  reservaId         String?
+  comentarioId      String?
+  erro              String?
+  contextoJson      String              @default("{}")
+  enviadaEm         DateTime            @default(now())
+  criadoEm          DateTime            @default(now())
+  atualizadoEm      DateTime            @updatedAt
 
   @@index([telefone, enviadaEm])
   @@index([conversaId, enviadaEm])
@@ -339,31 +340,31 @@ model MensagemAtendimento {
 }
 
 model EventoSistema {
-  id       String   @id @default(uuid())
+  id        String   @id @default(uuid())
   negocioId String?
   negocio   Negocio? @relation(fields: [negocioId], references: [id])
-  tipo     String
+  tipo      String
   dadosJson String
-  criadoEm DateTime @default(now())
+  criadoEm  DateTime @default(now())
 
   @@index([tipo, criadoEm])
   @@index([negocioId, tipo, criadoEm])
 }
 
 model OutboxEventoN8n {
-  id                  String    @id @default(uuid())
-  negocioId           String?
-  negocio             Negocio?  @relation(fields: [negocioId], references: [id])
-  eventoId            String
-  tipo                String
-  payloadJson         String
-  status              String    @default("PENDENTE")
-  tentativas          Int       @default(0)
-  proximaTentativaEm  DateTime  @default(now())
-  ultimoErro          String?
-  publicadoEm         DateTime?
-  criadoEm            DateTime  @default(now())
-  atualizadoEm        DateTime  @updatedAt
+  id                 String    @id @default(uuid())
+  negocioId          String?
+  negocio            Negocio?  @relation(fields: [negocioId], references: [id])
+  eventoId           String
+  tipo               String
+  payloadJson        String
+  status             String    @default("PENDENTE")
+  tentativas         Int       @default(0)
+  proximaTentativaEm DateTime  @default(now())
+  ultimoErro         String?
+  publicadoEm        DateTime?
+  criadoEm           DateTime  @default(now())
+  atualizadoEm       DateTime  @updatedAt
 
   @@index([status, proximaTentativaEm])
   @@index([tipo, criadoEm])
@@ -371,23 +372,23 @@ model OutboxEventoN8n {
 }
 
 model OutboxMensagemWhatsApp {
-  id                  String    @id @default(uuid())
-  negocioId           String?
-  negocio             Negocio?  @relation(fields: [negocioId], references: [id])
-  telefone            String
-  tipo                String
-  conteudo            String
-  contextoJson        String    @default("{}")
-  status              String    @default("PENDENTE")
-  tentativas          Int       @default(0)
-  maxTentativas       Int       @default(5)
-  proximaTentativaEm  DateTime  @default(now())
-  ultimoErro          String?
-  provider            String?
-  idExterno           String?
-  enviadaEm           DateTime?
-  criadoEm            DateTime  @default(now())
-  atualizadoEm        DateTime  @updatedAt
+  id                 String    @id @default(uuid())
+  negocioId          String?
+  negocio            Negocio?  @relation(fields: [negocioId], references: [id])
+  telefone           String
+  tipo               String
+  conteudo           String
+  contextoJson       String    @default("{}")
+  status             String    @default("PENDENTE")
+  tentativas         Int       @default(0)
+  maxTentativas      Int       @default(5)
+  proximaTentativaEm DateTime  @default(now())
+  ultimoErro         String?
+  provider           String?
+  idExterno          String?
+  enviadaEm          DateTime?
+  criadoEm           DateTime  @default(now())
+  atualizadoEm       DateTime  @updatedAt
 
   @@index([status, proximaTentativaEm])
   @@index([telefone, tipo])
@@ -397,28 +398,28 @@ model OutboxMensagemWhatsApp {
 }
 
 model UsuarioSistema {
-  id                String                    @id @default(uuid())
-  nome              String
-  telefone          String?                   @unique
-  email             String?                   @unique
-  avatarUrl         String?
-  papel             String                    @default("VENDEDOR")
-  origemCadastro    String                    @default("TELEFONE")
-  perfilCompletoEm  DateTime?
-  criadoEm          DateTime                  @default(now())
-  atualizadoEm      DateTime                  @updatedAt
-  codigosSms        CodigoLoginSms[]
-  sessoes           SessaoUsuario[]
-  identidades       IdentidadeAutenticacao[]
-  perfilEstudantil  PerfilEstudantilUsuario?
-  negocios          MembroNegocio[]
-  relacoesNegocioCriadas RelacaoNegocio[] @relation("RelacoesNegocioCriadas")
-  compartilhamentosAprovados CompartilhamentoCliente[] @relation("CompartilhamentosAprovados")
+  id                         String                             @id @default(uuid())
+  nome                       String
+  telefone                   String?                            @unique
+  email                      String?                            @unique
+  avatarUrl                  String?
+  papel                      String                             @default("VENDEDOR")
+  origemCadastro             String                             @default("TELEFONE")
+  perfilCompletoEm           DateTime?
+  criadoEm                   DateTime                           @default(now())
+  atualizadoEm               DateTime                           @updatedAt
+  codigosSms                 CodigoLoginSms[]
+  sessoes                    SessaoUsuario[]
+  identidades                IdentidadeAutenticacao[]
+  perfilEstudantil           PerfilEstudantilUsuario?
+  negocios                   MembroNegocio[]
+  relacoesNegocioCriadas     RelacaoNegocio[]                   @relation("RelacoesNegocioCriadas")
+  compartilhamentosAprovados CompartilhamentoCliente[]          @relation("CompartilhamentosAprovados")
   auditoriasCompartilhamento AuditoriaCompartilhamentoCliente[] @relation("AuditoriasCompartilhamentoUsuario")
-  convitesCriados        ConviteEquipa[] @relation("ConvitesCriados")
-  notasInternas          NotaInterna[] @relation("NotasInternas")
-  feedActividades        FeedActividade[] @relation("FeedActividades")
-  contaBizy              ContaBizy?
+  convitesCriados            ConviteEquipa[]                    @relation("ConvitesCriados")
+  notasInternas              NotaInterna[]                      @relation("NotasInternas")
+  feedActividades            FeedActividade[]                   @relation("FeedActividades")
+  contaBizy                  ContaBizy?
 }
 
 model IdentidadeAutenticacao {
@@ -464,113 +465,115 @@ model PerfilEstudantilUsuario {
 }
 
 model Negocio {
-  id                    String          @id @default(uuid())
-  nomeComercial         String
-  segmento              String
-  tipo                  String
-  nif                   String?
-  telefone              String?
-  whatsapp              String?
-  email                 String?
-  instagram             String?
-  tiktok                String?
-  provincia             String?
-  municipio             String?
-  endereco              String?
-  moeda                 String          @default("AOA")
-  fusoHorario           String          @default("Africa/Luanda")
-  canaisVendaJson       String          @default("[]")
-  metodosPagamentoJson  String          @default("[]")
-  contasSociaisJson     String          @default("{}")
-  entregaJson           String          @default("{}")
-  perfil360Json         String          @default("{}")
-  dadosOperacionaisJson String          @default("{}")
-  fontesDadosJson       String          @default("{}")
-  ultimoEnriquecimentoEm DateTime?
-  minutosReservaPadrao  Int             @default(10)
-  slugPublico           String?         @unique
-  descricaoPublica      String?
-  lojaPublicadaEm       DateTime?
-  criadoEm              DateTime        @default(now())
-  atualizadoEm          DateTime        @updatedAt
-  membros               MembroNegocio[]
-  pecas                 Peca[]
-  movimentosStock       MovimentoStock[]
-  reservas              Reserva[]
-  comentariosRecebidos  ComentarioRecebido[]
-  sessoesLive           SessaoLive[]
-  mensagensWhatsapp     MensagemWhatsapp[]
-  clientesAtendimento   ClienteAtendimento[]
-  conversasAtendimento  ConversaAtendimento[]
-  mensagensAtendimento  MensagemAtendimento[]
-  eventosSistema        EventoSistema[]
-  outboxEventosN8n      OutboxEventoN8n[]
-  outboxMensagensWhatsApp OutboxMensagemWhatsApp[]
-  instanciasWhatsApp    InstanciaWhatsApp[]
-  clientesNegocio       ClienteNegocio[]
-  pedidos               Pedido[]
-  modulos               ModuloNegocio[]
-  relacoesOrigem        RelacaoNegocio[] @relation("RelacaoNegocioOrigem")
-  relacoesDestino       RelacaoNegocio[] @relation("RelacaoNegocioDestino")
-  compartilhamentosOrigem CompartilhamentoCliente[] @relation("CompartilhamentoClienteNegocioOrigem")
-  compartilhamentosDestino CompartilhamentoCliente[] @relation("CompartilhamentoClienteNegocioDestino")
-  eventosTrackingComercial EventoTrackingComercial[]
-  toquesAtribuicaoCommerce ToqueAtribuicaoCommerce[]
-  parceirosComerciais     ParceiroComercial[]
-  linksAfiliados          LinkAfiliado[]
-  comissoesParceiro       ComissaoParceiro[]
-  historicoComissoesParceiro HistoricoComissaoParceiro[]
-  lotesPagamentoComissao  LotePagamentoComissao[]
-  tarefasOperacionais     TarefaOperacional[]
-  socialInboxItens        SocialInboxItem[]
-  playbooksRecuperacao    PlaybookRecuperacao[]
-  execucoesPlaybookRecuperacao ExecucaoPlaybookRecuperacao[]
-  movimentosFunilComercial MovimentoFunilComercial[]
-  oportunidadesRecuperacao OportunidadeRecuperacao[]
-  templatesWhatsApp      TemplateWhatsAppNegocio[]
-  campanhasCrm          CampanhaCrm[]
-  itensCampanhaCrm      ItemCampanhaCrm[]
-  eventosOperacionais   EventoOperacional[]
-  jobsOperacionais      JobOperacional[]
-  instanciasInstagram   InstanciaInstagram[]
-  seguidoresLoja        SeguidorLoja[]
-  personasPapel         PersonaPapel[]
-  convitesEquipa        ConviteEquipa[]
-  notasInternas         NotaInterna[]
-  feedActividades       FeedActividade[]
-  checklistsOnboarding  ChecklistOnboarding[]
-  mascaramentosDados    MascaramentoDados[]
-  configuracaoGamificacao ConfiguracaoGamificacao?
-  rankingsEquipa        RankingEquipa[]
-  facturas              Factura[]
-  notasCredito          NotaCredito[]
-  metasVendas           MetaVendas[]
-  turnosMembros         TurnoMembro[]
-  registosPresenca      RegistoPresenca[]
-  categoriasFinanceiras CategoriaFinanceira[]
-  movimentosFinanceiros MovimentoFinanceiro[]
-  importacoesExtratoBancario ImportacaoExtratoBancario[]
-  movimentosBancarios   MovimentoBancario[]
-  despesas              Despesa[]
-  contasReceber         ContaReceber[]
-  contasPagar           ContaPagar[]
-  orcamentos            OrcamentoPeriodo[]
-  previsoesDemanda      PrevisaoDemanda[]
-  scoresCliente         ScoreCliente[]
-  previsoesFluxoCaixa   PrevisaoFluxoCaixa[]
-  insightsPreditivos    InsightPreditivo[]
-  fluxosAutomaticos     FluxoAutomatico[]
-  configuracaoNotificacoes ConfiguracaoNotificacao[]
+  id                             String                        @id @default(uuid())
+  nomeComercial                  String
+  segmento                       String
+  tipo                           String
+  nif                            String?
+  telefone                       String?
+  whatsapp                       String?
+  email                          String?
+  instagram                      String?
+  tiktok                         String?
+  provincia                      String?
+  municipio                      String?
+  endereco                       String?
+  moeda                          String                        @default("AOA")
+  fusoHorario                    String                        @default("Africa/Luanda")
+  canaisVendaJson                String                        @default("[]")
+  metodosPagamentoJson           String                        @default("[]")
+  contasSociaisJson              String                        @default("{}")
+  entregaJson                    String                        @default("{}")
+  perfil360Json                  String                        @default("{}")
+  dadosOperacionaisJson          String                        @default("{}")
+  fontesDadosJson                String                        @default("{}")
+  ultimoEnriquecimentoEm         DateTime?
+  minutosReservaPadrao           Int                           @default(10)
+  slugPublico                    String?                       @unique
+  descricaoPublica               String?
+  lojaPublicadaEm                DateTime?
+  criadoEm                       DateTime                      @default(now())
+  atualizadoEm                   DateTime                      @updatedAt
+  membros                        MembroNegocio[]
+  pecas                          Peca[]
+  movimentosStock                MovimentoStock[]
+  reservas                       Reserva[]
+  comentariosRecebidos           ComentarioRecebido[]
+  sessoesLive                    SessaoLive[]
+  mensagensWhatsapp              MensagemWhatsapp[]
+  clientesAtendimento            ClienteAtendimento[]
+  conversasAtendimento           ConversaAtendimento[]
+  mensagensAtendimento           MensagemAtendimento[]
+  eventosSistema                 EventoSistema[]
+  outboxEventosN8n               OutboxEventoN8n[]
+  outboxMensagensWhatsApp        OutboxMensagemWhatsApp[]
+  instanciasWhatsApp             InstanciaWhatsApp[]
+  clientesNegocio                ClienteNegocio[]
+  pedidos                        Pedido[]
+  modulos                        ModuloNegocio[]
+  relacoesOrigem                 RelacaoNegocio[]              @relation("RelacaoNegocioOrigem")
+  relacoesDestino                RelacaoNegocio[]              @relation("RelacaoNegocioDestino")
+  compartilhamentosOrigem        CompartilhamentoCliente[]     @relation("CompartilhamentoClienteNegocioOrigem")
+  compartilhamentosDestino       CompartilhamentoCliente[]     @relation("CompartilhamentoClienteNegocioDestino")
+  eventosTrackingComercial       EventoTrackingComercial[]
+  toquesAtribuicaoCommerce       ToqueAtribuicaoCommerce[]
+  parceirosComerciais            ParceiroComercial[]
+  linksAfiliados                 LinkAfiliado[]
+  comissoesParceiro              ComissaoParceiro[]
+  politicasAtribuicaoCommerce    PoliticaAtribuicaoCommerce[]
+  conversoesAtribuicaoCommerce   ConversaoAtribuicaoCommerce[]
+  historicoComissoesParceiro     HistoricoComissaoParceiro[]
+  lotesPagamentoComissao         LotePagamentoComissao[]
+  tarefasOperacionais            TarefaOperacional[]
+  socialInboxItens               SocialInboxItem[]
+  playbooksRecuperacao           PlaybookRecuperacao[]
+  execucoesPlaybookRecuperacao   ExecucaoPlaybookRecuperacao[]
+  movimentosFunilComercial       MovimentoFunilComercial[]
+  oportunidadesRecuperacao       OportunidadeRecuperacao[]
+  templatesWhatsApp              TemplateWhatsAppNegocio[]
+  campanhasCrm                   CampanhaCrm[]
+  itensCampanhaCrm               ItemCampanhaCrm[]
+  eventosOperacionais            EventoOperacional[]
+  jobsOperacionais               JobOperacional[]
+  instanciasInstagram            InstanciaInstagram[]
+  seguidoresLoja                 SeguidorLoja[]
+  personasPapel                  PersonaPapel[]
+  convitesEquipa                 ConviteEquipa[]
+  notasInternas                  NotaInterna[]
+  feedActividades                FeedActividade[]
+  checklistsOnboarding           ChecklistOnboarding[]
+  mascaramentosDados             MascaramentoDados[]
+  configuracaoGamificacao        ConfiguracaoGamificacao?
+  rankingsEquipa                 RankingEquipa[]
+  facturas                       Factura[]
+  notasCredito                   NotaCredito[]
+  metasVendas                    MetaVendas[]
+  turnosMembros                  TurnoMembro[]
+  registosPresenca               RegistoPresenca[]
+  categoriasFinanceiras          CategoriaFinanceira[]
+  movimentosFinanceiros          MovimentoFinanceiro[]
+  importacoesExtratoBancario     ImportacaoExtratoBancario[]
+  movimentosBancarios            MovimentoBancario[]
+  despesas                       Despesa[]
+  contasReceber                  ContaReceber[]
+  contasPagar                    ContaPagar[]
+  orcamentos                     OrcamentoPeriodo[]
+  previsoesDemanda               PrevisaoDemanda[]
+  scoresCliente                  ScoreCliente[]
+  previsoesFluxoCaixa            PrevisaoFluxoCaixa[]
+  insightsPreditivos             InsightPreditivo[]
+  fluxosAutomaticos              FluxoAutomatico[]
+  configuracaoNotificacoes       ConfiguracaoNotificacao[]
   configuracoesAlertasProactivos ConfiguracaoAlertaProactivo[]
-  preferenciasWidgetPainel PreferenciaWidgetPainel[]
-  departamentos         Departamento[]
-  projectos             Projecto[]
-  projetosComerciais    ProjetoComercial[]
-  passagensTurno        PassagemTurno[]
-  regrasFiscais         RegraFiscal[]
-  baselinesKPI          BaselineKPI[]
-  metricasAdopcao       MetricaAdopcao[]
-  pesquisasNPS          PesquisaNPS[]
+  preferenciasWidgetPainel       PreferenciaWidgetPainel[]
+  departamentos                  Departamento[]
+  projectos                      Projecto[]
+  projetosComerciais             ProjetoComercial[]
+  passagensTurno                 PassagemTurno[]
+  regrasFiscais                  RegraFiscal[]
+  baselinesKPI                   BaselineKPI[]
+  metricasAdopcao                MetricaAdopcao[]
+  pesquisasNPS                   PesquisaNPS[]
 
   @@index([nomeComercial])
   @@index([slugPublico])
@@ -608,33 +611,33 @@ model SocialInboxItem {
 }
 
 model PlaybookRecuperacao {
-  id                 String                        @id @default(uuid())
-  negocioId          String
-  negocio            Negocio                       @relation(fields: [negocioId], references: [id])
-  nome               String
-  gatilho            String
-  ativo              Boolean                       @default(true)
-  atrasoMinutos      Int                           @default(0)
-  condicoesJson      String                        @default("{}")
-  acao               String                        @default("CRIAR_TAREFA")
-  tituloTarefa       String?
-  descricaoTarefa    String?
-  prioridadeTarefa   String                        @default("NORMAL")
-  responsavelId      String?
-  criadoEm           DateTime                      @default(now())
-  atualizadoEm       DateTime                      @updatedAt
-  execucoes          ExecucaoPlaybookRecuperacao[]
+  id               String                        @id @default(uuid())
+  negocioId        String
+  negocio          Negocio                       @relation(fields: [negocioId], references: [id])
+  nome             String
+  gatilho          String
+  ativo            Boolean                       @default(true)
+  atrasoMinutos    Int                           @default(0)
+  condicoesJson    String                        @default("{}")
+  acao             String                        @default("CRIAR_TAREFA")
+  tituloTarefa     String?
+  descricaoTarefa  String?
+  prioridadeTarefa String                        @default("NORMAL")
+  responsavelId    String?
+  criadoEm         DateTime                      @default(now())
+  atualizadoEm     DateTime                      @updatedAt
+  execucoes        ExecucaoPlaybookRecuperacao[]
 
   @@index([negocioId, gatilho, ativo])
   @@index([negocioId, criadoEm])
 }
 
 model ExecucaoPlaybookRecuperacao {
-  id              String               @id @default(uuid())
+  id              String              @id @default(uuid())
   negocioId       String
-  negocio         Negocio              @relation(fields: [negocioId], references: [id])
+  negocio         Negocio             @relation(fields: [negocioId], references: [id])
   playbookId      String
-  playbook        PlaybookRecuperacao  @relation(fields: [playbookId], references: [id], onDelete: Cascade)
+  playbook        PlaybookRecuperacao @relation(fields: [playbookId], references: [id], onDelete: Cascade)
   gatilho         String
   entidadeTipo    String?
   entidadeId      String?
@@ -642,8 +645,8 @@ model ExecucaoPlaybookRecuperacao {
   estado          String
   tarefaId        String?
   motivo          String?
-  contextoJson    String               @default("{}")
-  criadaEm        DateTime             @default(now())
+  contextoJson    String              @default("{}")
+  criadaEm        DateTime            @default(now())
 
   @@index([negocioId, gatilho, criadaEm])
   @@index([negocioId, estado, criadaEm])
@@ -653,18 +656,18 @@ model ExecucaoPlaybookRecuperacao {
 }
 
 model MovimentoFunilComercial {
-  id             String   @id @default(uuid())
-  negocioId      String
-  negocio        Negocio  @relation(fields: [negocioId], references: [id])
-  entidadeTipo   String
-  entidadeId     String
-  etapaAnterior  String?
-  etapaNova      String
-  motivo         String
-  origem         String?
-  autorId        String?
-  contextoJson   String   @default("{}")
-  criadoEm       DateTime @default(now())
+  id            String   @id @default(uuid())
+  negocioId     String
+  negocio       Negocio  @relation(fields: [negocioId], references: [id])
+  entidadeTipo  String
+  entidadeId    String
+  etapaAnterior String?
+  etapaNova     String
+  motivo        String
+  origem        String?
+  autorId       String?
+  contextoJson  String   @default("{}")
+  criadoEm      DateTime @default(now())
 
   @@index([negocioId, entidadeTipo, entidadeId, criadoEm])
   @@index([negocioId, etapaNova, criadoEm])
@@ -672,26 +675,26 @@ model MovimentoFunilComercial {
 }
 
 model OportunidadeRecuperacao {
-  id                     String   @id @default(uuid())
-  negocioId              String
-  negocio                Negocio  @relation(fields: [negocioId], references: [id])
-  gatilho                String
-  estado                 String   @default("ABERTA")
-  entidadeTipo           String?
-  entidadeId             String?
-  clienteTelefone        String?
-  playbookId             String?
-  execucaoPlaybookId     String?
-  tarefaId               String?
-  movimentoFunilId       String?
-  valorEstimadoEmKwanza  Int?
-  motivo                 String
-  responsavelId          String?
-  observacao             String?
-  contextoJson           String   @default("{}")
-  criadaEm               DateTime @default(now())
-  atualizadaEm           DateTime @updatedAt
-  encerradaEm            DateTime?
+  id                    String    @id @default(uuid())
+  negocioId             String
+  negocio               Negocio   @relation(fields: [negocioId], references: [id])
+  gatilho               String
+  estado                String    @default("ABERTA")
+  entidadeTipo          String?
+  entidadeId            String?
+  clienteTelefone       String?
+  playbookId            String?
+  execucaoPlaybookId    String?
+  tarefaId              String?
+  movimentoFunilId      String?
+  valorEstimadoEmKwanza Int?
+  motivo                String
+  responsavelId         String?
+  observacao            String?
+  contextoJson          String    @default("{}")
+  criadaEm              DateTime  @default(now())
+  atualizadaEm          DateTime  @updatedAt
+  encerradaEm           DateTime?
 
   @@index([negocioId, estado, criadaEm])
   @@index([negocioId, gatilho, criadaEm])
@@ -702,51 +705,51 @@ model OportunidadeRecuperacao {
 }
 
 model TemplateWhatsAppNegocio {
-  id                    String   @id @default(uuid())
-  negocioId             String
-  negocio               Negocio  @relation(fields: [negocioId], references: [id])
-  nome                  String
-  categoria             String
-  idioma                String   @default("pt_AO")
-  provider              String   @default("whatsapp_cloud_api")
-  estadoAprovacao       String   @default("rascunho")
-  eventosCompativeisJson String  @default("[]")
-  variaveisJson         String   @default("[]")
-  corpo                 String
-  ativo                 Boolean  @default(true)
-  versao                Int      @default(1)
-  motivoUltimaAlteracao String?
-  criadoEm              DateTime @default(now())
-  atualizadoEm          DateTime @updatedAt
-  campanhas             CampanhaCrm[]
+  id                     String        @id @default(uuid())
+  negocioId              String
+  negocio                Negocio       @relation(fields: [negocioId], references: [id])
+  nome                   String
+  categoria              String
+  idioma                 String        @default("pt_AO")
+  provider               String        @default("whatsapp_cloud_api")
+  estadoAprovacao        String        @default("rascunho")
+  eventosCompativeisJson String        @default("[]")
+  variaveisJson          String        @default("[]")
+  corpo                  String
+  ativo                  Boolean       @default(true)
+  versao                 Int           @default(1)
+  motivoUltimaAlteracao  String?
+  criadoEm               DateTime      @default(now())
+  atualizadoEm           DateTime      @updatedAt
+  campanhas              CampanhaCrm[]
 
   @@index([negocioId, categoria, estadoAprovacao])
   @@index([negocioId, ativo])
 }
 
 model CampanhaCrm {
-  id                  String             @id @default(uuid())
-  negocioId           String
-  negocio             Negocio            @relation(fields: [negocioId], references: [id])
-  nome                String
-  objetivo            String
-  canal               String             @default("whatsapp")
-  templateId          String
-  template            TemplateWhatsAppNegocio @relation(fields: [templateId], references: [id])
-  categoria           String
-  estado              String             @default("RASCUNHO")
-  segmentoJson        String             @default("{}")
-  limiteDiario        Int                @default(500)
-  janelaInicio        DateTime?
-  janelaFim           DateTime?
-  metricasJson        String             @default("{}")
-  criadaPorUsuarioId  String?
-  pausadaEm           DateTime?
-  motivoPausa         String?
-  confirmadaEm        DateTime?
-  criadaEm            DateTime           @default(now())
-  atualizadaEm        DateTime           @updatedAt
-  itens               ItemCampanhaCrm[]
+  id                 String                  @id @default(uuid())
+  negocioId          String
+  negocio            Negocio                 @relation(fields: [negocioId], references: [id])
+  nome               String
+  objetivo           String
+  canal              String                  @default("whatsapp")
+  templateId         String
+  template           TemplateWhatsAppNegocio @relation(fields: [templateId], references: [id])
+  categoria          String
+  estado             String                  @default("RASCUNHO")
+  segmentoJson       String                  @default("{}")
+  limiteDiario       Int                     @default(500)
+  janelaInicio       DateTime?
+  janelaFim          DateTime?
+  metricasJson       String                  @default("{}")
+  criadaPorUsuarioId String?
+  pausadaEm          DateTime?
+  motivoPausa        String?
+  confirmadaEm       DateTime?
+  criadaEm           DateTime                @default(now())
+  atualizadaEm       DateTime                @updatedAt
+  itens              ItemCampanhaCrm[]
 
   @@index([negocioId, estado, criadaEm])
   @@index([negocioId, canal, criadaEm])
@@ -754,20 +757,20 @@ model CampanhaCrm {
 }
 
 model ItemCampanhaCrm {
-  id                String       @id @default(uuid())
-  negocioId         String
-  negocio           Negocio      @relation(fields: [negocioId], references: [id])
-  campanhaId        String
-  campanha          CampanhaCrm  @relation(fields: [campanhaId], references: [id], onDelete: Cascade)
-  clienteId         String?
-  telefone          String?
-  nomeCliente       String?
-  status            String
-  motivoBloqueio    String?
-  outboxMensagemId  String?
-  contextoJson      String       @default("{}")
-  criadoEm          DateTime     @default(now())
-  atualizadoEm      DateTime     @updatedAt
+  id               String      @id @default(uuid())
+  negocioId        String
+  negocio          Negocio     @relation(fields: [negocioId], references: [id])
+  campanhaId       String
+  campanha         CampanhaCrm @relation(fields: [campanhaId], references: [id], onDelete: Cascade)
+  clienteId        String?
+  telefone         String?
+  nomeCliente      String?
+  status           String
+  motivoBloqueio   String?
+  outboxMensagemId String?
+  contextoJson     String      @default("{}")
+  criadoEm         DateTime    @default(now())
+  atualizadoEm     DateTime    @updatedAt
 
   @@index([negocioId, campanhaId, status])
   @@index([clienteId])
@@ -775,21 +778,21 @@ model ItemCampanhaCrm {
 }
 
 model EventoOperacional {
-  id                String    @id @default(uuid())
-  negocioId         String
-  negocio           Negocio   @relation(fields: [negocioId], references: [id])
-  topico            String
-  tipo              String
-  entidadeTipo      String?
-  entidadeId        String?
-  idempotencyKey    String?
-  payloadVersion    String    @default("v1")
-  payloadJson       String    @default("{}")
-  estado            String    @default("PENDENTE")
-  tentativas        Int       @default(0)
+  id                 String    @id @default(uuid())
+  negocioId          String
+  negocio            Negocio   @relation(fields: [negocioId], references: [id])
+  topico             String
+  tipo               String
+  entidadeTipo       String?
+  entidadeId         String?
+  idempotencyKey     String?
+  payloadVersion     String    @default("v1")
+  payloadJson        String    @default("{}")
+  estado             String    @default("PENDENTE")
+  tentativas         Int       @default(0)
   proximaTentativaEm DateTime?
-  criadoEm          DateTime  @default(now())
-  atualizadoEm      DateTime  @updatedAt
+  criadoEm           DateTime  @default(now())
+  atualizadoEm       DateTime  @updatedAt
 
   @@unique([negocioId, idempotencyKey])
   @@index([negocioId, topico, criadoEm])
@@ -798,20 +801,20 @@ model EventoOperacional {
 }
 
 model JobOperacional {
-  id              String    @id @default(uuid())
-  negocioId       String
-  negocio         Negocio   @relation(fields: [negocioId], references: [id])
-  tipo            String
-  estado          String    @default("PENDENTE")
-  idempotencyKey  String?
-  total           Int       @default(0)
-  processados     Int       @default(0)
-  erros           Int       @default(0)
-  resultadoJson   String    @default("{}")
-  erro            String?
-  criadoEm        DateTime  @default(now())
-  atualizadoEm    DateTime  @updatedAt
-  concluidoEm     DateTime?
+  id             String    @id @default(uuid())
+  negocioId      String
+  negocio        Negocio   @relation(fields: [negocioId], references: [id])
+  tipo           String
+  estado         String    @default("PENDENTE")
+  idempotencyKey String?
+  total          Int       @default(0)
+  processados    Int       @default(0)
+  erros          Int       @default(0)
+  resultadoJson  String    @default("{}")
+  erro           String?
+  criadoEm       DateTime  @default(now())
+  atualizadoEm   DateTime  @updatedAt
+  concluidoEm    DateTime?
 
   @@unique([negocioId, idempotencyKey])
   @@index([negocioId, tipo, criadoEm])
@@ -819,14 +822,14 @@ model JobOperacional {
 }
 
 model TarefaOperacional {
-  id              String   @id @default(uuid())
+  id              String    @id @default(uuid())
   negocioId       String?
-  negocio         Negocio? @relation(fields: [negocioId], references: [id])
+  negocio         Negocio?  @relation(fields: [negocioId], references: [id])
   tipo            String
   titulo          String
   descricao       String
-  prioridade      String   @default("NORMAL")
-  estado          String   @default("ABERTA")
+  prioridade      String    @default("NORMAL")
+  estado          String    @default("ABERTA")
   origem          String?
   clienteId       String?
   pedidoId        String?
@@ -836,10 +839,10 @@ model TarefaOperacional {
   responsavelId   String?
   prazoEm         DateTime?
   observacao      String?
-  contextoJson    String   @default("{}")
+  contextoJson    String    @default("{}")
   concluidaEm     DateTime?
-  criadaEm        DateTime @default(now())
-  atualizadoEm    DateTime @updatedAt
+  criadaEm        DateTime  @default(now())
+  atualizadoEm    DateTime  @updatedAt
 
   @@index([negocioId, estado, criadaEm])
   @@index([negocioId, tipo, criadaEm])
@@ -850,20 +853,20 @@ model TarefaOperacional {
 }
 
 model EventoTrackingComercial {
-  id             String   @id @default(uuid())
-  negocioId      String
-  negocio        Negocio  @relation(fields: [negocioId], references: [id])
-  tipo           String
-  entidadeTipo   String?
-  entidadeId     String?
-  slugLoja       String?
-  codigoProduto  String?
-  trackingId     String?
-  origem         String?
-  canal          String?
-  utmJson        String   @default("{}")
-  metadataJson   String   @default("{}")
-  criadoEm       DateTime @default(now())
+  id            String   @id @default(uuid())
+  negocioId     String
+  negocio       Negocio  @relation(fields: [negocioId], references: [id])
+  tipo          String
+  entidadeTipo  String?
+  entidadeId    String?
+  slugLoja      String?
+  codigoProduto String?
+  trackingId    String?
+  origem        String?
+  canal         String?
+  utmJson       String   @default("{}")
+  metadataJson  String   @default("{}")
+  criadoEm      DateTime @default(now())
 
   @@index([negocioId, tipo, criadoEm])
   @@index([negocioId, origem, criadoEm])
@@ -873,21 +876,22 @@ model EventoTrackingComercial {
 }
 
 model ParceiroComercial {
-  id                  String              @id @default(uuid())
-  negocioId           String
-  negocio             Negocio             @relation(fields: [negocioId], references: [id])
-  tipo                String
-  codigo              String
-  nomePublico         String
-  contacto            String?
-  estado              String              @default("ATIVO")
-  regraComissaoJson   String              @default("{}")
-  metodoPagamentoJson String              @default("{}")
-  criadoEm            DateTime            @default(now())
-  atualizadoEm        DateTime            @updatedAt
-  links               LinkAfiliado[]
-  comissoes           ComissaoParceiro[]
-  toquesCommerce      ToqueAtribuicaoCommerce[]
+  id                     String                          @id @default(uuid())
+  negocioId              String
+  negocio                Negocio                         @relation(fields: [negocioId], references: [id])
+  tipo                   String
+  codigo                 String
+  nomePublico            String
+  contacto               String?
+  estado                 String                          @default("ATIVO")
+  regraComissaoJson      String                          @default("{}")
+  metodoPagamentoJson    String                          @default("{}")
+  criadoEm               DateTime                        @default(now())
+  atualizadoEm           DateTime                        @updatedAt
+  links                  LinkAfiliado[]
+  comissoes              ComissaoParceiro[]
+  toquesCommerce         ToqueAtribuicaoCommerce[]
+  participacoesConversao ParticipanteConversaoCommerce[]
 
   @@unique([negocioId, codigo])
   @@index([negocioId, estado])
@@ -895,25 +899,26 @@ model ParceiroComercial {
 }
 
 model LinkAfiliado {
-  id              String              @id @default(uuid())
-  negocioId       String
-  negocio         Negocio             @relation(fields: [negocioId], references: [id])
-  afiliadoId      String
-  afiliado        ParceiroComercial   @relation(fields: [afiliadoId], references: [id])
-  codigo          String              @unique
-  destinoTipo     String
-  destinoId       String?
-  slugLoja        String?
-  codigoProduto   String?
-  canal           String?
-  origemConteudo  String?
-  metadataJson    String              @default("{}")
-  ativo           Boolean             @default(true)
-  expiraEm        DateTime?
-  criadoEm        DateTime            @default(now())
-  atualizadoEm    DateTime            @updatedAt
-  comissoes       ComissaoParceiro[]
-  toquesCommerce  ToqueAtribuicaoCommerce[]
+  id                     String                          @id @default(uuid())
+  negocioId              String
+  negocio                Negocio                         @relation(fields: [negocioId], references: [id])
+  afiliadoId             String
+  afiliado               ParceiroComercial               @relation(fields: [afiliadoId], references: [id])
+  codigo                 String                          @unique
+  destinoTipo            String
+  destinoId              String?
+  slugLoja               String?
+  codigoProduto          String?
+  canal                  String?
+  origemConteudo         String?
+  metadataJson           String                          @default("{}")
+  ativo                  Boolean                         @default(true)
+  expiraEm               DateTime?
+  criadoEm               DateTime                        @default(now())
+  atualizadoEm           DateTime                        @updatedAt
+  comissoes              ComissaoParceiro[]
+  toquesCommerce         ToqueAtribuicaoCommerce[]
+  participacoesConversao ParticipanteConversaoCommerce[]
 
   @@index([negocioId, afiliadoId])
   @@index([negocioId, ativo])
@@ -922,36 +927,37 @@ model LinkAfiliado {
 }
 
 model SessaoCommerce {
-  id            String                     @id @default(uuid())
-  tokenHash     String                     @unique
-  trackingId    String                     @unique
+  id            String                        @id @default(uuid())
+  tokenHash     String                        @unique
+  trackingId    String                        @unique
   contaBizyId   String?
-  contaBizy     ContaBizy?                 @relation(fields: [contaBizyId], references: [id], onDelete: SetNull)
+  contaBizy     ContaBizy?                    @relation(fields: [contaBizyId], references: [id], onDelete: SetNull)
   expiraEm      DateTime
   ultimoToqueEm DateTime?
   encerradaEm   DateTime?
-  metadataJson  String                     @default("{}")
-  criadaEm      DateTime                   @default(now())
-  atualizadoEm  DateTime                   @updatedAt
+  metadataJson  String                        @default("{}")
+  criadaEm      DateTime                      @default(now())
+  atualizadoEm  DateTime                      @updatedAt
   toques        ToqueAtribuicaoCommerce[]
   carrinhos     CarrinhoCommerce[]
   compras       CompraUnificada[]
+  conversoes    ConversaoAtribuicaoCommerce[]
 
   @@index([contaBizyId, expiraEm])
   @@index([expiraEm, encerradaEm])
 }
 
 model ToqueAtribuicaoCommerce {
-  id            String             @id @default(uuid())
+  id            String                          @id @default(uuid())
   sessaoId      String
-  sessao        SessaoCommerce     @relation(fields: [sessaoId], references: [id], onDelete: Cascade)
+  sessao        SessaoCommerce                  @relation(fields: [sessaoId], references: [id], onDelete: Cascade)
   negocioId     String
-  negocio       Negocio            @relation(fields: [negocioId], references: [id])
+  negocio       Negocio                         @relation(fields: [negocioId], references: [id])
   linkId        String
-  link          LinkAfiliado       @relation(fields: [linkId], references: [id])
+  link          LinkAfiliado                    @relation(fields: [linkId], references: [id])
   afiliadoId    String
-  afiliado      ParceiroComercial  @relation(fields: [afiliadoId], references: [id])
-  tipo          String             @default("SMART_LINK_CLICK")
+  afiliado      ParceiroComercial               @relation(fields: [afiliadoId], references: [id])
+  tipo          String                          @default("SMART_LINK_CLICK")
   destinoTipo   String
   destinoId     String?
   campanhaId    String?
@@ -959,8 +965,9 @@ model ToqueAtribuicaoCommerce {
   codigoProduto String?
   canal         String?
   origem        String?
-  metadataJson  String             @default("{}")
-  criadoEm      DateTime           @default(now())
+  metadataJson  String                          @default("{}")
+  criadoEm      DateTime                        @default(now())
+  participacoes ParticipanteConversaoCommerce[]
 
   @@index([sessaoId, criadoEm])
   @@index([negocioId, tipo, criadoEm])
@@ -970,32 +977,106 @@ model ToqueAtribuicaoCommerce {
   @@index([conteudoId, criadoEm])
 }
 
+model PoliticaAtribuicaoCommerce {
+  id                       String                        @id @default(uuid())
+  negocioId                String
+  negocio                  Negocio                       @relation(fields: [negocioId], references: [id])
+  codigo                   String
+  versao                   String
+  modelo                   String
+  janelaDias               Int
+  pesoPrincipalBasisPoints Int                           @default(7000)
+  regrasJson               String                        @default("{}")
+  ativaDesde               DateTime                      @default(now())
+  desativadaEm             DateTime?
+  criadaEm                 DateTime                      @default(now())
+  conversoes               ConversaoAtribuicaoCommerce[]
+
+  @@unique([negocioId, codigo, versao])
+  @@index([negocioId, codigo, ativaDesde])
+  @@index([negocioId, desativadaEm])
+}
+
+model ConversaoAtribuicaoCommerce {
+  id                String                          @id @default(uuid())
+  negocioId         String
+  negocio           Negocio                         @relation(fields: [negocioId], references: [id])
+  sessaoId          String?
+  sessao            SessaoCommerce?                 @relation(fields: [sessaoId], references: [id], onDelete: SetNull)
+  contaBizyId       String?
+  contaBizy         ContaBizy?                      @relation(fields: [contaBizyId], references: [id], onDelete: SetNull)
+  compraUnificadaId String
+  compraUnificada   CompraUnificada                 @relation(fields: [compraUnificadaId], references: [id])
+  pedidoId          String
+  pedido            Pedido                          @relation(fields: [pedidoId], references: [id])
+  tipo              String                          @default("ORDER_CREATED")
+  politicaId        String
+  politica          PoliticaAtribuicaoCommerce      @relation(fields: [politicaId], references: [id])
+  politicaCodigo    String
+  politicaVersao    String
+  modelo            String
+  janelaDias        Int
+  valorBaseEmKwanza Int
+  moeda             String                          @default("AOA")
+  explicacaoJson    String                          @default("{}")
+  criadaEm          DateTime                        @default(now())
+  participantes     ParticipanteConversaoCommerce[]
+
+  @@unique([negocioId, pedidoId, tipo])
+  @@index([compraUnificadaId, criadaEm])
+  @@index([sessaoId, criadaEm])
+  @@index([contaBizyId, criadaEm])
+  @@index([politicaId, criadaEm])
+}
+
+model ParticipanteConversaoCommerce {
+  id                     String                      @id @default(uuid())
+  conversaoId            String
+  conversao              ConversaoAtribuicaoCommerce @relation(fields: [conversaoId], references: [id], onDelete: Cascade)
+  toqueId                String?
+  toque                  ToqueAtribuicaoCommerce?    @relation(fields: [toqueId], references: [id], onDelete: SetNull)
+  parceiroId             String?
+  parceiro               ParceiroComercial?          @relation(fields: [parceiroId], references: [id], onDelete: SetNull)
+  linkId                 String?
+  link                   LinkAfiliado?               @relation(fields: [linkId], references: [id], onDelete: SetNull)
+  papel                  String
+  pesoBasisPoints        Int
+  valorAtribuidoEmKwanza Int
+  motivo                 String
+  criadoEm               DateTime                    @default(now())
+
+  @@unique([conversaoId, papel, toqueId])
+  @@index([parceiroId, criadoEm])
+  @@index([linkId, criadoEm])
+  @@index([toqueId])
+}
+
 model ComissaoParceiro {
-  id              String              @id @default(uuid())
-  negocioId       String
-  negocio         Negocio             @relation(fields: [negocioId], references: [id])
-  afiliadoId      String
-  afiliado        ParceiroComercial   @relation(fields: [afiliadoId], references: [id])
-  linkId          String?
-  link            LinkAfiliado?       @relation(fields: [linkId], references: [id])
-  pedidoId        String
-  pedido          Pedido              @relation(fields: [pedidoId], references: [id])
-  lotePagamentoId String?
-  lotePagamento   LotePagamentoComissao? @relation("ComissaoLotePagamento", fields: [lotePagamentoId], references: [id])
-  status          String              @default("ESTIMADA")
-  baseEmKwanza    Int
-  valorEmKwanza   Int
-  moeda           String              @default("AOA")
-  motivo          String?
-  criadoEm        DateTime            @default(now())
-  confirmadoEm    DateTime?
-  pagoEm          DateTime?
+  id                  String                      @id @default(uuid())
+  negocioId           String
+  negocio             Negocio                     @relation(fields: [negocioId], references: [id])
+  afiliadoId          String
+  afiliado            ParceiroComercial           @relation(fields: [afiliadoId], references: [id])
+  linkId              String?
+  link                LinkAfiliado?               @relation(fields: [linkId], references: [id])
+  pedidoId            String
+  pedido              Pedido                      @relation(fields: [pedidoId], references: [id])
+  lotePagamentoId     String?
+  lotePagamento       LotePagamentoComissao?      @relation("ComissaoLotePagamento", fields: [lotePagamentoId], references: [id])
+  status              String                      @default("ESTIMADA")
+  baseEmKwanza        Int
+  valorEmKwanza       Int
+  moeda               String                      @default("AOA")
+  motivo              String?
+  criadoEm            DateTime                    @default(now())
+  confirmadoEm        DateTime?
+  pagoEm              DateTime?
   referenciaPagamento String?
   observacaoPagamento String?
-  revertidoEm     DateTime?
-  atualizadoEm    DateTime            @updatedAt
-  historico        HistoricoComissaoParceiro[]
-  itensLotePagamento ItemLotePagamentoComissao[]
+  revertidoEm         DateTime?
+  atualizadoEm        DateTime                    @updatedAt
+  historico           HistoricoComissaoParceiro[]
+  itensLotePagamento  ItemLotePagamentoComissao[]
 
   @@unique([negocioId, pedidoId])
   @@index([negocioId, status])
@@ -1005,24 +1086,24 @@ model ComissaoParceiro {
 }
 
 model HistoricoComissaoParceiro {
-  id              String            @id @default(uuid())
-  negocioId       String
-  negocio         Negocio           @relation(fields: [negocioId], references: [id])
-  comissaoId      String
-  comissao        ComissaoParceiro  @relation(fields: [comissaoId], references: [id])
-  afiliadoId      String
-  pedidoId        String
-  tipo            String
-  statusAnterior  String?
-  statusNovo      String
-  valorEmKwanza   Int
-  moeda           String            @default("AOA")
-  motivo          String?
-  referencia      String?
-  autorId         String?
-  autorNome       String?
-  metadataJson    String            @default("{}")
-  criadoEm        DateTime          @default(now())
+  id             String           @id @default(uuid())
+  negocioId      String
+  negocio        Negocio          @relation(fields: [negocioId], references: [id])
+  comissaoId     String
+  comissao       ComissaoParceiro @relation(fields: [comissaoId], references: [id])
+  afiliadoId     String
+  pedidoId       String
+  tipo           String
+  statusAnterior String?
+  statusNovo     String
+  valorEmKwanza  Int
+  moeda          String           @default("AOA")
+  motivo         String?
+  referencia     String?
+  autorId        String?
+  autorNome      String?
+  metadataJson   String           @default("{}")
+  criadoEm       DateTime         @default(now())
 
   @@index([negocioId, tipo, criadoEm])
   @@index([comissaoId, criadoEm])
@@ -1031,23 +1112,23 @@ model HistoricoComissaoParceiro {
 }
 
 model LotePagamentoComissao {
-  id                    String              @id @default(uuid())
-  negocioId             String
-  negocio               Negocio             @relation(fields: [negocioId], references: [id])
-  referenciaPagamento   String
-  observacao            String?
-  status                String              @default("PAGO")
-  quantidadeComissoes   Int
-  valorTotalEmKwanza    Int
-  moeda                 String              @default("AOA")
-  periodoInicio         DateTime?
-  periodoFim            DateTime?
-  autorId               String?
-  autorNome             String?
-  criadoEm              DateTime            @default(now())
-  atualizadoEm          DateTime            @updatedAt
-  comissoes             ComissaoParceiro[]   @relation("ComissaoLotePagamento")
-  itens                 ItemLotePagamentoComissao[]
+  id                  String                      @id @default(uuid())
+  negocioId           String
+  negocio             Negocio                     @relation(fields: [negocioId], references: [id])
+  referenciaPagamento String
+  observacao          String?
+  status              String                      @default("PAGO")
+  quantidadeComissoes Int
+  valorTotalEmKwanza  Int
+  moeda               String                      @default("AOA")
+  periodoInicio       DateTime?
+  periodoFim          DateTime?
+  autorId             String?
+  autorNome           String?
+  criadoEm            DateTime                    @default(now())
+  atualizadoEm        DateTime                    @updatedAt
+  comissoes           ComissaoParceiro[]          @relation("ComissaoLotePagamento")
+  itens               ItemLotePagamentoComissao[]
 
   @@index([negocioId, criadoEm])
   @@index([negocioId, status])
@@ -1055,19 +1136,19 @@ model LotePagamentoComissao {
 }
 
 model ItemLotePagamentoComissao {
-  id              String              @id @default(uuid())
-  negocioId       String
-  loteId          String
-  lote            LotePagamentoComissao @relation(fields: [loteId], references: [id])
-  comissaoId      String
-  comissao        ComissaoParceiro    @relation(fields: [comissaoId], references: [id])
-  afiliadoId      String
-  pedidoId        String
-  valorEmKwanza   Int
-  moeda           String              @default("AOA")
-  statusAnterior  String
-  statusNovo      String
-  criadoEm        DateTime            @default(now())
+  id             String                @id @default(uuid())
+  negocioId      String
+  loteId         String
+  lote           LotePagamentoComissao @relation(fields: [loteId], references: [id])
+  comissaoId     String
+  comissao       ComissaoParceiro      @relation(fields: [comissaoId], references: [id])
+  afiliadoId     String
+  pedidoId       String
+  valorEmKwanza  Int
+  moeda          String                @default("AOA")
+  statusAnterior String
+  statusNovo     String
+  criadoEm       DateTime              @default(now())
 
   @@unique([loteId, comissaoId])
   @@index([negocioId, loteId])
@@ -1077,27 +1158,27 @@ model ItemLotePagamentoComissao {
 }
 
 model MembroNegocio {
-  id           String         @id @default(uuid())
-  negocioId    String
-  negocio      Negocio        @relation(fields: [negocioId], references: [id])
-  usuarioId    String
-  usuario      UsuarioSistema @relation(fields: [usuarioId], references: [id])
-  papel        String         @default("DONO")
-  departamentoId String?
-  departamento Departamento? @relation(fields: [departamentoId], references: [id], onDelete: SetNull)
-  cargo        String?
-  skillsJson   String         @default("[]")
-  desenvolvimentoJson String  @default("[]")
-  status       String         @default("ATIVO")
-  permissoesJson String       @default("{}")
-  criadoEm     DateTime       @default(now())
-  atualizadoEm DateTime       @updatedAt
+  id                  String         @id @default(uuid())
+  negocioId           String
+  negocio             Negocio        @relation(fields: [negocioId], references: [id])
+  usuarioId           String
+  usuario             UsuarioSistema @relation(fields: [usuarioId], references: [id])
+  papel               String         @default("DONO")
+  departamentoId      String?
+  departamento        Departamento?  @relation(fields: [departamentoId], references: [id], onDelete: SetNull)
+  cargo               String?
+  skillsJson          String         @default("[]")
+  desenvolvimentoJson String         @default("[]")
+  status              String         @default("ATIVO")
+  permissoesJson      String         @default("{}")
+  criadoEm            DateTime       @default(now())
+  atualizadoEm        DateTime       @updatedAt
 
-  checklistOnboarding ChecklistOnboarding[]
-  rankings            RankingEquipa[]
-  metas               MetaVendas[]
-  turnos              TurnoMembro[]
-  registosPresenca    RegistoPresenca[]
+  checklistOnboarding      ChecklistOnboarding[]
+  rankings                 RankingEquipa[]
+  metas                    MetaVendas[]
+  turnos                   TurnoMembro[]
+  registosPresenca         RegistoPresenca[]
   configuracaoNotificacoes ConfiguracaoNotificacao[]
   preferenciasWidgetPainel PreferenciaWidgetPainel[]
 
@@ -1109,61 +1190,61 @@ model MembroNegocio {
 }
 
 model ClienteGlobal {
-  id                 String              @id @default(uuid())
-  telefoneCanonico   String?             @unique
-  emailCanonico      String?             @unique
-  nomePreferido      String?
-  avatarUrl          String?
-  origemPrimeira     String?
-  dadosJson          String              @default("{}")
-  perfil360Json      String              @default("{}")
-  identidadesDigitaisJson String          @default("{}")
-  fontesDadosJson    String              @default("{}")
-  ultimoEnriquecimentoEm DateTime?
-  criadoEm           DateTime            @default(now())
-  atualizadoEm       DateTime            @updatedAt
-  clientesNegocio    ClienteNegocio[]
-  clientesAtendimento ClienteAtendimento[]
-  compartilhamentos  CompartilhamentoCliente[]
-  contaBizy           ContaBizy?
+  id                      String                    @id @default(uuid())
+  telefoneCanonico        String?                   @unique
+  emailCanonico           String?                   @unique
+  nomePreferido           String?
+  avatarUrl               String?
+  origemPrimeira          String?
+  dadosJson               String                    @default("{}")
+  perfil360Json           String                    @default("{}")
+  identidadesDigitaisJson String                    @default("{}")
+  fontesDadosJson         String                    @default("{}")
+  ultimoEnriquecimentoEm  DateTime?
+  criadoEm                DateTime                  @default(now())
+  atualizadoEm            DateTime                  @updatedAt
+  clientesNegocio         ClienteNegocio[]
+  clientesAtendimento     ClienteAtendimento[]
+  compartilhamentos       CompartilhamentoCliente[]
+  contaBizy               ContaBizy?
 
   @@index([telefoneCanonico])
   @@index([emailCanonico])
 }
 
 model ClienteNegocio {
-  id                   String          @id @default(uuid())
-  negocioId            String
-  negocio              Negocio         @relation(fields: [negocioId], references: [id])
-  clienteGlobalId      String
-  clienteGlobal        ClienteGlobal   @relation(fields: [clienteGlobalId], references: [id])
-  telefone             String?
-  email                String?
-  nome                 String?
-  username             String?
-  userId               String?
-  avatarUrl            String?
-  origem               String?
-  tagsJson             String          @default("[]")
-  preferenciasJson     String          @default("{}")
-  perfil360Json        String          @default("{}")
-  identidadesDigitaisJson String       @default("{}")
-  fontesDadosJson      String          @default("{}")
-  perfilComercialJson  String          @default("{}")
-  sinaisRelacionamentoJson String      @default("{}")
-  dadosCapturaJson     String          @default("{}")
-  ultimoEnriquecimentoEm DateTime?
-  consentimentoMarketing Boolean       @default(false)
-  consentimentoDados   Boolean         @default(false)
-  estadoRelacionamento String          @default("ATIVO")
-  primeiraInteracaoEm  DateTime        @default(now())
-  ultimaInteracaoEm    DateTime        @default(now())
-  criadoEm             DateTime        @default(now())
-  atualizadoEm         DateTime        @updatedAt
-  reservas             Reserva[]
-  conversas            ConversaAtendimento[]
-  pedidos              Pedido[]
-  compartilhamentosOrigem CompartilhamentoCliente[] @relation("CompartilhamentoClienteOrigemCliente")
+  id                       String                    @id @default(uuid())
+  negocioId                String
+  negocio                  Negocio                   @relation(fields: [negocioId], references: [id])
+  clienteGlobalId          String
+  clienteGlobal            ClienteGlobal             @relation(fields: [clienteGlobalId], references: [id])
+  telefone                 String?
+  email                    String?
+  nome                     String?
+  username                 String?
+  userId                   String?
+  avatarUrl                String?
+  origem                   String?
+  tagsJson                 String                    @default("[]")
+  preferenciasJson         String                    @default("{}")
+  perfil360Json            String                    @default("{}")
+  identidadesDigitaisJson  String                    @default("{}")
+  fontesDadosJson          String                    @default("{}")
+  perfilComercialJson      String                    @default("{}")
+  sinaisRelacionamentoJson String                    @default("{}")
+  dadosCapturaJson         String                    @default("{}")
+  ultimoEnriquecimentoEm   DateTime?
+  consentimentoMarketing   Boolean                   @default(false)
+  consentimentoDados       Boolean                   @default(false)
+  estadoRelacionamento     String                    @default("ATIVO")
+  primeiraInteracaoEm      DateTime                  @default(now())
+  ultimaInteracaoEm        DateTime                  @default(now())
+  criadoEm                 DateTime                  @default(now())
+  atualizadoEm             DateTime                  @updatedAt
+  reservas                 Reserva[]
+  conversas                ConversaAtendimento[]
+  pedidos                  Pedido[]
+  compartilhamentosOrigem  CompartilhamentoCliente[] @relation("CompartilhamentoClienteOrigemCliente")
 
   @@unique([negocioId, clienteGlobalId])
   @@unique([negocioId, telefone])
@@ -1173,20 +1254,20 @@ model ClienteNegocio {
 }
 
 model RelacaoNegocio {
-  id                 String          @id @default(uuid())
+  id                 String                    @id @default(uuid())
   negocioOrigemId    String
-  negocioOrigem      Negocio         @relation("RelacaoNegocioOrigem", fields: [negocioOrigemId], references: [id])
+  negocioOrigem      Negocio                   @relation("RelacaoNegocioOrigem", fields: [negocioOrigemId], references: [id])
   negocioDestinoId   String
-  negocioDestino     Negocio         @relation("RelacaoNegocioDestino", fields: [negocioDestinoId], references: [id])
+  negocioDestino     Negocio                   @relation("RelacaoNegocioDestino", fields: [negocioDestinoId], references: [id])
   tipo               String
-  estado             String          @default("PENDENTE")
-  escopoJson         String          @default("{}")
+  estado             String                    @default("PENDENTE")
+  escopoJson         String                    @default("{}")
   criadoPorUsuarioId String?
-  criadoPorUsuario   UsuarioSistema? @relation("RelacoesNegocioCriadas", fields: [criadoPorUsuarioId], references: [id])
+  criadoPorUsuario   UsuarioSistema?           @relation("RelacoesNegocioCriadas", fields: [criadoPorUsuarioId], references: [id])
   aprovadoEm         DateTime?
   expiraEm           DateTime?
-  criadoEm           DateTime        @default(now())
-  atualizadoEm       DateTime        @updatedAt
+  criadoEm           DateTime                  @default(now())
+  atualizadoEm       DateTime                  @updatedAt
   compartilhamentos  CompartilhamentoCliente[]
 
   @@unique([negocioOrigemId, negocioDestinoId, tipo])
@@ -1195,28 +1276,28 @@ model RelacaoNegocio {
 }
 
 model CompartilhamentoCliente {
-  id                    String          @id @default(uuid())
-  relacaoId             String?
-  relacao               RelacaoNegocio? @relation(fields: [relacaoId], references: [id])
-  clienteGlobalId       String
-  clienteGlobal         ClienteGlobal   @relation(fields: [clienteGlobalId], references: [id])
+  id                     String                             @id @default(uuid())
+  relacaoId              String?
+  relacao                RelacaoNegocio?                    @relation(fields: [relacaoId], references: [id])
+  clienteGlobalId        String
+  clienteGlobal          ClienteGlobal                      @relation(fields: [clienteGlobalId], references: [id])
   clienteNegocioOrigemId String?
-  clienteNegocioOrigem  ClienteNegocio? @relation("CompartilhamentoClienteOrigemCliente", fields: [clienteNegocioOrigemId], references: [id])
-  negocioOrigemId       String
-  negocioOrigem         Negocio         @relation("CompartilhamentoClienteNegocioOrigem", fields: [negocioOrigemId], references: [id])
-  negocioDestinoId      String
-  negocioDestino        Negocio         @relation("CompartilhamentoClienteNegocioDestino", fields: [negocioDestinoId], references: [id])
-  escopoJson            String          @default("{}")
-  motivo                String          @default("Compartilhamento autorizado para operação comercial.")
-  baseLegal             String          @default("CONSENTIMENTO")
-  consentimentoCliente  Boolean         @default(false)
-  status                String          @default("PENDENTE")
-  aprovadoPorUsuarioId  String?
-  aprovadoPorUsuario    UsuarioSistema? @relation("CompartilhamentosAprovados", fields: [aprovadoPorUsuarioId], references: [id])
-  expiraEm              DateTime?
-  criadoEm              DateTime        @default(now())
-  atualizadoEm          DateTime        @updatedAt
-  auditorias            AuditoriaCompartilhamentoCliente[]
+  clienteNegocioOrigem   ClienteNegocio?                    @relation("CompartilhamentoClienteOrigemCliente", fields: [clienteNegocioOrigemId], references: [id])
+  negocioOrigemId        String
+  negocioOrigem          Negocio                            @relation("CompartilhamentoClienteNegocioOrigem", fields: [negocioOrigemId], references: [id])
+  negocioDestinoId       String
+  negocioDestino         Negocio                            @relation("CompartilhamentoClienteNegocioDestino", fields: [negocioDestinoId], references: [id])
+  escopoJson             String                             @default("{}")
+  motivo                 String                             @default("Compartilhamento autorizado para operação comercial.")
+  baseLegal              String                             @default("CONSENTIMENTO")
+  consentimentoCliente   Boolean                            @default(false)
+  status                 String                             @default("PENDENTE")
+  aprovadoPorUsuarioId   String?
+  aprovadoPorUsuario     UsuarioSistema?                    @relation("CompartilhamentosAprovados", fields: [aprovadoPorUsuarioId], references: [id])
+  expiraEm               DateTime?
+  criadoEm               DateTime                           @default(now())
+  atualizadoEm           DateTime                           @updatedAt
+  auditorias             AuditoriaCompartilhamentoCliente[]
 
   @@index([clienteGlobalId])
   @@index([negocioOrigemId, negocioDestinoId, status])
@@ -1225,91 +1306,92 @@ model CompartilhamentoCliente {
 }
 
 model AuditoriaCompartilhamentoCliente {
-  id                  String                 @id @default(uuid())
-  compartilhamentoId  String
-  compartilhamento    CompartilhamentoCliente @relation(fields: [compartilhamentoId], references: [id])
-  atorUsuarioId       String?
-  atorUsuario         UsuarioSistema?        @relation("AuditoriasCompartilhamentoUsuario", fields: [atorUsuarioId], references: [id])
-  acao                String
-  dadosJson           String                 @default("{}")
-  criadoEm            DateTime               @default(now())
+  id                 String                  @id @default(uuid())
+  compartilhamentoId String
+  compartilhamento   CompartilhamentoCliente @relation(fields: [compartilhamentoId], references: [id])
+  atorUsuarioId      String?
+  atorUsuario        UsuarioSistema?         @relation("AuditoriasCompartilhamentoUsuario", fields: [atorUsuarioId], references: [id])
+  acao               String
+  dadosJson          String                  @default("{}")
+  criadoEm           DateTime                @default(now())
 
   @@index([compartilhamentoId, criadoEm])
   @@index([atorUsuarioId])
 }
 
 model ModuloNegocio {
-  id              String   @id @default(uuid())
-  negocioId       String
-  negocio         Negocio  @relation(fields: [negocioId], references: [id])
-  modulo          String
-  ativo           Boolean  @default(true)
-  configuracaoJson String  @default("{}")
-  criadoEm        DateTime @default(now())
-  atualizadoEm    DateTime @updatedAt
+  id               String   @id @default(uuid())
+  negocioId        String
+  negocio          Negocio  @relation(fields: [negocioId], references: [id])
+  modulo           String
+  ativo            Boolean  @default(true)
+  configuracaoJson String   @default("{}")
+  criadoEm         DateTime @default(now())
+  atualizadoEm     DateTime @updatedAt
 
   @@unique([negocioId, modulo])
   @@index([negocioId, ativo])
 }
 
 model CodigoLoginSms {
-  id                   String         @id @default(uuid())
+  id                   String          @id @default(uuid())
   telefone             String
   codigoHash           String
   codigoFinal          String
   expiraEm             DateTime
   usadoEm              DateTime?
-  tentativas           Int            @default(0)
+  tentativas           Int             @default(0)
   statusEnvio          String
   provider             String
   providerMessageId    String?
   providerResponseJson String?
   usuarioId            String?
   usuario              UsuarioSistema? @relation(fields: [usuarioId], references: [id])
-  criadoEm             DateTime       @default(now())
-  atualizadoEm         DateTime       @updatedAt
+  criadoEm             DateTime        @default(now())
+  atualizadoEm         DateTime        @updatedAt
 
   @@index([telefone, expiraEm])
 }
 
 model SessaoUsuario {
-  id           String         @id @default(uuid())
-  tokenHash    String         @unique
-  usuarioId    String
-  usuario      UsuarioSistema @relation(fields: [usuarioId], references: [id])
-  expiraEm     DateTime
-  criadaEm     DateTime       @default(now())
-  ultimoUsoEm  DateTime?
+  id          String         @id @default(uuid())
+  tokenHash   String         @unique
+  usuarioId   String
+  usuario     UsuarioSistema @relation(fields: [usuarioId], references: [id])
+  expiraEm    DateTime
+  criadaEm    DateTime       @default(now())
+  ultimoUsoEm DateTime?
 
   @@index([usuarioId])
   @@index([expiraEm])
 }
 
 model ContaBizy {
-  id                    String                 @id @default(uuid())
-  nome                  String?
-  telefoneCanonico      String?                @unique
-  emailCanonico         String?                @unique
-  telefoneVerificadoEm  DateTime?
-  emailVerificadoEm     DateTime?
-  status                String                 @default("ATIVA")
-  usuarioSistemaId      String?                @unique
-  usuarioSistema        UsuarioSistema?        @relation(fields: [usuarioSistemaId], references: [id])
-  clienteGlobalId       String?                @unique
-  clienteGlobal         ClienteGlobal?         @relation(fields: [clienteGlobalId], references: [id])
-  criadoEm              DateTime               @default(now())
-  atualizadoEm          DateTime               @updatedAt
-  perfilComprador       PerfilComprador?
-  contextos             ContextoContaBizy[]
-  enderecos             EnderecoComprador[]
-  favoritos             FavoritoComprador[]
-  consentimentos        ConsentimentoContaBizy[]
-  dispositivos          DispositivoContaBizy[]
-  sessoes               SessaoContaBizy[]
-  codigosOtp            CodigoOtpContaBizy[]
-  compras               CompraUnificada[]
+  id                   String                        @id @default(uuid())
+  nome                 String?
+  telefoneCanonico     String?                       @unique
+  emailCanonico        String?                       @unique
+  telefoneVerificadoEm DateTime?
+  emailVerificadoEm    DateTime?
+  status               String                        @default("ATIVA")
+  usuarioSistemaId     String?                       @unique
+  usuarioSistema       UsuarioSistema?               @relation(fields: [usuarioSistemaId], references: [id])
+  clienteGlobalId      String?                       @unique
+  clienteGlobal        ClienteGlobal?                @relation(fields: [clienteGlobalId], references: [id])
+  criadoEm             DateTime                      @default(now())
+  atualizadoEm         DateTime                      @updatedAt
+  perfilComprador      PerfilComprador?
+  contextos            ContextoContaBizy[]
+  enderecos            EnderecoComprador[]
+  favoritos            FavoritoComprador[]
+  consentimentos       ConsentimentoContaBizy[]
+  dispositivos         DispositivoContaBizy[]
+  sessoes              SessaoContaBizy[]
+  codigosOtp           CodigoOtpContaBizy[]
+  compras              CompraUnificada[]
   carrinhos            CarrinhoCommerce[]
   sessoesCommerce      SessaoCommerce[]
+  conversoesAtribuicao ConversaoAtribuicaoCommerce[]
 
   @@index([status])
   @@index([telefoneVerificadoEm])
@@ -1320,7 +1402,7 @@ model PerfilComprador {
   id                     String    @id @default(uuid())
   contaId                String    @unique
   conta                  ContaBizy @relation(fields: [contaId], references: [id], onDelete: Cascade)
-  nomeExibicao            String?
+  nomeExibicao           String?
   preferenciasJson       String    @default("{}")
   consentimentoDados     Boolean   @default(false)
   consentimentoMarketing Boolean   @default(false)
@@ -1387,9 +1469,9 @@ model ConsentimentoContaBizy {
 }
 
 model DispositivoContaBizy {
-  id                String             @id @default(uuid())
+  id                String            @id @default(uuid())
   contaId           String
-  conta             ContaBizy          @relation(fields: [contaId], references: [id], onDelete: Cascade)
+  conta             ContaBizy         @relation(fields: [contaId], references: [id], onDelete: Cascade)
   identificadorHash String
   nome              String?
   userAgent         String?
@@ -1397,8 +1479,8 @@ model DispositivoContaBizy {
   confiavelEm       DateTime?
   revogadoEm        DateTime?
   ultimoUsoEm       DateTime?
-  criadoEm          DateTime           @default(now())
-  atualizadoEm      DateTime           @updatedAt
+  criadoEm          DateTime          @default(now())
+  atualizadoEm      DateTime          @updatedAt
   sessoes           SessaoContaBizy[]
 
   @@unique([contaId, identificadorHash])
@@ -1463,24 +1545,24 @@ model AcessoCompraConvidado {
 }
 
 model InstanciaWhatsApp {
-  id              String   @id @default(uuid())
-  negocioId       String?
-  negocio         Negocio? @relation(fields: [negocioId], references: [id])
-  nome            String
-  etiqueta        String?
-  telefone        String?
-  status          String   @default("CRIADA")
-  qrCode          String?
-  pairingCode     String?
-  baseUrl         String?
-  apiKey          String?
-  padrao          Boolean  @default(false)
-  ativa           Boolean  @default(true)
-  ultimoErro      String?
-  ultimaConexaoEm DateTime?
+  id               String    @id @default(uuid())
+  negocioId        String?
+  negocio          Negocio?  @relation(fields: [negocioId], references: [id])
+  nome             String
+  etiqueta         String?
+  telefone         String?
+  status           String    @default("CRIADA")
+  qrCode           String?
+  pairingCode      String?
+  baseUrl          String?
+  apiKey           String?
+  padrao           Boolean   @default(false)
+  ativa            Boolean   @default(true)
+  ultimoErro       String?
+  ultimaConexaoEm  DateTime?
   ultimaConsultaEm DateTime?
-  criadaEm        DateTime @default(now())
-  atualizadaEm    DateTime @updatedAt
+  criadaEm         DateTime  @default(now())
+  atualizadaEm     DateTime  @updatedAt
 
   @@unique([negocioId, nome])
   @@index([ativa, padrao])
@@ -1488,19 +1570,19 @@ model InstanciaWhatsApp {
 }
 
 model InstanciaInstagram {
-  id              String   @id @default(uuid())
+  id              String    @id @default(uuid())
   negocioId       String?
-  negocio         Negocio? @relation(fields: [negocioId], references: [id])
+  negocio         Negocio?  @relation(fields: [negocioId], references: [id])
   nome            String
   username        String
-  status          String   @default("CRIADA")
-  padrao          Boolean  @default(false)
-  ativa           Boolean  @default(true)
+  status          String    @default("CRIADA")
+  padrao          Boolean   @default(false)
+  ativa           Boolean   @default(true)
   ultimoErro      String?
   ultimaConexaoEm DateTime?
   ultimaPollEm    DateTime?
-  criadaEm        DateTime @default(now())
-  atualizadaEm    DateTime @updatedAt
+  criadaEm        DateTime  @default(now())
+  atualizadaEm    DateTime  @updatedAt
 
   @@unique([negocioId, nome])
   @@index([ativa, padrao])
@@ -1521,23 +1603,23 @@ model SeguidorLoja {
 }
 
 model DenunciaMarket {
-  id              String   @id @default(uuid())
-  tipo            String
-  entidadeTipo    String
-  entidadeId      String
-  negocioAlvoId   String?
-  denuncianteId   String?
-  motivo          String
-  descricao       String?
-  origem          String   @default("PUBLICO")
-  evidenciasJson  String   @default("[]")
-  responsavelId   String?
-  prazoEm         DateTime?
-  estado          String   @default("PENDENTE")
-  resolvidoPorId  String?
-  resolucao       String?
-  criadoEm        DateTime @default(now())
-  atualizadoEm    DateTime @updatedAt
+  id             String    @id @default(uuid())
+  tipo           String
+  entidadeTipo   String
+  entidadeId     String
+  negocioAlvoId  String?
+  denuncianteId  String?
+  motivo         String
+  descricao      String?
+  origem         String    @default("PUBLICO")
+  evidenciasJson String    @default("[]")
+  responsavelId  String?
+  prazoEm        DateTime?
+  estado         String    @default("PENDENTE")
+  resolvidoPorId String?
+  resolucao      String?
+  criadoEm       DateTime  @default(now())
+  atualizadoEm   DateTime  @updatedAt
 
   @@index([estado])
   @@index([entidadeTipo, entidadeId])
@@ -1546,22 +1628,22 @@ model DenunciaMarket {
 }
 
 model ReservaStockCheckout {
-  id            String   @id @default(uuid())
-  negocioId     String
-  pecaId        String
-  codigoPeca    String
-  variantePecaId String?
-  variantePeca   VariantePeca? @relation(fields: [variantePecaId], references: [id])
+  id                 String                @id @default(uuid())
+  negocioId          String
+  pecaId             String
+  codigoPeca         String
+  variantePecaId     String?
+  variantePeca       VariantePeca?         @relation(fields: [variantePecaId], references: [id])
   combinacaoVariante String?
   carrinhoItemId     String?               @unique
   carrinhoItem       ItemCarrinhoCommerce? @relation(fields: [carrinhoItemId], references: [id], onDelete: SetNull)
-  quantidade    Int
-  sessaoId      String
-  estado        String   @default("ATIVA")
-  expiraEm      DateTime
-  liberadaEm    DateTime?
-  criadoEm      DateTime @default(now())
-  atualizadoEm  DateTime @updatedAt
+  quantidade         Int
+  sessaoId           String
+  estado             String                @default("ATIVA")
+  expiraEm           DateTime
+  liberadaEm         DateTime?
+  criadoEm           DateTime              @default(now())
+  atualizadoEm       DateTime              @updatedAt
 
   @@index([negocioId, pecaId])
   @@index([variantePecaId, estado, expiraEm])
@@ -1570,19 +1652,19 @@ model ReservaStockCheckout {
 }
 
 model CarrinhoCommerce {
-  id           String                 @id @default(uuid())
-  tokenHash    String?                @unique
-  contaBizyId  String?
-  contaBizy    ContaBizy?             @relation(fields: [contaBizyId], references: [id], onDelete: SetNull)
+  id               String                 @id @default(uuid())
+  tokenHash        String?                @unique
+  contaBizyId      String?
+  contaBizy        ContaBizy?             @relation(fields: [contaBizyId], references: [id], onDelete: SetNull)
   sessaoCommerceId String?
-  sessaoCommerce   SessaoCommerce?    @relation(fields: [sessaoCommerceId], references: [id], onDelete: SetNull)
-  estado       String                 @default("ABERTO")
-  expiraEm     DateTime
-  convertidoEm DateTime?
-  criadoEm     DateTime               @default(now())
-  atualizadoEm DateTime               @updatedAt
-  itens        ItemCarrinhoCommerce[]
-  compra       CompraUnificada?
+  sessaoCommerce   SessaoCommerce?        @relation(fields: [sessaoCommerceId], references: [id], onDelete: SetNull)
+  estado           String                 @default("ABERTO")
+  expiraEm         DateTime
+  convertidoEm     DateTime?
+  criadoEm         DateTime               @default(now())
+  atualizadoEm     DateTime               @updatedAt
+  itens            ItemCarrinhoCommerce[]
+  compra           CompraUnificada?
 
   @@index([contaBizyId, estado, atualizadoEm])
   @@index([sessaoCommerceId, estado])
@@ -1622,36 +1704,37 @@ model ItemCarrinhoCommerce {
 }
 
 model CompraUnificada {
-  id                        String          @id @default(uuid())
-  numero                    Int             @default(autoincrement())
-  idempotencyKey            String?
-  compradorTelefone         String
-  compradorNome             String?
-  compradorEmail            String?
-  estado                    String          @default("ABERTA")
-  estadoPagamento           String          @default("PENDENTE")
-  subtotalEmKwanza          Int             @default(0)
-  descontoEmKwanza          Int             @default(0)
-  taxaEntregaTotalEmKwanza  Int             @default(0)
-  totalEmKwanza             Int             @default(0)
-  metodoPagamento           String?
-  comprovativoPagamentoUrl  String?
-  enderecoEntrega           String?
-  observacao                String?
-  origem                    String          @default("market")
-  criadoEm                  DateTime        @default(now())
-  atualizadoEm              DateTime        @updatedAt
-  contaBizyId               String?
-  contaBizy                 ContaBizy?      @relation(fields: [contaBizyId], references: [id])
-  carrinhoId               String?             @unique
-  carrinho                 CarrinhoCommerce?   @relation(fields: [carrinhoId], references: [id], onDelete: SetNull)
+  id                       String                        @id @default(uuid())
+  numero                   Int                           @default(autoincrement())
+  idempotencyKey           String?
+  compradorTelefone        String
+  compradorNome            String?
+  compradorEmail           String?
+  estado                   String                        @default("ABERTA")
+  estadoPagamento          String                        @default("PENDENTE")
+  subtotalEmKwanza         Int                           @default(0)
+  descontoEmKwanza         Int                           @default(0)
+  taxaEntregaTotalEmKwanza Int                           @default(0)
+  totalEmKwanza            Int                           @default(0)
+  metodoPagamento          String?
+  comprovativoPagamentoUrl String?
+  enderecoEntrega          String?
+  observacao               String?
+  origem                   String                        @default("market")
+  criadoEm                 DateTime                      @default(now())
+  atualizadoEm             DateTime                      @updatedAt
+  contaBizyId              String?
+  contaBizy                ContaBizy?                    @relation(fields: [contaBizyId], references: [id])
+  carrinhoId               String?                       @unique
+  carrinho                 CarrinhoCommerce?             @relation(fields: [carrinhoId], references: [id], onDelete: SetNull)
   sessaoCommerceId         String?
-  sessaoCommerce           SessaoCommerce?     @relation(fields: [sessaoCommerceId], references: [id], onDelete: SetNull)
-  pedidosFilho              PedidoFilho[]
-  acessosConvidado          AcessoCompraConvidado[]
+  sessaoCommerce           SessaoCommerce?               @relation(fields: [sessaoCommerceId], references: [id], onDelete: SetNull)
+  pedidosFilho             PedidoFilho[]
+  acessosConvidado         AcessoCompraConvidado[]
+  conversoesAtribuicao     ConversaoAtribuicaoCommerce[]
 
-  @@index([compradorTelefone])
   @@unique([compradorTelefone, idempotencyKey])
+  @@index([compradorTelefone])
   @@index([estado])
   @@index([contaBizyId, criadoEm])
   @@index([sessaoCommerceId, criadoEm])
@@ -1686,32 +1769,32 @@ model PedidoFilho {
 }
 
 model RepasseFinanceiro {
-  id                    String    @id @default(uuid())
-  negocioId             String
-  compraUnificadaId     String?
-  pedidoId              String
-  valorBrutoEmKwanza    Int
-  valorProdutosEmKwanza Int       @default(0)
-  valorEntregaEmKwanza  Int       @default(0)
-  impostosEmKwanza      Int       @default(0)
-  taxaBizyEmKwanza      Int       @default(0)
-  comissaoEmKwanza      Int       @default(0)
-  descontoEmKwanza      Int       @default(0)
-  retencaoEmKwanza      Int       @default(0)
-  reembolsoEmKwanza     Int       @default(0)
-  valorLiquidoEmKwanza  Int
-  valorDisponivelEmKwanza Int     @default(0)
-  estado                String    @default("PENDENTE")
-  motivo                String?
-  motivoRetencao        String?
-  retidoAte             DateTime?
-  politicaCalculoVersao String    @default("market.split.v1")
-  conciliadoEm          DateTime?
-  aprovadoEm            DateTime?
-  pagoEm                DateTime?
-  referenciaPagamento   String?
-  criadoEm              DateTime  @default(now())
-  atualizadoEm          DateTime  @updatedAt
+  id                      String    @id @default(uuid())
+  negocioId               String
+  compraUnificadaId       String?
+  pedidoId                String
+  valorBrutoEmKwanza      Int
+  valorProdutosEmKwanza   Int       @default(0)
+  valorEntregaEmKwanza    Int       @default(0)
+  impostosEmKwanza        Int       @default(0)
+  taxaBizyEmKwanza        Int       @default(0)
+  comissaoEmKwanza        Int       @default(0)
+  descontoEmKwanza        Int       @default(0)
+  retencaoEmKwanza        Int       @default(0)
+  reembolsoEmKwanza       Int       @default(0)
+  valorLiquidoEmKwanza    Int
+  valorDisponivelEmKwanza Int       @default(0)
+  estado                  String    @default("PENDENTE")
+  motivo                  String?
+  motivoRetencao          String?
+  retidoAte               DateTime?
+  politicaCalculoVersao   String    @default("market.split.v1")
+  conciliadoEm            DateTime?
+  aprovadoEm              DateTime?
+  pagoEm                  DateTime?
+  referenciaPagamento     String?
+  criadoEm                DateTime  @default(now())
+  atualizadoEm            DateTime  @updatedAt
 
   @@index([negocioId])
   @@index([pedidoId])
@@ -1721,19 +1804,19 @@ model RepasseFinanceiro {
 }
 
 model ReembolsoPedido {
-  id                  String    @id @default(uuid())
-  negocioId           String
-  pedidoId            String
-  compraUnificadaId   String?
-  tipo                String
-  valorEmKwanza       Int
-  motivo              String
-  itensAfetadosJson   String    @default("[]")
-  estado              String    @default("PENDENTE")
-  aprovadoPorId       String?
-  processadoEm        DateTime?
-  criadoEm            DateTime  @default(now())
-  atualizadoEm        DateTime  @updatedAt
+  id                String    @id @default(uuid())
+  negocioId         String
+  pedidoId          String
+  compraUnificadaId String?
+  tipo              String
+  valorEmKwanza     Int
+  motivo            String
+  itensAfetadosJson String    @default("[]")
+  estado            String    @default("PENDENTE")
+  aprovadoPorId     String?
+  processadoEm      DateTime?
+  criadoEm          DateTime  @default(now())
+  atualizadoEm      DateTime  @updatedAt
 
   @@index([negocioId])
   @@index([pedidoId])
@@ -1743,32 +1826,32 @@ model ReembolsoPedido {
 // ── Fase 0 BIZY Team ───────────────────────────────────────────
 
 model PersonaPapel {
-  id              String   @id @default(uuid())
-  negocioId       String?
-  negocio         Negocio? @relation(fields: [negocioId], references: [id])
-  nome            String
-  descricao       String?
-  papelBase       String
-  permissoesJson  String   @default("{}")
-  ativo           Boolean  @default(true)
-  criadoEm        DateTime @default(now())
-  atualizadoEm    DateTime @updatedAt
+  id             String   @id @default(uuid())
+  negocioId      String?
+  negocio        Negocio? @relation(fields: [negocioId], references: [id])
+  nome           String
+  descricao      String?
+  papelBase      String
+  permissoesJson String   @default("{}")
+  ativo          Boolean  @default(true)
+  criadoEm       DateTime @default(now())
+  atualizadoEm   DateTime @updatedAt
 
   @@unique([negocioId, nome])
   @@index([negocioId, ativo])
 }
 
 model ConviteEquipa {
-  id              String    @id @default(uuid())
+  id              String         @id @default(uuid())
   negocioId       String
-  negocio         Negocio   @relation(fields: [negocioId], references: [id])
-  token           String    @unique @default(uuid())
+  negocio         Negocio        @relation(fields: [negocioId], references: [id])
+  token           String         @unique @default(uuid())
   telefone        String?
   email           String?
   nomeConvidado   String?
-  papelSugerido   String    @default("VENDEDOR")
+  papelSugerido   String         @default("VENDEDOR")
   personaId       String?
-  estado          String    @default("PENDENTE")
+  estado          String         @default("PENDENTE")
   criadoPorId     String
   criadoPor       UsuarioSistema @relation("ConvitesCriados", fields: [criadoPorId], references: [id])
   aceitePorId     String?
@@ -1776,8 +1859,8 @@ model ConviteEquipa {
   termosAceitesEm DateTime?
   expiraEm        DateTime
   reenviadoEm     DateTime?
-  criadoEm        DateTime  @default(now())
-  atualizadoEm    DateTime  @updatedAt
+  criadoEm        DateTime       @default(now())
+  atualizadoEm    DateTime       @updatedAt
 
   @@index([negocioId, estado])
   @@index([telefone])
@@ -1786,34 +1869,34 @@ model ConviteEquipa {
 }
 
 model NotaInterna {
-  id              String   @id @default(uuid())
-  negocioId       String
-  negocio         Negocio  @relation(fields: [negocioId], references: [id])
-  autorId         String
-  autor           UsuarioSistema @relation("NotasInternas", fields: [autorId], references: [id])
-  entidadeTipo    String
-  entidadeId      String
-  conteudo        String
-  mencoesJson     String   @default("[]")
-  criadoEm        DateTime @default(now())
-  atualizadoEm    DateTime @updatedAt
+  id           String         @id @default(uuid())
+  negocioId    String
+  negocio      Negocio        @relation(fields: [negocioId], references: [id])
+  autorId      String
+  autor        UsuarioSistema @relation("NotasInternas", fields: [autorId], references: [id])
+  entidadeTipo String
+  entidadeId   String
+  conteudo     String
+  mencoesJson  String         @default("[]")
+  criadoEm     DateTime       @default(now())
+  atualizadoEm DateTime       @updatedAt
 
   @@index([negocioId, entidadeTipo, entidadeId, criadoEm])
   @@index([autorId])
 }
 
 model FeedActividade {
-  id              String   @id @default(uuid())
-  negocioId       String
-  negocio         Negocio  @relation(fields: [negocioId], references: [id])
-  autorId         String?
-  autor           UsuarioSistema? @relation("FeedActividades", fields: [autorId], references: [id])
-  tipo            String
-  entidadeTipo    String?
-  entidadeId      String?
-  resumo          String
-  detalhesJson    String   @default("{}")
-  criadoEm        DateTime @default(now())
+  id           String          @id @default(uuid())
+  negocioId    String
+  negocio      Negocio         @relation(fields: [negocioId], references: [id])
+  autorId      String?
+  autor        UsuarioSistema? @relation("FeedActividades", fields: [autorId], references: [id])
+  tipo         String
+  entidadeTipo String?
+  entidadeId   String?
+  resumo       String
+  detalhesJson String          @default("{}")
+  criadoEm     DateTime        @default(now())
 
   @@index([negocioId, criadoEm])
   @@index([negocioId, tipo, criadoEm])
@@ -1822,59 +1905,59 @@ model FeedActividade {
 }
 
 model ChecklistOnboarding {
-  id              String    @id @default(uuid())
-  negocioId       String
-  negocio         Negocio   @relation(fields: [negocioId], references: [id])
-  membroId        String
-  membro          MembroNegocio @relation(fields: [membroId], references: [id])
-  item            String
-  descricao       String?
-  concluido       Boolean   @default(false)
-  concluidoEm     DateTime?
-  criadoEm        DateTime  @default(now())
-  atualizadoEm    DateTime  @updatedAt
+  id           String        @id @default(uuid())
+  negocioId    String
+  negocio      Negocio       @relation(fields: [negocioId], references: [id])
+  membroId     String
+  membro       MembroNegocio @relation(fields: [membroId], references: [id])
+  item         String
+  descricao    String?
+  concluido    Boolean       @default(false)
+  concluidoEm  DateTime?
+  criadoEm     DateTime      @default(now())
+  atualizadoEm DateTime      @updatedAt
 
   @@unique([membroId, item])
   @@index([negocioId, membroId])
 }
 
 model MascaramentoDados {
-  id              String   @id @default(uuid())
-  negocioId       String
-  negocio         Negocio  @relation(fields: [negocioId], references: [id])
-  papel           String
-  campo           String
-  tipo            String   @default("PARCIAL")
-  criadoEm        DateTime @default(now())
-  atualizadoEm    DateTime @updatedAt
+  id           String   @id @default(uuid())
+  negocioId    String
+  negocio      Negocio  @relation(fields: [negocioId], references: [id])
+  papel        String
+  campo        String
+  tipo         String   @default("PARCIAL")
+  criadoEm     DateTime @default(now())
+  atualizadoEm DateTime @updatedAt
 
   @@unique([negocioId, papel, campo])
   @@index([negocioId])
 }
 
 model ConfiguracaoGamificacao {
-  id              String   @id @default(uuid())
-  negocioId       String   @unique
-  negocio         Negocio  @relation(fields: [negocioId], references: [id])
-  ativo           Boolean  @default(false)
-  kpiPrincipal    String   @default("VENDAS_VALOR")
-  periodo         String   @default("MENSAL")
-  recompensa      String?
-  criadoEm        DateTime @default(now())
-  atualizadoEm    DateTime @updatedAt
+  id           String   @id @default(uuid())
+  negocioId    String   @unique
+  negocio      Negocio  @relation(fields: [negocioId], references: [id])
+  ativo        Boolean  @default(false)
+  kpiPrincipal String   @default("VENDAS_VALOR")
+  periodo      String   @default("MENSAL")
+  recompensa   String?
+  criadoEm     DateTime @default(now())
+  atualizadoEm DateTime @updatedAt
 }
 
 model RankingEquipa {
-  id              String   @id @default(uuid())
-  negocioId       String
-  negocio         Negocio  @relation(fields: [negocioId], references: [id])
-  membroId        String
-  membro          MembroNegocio @relation(fields: [membroId], references: [id])
-  periodo         String
-  kpi             String
-  valor           Float    @default(0)
-  posicao         Int      @default(0)
-  criadoEm        DateTime @default(now())
+  id        String        @id @default(uuid())
+  negocioId String
+  negocio   Negocio       @relation(fields: [negocioId], references: [id])
+  membroId  String
+  membro    MembroNegocio @relation(fields: [membroId], references: [id])
+  periodo   String
+  kpi       String
+  valor     Float         @default(0)
+  posicao   Int           @default(0)
+  criadoEm  DateTime      @default(now())
 
   @@index([negocioId, periodo, kpi, criadoEm])
   @@index([membroId, criadoEm])
@@ -1883,45 +1966,45 @@ model RankingEquipa {
 // ── Fase 1 BIZY Team — Finanças Core ─────────────────────────────────────
 
 model CategoriaFinanceira {
-  id          String   @id @default(uuid())
-  negocioId   String
-  negocio     Negocio  @relation(fields: [negocioId], references: [id])
-  nome        String
-  tipo        String   @default("DESPESA") // RECEITA | DESPESA
-  icone       String?
-  cor         String?
-  ativo       Boolean  @default(true)
-  criadoEm    DateTime @default(now())
+  id           String   @id @default(uuid())
+  negocioId    String
+  negocio      Negocio  @relation(fields: [negocioId], references: [id])
+  nome         String
+  tipo         String   @default("DESPESA") // RECEITA | DESPESA
+  icone        String?
+  cor          String?
+  ativo        Boolean  @default(true)
+  criadoEm     DateTime @default(now())
   atualizadoEm DateTime @updatedAt
 
-  movimentos  MovimentoFinanceiro[]
-  despesas    Despesa[]
-  orcamentos  OrcamentoPeriodo[]
+  movimentos MovimentoFinanceiro[]
+  despesas   Despesa[]
+  orcamentos OrcamentoPeriodo[]
 
   @@unique([negocioId, nome])
   @@index([negocioId, tipo])
 }
 
 model MovimentoFinanceiro {
-  id              String   @id @default(uuid())
-  negocioId       String
-  negocio         Negocio  @relation(fields: [negocioId], references: [id])
-  tipo            String   // ENTRADA | SAIDA
-  categoriaId     String?
-  categoria       CategoriaFinanceira? @relation(fields: [categoriaId], references: [id])
-  descricao       String
-  valor           Int      // em kwanza (centavos evitados — usa inteiro)
-  origemTipo      String?  // PEDIDO | COMISSAO | DESPESA | MANUAL | REEMBOLSO
-  origemId        String?
-  responsavelId   String?
-  dataMovimento   DateTime @default(now())
-  reconciliado    Boolean  @default(false)
-  metodoPagamento String?
+  id                  String               @id @default(uuid())
+  negocioId           String
+  negocio             Negocio              @relation(fields: [negocioId], references: [id])
+  tipo                String // ENTRADA | SAIDA
+  categoriaId         String?
+  categoria           CategoriaFinanceira? @relation(fields: [categoriaId], references: [id])
+  descricao           String
+  valor               Int // em kwanza (centavos evitados — usa inteiro)
+  origemTipo          String? // PEDIDO | COMISSAO | DESPESA | MANUAL | REEMBOLSO
+  origemId            String?
+  responsavelId       String?
+  dataMovimento       DateTime             @default(now())
+  reconciliado        Boolean              @default(false)
+  metodoPagamento     String?
   referenciaPagamento String?
-  comprovativoUrl String?
-  observacao      String?
-  criadoEm        DateTime @default(now())
-  atualizadoEm    DateTime @updatedAt
+  comprovativoUrl     String?
+  observacao          String?
+  criadoEm            DateTime             @default(now())
+  atualizadoEm        DateTime             @updatedAt
   movimentosBancarios MovimentoBancario[]
 
   @@index([negocioId, dataMovimento])
@@ -1934,38 +2017,38 @@ model MovimentoFinanceiro {
 }
 
 model ImportacaoExtratoBancario {
-  id              String   @id @default(uuid())
-  negocioId       String
-  negocio         Negocio  @relation(fields: [negocioId], references: [id])
-  nomeArquivo     String
-  formato         String   @default("CSV") // CSV | OFX
-  totalLinhas     Int      @default(0)
-  criadoPorId     String?
-  criadoEm        DateTime @default(now())
-  movimentos      MovimentoBancario[]
+  id          String              @id @default(uuid())
+  negocioId   String
+  negocio     Negocio             @relation(fields: [negocioId], references: [id])
+  nomeArquivo String
+  formato     String              @default("CSV") // CSV | OFX
+  totalLinhas Int                 @default(0)
+  criadoPorId String?
+  criadoEm    DateTime            @default(now())
+  movimentos  MovimentoBancario[]
 
   @@index([negocioId, criadoEm])
   @@index([negocioId, formato])
 }
 
 model MovimentoBancario {
-  id                    String   @id @default(uuid())
+  id                    String                    @id @default(uuid())
   negocioId             String
-  negocio               Negocio  @relation(fields: [negocioId], references: [id])
+  negocio               Negocio                   @relation(fields: [negocioId], references: [id])
   importacaoId          String
   importacao            ImportacaoExtratoBancario @relation(fields: [importacaoId], references: [id], onDelete: Cascade)
   dataMovimento         DateTime
   descricao             String
   valor                 Int
-  tipo                  String   // CREDITO | DEBITO
+  tipo                  String // CREDITO | DEBITO
   referencia            String?
-  estadoConciliacao     String   @default("PENDENTE") // PENDENTE | CONCILIADO | IGNORADO
+  estadoConciliacao     String                    @default("PENDENTE") // PENDENTE | CONCILIADO | IGNORADO
   movimentoFinanceiroId String?
-  movimentoFinanceiro   MovimentoFinanceiro? @relation(fields: [movimentoFinanceiroId], references: [id])
-  sugestoesJson         String   @default("[]")
+  movimentoFinanceiro   MovimentoFinanceiro?      @relation(fields: [movimentoFinanceiroId], references: [id])
+  sugestoesJson         String                    @default("[]")
   conciliadoEm          DateTime?
-  criadoEm              DateTime @default(now())
-  atualizadoEm          DateTime @updatedAt
+  criadoEm              DateTime                  @default(now())
+  atualizadoEm          DateTime                  @updatedAt
 
   @@index([negocioId, estadoConciliacao, dataMovimento])
   @@index([negocioId, valor, dataMovimento])
@@ -1974,24 +2057,24 @@ model MovimentoBancario {
 }
 
 model Despesa {
-  id              String   @id @default(uuid())
-  negocioId       String
-  negocio         Negocio  @relation(fields: [negocioId], references: [id])
-  categoriaId     String?
-  categoria       CategoriaFinanceira? @relation(fields: [categoriaId], references: [id])
-  descricao       String
-  valor           Int
-  tipoRecorrencia String   @default("UNICA") // UNICA | SEMANAL | MENSAL
-  fornecedor      String?
-  comprovativoUrl String?
-  dataVencimento  DateTime?
-  pago            Boolean  @default(false)
-  pagoEm          DateTime?
-  metodoPagamento String?
+  id                  String               @id @default(uuid())
+  negocioId           String
+  negocio             Negocio              @relation(fields: [negocioId], references: [id])
+  categoriaId         String?
+  categoria           CategoriaFinanceira? @relation(fields: [categoriaId], references: [id])
+  descricao           String
+  valor               Int
+  tipoRecorrencia     String               @default("UNICA") // UNICA | SEMANAL | MENSAL
+  fornecedor          String?
+  comprovativoUrl     String?
+  dataVencimento      DateTime?
+  pago                Boolean              @default(false)
+  pagoEm              DateTime?
+  metodoPagamento     String?
   referenciaPagamento String?
-  observacao      String?
-  criadoEm        DateTime @default(now())
-  atualizadoEm    DateTime @updatedAt
+  observacao          String?
+  criadoEm            DateTime             @default(now())
+  atualizadoEm        DateTime             @updatedAt
 
   @@index([negocioId, pago, dataVencimento])
   @@index([negocioId, categoriaId])
@@ -1999,24 +2082,24 @@ model Despesa {
 }
 
 model ContaReceber {
-  id              String   @id @default(uuid())
-  negocioId       String
-  negocio         Negocio  @relation(fields: [negocioId], references: [id])
-  clienteId       String?
-  pedidoId        String?
-  facturaId       String?
-  descricao       String
-  valor           Int
-  dataVencimento  DateTime
-  estado          String   @default("A_VENCER") // A_VENCER | VENCIDO | PAGO | CANCELADO
-  pagoEm          DateTime?
-  valorPago       Int?
-  metodoPagamento String?
-  referenciaPagamento String?
+  id                       String    @id @default(uuid())
+  negocioId                String
+  negocio                  Negocio   @relation(fields: [negocioId], references: [id])
+  clienteId                String?
+  pedidoId                 String?
+  facturaId                String?
+  descricao                String
+  valor                    Int
+  dataVencimento           DateTime
+  estado                   String    @default("A_VENCER") // A_VENCER | VENCIDO | PAGO | CANCELADO
+  pagoEm                   DateTime?
+  valorPago                Int?
+  metodoPagamento          String?
+  referenciaPagamento      String?
   comprovativoPagamentoUrl String?
-  observacao      String?
-  criadoEm        DateTime @default(now())
-  atualizadoEm    DateTime @updatedAt
+  observacao               String?
+  criadoEm                 DateTime  @default(now())
+  atualizadoEm             DateTime  @updatedAt
 
   @@index([negocioId, estado, dataVencimento])
   @@index([negocioId, clienteId])
@@ -2024,36 +2107,36 @@ model ContaReceber {
 }
 
 model ContaPagar {
-  id              String   @id @default(uuid())
-  negocioId       String
-  negocio         Negocio  @relation(fields: [negocioId], references: [id])
-  fornecedor      String
-  descricao       String
-  valor           Int
-  dataVencimento  DateTime
-  estado          String   @default("A_VENCER") // A_VENCER | VENCIDO | PAGO
-  pagoEm          DateTime?
-  metodoPagamento String?
-  referenciaPagamento String?
+  id                       String    @id @default(uuid())
+  negocioId                String
+  negocio                  Negocio   @relation(fields: [negocioId], references: [id])
+  fornecedor               String
+  descricao                String
+  valor                    Int
+  dataVencimento           DateTime
+  estado                   String    @default("A_VENCER") // A_VENCER | VENCIDO | PAGO
+  pagoEm                   DateTime?
+  metodoPagamento          String?
+  referenciaPagamento      String?
   comprovativoPagamentoUrl String?
-  observacao      String?
-  criadoEm        DateTime @default(now())
-  atualizadoEm    DateTime @updatedAt
+  observacao               String?
+  criadoEm                 DateTime  @default(now())
+  atualizadoEm             DateTime  @updatedAt
 
   @@index([negocioId, estado, dataVencimento])
 }
 
 model OrcamentoPeriodo {
-  id              String   @id @default(uuid())
-  negocioId       String
-  negocio         Negocio  @relation(fields: [negocioId], references: [id])
-  categoriaId     String
-  categoria       CategoriaFinanceira @relation(fields: [categoriaId], references: [id])
-  mes             Int      // 1-12
-  ano             Int
-  valorOrcado     Int
-  criadoEm        DateTime @default(now())
-  atualizadoEm    DateTime @updatedAt
+  id           String              @id @default(uuid())
+  negocioId    String
+  negocio      Negocio             @relation(fields: [negocioId], references: [id])
+  categoriaId  String
+  categoria    CategoriaFinanceira @relation(fields: [categoriaId], references: [id])
+  mes          Int // 1-12
+  ano          Int
+  valorOrcado  Int
+  criadoEm     DateTime            @default(now())
+  atualizadoEm DateTime            @updatedAt
 
   @@unique([negocioId, categoriaId, mes, ano])
   @@index([negocioId, ano, mes])
@@ -2062,41 +2145,41 @@ model OrcamentoPeriodo {
 // ── Facturação ───────────────────────────────────────────────────────────
 
 model Factura {
-  id                String        @id @default(uuid())
-  negocioId         String
-  negocio           Negocio       @relation(fields: [negocioId], references: [id])
-  pedidoId          String?
-  clienteNome       String
-  clienteNif        String?
-  clienteEndereco   String?
-  tipoDocumento     String        @default("FACTURA") // FACTURA | FACTURA_RECIBO
-  serie             String        @default("FT")
-  numero            Int
-  anoFiscal         Int
-  estado            String        @default("EMITIDA") // EMITIDA | ANULADA | CORRIGIDA
-  estadoPagamento   String        @default("PENDENTE") // PENDENTE | PARCIAL | PAGO
-  subtotal          Int
-  ivaPercentual     Float         @default(14)
-  ivaValor          Int           @default(0)
-  total             Int
-  valorPago         Int           @default(0)
-  dataVencimento    DateTime?
-  pagoEm            DateTime?
-  metodoPagamento   String?
-  referenciaPagamento String?
+  id                       String    @id @default(uuid())
+  negocioId                String
+  negocio                  Negocio   @relation(fields: [negocioId], references: [id])
+  pedidoId                 String?
+  clienteNome              String
+  clienteNif               String?
+  clienteEndereco          String?
+  tipoDocumento            String    @default("FACTURA") // FACTURA | FACTURA_RECIBO
+  serie                    String    @default("FT")
+  numero                   Int
+  anoFiscal                Int
+  estado                   String    @default("EMITIDA") // EMITIDA | ANULADA | CORRIGIDA
+  estadoPagamento          String    @default("PENDENTE") // PENDENTE | PARCIAL | PAGO
+  subtotal                 Int
+  ivaPercentual            Float     @default(14)
+  ivaValor                 Int       @default(0)
+  total                    Int
+  valorPago                Int       @default(0)
+  dataVencimento           DateTime?
+  pagoEm                   DateTime?
+  metodoPagamento          String?
+  referenciaPagamento      String?
   comprovativoPagamentoUrl String?
-  codigoValidacao   String?
-  qrCode            String?
-  hashDocumento     String?
-  observacao        String?
-  anuladaEm         DateTime?
-  motivoAnulacao    String?
-  emitidaEm         DateTime      @default(now())
-  criadoEm          DateTime      @default(now())
-  atualizadoEm      DateTime      @updatedAt
+  codigoValidacao          String?
+  qrCode                   String?
+  hashDocumento            String?
+  observacao               String?
+  anuladaEm                DateTime?
+  motivoAnulacao           String?
+  emitidaEm                DateTime  @default(now())
+  criadoEm                 DateTime  @default(now())
+  atualizadoEm             DateTime  @updatedAt
 
-  itens             ItemFactura[]
-  notasCredito      NotaCredito[]
+  itens        ItemFactura[]
+  notasCredito NotaCredito[]
 
   @@unique([negocioId, serie, numero, anoFiscal])
   @@index([negocioId, estado, emitidaEm])
@@ -2105,34 +2188,34 @@ model Factura {
 }
 
 model ItemFactura {
-  id                String   @id @default(uuid())
-  facturaId         String
-  factura           Factura  @relation(fields: [facturaId], references: [id], onDelete: Cascade)
-  descricao         String
-  quantidade        Int
-  precoUnitario     Int
-  subtotal          Int
-  ivaPercentual     Float    @default(14)
-  ivaValor          Int      @default(0)
-  criadoEm          DateTime @default(now())
+  id            String   @id @default(uuid())
+  facturaId     String
+  factura       Factura  @relation(fields: [facturaId], references: [id], onDelete: Cascade)
+  descricao     String
+  quantidade    Int
+  precoUnitario Int
+  subtotal      Int
+  ivaPercentual Float    @default(14)
+  ivaValor      Int      @default(0)
+  criadoEm      DateTime @default(now())
 
   @@index([facturaId])
 }
 
 model NotaCredito {
-  id              String   @id @default(uuid())
-  negocioId       String
-  negocio         Negocio  @relation(fields: [negocioId], references: [id])
-  facturaId       String
-  factura         Factura  @relation(fields: [facturaId], references: [id])
-  numero          Int
-  anoFiscal       Int
-  motivo          String
-  valor           Int
-  estado          String   @default("EMITIDA") // EMITIDA | ANULADA
-  emitidaEm       DateTime @default(now())
-  criadoEm        DateTime @default(now())
-  atualizadoEm    DateTime @updatedAt
+  id           String   @id @default(uuid())
+  negocioId    String
+  negocio      Negocio  @relation(fields: [negocioId], references: [id])
+  facturaId    String
+  factura      Factura  @relation(fields: [facturaId], references: [id])
+  numero       Int
+  anoFiscal    Int
+  motivo       String
+  valor        Int
+  estado       String   @default("EMITIDA") // EMITIDA | ANULADA
+  emitidaEm    DateTime @default(now())
+  criadoEm     DateTime @default(now())
+  atualizadoEm DateTime @updatedAt
 
   @@unique([negocioId, numero, anoFiscal])
   @@index([negocioId, facturaId])
@@ -2141,19 +2224,19 @@ model NotaCredito {
 // ── Metas de Vendas (Fase 2) ─────────────────────────────────────────────
 
 model MetaVendas {
-  id              String   @id @default(uuid())
-  negocioId       String
-  negocio         Negocio  @relation(fields: [negocioId], references: [id])
-  membroId        String?
-  membro          MembroNegocio? @relation(fields: [membroId], references: [id])
-  tipo            String   @default("INDIVIDUAL") // INDIVIDUAL | EQUIPA
-  kpi             String   @default("VENDAS_VALOR") // VENDAS_VALOR | VENDAS_QTD | CONVERSAO
-  periodo         String   @default("MENSAL") // DIARIO | SEMANAL | MENSAL
-  valorMeta       Int
-  mes             Int?     // 1-12
-  ano             Int?
-  criadoEm        DateTime @default(now())
-  atualizadoEm    DateTime @updatedAt
+  id           String         @id @default(uuid())
+  negocioId    String
+  negocio      Negocio        @relation(fields: [negocioId], references: [id])
+  membroId     String?
+  membro       MembroNegocio? @relation(fields: [membroId], references: [id])
+  tipo         String         @default("INDIVIDUAL") // INDIVIDUAL | EQUIPA
+  kpi          String         @default("VENDAS_VALOR") // VENDAS_VALOR | VENDAS_QTD | CONVERSAO
+  periodo      String         @default("MENSAL") // DIARIO | SEMANAL | MENSAL
+  valorMeta    Int
+  mes          Int? // 1-12
+  ano          Int?
+  criadoEm     DateTime       @default(now())
+  atualizadoEm DateTime       @updatedAt
 
   @@index([negocioId, tipo, periodo])
   @@index([membroId, periodo])
@@ -2162,32 +2245,32 @@ model MetaVendas {
 // ── Turnos e Presença (Fase 2) ──────────────────────────────────────────
 
 model TurnoMembro {
-  id              String   @id @default(uuid())
-  negocioId       String
-  negocio         Negocio  @relation(fields: [negocioId], references: [id])
-  membroId        String
-  membro          MembroNegocio @relation(fields: [membroId], references: [id])
-  diaSemana       Int      // 0=Dom, 1=Seg, ..., 6=Sab
-  horaInicio      String   // "08:00"
-  horaFim         String   // "17:00"
-  activo          Boolean  @default(true)
-  criadoEm        DateTime @default(now())
-  atualizadoEm    DateTime @updatedAt
+  id           String        @id @default(uuid())
+  negocioId    String
+  negocio      Negocio       @relation(fields: [negocioId], references: [id])
+  membroId     String
+  membro       MembroNegocio @relation(fields: [membroId], references: [id])
+  diaSemana    Int // 0=Dom, 1=Seg, ..., 6=Sab
+  horaInicio   String // "08:00"
+  horaFim      String // "17:00"
+  activo       Boolean       @default(true)
+  criadoEm     DateTime      @default(now())
+  atualizadoEm DateTime      @updatedAt
 
   @@unique([membroId, diaSemana])
   @@index([negocioId, diaSemana])
 }
 
 model RegistoPresenca {
-  id              String    @id @default(uuid())
-  negocioId       String
-  negocio         Negocio   @relation(fields: [negocioId], references: [id])
-  membroId        String
-  membro          MembroNegocio @relation(fields: [membroId], references: [id])
-  tipo            String    @default("CHECK_IN") // CHECK_IN | CHECK_OUT
-  registadoEm     DateTime  @default(now())
-  metodo          String    @default("MANUAL") // MANUAL | WHATSAPP | AUTOMATICO
-  observacao      String?
+  id          String        @id @default(uuid())
+  negocioId   String
+  negocio     Negocio       @relation(fields: [negocioId], references: [id])
+  membroId    String
+  membro      MembroNegocio @relation(fields: [membroId], references: [id])
+  tipo        String        @default("CHECK_IN") // CHECK_IN | CHECK_OUT
+  registadoEm DateTime      @default(now())
+  metodo      String        @default("MANUAL") // MANUAL | WHATSAPP | AUTOMATICO
+  observacao  String?
 
   @@index([negocioId, membroId, registadoEm])
   @@index([negocioId, registadoEm])
@@ -2196,38 +2279,38 @@ model RegistoPresenca {
 // ── Fase 3 — Inteligência Preditiva ─────────────────────────────────────
 
 model PrevisaoDemanda {
-  id              String   @id @default(uuid())
-  negocioId       String
-  negocio         Negocio  @relation(fields: [negocioId], references: [id])
-  pecaId          String?
-  sku             String?
-  periodoInicio   DateTime
-  periodoFim      DateTime
+  id                 String   @id @default(uuid())
+  negocioId          String
+  negocio            Negocio  @relation(fields: [negocioId], references: [id])
+  pecaId             String?
+  sku                String?
+  periodoInicio      DateTime
+  periodoFim         DateTime
   quantidadePrevista Int
-  quantidadeReal  Int?
-  confianca       Float    @default(0.5)
-  factoresJson    String   @default("[]")
-  criadoEm        DateTime @default(now())
+  quantidadeReal     Int?
+  confianca          Float    @default(0.5)
+  factoresJson       String   @default("[]")
+  criadoEm           DateTime @default(now())
 
   @@index([negocioId, pecaId, periodoInicio])
   @@index([negocioId, criadoEm])
 }
 
 model ScoreCliente {
-  id              String   @id @default(uuid())
-  negocioId       String
-  negocio         Negocio  @relation(fields: [negocioId], references: [id])
-  clienteId       String
-  tipoScore       String   @default("RFM") // RFM | CHURN | LTV
-  valor           Float    @default(0)
-  segmento        String?  // CHAMPION | LOYAL | AT_RISK | LOST
-  recencia        Int?
-  frequencia      Int?
-  monetario       Int?
+  id                 String   @id @default(uuid())
+  negocioId          String
+  negocio            Negocio  @relation(fields: [negocioId], references: [id])
+  clienteId          String
+  tipoScore          String   @default("RFM") // RFM | CHURN | LTV
+  valor              Float    @default(0)
+  segmento           String? // CHAMPION | LOYAL | AT_RISK | LOST
+  recencia           Int?
+  frequencia         Int?
+  monetario          Int?
   probabilidadeChurn Float?
-  ltvEstimado     Int?
-  factoresJson    String   @default("[]")
-  calculadoEm     DateTime @default(now())
+  ltvEstimado        Int?
+  factoresJson       String   @default("[]")
+  calculadoEm        DateTime @default(now())
 
   @@index([negocioId, clienteId, tipoScore])
   @@index([negocioId, tipoScore, segmento])
@@ -2235,50 +2318,50 @@ model ScoreCliente {
 }
 
 model PrevisaoFluxoCaixa {
-  id              String   @id @default(uuid())
-  negocioId       String
-  negocio         Negocio  @relation(fields: [negocioId], references: [id])
-  semanaInicio    DateTime
-  semanaFim       DateTime
-  entradasPrevistas Int    @default(0)
-  saidasPrevistas Int      @default(0)
-  saldoPrevisto   Int      @default(0)
-  confianca       Float    @default(0.5)
-  factoresJson    String   @default("[]")
-  criadoEm        DateTime @default(now())
+  id                String   @id @default(uuid())
+  negocioId         String
+  negocio           Negocio  @relation(fields: [negocioId], references: [id])
+  semanaInicio      DateTime
+  semanaFim         DateTime
+  entradasPrevistas Int      @default(0)
+  saidasPrevistas   Int      @default(0)
+  saldoPrevisto     Int      @default(0)
+  confianca         Float    @default(0.5)
+  factoresJson      String   @default("[]")
+  criadoEm          DateTime @default(now())
 
   @@index([negocioId, semanaInicio])
 }
 
 model InsightPreditivo {
-  id              String   @id @default(uuid())
-  negocioId       String
-  negocio         Negocio  @relation(fields: [negocioId], references: [id])
-  tipo            String   // DEMANDA | CHURN | FLUXO_CAIXA | OPORTUNIDADE | STOCK
-  titulo          String
-  descricao       String
-  confianca       Float    @default(0.5)
-  nivelConfianca  String   @default("MEDIA") // ALTA | MEDIA | BAIXA
-  acaoSugerida    String?
-  entidadeTipo    String?
-  entidadeId      String?
-  factoresJson    String   @default("[]")
-  expiradoEm      DateTime?
-  criadoEm        DateTime @default(now())
-  feedbacks       FeedbackInsight[]
+  id             String            @id @default(uuid())
+  negocioId      String
+  negocio        Negocio           @relation(fields: [negocioId], references: [id])
+  tipo           String // DEMANDA | CHURN | FLUXO_CAIXA | OPORTUNIDADE | STOCK
+  titulo         String
+  descricao      String
+  confianca      Float             @default(0.5)
+  nivelConfianca String            @default("MEDIA") // ALTA | MEDIA | BAIXA
+  acaoSugerida   String?
+  entidadeTipo   String?
+  entidadeId     String?
+  factoresJson   String            @default("[]")
+  expiradoEm     DateTime?
+  criadoEm       DateTime          @default(now())
+  feedbacks      FeedbackInsight[]
 
   @@index([negocioId, tipo, criadoEm])
   @@index([negocioId, nivelConfianca])
 }
 
 model FeedbackInsight {
-  id              String   @id @default(uuid())
-  insightId       String
-  insight         InsightPreditivo @relation(fields: [insightId], references: [id], onDelete: Cascade)
-  usuarioId       String
-  accao           String   // ACEITE | REJEITADO | IGNORADO
-  comentario      String?
-  criadoEm        DateTime @default(now())
+  id         String           @id @default(uuid())
+  insightId  String
+  insight    InsightPreditivo @relation(fields: [insightId], references: [id], onDelete: Cascade)
+  usuarioId  String
+  accao      String // ACEITE | REJEITADO | IGNORADO
+  comentario String?
+  criadoEm   DateTime         @default(now())
 
   @@index([insightId])
   @@index([usuarioId, criadoEm])
@@ -2287,96 +2370,96 @@ model FeedbackInsight {
 // ── Fase 4 — Workflow e Notificações ────────────────────────────────────
 
 model FluxoAutomatico {
-  id              String   @id @default(uuid())
-  negocioId       String
-  negocio         Negocio  @relation(fields: [negocioId], references: [id])
-  nome            String
-  descricao       String?
-  gatilho         String   // PEDIDO_CRIADO | RESERVA_EXPIRADA | TURNO_INICIO | CONVERSA_SEM_RESPOSTA | CUSTOM
-  ativo           Boolean  @default(true)
-  condicoesJson   String   @default("{}")
-  falhasConsecutivas Int   @default(0)
-  pausadoPorFalha Boolean  @default(false)
-  criadoEm        DateTime @default(now())
-  atualizadoEm    DateTime @updatedAt
-  passos          PassoFluxo[]
-  execucoes       ExecucaoFluxo[]
+  id                 String          @id @default(uuid())
+  negocioId          String
+  negocio            Negocio         @relation(fields: [negocioId], references: [id])
+  nome               String
+  descricao          String?
+  gatilho            String // PEDIDO_CRIADO | RESERVA_EXPIRADA | TURNO_INICIO | CONVERSA_SEM_RESPOSTA | CUSTOM
+  ativo              Boolean         @default(true)
+  condicoesJson      String          @default("{}")
+  falhasConsecutivas Int             @default(0)
+  pausadoPorFalha    Boolean         @default(false)
+  criadoEm           DateTime        @default(now())
+  atualizadoEm       DateTime        @updatedAt
+  passos             PassoFluxo[]
+  execucoes          ExecucaoFluxo[]
 
   @@index([negocioId, ativo, gatilho])
   @@index([negocioId, criadoEm])
 }
 
 model PassoFluxo {
-  id              String   @id @default(uuid())
-  fluxoId         String
-  fluxo           FluxoAutomatico @relation(fields: [fluxoId], references: [id], onDelete: Cascade)
-  ordem           Int
-  tipo            String   // CONDICAO | ACAO | ESPERA | NOTIFICACAO
-  configuracaoJson String  @default("{}")
-  criadoEm        DateTime @default(now())
+  id               String          @id @default(uuid())
+  fluxoId          String
+  fluxo            FluxoAutomatico @relation(fields: [fluxoId], references: [id], onDelete: Cascade)
+  ordem            Int
+  tipo             String // CONDICAO | ACAO | ESPERA | NOTIFICACAO
+  configuracaoJson String          @default("{}")
+  criadoEm         DateTime        @default(now())
 
   @@index([fluxoId, ordem])
 }
 
 model ExecucaoFluxo {
-  id              String   @id @default(uuid())
-  fluxoId         String
-  fluxo           FluxoAutomatico @relation(fields: [fluxoId], references: [id], onDelete: Cascade)
+  id                String          @id @default(uuid())
+  fluxoId           String
+  fluxo             FluxoAutomatico @relation(fields: [fluxoId], references: [id], onDelete: Cascade)
   gatilhoEntidadeId String?
-  estado          String   @default("EM_EXECUCAO") // EM_EXECUCAO | CONCLUIDO | FALHADO | PAUSADO
-  passoActual     Int      @default(0)
-  resultadoJson   String   @default("{}")
-  erro            String?
-  iniciadoEm      DateTime @default(now())
-  concluidoEm     DateTime?
+  estado            String          @default("EM_EXECUCAO") // EM_EXECUCAO | CONCLUIDO | FALHADO | PAUSADO
+  passoActual       Int             @default(0)
+  resultadoJson     String          @default("{}")
+  erro              String?
+  iniciadoEm        DateTime        @default(now())
+  concluidoEm       DateTime?
 
   @@index([fluxoId, estado])
   @@index([fluxoId, iniciadoEm])
 }
 
 model ConfiguracaoNotificacao {
-  id              String   @id @default(uuid())
-  negocioId       String
-  negocio         Negocio  @relation(fields: [negocioId], references: [id])
-  membroId        String
-  membro          MembroNegocio @relation(fields: [membroId], references: [id])
-  canal           String   // WHATSAPP | EMAIL | PUSH | SMS
-  tipo            String   // PEDIDO | CONVERSA | TURNO | META | STOCK | TAREFA
-  ativo           Boolean  @default(true)
-  horarioInicio   String?
-  horarioFim      String?
-  criadoEm        DateTime @default(now())
-  atualizadoEm    DateTime @updatedAt
+  id            String        @id @default(uuid())
+  negocioId     String
+  negocio       Negocio       @relation(fields: [negocioId], references: [id])
+  membroId      String
+  membro        MembroNegocio @relation(fields: [membroId], references: [id])
+  canal         String // WHATSAPP | EMAIL | PUSH | SMS
+  tipo          String // PEDIDO | CONVERSA | TURNO | META | STOCK | TAREFA
+  ativo         Boolean       @default(true)
+  horarioInicio String?
+  horarioFim    String?
+  criadoEm      DateTime      @default(now())
+  atualizadoEm  DateTime      @updatedAt
 
   @@unique([negocioId, membroId, canal, tipo])
   @@index([negocioId, membroId])
 }
 
 model ConfiguracaoAlertaProactivo {
-  id              String   @id @default(uuid())
-  negocioId       String
-  negocio         Negocio  @relation(fields: [negocioId], references: [id])
-  tipo            String
-  canal           String   @default("WHATSAPP")
-  ativo           Boolean  @default(true)
-  valorMinimo     Int?
-  criadoEm        DateTime @default(now())
-  atualizadoEm    DateTime @updatedAt
+  id           String   @id @default(uuid())
+  negocioId    String
+  negocio      Negocio  @relation(fields: [negocioId], references: [id])
+  tipo         String
+  canal        String   @default("WHATSAPP")
+  ativo        Boolean  @default(true)
+  valorMinimo  Int?
+  criadoEm     DateTime @default(now())
+  atualizadoEm DateTime @updatedAt
 
   @@unique([negocioId, tipo, canal])
   @@index([negocioId, ativo, tipo])
 }
 
 model PreferenciaWidgetPainel {
-  id              String   @id @default(uuid())
-  negocioId       String
-  negocio         Negocio  @relation(fields: [negocioId], references: [id])
-  membroId        String
-  membro          MembroNegocio @relation(fields: [membroId], references: [id], onDelete: Cascade)
-  contexto        String
-  layoutJson      String   @default("{}")
-  criadoEm        DateTime @default(now())
-  atualizadoEm    DateTime @updatedAt
+  id           String        @id @default(uuid())
+  negocioId    String
+  negocio      Negocio       @relation(fields: [negocioId], references: [id])
+  membroId     String
+  membro       MembroNegocio @relation(fields: [membroId], references: [id], onDelete: Cascade)
+  contexto     String
+  layoutJson   String        @default("{}")
+  criadoEm     DateTime      @default(now())
+  atualizadoEm DateTime      @updatedAt
 
   @@unique([negocioId, membroId, contexto])
   @@index([negocioId, contexto])
@@ -2384,12 +2467,12 @@ model PreferenciaWidgetPainel {
 }
 
 model ContadorNotificacaoDiaria {
-  id              String   @id @default(uuid())
-  negocioId       String
-  membroId        String
-  canal           String
-  data            DateTime @db.Date
-  contagem        Int      @default(0)
+  id        String   @id @default(uuid())
+  negocioId String
+  membroId  String
+  canal     String
+  data      DateTime @db.Date
+  contagem  Int      @default(0)
 
   @@unique([negocioId, membroId, canal, data])
   @@index([negocioId, membroId, data])
@@ -2398,51 +2481,51 @@ model ContadorNotificacaoDiaria {
 // ── Fase 5 — Projectos, Estrutura e Integração Operacional ──────────────
 
 model Departamento {
-  id              String   @id @default(uuid())
-  negocioId       String
-  negocio         Negocio  @relation(fields: [negocioId], references: [id])
-  nome            String
-  descricao       String?
-  liderId         String?
-  paisId          String?
-  criadoEm        DateTime @default(now())
-  atualizadoEm    DateTime @updatedAt
-  membros         MembroNegocio[]
+  id           String          @id @default(uuid())
+  negocioId    String
+  negocio      Negocio         @relation(fields: [negocioId], references: [id])
+  nome         String
+  descricao    String?
+  liderId      String?
+  paisId       String?
+  criadoEm     DateTime        @default(now())
+  atualizadoEm DateTime        @updatedAt
+  membros      MembroNegocio[]
 
   @@unique([negocioId, nome])
   @@index([negocioId, paisId])
 }
 
 model Projecto {
-  id              String   @id @default(uuid())
-  negocioId       String
-  negocio         Negocio  @relation(fields: [negocioId], references: [id])
-  nome            String
-  descricao       String?
-  objetivo        String?
-  stakeholdersJson String?
+  id                   String            @id @default(uuid())
+  negocioId            String
+  negocio              Negocio           @relation(fields: [negocioId], references: [id])
+  nome                 String
+  descricao            String?
+  objetivo             String?
+  stakeholdersJson     String?
   criteriosSucessoJson String?
-  dependenciasJson String?
-  orcamento       Int?
-  prioridade      String   @default("MEDIA")
-  capacidadeConsumida Int  @default(0)
-  roiEsperado     Int?
-  nivelRisco      String   @default("BAIXO")
-  dataInicio      DateTime?
-  dataFim         DateTime?
-  estado          String   @default("PLANEADO") // PLANEADO | EM_ANDAMENTO | PAUSADO | FECHADO
-  departamentoId  String?
-  gestorId        String?
-  motivoFecho     String?
-  relatorioFinalJson String?
-  mudancasJson    String?
-  riscosJson      String?
-  licoesJson      String?
-  eventosJson     String?
-  criadoEm        DateTime @default(now())
-  atualizadoEm    DateTime @updatedAt
-  entregas        EntregaProjecto[]
-  membrosProjecto MembroProjecto[]
+  dependenciasJson     String?
+  orcamento            Int?
+  prioridade           String            @default("MEDIA")
+  capacidadeConsumida  Int               @default(0)
+  roiEsperado          Int?
+  nivelRisco           String            @default("BAIXO")
+  dataInicio           DateTime?
+  dataFim              DateTime?
+  estado               String            @default("PLANEADO") // PLANEADO | EM_ANDAMENTO | PAUSADO | FECHADO
+  departamentoId       String?
+  gestorId             String?
+  motivoFecho          String?
+  relatorioFinalJson   String?
+  mudancasJson         String?
+  riscosJson           String?
+  licoesJson           String?
+  eventosJson          String?
+  criadoEm             DateTime          @default(now())
+  atualizadoEm         DateTime          @updatedAt
+  entregas             EntregaProjecto[]
+  membrosProjecto      MembroProjecto[]
 
   @@index([negocioId, estado])
   @@index([negocioId, estado, criadoEm])
@@ -2451,33 +2534,33 @@ model Projecto {
 }
 
 model EntregaProjecto {
-  id              String   @id @default(uuid())
-  projectoId      String
-  projecto        Projecto @relation(fields: [projectoId], references: [id], onDelete: Cascade)
-  titulo          String
-  descricao       String?
-  estado          String   @default("PENDENTE") // PENDENTE | EM_PROGRESSO | CONCLUIDA | CANCELADA
-  dataLimite      DateTime?
-  concluidaEm     DateTime?
-  dependeDeId     String?
+  id                 String    @id @default(uuid())
+  projectoId         String
+  projecto           Projecto  @relation(fields: [projectoId], references: [id], onDelete: Cascade)
+  titulo             String
+  descricao          String?
+  estado             String    @default("PENDENTE") // PENDENTE | EM_PROGRESSO | CONCLUIDA | CANCELADA
+  dataLimite         DateTime?
+  concluidaEm        DateTime?
+  dependeDeId        String?
   motivoCancelamento String?
-  criadoEm        DateTime @default(now())
-  atualizadoEm    DateTime @updatedAt
+  criadoEm           DateTime  @default(now())
+  atualizadoEm       DateTime  @updatedAt
 
   @@index([projectoId, estado])
 }
 
 model MembroProjecto {
-  id              String   @id @default(uuid())
-  projectoId      String
-  projecto        Projecto @relation(fields: [projectoId], references: [id], onDelete: Cascade)
-  membroId        String
-  papelProjecto   String   @default("MEMBRO") // GESTOR | MEMBRO | REVISOR | SUPORTE_VENDAS | LOGISTICA
-  capacidadePercentual Int @default(20)
-  skillNecessaria String?
-  alocadoDesde    DateTime @default(now())
-  alocadoAte      DateTime?
-  activo          Boolean  @default(true)
+  id                   String    @id @default(uuid())
+  projectoId           String
+  projecto             Projecto  @relation(fields: [projectoId], references: [id], onDelete: Cascade)
+  membroId             String
+  papelProjecto        String    @default("MEMBRO") // GESTOR | MEMBRO | REVISOR | SUPORTE_VENDAS | LOGISTICA
+  capacidadePercentual Int       @default(20)
+  skillNecessaria      String?
+  alocadoDesde         DateTime  @default(now())
+  alocadoAte           DateTime?
+  activo               Boolean   @default(true)
 
   @@unique([projectoId, membroId])
   @@index([projectoId, activo])
@@ -2486,21 +2569,21 @@ model MembroProjecto {
 }
 
 model ProjetoComercial {
-  id              String   @id @default(uuid())
-  negocioId       String
-  negocio         Negocio  @relation(fields: [negocioId], references: [id])
-  nome            String
-  descricao       String?
-  tipo            String   @default("LIVE") // LIVE | CAMPANHA | LANCAMENTO
-  estado          String   @default("PLANEADO") // PLANEADO | EM_ANDAMENTO | FECHADO
-  dataInicio      DateTime?
-  dataFim         DateTime?
-  criadoEm        DateTime @default(now())
-  atualizadoEm    DateTime @updatedAt
-  poolStock       PoolStockProjeto[]
-  equipaProjeto   EquipaProjeto[]
-  filas           FilaProjeto[]
-  debriefing      DebriefingProjeto?
+  id            String             @id @default(uuid())
+  negocioId     String
+  negocio       Negocio            @relation(fields: [negocioId], references: [id])
+  nome          String
+  descricao     String?
+  tipo          String             @default("LIVE") // LIVE | CAMPANHA | LANCAMENTO
+  estado        String             @default("PLANEADO") // PLANEADO | EM_ANDAMENTO | FECHADO
+  dataInicio    DateTime?
+  dataFim       DateTime?
+  criadoEm      DateTime           @default(now())
+  atualizadoEm  DateTime           @updatedAt
+  poolStock     PoolStockProjeto[]
+  equipaProjeto EquipaProjeto[]
+  filas         FilaProjeto[]
+  debriefing    DebriefingProjeto?
 
   @@index([negocioId, estado])
   @@index([negocioId, estado, criadoEm])
@@ -2509,76 +2592,76 @@ model ProjetoComercial {
 }
 
 model PoolStockProjeto {
-  id                  String   @id @default(uuid())
+  id                  String           @id @default(uuid())
   projetoComercialId  String
   projetoComercial    ProjetoComercial @relation(fields: [projetoComercialId], references: [id], onDelete: Cascade)
   pecaId              String
-  quantidadeReservada Int      @default(0)
-  quantidadeVendida   Int      @default(0)
-  pausado             Boolean  @default(false)
-  criadoEm            DateTime @default(now())
-  atualizadoEm        DateTime @updatedAt
+  quantidadeReservada Int              @default(0)
+  quantidadeVendida   Int              @default(0)
+  pausado             Boolean          @default(false)
+  criadoEm            DateTime         @default(now())
+  atualizadoEm        DateTime         @updatedAt
 
   @@unique([projetoComercialId, pecaId])
   @@index([projetoComercialId])
 }
 
 model EquipaProjeto {
-  id                  String   @id @default(uuid())
-  projetoComercialId  String
-  projetoComercial    ProjetoComercial @relation(fields: [projetoComercialId], references: [id], onDelete: Cascade)
-  membroId            String
-  papelProjeto        String   @default("SUPORTE_VENDAS")
-  alocadoDesde        DateTime @default(now())
-  alocadoAte          DateTime?
-  activo              Boolean  @default(true)
+  id                 String           @id @default(uuid())
+  projetoComercialId String
+  projetoComercial   ProjetoComercial @relation(fields: [projetoComercialId], references: [id], onDelete: Cascade)
+  membroId           String
+  papelProjeto       String           @default("SUPORTE_VENDAS")
+  alocadoDesde       DateTime         @default(now())
+  alocadoAte         DateTime?
+  activo             Boolean          @default(true)
 
   @@unique([projetoComercialId, membroId])
   @@index([projetoComercialId, activo])
 }
 
 model FilaProjeto {
-  id                  String   @id @default(uuid())
-  projetoComercialId  String
-  projetoComercial    ProjetoComercial @relation(fields: [projetoComercialId], references: [id], onDelete: Cascade)
-  entidadeTipo        String   // TAREFA | RESERVA | SOCIAL_INBOX
-  entidadeId          String
-  prioridade          Int      @default(0)
-  estado              String   @default("PENDENTE") // PENDENTE | ATRIBUIDO | CONCLUIDO
-  atribuidoAId        String?
-  criadoEm            DateTime @default(now())
-  atualizadoEm        DateTime @updatedAt
+  id                 String           @id @default(uuid())
+  projetoComercialId String
+  projetoComercial   ProjetoComercial @relation(fields: [projetoComercialId], references: [id], onDelete: Cascade)
+  entidadeTipo       String // TAREFA | RESERVA | SOCIAL_INBOX
+  entidadeId         String
+  prioridade         Int              @default(0)
+  estado             String           @default("PENDENTE") // PENDENTE | ATRIBUIDO | CONCLUIDO
+  atribuidoAId       String?
+  criadoEm           DateTime         @default(now())
+  atualizadoEm       DateTime         @updatedAt
 
   @@index([projetoComercialId, estado])
   @@index([projetoComercialId, entidadeTipo])
 }
 
 model DebriefingProjeto {
-  id                  String   @id @default(uuid())
-  projetoComercialId  String   @unique
-  projetoComercial    ProjetoComercial @relation(fields: [projetoComercialId], references: [id], onDelete: Cascade)
-  totalVendas         Int      @default(0)
-  receitaTotal        Int      @default(0)
-  tempoMedioResposta  Int?
-  stockLiquidado      Int?
-  comissoesGeradas    Int?
-  audiencia           Int?
-  roiPercentual       Float?
-  notasJson           String   @default("{}")
-  geradoEm            DateTime @default(now())
+  id                 String           @id @default(uuid())
+  projetoComercialId String           @unique
+  projetoComercial   ProjetoComercial @relation(fields: [projetoComercialId], references: [id], onDelete: Cascade)
+  totalVendas        Int              @default(0)
+  receitaTotal       Int              @default(0)
+  tempoMedioResposta Int?
+  stockLiquidado     Int?
+  comissoesGeradas   Int?
+  audiencia          Int?
+  roiPercentual      Float?
+  notasJson          String           @default("{}")
+  geradoEm           DateTime         @default(now())
 }
 
 model PassagemTurno {
-  id              String   @id @default(uuid())
-  negocioId       String
-  negocio         Negocio  @relation(fields: [negocioId], references: [id])
-  membroSaindoId  String
+  id               String   @id @default(uuid())
+  negocioId        String
+  negocio          Negocio  @relation(fields: [negocioId], references: [id])
+  membroSaindoId   String
   membroEntrandoId String?
-  conversasAbertas Int     @default(0)
-  tarefasPendentes Int     @default(0)
-  clientesQuentes  Int     @default(0)
-  resumoJson      String   @default("{}")
-  criadoEm        DateTime @default(now())
+  conversasAbertas Int      @default(0)
+  tarefasPendentes Int      @default(0)
+  clientesQuentes  Int      @default(0)
+  resumoJson       String   @default("{}")
+  criadoEm         DateTime @default(now())
 
   @@index([negocioId, criadoEm])
   @@index([membroSaindoId])
@@ -2587,56 +2670,56 @@ model PassagemTurno {
 // ── Fase 6 — Conformidade e ROI ─────────────────────────────────────────
 
 model RegraFiscal {
-  id              String   @id @default(uuid())
-  negocioId       String
-  negocio         Negocio  @relation(fields: [negocioId], references: [id])
-  jurisdicao      String   @default("AO")
-  tipoImposto     String   @default("IVA")
-  taxa            Float    @default(14)
-  descricao       String?
-  aplicavelA      String?
-  criadoEm        DateTime @default(now())
-  atualizadoEm    DateTime @updatedAt
+  id           String   @id @default(uuid())
+  negocioId    String
+  negocio      Negocio  @relation(fields: [negocioId], references: [id])
+  jurisdicao   String   @default("AO")
+  tipoImposto  String   @default("IVA")
+  taxa         Float    @default(14)
+  descricao    String?
+  aplicavelA   String?
+  criadoEm     DateTime @default(now())
+  atualizadoEm DateTime @updatedAt
 
   @@index([negocioId, jurisdicao, tipoImposto])
 }
 
 model BaselineKPI {
-  id              String   @id @default(uuid())
-  negocioId       String
-  negocio         Negocio  @relation(fields: [negocioId], references: [id])
-  modulo          String
-  kpi             String
-  valorBaseline   Float
-  registadoEm     DateTime @default(now())
+  id            String   @id @default(uuid())
+  negocioId     String
+  negocio       Negocio  @relation(fields: [negocioId], references: [id])
+  modulo        String
+  kpi           String
+  valorBaseline Float
+  registadoEm   DateTime @default(now())
 
   @@unique([negocioId, modulo, kpi])
   @@index([negocioId, modulo])
 }
 
 model MetricaAdopcao {
-  id              String   @id @default(uuid())
-  negocioId       String
-  negocio         Negocio  @relation(fields: [negocioId], references: [id])
-  data            DateTime @db.Date
-  dau             Int      @default(0)
-  mau             Int      @default(0)
-  profundidadeJson String  @default("{}")
-  criadoEm        DateTime @default(now())
+  id               String   @id @default(uuid())
+  negocioId        String
+  negocio          Negocio  @relation(fields: [negocioId], references: [id])
+  data             DateTime @db.Date
+  dau              Int      @default(0)
+  mau              Int      @default(0)
+  profundidadeJson String   @default("{}")
+  criadoEm         DateTime @default(now())
 
   @@unique([negocioId, data])
   @@index([negocioId, data])
 }
 
 model PesquisaNPS {
-  id              String   @id @default(uuid())
-  negocioId       String
-  negocio         Negocio  @relation(fields: [negocioId], references: [id])
-  usuarioId       String
-  pontuacao       Int
-  comentario      String?
-  modulo          String?
-  criadoEm        DateTime @default(now())
+  id         String   @id @default(uuid())
+  negocioId  String
+  negocio    Negocio  @relation(fields: [negocioId], references: [id])
+  usuarioId  String
+  pontuacao  Int
+  comentario String?
+  modulo     String?
+  criadoEm   DateTime @default(now())
 
   @@index([negocioId, criadoEm])
   @@index([negocioId, modulo])
@@ -2645,23 +2728,23 @@ model PesquisaNPS {
 // ── Anani — Event Outbox (Fila de Eventos Duráveis) ─────────────────────
 
 model EventOutbox {
-  id              String    @id @default(uuid())
-  tipo            String
-  sistema         String    // TEAM | MARKET | LEARNING | CORE | ANANI
-  contexto        String    // bounded context de origem
-  negocioId       String?
-  actorId         String?
-  aggregateType   String?
-  aggregateId     String?
-  payload         Json
-  metadata        Json?
-  correlationId   String?
-  causationId     String?
-  status          String    @default("PENDING") // PENDING | PROCESSED | FAILED
-  tentativas      Int       @default(0)
-  erro            String?
-  criadoEm        DateTime  @default(now())
-  processadoEm    DateTime?
+  id            String    @id @default(uuid())
+  tipo          String
+  sistema       String // TEAM | MARKET | LEARNING | CORE | ANANI
+  contexto      String // bounded context de origem
+  negocioId     String?
+  actorId       String?
+  aggregateType String?
+  aggregateId   String?
+  payload       Json
+  metadata      Json?
+  correlationId String?
+  causationId   String?
+  status        String    @default("PENDING") // PENDING | PROCESSED | FAILED
+  tentativas    Int       @default(0)
+  erro          String?
+  criadoEm      DateTime  @default(now())
+  processadoEm  DateTime?
 
   @@index([status, criadoEm])
   @@index([negocioId])
@@ -2672,14 +2755,14 @@ model EventOutbox {
 // ── Anani — Snapshot de Risco por Tenant (Read Model) ────────────────────
 
 model AnaniTenantRiskSnapshot {
-  id              String   @id @default(uuid())
-  negocioId       String
-  sistema         String   // TEAM | MARKET | LEARNING
-  riskScore       Float    @default(0)
-  trustScore      Float    @default(1)
-  sinais          Json     @default("[]")
-  recomendacoes   Json?
-  criadoEm        DateTime @default(now())
+  id            String   @id @default(uuid())
+  negocioId     String
+  sistema       String // TEAM | MARKET | LEARNING
+  riskScore     Float    @default(0)
+  trustScore    Float    @default(1)
+  sinais        Json     @default("[]")
+  recomendacoes Json?
+  criadoEm      DateTime @default(now())
 
   @@index([negocioId, sistema])
   @@index([negocioId, criadoEm])
@@ -2688,21 +2771,21 @@ model AnaniTenantRiskSnapshot {
 // ── Anani — Quarentena Preventiva ────────────────────────────────────────
 
 model AnaniQuarantine {
-  id              String    @id @default(uuid())
-  tipo            String    // SESSION | DEVICE | TENANT | USER | ORDER | PAYMENT | CAMPAIGN | PRODUCT | STORE | COURSE | API_KEY | WORKFLOW | INTEGRATION
-  sistema         String    // TEAM | MARKET | LEARNING | PLATFORM
-  negocioId       String?
-  entidadeTipo    String?
-  entidadeId      String?
-  severidade      String    // LOW | MEDIUM | HIGH | CRITICAL
-  motivo          String
-  evidencias      Json      @default("[]")
-  status          String    @default("OPEN") // OPEN | RESOLVED | IGNORED
-  acaoTomada      Json?
-  criadoPor       String    @default("ANANI")
-  revistoPor      String?
-  criadoEm        DateTime  @default(now())
-  revistoEm       DateTime?
+  id           String    @id @default(uuid())
+  tipo         String // SESSION | DEVICE | TENANT | USER | ORDER | PAYMENT | CAMPAIGN | PRODUCT | STORE | COURSE | API_KEY | WORKFLOW | INTEGRATION
+  sistema      String // TEAM | MARKET | LEARNING | PLATFORM
+  negocioId    String?
+  entidadeTipo String?
+  entidadeId   String?
+  severidade   String // LOW | MEDIUM | HIGH | CRITICAL
+  motivo       String
+  evidencias   Json      @default("[]")
+  status       String    @default("OPEN") // OPEN | RESOLVED | IGNORED
+  acaoTomada   Json?
+  criadoPor    String    @default("ANANI")
+  revistoPor   String?
+  criadoEm     DateTime  @default(now())
+  revistoEm    DateTime?
 
   @@index([negocioId])
   @@index([status, severidade])
@@ -2713,22 +2796,22 @@ model AnaniQuarantine {
 // ── Anani — Incidentes para Consola de Governança ───────────────────────
 
 model AnaniIncident {
-  id              String    @id @default(uuid())
-  titulo          String
-  tipo            String    // SECURITY | FRAUD | ABUSE | COMPLIANCE | OPERATIONAL | DATA_LEAK
-  severidade      String    // LOW | MEDIUM | HIGH | CRITICAL
-  sistema         String    // TEAM | MARKET | LEARNING | PLATFORM
-  negocioId       String?
-  status          String    @default("OPEN") // OPEN | INVESTIGATING | RESOLVED | CLOSED
-  resumo          String
-  timeline        Json      @default("[]")
-  entidades       Json      @default("[]")
-  evidencias      Json      @default("[]")
-  decisoes        Json      @default("[]")
-  recomendacao    String?
-  relatorioUrl    String?
-  criadoEm        DateTime  @default(now())
-  fechadoEm       DateTime?
+  id           String    @id @default(uuid())
+  titulo       String
+  tipo         String // SECURITY | FRAUD | ABUSE | COMPLIANCE | OPERATIONAL | DATA_LEAK
+  severidade   String // LOW | MEDIUM | HIGH | CRITICAL
+  sistema      String // TEAM | MARKET | LEARNING | PLATFORM
+  negocioId    String?
+  status       String    @default("OPEN") // OPEN | INVESTIGATING | RESOLVED | CLOSED
+  resumo       String
+  timeline     Json      @default("[]")
+  entidades    Json      @default("[]")
+  evidencias   Json      @default("[]")
+  decisoes     Json      @default("[]")
+  recomendacao String?
+  relatorioUrl String?
+  criadoEm     DateTime  @default(now())
+  fechadoEm    DateTime?
 
   @@index([negocioId])
   @@index([status, severidade])

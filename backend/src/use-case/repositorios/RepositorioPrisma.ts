@@ -707,21 +707,21 @@ export class RepositorioTrackingComercialPrisma implements RepositorioTrackingCo
   }
 
   private montarFunil(eventos: EventoTrackingComercial[]): ResumoTrackingComercial["funil"] {
-    const contar = (tipo: EventoTrackingComercial["tipo"]) => eventos.filter((evento) => evento.tipo === tipo).length;
-    const pedidosCriados = eventos.filter((evento) => evento.tipo === "PEDIDO_CRIADO");
+    const contar = (...tipos: EventoTrackingComercial["tipo"][]) => eventos.filter((evento) => tipos.includes(evento.tipo)).length;
+    const pedidosCriados = eventos.filter((evento) => evento.tipo === "PEDIDO_CRIADO" || evento.tipo === "ORDER_CREATED");
     const leads = new Set(
       eventos
         .map((evento) => evento.metadata.clienteNegocioId)
         .filter((clienteId): clienteId is string => typeof clienteId === "string" && Boolean(clienteId.trim()))
     );
     const receitaAtribuidaEmKwanza = pedidosCriados.reduce((total, evento) => {
-      const valor = evento.metadata.totalEmKwanza;
+      const valor = evento.metadata.totalEmKwanza ?? evento.metadata.receitaEmKwanza;
       return total + (typeof valor === "number" && Number.isFinite(valor) ? valor : 0);
     }, 0);
     const visitas = contar("LOJA_VISITADA");
-    const produtosVistos = contar("PRODUTO_VISTO");
+    const produtosVistos = contar("PRODUTO_VISTO", "PRODUCT_VIEW");
     const cliquesWhatsApp = contar("WHATSAPP_CLICK");
-    const checkoutsIniciados = contar("CHECKOUT_INICIADO");
+    const checkoutsIniciados = contar("CHECKOUT_INICIADO", "CHECKOUT_STARTED");
 
     return {
       visitas,
@@ -729,8 +729,8 @@ export class RepositorioTrackingComercialPrisma implements RepositorioTrackingCo
       cliquesWhatsApp,
       checkoutsIniciados,
       pedidosCriados: pedidosCriados.length,
-      pagamentosConfirmados: contar("PAGAMENTO_CONFIRMADO"),
-      comprasEntregues: contar("COMPRA_ENTREGUE"),
+      pagamentosConfirmados: contar("PAGAMENTO_CONFIRMADO", "PAYMENT_CONFIRMED"),
+      comprasEntregues: contar("COMPRA_ENTREGUE", "ORDER_DELIVERED"),
       leadsIdentificados: leads.size,
       receitaAtribuidaEmKwanza,
       taxaCheckoutPorVisita: this.percentual(checkoutsIniciados, visitas),
@@ -772,10 +772,10 @@ export class RepositorioTrackingComercialPrisma implements RepositorioTrackingCo
       taxaPedidoPorCheckout: 0
     };
     atual.eventos += 1;
-    if (evento.tipo === "CHECKOUT_INICIADO") atual.checkoutsIniciados += 1;
-    if (evento.tipo === "PEDIDO_CRIADO") {
+    if (evento.tipo === "CHECKOUT_INICIADO" || evento.tipo === "CHECKOUT_STARTED") atual.checkoutsIniciados += 1;
+    if (evento.tipo === "PEDIDO_CRIADO" || evento.tipo === "ORDER_CREATED") {
       atual.pedidosCriados += 1;
-      atual.receitaAtribuidaEmKwanza += this.valorMonetario(evento.metadata.totalEmKwanza);
+      atual.receitaAtribuidaEmKwanza += this.valorMonetario(evento.metadata.totalEmKwanza ?? evento.metadata.receitaEmKwanza);
     }
     atual.taxaPedidoPorCheckout = this.percentual(atual.pedidosCriados, atual.checkoutsIniciados);
     grupo[chave] = atual;
@@ -783,7 +783,8 @@ export class RepositorioTrackingComercialPrisma implements RepositorioTrackingCo
 
   private contextoAtribuicao(evento: EventoTrackingComercial) {
     const atribuicao = this.objeto(evento.metadata.atribuicao);
-    const principal = this.objeto(atribuicao.principal);
+    const participantes = Array.isArray(atribuicao.participantes) ? atribuicao.participantes : [];
+    const principal = this.objeto(atribuicao.principal ?? participantes[0]);
     const metadata = this.objeto(principal.metadata);
     const destinoTipo = this.valorTexto(principal.destinoTipo);
     const campanha =

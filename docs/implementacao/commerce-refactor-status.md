@@ -261,11 +261,69 @@ Estado: CONCLUIDA
 
 - Fase 5: atribuicao comercial versionada, explicavel e ligada a conversoes.
 
-## Fases 5 a 12
+## Fase 5 — Atribuicao comercial
+
+Estado: CONCLUIDA
+
+### Implementado
+
+- [x] Politicas de atribuicao imutaveis por negocio, codigo, versao, modelo, janela e peso principal.
+- [x] Versao derivada do snapshot efectivo, incluindo hash mesmo quando existe versao declarada, para impedir reutilizacao silenciosa de regras diferentes.
+- [x] Conversao formal por pedido-filho com snapshot de politica, valor base, moeda, explicacao e participantes.
+- [x] Primeiro toque, ultimo toque, conversao assistida e ajuste manual legado preservados.
+- [x] Participantes com papel, toque, parceiro, link, peso em basis points, valor atribuido e motivo auditavel.
+- [x] Pesos distribuidos deterministicamente e com soma exacta de 10.000 basis points.
+- [x] Receita de link de produto limitada aos itens correspondentes; link de loja permanece elegivel ao subtotal completo.
+- [x] Cross-device por conta Bizy verificada, sem misturar toques entre contas ou negocios.
+- [x] Janela temporal, estado do link, expiracao e estado do parceiro revalidados no momento da conversao.
+- [x] Idempotencia por `negocioId + pedidoId + tipo`, inclusive na recuperacao de retry apos compra ja criada.
+- [x] Endpoint seller tenant-aware para consultar a explicacao da atribuicao de uma compra.
+- [x] Eventos canonicos da jornada adicionados sem remover os eventos legados; carrinho e checkout emitem `ADD_TO_CART`, `CHECKOUT_STARTED`, `BUYER_IDENTIFIED` e `ORDER_CREATED` no servidor.
+- [x] Funil, resumo comercial e ranking de afiliados reconhecem eventos canonicos e legados sem perder compatibilidade.
+
+### Ficheiros alterados
+
+- `backend/prisma/schema.prisma` e `backend/prisma/migrations/20260715040000_atribuicao_commerce_versionada/migration.sql`.
+- `backend/src/projetos/market/dominio/atribuicaoCommerce.ts`.
+- `backend/src/projetos/market/aplicacao/AtribuicaoCommerceUseCase.ts`.
+- Repositorios Prisma e memoria de atribuicao e Smart Links.
+- Contexto da aplicacao e modulo HTTP do checkout unificado.
+- Tipos de tracking, resumos comerciais e gestao de afiliados.
+- Testes HTTP, PostgreSQL, Smart Links e contrato semantico do schema.
+
+### Migrations
+
+- [x] `20260715040000_atribuicao_commerce_versionada`: cria politicas, conversoes e participantes sem alterar tabelas financeiras legadas.
+- [x] Migration expand-only, sem backfill destrutivo, com indices de negocio, compra, pedido, sessao, conta, politica, parceiro, link e toque.
+- [x] FKs de sessao, conta, parceiro, link e toque usam `SET NULL` quando a auditoria deve sobreviver; participante usa cascade apenas com a sua conversao.
+- [x] Aplicada na base local; `prisma validate`, `prisma generate` e `migrate status` aprovados.
+- [x] As 57 migrations foram aplicadas do zero numa base PostgreSQL descartavel, validadas e removidas apos o teste.
+
+### Testes
+
+- [x] Backend focado: 48 testes de atribuicao, Smart Links, checkout, tracking e afiliacao aprovados.
+- [x] Backend integral: 89 ficheiros e 384 testes passaram; 1 ficheiro e 1 teste ficaram ignorados conforme configuracao existente.
+- [x] Frontend integral: 39 ficheiros e 144 testes passaram.
+- [x] PostgreSQL real: snapshots, participantes, cross-device, soma de pesos/valores, idempotencia e nova versao de politica persistidos.
+- [x] Seguranca: endpoint de outro tenant devolve 404; sessao ligada a outra conta nao e reutilizada; toques expirados, links inactivos e parceiros suspensos sao excluidos.
+- [x] Regressao financeira: pedido com 30.000 Kz e link de produto de 18.000 Kz atribui apenas 18.000 Kz.
+- [x] `npm run typecheck`, `npm test` e `npm run build` passaram no backend e frontend; frontend transformou 2.781 modulos.
+- [x] QA em 1440x900 e 375x812: Market sem overflow, erros de consola, respostas 5xx ou regressao visual; rodape permanece no final do conteudo.
+
+### Riscos restantes
+
+- Eventos de conteudo, live, comissao e payout ja pertencem ao contrato canonico, mas os produtores reais entram nas Fases 7, 9 e 11.
+- Comissoes continuam no modelo financeiro legado ate o ledger imutavel da Fase 9; a conversao da Fase 5 apenas congela a evidencia de atribuicao.
+- O resolver legado de referencia permanece em dual read para checkouts antigos e sera removido apenas no cutover da Fase 12.
+
+### Proxima fase
+
+- Fase 6: portal autenticado de criadores e afiliados com dados reais.
+
+## Fases 6 a 12
 
 Estado: NAO INICIADAS
 
-- [ ] Fase 5 — Atribuicao comercial.
 - [ ] Fase 6 — Portal Creator e afiliados.
 - [ ] Fase 7 — Conteudo compravel.
 - [ ] Fase 8 — Creator Marketplace.
