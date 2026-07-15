@@ -75,6 +75,7 @@ const PaginaProdutoMarket = paginaLazy(() => import("./projetos/market/paginas/P
 const PaginaPortalSeller = paginaLazy(() => import("./projetos/market/paginas/PortalSeller"), "PaginaPortalSeller");
 const PaginaCreatorPortal = paginaLazy(() => import("./projetos/market/paginas/CreatorPortal"), "PaginaCreatorPortal");
 const PaginaConteudoCompravel = paginaLazy(() => import("./projetos/market/paginas/ConteudoCompravel"), "PaginaConteudoCompravel");
+const PaginaCarrinhoPartilhavel = paginaLazy(() => import("./projetos/market/paginas/CarrinhoPartilhavel"), "PaginaCarrinhoPartilhavel");
 const PaginaProjectos = paginaLazy(() => import("./projetos/team/paginas/Projectos"), "PaginaProjectos");
 const PaginaRecuperacao = paginaLazy(() => import("./paginas/Recuperacao"), "PaginaRecuperacao");
 const PaginaRelatorios = paginaLazy(() => import("./paginas/Relatorios"), "PaginaRelatorios");
@@ -140,6 +141,7 @@ export const rotasPublicas: RotaPublica[] = [
   { caminho: "/creator/desempenho", elemento: <PaginaCreatorPortal /> },
   { caminho: "/creator/configuracoes", elemento: <PaginaCreatorPortal /> },
   { caminho: "/c/:slug", elemento: <PaginaConteudoCompravel /> },
+  { caminho: "/carrinhos/:codigo", elemento: <PaginaCarrinhoPartilhavel /> },
   { caminho: "/f/:slug/lead", elemento: <PaginaFormularioLeadPublico /> },
   { caminho: "/produtos/:codigo", elemento: <PaginaProdutoMarket /> },
   { caminho: "/lojas", elemento: <PaginaDiretorioLojasMarket /> },

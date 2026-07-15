@@ -219,6 +219,10 @@ export function obterTokenCarrinhoCheckoutBizy(): string {
   return ambienteComStorage()?.getItem(CHAVE_TOKEN_CARRINHO_BIZY) ?? "";
 }
 
+export function guardarTokenCarrinhoCheckoutBizy(token: string): void {
+  if (token) ambienteComStorage()?.setItem(CHAVE_TOKEN_CARRINHO_BIZY, token);
+}
+
 export async function sincronizarCarrinhoServidorBizy(
   itens: ItemCarrinhoCheckoutBizy[],
   modo: "MESCLAR" | "SUBSTITUIR" = "SUBSTITUIR"

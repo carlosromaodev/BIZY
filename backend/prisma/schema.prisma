@@ -1516,6 +1516,48 @@ model CasoProtecaoComprador {
   @@index([compraId])
 }
 
+model CarrinhoPartilhavel {
+  id            String    @id @default(uuid())
+  codigo        String    @unique
+  criadoPorTipo String
+  contaBizyId   String?
+  parceiroId    String?
+  negocioId     String?
+  campanhaId    String?
+  liveId        String?
+  titulo        String
+  descricao     String?
+  itensJson     String
+  estado        String    @default("ATIVO")
+  expiraEm      DateTime?
+  visualizacoes Int       @default(0)
+  importacoes   Int       @default(0)
+  criadoEm      DateTime  @default(now())
+  atualizadoEm  DateTime  @updatedAt
+
+  @@index([contaBizyId, estado, criadoEm])
+  @@index([parceiroId, estado, criadoEm])
+  @@index([negocioId, estado, criadoEm])
+  @@index([liveId, estado])
+}
+
+model DestaqueProdutoLiveCommerce {
+  id                    String    @id @default(uuid())
+  liveId                String
+  negocioId             String
+  pecaId                String
+  variantePecaId        String?
+  hostParceiroId        String?
+  carrinhoPartilhavelId String?
+  estado                String    @default("ATIVO")
+  destacadoEm           DateTime  @default(now())
+  encerradoEm           DateTime?
+
+  @@index([liveId, estado, destacadoEm])
+  @@index([negocioId, estado])
+  @@index([hostParceiroId, destacadoEm])
+}
+
 model MembroNegocio {
   id                  String         @id @default(uuid())
   negocioId           String

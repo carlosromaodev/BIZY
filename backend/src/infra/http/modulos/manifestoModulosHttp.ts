@@ -6,6 +6,7 @@ import { moduloAutenticacao } from "./autenticacao.js";
 import { moduloContaBizy } from "./contaBizy.js";
 import { moduloCreatorPortal } from "../../../projetos/market/infra/http/moduloCreatorPortal.js";
 import { moduloConfiancaCommerce } from "../../../projetos/market/infra/http/moduloConfiancaCommerce.js";
+import { moduloCarrinhosPartilhaveis } from "../../../projetos/market/infra/http/moduloCarrinhosPartilhaveis.js";
 import { moduloCampanhas } from "./campanhas.js";
 import { moduloCatalogo } from "./catalogo.js";
 import { moduloClientes } from "./clientes.js";
@@ -38,6 +39,7 @@ export const modulosHttp = [
   moduloContaBizy,
   moduloCreatorPortal,
   moduloConfiancaCommerce,
+  moduloCarrinhosPartilhaveis,
   moduloLives,
   moduloCatalogo,
   moduloClientes,

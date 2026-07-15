@@ -548,9 +548,42 @@ Estado: CONCLUIDA
 
 - Fase 11: live afiliada e carrinhos partilhaveis.
 
-## Fases 11 a 12
+## Fase 11 — Live afiliada e carrinhos partilhaveis
 
-Estado: NAO INICIADAS
+Estado: CONCLUIDA
 
-- [ ] Fase 11 — Live afiliada e carrinhos partilhaveis.
+### Implementado
+
+- [x] Carrinho partilhavel canonico para afiliado, vendedor, comprador, criador, campanha e orcamento.
+- [x] Snapshot auditavel com expiracao, estado, visualizacoes e importacoes.
+- [x] Criacao autenticada no portal Creator com produtos e variantes revalidados pelo carrinho server-side.
+- [x] Rota publica `/carrinhos/:codigo` e importacao para carrinho guest ou autenticado.
+- [x] Seller, variante, parceiro, campanha, live e papel do host preservados em cada item.
+- [x] Destaque unico e tenant-aware de produto em live activa.
+- [x] Pagina publica responsiva no design canonico Market, com divulgacao de comissao.
+- [x] Smart Links para carrinho passam a fechar a jornada publica ja prevista na Fase 4.
+
+### Migrations
+
+- [x] `20260715173000_live_carrinhos_partilhaveis` aplicada localmente como expand-only.
+- [x] Indices por codigo, owner, parceiro, negocio e live.
+
+### Testes
+
+- [x] Importacao multi-loja, atribuicao de host e isolamento de live/produto por tenant.
+- [x] Typecheck backend/frontend e build frontend aprovados.
+- [x] QA em 1440x900 e 375x812: dois produtos reais, zero overflow, zero erro de consola e redirecionamento ao checkout.
+
+### Riscos restantes
+
+- Streaming de video continua a cargo do provider de live; o Bizy controla produto destacado, carrinho, tracking, pedido e comissao.
+
+### Proxima fase
+
+- Fase 12: consolidacao, contract seguro, testes finais e remocao de legado.
+
+## Fase 12
+
+Estado: NAO INICIADA
+
 - [ ] Fase 12 — Consolidacao, testes e remocao de legado.

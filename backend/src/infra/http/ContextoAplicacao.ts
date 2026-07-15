@@ -57,6 +57,7 @@ import { ConteudoCompravelUseCase } from "../../projetos/market/aplicacao/Conteu
 import { CreatorMarketplaceUseCase } from "../../projetos/market/aplicacao/CreatorMarketplaceUseCase.js";
 import { LedgerComissoesUseCase } from "../../projetos/market/aplicacao/LedgerComissoesUseCase.js";
 import { ConfiancaCommerceUseCase } from "../../projetos/market/aplicacao/ConfiancaCommerceUseCase.js";
+import { CarrinhosPartilhaveisUseCase } from "../../projetos/market/aplicacao/CarrinhosPartilhaveisUseCase.js";
 import type { RepositorioConteudosCommerce } from "../../projetos/market/dominio/conteudoCommerce.js";
 import type { RepositorioCreatorMarketplace } from "../../projetos/market/dominio/creatorMarketplace.js";
 import type { RepositorioLedgerComissoes } from "../../projetos/market/dominio/ledgerComissoes.js";
@@ -318,6 +319,7 @@ export interface ContextoAplicacao {
   creatorMarketplace: CreatorMarketplaceUseCase;
   ledgerComissoes: LedgerComissoesUseCase;
   confiancaCommerce: ConfiancaCommerceUseCase;
+  carrinhosPartilhaveis: CarrinhosPartilhaveisUseCase;
   repassesFinanceiros: RepassesFinanceirosUseCase;
   gestaoEquipa: GestaoEquipaUseCase;
   gestaoFinancas: GestaoFinancasUseCase;
@@ -645,6 +647,7 @@ export function criarContextoAplicacao(logger: FastifyBaseLogger): ContextoAplic
 
   const prismaDirecto = repositorios.prisma ?? criarPrismaCliente();
   const confiancaCommerce = new ConfiancaCommerceUseCase(prismaDirecto);
+  const carrinhosPartilhaveis = new CarrinhosPartilhaveisUseCase(prismaDirecto, carrinhoCommerce);
 
   const gestaoEquipa = new GestaoEquipaUseCase(prismaDirecto);
   const gestaoFinancas = new GestaoFinancasUseCase(prismaDirecto, eventos);
@@ -738,6 +741,7 @@ export function criarContextoAplicacao(logger: FastifyBaseLogger): ContextoAplic
     creatorMarketplace,
     ledgerComissoes,
     confiancaCommerce,
+    carrinhosPartilhaveis,
     repassesFinanceiros: repassesFinanceirosUseCase,
     gestaoEquipa,
     gestaoFinancas,

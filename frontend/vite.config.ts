@@ -102,7 +102,7 @@ export default defineConfig({
         changeOrigin: true,
         secure: false
       },
-      "^/creator/(portal$|links/|conteudos/|oportunidades/|candidaturas/|missoes/|team/)": {
+      "^/creator/(portal$|links/|conteudos/|carrinhos/|oportunidades/|candidaturas/|missoes/|team/)": {
         target: backendUrl,
         changeOrigin: true,
         secure: false
