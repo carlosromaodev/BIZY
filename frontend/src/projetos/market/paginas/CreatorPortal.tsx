@@ -7,6 +7,7 @@ import { type FormEvent, useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { confirmarOtpContaBizy, encerrarSessaoContaBizy, solicitarOtpContaBizy } from "../api/contaBizy";
 import { criarSmartLinkCreator, obterCreatorPortal, type CreatorPortalDados } from "../api/creatorPortal";
+import { criarConteudoCreator, listarConteudosCreator, type ConteudoCommerceDados } from "../api/conteudoCompravel";
 import { MarcaMarket, MarketPublicPage } from "../componentes/MarketChrome";
 
 const NAVEGACAO = [
@@ -122,6 +123,7 @@ function ConteudoCreator({ rota, dados, atualizar }: { rota: string; dados: Crea
   ], [m]);
 
   if (rota === "/creator/links") return <LinksCreator dados={dados} atualizar={atualizar} />;
+  if (rota === "/creator/conteudos") return <ConteudosCreator dados={dados} />;
   if (rota === "/creator/comissoes") return <TabelaComissoes dados={dados} />;
   if (rota === "/creator/pagamentos") return <TabelaPagamentos dados={dados} />;
   if (rota === "/creator/desempenho") return <FunilCreator dados={dados} />;
@@ -149,6 +151,14 @@ function LinksCreator({ dados, atualizar }: { dados: CreatorPortalDados; atualiz
 
 function TabelaComissoes({ dados }: { dados: CreatorPortalDados }) { return <section className="creator-panel"><h2>Movimentos de comissão</h2><div className="creator-table-wrap"><table><thead><tr><th>Pedido</th><th>Estado</th><th>Base atribuída</th><th>Comissão</th></tr></thead><tbody>{dados.comissoes.map((c) => <tr key={c.id}><td>{c.pedidoId.slice(0, 8)}</td><td>{c.status}</td><td>{formatarKwanza(c.baseEmKwanza)}</td><td>{formatarKwanza(c.valorEmKwanza)}</td></tr>)}</tbody></table></div>{!dados.comissoes.length && <p className="creator-empty">Nenhuma comissão registada.</p>}</section>; }
 function TabelaPagamentos({ dados }: { dados: CreatorPortalDados }) { return <section className="creator-panel"><h2>Histórico de pagamentos</h2>{dados.pagamentos.map((p) => <div className="creator-row" key={p.id}><div><strong>{p.referencia}</strong><span>{new Date(p.criadoEm).toLocaleDateString("pt-AO")} · {p.status}</span></div><strong>{formatarKwanza(p.valorEmKwanza)}</strong></div>)}{!dados.pagamentos.length && <p className="creator-empty">Nenhum pagamento registado.</p>}</section>; }
+
+function ConteudosCreator({ dados }: { dados: CreatorPortalDados }) {
+  const [conteudos, setConteudos] = useState<ConteudoCommerceDados[]>([]); const [titulo, setTitulo] = useState(""); const [slug, setSlug] = useState(""); const [produtos, setProdutos] = useState(""); const [erro, setErro] = useState("");
+  const carregar = () => listarConteudosCreator().then((r) => setConteudos(r.conteudos));
+  useEffect(() => { void carregar(); }, []);
+  async function criar(evento: FormEvent) { evento.preventDefault(); setErro(""); try { const referencias = produtos.split("\n").map((linha) => linha.split(",").map((v) => v.trim())).filter((p) => p[0] && p[1]).map(([slugLoja, codigoProduto]) => ({ slugLoja, codigoProduto })); await criarConteudoCreator({ parceiroId: dados.parceiros[0]?.id, slug, tipo: "PUBLICACAO", titulo, divulgacaoComercial: true, produtos: referencias }); setTitulo(""); setSlug(""); setProdutos(""); await carregar(); } catch (falha) { setErro(falha instanceof Error ? falha.message : "Conteúdo inválido."); } }
+  return <section className="creator-panel"><div className="creator-panel-head"><div><span>Social commerce</span><h2>Conteúdos compráveis</h2></div><FileVideo size={20} /></div><form className="creator-content-form" onSubmit={criar}><label>Título<input value={titulo} onChange={(e) => setTitulo(e.target.value)} required /></label><label>Slug<input value={slug} onChange={(e) => setSlug(e.target.value)} placeholder="guia-de-verao" required /></label><label className="wide">Produtos, um por linha no formato loja,código<textarea value={produtos} onChange={(e) => setProdutos(e.target.value)} placeholder={"minha-loja,PROD-01\noutra-loja,PROD-22"} required /></label>{erro && <p role="alert">{erro}</p>}<button type="submit">Enviar para revisão</button></form>{conteudos.map((item) => <div className="creator-row" key={item.id}><div><strong>{item.titulo}</strong><span>{item.tipo} · {item.produtos.length} produto(s) · /c/{item.slug}</span></div><span className="creator-status">{item.estado}</span></div>)}{!conteudos.length && <p className="creator-empty">Ainda não existem conteúdos neste perfil.</p>}</section>;
+}
 
 function EstadoDominio({ rota }: { rota: string }) {
   const config: Record<string, [string, string, typeof Boxes]> = {

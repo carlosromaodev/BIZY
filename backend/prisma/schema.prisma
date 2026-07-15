@@ -8,32 +8,33 @@ datasource db {
 }
 
 model Peca {
-  id              String                 @id @default(uuid())
-  codigo          String
-  negocioId       String?
-  negocio         Negocio?               @relation(fields: [negocioId], references: [id])
-  sku             String?
-  nome            String
-  descricao       String
-  categoria       String?
-  colecao         String?
-  tipoProduto     String                 @default("FISICO")
-  precoEmKwanza   Int
-  custoEmKwanza   Int?
-  quantidade      Int
-  stockMinimo     Int                    @default(0)
-  fotosJson       String                 @default("[]")
-  variantesJson   String                 @default("{}")
-  vitrineJson     String                 @default("{}")
-  estado          String                 @default("DISPONIVEL")
-  arquivadaEm     DateTime?
-  criadoEm        DateTime               @default(now())
-  atualizadoEm    DateTime               @updatedAt
-  reservas        Reserva[]
-  itensPedido     ItemPedido[]
-  movimentosStock MovimentoStock[]
-  variantesPeca   VariantePeca[]
-  itensCarrinho   ItemCarrinhoCommerce[]
+  id               String                    @id @default(uuid())
+  codigo           String
+  negocioId        String?
+  negocio          Negocio?                  @relation(fields: [negocioId], references: [id])
+  sku              String?
+  nome             String
+  descricao        String
+  categoria        String?
+  colecao          String?
+  tipoProduto      String                    @default("FISICO")
+  precoEmKwanza    Int
+  custoEmKwanza    Int?
+  quantidade       Int
+  stockMinimo      Int                       @default(0)
+  fotosJson        String                    @default("[]")
+  variantesJson    String                    @default("{}")
+  vitrineJson      String                    @default("{}")
+  estado           String                    @default("DISPONIVEL")
+  arquivadaEm      DateTime?
+  criadoEm         DateTime                  @default(now())
+  atualizadoEm     DateTime                  @updatedAt
+  reservas         Reserva[]
+  itensPedido      ItemPedido[]
+  movimentosStock  MovimentoStock[]
+  variantesPeca    VariantePeca[]
+  itensCarrinho    ItemCarrinhoCommerce[]
+  produtosConteudo ProdutoConteudoCommerce[]
 
   @@unique([negocioId, codigo])
   @@index([negocioId])
@@ -44,22 +45,23 @@ model Peca {
 }
 
 model VariantePeca {
-  id               String                 @id @default(uuid())
+  id               String                    @id @default(uuid())
   pecaId           String
-  peca             Peca                   @relation(fields: [pecaId], references: [id], onDelete: Cascade)
+  peca             Peca                      @relation(fields: [pecaId], references: [id], onDelete: Cascade)
   combinacao       String
-  opcoesJson       String                 @default("{}")
+  opcoesJson       String                    @default("{}")
   sku              String?
   precoEmKwanza    Int?
   custoEmKwanza    Int?
-  quantidade       Int                    @default(0)
-  stockMinimo      Int                    @default(0)
-  estado           String                 @default("ATIVA")
-  criadoEm         DateTime               @default(now())
-  atualizadoEm     DateTime               @updatedAt
+  quantidade       Int                       @default(0)
+  stockMinimo      Int                       @default(0)
+  estado           String                    @default("ATIVA")
+  criadoEm         DateTime                  @default(now())
+  atualizadoEm     DateTime                  @updatedAt
   itensPedido      ItemPedido[]
   reservasCheckout ReservaStockCheckout[]
   itensCarrinho    ItemCarrinhoCommerce[]
+  produtosConteudo ProdutoConteudoCommerce[]
 
   @@unique([pecaId, combinacao])
   @@index([pecaId])
@@ -524,6 +526,7 @@ model Negocio {
   conversoesAtribuicaoCommerce   ConversaoAtribuicaoCommerce[]
   historicoComissoesParceiro     HistoricoComissaoParceiro[]
   lotesPagamentoComissao         LotePagamentoComissao[]
+  conteudosCommerce              ConteudoCommerce[]
   tarefasOperacionais            TarefaOperacional[]
   socialInboxItens               SocialInboxItem[]
   playbooksRecuperacao           PlaybookRecuperacao[]
@@ -894,6 +897,7 @@ model ParceiroComercial {
   comissoes              ComissaoParceiro[]
   toquesCommerce         ToqueAtribuicaoCommerce[]
   participacoesConversao ParticipanteConversaoCommerce[]
+  conteudosCommerce      ConteudoCommerce[]
 
   @@unique([negocioId, codigo])
   @@unique([negocioId, contaBizyId])
@@ -923,11 +927,59 @@ model LinkAfiliado {
   comissoes              ComissaoParceiro[]
   toquesCommerce         ToqueAtribuicaoCommerce[]
   participacoesConversao ParticipanteConversaoCommerce[]
+  conteudoCommerce       ConteudoCommerce?
 
   @@index([negocioId, afiliadoId])
   @@index([negocioId, ativo])
   @@index([negocioId, destinoTipo, destinoId])
   @@index([slugLoja, codigoProduto])
+}
+
+model ConteudoCommerce {
+  id                  String                    @id @default(uuid())
+  negocioId           String
+  negocio             Negocio                   @relation(fields: [negocioId], references: [id])
+  parceiroId          String
+  parceiro            ParceiroComercial         @relation(fields: [parceiroId], references: [id])
+  smartLinkId         String?                   @unique
+  smartLink           LinkAfiliado?             @relation(fields: [smartLinkId], references: [id], onDelete: SetNull)
+  slug                String                    @unique
+  tipo                String
+  titulo              String
+  legenda             String?
+  thumbnailUrl        String?
+  mediaUrl            String?
+  divulgacaoComercial Boolean                   @default(true)
+  estado              String                    @default("RASCUNHO")
+  motivoModeracao     String?
+  metricasJson        String                    @default("{}")
+  publicadoEm         DateTime?
+  aprovadoEm          DateTime?
+  criadoEm            DateTime                  @default(now())
+  atualizadoEm        DateTime                  @updatedAt
+  produtos            ProdutoConteudoCommerce[]
+
+  @@index([negocioId, estado, criadoEm])
+  @@index([parceiroId, estado, criadoEm])
+  @@index([tipo, publicadoEm])
+}
+
+model ProdutoConteudoCommerce {
+  id             String           @id @default(uuid())
+  conteudoId     String
+  conteudo       ConteudoCommerce @relation(fields: [conteudoId], references: [id], onDelete: Cascade)
+  negocioId      String
+  pecaId         String
+  peca           Peca             @relation(fields: [pecaId], references: [id])
+  variantePecaId String?
+  variantePeca   VariantePeca?    @relation(fields: [variantePecaId], references: [id], onDelete: SetNull)
+  ordem          Int              @default(0)
+  criadoEm       DateTime         @default(now())
+
+  @@unique([conteudoId, pecaId, variantePecaId])
+  @@index([conteudoId, ordem])
+  @@index([negocioId, pecaId])
+  @@index([variantePecaId])
 }
 
 model SessaoCommerce {

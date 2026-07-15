@@ -365,15 +365,61 @@ Estado: CONCLUIDA
 
 - Fase 7: conteudo compravel formal, produtos multi-loja e rota publica `/c/:slug`.
 
-## Fases 7 a 12
+## Fase 7 — Conteudo compravel
+
+Estado: CONCLUIDA
+
+### Implementado
+
+- [x] Dominio formal para video, Reel, Story, publicacao, live, review, tutorial, colecao, carrinho e unboxing.
+- [x] Conteudo ligado a criador/afiliado, seller, produtos reais, variantes, media, divulgacao, moderacao, metricas e Smart Link.
+- [x] Criacao autenticada no portal Creator com associacao retroactiva por contacto verificado.
+- [x] Moderacao tenant-aware pelo seller e resposta uniforme para tentativa de IDOR.
+- [x] Rota publica `/c/:slug` com dados reais, divulgacao comercial explicita e produtos de varias lojas.
+- [x] Produtos indisponiveis ou variantes invalidas sao rejeitados no backend.
+- [x] Visualizacao publica emite `CONTENT_VIEW` e conserva a evidencia do parceiro e Smart Link.
+- [x] Frontend editorial responsivo alinhado ao design canonico do Market, sem navegacao inferior mobile.
+
+### Ficheiros alterados
+
+- `backend/prisma/schema.prisma` e `backend/prisma/migrations/20260715070000_conteudo_compravel/migration.sql`.
+- `backend/src/projetos/market/dominio/conteudoCommerce.ts`.
+- `backend/src/projetos/market/aplicacao/ConteudoCompravelUseCase.ts`.
+- Repositorios Prisma e memoria, contexto da aplicacao e modulo HTTP Creator.
+- `frontend/src/projetos/market/paginas/ConteudoCompravel.tsx`, portal Creator, API, rotas e estilos Market.
+- `backend/src/testes/conteudo-compravel-http.test.ts`.
+
+### Migrations
+
+- [x] `20260715070000_conteudo_compravel`: cria conteudos e produtos associados sem remover contratos legados.
+- [x] FKs de produto, variante, parceiro, negocio e Smart Link com indices de publicacao e ownership.
+- [x] Migration aplicada na base local e 59 migrations aplicadas desde zero num schema PostgreSQL descartavel.
+- [x] Schema de verificacao removido depois da validacao.
+
+### Testes
+
+- [x] Integracao HTTP: conta Creator, seleccao multi-loja, produto invalido, estado previo a moderacao, IDOR e publicacao.
+- [x] Backend integral aprovado, incluindo todas as regressoes das Fases 1 a 6.
+- [x] Frontend integral: 39 ficheiros e 144 testes aprovados.
+- [x] Typecheck e build aprovados no backend e frontend.
+- [x] QA em 1440x900 e 375x812: quatro produtos reais, cinco imagens carregadas, zero overflow e zero erro de consola.
+- [x] Divulgacao comercial, rodape e rotas canonicas de produto confirmados no browser.
+
+### Riscos restantes
+
+- Upload de media do criador reutilizara o armazenamento privado quando a politica de moderacao de video for definida; URLs HTTPS continuam validadas nesta fase.
+- Oportunidades, amostras e missoes pertencem ao Creator Marketplace da Fase 8.
+
+### Proxima fase
+
+- Fase 8: Creator Marketplace com ofertas, candidaturas, amostras e missoes.
+
+## Fases 8 a 12
 
 Estado: NAO INICIADAS
 
-- [ ] Fase 7 — Conteudo compravel.
 - [ ] Fase 8 — Creator Marketplace.
 - [ ] Fase 9 — Ledger, comissoes e payouts.
 - [ ] Fase 10 — Confianca, risco e proteccao.
 - [ ] Fase 11 — Live afiliada e carrinhos partilhaveis.
 - [ ] Fase 12 — Consolidacao, testes e remocao de legado.
-
-O detalhe de cada fase sera aberto apenas quando a fase anterior cumprir migrations, autorizacao, testes negativos, typecheck, testes e build.
