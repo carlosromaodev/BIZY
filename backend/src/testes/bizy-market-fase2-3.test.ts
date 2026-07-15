@@ -298,7 +298,7 @@ describe("Bizy Market Fase 2+3 HTTP", () => {
       // --- Catálogo duplicado ---
       const duplicado = await app.inject({
         method: "POST",
-        url: "/crm/loja/catalogos",
+        url: "/team/loja/catalogos",
         headers: loja,
         payload: { nome: "Novidades", criterio: "busca" }
       });
@@ -331,7 +331,7 @@ describe("Bizy Market Fase 2+3 HTTP", () => {
       expect(remover.json().ok).toBe(true);
 
       // --- Remover catálogo inexistente ---
-      const removerInexistente = await app.inject({ method: "DELETE", url: "/crm/loja/catalogos/inexistente", headers: loja });
+      const removerInexistente = await app.inject({ method: "DELETE", url: "/team/loja/catalogos/inexistente", headers: loja });
       expect(removerInexistente.statusCode).toBe(404);
 
       // --- Lista vazia após remoção ---

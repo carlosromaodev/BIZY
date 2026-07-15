@@ -3,7 +3,6 @@ import {
   CriarCheckoutAbandonadoPublicoSchema,
   CriarCheckoutSitePublicoSchema,
   GerarCheckoutWhatsAppPublicoSchema,
-  PublicarLojaSchema,
   RegistrarEventoTrackingSchema,
   SalvarConfiguracaoLojaPublicaSchema
 } from "../../../../dominio/esquemas.js";
@@ -64,19 +63,18 @@ export const moduloLojaPublica: ModuloHttp = {
 
       const corpo = request.body ?? {};
       const payloadDetalhado = SalvarConfiguracaoLojaPublicaSchema.parse(corpo);
-      const legado = PublicarLojaSchema.safeParse(corpo);
       const atual = contextoComercial.negocio;
 
-      const slug = payloadDetalhado.publicacao.slug ?? payloadDetalhado.slug ?? (legado.success ? legado.data.slug : atual.slugPublico);
+      const slug = payloadDetalhado.publicacao.slug ?? payloadDetalhado.slug ?? atual.slugPublico;
       const descricaoPublica =
         payloadDetalhado.identidade.descricaoPublica ??
         payloadDetalhado.publicacao.descricaoPublica ??
         payloadDetalhado.descricaoPublica ??
-        (legado.success ? legado.data.descricaoPublica : atual.descricaoPublica);
+        atual.descricaoPublica;
       const publicada =
         payloadDetalhado.publicacao.publicada ??
         payloadDetalhado.publicada ??
-        (legado.success ? legado.data.publicada : Boolean(atual.lojaPublicadaEm));
+        Boolean(atual.lojaPublicadaEm);
 
       const negocio = await contexto.onboardingBizy.salvarNegocio(
         contextoComercial.usuario.id,

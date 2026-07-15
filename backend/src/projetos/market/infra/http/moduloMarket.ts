@@ -116,7 +116,7 @@ const CriarReembolsoMarketSchema = z.object({
   })).max(100).optional()
 });
 
-const PREFIXOS_LOJA_OPERACIONAL = ["/team/loja", "/crm/loja"] as const;
+const PREFIXO_LOJA_OPERACIONAL = "/team/loja";
 const TOPICO_MARKET = "bizy.market";
 
 export const moduloMarket: ModuloHttp = {
@@ -128,14 +128,12 @@ export const moduloMarket: ModuloHttp = {
       sufixo: string,
       handler: RouteHandlerMethod
     ) => {
-      for (const prefixo of PREFIXOS_LOJA_OPERACIONAL) {
-        const rota = `${prefixo}${sufixo}`;
-        if (metodo === "get") app.get(rota, handler);
-        else if (metodo === "post") app.post(rota, handler);
-        else if (metodo === "put") app.put(rota, handler);
-        else if (metodo === "patch") app.patch(rota, handler);
-        else app.delete(rota, handler);
-      }
+      const rota = `${PREFIXO_LOJA_OPERACIONAL}${sufixo}`;
+      if (metodo === "get") app.get(rota, handler);
+      else if (metodo === "post") app.post(rota, handler);
+      else if (metodo === "put") app.put(rota, handler);
+      else if (metodo === "patch") app.patch(rota, handler);
+      else app.delete(rota, handler);
     };
 
     // --- Endpoints públicos Market ---
@@ -219,7 +217,7 @@ export const moduloMarket: ModuloHttp = {
     });
 
     // --- Team: Controlo Market e Studio ---
-    // O prefixo /team/loja é canónico; /crm/loja fica apenas como alias legado.
+    // Team e o unico contexto operacional da loja.
 
     registrarLojaOperacional("get", "/market/resumo", async (request, reply) => {
       aplicarNoStore(reply);

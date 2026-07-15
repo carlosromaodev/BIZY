@@ -15,7 +15,7 @@ updated: 2026-07-02
 
 > [!info] Fonte principal
 > Sintese auditada contra `docs/RF-RNF-RN-BIZY-MARKET-LOJA-DIGITAL.md`, backend `modulos/market.ts`, `modulos/checkoutUnificado.ts`, `BizyMarketUseCase`, `CheckoutUnificadoUseCase`, `RepassesFinanceirosUseCase` e frontend `src/lojas`, `Market.tsx`, `ProdutoMarket.tsx`, `LojaDigitalPublica.tsx`, `CheckoutBizy.tsx`.
-> `Team` e o nome canonico da operacao. `CRM` permanece apenas como descricao de produto/base historica e alias legado `/crm/loja/*`.
+> `Team` e o nome canonico da operacao e `/team/loja/*` e o unico prefixo operacional suportado.
 
 ## Visao de Produto
 
@@ -117,7 +117,7 @@ O **Bizy Market** combina perfis de loja independentes, shopping center de desco
 - `GET /team/loja/pedidos-market`
 - `GET /team/loja/repasses`
 
-`/crm/loja/*` existe apenas como alias legado para compatibilidade durante a migracao.
+O alias `/crm/loja/*` foi removido no cutover da refatoracao commerce.
 
 ## Guardrails
 

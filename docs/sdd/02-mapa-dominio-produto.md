@@ -27,7 +27,7 @@ Desde 2026-07-09, a camada visivel do Bizy fica limitada a `Bizy Team`, `Bizy Ma
 | 04 Live/Reservas | Live, parser, reservas, fila | `SessaoLive`, `ComentarioRecebido`, `Reserva`, `Pedido` | `/lives`, `/comentarios`, `/reservas`, `/pedidos` | requisitos live |
 | 05 Clientes/WhatsApp | Cliente 360, atendimento, WhatsApp | `ClienteGlobal`, `ClienteNegocio`, `ConversaAtendimento`, `MensagemAtendimento` | `/clientes`, `/atendimento`, `/whatsapp`, `/webhooks/evolution` | inventarios CRM |
 | 06 Catalogo/Loja | Produtos, stock, loja publica | `Peca`, `VariantePeca`, `MovimentoStock`, tracking | `/pecas`, `/publico/lojas`, `/loja-publica` | loja digital |
-| 07 Market | Market, checkout, repasses | `CompraUnificada`, `PedidoFilho`, `RepasseFinanceiro`, `SeguidorLoja` | `/publico/market`, `/checkout`, `/crm/loja/*` | requisitos Market |
+| 07 Market | Market, checkout, repasses | `CompraUnificada`, `PedidoFilho`, `RepasseFinanceiro`, `SeguidorLoja` | `/publico/market`, `/checkout`, `/team/loja/*` | requisitos Market |
 | 08 Afiliados/Social | Afiliados, campanhas, Social Inbox | `ParceiroComercial`, `LinkAfiliado`, `CampanhaCrm`, `SocialInboxItem` | `/afiliados`, `/campanhas`, `/social/inbox` | requisitos social commerce |
 | 09 Team/Projectos | Equipa, turnos, projectos | `ConviteEquipa`, `MetaVendas`, `Projecto`, `ProjetoComercial` | `/equipa`, `/projectos` | requisitos Bizy Team |
 | 10 Financas | Ledger, facturacao, conformidade | `MovimentoFinanceiro`, `Factura`, `Despesa`, `RegraFiscal` | `/financas`, `/conformidade` | requisitos Team, financas |

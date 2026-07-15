@@ -512,14 +512,6 @@ export function obterMetricasLojaTeam(): Promise<MetricasLojaTeam> {
   return requisitarApi<MetricasLojaTeam>(ROTAS_API_LOJAS.metricasTeam);
 }
 
-// Aliases legados: use as funções Team em código novo.
-export const listarCatalogosCrm = listarCatalogosTeam;
-export const criarCatalogoCrm = criarCatalogoTeam;
-export const atualizarCatalogoCrm = atualizarCatalogoTeam;
-export const removerCatalogoCrm = removerCatalogoTeam;
-export const listarSeguidoresCrm = listarSeguidoresTeam;
-export const obterMetricasLojaCrm = obterMetricasLojaTeam;
-
 // ── Checkout Unificado Multi-Loja ──
 
 export function criarCheckoutUnificado(payload: PayloadCheckoutUnificado): Promise<RespostaCheckoutUnificado> {
@@ -575,9 +567,6 @@ export function listarPedidosMarketTeam(filtros?: {
     })
   );
 }
-
-// Alias legado: use listarPedidosMarketTeam em código novo.
-export const listarPedidosMarketCrm = listarPedidosMarketTeam;
 
 // ── Seller Market no Team ──
 
@@ -702,6 +691,3 @@ export function listarRepassesTeam(filtros?: {
     })
   );
 }
-
-// Alias legado: use listarRepassesTeam em código novo.
-export const listarRepassesCrm = listarRepassesTeam;

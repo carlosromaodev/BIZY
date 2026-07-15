@@ -98,7 +98,7 @@ Fontes principais: `docs/superpowers/specs/2026-06-07-bizy-market-frontend-lojas
 - `GET /team/loja/pedidos-market`
 - `GET /team/loja/repasses`
 
-`/crm/loja/*` e exports como `listarSeguidoresCrm` existem apenas como aliases legados apontando para Team.
+O frontend usa apenas rotas e exports Team; os aliases `Crm` foram removidos no cutover da Fase 12.
 
 ## Principios de UX
 

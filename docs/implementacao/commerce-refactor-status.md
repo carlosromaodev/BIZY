@@ -201,7 +201,7 @@ Estado: CONCLUIDA
 ### Riscos restantes
 
 - O provider antivirus externo depende de credenciais futuras; o contrato e a configuracao estao prontos e o scanner local conservador permanece activo.
-- O checkout inline legado permanece em dual read durante a migracao expand/cutover e sera removido apenas na Fase 12.
+- O carrinho server-side e o caminho primario; a entrada inline permanece apenas como contrato de checkout direto e todos os precos, variantes e stock sao recalculados no backend.
 
 ### Proxima fase
 
@@ -219,7 +219,7 @@ Estado: CONCLUIDA
 - [x] Clique, toque de atribuicao, campanha, conteudo, afiliado, produto e origem persistidos no servidor.
 - [x] Contexto do Smart Link propagado para carrinho server-side e compra unificada sem confiar em atribuicao enviada pelo cliente.
 - [x] Preview Open Graph e Twitter para crawlers sem criar clique ou sessao artificial.
-- [x] URL publica gerada pela afiliacao migrada para `/go/:codigo`, preservando o endpoint JSON legado durante o dual read.
+- [x] URL publica gerada pela afiliacao migrada para `/go/:codigo`; o caminho publico fecha a jornada por redireccionamento HTTP real.
 - [x] Proteccao contra open redirect, link expirado, parceiro suspenso, destino nao suportado e enumeracao diferenciada.
 - [x] Testes negativos, migration, typecheck, suites integrais, builds e QA desktop/mobile concluidos.
 
@@ -255,7 +255,7 @@ Estado: CONCLUIDA
 
 - As rotas publicas de conteudo compravel e carrinho partilhavel ficam reservadas na allowlist, mas so serao activadas pelas Fases 7 e 11.
 - O dominio publico configurado em `PUBLIC_SMART_LINK_BASE_URL` deve apontar para o backend no ambiente de deploy; o fallback local permanece funcional.
-- O endpoint JSON legado sera removido apenas no cutover da Fase 12, depois de confirmar ausencia de consumidores antigos.
+- O endpoint JSON legado deixou de ser contrato publico; `/go/:codigo` e a unica rota canonica de Smart Link.
 
 ### Proxima fase
 
@@ -314,7 +314,7 @@ Estado: CONCLUIDA
 
 - Eventos de conteudo, live, comissao e payout ja pertencem ao contrato canonico, mas os produtores reais entram nas Fases 7, 9 e 11.
 - Comissoes continuam no modelo financeiro legado ate o ledger imutavel da Fase 9; a conversao da Fase 5 apenas congela a evidencia de atribuicao.
-- O resolver legado de referencia permanece em dual read para checkouts antigos e sera removido apenas no cutover da Fase 12.
+- O resolvedor de referencias historicas permanece encapsulado no caso de uso para interpretar vendas antigas; novas sessoes e conversoes usam exclusivamente o grafo versionado.
 
 ### Proxima fase
 
@@ -359,7 +359,7 @@ Estado: CONCLUIDA
 ### Riscos restantes
 
 - Oportunidades, conteudos, missoes e carrinhos aparecem na navegacao, mas so recebem dados operacionais nas Fases 7, 8 e 11.
-- Perfis historicos com contactos fora do formato canonico exigem backfill controlado na Fase 12.
+- Parceiros historicos sem contacto verificado sao associados sob demanda por OTP; o sistema nao faz vinculacao automatica insegura por similaridade de contacto.
 
 ### Proxima fase
 
@@ -508,7 +508,7 @@ Estado: CONCLUIDA
 ### Riscos restantes
 
 - O provider bancario externo nao foi definido; o payout fica em processamento ate confirmacao humana e nao finge integracao automatica.
-- Comissao e lote legados permanecem em dual read ate a reconciliacao e o cutover da Fase 12.
+- O dual write ficou restrito a operacoes historicas encapsuladas; saldos, retencoes e payouts do portal usam exclusivamente o ledger imutavel.
 
 ### Proxima fase
 
@@ -580,10 +580,49 @@ Estado: CONCLUIDA
 
 ### Proxima fase
 
-- Fase 12: consolidacao, contract seguro, testes finais e remocao de legado.
+- Fase 12: consolidacao, contrato seguro, testes finais e remocao de legado.
 
 ## Fase 12
 
-Estado: NAO INICIADA
+Estado: CONCLUIDA
 
-- [ ] Fase 12 — Consolidacao, testes e remocao de legado.
+### Implementado
+
+- [x] Fase 12 — Consolidacao, testes e remocao de legado.
+- [x] `/team/loja/*` consolidado como unico contrato operacional; `/crm/loja/*` e exports frontend `Crm` removidos.
+- [x] Parser duplicado de publicacao removido; `SalvarConfiguracaoLojaPublicaSchema` e a unica validacao da configuracao.
+- [x] Checklists da auditoria inicial reconciliados com as Fases 1 a 11, sem itens pendentes falsamente marcados.
+- [x] Matriz final de autorizacao cobre portal Creator, ledger, risco, avaliacoes, carrinhos e codigos publicos inexistentes.
+- [x] Carrinho partilhavel alinhado ao cabecalho, busca, navegacao e rodape canonicos do Market.
+- [x] Reconciliacao local: 45 contas, 14 parceiros, zero comissoes legadas pendentes, 10 movimentos no ledger e zero compras guest sem associacao.
+- [x] Parceiros sem conta continuam protegidos: associacao somente apos contacto verificado por OTP.
+
+### Ficheiros alterados
+
+- Modulos HTTP e schemas Market no backend.
+- APIs, tipos, pagina e estilos Market no frontend.
+- Testes de Market e `commerce-refactor-seguranca-final.test.ts`.
+- Requisitos, SDD, wiki e documentos de implementacao commerce.
+
+### Migrations
+
+- [x] Nenhuma migration destrutiva adicionada no cutover de rotas e exports.
+- [x] As 63 migrations foram aplicadas do zero numa base PostgreSQL descartavel e a base foi removida apos a validacao.
+
+### Testes
+
+- [x] Backend: typecheck e build aprovados; 97 ficheiros e 396 testes passaram, com 1 ficheiro e 1 teste ignorados pela configuracao existente.
+- [x] Frontend: typecheck e build aprovados; 39 ficheiros e 144 testes passaram.
+- [x] QA Playwright em 1440x900 e 375x812 para Market, Creator, Compras e carrinho partilhavel: zero overflow, erro de consola ou falha HTTP inesperada.
+- [x] Carrinho partilhavel revalidado com cabecalho e rodape presentes nos dois viewports.
+
+### Riscos restantes
+
+- Provider bancario ainda nao definido: payout permanece em processamento ate confirmacao humana.
+- Antivirus externo depende de credenciais; o contrato e o scanner local conservador permanecem activos.
+- Streaming, logistica e meios de pagamento externos dependem dos respectivos providers; o dominio Bizy nao simula confirmacao externa.
+- Dez parceiros locais ainda nao possuem uma ContaBizy verificada correspondente e serao associados por OTP quando entrarem no portal.
+
+### Proxima fase
+
+- Nenhuma fase funcional pendente neste plano. Proximo passo operacional: configurar providers reais, executar deploy e monitorar o cutover em producao.

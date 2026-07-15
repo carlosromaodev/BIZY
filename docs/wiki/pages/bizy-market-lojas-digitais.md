@@ -20,7 +20,7 @@ Ultima atualizacao: 2026-07-02
 Fontes principais: `docs/RF-RNF-RN-BIZY-MARKET-LOJA-DIGITAL.md`, [[requisitos-bizy-market]], [[bizy-market-rotas-roadmap]], codigo em `frontend/src/lojas`, `backend/src/infra/http/modulos/market.ts` e `backend/src/infra/http/modulos/checkoutUnificado.ts`.
 
 > [!abstract] Decisao
-> A loja digital do Bizy e um ramo composto por perfis publicos de loja, shopping center central, checkout unificado e execucao operacional dentro do Team. O prefixo API canonico e `/team/loja`; `/crm/loja` existe apenas como alias legado.
+> A loja digital do Bizy e um ramo composto por perfis publicos de loja, shopping center central, checkout unificado e execucao operacional dentro do Team. O prefixo API operacional unico e `/team/loja`.
 
 ## Tese
 
@@ -148,7 +148,7 @@ Agora, a direcao implementada e:
 - `GET /team/loja/pedidos-market`
 - `GET /team/loja/repasses`
 
-`/crm/loja/*` continua registrado no backend como alias legado para nao quebrar clientes antigos, mas codigo e documentacao novos devem apontar para `/team/loja/*`.
+O alias `/crm/loja/*` foi removido no cutover da Fase 12; clientes operacionais devem usar `/team/loja/*`.
 
 ## Progresso de Implementacao
 

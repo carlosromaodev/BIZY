@@ -557,12 +557,6 @@ const SlugLojaPublicaSchema = z
     message: "Use um slug com letras minúsculas, números e hífens, sem espaços."
   });
 
-export const PublicarLojaSchema = z.object({
-  slug: SlugLojaPublicaSchema,
-  descricaoPublica: TextoCatalogoOpcionalSchema,
-  publicada: z.boolean().default(true)
-});
-
 const PublicacaoLearningStudioSchema = z
   .object({
     ativa: z.boolean().optional(),

@@ -19,7 +19,7 @@ Ultima atualizacao: 2026-07-02
 Fontes principais: [[bizy-market-lojas-digitais]], [[requisitos-bizy-market]], `docs/RF-RNF-RN-BIZY-MARKET-LOJA-DIGITAL.md`, `frontend/src/lojas/rotasLojas.ts`, `backend/src/infra/http/modulos/market.ts`, `backend/src/infra/http/modulos/checkoutUnificado.ts`.
 
 > [!abstract] Decisao
-> As rotas do Bizy Market separam experiencia publica, API publica, controlo da loja dentro do Team, checkout unificado e administracao Bizy. O Market gera descoberta; o Team continua sendo a fonte de verdade da operacao. `/team/loja` e o prefixo canonico; `/crm/loja` e alias legado.
+> As rotas do Bizy Market separam experiencia publica, API publica, controlo da loja dentro do Team, checkout unificado e administracao Bizy. O Market gera descoberta; o Team continua sendo a fonte de verdade da operacao. `/team/loja` e o unico prefixo operacional da loja.
 
 ## Principios de Roteamento
 
@@ -30,7 +30,7 @@ Fontes principais: [[bizy-market-lojas-digitais]], [[requisitos-bizy-market]], `
 - O perfil da loja e o Market devem apontar um para o outro sem apagar a identidade do fornecedor.
 - URLs antigas da loja publica continuam funcionando durante a migracao.
 - O dominio canonico do shopping center e `market.usebizy.space`; `/market` continua como fallback local e rota de compatibilidade no app principal.
-- Codigo novo nao deve chamar `/crm/loja/*`; os aliases existem apenas para compatibilidade.
+- O alias `/crm/loja/*` foi removido no cutover da Fase 12.
 
 ## Rotas Publicas do Comprador
 
@@ -147,11 +147,7 @@ GET    /team/loja/pedidos-market
 GET    /team/loja/repasses
 ```
 
-Aliases legados registrados no backend:
-
-```txt
-/crm/loja/*
-```
+Nao existem aliases operacionais paralelos para a loja.
 
 ## Admin Bizy
 

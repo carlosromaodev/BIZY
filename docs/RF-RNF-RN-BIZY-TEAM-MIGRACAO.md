@@ -565,7 +565,7 @@ O BIZY CRM+ possui 20 módulos HTTP, 55 modelos Prisma e 44 use cases cobrindo:
 ## 8. Priorização de Implementação
 
 ### Fase 0 — Renomeação, Acesso e Base (Semana 1-3)
-- [x] [RF-T renomeação] Substituir referências BIZY CRM → BIZY Team no código, UI e documentação. *(rotas operacionais canónicas usam `/team/loja/*` e `/relatorios/team-pos-live`; helpers/tipos frontend usam nomes `Team`; `/crm/loja/*`, `/relatorios/crm-pos-live` e exports `Crm` ficam como aliases legados para compatibilidade)*
+- [x] [RF-T renomeação] Substituir referências BIZY CRM → BIZY Team no código, UI e documentação. *(rotas operacionais usam `/team/loja/*` e `/relatorios/team-pos-live`; helpers e tipos frontend usam nomes `Team`; o alias `/crm/loja/*` foi removido no cutover commerce)*
 - [x] [RF-T108-T111] Convite frictionless (Magic Links, OTP, Workspaces, Personas)
 - [x] [RF-T051-T054] Dashboard de desempenho por membro (extensão do existente)
 - [x] [RF-T066-T068] Notas internas e feed de actividade (extensão do existente)

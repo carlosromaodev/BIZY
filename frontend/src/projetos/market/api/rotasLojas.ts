@@ -64,18 +64,10 @@ export const ROTAS_API_LOJAS = {
   catalogoTeam: (id: string) => `/team/loja/catalogos/${segmento(id)}`,
   seguidoresTeam: "/team/loja/seguidores",
   metricasTeam: "/team/loja/metricas",
-  // Aliases CRM legados apontam para Team para manter compatibilidade de imports antigos.
-  catalogosCrm: "/team/loja/catalogos",
-  catalogoCrm: (id: string) => `/team/loja/catalogos/${segmento(id)}`,
-  seguidoresCrm: "/team/loja/seguidores",
-  metricasCrm: "/team/loja/metricas",
   checkoutUnificado: "/publico/market/checkout",
   carrinhoUnificado: "/publico/market/carrinho",
   compraUnificada: (id: string) => `/publico/market/compras/${segmento(id)}`,
   pagamentoUnificado: (id: string) => `/publico/market/compras/${segmento(id)}/pagamento`,
   pedidosMarketTeam: "/team/loja/pedidos-market",
-  repassesTeam: "/team/loja/repasses",
-  // Mantido só para compatibilidade; novas chamadas devem usar os nomes Team.
-  pedidosMarketCrm: "/team/loja/pedidos-market",
-  repassesCrm: "/team/loja/repasses"
+  repassesTeam: "/team/loja/repasses"
 } as const;

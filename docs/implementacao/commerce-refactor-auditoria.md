@@ -72,32 +72,32 @@ Os itens abaixo mantem o inventario de origem; a marcacao foi actualizada apos a
 - [x] OTP: associacao segura de compra guest a conta de comprador implementada por contacto verificado.
 - [x] Compra: FK opcional de conta e perfil de comprador disponiveis sem quebrar snapshots historicos.
 - [x] Variantes: entidade de combinacao, preco e stock real ligada ao carrinho, checkout e item do pedido.
-- [ ] Reserva: possui TTL, mas nao variante nem transacao unica entre reserva e pedido.
-- [ ] Afiliacao: possui seller backoffice e historico, mas nao portal universal de creator nem ledger imutavel completo.
-- [ ] Tracking: existem eventos operacionais e tracking comercial, mas nao sessao commerce e grafo explicavel versionado.
+- [x] Reserva: lacuna fechada na Fase 3 com variante, TTL e transacao unica entre stock, reserva e pedido.
+- [x] Afiliacao: lacuna fechada nas Fases 6, 8 e 9 com portal Creator, marketplace e ledger imutavel.
+- [x] Tracking: lacuna fechada nas Fases 4 e 5 com sessao commerce, eventos canonicos e atribuicao explicavel versionada.
 
 ### Ausente
 
 - [x] `ContaBizy` universal, contactos verificados, contextos, perfil do comprador, enderecos, preferencias, consentimentos e dispositivos.
 - [x] Token guest especifico por compra, de alta entropia, hasheado, expiravel e revogavel.
 - [x] Portal de comprador autenticado e associacao pos-compra por OTP.
-- [ ] Carrinho server-side e sincronizacao/fusao entre dispositivos.
-- [ ] Upload privado e scan de comprovativo.
-- [ ] Smart Links canonicos `/go/:codigo` e preview social.
-- [ ] Conteudo compravel, Creator Marketplace, ofertas, candidaturas, amostras e missoes.
-- [ ] Ledger imutavel completo, colaboracao, payouts e disputas financeiras.
-- [ ] Avaliacao verificada, buyer/creator/seller score e proteccao do comprador.
-- [ ] Live afiliada e carrinhos partilhaveis.
+- [x] Carrinho server-side e sincronizacao/fusao entre dispositivos implementados na Fase 3.
+- [x] Upload privado e scan de comprovativo implementados na Fase 3.
+- [x] Smart Links canonicos `/go/:codigo` e preview social implementados na Fase 4.
+- [x] Conteudo compravel, Creator Marketplace, ofertas, candidaturas, amostras e missoes implementados nas Fases 7 e 8.
+- [x] Ledger imutavel completo, colaboracao, payouts e disputas financeiras implementados na Fase 9.
+- [x] Avaliacao verificada, buyer/creator/seller score e proteccao do comprador implementados na Fase 10.
+- [x] Live afiliada e carrinhos partilhaveis implementados na Fase 11.
 
-## Riscos confirmados
+## Riscos encontrados na auditoria inicial e resolvidos
 
 ### Seguranca
 
-1. Critico: `GET /publico/market/portal-comprador?identificador=...` permite enumerar todas as compras por telefone ou email.
-2. Critico: `GET /publico/market/compras/:id?identificador=...` usa apenas ID e contacto conhecido, permitindo IDOR por conhecimento de PII.
-3. Critico: `POST /publico/market/compras/:id/pagamento` repete o mesmo controlo fraco e altera a compra.
-4. Alto: o identificador do comprador fica persistido em `localStorage` e e enviado em query string, expondo PII a historico, logs e analytics.
-5. Alto: o OTP global limita por IP/rota, nao por contacto; ataques distribuidos contra um telefone nao sao contidos no dominio.
+1. [x] Consulta publica por identificador removida; o portal exige sessao autenticada.
+2. [x] Compras consultadas por sessao ou token guest hasheado, expiravel e restrito a uma compra.
+3. [x] Alteracoes de pagamento exigem ownership e contexto autorizado.
+4. [x] PII removida de query strings e da identidade persistida no navegador.
+5. [x] OTP limitado por contacto, IP e finalidade, com sessoes revogaveis.
 6. Alto: `SessaoUsuario` nao conserva revogacao, dispositivo ou trilho de seguranca; apagar a linha perde o historico.
 7. Medio: `criarOuAtualizarUsuario` cria/actualiza `UsuarioSistema` antes da verificacao do OTP, permitindo dados nao verificados no cadastro interno.
 8. Medio: comprovativo e uma URL HTTPS fornecida pelo utilizador; nao ha upload privado, validacao de ficheiro ou scan.

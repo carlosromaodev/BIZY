@@ -101,7 +101,7 @@ APIs Team principais:
 - `/team/loja/pedidos-market`
 - `/team/loja/repasses`
 
-`/crm/loja/*` e alias legado, nao contrato novo.
+O alias `/crm/loja/*` foi removido; toda operacao da loja usa exclusivamente `/team/loja/*`.
 
 Telas: Market Home, Categoria, Produto Market, Diretorio de Lojas, Perfil da Loja, Catalogo Publico, Checkout, Compra Unificada, Bizy Studio e Admin Bizy.
 

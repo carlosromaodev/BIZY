@@ -701,8 +701,6 @@ export interface RespostaSeguidoresTeam {
   total: number;
 }
 
-export type RespostaSeguidoresCrm = RespostaSeguidoresTeam;
-
 export interface MetricasLojaTeam {
   perfil: {
     slug?: string | null;
@@ -724,8 +722,6 @@ export interface MetricasLojaTeam {
   };
 }
 
-export type MetricasLojaCrm = MetricasLojaTeam;
-
 export interface PayloadCatalogoLoja {
   nome: string;
   descricao?: string | null;
@@ -736,8 +732,6 @@ export interface PayloadCatalogoLoja {
 export interface RespostaCatalogosTeam {
   catalogos: CatalogoPersonalizadoLoja[];
 }
-
-export type RespostaCatalogosCrm = RespostaCatalogosTeam;
 
 // ── Catálogo Público Partilhável ──
 
@@ -896,8 +890,6 @@ export interface RepasseFinanceiroTeam {
   criadoEm: string;
   atualizadoEm: string;
 }
-
-export type RepasseFinanceiroCrm = RepasseFinanceiroTeam;
 
 export interface DisputaMarketTeam {
   id: string;

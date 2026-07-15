@@ -659,7 +659,7 @@ describe("Bizy Market público HTTP", () => {
 
       const publicarMassa = await app.inject({
         method: "PUT",
-        url: "/crm/loja/produtos/publicacao-em-massa",
+        url: "/team/loja/produtos/publicacao-em-massa",
         headers: lojaA,
         payload: { codigos: ["VESTIDO-DETALHE"], publicado: true }
       });
@@ -670,6 +670,13 @@ describe("Bizy Market público HTTP", () => {
           atualizados: 1
         })
       );
+
+      const aliasRemovido = await app.inject({
+        method: "GET",
+        url: "/crm/loja/market/resumo",
+        headers: lojaA
+      });
+      expect(aliasRemovido.statusCode).toBe(404);
 
       const detalheRepublicado = await app.inject({
         method: "GET",

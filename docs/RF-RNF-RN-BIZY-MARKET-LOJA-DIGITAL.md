@@ -590,7 +590,7 @@ Mapa detalhado: `docs/wiki/pages/bizy-market-rotas-roadmap.md`.
 - [x] O MVP nao inventa avaliacao publica de compradores. A UI mostra selos operacionais reais ou estado vazio.
 - [x] Social graph atual usa seguir loja com identificacao simples; perfil autenticado completo do comprador e evolucao futura.
 - [x] Categorias globais iniciais: moda, beleza, comida, tecnologia, casa e servicos.
-- [x] Prefixo operacional canonico da loja e `/team/loja`; `/crm/loja` fica somente como alias legado.
+- [x] Prefixo operacional unico da loja e `/team/loja`; o alias `/crm/loja` foi removido no cutover da refatoracao commerce.
 
 ## 10. Guardrails de Produto
 
