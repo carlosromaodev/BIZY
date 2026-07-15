@@ -55,12 +55,16 @@ import { AtribuicaoCommerceUseCase } from "../../projetos/market/aplicacao/Atrib
 import { CreatorPortalUseCase } from "../../projetos/market/aplicacao/CreatorPortalUseCase.js";
 import { ConteudoCompravelUseCase } from "../../projetos/market/aplicacao/ConteudoCompravelUseCase.js";
 import { CreatorMarketplaceUseCase } from "../../projetos/market/aplicacao/CreatorMarketplaceUseCase.js";
+import { LedgerComissoesUseCase } from "../../projetos/market/aplicacao/LedgerComissoesUseCase.js";
 import type { RepositorioConteudosCommerce } from "../../projetos/market/dominio/conteudoCommerce.js";
 import type { RepositorioCreatorMarketplace } from "../../projetos/market/dominio/creatorMarketplace.js";
+import type { RepositorioLedgerComissoes } from "../../projetos/market/dominio/ledgerComissoes.js";
 import { RepositorioConteudosCommerceMemoria } from "../../projetos/market/infra/repositorios/RepositorioConteudosCommerceMemoria.js";
 import { RepositorioConteudosCommercePrisma } from "../../projetos/market/infra/repositorios/RepositorioConteudosCommercePrisma.js";
 import { RepositorioCreatorMarketplaceMemoria } from "../../projetos/market/infra/repositorios/RepositorioCreatorMarketplaceMemoria.js";
 import { RepositorioCreatorMarketplacePrisma } from "../../projetos/market/infra/repositorios/RepositorioCreatorMarketplacePrisma.js";
+import { RepositorioLedgerComissoesMemoria } from "../../projetos/market/infra/repositorios/RepositorioLedgerComissoesMemoria.js";
+import { RepositorioLedgerComissoesPrisma } from "../../projetos/market/infra/repositorios/RepositorioLedgerComissoesPrisma.js";
 import type { RepositorioAtribuicaoCommerce } from "../../projetos/market/dominio/atribuicaoCommerce.js";
 import { RepositorioCarrinhosCommerceMemoria } from "../../projetos/market/infra/repositorios/RepositorioCarrinhosCommerceMemoria.js";
 import { RepositorioCarrinhosCommercePrisma } from "../../projetos/market/infra/repositorios/RepositorioCarrinhosCommercePrisma.js";
@@ -226,6 +230,7 @@ export interface RepositoriosAplicacao {
   atribuicaoCommerce: RepositorioAtribuicaoCommerce;
   conteudosCommerce: RepositorioConteudosCommerce;
   creatorMarketplace: RepositorioCreatorMarketplace;
+  ledgerComissoes: RepositorioLedgerComissoes;
   comprasUnificadas: RepositorioComprasUnificadas;
   repassesFinanceiros: RepositorioRepassesFinanceiros;
   reembolsos: RepositorioReembolsos;
@@ -310,6 +315,7 @@ export interface ContextoAplicacao {
   creatorPortal: CreatorPortalUseCase;
   conteudoCompravel: ConteudoCompravelUseCase;
   creatorMarketplace: CreatorMarketplaceUseCase;
+  ledgerComissoes: LedgerComissoesUseCase;
   repassesFinanceiros: RepassesFinanceirosUseCase;
   gestaoEquipa: GestaoEquipaUseCase;
   gestaoFinancas: GestaoFinancasUseCase;
@@ -402,12 +408,14 @@ export function criarContextoAplicacao(logger: FastifyBaseLogger): ContextoAplic
     eventos,
     repositorios.funilComercial
   );
+  const ledgerComissoes = new LedgerComissoesUseCase(repositorios.ledgerComissoes);
   const gestaoAfiliados = new GestaoAfiliadosUseCase(
     repositorios.afiliados,
     eventos,
     repositorios.pecas,
     repositorios.pedidos,
-    repositorios.trackingComercial
+    repositorios.trackingComercial,
+    ledgerComissoes
   );
   const gestaoCampanhasCrm = new GestaoCampanhasCrmUseCase(
     repositorios.campanhas,
@@ -587,7 +595,8 @@ export function criarContextoAplicacao(logger: FastifyBaseLogger): ContextoAplic
   const creatorPortal = new CreatorPortalUseCase({
     contas: repositorios.contaBizy,
     afiliados: repositorios.afiliados,
-    tracking: repositorios.trackingComercial
+    tracking: repositorios.trackingComercial,
+    ledger: ledgerComissoes
   });
   const conteudoCompravel = new ConteudoCompravelUseCase({
     conteudos: repositorios.conteudosCommerce,
@@ -724,6 +733,7 @@ export function criarContextoAplicacao(logger: FastifyBaseLogger): ContextoAplic
     creatorPortal,
     conteudoCompravel,
     creatorMarketplace,
+    ledgerComissoes,
     repassesFinanceiros: repassesFinanceirosUseCase,
     gestaoEquipa,
     gestaoFinancas,
@@ -969,6 +979,7 @@ function criarRepositorios(): RepositoriosAplicacao {
       atribuicaoCommerce: new RepositorioAtribuicaoCommerceMemoria(),
       conteudosCommerce: new RepositorioConteudosCommerceMemoria(),
       creatorMarketplace: new RepositorioCreatorMarketplaceMemoria(),
+      ledgerComissoes: new RepositorioLedgerComissoesMemoria(),
       comprasUnificadas: new RepositorioComprasUnificadasMemoria(),
       repassesFinanceiros: new RepositorioRepassesFinanceirosMemoria(),
       reembolsos: new RepositorioReembolsosMemoria(),
@@ -1012,6 +1023,7 @@ function criarRepositorios(): RepositoriosAplicacao {
     atribuicaoCommerce: new RepositorioAtribuicaoCommercePrisma(prisma),
     conteudosCommerce: new RepositorioConteudosCommercePrisma(prisma),
     creatorMarketplace: new RepositorioCreatorMarketplacePrisma(prisma),
+    ledgerComissoes: new RepositorioLedgerComissoesPrisma(prisma),
     comprasUnificadas: new RepositorioComprasUnificadasPrisma(prisma),
     repassesFinanceiros: new RepositorioRepassesFinanceirosPrisma(prisma),
     reembolsos: new RepositorioReembolsosPrisma(prisma),

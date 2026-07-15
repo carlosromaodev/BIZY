@@ -26,6 +26,10 @@ export interface CreatorPortalDados {
     moeda: string; criadoEm: string;
   }>;
   pagamentos: Array<{ id: string; referencia: string; status: string; valorEmKwanza: number; moeda: string; criadoEm: string }>;
+  ledger: {
+    saldos: Record<"ESTIMADO" | "CONFIRMADO" | "RETIDO" | "DISPONIVEL" | "EM_PAGAMENTO" | "PAGO" | "REVERTIDO" | "EM_DISPUTA", number>;
+    movimentos: Array<{ id: string; tipo: string; saldoOrigem: string | null; saldoDestino: string | null; valorEmKwanza: number; motivo: string; criadoEm: string }>;
+  };
 }
 
 export function obterCreatorPortal(): Promise<CreatorPortalDados> {

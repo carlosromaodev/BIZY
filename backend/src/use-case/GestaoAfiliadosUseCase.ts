@@ -6,6 +6,7 @@ import type {
   RepositorioTrackingComercial
 } from "../dominio/repositorios/contratos.js";
 import { normalizarTelefone } from "../dominio/servicos/normalizarContato.js";
+import type { LedgerComissoesUseCase } from "../projetos/market/aplicacao/LedgerComissoesUseCase.js";
 import type {
   LinkAfiliado,
   EventoTrackingComercial,
@@ -64,14 +65,17 @@ export class GestaoAfiliadosUseCase {
     eventos?: DespachadorEventos,
     private readonly pecas?: RepositorioPecas,
     private readonly pedidos?: RepositorioPedidos,
-    private readonly tracking?: RepositorioTrackingComercial
+    private readonly tracking?: RepositorioTrackingComercial,
+    private readonly ledger?: LedgerComissoesUseCase
   ) {
     eventos?.aoReceber("ORDER_PAYMENT_CONFIRMED", (evento) => {
       const pedidoId = typeof evento.dados.pedidoId === "string" ? evento.dados.pedidoId : null;
       const negocioId = typeof evento.dados.negocioId === "string" ? evento.dados.negocioId : null;
       if (!pedidoId || !negocioId) return;
 
-      void this.afiliados.confirmarComissaoPorPedido(pedidoId, negocioId).catch(() => undefined);
+      void this.afiliados.confirmarComissaoPorPedido(pedidoId, negocioId)
+        .then((comissao) => comissao ? this.ledger?.sincronizarComissaoLegada(comissao) : undefined)
+        .catch(() => undefined);
     });
     for (const tipo of ["ORDER_CANCELLED", "ORDER_RETURNED", "ORDER_REFUNDED"] as const) {
       eventos?.aoReceber(tipo, (evento) => {
@@ -81,7 +85,9 @@ export class GestaoAfiliadosUseCase {
 
         const motivoEvento = typeof evento.dados.motivo === "string" ? evento.dados.motivo : null;
         const motivo = `${this.rotuloEventoReversao(tipo)}: ${motivoEvento ?? "Pedido deixou de ser elegível para comissão."}`;
-        void this.afiliados.reverterComissaoPorPedido(pedidoId, negocioId, motivo).catch(() => undefined);
+        void this.afiliados.reverterComissaoPorPedido(pedidoId, negocioId, motivo)
+          .then((comissao) => comissao ? this.ledger?.sincronizarComissaoLegada(comissao) : undefined)
+          .catch(() => undefined);
       });
     }
   }
@@ -314,17 +320,26 @@ export class GestaoAfiliadosUseCase {
     negocioId: string,
     dados: { referenciaPagamento: string; observacao?: string | null; autorId?: string | null; autorNome?: string | null }
   ) {
-    return this.afiliados.marcarComissaoPaga(id, negocioId, dados);
+    const comissao = await this.afiliados.marcarComissaoPaga(id, negocioId, dados);
+    if (comissao) await this.ledger?.sincronizarComissaoLegada(comissao);
+    return comissao;
   }
 
   async criarLotePagamentoComissoes(
     negocioId: string,
     dados: Omit<NovoLotePagamentoComissao, "negocioId">
   ) {
-    return this.afiliados.criarLotePagamentoComissoes({
+    const lote = await this.afiliados.criarLotePagamentoComissoes({
       ...dados,
       negocioId
     });
+    if (this.ledger) {
+      const comissoes = await this.afiliados.listarComissoes(negocioId);
+      for (const item of comissoes.filter((comissao) => dados.comissaoIds.includes(comissao.id))) {
+        await this.ledger.sincronizarComissaoLegada(item);
+      }
+    }
+    return lote;
   }
 
   async listarLotesPagamentoComissoes(negocioId: string) {
@@ -513,6 +528,7 @@ export class GestaoAfiliadosUseCase {
       autorNome: dados.autorNome ?? null,
       referencia: dados.referencia
     });
+    await this.ledger?.sincronizarComissaoLegada(comissao);
 
     return { comissao, atribuicao };
   }
@@ -536,7 +552,7 @@ export class GestaoAfiliadosUseCase {
       dados.atribuicao.link
     );
 
-    return this.afiliados.criarOuAtualizarComissao({
+    const comissao = await this.afiliados.criarOuAtualizarComissao({
       negocioId: dados.negocioId,
       afiliadoId: dados.atribuicao.parceiro.id,
       linkId: dados.atribuicao.link.id,
@@ -546,6 +562,8 @@ export class GestaoAfiliadosUseCase {
       valorEmKwanza,
       moeda: "AOA"
     });
+    await this.ledger?.sincronizarComissaoLegada(comissao);
+    return comissao;
   }
 
   private normalizarOpcoesAtribuicao(

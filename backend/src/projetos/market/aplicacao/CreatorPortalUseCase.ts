@@ -5,11 +5,13 @@ import type {
 } from "../../../dominio/repositorios/contratos.js";
 import type { ContaBizy } from "../../commerce/dominio/tipos.js";
 import type { RepositorioContaBizy } from "../../commerce/dominio/contratos.js";
+import type { LedgerComissoesUseCase } from "./LedgerComissoesUseCase.js";
 
 interface DependenciasCreatorPortal {
   contas: RepositorioContaBizy;
   afiliados: RepositorioAfiliados;
   tracking: RepositorioTrackingComercial;
+  ledger: LedgerComissoesUseCase;
 }
 
 const TIPOS_DESTINO = new Set(["LOJA", "PRODUTO", "CAMPANHA", "CONTEUDO", "CARRINHO", "MINI_LOJA", "LEARNING"]);
@@ -28,11 +30,12 @@ export class CreatorPortalUseCase {
 
     const blocos = await Promise.all([...porNegocio.entries()].map(async ([negocioId, parceirosNegocio]) => {
       const ids = new Set(parceirosNegocio.map((item) => item.id));
-      const [linksTodos, comissoesTodas, lotesTodos, eventos] = await Promise.all([
+      const [linksTodos, comissoesTodas, lotesTodos, eventos, extratos] = await Promise.all([
         this.deps.afiliados.listarLinks(negocioId),
         this.deps.afiliados.listarComissoes(negocioId),
         this.deps.afiliados.listarLotesPagamentoComissoes(negocioId),
-        this.deps.tracking.listarEventos(negocioId, { limite: 5_000 })
+        this.deps.tracking.listarEventos(negocioId, { limite: 5_000 }),
+        Promise.all(parceirosNegocio.map((parceiro) => this.deps.ledger.obterExtrato(negocioId, parceiro.id)))
       ]);
       const links = linksTodos.filter((item) => ids.has(item.afiliadoId));
       const linkIds = new Set(links.map((item) => item.id));
@@ -57,18 +60,17 @@ export class CreatorPortalUseCase {
           criadoEm: lote.criadoEm
         }];
       });
-      return { parceirosNegocio, links, comissoes, eventosElegiveis, pagamentos };
+      return { parceirosNegocio, links, comissoes, eventosElegiveis, pagamentos, extratos };
     }));
 
     const links = blocos.flatMap((item) => item.links);
     const comissoes = blocos.flatMap((item) => item.comissoes);
     const eventos = blocos.flatMap((item) => item.eventosElegiveis);
     const pagamentos = blocos.flatMap((item) => item.pagamentos);
+    const movimentosLedger = blocos.flatMap((item) => item.extratos.flatMap((extrato) => extrato.movimentos));
+    const payoutsLedger = blocos.flatMap((item) => item.extratos.flatMap((extrato) => extrato.payouts));
     const contar = (...tipos: string[]) => eventos.filter((evento) => tipos.includes(evento.tipo)).length;
-    const somar = (status: string[]) => comissoes
-      .filter((item) => status.includes(item.status))
-      .reduce((total, item) => total + item.valorEmKwanza, 0);
-
+    const saldoLedger = await this.somarSaldosLedger(blocos.flatMap((item) => item.parceirosNegocio));
     return {
       conta: { id: conta.id, nome: conta.nome },
       parceiros: parceiros.map((item) => ({
@@ -85,17 +87,18 @@ export class CreatorPortalUseCase {
         checkouts: contar("CHECKOUT_STARTED", "CHECKOUT_INICIADO"),
         pedidos: new Set(comissoes.map((item) => item.pedidoId)).size,
         receitaAtribuidaEmKwanza: comissoes.reduce((total, item) => total + item.baseEmKwanza, 0),
-        comissaoEstimadaEmKwanza: somar(["ESTIMADA"]),
-        comissaoConfirmadaEmKwanza: somar(["CONFIRMADA"]),
-        comissaoRetidaEmKwanza: somar(["RETIDA"]),
-        saldoDisponivelEmKwanza: somar(["CONFIRMADA"]),
-        comissaoPagaEmKwanza: somar(["PAGA"]),
-        comissaoRevertidaEmKwanza: somar(["REVERTIDA", "CANCELADA"]),
+        comissaoEstimadaEmKwanza: saldoLedger.ESTIMADO,
+        comissaoConfirmadaEmKwanza: saldoLedger.CONFIRMADO,
+        comissaoRetidaEmKwanza: saldoLedger.RETIDO,
+        saldoDisponivelEmKwanza: saldoLedger.DISPONIVEL,
+        comissaoPagaEmKwanza: saldoLedger.PAGO,
+        comissaoRevertidaEmKwanza: saldoLedger.REVERTIDO,
         disputas: 0
       },
       links,
       comissoes,
-      pagamentos: pagamentos.sort((a, b) => b.criadoEm.getTime() - a.criadoEm.getTime())
+      pagamentos: payoutsLedger.length ? payoutsLedger.map((payout) => ({ id: payout.id, referencia: payout.referenciaProvider ?? payout.id, status: payout.estado, valorEmKwanza: payout.valorEmKwanza, moeda: payout.moeda, criadoEm: payout.criadoEm })) : pagamentos.sort((a, b) => b.criadoEm.getTime() - a.criadoEm.getTime()),
+      ledger: { saldos: saldoLedger, movimentos: movimentosLedger.slice(0, 200) }
     };
   }
 
@@ -142,5 +145,14 @@ export class CreatorPortalUseCase {
       );
     }
     return parceiros;
+  }
+
+  private async somarSaldosLedger(parceiros: Array<{ id: string; negocioId: string }>) {
+    const total = { ESTIMADO: 0, CONFIRMADO: 0, RETIDO: 0, DISPONIVEL: 0, EM_PAGAMENTO: 0, PAGO: 0, REVERTIDO: 0, EM_DISPUTA: 0 };
+    for (const parceiro of parceiros) {
+      const saldo = await this.deps.ledger.obterSaldos(parceiro.negocioId, parceiro.id);
+      for (const chave of Object.keys(total) as Array<keyof typeof total>) total[chave] += saldo[chave];
+    }
+    return total;
   }
 }

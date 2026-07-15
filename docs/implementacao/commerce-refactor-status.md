@@ -463,11 +463,61 @@ Estado: CONCLUIDA
 
 - Fase 9: ledger imutavel, distribuicao colaborativa, retencoes e payouts.
 
-## Fases 9 a 12
+## Fase 9 — Ledger, comissoes e payouts
+
+Estado: CONCLUIDA
+
+### Implementado
+
+- [x] Ledger imutavel com os onze tipos obrigatorios de movimento e saldos derivados exclusivamente do extrato.
+- [x] Saldos estimado, confirmado, retido, disponivel, em pagamento, pago, revertido e em disputa.
+- [x] Distribuicao colaborativa entre criador, afiliado, host, closer, vendedor, recuperacao e campanha.
+- [x] Pesos validados em exactamente 10.000 basis points e arredondamento com soma exacta do valor distribuido.
+- [x] Limites de margem e comissao maxima validados antes do credito.
+- [x] Politica e versao congeladas em cada distribuicao e movimento.
+- [x] Retencao, libertacao, payout, confirmacao e estorno idempotentes.
+- [x] Dual write nas criacoes, confirmacoes, reversoes e pagamentos do modelo legado.
+- [x] Backfill conservador de comissoes e payouts historicos sem alterar os registos de origem.
+- [x] Portal Creator passou a apresentar saldos e movimentos reais do ledger.
+- [x] Operacoes Team tenant-aware com permissao financeira e respostas uniformes contra IDOR.
+
+### Ficheiros alterados
+
+- `backend/prisma/schema.prisma` e `backend/prisma/migrations/20260715133000_ledger_comissoes/migration.sql`.
+- Dominio, use case e repositorios Prisma/memoria do ledger em `backend/src/projetos/market/`.
+- `backend/src/use-case/GestaoAfiliadosUseCase.ts` para dual write do caminho legado.
+- Contexto da aplicacao e modulo HTTP Creator/Team.
+- Portal Creator e contrato frontend do extrato financeiro.
+- Testes unitarios e HTTP do ledger.
+
+### Migrations
+
+- [x] `20260715133000_ledger_comissoes` aplicada localmente e validada desde zero com as 61 migrations.
+- [x] Backfill usa chaves idempotentes iguais ao dual write e preserva estados historicos.
+- [x] Trigger PostgreSQL rejeita `UPDATE` e `DELETE` em `MovimentoLedgerComissao`; tentativa real falhou conforme esperado.
+- [x] Primeira tentativa local foi revertida integralmente por erro de nome num indice, corrigida e reaplicada sem perda de dados.
+
+### Testes
+
+- [x] Unitarios e HTTP: distribuicao, pesos, arredondamento, margem, saldo, retencao, payout repetido e tenant isolation.
+- [x] Backend integral: 94 ficheiros e 390 testes aprovados; 1 ficheiro e 1 teste ignorados.
+- [x] Frontend integral: 39 ficheiros e 144 testes aprovados.
+- [x] Typecheck e build aprovados sequencialmente no backend e frontend; frontend com 2.786 modulos transformados.
+- [x] QA real em 1440x900 e 375x812: cinco movimentos, payout confirmado, zero overflow e apenas `401` esperado antes do OTP.
+
+### Riscos restantes
+
+- O provider bancario externo nao foi definido; o payout fica em processamento ate confirmacao humana e nao finge integracao automatica.
+- Comissao e lote legados permanecem em dual read ate a reconciliacao e o cutover da Fase 12.
+
+### Proxima fase
+
+- Fase 10: confianca, risco, disputas e proteccao do comprador.
+
+## Fases 10 a 12
 
 Estado: NAO INICIADAS
 
-- [ ] Fase 9 — Ledger, comissoes e payouts.
 - [ ] Fase 10 — Confianca, risco e proteccao.
 - [ ] Fase 11 — Live afiliada e carrinhos partilhaveis.
 - [ ] Fase 12 — Consolidacao, testes e remocao de legado.

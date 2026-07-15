@@ -1350,6 +1350,92 @@ model ItemLotePagamentoComissao {
   @@index([pedidoId])
 }
 
+model DistribuicaoComissao {
+  id                   String   @id @default(uuid())
+  negocioId            String
+  origemTipo           String
+  origemId             String
+  pedidoId             String?
+  conversaoId          String?
+  comissaoLegadaId     String?
+  politicaCodigo       String
+  politicaVersao       String
+  valorBaseEmKwanza    Int
+  valorComissaoKwanza  Int
+  moeda                String   @default("AOA")
+  margemEmKwanza       Int?
+  comissaoMaximaKwanza Int?
+  explicacaoJson       String   @default("{}")
+  criadaEm             DateTime @default(now())
+
+  participantes ParticipanteDistribuicaoComissao[]
+
+  @@unique([negocioId, origemTipo, origemId])
+  @@index([negocioId, pedidoId])
+  @@index([conversaoId])
+  @@index([comissaoLegadaId])
+}
+
+model ParticipanteDistribuicaoComissao {
+  id              String               @id @default(uuid())
+  distribuicaoId  String
+  distribuicao    DistribuicaoComissao @relation(fields: [distribuicaoId], references: [id], onDelete: Restrict)
+  negocioId       String
+  parceiroId      String
+  papel           String
+  pesoBasisPoints Int
+  valorEmKwanza   Int
+  moeda           String               @default("AOA")
+  criadoEm        DateTime             @default(now())
+
+  @@unique([distribuicaoId, parceiroId, papel])
+  @@index([negocioId, parceiroId, criadoEm])
+}
+
+model MovimentoLedgerComissao {
+  id             String   @id @default(uuid())
+  negocioId      String
+  parceiroId     String
+  distribuicaoId String?
+  payoutId       String?
+  tipo           String
+  saldoOrigem    String?
+  saldoDestino   String?
+  valorEmKwanza  Int
+  moeda          String   @default("AOA")
+  idempotencyKey String   @unique
+  motivo         String
+  referencia     String?
+  politicaVersao String
+  autorId        String?
+  metadataJson   String   @default("{}")
+  criadoEm       DateTime @default(now())
+
+  @@index([negocioId, parceiroId, criadoEm])
+  @@index([distribuicaoId, criadoEm])
+  @@index([payoutId, criadoEm])
+  @@index([tipo, criadoEm])
+}
+
+model PayoutComissao {
+  id                 String    @id @default(uuid())
+  negocioId          String
+  parceiroId         String
+  estado             String    @default("EM_PROCESSAMENTO")
+  valorEmKwanza      Int
+  moeda              String    @default("AOA")
+  idempotencyKey     String    @unique
+  referenciaProvider String?
+  motivoFalha        String?
+  solicitadoPorId    String?
+  criadoEm           DateTime  @default(now())
+  processadoEm       DateTime?
+  atualizadoEm       DateTime  @updatedAt
+
+  @@index([negocioId, parceiroId, criadoEm])
+  @@index([negocioId, estado, criadoEm])
+}
+
 model MembroNegocio {
   id                  String         @id @default(uuid())
   negocioId           String

@@ -91,7 +91,7 @@ export class CreatorMarketplaceUseCase {
         await this.deps.afiliados.criarParceiro({
           negocioId, contaBizyId: origem.contaBizyId, tipo: origem.tipo, codigo: `CM-${origem.codigo}-${String(Date.now()).slice(-5)}`,
           nomePublico: origem.nomePublico, contacto: origem.contacto, estado: "ATIVO",
-          regraComissao: oferta?.comissaoTipo === "PERCENTUAL" ? { tipo: "PERCENTUAL", percentual: (oferta.comissaoValor / 100) } : { tipo: "FIXA", valorEmKwanza: oferta?.comissaoValor ?? 0 }, metodoPagamento: origem.metodoPagamento
+          regraComissao: oferta?.comissaoTipo === "PERCENTUAL" ? { tipo: "PERCENTUAL", percentual: (oferta.comissaoValor / 100) } : { tipo: "VALOR_FIXO", valorEmKwanza: oferta?.comissaoValor ?? 0 }, metodoPagamento: origem.metodoPagamento
         });
       }
     }
