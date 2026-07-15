@@ -70,6 +70,7 @@ export const ROTAS_API_LOJAS = {
   seguidoresCrm: "/team/loja/seguidores",
   metricasCrm: "/team/loja/metricas",
   checkoutUnificado: "/publico/market/checkout",
+  carrinhoUnificado: "/publico/market/carrinho",
   compraUnificada: (id: string) => `/publico/market/compras/${segmento(id)}`,
   pagamentoUnificado: (id: string) => `/publico/market/compras/${segmento(id)}/pagamento`,
   pedidosMarketTeam: "/team/loja/pedidos-market",

@@ -47,6 +47,10 @@ import { AutenticacaoTelefoneUseCase } from "../../use-case/AutenticacaoTelefone
 import { BizyLearningUseCase } from "../../projetos/learning/aplicacao/BizyLearningUseCase.js";
 import { BizyMarketUseCase } from "../../projetos/market/aplicacao/BizyMarketUseCase.js";
 import { CheckoutUnificadoUseCase } from "../../projetos/market/aplicacao/CheckoutUnificadoUseCase.js";
+import { CarrinhoCommerceUseCase } from "../../projetos/market/aplicacao/CarrinhoCommerceUseCase.js";
+import type { RepositorioCarrinhosCommerce } from "../../projetos/market/dominio/carrinhoCommerce.js";
+import { RepositorioCarrinhosCommerceMemoria } from "../../projetos/market/infra/repositorios/RepositorioCarrinhosCommerceMemoria.js";
+import { RepositorioCarrinhosCommercePrisma } from "../../projetos/market/infra/repositorios/RepositorioCarrinhosCommercePrisma.js";
 import { ContaBizyUseCase } from "../../projetos/commerce/aplicacao/ContaBizyUseCase.js";
 import type { RepositorioContaBizy } from "../../projetos/commerce/dominio/contratos.js";
 import { RepositorioContaBizyMemoria } from "../../projetos/commerce/infra/repositorios/RepositorioContaBizyMemoria.js";
@@ -200,6 +204,7 @@ export interface RepositoriosAplicacao {
   seguidoresLoja: RepositorioSeguidoresLoja;
   denuncias: RepositorioDenuncias;
   reservasStockCheckout: RepositorioReservasStockCheckout;
+  carrinhosCommerce: RepositorioCarrinhosCommerce;
   comprasUnificadas: RepositorioComprasUnificadas;
   repassesFinanceiros: RepositorioRepassesFinanceiros;
   reembolsos: RepositorioReembolsos;
@@ -278,6 +283,7 @@ export interface ContextoAplicacao {
   bizyLearning: BizyLearningUseCase;
   bizyMarket: BizyMarketUseCase;
   checkoutUnificado: CheckoutUnificadoUseCase;
+  carrinhoCommerce: CarrinhoCommerceUseCase;
   repassesFinanceiros: RepassesFinanceirosUseCase;
   gestaoEquipa: GestaoEquipaUseCase;
   gestaoFinancas: GestaoFinancasUseCase;
@@ -536,6 +542,12 @@ export function criarContextoAplicacao(logger: FastifyBaseLogger): ContextoAplic
   const bizyMarket = new BizyMarketUseCase(repositorios.autenticacao, repositorios.pecas);
   const bizyLearning = new BizyLearningUseCase(repositorios.eventosOperacionais, repositorios.autenticacao);
 
+  const carrinhoCommerce = new CarrinhoCommerceUseCase({
+    carrinhos: repositorios.carrinhosCommerce,
+    autenticacao: repositorios.autenticacao,
+    pecas: repositorios.pecas
+  }, process.env.AUTH_SECRET ?? (() => { throw new Error("AUTH_SECRET não configurado."); })(), repositorios.prisma ? 30 : 30);
+
   const checkoutUnificado = new CheckoutUnificadoUseCase({
     contaBizy,
     autenticacao: repositorios.autenticacao,
@@ -543,6 +555,7 @@ export function criarContextoAplicacao(logger: FastifyBaseLogger): ContextoAplic
     pecas: repositorios.pecas,
     pedidos: repositorios.pedidos,
     reservasStockCheckout: repositorios.reservasStockCheckout,
+    carrinhosCommerce: repositorios.carrinhosCommerce,
     repassesFinanceiros: repositorios.repassesFinanceiros,
     reembolsos: repositorios.reembolsos,
     eventos
@@ -642,6 +655,7 @@ export function criarContextoAplicacao(logger: FastifyBaseLogger): ContextoAplic
     bizyLearning,
     bizyMarket,
     checkoutUnificado,
+    carrinhoCommerce,
     repassesFinanceiros: repassesFinanceirosUseCase,
     gestaoEquipa,
     gestaoFinancas,
@@ -882,6 +896,7 @@ function criarRepositorios(): RepositoriosAplicacao {
       seguidoresLoja: new RepositorioSeguidoresLojaMemoria(),
       denuncias: new RepositorioDenunciasMemoria(),
       reservasStockCheckout: new RepositorioReservasStockCheckoutMemoria(),
+      carrinhosCommerce: new RepositorioCarrinhosCommerceMemoria(pecas),
       comprasUnificadas: new RepositorioComprasUnificadasMemoria(),
       repassesFinanceiros: new RepositorioRepassesFinanceirosMemoria(),
       reembolsos: new RepositorioReembolsosMemoria(),
@@ -920,6 +935,7 @@ function criarRepositorios(): RepositoriosAplicacao {
     seguidoresLoja: new RepositorioSeguidoresLojaPrisma(prisma),
     denuncias: new RepositorioDenunciasPrisma(prisma),
     reservasStockCheckout: new RepositorioReservasStockCheckoutPrisma(prisma),
+    carrinhosCommerce: new RepositorioCarrinhosCommercePrisma(prisma),
     comprasUnificadas: new RepositorioComprasUnificadasPrisma(prisma),
     repassesFinanceiros: new RepositorioRepassesFinanceirosPrisma(prisma),
     reembolsos: new RepositorioReembolsosPrisma(prisma),

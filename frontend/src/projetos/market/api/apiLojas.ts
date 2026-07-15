@@ -1,6 +1,6 @@
 import { requisitarApi, resolverUrlMedia } from "../../../api";
 import { ROTAS_API_LOJAS, ROTAS_LOJAS } from "./rotasLojas";
-import { obterAcessoCompraMarket } from "./checkoutUnificado";
+import { obterAcessoCompraMarket, obterTokenCarrinhoCheckoutBizy } from "./checkoutUnificado";
 import type {
   CatalogoPersonalizadoLoja,
   EventoTrackingPublicoPayload,
@@ -523,9 +523,11 @@ export const obterMetricasLojaCrm = obterMetricasLojaTeam;
 // ── Checkout Unificado Multi-Loja ──
 
 export function criarCheckoutUnificado(payload: PayloadCheckoutUnificado): Promise<RespostaCheckoutUnificado> {
+  const tokenCarrinho = obterTokenCarrinhoCheckoutBizy();
   return requisitarApi<RespostaCheckoutUnificado>(ROTAS_API_LOJAS.checkoutUnificado, {
     method: "POST",
-    body: payload
+    body: payload,
+    headers: tokenCarrinho ? { "X-Bizy-Cart-Token": tokenCarrinho } : {}
   }, false);
 }
 
@@ -544,12 +546,12 @@ export function obterPortalCompradorMarket(): Promise<{ compras: RespostaCompraE
 
 export function enviarComprovativoPagamentoUnificado(
   compraId: string,
-  comprovativoUrl: string
+  ficheiroDataUrl: string
 ): Promise<RespostaCompraEstados> {
   const tokenCompra = obterAcessoCompraMarket(compraId);
   return requisitarApi<RespostaCompraEstados>(ROTAS_API_LOJAS.pagamentoUnificado(compraId), {
     method: "POST",
-    body: { comprovativoUrl },
+    body: { ficheiroDataUrl },
     headers: tokenCompra ? { "X-Bizy-Compra-Token": tokenCompra } : {}
   }, false);
 }

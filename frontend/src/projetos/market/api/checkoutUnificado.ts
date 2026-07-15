@@ -1,9 +1,11 @@
 import type { ProdutoMarketNormalizado } from "./tiposLojas";
+import { requisitarApi } from "../../../api";
 
 export const CHAVE_CARRINHO_BIZY = "bizy_checkout_unificado_v1";
 export const CHAVE_IDEMPOTENCIA_CHECKOUT_BIZY = "bizy_checkout_idempotencia_v1";
 const CHAVE_ACESSOS_COMPRA_BIZY = "bizy_market_acessos_compra_v1";
 const CHAVE_DISPOSITIVO_BIZY = "bizy_device_id_v1";
+const CHAVE_TOKEN_CARRINHO_BIZY = "bizy_market_carrinho_token_v1";
 
 export function guardarAcessoCompraMarket(compraId: string, token: string): void {
   const storage = ambienteComStorage();
@@ -59,6 +61,15 @@ export interface TotaisCheckoutBizy {
 }
 
 type ItemEntradaCheckoutBizy = Omit<ItemCarrinhoCheckoutBizy, "adicionadoEm" | "id"> & { id?: string };
+
+export interface CarrinhoServidorBizy {
+  id: string;
+  estado: string;
+  expiraEm: string;
+  itens: ItemCarrinhoCheckoutBizy[];
+  subtotalEmKwanza: number;
+  quantidadeItens: number;
+}
 
 interface ChaveIdempotenciaCheckoutBizy {
   assinatura: string;
@@ -179,12 +190,14 @@ export function adicionarItemCheckoutBizy(item: ItemEntradaCheckoutBizy): ItemCa
       : [...atuais, novoItem];
 
   guardarCarrinhoCheckoutBizy(proximos);
+  void sincronizarCarrinhoServidorBizy(proximos, "SUBSTITUIR").catch(() => undefined);
   return proximos;
 }
 
 export function removerItemCheckoutBizy(id: string): ItemCarrinhoCheckoutBizy[] {
   const proximos = carregarCarrinhoCheckoutBizy().filter((item) => item.id !== id);
   guardarCarrinhoCheckoutBizy(proximos);
+  void sincronizarCarrinhoServidorBizy(proximos, "SUBSTITUIR").catch(() => undefined);
   return proximos;
 }
 
@@ -193,12 +206,58 @@ export function atualizarQuantidadeItemCheckoutBizy(id: string, quantidade: numb
     item.id === id ? { ...item, quantidade: normalizarQuantidade(quantidade) } : item
   );
   guardarCarrinhoCheckoutBizy(proximos);
+  void sincronizarCarrinhoServidorBizy(proximos, "SUBSTITUIR").catch(() => undefined);
   return proximos;
 }
 
 export function limparCarrinhoCheckoutBizy(): void {
   const storage = ambienteComStorage();
   storage?.removeItem(CHAVE_CARRINHO_BIZY);
+}
+
+export function obterTokenCarrinhoCheckoutBizy(): string {
+  return ambienteComStorage()?.getItem(CHAVE_TOKEN_CARRINHO_BIZY) ?? "";
+}
+
+export async function sincronizarCarrinhoServidorBizy(
+  itens: ItemCarrinhoCheckoutBizy[],
+  modo: "MESCLAR" | "SUBSTITUIR" = "SUBSTITUIR"
+): Promise<CarrinhoServidorBizy> {
+  const token = obterTokenCarrinhoCheckoutBizy();
+  const resposta = await requisitarApi<{ carrinho: CarrinhoServidorBizy; token: string | null }>(
+    "/publico/market/carrinho/sincronizar",
+    {
+      method: "POST",
+      headers: token ? { "X-Bizy-Cart-Token": token } : {},
+      body: {
+        modo,
+        itens: itens.map((item) => ({
+          slugLoja: item.slugLoja,
+          codigoPeca: item.codigoProduto,
+          varianteSelecionada: item.variantes ?? {},
+          quantidade: item.quantidade,
+          origem: item.origem ?? "market"
+        }))
+      }
+    },
+    false
+  );
+  if (resposta.token) ambienteComStorage()?.setItem(CHAVE_TOKEN_CARRINHO_BIZY, resposta.token);
+  guardarCarrinhoCheckoutBizy(resposta.carrinho.itens);
+  return resposta.carrinho;
+}
+
+export async function importarCarrinhoServidorBizy(): Promise<CarrinhoServidorBizy> {
+  return sincronizarCarrinhoServidorBizy(carregarCarrinhoCheckoutBizy(), "MESCLAR");
+}
+
+export async function limparCarrinhoServidorBizy(): Promise<void> {
+  const token = obterTokenCarrinhoCheckoutBizy();
+  await requisitarApi("/publico/market/carrinho", {
+    method: "DELETE",
+    headers: token ? { "X-Bizy-Cart-Token": token } : {}
+  }, false);
+  limparCarrinhoCheckoutBizy();
 }
 
 export function obterChaveIdempotenciaCheckoutBizy(

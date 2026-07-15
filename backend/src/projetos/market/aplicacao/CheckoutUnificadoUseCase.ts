@@ -16,6 +16,7 @@ import type {
   NovoReembolsoPedido
 } from "../../../dominio/tipos.js";
 import type { ContaBizyUseCase } from "../../commerce/aplicacao/ContaBizyUseCase.js";
+import type { RepositorioCarrinhosCommerce } from "../dominio/carrinhoCommerce.js";
 import {
   criarChaveCombinacaoVariante,
   encontrarCombinacaoVariante,
@@ -33,6 +34,7 @@ interface DependenciasCheckout {
   pecas: RepositorioPecas;
   pedidos: RepositorioPedidos;
   reservasStockCheckout: RepositorioReservasStockCheckout;
+  carrinhosCommerce: RepositorioCarrinhosCommerce;
   repassesFinanceiros: RepositorioRepassesFinanceiros;
   reembolsos: RepositorioReembolsos;
   eventos: DespachadorEventos;
@@ -215,6 +217,8 @@ export class CheckoutUnificadoUseCase {
         motivo: `Repasse compra unificada #${compra.numero}`
       });
     }
+
+    if (dados.carrinhoId) await this.deps.carrinhosCommerce.converter(dados.carrinhoId);
 
     this.deps.eventos.emitir("COMPRA_UNIFICADA_CRIADA", {
       compraId: compra.id, numero: compra.numero, totalFornecedores: pedidosFilho.length

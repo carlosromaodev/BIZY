@@ -771,6 +771,7 @@ export interface PayloadCheckoutUnificado {
   compradorNome?: string | null;
   compradorEmail?: string | null;
   itens: ItemCheckoutUnificado[];
+  carrinhoId?: string | null;
   entrega?: EntregaCheckoutPublico | null;
   metodoPagamento?: string | null;
   comprovativoPagamentoUrl?: string | null;

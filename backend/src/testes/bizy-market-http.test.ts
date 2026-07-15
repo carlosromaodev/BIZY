@@ -558,7 +558,7 @@ describe("Bizy Market público HTTP", () => {
         method: "POST",
         url: `/publico/market/compras/${checkoutMarket.json().compra.id}/pagamento`,
         headers: { "x-bizy-compra-token": tokenCompra },
-        payload: { comprovativoUrl: "https://example.com/comprovativo-market.png" }
+        payload: { ficheiroDataUrl: "data:application/pdf;base64,JVBERi0xLjQKJUVPRgo=" }
       });
       expect(comprovativoCheckout.statusCode).toBe(200);
 

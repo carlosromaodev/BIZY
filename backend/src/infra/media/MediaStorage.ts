@@ -3,6 +3,7 @@ import { createReadStream } from "node:fs";
 import { access, mkdir, readFile, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import sharp from "sharp";
+import type { ProvedorScanMedia } from "./ScannerMedia.js";
 
 const DATA_URL_PATTERN = /^data:([^;,]+);base64,([A-Za-z0-9+/=]+)$/;
 const IMAGE_MIME_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
@@ -16,6 +17,7 @@ export interface OpcoesSalvarMedia {
   maxBytes?: number;
   maxImageDimension?: number;
   thumbnailDimension?: number;
+  scanner?: ProvedorScanMedia;
 }
 
 export interface MediaArmazenada {
@@ -61,6 +63,11 @@ export async function salvarMediaDataUrl(dataUrl: string, opcoes: OpcoesSalvarMe
   const maxBytes = opcoes.maxBytes ?? (isImage ? 6 * 1024 * 1024 : 10 * 1024 * 1024);
   if (parsed.buffer.length > maxBytes) {
     throw new Error("Ficheiro acima do limite permitido.");
+  }
+
+  if (opcoes.scanner) {
+    const resultado = await opcoes.scanner.analisar(parsed.buffer, parsed.mimeType);
+    if (!resultado.seguro) throw new Error(resultado.motivo ?? "Ficheiro rejeitado pela verificação de segurança.");
   }
 
   const root = mediaRoot();

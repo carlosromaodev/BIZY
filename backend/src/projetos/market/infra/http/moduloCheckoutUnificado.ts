@@ -2,9 +2,12 @@ import { z } from "zod";
 import { ParamIdSchema } from "../../../../dominio/esquemas.js";
 import type { CompraUnificada, PedidoFilho } from "../../../../dominio/tipos.js";
 import { exigirAcessoComercial } from "../../../../infra/http/contextoComercial.js";
+import { resolverFicheiroMedia, salvarMediaDataUrl } from "../../../../infra/media/MediaStorage.js";
+import { criarScannerMedia } from "../../../../infra/media/ScannerMedia.js";
 import type { ModuloHttp } from "../../../../infra/http/modulos/ModuloHttp.js";
 import {
   exigirContaAutenticada,
+  obterTokenCarrinho,
   obterTokenCompra,
   resolverContaAutenticada
 } from "../../../commerce/infra/http/segurancaContaBizy.js";
@@ -17,12 +20,13 @@ const CriarCompraUnificadaSchema = z.object({
   compradorTelefone: z.string().min(9),
   compradorNome: z.string().nullish(),
   compradorEmail: z.string().email().nullish(),
+  carrinhoId: z.string().uuid().nullable().optional().transform((valor) => valor ?? null),
   itens: z.array(z.object({
     slugLoja: z.string().min(1),
     codigoPeca: z.string(),
     varianteSelecionada: z.record(z.string()).nullish(),
     quantidade: z.number().int().min(1)
-  })).min(1),
+  })).default([]),
   entrega: z.object({
     tipo: z.enum(["ENTREGA", "RETIRADA", "ORCAMENTO"]),
     provincia: z.string().trim().max(120).nullable().optional().transform((valor) => valor ?? null),
@@ -35,6 +39,20 @@ const CriarCompraUnificadaSchema = z.object({
   enderecoEntrega: z.string().nullish(),
   observacao: z.string().nullish(),
   origem: z.string().optional()
+}).refine((dados) => Boolean(dados.carrinhoId) || dados.itens.length > 0, "Carrinho ou itens obrigatórios.");
+
+const ItemCarrinhoSchema = z.object({
+  slugLoja: z.string().trim().min(1).max(160),
+  codigoPeca: z.string().trim().min(1).max(160),
+  varianteSelecionada: z.record(z.string()).nullish(),
+  quantidade: z.number().int().min(1).max(99),
+  origem: z.string().trim().min(1).max(80).optional(),
+  atribuicao: z.record(z.unknown()).optional()
+});
+
+const SincronizarCarrinhoSchema = z.object({
+  modo: z.enum(["MESCLAR", "SUBSTITUIR"]).default("SUBSTITUIR"),
+  itens: z.array(ItemCarrinhoSchema).max(100)
 });
 
 const SolicitarReembolsoSchema = z.object({
@@ -52,13 +70,7 @@ const SolicitarReembolsoSchema = z.object({
 });
 
 const RegistrarComprovativoUnificadoSchema = z.object({
-  comprovativoUrl: z.string().trim().url().max(2048).refine((valor) => {
-    try {
-      return new URL(valor).protocol === "https:";
-    } catch {
-      return false;
-    }
-  }, "Use um link HTTPS para o comprovativo.")
+  ficheiroDataUrl: z.string().trim().min(20).max(14_000_000)
 });
 
 function formatarCompraPublica({ compra, pedidosFilho }: { compra: CompraUnificada; pedidosFilho: PedidoFilho[] }) {
@@ -99,6 +111,24 @@ function formatarCompraPublica({ compra, pedidosFilho }: { compra: CompraUnifica
   };
 }
 
+function formatarCarrinho(carrinho: Awaited<ReturnType<Parameters<ModuloHttp["registrar"]>[1]["carrinhoCommerce"]["obter"]>>) {
+  if (!carrinho) return null;
+  return {
+    id: carrinho.id,
+    estado: carrinho.estado,
+    expiraEm: carrinho.expiraEm,
+    itens: carrinho.itens.map((item) => ({
+      id: item.id, slugLoja: item.slugLoja, codigoProduto: item.codigoPeca,
+      nomeProduto: item.nomeProduto, nomeFornecedor: item.nomeFornecedor,
+      quantidade: item.quantidade, precoUnitarioEmKwanza: item.precoUnitarioEmKwanza,
+      fotoUrl: item.fotoUrl, urlProduto: item.urlProduto, urlLoja: item.urlLoja,
+      variantes: item.selecaoVariante, origem: item.origem, adicionadoEm: item.criadoEm
+    })),
+    subtotalEmKwanza: carrinho.itens.reduce((total, item) => total + item.quantidade * item.precoUnitarioEmKwanza, 0),
+    quantidadeItens: carrinho.itens.reduce((total, item) => total + item.quantidade, 0)
+  };
+}
+
 /**
  * RF-053–RF-055, RF-064, RF-067, RF-070–RF-072
  * Checkout multi-loja e repasses financeiros
@@ -110,6 +140,32 @@ export const moduloCheckoutUnificado: ModuloHttp = {
 
     // --- Endpoints públicos (comprador Market) ---
 
+    app.get("/publico/market/carrinho", async (request, reply) => {
+      const acesso = await resolverContaAutenticada(contexto, request);
+      const carrinho = await contexto.carrinhoCommerce.obter(acesso?.conta.id ?? null, obterTokenCarrinho(request));
+      if (!carrinho) return reply.code(404).send({ erro: "CARRINHO_NAO_ENCONTRADO" });
+      return { carrinho: formatarCarrinho(carrinho) };
+    });
+
+    app.post("/publico/market/carrinho/sincronizar", async (request, reply) => {
+      const acesso = await resolverContaAutenticada(contexto, request);
+      const dados = SincronizarCarrinhoSchema.parse(request.body ?? {});
+      const resultado = await contexto.carrinhoCommerce.sincronizar({
+        contaBizyId: acesso?.conta.id ?? null,
+        token: obterTokenCarrinho(request),
+        itens: dados.itens,
+        modo: dados.modo
+      });
+      return reply.code(200).send({ carrinho: formatarCarrinho(resultado.carrinho), token: resultado.token });
+    });
+
+    app.delete("/publico/market/carrinho", async (request, reply) => {
+      const acesso = await resolverContaAutenticada(contexto, request);
+      const carrinho = await contexto.carrinhoCommerce.limpar(acesso?.conta.id ?? null, obterTokenCarrinho(request));
+      if (!carrinho) return reply.code(404).send({ erro: "CARRINHO_NAO_ENCONTRADO" });
+      return { carrinho: formatarCarrinho(carrinho) };
+    });
+
     app.post("/publico/market/checkout", async (request, reply) => {
       const chaves = JSON.stringify(request.body ?? {}).toLowerCase();
       if (/"(pan|cvv|cvc|cardnumber|numero_cartao|n[uú]mero_cart[aã]o)"\s*:/.test(chaves)) {
@@ -119,8 +175,42 @@ export const moduloCheckoutUnificado: ModuloHttp = {
       const acessoConta = await resolverContaAutenticada(contexto, request);
       const compradorTelefone = contexto.autenticacaoTelefone.normalizarTelefoneOuFalhar(dados.compradorTelefone);
 
+      let carrinho = dados.carrinhoId
+        ? await contexto.carrinhoCommerce.obterPorIdAutorizado(dados.carrinhoId, acessoConta?.conta.id ?? null, obterTokenCarrinho(request))
+        : null;
+      if (dados.carrinhoId && !carrinho) {
+        const existente = dados.idempotencyKey
+          ? await contexto.repositorios.comprasUnificadas.buscarPorIdempotencyKey(dados.idempotencyKey, compradorTelefone)
+          : null;
+        if (existente?.carrinhoId === dados.carrinhoId) {
+          const repetida = await contexto.checkoutUnificado.criarCompraUnificada({
+            ...dados, compradorTelefone, contaBizyId: acessoConta?.conta.id ?? null, itens: []
+          });
+          return reply.code(201).send({ ...formatarCompraPublica(repetida), acessoCompra: repetida.acessoCompra });
+        }
+        return reply.code(404).send({ erro: "CARRINHO_NAO_ENCONTRADO" });
+      }
+      if (carrinho && carrinho.itens.length === 0) return reply.code(400).send({ erro: "CARRINHO_VAZIO" });
+
+      if (carrinho) {
+        carrinho = (await contexto.carrinhoCommerce.sincronizar({
+          contaBizyId: acessoConta?.conta.id ?? null,
+          token: obterTokenCarrinho(request),
+          modo: "SUBSTITUIR",
+          itens: carrinho.itens.map((item) => ({
+            slugLoja: item.slugLoja, codigoPeca: item.codigoPeca,
+            varianteSelecionada: item.selecaoVariante, quantidade: item.quantidade,
+            origem: item.origem, atribuicao: item.atribuicao
+          }))
+        })).carrinho;
+      }
+
+      const itensCheckout = carrinho
+        ? carrinho.itens.map((item) => ({ slugLoja: item.slugLoja, codigoPeca: item.codigoPeca, varianteSelecionada: item.selecaoVariante, quantidade: item.quantidade }))
+        : dados.itens;
+
       // Resolver slugLoja → negocioId para cada item
-      const slugsUnicos = [...new Set(dados.itens.map((i) => i.slugLoja))];
+      const slugsUnicos = [...new Set(itensCheckout.map((i) => i.slugLoja))];
       const mapaSlugs = new Map<string, string>();
       for (const slug of slugsUnicos) {
         const negocio = await contexto.repositorios.autenticacao.buscarNegocioPorSlugPublico(slug);
@@ -128,7 +218,7 @@ export const moduloCheckoutUnificado: ModuloHttp = {
         mapaSlugs.set(slug, negocio.id);
       }
 
-      const itensResolvidos = dados.itens.map((item) => ({
+      const itensResolvidos = itensCheckout.map((item) => ({
         negocioId: mapaSlugs.get(item.slugLoja)!,
         codigoPeca: item.codigoPeca,
         varianteSelecionada: item.varianteSelecionada,
@@ -220,14 +310,30 @@ export const moduloCheckoutUnificado: ModuloHttp = {
       return formatarCompraPublica(compra);
     });
 
-    app.post("/publico/market/compras/:id/pagamento", async (request, reply) => {
+    app.post("/publico/market/compras/:id/pagamento", { bodyLimit: 14_100_000 }, async (request, reply) => {
       const { id } = ParamIdSchema.parse(request.params);
-      const { comprovativoUrl } = RegistrarComprovativoUnificadoSchema.parse(request.body ?? {});
+      const { ficheiroDataUrl } = RegistrarComprovativoUnificadoSchema.parse(request.body ?? {});
       const acesso = await resolverContaAutenticada(contexto, request);
       const permitida = acesso
         ? (await contexto.checkoutUnificado.buscarPortalCompradorConta(acesso.conta.id, id))[0] ?? null
         : await contexto.checkoutUnificado.buscarCompraGuest(id, obterTokenCompra(request));
       if (!permitida) return reply.code(404).send({ erro: "Compra não encontrada." });
+      let comprovativoUrl: string;
+      try {
+        const media = await salvarMediaDataUrl(ficheiroDataUrl, {
+          purpose: "comprovativos-pagamento",
+          allowDocuments: true,
+          maxBytes: 10 * 1024 * 1024,
+          maxImageDimension: 1800,
+          scanner: criarScannerMedia()
+        });
+        comprovativoUrl = media.url;
+      } catch (erro) {
+        return reply.code(400).send({
+          erro: "COMPROVATIVO_INVALIDO",
+          mensagem: erro instanceof Error ? erro.message : "Comprovativo inválido."
+        });
+      }
       const compra = await contexto.checkoutUnificado.registrarComprovativoPagamentoUnificado(id, comprovativoUrl);
       if (!compra) return reply.code(404).send({ erro: "Compra não encontrada." });
       const estadoAtualizado = await contexto.checkoutUnificado.buscarCompraComEstados(id);
@@ -247,6 +353,22 @@ export const moduloCheckoutUnificado: ModuloHttp = {
         }
       )));
       return formatarCompraPublica(estadoAtualizado);
+    });
+
+    app.get("/publico/market/compras/:id/comprovativo", async (request, reply) => {
+      const { id } = ParamIdSchema.parse(request.params);
+      const acesso = await resolverContaAutenticada(contexto, request);
+      const permitida = acesso
+        ? (await contexto.checkoutUnificado.buscarPortalCompradorConta(acesso.conta.id, id))[0] ?? null
+        : await contexto.checkoutUnificado.buscarCompraGuest(id, obterTokenCompra(request));
+      const url = permitida?.compra.comprovativoPagamentoUrl;
+      if (!url) return reply.code(404).send({ erro: "COMPROVATIVO_NAO_ENCONTRADO" });
+      const media = await resolverFicheiroMedia(url).catch(() => null);
+      if (!media) return reply.code(404).send({ erro: "COMPROVATIVO_NAO_ENCONTRADO" });
+      reply.header("Content-Type", media.mimeType);
+      reply.header("Cache-Control", "private, no-store");
+      reply.header("Content-Disposition", "inline");
+      return reply.send(media.stream);
     });
 
     // --- Endpoints fornecedor (loja) ---
@@ -307,6 +429,24 @@ export const moduloCheckoutUnificado: ModuloHttp = {
       if (!ctx) return;
       const { compraId } = request.params as { compraId: string };
       return contexto.checkoutUnificado.buscarVistaFornecedor(compraId, ctx.negocio.id);
+    });
+
+    app.get("/market/fornecedor/compras/:compraId/comprovativo", async (request, reply) => {
+      const ctx = await exigirAcessoComercial(contexto, request, reply, {
+        permissao: "pagamentos:gerir", modulo: "market",
+        mensagemPermissao: "Sem permissão para consultar comprovativos.", mensagemModulo: "Market desativado para este negócio."
+      });
+      if (!ctx) return;
+      const { compraId } = ParamCompraIdSchema.parse(request.params);
+      const pedido = await contexto.checkoutUnificado.buscarVistaFornecedor(compraId, ctx.negocio.id);
+      const compra = pedido ? await contexto.checkoutUnificado.buscarCompraComEstados(compraId) : null;
+      const url = compra?.compra.comprovativoPagamentoUrl;
+      if (!url) return reply.code(404).send({ erro: "COMPROVATIVO_NAO_ENCONTRADO" });
+      const media = await resolverFicheiroMedia(url).catch(() => null);
+      if (!media) return reply.code(404).send({ erro: "COMPROVATIVO_NAO_ENCONTRADO" });
+      reply.header("Content-Type", media.mimeType);
+      reply.header("Cache-Control", "private, no-store");
+      return reply.send(media.stream);
     });
 
     app.post("/market/fornecedor/compras/:compraId/cancelar", async (request, reply) => {

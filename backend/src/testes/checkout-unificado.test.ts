@@ -438,7 +438,7 @@ describe("Checkout Unificado multi-loja", () => {
         method: "POST",
         url: `/publico/market/compras/${compraId}/pagamento`,
         headers: { "x-bizy-compra-token": tokenCompra },
-        payload: { comprovativoUrl: "https://example.com/comprovativo.jpg" }
+        payload: { ficheiroDataUrl: "data:application/pdf;base64,JVBERi0xLjQKJUVPRgo=" }
       });
       expect(pagamento.statusCode).toBe(200);
       const estadoPagamento = pagamento.json();
@@ -453,6 +453,17 @@ describe("Checkout Unificado multi-loja", () => {
       )).toBe(true);
       expect(estadoPagamento.pedidosFilho[0]).not.toHaveProperty("negocioId");
       expect(estadoPagamento.pedidosFilho[0]).not.toHaveProperty("pedidoId");
+
+      const comprovativo = await app.inject({
+        method: "GET",
+        url: `/publico/market/compras/${compraId}/comprovativo`,
+        headers: { "x-bizy-compra-token": tokenCompra }
+      });
+      expect(comprovativo.statusCode).toBe(200);
+      expect(comprovativo.headers["content-type"]).toContain("application/pdf");
+
+      const semAcesso = await app.inject({ method: "GET", url: `/publico/market/compras/${compraId}/comprovativo` });
+      expect(semAcesso.statusCode).toBe(404);
 
       // Verificar estado separado (RF-067)
       const detalhe = await app.inject({
@@ -473,7 +484,7 @@ describe("Checkout Unificado multi-loja", () => {
     }
   });
 
-  it("RF-058: rejeita comprovativo público sem HTTPS", async () => {
+  it("RF-058: rejeita URL externa e ficheiro activo como comprovativo", async () => {
     const app = await criarAplicacao();
     try {
       const loja = await autenticar(app, "923700013", "Fornecedor HTTPS");
@@ -500,6 +511,16 @@ describe("Checkout Unificado multi-loja", () => {
       });
 
       expect(pagamento.statusCode).toBe(400);
+
+      const pdfActivo = Buffer.from("%PDF-1.4\n/OpenAction /JavaScript\n%%EOF").toString("base64");
+      const perigoso = await app.inject({
+        method: "POST",
+        url: `/publico/market/compras/${compraId}/pagamento`,
+        headers: { "x-bizy-compra-token": checkout.json().acessoCompra.token },
+        payload: { ficheiroDataUrl: `data:application/pdf;base64,${pdfActivo}` }
+      });
+      expect(perigoso.statusCode).toBe(400);
+      expect(perigoso.json().erro).toBe("COMPROVATIVO_INVALIDO");
     } finally {
       await app.close();
     }

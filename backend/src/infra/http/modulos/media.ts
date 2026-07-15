@@ -1,5 +1,6 @@
 import { z } from "zod";
-import { resolverFicheiroMedia, salvarMediaDataUrl } from "../../media/MediaStorage.js";
+import { isPrivateStoredMediaUrl, resolverFicheiroMedia, salvarMediaDataUrl } from "../../media/MediaStorage.js";
+import { criarScannerMedia } from "../../media/ScannerMedia.js";
 import type { ModuloHttp } from "./ModuloHttp.js";
 
 const UploadMediaSchema = z.object({
@@ -25,7 +26,8 @@ export const moduloMedia: ModuloHttp = {
           return await salvarMediaDataUrl(dados.dataUrl, {
             purpose: dados.purpose,
             allowDocuments: dados.allowDocuments,
-            maxImageDimension: dados.maxImageDimension
+            maxImageDimension: dados.maxImageDimension,
+            scanner: dados.purpose === "comprovativos-pagamento" ? criarScannerMedia() : undefined
           });
         } catch (erro) {
           return reply.code(400).send({
@@ -38,7 +40,11 @@ export const moduloMedia: ModuloHttp = {
 
     app.get("/media/files/*", async (request, reply) => {
       const wildcardPath = (request.params as { "*": string })["*"];
-      const media = await resolverFicheiroMedia(`/media/files/${wildcardPath}`).catch(() => null);
+      const url = `/media/files/${wildcardPath}`;
+      if (isPrivateStoredMediaUrl(url)) {
+        return reply.code(404).send({ erro: "MEDIA_NAO_ENCONTRADA", mensagem: "Ficheiro não encontrado." });
+      }
+      const media = await resolverFicheiroMedia(url).catch(() => null);
 
       if (!media) {
         return reply.code(404).send({ erro: "MEDIA_NAO_ENCONTRADA", mensagem: "Ficheiro não encontrado." });

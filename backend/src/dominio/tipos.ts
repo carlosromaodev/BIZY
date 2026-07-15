@@ -2671,6 +2671,7 @@ export interface CompraUnificada {
   numero: number;
   idempotencyKey: string | null;
   contaBizyId: string | null;
+  carrinhoId: string | null;
   compradorTelefone: string;
   compradorNome: string | null;
   compradorEmail: string | null;
@@ -2693,6 +2694,7 @@ export interface CompraUnificada {
 export interface NovaCompraUnificada {
   idempotencyKey?: string | null;
   contaBizyId?: string | null;
+  carrinhoId?: string | null;
   compradorTelefone: string;
   compradorNome?: string | null;
   compradorEmail?: string | null;

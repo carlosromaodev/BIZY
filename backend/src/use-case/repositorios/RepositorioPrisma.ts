@@ -6445,6 +6445,7 @@ export class RepositorioComprasUnificadasPrisma implements RepositorioComprasUni
       data: {
         idempotencyKey: dados.idempotencyKey ?? null,
         contaBizyId: dados.contaBizyId ?? null,
+        carrinhoId: dados.carrinhoId ?? null,
         compradorTelefone: dados.compradorTelefone,
         compradorNome: dados.compradorNome ?? null,
         compradorEmail: dados.compradorEmail ?? null,

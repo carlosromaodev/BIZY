@@ -81,7 +81,7 @@ export function PaginaCompraUnificada() {
   const { id = "" } = useParams();
   const [dados, setDados] = useState<RespostaCompraEstados | null>(null);
   const [erro, setErro] = useState("");
-  const [comprovativoUrl, setComprovativoUrl] = useState("");
+  const [comprovativo, setComprovativo] = useState<File | null>(null);
   const [mensagemPagamento, setMensagemPagamento] = useState("");
   const [carregando, setCarregando] = useState(true);
   const [enviandoComprovativo, setEnviandoComprovativo] = useState(false);
@@ -141,24 +141,25 @@ export function PaginaCompraUnificada() {
     evento.preventDefault();
     setMensagemPagamento("");
 
-    let url: URL;
-    try {
-      url = new URL(comprovativoUrl.trim());
-    } catch {
-      setMensagemPagamento("Informa um link completo do comprovativo.");
+    if (!comprovativo) {
+      setMensagemPagamento("Selecciona o comprovativo em PDF ou imagem.");
       return;
     }
-
-    if (url.protocol !== "https:") {
-      setMensagemPagamento("Usa um link HTTPS para proteger o comprovativo.");
+    if (comprovativo.size > 10 * 1024 * 1024) {
+      setMensagemPagamento("O comprovativo deve ter no máximo 10 MB.");
+      return;
+    }
+    if (!["application/pdf", "image/jpeg", "image/png", "image/webp"].includes(comprovativo.type)) {
+      setMensagemPagamento("Usa um ficheiro PDF, JPG, PNG ou WebP.");
       return;
     }
 
     setEnviandoComprovativo(true);
     try {
-      const resposta = await enviarComprovativoPagamentoUnificado(id, url.toString());
+      const ficheiroDataUrl = await lerFicheiroDataUrl(comprovativo);
+      const resposta = await enviarComprovativoPagamentoUnificado(id, ficheiroDataUrl);
       setDados(resposta);
-      setComprovativoUrl("");
+      setComprovativo(null);
       setMensagemPagamento("Comprovativo recebido. A loja vai validar o pagamento.");
     } catch {
       setMensagemPagamento("Não foi possível enviar o comprovativo. Tenta novamente.");
@@ -238,13 +239,12 @@ export function PaginaCompraUnificada() {
                   </div>
                   <div className="flex flex-col gap-2 sm:flex-row">
                     <Input
-                      value={comprovativoUrl}
-                      onChange={(evento) => setComprovativoUrl(evento.target.value)}
-                      placeholder="https://..."
-                      inputMode="url"
-                      aria-label="Link HTTPS do comprovativo"
+                      type="file"
+                      accept="application/pdf,image/jpeg,image/png,image/webp"
+                      onChange={(evento) => setComprovativo(evento.target.files?.[0] ?? null)}
+                      aria-label="Ficheiro do comprovativo"
                     />
-                    <Button type="submit" disabled={enviandoComprovativo || !comprovativoUrl.trim()}>
+                    <Button type="submit" disabled={enviandoComprovativo || !comprovativo}>
                       {enviandoComprovativo ? "A enviar..." : "Enviar"}
                     </Button>
                   </div>
@@ -277,4 +277,13 @@ export function PaginaCompraUnificada() {
       <RodapeMarket />
     </main>
   );
+}
+
+function lerFicheiroDataUrl(ficheiro: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const leitor = new FileReader();
+    leitor.onload = () => typeof leitor.result === "string" ? resolve(leitor.result) : reject(new Error("Ficheiro inválido."));
+    leitor.onerror = () => reject(new Error("Não foi possível ler o ficheiro."));
+    leitor.readAsDataURL(ficheiro);
+  });
 }

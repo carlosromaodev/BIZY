@@ -154,7 +154,60 @@ Estado: CONCLUIDA
 
 - Fase 3: carrinho server-side, fusao entre dispositivos, reserva transaccional com TTL e upload privado de comprovativo.
 
-## Fases 3 a 12
+## Fase 3 — Carrinho e checkout
+
+Estado: CONCLUIDA
+
+### Implementado
+
+- [x] Carrinho server-side para convidado e conta autenticada, com token opaco armazenado como hash.
+- [x] Importacao e fusao deterministica do carrinho local entre dispositivos.
+- [x] Preco e stock recalculados no backend por loja e variante.
+- [x] Reserva transaccional com TTL, renovacao, libertacao e proteccao contra overselling.
+- [x] Conversao idempotente do carrinho em compra, com consumo de stock e auditoria.
+- [x] Upload privado de comprovativo com validacao, scan e acesso autorizado do comprador ou seller.
+- [x] Testes negativos, migrations, typecheck, testes, build e QA desktop/mobile.
+
+### Ficheiros alterados
+
+- `backend/prisma/schema.prisma`
+- `backend/src/projetos/market/dominio/carrinhoCommerce.ts`
+- `backend/src/projetos/market/aplicacao/CarrinhoCommerceUseCase.ts`
+- `backend/src/projetos/market/infra/repositorios/RepositorioCarrinhosCommerceMemoria.ts`
+- `backend/src/projetos/market/infra/repositorios/RepositorioCarrinhosCommercePrisma.ts`
+- `backend/src/projetos/market/infra/http/moduloCheckoutUnificado.ts`
+- `backend/src/projetos/market/aplicacao/CheckoutUnificadoUseCase.ts`
+- `backend/src/infra/media/ScannerMedia.ts`
+- `backend/src/infra/media/MediaStorage.ts`
+- `frontend/src/projetos/market/api/checkoutUnificado.ts`
+- `frontend/src/projetos/market/paginas/CheckoutBizy.tsx`
+- `frontend/src/projetos/market/paginas/CompraUnificada.tsx`
+
+### Migrations
+
+- [x] `20260715003000_carrinho_server_side`: cria carrinhos e itens, associa conta, compra e reserva sem remover contratos legados.
+- [x] Aplicada na base local e validada de raiz numa base PostgreSQL descartavel com as 55 migrations.
+- [x] `prisma validate` executado com sucesso.
+
+### Testes
+
+- [x] Backend: 85 ficheiros e 377 testes passaram; 1 ficheiro e 1 teste ficaram ignorados conforme configuracao existente.
+- [x] Frontend: 39 ficheiros e 144 testes passaram.
+- [x] Concorrencia PostgreSQL real: duas reservas concorrentes nao excedem stock e sincronizacoes do mesmo carrinho convergem.
+- [x] Seguranca: ownership do token, enumeracao uniforme, reutilizacao do carrinho, preco manipulado, overselling e PDF activo rejeitados.
+- [x] `npm run typecheck` e `npm run build` passaram no backend e frontend.
+- [x] QA em 1440x900 e 375x812 sem overflow, sobreposicoes, erros de consola ou falhas HTTP inesperadas.
+
+### Riscos restantes
+
+- O provider antivirus externo depende de credenciais futuras; o contrato e a configuracao estao prontos e o scanner local conservador permanece activo.
+- O checkout inline legado permanece em dual read durante a migracao expand/cutover e sera removido apenas na Fase 12.
+
+### Proxima fase
+
+- Fase 4: Smart Links e tracking server-side da jornada publica.
+
+## Fases 4 a 12
 
 Estado: NAO INICIADAS
 

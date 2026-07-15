@@ -17,27 +17,27 @@ import {
   Truck,
   Upload
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
   agruparItensCheckoutPorLoja,
-  calcularEntregaLojaPublica,
   calcularTotaisCheckoutBizy,
   carregarCarrinhoCheckoutBizy,
-  criarCheckoutLojaPublica,
   criarCheckoutUnificado,
   guardarAcessoCompraMarket,
   limparChaveIdempotenciaCheckoutBizy,
   limparCarrinhoCheckoutBizy,
+  importarCarrinhoServidorBizy,
   obterChaveIdempotenciaCheckoutBizy,
   removerItemCheckoutBizy,
   atualizarQuantidadeItemCheckoutBizy,
+  sincronizarCarrinhoServidorBizy,
   ROTAS_LOJAS
 } from "../api";
-import type { EntregaCheckoutPublico, ItemCarrinhoCheckoutBizy, RespostaCheckoutLojaPublica, RespostaCheckoutUnificado } from "../api";
+import type { EntregaCheckoutPublico, ItemCarrinhoCheckoutBizy, RespostaCheckoutUnificado } from "../api";
 import { formatarKwanza } from "../../../utilidades";
 import { CabecalhoMarket, RodapeMarket } from "../componentes/MarketChrome";
 
@@ -89,13 +89,22 @@ export function PaginaCheckoutBizy() {
   const [metodoPagamento, setMetodoPagamento] = useState<MetodoPagamentoCheckout>("transferencia");
   const [mensagem, setMensagem] = useState("");
   const [finalizando, setFinalizando] = useState(false);
-  const [pedidoCriado, setPedidoCriado] = useState<RespostaCheckoutLojaPublica | null>(null);
   const [compraUnificada, setCompraUnificada] = useState<RespostaCheckoutUnificado | null>(null);
+  const [sincronizando, setSincronizando] = useState(true);
 
   const grupos = useMemo(() => agruparItensCheckoutPorLoja(itens), [itens]);
   const totais = useMemo(() => calcularTotaisCheckoutBizy(itens), [itens]);
   const checkoutMultiLoja = grupos.length > 1;
   const grupoUnico = grupos[0] ?? null;
+
+  useEffect(() => {
+    let activo = true;
+    importarCarrinhoServidorBizy()
+      .then((carrinho) => { if (activo) setItens(carrinho.itens); })
+      .catch((erro) => { if (activo) setMensagem(erro instanceof Error ? erro.message : "Não foi possível sincronizar o carrinho."); })
+      .finally(() => { if (activo) setSincronizando(false); });
+    return () => { activo = false; };
+  }, []);
   const camposPendentes = useMemo(() => {
     const pendentes: string[] = [];
     if (!itens.length) pendentes.push("Adicionar produtos");
@@ -128,7 +137,7 @@ export function PaginaCheckoutBizy() {
     limparCarrinhoCheckoutBizy();
     limparChaveIdempotenciaCheckoutBizy();
     setItens([]);
-    setPedidoCriado(null);
+    setCompraUnificada(null);
   }
 
   async function finalizarCheckout() {
@@ -166,73 +175,30 @@ export function PaginaCheckoutBizy() {
         })
       );
 
-      if (checkoutMultiLoja) {
-        // Checkout unificado multi-loja
-        const enderecoCompleto = entrega.tipo === "ENTREGA"
-          ? [entrega.endereco, entrega.bairro, entrega.municipio, entrega.provincia].filter(Boolean).join(", ")
-          : undefined;
+      const carrinho = await sincronizarCarrinhoServidorBizy(itens, "SUBSTITUIR");
+      const enderecoCompleto = entrega.tipo === "ENTREGA"
+        ? [entrega.endereco, entrega.bairro, entrega.municipio, entrega.provincia].filter(Boolean).join(", ")
+        : undefined;
+      const resposta = await criarCheckoutUnificado({
+        idempotencyKey,
+        carrinhoId: carrinho.id,
+        compradorTelefone: cliente.telefone,
+        compradorNome: cliente.nome,
+        compradorEmail: cliente.email || null,
+        itens: [],
+        entrega,
+        metodoPagamento,
+        enderecoEntrega: enderecoCompleto,
+        observacao: observacao.trim() || null,
+        origem: "checkout-bizy"
+      });
 
-        const resposta = await criarCheckoutUnificado({
-          idempotencyKey,
-          compradorTelefone: cliente.telefone,
-          compradorNome: cliente.nome,
-          compradorEmail: cliente.email || null,
-          itens: itens.map((item) => ({
-            slugLoja: item.slugLoja,
-            codigoPeca: item.codigoProduto,
-            variantes: item.variantes ? Object.keys(item.variantes).length > 0 ? item.variantes : undefined : undefined,
-            quantidade: item.quantidade
-          })),
-          entrega,
-          metodoPagamento,
-          enderecoEntrega: enderecoCompleto,
-          observacao: observacao.trim() || null,
-          origem: "checkout-bizy"
-        });
-
-        setCompraUnificada(resposta);
-        guardarAcessoCompraMarket(resposta.compra.id, resposta.acessoCompra.token);
-        limparCarrinhoCheckoutBizy();
-        limparChaveIdempotenciaCheckoutBizy();
-        setItens([]);
-        setMensagem("Compra unificada criada com sucesso.");
-      } else {
-        // Checkout single-store (fluxo existente)
-        const grupo = grupoUnico!;
-        const itensPayload = grupo.itens.map((item) => ({
-          codigoPeca: item.codigoProduto,
-          quantidade: item.quantidade,
-          varianteSelecionada: item.variantes && Object.keys(item.variantes).length > 0 ? item.variantes : null
-        }));
-
-        await calcularEntregaLojaPublica(grupo.slugLoja, {
-          itens: itensPayload,
-          entrega
-        }).catch(() => null);
-
-        const resposta = await criarCheckoutLojaPublica(grupo.slugLoja, {
-          idempotencyKey,
-          itens: itensPayload,
-          entrega,
-          cliente: {
-            nome: cliente.nome,
-            telefone: cliente.telefone,
-            email: cliente.email || null,
-            consentimentoMarketing: cliente.consentimentoMarketing,
-            consentimentoDados: cliente.consentimentoDados
-          },
-          origem: "checkout-bizy",
-          canal: "site",
-          observacao: montarObservacaoCheckoutBizy(grupo.nomeFornecedor, observacao, grupo.itens),
-          metodoPagamento
-        });
-
-        setPedidoCriado(resposta);
-        limparCarrinhoCheckoutBizy();
-        limparChaveIdempotenciaCheckoutBizy();
-        setItens([]);
-        setMensagem("Pedido criado no Team da loja.");
-      }
+      setCompraUnificada(resposta);
+      guardarAcessoCompraMarket(resposta.compra.id, resposta.acessoCompra.token);
+      limparCarrinhoCheckoutBizy();
+      limparChaveIdempotenciaCheckoutBizy();
+      setItens([]);
+      setMensagem("Compra criada com sucesso.");
     } catch (erro) {
       setMensagem(erro instanceof Error ? erro.message : "Não foi possível finalizar o checkout.");
     } finally {
@@ -277,7 +243,7 @@ export function PaginaCheckoutBizy() {
         </span>
       </section>
 
-      {pedidoCriado || compraUnificada ? (
+      {compraUnificada ? (
         <section className="checkout-success-card">
           <CheckCircle2 size={40} />
           {compraUnificada ? (
@@ -295,16 +261,6 @@ export function PaginaCheckoutBizy() {
               <Button asChild variant="outline">
                 <Link to={ROTAS_LOJAS.compra(compraUnificada.compra.id)}>Acompanhar compra</Link>
               </Button>
-            </>
-          ) : pedidoCriado ? (
-            <>
-              <h2>Pedido #{pedidoCriado.pedido.numero} criado</h2>
-              <p>O pedido já entrou no Team da loja responsável com estado {pedidoCriado.pedido.estadoPagamento.toLowerCase()}.</p>
-              <p>A factura correspondente é emitida automaticamente.</p>
-              <div>
-                <strong>{formatarKwanza(pedidoCriado.totalEmKwanza)}</strong>
-                <span>Total do pedido</span>
-              </div>
             </>
           ) : null}
           <Button asChild>
@@ -508,7 +464,7 @@ export function PaginaCheckoutBizy() {
             <Button
               type="button"
               className="checkout-submit"
-              disabled={finalizando || !itens.length}
+              disabled={sincronizando || finalizando || !itens.length}
               onClick={() => void finalizarCheckout()}
             >
               {finalizando ? <Loader2 className="animate-spin" size={18} /> : <Lock size={18} />}
@@ -520,20 +476,4 @@ export function PaginaCheckoutBizy() {
       <RodapeMarket />
     </main>
   );
-}
-
-function montarObservacaoCheckoutBizy(
-  fornecedor: string,
-  observacao: string,
-  itens: ItemCarrinhoCheckoutBizy[]
-): string {
-  const resumo = itens.map((item) => `${item.quantidade}x #${item.codigoProduto} ${item.nomeProduto}`).join("; ");
-  return [
-    "Checkout Bizy unificado progressivo.",
-    `Fornecedor: ${fornecedor}.`,
-    `Itens: ${resumo}.`,
-    observacao.trim() ? `Observação: ${observacao.trim()}` : ""
-  ]
-    .filter(Boolean)
-    .join("\n");
 }

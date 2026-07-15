@@ -36,23 +36,27 @@ describe("checkout unificado progressivo", () => {
     expect(pagina).toContain("noindex, nofollow");
     expect(pagina).toContain("Pedidos da compra");
     expect(pagina).toContain("Fornecedor {indice + 1}");
-    expect(pagina).toContain("Link HTTPS do comprovativo");
-    expect(pagina).toContain('url.protocol !== "https:"');
+    expect(pagina).toContain('type="file"');
+    expect(pagina).toContain("application/pdf,image/jpeg,image/png,image/webp");
+    expect(pagina).toContain("lerFicheiroDataUrl");
     expect(pagina).not.toContain("compradorTelefone");
     expect(pagina).not.toContain("compradorEmail");
   });
 
-  it("mantém carrinho unificado local com fornecedor por item, agrupamento por loja e chave idempotente", () => {
+  it("mantém resposta local imediata e sincroniza o carrinho canónico no servidor", () => {
     expect(exists("src/projetos/market/api/checkoutUnificado.ts")).toBe(true);
     const carrinho = source("src/projetos/market/api/checkoutUnificado.ts");
 
     expect(carrinho).toContain("CHAVE_CARRINHO_BIZY");
     expect(carrinho).toContain("CHAVE_IDEMPOTENCIA_CHECKOUT_BIZY");
+    expect(carrinho).toContain("CHAVE_TOKEN_CARRINHO_BIZY");
     expect(carrinho).toContain("ItemCarrinhoCheckoutBizy");
     expect(carrinho).toContain("adicionarItemCheckoutBizy");
     expect(carrinho).toContain("agruparItensCheckoutPorLoja");
     expect(carrinho).toContain("obterChaveIdempotenciaCheckoutBizy");
     expect(carrinho).toContain("limparChaveIdempotenciaCheckoutBizy");
+    expect(carrinho).toContain("sincronizarCarrinhoServidorBizy");
+    expect(carrinho).toContain('"X-Bizy-Cart-Token"');
     expect(carrinho).toContain("slugLoja");
     expect(carrinho).toContain("nomeFornecedor");
   });
@@ -61,16 +65,17 @@ describe("checkout unificado progressivo", () => {
     expect(exists("src/projetos/market/paginas/CheckoutBizy.tsx")).toBe(true);
     const checkout = source("src/projetos/market/paginas/CheckoutBizy.tsx");
 
-    expect(checkout).toContain("criarCheckoutLojaPublica");
     expect(checkout).toContain("criarCheckoutUnificado");
-    expect(checkout).toContain("calcularEntregaLojaPublica");
+    expect(checkout).toContain("sincronizarCarrinhoServidorBizy");
+    expect(checkout).toContain("carrinhoId: carrinho.id");
+    expect(checkout).not.toContain("criarCheckoutLojaPublica");
     expect(checkout).toContain("checkout-bizy-infoband");
     expect(checkout).toContain("checkout-multi-store-guard");
     expect(checkout).toContain("consentimentoDados");
     expect(checkout).toContain("obterChaveIdempotenciaCheckoutBizy");
     expect(checkout).toContain("idempotencyKey");
     expect(checkout).toContain("entrega,");
-    expect(checkout).toContain("varianteSelecionada");
+    expect(checkout).toContain("itens: []");
   });
 
   it("fecha checkout visual completo com passos, quantidade e revisão operacional", () => {

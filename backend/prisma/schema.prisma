@@ -33,6 +33,7 @@ model Peca {
   itensPedido     ItemPedido[]
   movimentosStock MovimentoStock[]
   variantesPeca   VariantePeca[]
+  itensCarrinho   ItemCarrinhoCommerce[]
 
   @@unique([negocioId, codigo])
   @@index([negocioId])
@@ -58,6 +59,7 @@ model VariantePeca {
   atualizadoEm    DateTime @updatedAt
   itensPedido     ItemPedido[]
   reservasCheckout ReservaStockCheckout[]
+  itensCarrinho    ItemCarrinhoCommerce[]
 
   @@unique([pecaId, combinacao])
   @@index([pecaId])
@@ -1254,6 +1256,7 @@ model ContaBizy {
   sessoes               SessaoContaBizy[]
   codigosOtp            CodigoOtpContaBizy[]
   compras               CompraUnificada[]
+  carrinhos            CarrinhoCommerce[]
 
   @@index([status])
   @@index([telefoneVerificadoEm])
@@ -1497,6 +1500,8 @@ model ReservaStockCheckout {
   variantePecaId String?
   variantePeca   VariantePeca? @relation(fields: [variantePecaId], references: [id])
   combinacaoVariante String?
+  carrinhoItemId     String?               @unique
+  carrinhoItem       ItemCarrinhoCommerce? @relation(fields: [carrinhoItemId], references: [id], onDelete: SetNull)
   quantidade    Int
   sessaoId      String
   estado        String   @default("ATIVA")
@@ -1509,6 +1514,55 @@ model ReservaStockCheckout {
   @@index([variantePecaId, estado, expiraEm])
   @@index([estado, expiraEm])
   @@index([sessaoId])
+}
+
+model CarrinhoCommerce {
+  id           String                 @id @default(uuid())
+  tokenHash    String?                @unique
+  contaBizyId  String?
+  contaBizy    ContaBizy?             @relation(fields: [contaBizyId], references: [id], onDelete: SetNull)
+  estado       String                 @default("ABERTO")
+  expiraEm     DateTime
+  convertidoEm DateTime?
+  criadoEm     DateTime               @default(now())
+  atualizadoEm DateTime               @updatedAt
+  itens        ItemCarrinhoCommerce[]
+  compra       CompraUnificada?
+
+  @@index([contaBizyId, estado, atualizadoEm])
+  @@index([estado, expiraEm])
+}
+
+model ItemCarrinhoCommerce {
+  id                    String                @id @default(uuid())
+  carrinhoId            String
+  carrinho              CarrinhoCommerce      @relation(fields: [carrinhoId], references: [id], onDelete: Cascade)
+  negocioId             String
+  slugLoja              String
+  pecaId                String
+  peca                  Peca                  @relation(fields: [pecaId], references: [id])
+  variantePecaId        String?
+  variantePeca          VariantePeca?         @relation(fields: [variantePecaId], references: [id])
+  codigoPeca            String
+  nomeProduto           String
+  nomeFornecedor        String
+  quantidade            Int
+  precoUnitarioEmKwanza Int
+  fotoUrl               String?
+  urlProduto            String?
+  urlLoja               String?
+  selecaoVarianteJson   String                @default("{}")
+  origem                String                @default("market")
+  atribuicaoJson        String                @default("{}")
+  chaveItem             String
+  criadoEm              DateTime              @default(now())
+  atualizadoEm          DateTime              @updatedAt
+  reserva               ReservaStockCheckout?
+
+  @@unique([carrinhoId, chaveItem])
+  @@index([carrinhoId, criadoEm])
+  @@index([negocioId, pecaId])
+  @@index([variantePecaId])
 }
 
 model CompraUnificada {
@@ -1533,6 +1587,8 @@ model CompraUnificada {
   atualizadoEm              DateTime        @updatedAt
   contaBizyId               String?
   contaBizy                 ContaBizy?      @relation(fields: [contaBizyId], references: [id])
+  carrinhoId               String?             @unique
+  carrinho                 CarrinhoCommerce?   @relation(fields: [carrinhoId], references: [id], onDelete: SetNull)
   pedidosFilho              PedidoFilho[]
   acessosConvidado          AcessoCompraConvidado[]
 

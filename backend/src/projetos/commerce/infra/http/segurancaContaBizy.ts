@@ -38,6 +38,11 @@ export function obterTokenCompra(request: FastifyRequest): string | null {
   return Array.isArray(valor) ? valor[0] ?? null : valor ?? null;
 }
 
+export function obterTokenCarrinho(request: FastifyRequest): string | null {
+  const valor = request.headers["x-bizy-cart-token"];
+  return typeof valor === "string" && valor.trim() ? valor.trim() : null;
+}
+
 export function metadadosAcesso(request: FastifyRequest) {
   const segredo = process.env.AUTH_SECRET ?? "";
   const dispositivo = request.headers["x-bizy-device-id"];
