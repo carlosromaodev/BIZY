@@ -73,6 +73,7 @@ const PaginaPainel = paginaLazy(() => import("./paginas/Painel"), "PaginaPainel"
 const PaginaPipeline = paginaLazy(() => import("./paginas/Pipeline"), "PaginaPipeline");
 const PaginaProdutoMarket = paginaLazy(() => import("./projetos/market/paginas/ProdutoMarket"), "PaginaProdutoMarket");
 const PaginaPortalSeller = paginaLazy(() => import("./projetos/market/paginas/PortalSeller"), "PaginaPortalSeller");
+const PaginaCreatorPortal = paginaLazy(() => import("./projetos/market/paginas/CreatorPortal"), "PaginaCreatorPortal");
 const PaginaProjectos = paginaLazy(() => import("./projetos/team/paginas/Projectos"), "PaginaProjectos");
 const PaginaRecuperacao = paginaLazy(() => import("./paginas/Recuperacao"), "PaginaRecuperacao");
 const PaginaRelatorios = paginaLazy(() => import("./paginas/Relatorios"), "PaginaRelatorios");
@@ -125,6 +126,18 @@ export const rotasPublicas: RotaPublica[] = [
   { caminho: "/checkout", elemento: <PaginaCheckoutBizy /> },
   { caminho: "/compras", elemento: <PaginaPortalComprador /> },
   { caminho: "/compras/:id", elemento: <PaginaCompraUnificada /> },
+  { caminho: "/creator", elemento: <PaginaCreatorPortal /> },
+  { caminho: "/creator/oportunidades", elemento: <PaginaCreatorPortal /> },
+  { caminho: "/creator/produtos", elemento: <PaginaCreatorPortal /> },
+  { caminho: "/creator/campanhas", elemento: <PaginaCreatorPortal /> },
+  { caminho: "/creator/conteudos", elemento: <PaginaCreatorPortal /> },
+  { caminho: "/creator/links", elemento: <PaginaCreatorPortal /> },
+  { caminho: "/creator/carrinhos", elemento: <PaginaCreatorPortal /> },
+  { caminho: "/creator/missoes", elemento: <PaginaCreatorPortal /> },
+  { caminho: "/creator/comissoes", elemento: <PaginaCreatorPortal /> },
+  { caminho: "/creator/pagamentos", elemento: <PaginaCreatorPortal /> },
+  { caminho: "/creator/desempenho", elemento: <PaginaCreatorPortal /> },
+  { caminho: "/creator/configuracoes", elemento: <PaginaCreatorPortal /> },
   { caminho: "/f/:slug/lead", elemento: <PaginaFormularioLeadPublico /> },
   { caminho: "/produtos/:codigo", elemento: <PaginaProdutoMarket /> },
   { caminho: "/lojas", elemento: <PaginaDiretorioLojasMarket /> },

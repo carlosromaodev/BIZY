@@ -212,6 +212,8 @@ export interface RepositorioAfiliados {
   criarParceiro(dados: NovoParceiroComercial): Promise<ParceiroComercial>;
   listarParceiros(negocioId: string): Promise<ParceiroComercial[]>;
   buscarParceiroPorId(id: string, negocioId: string): Promise<ParceiroComercial | null>;
+  listarParceirosPorConta(contaBizyId: string): Promise<ParceiroComercial[]>;
+  associarParceirosPorContactoVerificado(contaBizyId: string, contactosCanonicos: string[]): Promise<ParceiroComercial[]>;
   criarLink(dados: NovoLinkAfiliado): Promise<LinkAfiliado>;
   listarLinks(negocioId: string): Promise<LinkAfiliado[]>;
   buscarLinkPorCodigo(codigo: string, negocioId?: string): Promise<LinkAfiliado | null>;

@@ -993,6 +993,7 @@ export class RepositorioAfiliadosMemoria implements RepositorioAfiliados {
     const parceiro: ParceiroComercial = {
       id: randomUUID(),
       negocioId: dados.negocioId,
+      contaBizyId: dados.contaBizyId ?? null,
       tipo: dados.tipo,
       codigo,
       nomePublico: dados.nomePublico,
@@ -1016,6 +1017,26 @@ export class RepositorioAfiliadosMemoria implements RepositorioAfiliados {
   async buscarParceiroPorId(id: string, negocioId: string): Promise<ParceiroComercial | null> {
     const parceiro = this.parceiros.get(id) ?? null;
     return parceiro?.negocioId === negocioId ? parceiro : null;
+  }
+
+  async listarParceirosPorConta(contaBizyId: string): Promise<ParceiroComercial[]> {
+    return [...this.parceiros.values()]
+      .filter((parceiro) => parceiro.contaBizyId === contaBizyId)
+      .sort((a, b) => b.criadoEm.getTime() - a.criadoEm.getTime());
+  }
+
+  async associarParceirosPorContactoVerificado(contaBizyId: string, contactosCanonicos: string[]): Promise<ParceiroComercial[]> {
+    const contactos = new Set(contactosCanonicos.map((item) => item.trim().toLowerCase()).filter(Boolean));
+    for (const parceiro of this.parceiros.values()) {
+      if (parceiro.contaBizyId || !parceiro.contacto) continue;
+      const contacto = parceiro.contacto.replace(/\s+/g, "").toLowerCase();
+      if (!contactos.has(contacto)) continue;
+      const conflito = [...this.parceiros.values()].some(
+        (item) => item.negocioId === parceiro.negocioId && item.contaBizyId === contaBizyId
+      );
+      if (!conflito) parceiro.contaBizyId = contaBizyId;
+    }
+    return this.listarParceirosPorConta(contaBizyId);
   }
 
   async atualizarEstadoParceiro(id: string, negocioId: string, estado: EstadoParceiroComercial): Promise<ParceiroComercial | null> {

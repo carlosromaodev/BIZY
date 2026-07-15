@@ -4,6 +4,7 @@ import { moduloAfiliados } from "./afiliados.js";
 import { moduloCheckoutUnificado } from "../../../projetos/market/infra/http/moduloCheckoutUnificado.js";
 import { moduloAutenticacao } from "./autenticacao.js";
 import { moduloContaBizy } from "./contaBizy.js";
+import { moduloCreatorPortal } from "../../../projetos/market/infra/http/moduloCreatorPortal.js";
 import { moduloCampanhas } from "./campanhas.js";
 import { moduloCatalogo } from "./catalogo.js";
 import { moduloClientes } from "./clientes.js";
@@ -34,6 +35,7 @@ export const modulosHttp = [
   moduloSaude,
   moduloAutenticacao,
   moduloContaBizy,
+  moduloCreatorPortal,
   moduloLives,
   moduloCatalogo,
   moduloClientes,

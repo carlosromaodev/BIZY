@@ -320,11 +320,55 @@ Estado: CONCLUIDA
 
 - Fase 6: portal autenticado de criadores e afiliados com dados reais.
 
-## Fases 6 a 12
+## Fase 6 — Portal Creator e afiliados
+
+Estado: CONCLUIDA
+
+### Implementado
+
+- [x] Parceiro comercial ligado opcionalmente a uma ContaBizy sem quebrar identidades legadas.
+- [x] Associacao progressiva apenas por telefone previamente verificado por OTP.
+- [x] Uma conta pode operar como comprador, afiliado e criador em varios negocios.
+- [x] Portal autenticado em todas as rotas `/creator` previstas, com shell responsivo unico.
+- [x] Metricas reais de visualizacoes, cliques, checkouts, pedidos, receita, comissoes, pagamentos e reversoes.
+- [x] Criacao de Smart Links restrita aos perfis pertencentes a conta autenticada.
+- [x] Nenhuma receita inferida por multiplicadores ou constante arbitraria.
+- [x] Respostas uniformes para perfil de outra conta e testes negativos de IDOR.
+
+### Ficheiros alterados
+
+- `backend/prisma/schema.prisma` e `backend/prisma/migrations/20260715053000_creator_portal_identity/migration.sql`.
+- `backend/src/projetos/market/aplicacao/CreatorPortalUseCase.ts`.
+- `backend/src/projetos/market/infra/http/moduloCreatorPortal.ts`.
+- Contratos e repositorios de afiliados em memoria e Prisma.
+- `frontend/src/projetos/market/paginas/CreatorPortal.tsx`, API, rotas e estilos Market.
+
+### Migrations
+
+- [x] Expand-only com FK `SET NULL`, indice por conta/estado e unicidade por negocio/conta.
+- [x] Migration aplicada na base local e 58 migrations aplicadas do zero numa base PostgreSQL descartavel.
+
+### Testes
+
+- [x] Backend integral: 90 ficheiros e 385 testes passaram; 1 ficheiro e 1 teste ignorados.
+- [x] Frontend integral: 39 ficheiros e 144 testes passaram.
+- [x] Typecheck e build aprovados no backend e frontend.
+- [x] QA em 1440x900 e 375x812: login OTP, dashboard, quatro KPIs, zero overflow e zero resposta 5xx.
+- [x] Erros de consola limitados aos 401 esperados da sondagem anonima antes do login.
+
+### Riscos restantes
+
+- Oportunidades, conteudos, missoes e carrinhos aparecem na navegacao, mas so recebem dados operacionais nas Fases 7, 8 e 11.
+- Perfis historicos com contactos fora do formato canonico exigem backfill controlado na Fase 12.
+
+### Proxima fase
+
+- Fase 7: conteudo compravel formal, produtos multi-loja e rota publica `/c/:slug`.
+
+## Fases 7 a 12
 
 Estado: NAO INICIADAS
 
-- [ ] Fase 6 — Portal Creator e afiliados.
 - [ ] Fase 7 — Conteudo compravel.
 - [ ] Fase 8 — Creator Marketplace.
 - [ ] Fase 9 — Ledger, comissoes e payouts.

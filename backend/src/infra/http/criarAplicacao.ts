@@ -252,6 +252,7 @@ function deveExigirSessaoOperacional(url: string): boolean {
   if (rotasPublicas.includes(caminho)) return false;
   if (caminho.startsWith("/auth/")) return false;
   if (caminho.startsWith("/conta/")) return false;
+  if (caminho.startsWith("/creator/")) return false;
   if (caminho.startsWith("/media/files/") && !isPrivateStoredMediaUrl(caminho)) return false;
   if (caminho.startsWith("/n8n/")) return false;
   if (caminho.startsWith("/publico/")) return false;

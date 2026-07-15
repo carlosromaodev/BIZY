@@ -1435,6 +1435,7 @@ export class RepositorioAfiliadosPrisma implements RepositorioAfiliados {
     const parceiro = await this.prisma.parceiroComercial.create({
       data: {
         negocioId: dados.negocioId,
+        contaBizyId: dados.contaBizyId ?? null,
         tipo: dados.tipo,
         codigo: this.normalizarCodigo(dados.codigo),
         nomePublico: dados.nomePublico,
@@ -1458,6 +1459,35 @@ export class RepositorioAfiliadosPrisma implements RepositorioAfiliados {
   async buscarParceiroPorId(id: string, negocioId: string): Promise<ParceiroComercial | null> {
     const parceiro = await this.prisma.parceiroComercial.findFirst({ where: { id, negocioId } });
     return parceiro ? this.mapearParceiro(parceiro) : null;
+  }
+
+  async listarParceirosPorConta(contaBizyId: string): Promise<ParceiroComercial[]> {
+    const parceiros = await this.prisma.parceiroComercial.findMany({
+      where: { contaBizyId },
+      orderBy: { criadoEm: "desc" }
+    });
+    return parceiros.map((parceiro) => this.mapearParceiro(parceiro));
+  }
+
+  async associarParceirosPorContactoVerificado(contaBizyId: string, contactosCanonicos: string[]): Promise<ParceiroComercial[]> {
+    const contactos = [...new Set(contactosCanonicos.map((item) => item.trim()).filter(Boolean))];
+    if (contactos.length) {
+      const candidatos = await this.prisma.parceiroComercial.findMany({
+        where: { contaBizyId: null, contacto: { in: contactos } },
+        select: { id: true, negocioId: true }
+      });
+      for (const candidato of candidatos) {
+        await this.prisma.parceiroComercial.updateMany({
+          where: {
+            id: candidato.id,
+            contaBizyId: null,
+            negocio: { parceirosComerciais: { none: { contaBizyId } } }
+          },
+          data: { contaBizyId }
+        });
+      }
+    }
+    return this.listarParceirosPorConta(contaBizyId);
   }
 
   async atualizarEstadoParceiro(id: string, negocioId: string, estado: EstadoParceiroComercial): Promise<ParceiroComercial | null> {
@@ -1877,6 +1907,7 @@ export class RepositorioAfiliadosPrisma implements RepositorioAfiliados {
   private mapearParceiro(parceiro: {
     id: string;
     negocioId: string;
+    contaBizyId: string | null;
     tipo: string;
     codigo: string;
     nomePublico: string;

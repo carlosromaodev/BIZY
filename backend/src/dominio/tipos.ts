@@ -2292,6 +2292,7 @@ export interface RegraComissaoParceiro {
 export interface ParceiroComercial {
   id: string;
   negocioId: string;
+  contaBizyId: string | null;
   tipo: TipoParceiroComercial;
   codigo: string;
   nomePublico: string;
@@ -2305,6 +2306,7 @@ export interface ParceiroComercial {
 
 export interface NovoParceiroComercial {
   negocioId: string;
+  contaBizyId?: string | null;
   tipo: TipoParceiroComercial;
   codigo: string;
   nomePublico: string;

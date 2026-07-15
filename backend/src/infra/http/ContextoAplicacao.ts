@@ -52,6 +52,7 @@ import type { RepositorioCarrinhosCommerce } from "../../projetos/market/dominio
 import { SmartLinksCommerceUseCase } from "../../projetos/market/aplicacao/SmartLinksCommerceUseCase.js";
 import type { RepositorioSmartLinksCommerce } from "../../projetos/market/dominio/smartLinksCommerce.js";
 import { AtribuicaoCommerceUseCase } from "../../projetos/market/aplicacao/AtribuicaoCommerceUseCase.js";
+import { CreatorPortalUseCase } from "../../projetos/market/aplicacao/CreatorPortalUseCase.js";
 import type { RepositorioAtribuicaoCommerce } from "../../projetos/market/dominio/atribuicaoCommerce.js";
 import { RepositorioCarrinhosCommerceMemoria } from "../../projetos/market/infra/repositorios/RepositorioCarrinhosCommerceMemoria.js";
 import { RepositorioCarrinhosCommercePrisma } from "../../projetos/market/infra/repositorios/RepositorioCarrinhosCommercePrisma.js";
@@ -296,6 +297,7 @@ export interface ContextoAplicacao {
   carrinhoCommerce: CarrinhoCommerceUseCase;
   smartLinksCommerce: SmartLinksCommerceUseCase;
   atribuicaoCommerce: AtribuicaoCommerceUseCase;
+  creatorPortal: CreatorPortalUseCase;
   repassesFinanceiros: RepassesFinanceirosUseCase;
   gestaoEquipa: GestaoEquipaUseCase;
   gestaoFinancas: GestaoFinancasUseCase;
@@ -570,6 +572,11 @@ export function criarContextoAplicacao(logger: FastifyBaseLogger): ContextoAplic
     pedidos: repositorios.pedidos,
     tracking: repositorios.trackingComercial
   });
+  const creatorPortal = new CreatorPortalUseCase({
+    contas: repositorios.contaBizy,
+    afiliados: repositorios.afiliados,
+    tracking: repositorios.trackingComercial
+  });
 
   const carrinhoCommerce = new CarrinhoCommerceUseCase({
     carrinhos: repositorios.carrinhosCommerce,
@@ -687,6 +694,7 @@ export function criarContextoAplicacao(logger: FastifyBaseLogger): ContextoAplic
     carrinhoCommerce,
     smartLinksCommerce,
     atribuicaoCommerce,
+    creatorPortal,
     repassesFinanceiros: repassesFinanceirosUseCase,
     gestaoEquipa,
     gestaoFinancas,

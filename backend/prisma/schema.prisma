@@ -879,6 +879,8 @@ model ParceiroComercial {
   id                     String                          @id @default(uuid())
   negocioId              String
   negocio                Negocio                         @relation(fields: [negocioId], references: [id])
+  contaBizyId            String?
+  contaBizy              ContaBizy?                      @relation(fields: [contaBizyId], references: [id], onDelete: SetNull)
   tipo                   String
   codigo                 String
   nomePublico            String
@@ -894,6 +896,8 @@ model ParceiroComercial {
   participacoesConversao ParticipanteConversaoCommerce[]
 
   @@unique([negocioId, codigo])
+  @@unique([negocioId, contaBizyId])
+  @@index([contaBizyId, estado])
   @@index([negocioId, estado])
   @@index([tipo, estado])
 }
@@ -1392,6 +1396,7 @@ model ContaBizy {
   carrinhos            CarrinhoCommerce[]
   sessoesCommerce      SessaoCommerce[]
   conversoesAtribuicao ConversaoAtribuicaoCommerce[]
+  parceirosComerciais  ParceiroComercial[]
 
   @@index([status])
   @@index([telefoneVerificadoEm])

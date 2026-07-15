@@ -101,6 +101,11 @@ export default defineConfig({
         target: backendUrl,
         changeOrigin: true,
         secure: false
+      },
+      "^/creator/(portal|links)": {
+        target: backendUrl,
+        changeOrigin: true,
+        secure: false
       }
     }
   }
