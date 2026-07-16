@@ -29,10 +29,25 @@ export interface PerfilAcademicoAutenticado {
 
 export type ResultadoAutenticacaoEstudantil =
   | { sucesso: true; perfil: PerfilAcademicoAutenticado }
-  | { sucesso: false; erro: string };
+  | {
+    sucesso: false;
+    erro: string;
+    codigo?: "CREDENCIAIS_INVALIDAS" | "PROVIDER_INDISPONIVEL" | "PERFIL_INCOMPLETO" | "CONFIGURACAO";
+  };
 
 export interface ProvedorAutenticacaoEstudantil {
   autenticar(credenciais: CredenciaisEstudantis): Promise<ResultadoAutenticacaoEstudantil>;
+}
+
+export class ErroAutenticacaoEstudantil extends Error {
+  constructor(
+    message: string,
+    readonly codigo: NonNullable<Extract<ResultadoAutenticacaoEstudantil, { sucesso: false }>["codigo"]> =
+      "CREDENCIAIS_INVALIDAS"
+  ) {
+    super(message);
+    this.name = "ErroAutenticacaoEstudantil";
+  }
 }
 
 export class AutenticacaoEstudantilUseCase {
@@ -56,7 +71,7 @@ export class AutenticacaoEstudantilUseCase {
     const resultado = await this.provedor.autenticar(normalizadas);
 
     if (!resultado.sucesso) {
-      throw new Error(resultado.erro);
+      throw new ErroAutenticacaoEstudantil(resultado.erro, resultado.codigo);
     }
 
     const perfil = this.normalizarPerfil(resultado.perfil);
@@ -179,6 +194,7 @@ export class UorConnectAuthProvider implements ProvedorAutenticacaoEstudantil {
 
       return {
         sucesso: false,
+        codigo: "CONFIGURACAO",
         erro: "Login estudantil não configurado. Configure UORCONNECT_API_URL ou ative LOGIN_ESTUDANTIL_DEV_MODE em desenvolvimento."
       };
     }
@@ -202,10 +218,11 @@ export class UorConnectAuthProvider implements ProvedorAutenticacaoEstudantil {
       const payload = await resposta.json().catch(() => null) as Record<string, unknown> | null;
 
       if (!resposta.ok || payload?.success === false) {
-        return {
-          sucesso: false,
-          erro: this.obterMensagemErro(payload) ?? "Não foi possível validar a sessão académica."
-        };
+      return {
+        sucesso: false,
+        codigo: resposta.status === 401 ? "CREDENCIAIS_INVALIDAS" : "PROVIDER_INDISPONIVEL",
+        erro: this.obterMensagemErro(payload) ?? "Não foi possível validar a sessão académica."
+      };
       }
 
       const estudante = (payload?.student ?? payload?.profile ?? {}) as Record<string, unknown>;
@@ -216,6 +233,7 @@ export class UorConnectAuthProvider implements ProvedorAutenticacaoEstudantil {
     } catch (erro) {
       return {
         sucesso: false,
+        codigo: "PROVIDER_INDISPONIVEL",
         erro:
           erro instanceof Error && erro.name === "AbortError"
             ? "O UOR Connect demorou a responder. Tente novamente dentro de instantes."

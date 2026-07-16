@@ -2,6 +2,7 @@ import type { FastifyBaseLogger } from "fastify";
 import { DespachadorEventos } from "../../dominio/eventos/DespachadorEventos.js";
 import { AssistenteIAUseCase } from "../../use-case/AssistenteIAUseCase.js";
 import { ProvedorIAOpenRouter } from "../provedores/ProvedorIAOpenRouter.js";
+import { ProvedorAcademicoDireto } from "../provedores/ProvedorAcademicoDireto.js";
 import { bootstrapAnani, type AnaniContext } from "../../app/bootstrap/bootstrapAnani.js";
 import type { LiveCommentProvider } from "../../dominio/provedores/LiveCommentProvider.js";
 import type { ProvedorWhatsApp } from "../../dominio/provedores/ProvedorWhatsApp.js";
@@ -70,6 +71,9 @@ import { RepositorioLedgerComissoesPrisma } from "../../projetos/market/infra/re
 import type { RepositorioAtribuicaoCommerce } from "../../projetos/market/dominio/atribuicaoCommerce.js";
 import { RepositorioCarrinhosCommerceMemoria } from "../../projetos/market/infra/repositorios/RepositorioCarrinhosCommerceMemoria.js";
 import { RepositorioCarrinhosCommercePrisma } from "../../projetos/market/infra/repositorios/RepositorioCarrinhosCommercePrisma.js";
+import type { RepositorioCarrinhosPartilhaveis } from "../../projetos/market/dominio/carrinhosPartilhaveis.js";
+import { RepositorioCarrinhosPartilhaveisMemoria } from "../../projetos/market/infra/repositorios/RepositorioCarrinhosPartilhaveisMemoria.js";
+import { RepositorioCarrinhosPartilhaveisPrisma } from "../../projetos/market/infra/repositorios/RepositorioCarrinhosPartilhaveisPrisma.js";
 import { RepositorioSmartLinksCommerceMemoria } from "../../projetos/market/infra/repositorios/RepositorioSmartLinksCommerceMemoria.js";
 import { RepositorioSmartLinksCommercePrisma } from "../../projetos/market/infra/repositorios/RepositorioSmartLinksCommercePrisma.js";
 import { RepositorioAtribuicaoCommerceMemoria } from "../../projetos/market/infra/repositorios/RepositorioAtribuicaoCommerceMemoria.js";
@@ -110,6 +114,7 @@ import { GerarReciboReservaUseCase } from "../../use-case/GerarReciboReservaUseC
 import { LimparDadosComunicacaoUseCase } from "../../use-case/LimparDadosComunicacaoUseCase.js";
 import { LojaPublicaUseCase } from "../../projetos/market/aplicacao/LojaPublicaUseCase.js";
 import { MonitorReservasUseCase } from "../../use-case/MonitorReservasUseCase.js";
+import { NotificacoesSmsBizyUseCase } from "../../use-case/NotificacoesSmsBizyUseCase.js";
 import { OnboardingBizyUseCase } from "../../use-case/OnboardingBizyUseCase.js";
 import { MotorReservas } from "../../use-case/MotorReservas.js";
 import { ProcessadorComentarios } from "../../use-case/ProcessadorComentarios.js";
@@ -188,6 +193,8 @@ import { FutureInstagramProvider } from "../provedores/FutureInstagramProvider.j
 import { ManualProvider } from "../provedores/ManualProvider.js";
 import { ProvedorInstagramInstagrapi } from "../provedores/ProvedorInstagramInstagrapi.js";
 import { ProvedorSmsOmbala } from "../provedores/ProvedorSmsOmbala.js";
+import { OMBALA_API_BASE_URL_PADRAO } from "../provedores/OmbalaClient.js";
+import { resolverRemetenteSmsBizy } from "../provedores/RemetentesSmsBizy.js";
 import { ProvedorWhatsAppCloudApi } from "../provedores/ProvedorWhatsAppCloudApi.js";
 import { ProvedorWhatsAppComControleEnvio } from "../provedores/ProvedorWhatsAppComControleEnvio.js";
 import { ProvedorWhatsAppEvolutionDinamico } from "../provedores/ProvedorWhatsAppEvolution.js";
@@ -228,6 +235,7 @@ export interface RepositoriosAplicacao {
   denuncias: RepositorioDenuncias;
   reservasStockCheckout: RepositorioReservasStockCheckout;
   carrinhosCommerce: RepositorioCarrinhosCommerce;
+  carrinhosPartilhaveis: RepositorioCarrinhosPartilhaveis;
   smartLinksCommerce: RepositorioSmartLinksCommerce;
   atribuicaoCommerce: RepositorioAtribuicaoCommerce;
   conteudosCommerce: RepositorioConteudosCommerce;
@@ -369,7 +377,7 @@ export function criarContextoAplicacao(logger: FastifyBaseLogger): ContextoAplic
   );
   const autenticacaoTelefone = new AutenticacaoTelefoneUseCase(repositorios.autenticacao, provedorSms, {
     segredo: process.env.AUTH_SECRET ?? (() => { throw new Error("AUTH_SECRET não configurado."); })(),
-    remetenteSms: process.env.OMBALA_SMS_DEFAULT_SENDER ?? "BIZY",
+    remetenteSms: resolverRemetenteSmsBizy("AUTENTICACAO"),
     minutosExpiracaoCodigo: Number(process.env.LOGIN_SMS_MINUTOS_EXPIRACAO ?? 10),
     diasExpiracaoSessao: Number(process.env.LOGIN_SESSAO_DIAS_EXPIRACAO ?? 7),
     permitirSmsDev: process.env.LOGIN_SMS_DEV_MODE === "true",
@@ -383,7 +391,7 @@ export function criarContextoAplicacao(logger: FastifyBaseLogger): ContextoAplic
     eventos
   }, {
     segredo: process.env.AUTH_SECRET ?? (() => { throw new Error("AUTH_SECRET não configurado."); })(),
-    remetenteSms: process.env.OMBALA_SMS_DEFAULT_SENDER ?? "BIZY",
+    remetenteSms: resolverRemetenteSmsBizy("AUTENTICACAO"),
     minutosExpiracaoOtp: Number(process.env.CONTA_OTP_MINUTOS_EXPIRACAO ?? 10),
     diasExpiracaoSessao: Number(process.env.CONTA_SESSAO_DIAS_EXPIRACAO ?? 30),
     diasExpiracaoAcessoGuest: Number(process.env.COMPRA_GUEST_DIAS_EXPIRACAO ?? 7),
@@ -433,17 +441,33 @@ export function criarContextoAplicacao(logger: FastifyBaseLogger): ContextoAplic
     repositorios.eventosOperacionais,
     repositorios.jobsOperacionais
   );
-  const provedorEstudantil = new UorConnectAuthProvider({
-    baseUrl: process.env.UORCONNECT_API_URL,
-    timeoutMs: Number(process.env.UORCONNECT_AUTH_TIMEOUT_MS ?? 25_000),
-    permitirDev: process.env.LOGIN_ESTUDANTIL_DEV_MODE === "true" || process.env.NODE_ENV !== "production"
-  });
+  const fallbackUorConnect = process.env.UORCONNECT_API_URL?.trim()
+    ? new UorConnectAuthProvider({
+      baseUrl: process.env.UORCONNECT_API_URL,
+      timeoutMs: Number(process.env.UORCONNECT_AUTH_TIMEOUT_MS ?? 25_000),
+      permitirDev: false
+    })
+    : undefined;
+  const provedorEstudantil = process.env.LOGIN_ESTUDANTIL_DIRECT_ENABLED === "false"
+    ? new UorConnectAuthProvider({
+      baseUrl: process.env.UORCONNECT_API_URL,
+      timeoutMs: Number(process.env.UORCONNECT_AUTH_TIMEOUT_MS ?? 25_000),
+      permitirDev: process.env.LOGIN_ESTUDANTIL_DEV_MODE === "true" || process.env.NODE_ENV !== "production"
+    })
+    : new ProvedorAcademicoDireto({
+      timeoutMs: Number(process.env.ACADEMIC_AUTH_TIMEOUT_MS ?? 25_000),
+      uorLoginUrl: process.env.SECRETARIA_UOR_LOGIN_URL,
+      isptecLoginUrl: process.env.ISPTEC_LOGIN_URL,
+      isptecGroupUrl: process.env.ISPTEC_GROUP_SELECT_URL,
+      isptecHomeUrl: process.env.ISPTEC_PORTAL_HOME_URL,
+      fallback: fallbackUorConnect
+    });
   const autenticacaoEstudantil = new AutenticacaoEstudantilUseCase(
     repositorios.autenticacao,
     provedorEstudantil,
     autenticacaoTelefone
   );
-  const onboardingBizy = new OnboardingBizyUseCase(repositorios.autenticacao, gestaoPecas);
+  const onboardingBizy = new OnboardingBizyUseCase(repositorios.autenticacao, gestaoPecas, contaBizy);
   const gestaoClientesCrm = new GestaoClientesCrmUseCase(
     repositorios.clientes,
     repositorios.atendimento,
@@ -649,7 +673,7 @@ export function criarContextoAplicacao(logger: FastifyBaseLogger): ContextoAplic
 
   const prismaDirecto = repositorios.prisma ?? criarPrismaCliente();
   const confiancaCommerce = new ConfiancaCommerceUseCase(prismaDirecto);
-  const carrinhosPartilhaveis = new CarrinhosPartilhaveisUseCase(prismaDirecto, carrinhoCommerce);
+  const carrinhosPartilhaveis = new CarrinhosPartilhaveisUseCase(repositorios.carrinhosPartilhaveis, carrinhoCommerce);
 
   const gestaoEquipa = new GestaoEquipaUseCase(prismaDirecto);
   const gestaoFinancas = new GestaoFinancasUseCase(prismaDirecto, eventos);
@@ -682,6 +706,17 @@ export function criarContextoAplicacao(logger: FastifyBaseLogger): ContextoAplic
     gestaoFinancas,
     comprasUnificadas: repositorios.comprasUnificadas,
     ativo: Boolean(repositorios.prisma)
+  });
+
+  new NotificacoesSmsBizyUseCase({
+    eventos,
+    sms: provedorSms,
+    pedidos: gestaoPedidos,
+    compras: repositorios.comprasUnificadas
+  }, {
+    ativo: process.env.SMS_NOTIFICACOES_TRANSACIONAIS_ATIVAS === "true",
+    appPublicUrl: process.env.APP_PUBLIC_URL ?? process.env.ORIGEM_FRONTEND,
+    logger
   });
 
   return {
@@ -985,6 +1020,7 @@ function criarRepositorios(): RepositoriosAplicacao {
       denuncias: new RepositorioDenunciasMemoria(),
       reservasStockCheckout: new RepositorioReservasStockCheckoutMemoria(),
       carrinhosCommerce: new RepositorioCarrinhosCommerceMemoria(pecas),
+      carrinhosPartilhaveis: new RepositorioCarrinhosPartilhaveisMemoria(),
       smartLinksCommerce: new RepositorioSmartLinksCommerceMemoria(),
       atribuicaoCommerce: new RepositorioAtribuicaoCommerceMemoria(),
       conteudosCommerce: new RepositorioConteudosCommerceMemoria(),
@@ -1029,6 +1065,7 @@ function criarRepositorios(): RepositoriosAplicacao {
     denuncias: new RepositorioDenunciasPrisma(prisma),
     reservasStockCheckout: new RepositorioReservasStockCheckoutPrisma(prisma),
     carrinhosCommerce: new RepositorioCarrinhosCommercePrisma(prisma),
+    carrinhosPartilhaveis: new RepositorioCarrinhosPartilhaveisPrisma(prisma),
     smartLinksCommerce: new RepositorioSmartLinksCommercePrisma(prisma),
     atribuicaoCommerce: new RepositorioAtribuicaoCommercePrisma(prisma),
     conteudosCommerce: new RepositorioConteudosCommercePrisma(prisma),
@@ -1116,7 +1153,7 @@ function normalizarIntervaloWhatsApp(valor: string | undefined, padrao: number):
 
 function criarProvedorSms() {
   return new ProvedorSmsOmbala({
-    baseUrl: process.env.OMBALA_API_BASE_URL ?? "https://api.ombala.ao",
+    baseUrl: process.env.OMBALA_API_BASE_URL ?? OMBALA_API_BASE_URL_PADRAO,
     token: process.env.OMBALA_API_TOKEN,
     timeoutMs: Number(process.env.OMBALA_TIMEOUT_MS ?? 9000)
   });

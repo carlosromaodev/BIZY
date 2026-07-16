@@ -12,7 +12,9 @@ describe("Diagnósticos SMS Ombala", () => {
       N8N_ASSUME_WHATSAPP: "true",
       INICIAR_AGENDADOR_EXPIRACAO: "false",
       OMBALA_API_BASE_URL: "https://sms.local",
-      OMBALA_API_TOKEN: "token"
+      OMBALA_API_TOKEN: "token",
+      OMBALA_SMS_SENDER_AUTH: "BIZYCODE",
+      OMBALA_SMS_APPROVED_SENDERS: "BIZYCODE,BIZYCARE,BIZYLIVE,BIZYSHOP"
     };
   });
 
@@ -26,7 +28,7 @@ describe("Diagnósticos SMS Ombala", () => {
       const destino = String(url);
 
       if (destino.endsWith("/v1/senders/approved")) {
-        return new Response(JSON.stringify([{ name: "EMEU" }]), { status: 200 });
+        return new Response(JSON.stringify([{ name: "BIZYCODE" }]), { status: 200 });
       }
 
       if (destino.endsWith("/v1/credits")) {
@@ -53,7 +55,13 @@ describe("Diagnósticos SMS Ombala", () => {
           configurado: true,
           providerStatus: "ok",
           creditos: 42,
-          remetentesAprovados: ["EMEU"]
+          remetentesAprovados: ["BIZYCODE"],
+          remetentesPorFinalidade: {
+            AUTENTICACAO: "BIZYCODE",
+            SUPORTE: "BIZYCARE",
+            LIVE: "BIZYLIVE",
+            MARKET: "BIZYSHOP"
+          }
         })
       );
 
@@ -63,8 +71,8 @@ describe("Diagnósticos SMS Ombala", () => {
         headers,
         payload: {
           telefone: "+244 937 624 786",
-          remetente: "EMEU",
-          mensagem: "Teste ÉMeu",
+          remetente: "BIZYCODE",
+          mensagem: "Teste Bizy",
           enviarReal: true
         }
       });
@@ -83,8 +91,8 @@ describe("Diagnósticos SMS Ombala", () => {
         "https://sms.local/v1/messages",
         expect.objectContaining({
           body: JSON.stringify({
-            message: "Teste ÉMeu",
-            from: "EMEU",
+            message: "Teste Bizy",
+            from: "BIZYCODE",
             to: "937624786"
           })
         })

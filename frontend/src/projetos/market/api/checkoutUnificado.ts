@@ -3,6 +3,7 @@ import { requisitarApi } from "../../../api";
 
 export const CHAVE_CARRINHO_BIZY = "bizy_checkout_unificado_v1";
 export const CHAVE_IDEMPOTENCIA_CHECKOUT_BIZY = "bizy_checkout_idempotencia_v1";
+export const EVENTO_CARRINHO_BIZY = "bizy:carrinho-alterado";
 const CHAVE_ACESSOS_COMPRA_BIZY = "bizy_market_acessos_compra_v1";
 const CHAVE_DISPOSITIVO_BIZY = "bizy_device_id_v1";
 const CHAVE_TOKEN_CARRINHO_BIZY = "bizy_market_carrinho_token_v1";
@@ -89,6 +90,16 @@ interface ChaveIdempotenciaCheckoutBizy {
 function ambienteComStorage(): Storage | null {
   if (typeof window === "undefined") return null;
   return window.localStorage;
+}
+
+function notificarCarrinhoBizy(itens: ItemCarrinhoCheckoutBizy[]): void {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(new CustomEvent(EVENTO_CARRINHO_BIZY, {
+    detail: {
+      itens: itens.length,
+      quantidade: itens.reduce((total, item) => total + item.quantidade, 0)
+    }
+  }));
 }
 
 function lerAcessosCompra(storage: Storage): Record<string, string> {
@@ -178,6 +189,7 @@ export function guardarCarrinhoCheckoutBizy(itens: ItemCarrinhoCheckoutBizy[]): 
   const storage = ambienteComStorage();
   if (!storage) return;
   storage.setItem(CHAVE_CARRINHO_BIZY, JSON.stringify(itens));
+  notificarCarrinhoBizy(itens);
 }
 
 export function adicionarItemCheckoutBizy(item: ItemEntradaCheckoutBizy): ItemCarrinhoCheckoutBizy[] {
@@ -222,6 +234,7 @@ export function atualizarQuantidadeItemCheckoutBizy(id: string, quantidade: numb
 export function limparCarrinhoCheckoutBizy(): void {
   const storage = ambienteComStorage();
   storage?.removeItem(CHAVE_CARRINHO_BIZY);
+  notificarCarrinhoBizy([]);
 }
 
 export function obterTokenCarrinhoCheckoutBizy(): string {

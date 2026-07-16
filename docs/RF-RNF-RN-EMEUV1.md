@@ -282,7 +282,7 @@ Nas tabelas de RF, RNF, RN e fora de escopo, o marcador deve aparecer no início
 | RF05 | [x] Em ambiente de desenvolvimento, o sistema pode expor o código para facilitar testes. | Média | Implementado |
 | RF06 | [x] Em produção, o sistema não deve expor código SMS em resposta, UI ou logs públicos. | Alta | Implementado |
 | RF07 | [x] O vendedor deve poder encerrar a sessão pelo painel. | Alta | Implementado |
-| RF07A | [x] O sistema deve permitir login estudantil por UOR/ISPTEC usando o mesmo padrão de validação do UOR Connect. | Alta | Implementado |
+| RF07A | [x] O sistema deve permitir login estudantil UOR/ISPTEC por validação directa nos portais institucionais, com UOR Connect como fallback opcional. | Alta | Implementado |
 | RF07B | [x] O sistema deve permitir login com Gmail via OAuth quando `GOOGLE_CLIENT_ID` e `GOOGLE_CLIENT_SECRET` estiverem configurados. | Alta | Implementado |
 | RF07C | [x] O sistema deve separar identidade de telefone, permitindo usuários com telefone, Gmail ou identidade estudantil sem criar números falsos. | Alta | Implementado |
 | RF07D | [x] O sistema deve persistir origem do cadastro, email, avatar e perfil académico quando esses dados forem devolvidos pelo provedor de autenticação. | Alta | Implementado |

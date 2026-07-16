@@ -10,10 +10,14 @@ export interface ConfiguracaoOmbala {
   timeoutMs?: number;
 }
 
+export const OMBALA_API_BASE_URL_PADRAO = "https://api.useombala.ao";
+
 export class OmbalaClient {
   private readonly baseUrl: string;
   private readonly token: string | null;
   private readonly timeoutMs: number;
+  private remetentesAprovados: Map<string, string> | null = null;
+  private carregamentoRemetentesAprovados: Promise<Map<string, string> | null> | null = null;
 
   constructor(configuracao: ConfiguracaoOmbala) {
     this.baseUrl = configuracao.baseUrl.replace(/\/$/, "");
@@ -27,17 +31,30 @@ export class OmbalaClient {
 
   async sendMessage(payload: { message: string; from: string; to: string; schedule?: string | null }) {
     const destino = normalizePhoneForOmbala(payload.to);
-
-    return this.request("/v1/messages", {
+    const remetente = normalizeSmsSender(payload.from);
+    const enviar = (from: string) => this.request("/v1/messages", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         message: payload.message,
-        from: normalizeSmsSender(payload.from),
+        from,
         to: destino?.providerTo ?? payload.to.replace(/\D/g, ""),
         ...(payload.schedule ? { schedule: payload.schedule } : {})
       })
     });
+
+    const resultado = await enviar(remetente);
+    if (resultado.ok || !isInvalidSenderResponse(resultado.payload) || !this.token) {
+      return resultado;
+    }
+
+    const aprovados = await this.getApprovedSenderMap();
+    const remetenteExacto = aprovados?.get(remetente);
+    if (!remetenteExacto || remetenteExacto === remetente) {
+      return resultado;
+    }
+
+    return enviar(remetenteExacto);
   }
 
   async getCredits() {
@@ -89,6 +106,32 @@ export class OmbalaClient {
       message_id: input.messageId,
       id: input.id
     }));
+  }
+
+  private async getApprovedSenderMap() {
+    if (this.remetentesAprovados) return this.remetentesAprovados;
+
+    if (!this.carregamentoRemetentesAprovados) {
+      this.carregamentoRemetentesAprovados = this.loadApprovedSenderMap();
+    }
+
+    const remetentes = await this.carregamentoRemetentesAprovados;
+    this.carregamentoRemetentesAprovados = null;
+
+    if (remetentes) {
+      this.remetentesAprovados = remetentes;
+    }
+
+    return remetentes;
+  }
+
+  private async loadApprovedSenderMap() {
+    const resultado = await this.getApprovedSenders();
+    if (!resultado.ok) return null;
+
+    return new Map(
+      extractRawSenderNames(resultado.payload).map((remetente) => [normalizeSmsSender(remetente), remetente])
+    );
   }
 
   private withQuery(path: string, query: Record<string, string | number | undefined>) {
@@ -217,6 +260,13 @@ export function extractProviderMessageId(payload: unknown): string | null {
 
 export function extractProviderMessage(payload: unknown): string | null {
   if (typeof payload === "string") return payload.trim() || null;
+  if (Array.isArray(payload)) {
+    for (const item of payload) {
+      const message = extractProviderMessage(item);
+      if (message) return message;
+    }
+    return null;
+  }
   if (!payload || typeof payload !== "object") return null;
 
   const record = payload as Record<string, unknown>;
@@ -231,32 +281,12 @@ export function extractProviderMessage(payload: unknown): string | null {
   return extractProviderMessage(record.data) ??
     extractProviderMessage(record.result) ??
     extractProviderMessage(record.payload) ??
-    extractProviderMessage(record.response);
+    extractProviderMessage(record.response) ??
+    extractProviderMessage(record.errors);
 }
 
 export function extractSenderNames(payload: unknown): string[] {
-  if (!payload) return [];
-
-  const values = Array.isArray(payload)
-    ? payload
-    : typeof payload === "object"
-      ? Object.values(payload as Record<string, unknown>)
-      : [];
-  const names: string[] = [];
-
-  for (const item of values) {
-    if (typeof item === "string") {
-      names.push(item.trim());
-      continue;
-    }
-
-    if (item && typeof item === "object") {
-      const name = pickString((item as Record<string, unknown>).name);
-      if (name) names.push(name.trim());
-    }
-  }
-
-  return Array.from(new Set(names.filter(Boolean)));
+  return Array.from(new Set(extractRawSenderNames(payload).map((name) => name.trim()).filter(Boolean)));
 }
 
 export function extractCredits(payload: unknown): number | null {
@@ -279,6 +309,33 @@ async function readProviderPayload(response: Response) {
 
 function countUrls(value: string) {
   return value.match(/https?:\/\/|wa\.me\/|chat\.whatsapp\.com/gi)?.length ?? 0;
+}
+
+function isInvalidSenderResponse(payload: unknown) {
+  const message = extractProviderMessage(payload)?.toLowerCase() ?? "";
+  return message.includes("remetente inválido") ||
+    message.includes("remetente invalido") ||
+    message.includes("invalid sender");
+}
+
+function extractRawSenderNames(value: unknown, depth = 0): string[] {
+  if (!value || depth > 5) return [];
+
+  if (Array.isArray(value)) {
+    return value.flatMap((item) => {
+      if (typeof item === "string") return item.trim() ? [item] : [];
+      return extractRawSenderNames(item, depth + 1);
+    });
+  }
+
+  if (typeof value !== "object") return [];
+
+  const record = value as Record<string, unknown>;
+  const name = typeof record.name === "string" && record.name.trim() ? [record.name] : [];
+  const nested = ["data", "result", "payload", "response", "senders"]
+    .flatMap((key) => extractRawSenderNames(record[key], depth + 1));
+
+  return [...name, ...nested];
 }
 
 function parseCreditValue(value: unknown): number | null {

@@ -110,8 +110,7 @@ export function extrairTokenCookie(cookie?: string | string[] | null, nome = obt
 
 export function extrairTokenAutenticacao(request: FastifyRequest): string | null {
   return extrairTokenBearer(request.headers.authorization)
-    ?? obterCookieSessaoRequest(request)
-    ?? extrairTokenQueryEventos(request);
+    ?? obterCookieSessaoRequest(request);
 }
 
 export async function resolverSessaoJwt(request: FastifyRequest): Promise<IdentificadorSessaoAutenticada | null> {
@@ -229,16 +228,6 @@ function obterChaveJwt() {
 function obterCookieSessaoRequest(request: FastifyRequest): string | null {
   const cookieDecorado = request.cookies?.[obterNomeCookieSessao()];
   return cookieDecorado ?? extrairTokenCookie(request.headers.cookie);
-}
-
-function extrairTokenQueryEventos(request: FastifyRequest): string | null {
-  if (!request.url.startsWith("/eventos")) return null;
-
-  try {
-    return new URL(request.url, "http://localhost").searchParams.get("token");
-  } catch {
-    return null;
-  }
 }
 
 function payloadJwtSessaoValido(payload: unknown): payload is PayloadJwtSessao {

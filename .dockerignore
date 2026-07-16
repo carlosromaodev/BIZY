@@ -3,7 +3,16 @@ backend/dist
 frontend/dist
 coverage
 .git
+.worktrees
+.codex
+.claude
+.agents
+.superpowers
 .env
 *.db
 *.db-journal
 docker/postgres/data
+backups
+tmp
+print
+frontend/capturas

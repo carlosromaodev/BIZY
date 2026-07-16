@@ -38,18 +38,24 @@ describe("segurança HTTP", () => {
     process.env = { ...ambienteOriginal };
   });
 
-  it("aceita token na query apenas para SSE /eventos", () => {
+  it("não aceita token em query string e mantém bearer/cookie como canais de sessão", () => {
     const requestEventos = {
       headers: {},
       url: "/eventos?token=jwt-sse"
     } as FastifyRequest;
-    const requestRotaNormal = {
-      headers: {},
-      url: "/clientes?token=jwt-sse"
+    const requestCookie = {
+      headers: { cookie: "bizy_sessao=jwt-cookie" },
+      cookies: { bizy_sessao: "jwt-cookie" },
+      url: "/eventos"
+    } as unknown as FastifyRequest;
+    const requestBearer = {
+      headers: { authorization: "Bearer jwt-bearer" },
+      url: "/eventos"
     } as FastifyRequest;
 
-    expect(extrairTokenAutenticacao(requestEventos)).toBe("jwt-sse");
-    expect(extrairTokenAutenticacao(requestRotaNormal)).toBeNull();
+    expect(extrairTokenAutenticacao(requestEventos)).toBeNull();
+    expect(extrairTokenAutenticacao(requestCookie)).toBe("jwt-cookie");
+    expect(extrairTokenAutenticacao(requestBearer)).toBe("jwt-bearer");
   });
 
   it("restringe acesso direto ao Anani a papeis de governanca da plataforma", async () => {

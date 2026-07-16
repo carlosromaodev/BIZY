@@ -45,6 +45,18 @@ describe("Rotas HTTP de identidade e onboarding", () => {
       expect(confirmacao.statusCode).toBe(200);
       const token = confirmacao.json().token as string;
 
+      const perfil = await app.inject({
+        method: "PUT",
+        url: "/onboarding/perfil",
+        headers: { authorization: `Bearer ${token}` },
+        payload: {
+          contextos: ["SELLER", "MEMBRO_NEGOCIO"]
+        }
+      });
+
+      expect(perfil.statusCode).toBe(200);
+      expect(perfil.json().tiposContexto).toEqual(expect.arrayContaining(["SELLER", "MEMBRO_NEGOCIO"]));
+
       const negocio = await app.inject({
         method: "POST",
         url: "/onboarding/negocio",

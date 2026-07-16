@@ -1638,6 +1638,15 @@ const TextoOnboardingOpcionalSchema = z.preprocess(
   z.string().trim().min(1).max(240).nullable().optional()
 ).transform((valor) => valor ?? null);
 
+export const ConfigurarPerfilOnboardingSchema = z.object({
+  contextos: z.array(
+    z.enum(["COMPRADOR", "AFILIADO", "CRIADOR", "SELLER", "PRODUTOR_LEARNING", "MEMBRO_NEGOCIO"])
+  )
+    .min(1, "Escolha pelo menos uma função para a Conta Bizy.")
+    .max(6)
+    .transform((contextos) => Array.from(new Set(contextos)))
+});
+
 export const SalvarNegocioOnboardingSchema = z.object({
   nomeComercial: z.string().trim().min(2).max(120),
   segmento: z.string().trim().min(2).max(120),
@@ -1693,8 +1702,8 @@ export const CriarInstanciaWhatsAppSchema = z.object({
 
 export const TestarSmsSchema = z.object({
   telefone: z.string().trim().min(8).max(30),
-  mensagem: z.string().trim().min(3).max(160).default("Teste EMeu: diagnostico de envio SMS."),
-  remetente: z.string().trim().min(3).max(16).default("EMEU"),
+  mensagem: z.string().trim().min(3).max(160).default("Teste Bizy: diagnostico de envio SMS."),
+  remetente: z.string().trim().min(3).max(16).default("BIZYCODE"),
   enviarReal: z.boolean().default(false),
   schedule: z.string().trim().max(80).optional()
 });

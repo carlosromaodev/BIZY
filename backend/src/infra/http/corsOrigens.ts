@@ -38,6 +38,7 @@ export function resolverOrigemPermitida(origin: string | undefined): boolean | s
     const permitido =
       origensFrontend.includes(normalizarOrigemConfigurada(origin)) ||
       (process.env.NODE_ENV !== "production" && origemLocalDevPermitida(origin)) ||
+      origemAplicacaoPermitida(origin, dominioPublicoLoja) ||
       origemMarketPermitida(origin, dominioPublicoMarket) ||
       origemSubdominioLojaPermitida(origin, dominioPublicoLoja);
 
@@ -87,6 +88,21 @@ function obterDominioPublicoMarket(dominioPublicoLoja: string | null): string | 
     normalizarDominioPublicoLoja(process.env.PUBLIC_MARKET_URL);
 
   return configurado ?? (dominioPublicoLoja ? `market.${dominioPublicoLoja}` : null);
+}
+
+function origemAplicacaoPermitida(origin: string, dominioPublicoLoja: string | null): boolean {
+  if (!dominioPublicoLoja) return false;
+
+  try {
+    const url = new URL(origin);
+    const protocoloPermitido = process.env.NODE_ENV === "production"
+      ? url.protocol === "https:"
+      : ["http:", "https:"].includes(url.protocol);
+
+    return protocoloPermitido && normalizarDominioPublicoLoja(url.hostname) === `app.${dominioPublicoLoja}`;
+  } catch {
+    return false;
+  }
 }
 
 function origemMarketPermitida(origin: string, dominioPublicoMarket: string | null): boolean {

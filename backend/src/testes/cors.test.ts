@@ -125,9 +125,23 @@ describe("CORS em desenvolvimento", () => {
           "access-control-request-method": "GET"
         }
       });
+      const respostaAplicacao = await app.inject({
+        method: "OPTIONS",
+        url: "/loja-publica/configuracao",
+        headers: {
+          origin: "https://app.usebizy.space",
+          "access-control-request-method": "PUT",
+          "access-control-request-headers": "authorization,content-type"
+        }
+      });
 
       expect(respostaLoja.statusCode).toBe(204);
       expect(respostaLoja.headers["access-control-allow-origin"]).toBe("https://uorconnect.usebizy.space");
+      expect(respostaAplicacao.statusCode).toBe(204);
+      expect(respostaAplicacao.headers["access-control-allow-origin"]).toBe("https://app.usebizy.space");
+      expect(respostaAplicacao.headers["access-control-allow-methods"]).toContain("PUT");
+      expect(respostaAplicacao.headers["access-control-allow-methods"]).toContain("PATCH");
+      expect(respostaAplicacao.headers["access-control-allow-methods"]).toContain("DELETE");
       expect(resolverOrigemPermitida("https://market.usebizy.space")).toBe("https://market.usebizy.space");
       expect(respostaEstranha.headers["access-control-allow-origin"]).toBeUndefined();
     } finally {

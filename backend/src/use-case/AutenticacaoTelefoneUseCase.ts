@@ -14,6 +14,13 @@ export interface OpcoesAutenticacaoTelefone {
   exporCodigoDev?: boolean;
 }
 
+export class ErroEnvioSms extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "ErroEnvioSms";
+  }
+}
+
 export class AutenticacaoTelefoneUseCase {
   private static readonly sloEnvioOtpMs = 10_000;
   private readonly normalizadorTelefone = new NormalizadorTelefone();
@@ -41,7 +48,7 @@ export class AutenticacaoTelefoneUseCase {
 
     const mensagem = `Bizy: codigo de acesso ${codigo}. Valido por ${this.minutosExpiracaoCodigo} minutos. Nao partilhe este codigo.`;
     if (!this.provedorSms.configurado && !this.opcoes.permitirSmsDev) {
-      throw new Error("Integração SMS não configurada.");
+      throw new ErroEnvioSms("Integração SMS não configurada.");
     }
 
     // RNF-T030: a latência do provider fica exposta para operação e auditoria do SLO OTP.
@@ -73,7 +80,11 @@ export class AutenticacaoTelefoneUseCase {
       provider: resultadoEnvio.provider,
       providerMessageId: resultadoEnvio.idExterno,
       providerResponseJson: this.serializar({
-        resposta: resultadoEnvio.resposta,
+        provider: {
+          status: resultadoEnvio.status,
+          idExterno: resultadoEnvio.idExterno,
+          erro: resultadoEnvio.erro
+        },
         metricasOtp: {
           latenciaEnvioMs,
           sloEnvioMs: AutenticacaoTelefoneUseCase.sloEnvioOtpMs,
@@ -84,7 +95,7 @@ export class AutenticacaoTelefoneUseCase {
     });
 
     if (!resultadoEnvio.ok) {
-      throw new Error(resultadoEnvio.erro ?? "Não foi possível enviar o SMS.");
+      throw new ErroEnvioSms(resultadoEnvio.erro ?? "Não foi possível enviar o SMS.");
     }
 
     return {

@@ -12,4 +12,14 @@ describe("cache de deploy do frontend", () => {
     expect(nginx).toContain('Cache-Control "no-cache, no-store, must-revalidate"');
     expect(nginx).toContain('try_files $uri /index.html');
   });
+
+  it("comprime respostas textuais e mantém assets versionados em cache imutável", () => {
+    const nginx = source("../docker/nginx/frontend.conf");
+
+    expect(nginx).toContain("gzip on;");
+    expect(nginx).toContain("gzip_types");
+    expect(nginx).toContain("location ^~ /assets/");
+    expect(nginx).toContain('Cache-Control "public, max-age=31536000, immutable"');
+    expect(nginx).toContain("webp");
+  });
 });

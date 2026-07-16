@@ -2,10 +2,16 @@ import { describe, expect, it } from "vitest";
 import { AutenticacaoEstudantilUseCase, type ProvedorAutenticacaoEstudantil } from "../use-case/AutenticacaoEstudantilUseCase.js";
 import { AutenticacaoTelefoneUseCase } from "../use-case/AutenticacaoTelefoneUseCase.js";
 import { OnboardingBizyUseCase } from "../use-case/OnboardingBizyUseCase.js";
-import { RepositorioAutenticacaoMemoria, RepositorioPecasMemoria } from "../use-case/repositorios/RepositorioMemoria.js";
+import {
+  RepositorioAutenticacaoMemoria,
+  RepositorioComprasUnificadasMemoria,
+  RepositorioPecasMemoria
+} from "../use-case/repositorios/RepositorioMemoria.js";
 import type { ProvedorSms, ResultadoEnvioSms } from "../dominio/provedores/ProvedorSms.js";
 import { DespachadorEventos } from "../dominio/eventos/DespachadorEventos.js";
 import { GestaoPecasUseCase } from "../use-case/GestaoPecasUseCase.js";
+import { ContaBizyUseCase } from "../projetos/commerce/aplicacao/ContaBizyUseCase.js";
+import { RepositorioContaBizyMemoria } from "../projetos/commerce/infra/repositorios/RepositorioContaBizyMemoria.js";
 
 class ProvedorSmsFake implements ProvedorSms {
   configurado = true;
@@ -80,7 +86,20 @@ describe("Identidade e onboarding Bizy", () => {
       telefone: "923000222",
       nome: "Vendedor Bizy"
     });
-    const useCase = new OnboardingBizyUseCase(repositorio, gestaoPecas);
+    const contaBizy = new ContaBizyUseCase({
+      contas: new RepositorioContaBizyMemoria(),
+      compras: new RepositorioComprasUnificadasMemoria(),
+      autenticacao: repositorio,
+      sms: new ProvedorSmsFake(),
+      eventos: new DespachadorEventos()
+    }, {
+      segredo: "segredo-testes",
+      remetenteSms: "BIZY"
+    });
+    const useCase = new OnboardingBizyUseCase(repositorio, gestaoPecas, contaBizy);
+
+    const perfil = await useCase.configurarPerfil(usuario.id, ["SELLER", "MEMBRO_NEGOCIO"]);
+    expect(perfil.tiposContexto).toEqual(expect.arrayContaining(["SELLER", "MEMBRO_NEGOCIO"]));
 
     const negocio = await useCase.salvarNegocio(usuario.id, {
       nomeComercial: "Loja Live Angola",
@@ -116,6 +135,9 @@ describe("Identidade e onboarding Bizy", () => {
     });
 
     expect(produto.codigo).toBe("01");
-    expect((await useCase.obterEstado(usuario.id)).pendencias).not.toContain("CADASTRAR_NEGOCIO");
+    const estado = await useCase.obterEstado(usuario.id);
+    expect(estado.pendencias).not.toContain("CADASTRAR_NEGOCIO");
+    expect(estado.completo).toBe(true);
+    expect(estado.servicos).toEqual(expect.objectContaining({ team: true, market: true }));
   });
 });

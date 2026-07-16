@@ -9,6 +9,10 @@
 	reverse_proxy frontend:80
 }
 
+app.{$FRONTEND_DOMAIN}, lojas.{$FRONTEND_DOMAIN} {
+	reverse_proxy frontend:80
+}
+
 {$MARKET_DOMAIN} {
 	reverse_proxy frontend:80
 }

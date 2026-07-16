@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  OMBALA_API_BASE_URL_PADRAO,
   OmbalaClient,
   extractCredits,
   extractProviderMessage,
@@ -12,6 +13,10 @@ describe("OmbalaClient", () => {
   afterEach(() => {
     vi.useRealTimers();
     vi.unstubAllGlobals();
+  });
+
+  it("usa o endpoint público actual da Ombala como referência de configuração", () => {
+    expect(OMBALA_API_BASE_URL_PADRAO).toBe("https://api.useombala.ao");
   });
 
   it("normaliza formatos comuns de telefone angolano para o formato exigido pela Ombala", () => {
@@ -27,6 +32,7 @@ describe("OmbalaClient", () => {
     expect(extractCredits({ response: [{ credits: "27" }] })).toBe(27);
     expect(extractSenderNames([{ name: "EMEU" }, " LOJA "])).toEqual(["EMEU", "LOJA"]);
     expect(extractProviderMessage({ data: { detail: "Token inválido" } })).toBe("Token inválido");
+    expect(extractProviderMessage({ errors: [{ message: "remetente inválido" }] })).toBe("remetente inválido");
   });
 
   it("valida mensagens para reduzir risco de bloqueio ou abuso", () => {
@@ -35,13 +41,16 @@ describe("OmbalaClient", () => {
     expect(validateSmsMessagePolicy("Ola!!!!!!!!!!!!")).toContain("repetição excessiva");
   });
 
-  it("envia SMS com token Ombala, remetente, destino normalizado e agendamento opcional", async () => {
-    const fetchMock = vi.fn(async () => new Response(JSON.stringify({ message_id: "sms_1" }), { status: 201 }));
+  it("envia SMS com o nome exacto aprovado pelo provider, destino normalizado e agendamento opcional", async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ errors: [{ message: "remetente inválido" }] }), { status: 400 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify([{ name: "BIZYCODE " }]), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ message_id: "sms_1" }), { status: 201 }));
     vi.stubGlobal("fetch", fetchMock);
 
     const client = new OmbalaClient({ baseUrl: "https://sms.local/", token: "token" });
     const resultado = await client.sendMessage({
-      from: "EMEU",
+      from: "BIZYCODE",
       to: "+244937624786",
       message: "Reserva criada",
       schedule: "20260521193000"
@@ -54,14 +63,22 @@ describe("OmbalaClient", () => {
         payload: { message_id: "sms_1" }
       })
     );
-    expect(fetchMock).toHaveBeenCalledWith(
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      "https://sms.local/v1/senders/approved",
+      expect.objectContaining({
+        headers: expect.objectContaining({ Authorization: "Token token" })
+      })
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      3,
       "https://sms.local/v1/messages",
       expect.objectContaining({
         method: "POST",
         headers: expect.objectContaining({ Authorization: "Token token" }),
         body: JSON.stringify({
           message: "Reserva criada",
-          from: "EMEU",
+          from: "BIZYCODE ",
           to: "937624786",
           schedule: "20260521193000"
         })

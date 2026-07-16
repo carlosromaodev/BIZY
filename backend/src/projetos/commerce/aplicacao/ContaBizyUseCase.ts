@@ -5,7 +5,7 @@ import type { RepositorioAutenticacao, RepositorioComprasUnificadas } from "../.
 import { NormalizadorTelefone } from "../../../dominio/servicos/NormalizadorTelefone.js";
 import type { UsuarioSistema } from "../../../dominio/tipos.js";
 import type { RepositorioContaBizy } from "../dominio/contratos.js";
-import type { ContaBizy, MetadadosAcessoContaBizy } from "../dominio/tipos.js";
+import type { ContaBizy, MetadadosAcessoContaBizy, TipoContextoContaBizy } from "../dominio/tipos.js";
 
 interface DependenciasContaBizy {
   contas: RepositorioContaBizy;
@@ -165,6 +165,35 @@ export class ContaBizyUseCase {
     const negocios = await this.deps.autenticacao.listarNegociosPorUsuario(usuario.id);
     for (const negocio of negocios) await this.deps.contas.garantirContexto(conta.id, "MEMBRO_NEGOCIO", negocio.id);
     return conta;
+  }
+
+  async configurarContextosUsuario(usuario: UsuarioSistema, tipos: TipoContextoContaBizy[]) {
+    const conta = await this.garantirContaUsuario(usuario);
+    const contextosUnicos = Array.from(new Set(tipos));
+
+    if (contextosUnicos.includes("COMPRADOR")) {
+      await this.deps.contas.garantirPerfilComprador(conta.id, {
+        nomeExibicao: usuario.nome
+      });
+    }
+
+    for (const tipo of contextosUnicos) {
+      await this.deps.contas.garantirContexto(conta.id, tipo);
+    }
+
+    const negocios = await this.deps.autenticacao.listarNegociosPorUsuario(usuario.id);
+    for (const negocio of negocios) {
+      for (const tipo of contextosUnicos) {
+        if (tipo === "SELLER" || tipo === "MEMBRO_NEGOCIO") {
+          await this.deps.contas.garantirContexto(conta.id, tipo, negocio.id);
+        }
+      }
+    }
+
+    return {
+      conta,
+      contextos: await this.deps.contas.listarContextos(conta.id)
+    };
   }
 
   async obterSessao(token: string | null) {

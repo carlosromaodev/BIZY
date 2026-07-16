@@ -7,10 +7,15 @@ const SUBDOMINIOS_RESERVADOS = new Set([
   "dashboard",
   "evolution",
   "evolution-manager",
+  "learning",
+  "links",
+  "lojas",
   "market",
   "n8n",
   "painel",
+  "status",
   "static",
+  "suporte",
   "wa",
   "www"
 ]);

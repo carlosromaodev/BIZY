@@ -243,9 +243,7 @@ function extrairMensagemErro(corpo: unknown): string | null {
 }
 
 export function obterUrlEventos(): string {
-  const token = obterToken();
-  const base = `${apiUrl}/eventos`;
-  return token ? `${base}?token=${encodeURIComponent(token)}` : base;
+  return `${apiUrl}/eventos`;
 }
 
 export function criarFonteEventosAutenticada(): EventSource {

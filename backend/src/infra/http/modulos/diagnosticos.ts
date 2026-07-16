@@ -6,9 +6,16 @@ import {
   extractProviderMessageId,
   extractSenderNames,
   normalizeSmsSender,
+  OMBALA_API_BASE_URL_PADRAO,
   OmbalaClient,
   validateSmsMessagePolicy
 } from "../../provedores/OmbalaClient.js";
+import {
+  listarRemetentesSmsBizy,
+  listarRemetentesSmsPermitidos,
+  remetenteSmsPermitido,
+  resolverRemetenteSmsBizy
+} from "../../provedores/RemetentesSmsBizy.js";
 import { exigirUsuarioAutenticado } from "../seguranca.js";
 import type { ModuloHttp } from "./ModuloHttp.js";
 
@@ -43,8 +50,10 @@ export const moduloDiagnosticos: ModuloHttp = {
 
       return {
         configurado: client.isConfigured,
-        baseUrl: process.env.OMBALA_API_BASE_URL ?? "https://api.ombala.ao",
-        remetentePadrao: normalizeSmsSender(process.env.OMBALA_SMS_DEFAULT_SENDER ?? "EMEU"),
+        baseUrl: process.env.OMBALA_API_BASE_URL ?? OMBALA_API_BASE_URL_PADRAO,
+        remetentePadrao: resolverRemetenteSmsBizy("AUTENTICACAO"),
+        remetentesPorFinalidade: listarRemetentesSmsBizy(),
+        remetentesPermitidos: listarRemetentesSmsPermitidos(),
         remetentesAprovados,
         creditos,
         providerStatus,
@@ -99,6 +108,13 @@ export const moduloDiagnosticos: ModuloHttp = {
         };
       }
 
+      if (!remetenteSmsPermitido(remetente)) {
+        return reply.code(400).send({
+          erro: "SMS_REMETENTE_NAO_APROVADO",
+          mensagem: `O remetente ${remetente} não pertence à lista Bizy aprovada para envio.`
+        });
+      }
+
       const resultado = await criarOmbalaClient().sendMessage({
         to: telefone,
         message: dados.mensagem,
@@ -124,7 +140,7 @@ export const moduloDiagnosticos: ModuloHttp = {
 
 function criarOmbalaClient() {
   return new OmbalaClient({
-    baseUrl: process.env.OMBALA_API_BASE_URL ?? "https://api.ombala.ao",
+    baseUrl: process.env.OMBALA_API_BASE_URL ?? OMBALA_API_BASE_URL_PADRAO,
     token: process.env.OMBALA_API_TOKEN
   });
 }

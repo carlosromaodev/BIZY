@@ -55,7 +55,8 @@ export async function criarAplicacao(): Promise<FastifyInstance> {
 
   await app.register(cors, {
     origin: resolverOrigemCors(),
-    credentials: true
+    credentials: true,
+    methods: ["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
   });
 
   validarConfiguracaoSegura();

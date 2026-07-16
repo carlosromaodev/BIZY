@@ -91,12 +91,27 @@ LOGIN_SMS_MINUTOS_EXPIRACAO=10
 LOGIN_SESSAO_DIAS_EXPIRACAO=7
 LOGIN_SMS_DEV_MODE=false
 LOGIN_SMS_EXPOR_CODIGO_DEV=false
-OMBALA_API_BASE_URL=https://api.ombala.ao
+OMBALA_API_BASE_URL=https://api.useombala.ao
 OMBALA_API_TOKEN=
-OMBALA_SMS_DEFAULT_SENDER=EMEU
+OMBALA_SMS_DEFAULT_SENDER=BIZYCODE
+OMBALA_SMS_SENDER_AUTH=BIZYCODE
+OMBALA_SMS_SENDER_CARE=BIZYCARE
+OMBALA_SMS_SENDER_LIVE=BIZYLIVE
+OMBALA_SMS_SENDER_MARKET=BIZYSHOP
+OMBALA_SMS_APPROVED_SENDERS=BIZYCODE,BIZYCARE,BIZYLIVE,BIZYSHOP
 ```
 
 Em desenvolvimento local, `LOGIN_SMS_EXPOR_CODIGO_DEV=true` mostra o código no frontend quando o provider SMS não está configurado.
+O modo de entrada sem conta só aparece quando `LOGIN_UI_DEV_MODE=true` e nunca é exposto em produção.
+
+Os remetentes são escolhidos por finalidade. OTP e autenticação usam `BIZYCODE`, suporte usa
+`BIZYCARE`, comunicações de live usam `BIZYLIVE` e Market usa `BIZYSHOP`. Envios reais de
+diagnóstico rejeitam remetentes fora da lista aprovada. `BIZYPAY` só deve ser configurado após
+aparecer entre os remetentes aprovados pela Ombala.
+
+`SMS_NOTIFICACOES_TRANSACIONAIS_ATIVAS=true` liga avisos de reservas, compras, pagamentos,
+entregas e suporte disparados por eventos reais. Campanhas de marketing continuam fora deste
+fluxo e exigem consentimento próprio.
 
 Diagnóstico protegido por sessão:
 
@@ -104,6 +119,37 @@ Diagnóstico protegido por sessão:
 - `GET /diagnosticos/sms/remetentes`: remetentes aprovados, pendentes e totais.
 - `GET /diagnosticos/sms/mensagens`: histórico Ombala por página ou telefone.
 - `POST /diagnosticos/sms/testar`: dry-run por padrão; com `enviarReal=true` chama Ombala.
+
+## Login académico UOR e ISPTEC
+
+O Bizy valida as credenciais directamente nos portais institucionais. A API do UOR Connect é
+apenas um fallback opcional quando `UORCONNECT_API_URL` estiver configurado e o portal directo
+não responder.
+
+Endpoints:
+
+- `GET /auth/disponibilidade`: informa providers, modo de ligação e métodos activos.
+- `POST /auth/estudantil/login`: valida a sessão institucional e cria ou actualiza a Conta Bizy.
+
+Configuração:
+
+```env
+LOGIN_ESTUDANTIL_DIRECT_ENABLED=true
+LOGIN_ESTUDANTIL_PROVIDERS=uor,isptec
+ACADEMIC_AUTH_TIMEOUT_MS=25000
+SECRETARIA_UOR_LOGIN_URL=http://secretaria.uor.edu.ao/netpa/page?stage=loginstage
+ISPTEC_LOGIN_URL=
+ISPTEC_GROUP_SELECT_URL=
+ISPTEC_PORTAL_HOME_URL=
+UORCONNECT_API_URL=
+UORCONNECT_AUTH_TIMEOUT_MS=25000
+LOGIN_ESTUDANTIL_DEV_MODE=false
+```
+
+As cookies dos portais existem apenas em memória durante a autenticação. A palavra-passe
+institucional não é gravada no Bizy, não entra em logs e não é devolvida ao frontend. A Secretaria
+UOR actualmente só responde em HTTP; quando a instituição disponibilizar HTTPS, actualize
+`SECRETARIA_UOR_LOGIN_URL` sem alterar o código.
 
 ## Media e comprovativos
 

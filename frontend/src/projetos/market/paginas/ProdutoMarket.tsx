@@ -1,9 +1,12 @@
 import {
   BadgeDollarSign,
   CheckCircle2,
+  ChevronLeft,
   ChevronRight,
   Heart,
-  MessageCircle,
+  Images,
+  LoaderCircle,
+  Maximize2,
   Minus,
   Package,
   Plus,
@@ -13,9 +16,10 @@ import {
   Star,
   Tags,
   Truck,
+  X,
 } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import {
   adicionarItemCheckoutBizy,
@@ -96,9 +100,15 @@ export function PaginaProdutoMarket() {
   const [erro, setErro] = useState("");
   const [carregando, setCarregando] = useState(true);
   const [favorito, setFavorito] = useState(false);
+  const [guardandoFavorito, setGuardandoFavorito] = useState(false);
+  const [adicionando, setAdicionando] = useState(false);
+  const [mensagemAcao, setMensagemAcao] = useState("");
+  const [galeriaAberta, setGaleriaAberta] = useState(false);
+  const [fotosComErro, setFotosComErro] = useState<string[]>([]);
   const [variantesSelecionadas, setVariantesSelecionadas] = useState<Record<string, string>>({});
   const [afiliacao, setAfiliacao] = useState<RespostaProdutoMarket["afiliacao"]>(null);
   const [confianca, setConfianca] = useState<ResumoConfiancaProdutoMarket | null>(null);
+  const dialogGaleriaRef = useRef<HTMLDialogElement>(null);
 
   useEffect(() => {
     let ativo = true;
@@ -129,6 +139,7 @@ export function PaginaProdutoMarket() {
         if (ativo) setFavorito(Boolean(favoritos?.favoritos.some((item) => item.slugLoja === normalizado.fornecedor.slug && item.codigoProduto === normalizado.codigo)));
         setSimilares((respostaSimilares?.produtos ?? resposta.similares ?? []).map(normalizarProdutoMarket));
         setFotoAtiva(0);
+        setFotosComErro([]);
         setQuantidade(1);
         limparSeo = aplicarSeoMetaTags(resposta.seo ?? montarSeoPublico({
           titulo: `${normalizado.nome} | Bizy Market`,
@@ -155,9 +166,35 @@ export function PaginaProdutoMarket() {
     };
   }, [listingId]);
 
-  const fotos = useMemo(() => (produto?.fotos.length ? produto.fotos.slice(0, 6) : []), [produto]);
+  const fotos = useMemo(
+    () => (produto?.fotos.length ? produto.fotos.filter((foto) => !fotosComErro.includes(foto)).slice(0, 6) : []),
+    [fotosComErro, produto]
+  );
   const thumbs = fotos.length ? fotos : ["", "", "", ""];
-  const fotoPrincipal = fotos[fotoAtiva] || produto?.fotoPrincipal || "";
+  const fotoPrincipal = fotos[fotoAtiva] || fotos[0] || "";
+
+  function marcarFotoComErro(foto: string) {
+    if (!foto) return;
+    setFotosComErro((actuais) => actuais.includes(foto) ? actuais : [...actuais, foto]);
+    setFotoAtiva(0);
+  }
+
+  useEffect(() => {
+    const dialog = dialogGaleriaRef.current;
+    if (!dialog) return;
+    if (galeriaAberta && !dialog.open) dialog.showModal();
+    if (!galeriaAberta && dialog.open) dialog.close();
+  }, [galeriaAberta]);
+
+  useEffect(() => {
+    if (!galeriaAberta || fotos.length < 2) return;
+    const navegarGaleria = (evento: globalThis.KeyboardEvent) => {
+      if (evento.key === "ArrowLeft") setFotoAtiva((actual) => (actual - 1 + fotos.length) % fotos.length);
+      if (evento.key === "ArrowRight") setFotoAtiva((actual) => (actual + 1) % fotos.length);
+    };
+    document.addEventListener("keydown", navegarGaleria);
+    return () => document.removeEventListener("keydown", navegarGaleria);
+  }, [fotos.length, galeriaAberta]);
 
   function submeterBusca(termoInformado = buscaTopo) {
     const termo = termoInformado.trim();
@@ -165,30 +202,57 @@ export function PaginaProdutoMarket() {
   }
 
   async function alternarFavorito() {
-    if (!produto) return;
+    if (!produto || guardandoFavorito) return;
+    setGuardandoFavorito(true);
+    setMensagemAcao("");
     try {
       if (favorito) await removerFavoritoContaBizy(produto.fornecedor.slug, produto.codigo);
       else await adicionarFavoritoContaBizy(produto.fornecedor.slug, produto.codigo);
       setFavorito((valor) => !valor);
+      setMensagemAcao(favorito ? "Produto removido dos favoritos." : "Produto guardado nos favoritos.");
     } catch {
       navigate(`/conta/entrar?returnTo=${encodeURIComponent(window.location.pathname)}`);
+    } finally {
+      setGuardandoFavorito(false);
     }
   }
 
-  function adicionarAoCheckoutBizy() {
-    if (!produto) return;
+  function prepararItemCheckout() {
+    if (!produto) return null;
     const combinacao = produto.combinacoesVariantes.find((item) =>
       item.estado === "ATIVA" && Object.entries(item.opcoes).every(([nome, valor]) => variantesSelecionadas[nome] === valor)
     );
-    if (Object.keys(produto.variantes).length > 0 && (!combinacao || combinacao.quantidade < quantidade)) return;
-    adicionarItemCheckoutBizy(criarItemCheckoutDeProdutoMarket(
+    if (Object.keys(produto.variantes).length > 0 && (!combinacao || combinacao.quantidade < quantidade)) {
+      setMensagemAcao("Selecciona uma combinação disponível antes de continuar.");
+      return null;
+    }
+    return criarItemCheckoutDeProdutoMarket(
       produto,
       quantidade,
       "market-pdp",
       variantesSelecionadas,
       combinacao?.precoEmKwanza ?? produto.precoFinalEmKwanza
-    ));
-    navigate(ROTAS_LOJAS.checkout);
+    );
+  }
+
+  function adicionarAoCheckoutBizy() {
+    const item = prepararItemCheckout();
+    if (!item) return;
+    setAdicionando(true);
+    setMensagemAcao("");
+    try {
+      adicionarItemCheckoutBizy(item);
+      setMensagemAcao(`${quantidade} unidade${quantidade === 1 ? "" : "s"} adicionada${quantidade === 1 ? "" : "s"} à sacola.`);
+    } finally {
+      window.setTimeout(() => setAdicionando(false), 260);
+    }
+  }
+
+  function comprarAgora() {
+    const item = prepararItemCheckout();
+    if (!item) return;
+    adicionarItemCheckoutBizy(item);
+    navigate(`${ROTAS_LOJAS.checkout}?origem=comprar-agora`);
   }
 
   function selecionarOpcaoVariante(nome: string, opcao: string) {
@@ -257,6 +321,12 @@ export function PaginaProdutoMarket() {
     : null;
   const disponivelSelecao = produto.disponivel && stockMaximo > 0;
   const desconto = produto.descontoPercentual ? `-${produto.descontoPercentual}%` : disponivelSelecao ? "Em stock" : "Indisponível";
+  const economiaEmKwanza = precoAntigoSelecionado ? Math.max(0, precoAntigoSelecionado - precoSelecionado) : 0;
+  const stockTexto = !disponivelSelecao
+    ? "Combinação indisponível"
+    : stockMaximo <= 3
+      ? `Baixo stock: restam ${stockMaximo}`
+      : `${stockMaximo} unidades disponíveis`;
   const seloPrincipal = produto.selos.find((selo) => selo !== "PATROCINADO" && selo !== "VERIFICADO");
   const lojaVerificada = produto.selos.includes("VERIFICADO");
   const selecaoResumo = variantesVisiveis
@@ -292,10 +362,16 @@ export function PaginaProdutoMarket() {
         >
           <div className={`market-pdp-photo market-pdp-main-visual pdp-main ${fotoPrincipal ? "has-image" : "is-placeholder"}`}>
             <span className="off">{desconto}</span>
-            <button type="button" className={`fav ${favorito ? "is-active" : ""}`} aria-label={favorito ? "Remover dos favoritos" : "Adicionar aos favoritos"} aria-pressed={favorito} onClick={() => void alternarFavorito()}>
-              <Heart size={16} fill={favorito ? "currentColor" : "none"} />
+            <button type="button" className={`fav ${favorito ? "is-active" : ""}`} aria-label={favorito ? "Remover dos favoritos" : "Adicionar aos favoritos"} aria-pressed={favorito} disabled={guardandoFavorito} onClick={() => void alternarFavorito()}>
+              {guardandoFavorito ? <LoaderCircle className="market-spin" size={16} /> : <Heart size={16} fill={favorito ? "currentColor" : "none"} />}
             </button>
-            {fotoPrincipal ? <img src={fotoPrincipal} alt={produto.nome} /> : <Package size={64} />}
+            {fotoPrincipal ? (
+              <button type="button" className="market-pdp-zoom-trigger" onClick={() => setGaleriaAberta(true)} aria-label={`Ampliar imagem de ${produto.nome}`}>
+                <img key={fotoPrincipal} src={fotoPrincipal} alt={produto.nome} onError={() => marcarFotoComErro(fotoPrincipal)} />
+                <span><Maximize2 size={15} />Ampliar</span>
+              </button>
+            ) : <Package size={64} />}
+            {fotos.length > 1 && <div className="market-pdp-gallery-nav"><button type="button" onClick={() => setFotoAtiva((actual) => (actual - 1 + fotos.length) % fotos.length)} aria-label="Imagem anterior"><ChevronLeft size={18} /></button><span>{fotoAtiva + 1} / {fotos.length}</span><button type="button" onClick={() => setFotoAtiva((actual) => (actual + 1) % fotos.length)} aria-label="Imagem seguinte"><ChevronRight size={18} /></button></div>}
           </div>
           <div className="market-pdp-thumbs pdp-thumbs" aria-label="Fotos do produto">
             {thumbs.map((foto, indice) => (
@@ -305,15 +381,23 @@ export function PaginaProdutoMarket() {
                   type="button"
                   className={`th ${fotoAtiva === indice ? "on" : ""}`}
                   onClick={() => setFotoAtiva(indice)}
+                  aria-label={`Mostrar imagem ${indice + 1} de ${produto.nome}`}
                   aria-current={fotoAtiva === indice ? "true" : undefined}
                 >
-                  <img src={foto} alt="" />
+                  <img src={foto} alt={`${produto.nome}, imagem ${indice + 1}`} onError={() => marcarFotoComErro(foto)} />
                 </button>
               ) : (
                 <span key={`placeholder-${indice}`} className={`th is-placeholder ${indice === 0 ? "on" : ""}`} />
               )
             ))}
           </div>
+          <dialog ref={dialogGaleriaRef} className="market-pdp-lightbox" onClose={() => setGaleriaAberta(false)} onCancel={() => setGaleriaAberta(false)} onClick={(evento) => { if (evento.target === evento.currentTarget) setGaleriaAberta(false); }}>
+            <div>
+              <header><span><Images size={17} />{produto.nome}</span><button type="button" onClick={() => setGaleriaAberta(false)} aria-label="Fechar galeria"><X size={20} /></button></header>
+              <figure>{fotoPrincipal ? <img src={fotoPrincipal} alt={`${produto.nome}, imagem ampliada ${fotoAtiva + 1}`} onError={() => marcarFotoComErro(fotoPrincipal)} /> : <Package size={64} />}</figure>
+              {fotos.length > 1 && <footer><button type="button" onClick={() => setFotoAtiva((actual) => (actual - 1 + fotos.length) % fotos.length)}><ChevronLeft size={18} />Anterior</button><span>{fotoAtiva + 1} de {fotos.length}</span><button type="button" onClick={() => setFotoAtiva((actual) => (actual + 1) % fotos.length)}>Seguinte<ChevronRight size={18} /></button></footer>}
+            </div>
+          </dialog>
         </motion.div>
 
         <motion.aside
@@ -353,8 +437,13 @@ export function PaginaProdutoMarket() {
           </div>
 
           <div className="market-pdp-price prrow">
-            <span className="pr">{formatarKwanza(precoSelecionado)}</span>
-            {precoAntigoSelecionado && <span className="old">{formatarKwanza(precoAntigoSelecionado)}</span>}
+            <div><span className="pr">{formatarKwanza(precoSelecionado)}</span>{precoAntigoSelecionado && <span className="old">{formatarKwanza(precoAntigoSelecionado)}</span>}</div>
+            {economiaEmKwanza > 0 && <small>Economiza {formatarKwanza(economiaEmKwanza)}</small>}
+          </div>
+
+          <div className={`market-pdp-stock-status${stockMaximo <= 3 ? " is-low" : ""}${!disponivelSelecao ? " is-out" : ""}`} role="status">
+            <span><i />{stockTexto}</span>
+            {combinacaoSelecionada?.sku && <small>SKU {combinacaoSelecionada.sku}</small>}
           </div>
 
           {variantesVisiveis.length > 0 && (
@@ -395,7 +484,7 @@ export function PaginaProdutoMarket() {
           )}
 
           <div className="market-pdp-quantity" aria-label="Quantidade para compra">
-            <span className="lab2">Quantidade</span>
+            <span className="lab2">Quantidade <small>máx. {stockMaximo}</small></span>
             <div className="qty2">
               <button type="button" className="b" disabled={quantidade <= 1} onClick={() => setQuantidade((valor) => Math.max(1, valor - 1))} aria-label="Diminuir quantidade">
                 <Minus size={14} />
@@ -408,14 +497,14 @@ export function PaginaProdutoMarket() {
           </div>
 
           <div className="market-pdp-actions pdp-cta">
-            <button type="button" className="market-pdp-checkout" disabled={!disponivelSelecao} onClick={adicionarAoCheckoutBizy}>
-              <ShoppingBag size={18} />
-              Adicionar ao checkout
+            <button type="button" className="market-pdp-checkout" disabled={!disponivelSelecao || adicionando} onClick={adicionarAoCheckoutBizy}>
+              {adicionando ? <LoaderCircle className="market-spin" size={18} /> : <ShoppingBag size={18} />}
+              Adicionar à sacola
             </button>
-            <Link to={produto.urlProduto} className="market-pdp-contact market-pdp-wa wa" aria-label="Comprar ou falar com a loja">
-              <MessageCircle size={18} />
-            </Link>
+            <button type="button" className="market-pdp-buy-now" disabled={!disponivelSelecao} onClick={comprarAgora}>Comprar agora</button>
           </div>
+
+          {mensagemAcao && <div className="market-pdp-action-feedback" role="status" aria-live="polite"><CheckCircle2 size={15} /><span>{mensagemAcao}</span>{mensagemAcao.includes("sacola") && <Link to={ROTAS_LOJAS.checkout}>Ver sacola</Link>}</div>}
 
           {afiliacao && (
             <Link className="market-pdp-affiliate" to={`/creator/oportunidades?produto=${encodeURIComponent(produto.listingId)}&oferta=${encodeURIComponent(afiliacao.ofertaId)}`}>
@@ -425,18 +514,20 @@ export function PaginaProdutoMarket() {
             </Link>
           )}
 
-          <div className="market-pdp-description">
-            {produto.descricao || produto.colecao || "Produto publicado por uma loja Bizy."}
+          <div className="market-pdp-service-grid market-pdp-delivery-lines">
+            <div><Truck size={18} /><span><strong>Entrega calculada no checkout</strong><small>Prazo e custo separados por fornecedor.</small></span></div>
+            <div><ShieldCheck size={18} /><span><strong>Compra acompanhada</strong><small>Pedido, pagamento e entrega ficam registados.</small></span></div>
+            <div><Store size={18} /><span><strong>{produto.nomeFornecedor}</strong><small>{produto.fornecedor.localizacao || "Fornecedor Bizy identificado"}</small></span></div>
           </div>
 
-          <div className="market-pdp-delivery-lines dlines">
-            <div className="dline"><Truck size={18} /><span>Entrega, retirada ou combinação direta conforme a política de {produto.nomeFornecedor}.</span></div>
-            <div className="dline"><Store size={18} /><span>Fornecedor: <b>{produto.nomeFornecedor}</b>{produto.fornecedor.localizacao ? ` · ${produto.fornecedor.localizacao}` : ""}.</span></div>
-            <div className="dline"><ShieldCheck size={18} /><span>Pagamento por transferência/comprovativo, dinheiro na entrega ou método combinado quando disponível.</span></div>
-          </div>
-
-          {selecaoResumo && <small className="market-pdp-selection">Seleção inicial: {selecaoResumo}</small>}
+          {selecaoResumo && <small className="market-pdp-selection">Selecção actual: {selecaoResumo}</small>}
         </motion.aside>
+      </section>
+
+      <section className="market-pdp-details" aria-label="Informação detalhada do produto">
+        <article className="market-pdp-description"><span>Descrição</span><h2>Sobre este produto</h2><p>{produto.descricao || produto.colecao || "Produto publicado por uma loja Bizy com stock e preço validados no checkout."}</p></article>
+        <article><span>Especificações</span><h2>Dados do catálogo</h2><dl><div><dt>Categoria</dt><dd>{produto.categoria}</dd></div><div><dt>Código</dt><dd>{produto.codigo}</dd></div>{produto.colecao && <div><dt>Colecção</dt><dd>{produto.colecao}</dd></div>}{Object.entries(variantesSelecionadas).map(([nome, valor]) => <div key={nome}><dt>{nome}</dt><dd>{valor}</dd></div>)}</dl></article>
+        <article><span>Garantia e devolução</span><h2>Condições transparentes</h2><p>As condições específicas são definidas por {produto.nomeFornecedor}. Confirma garantia, troca ou devolução na revisão antes do pagamento; o histórico da compra permanece no Bizy.</p></article>
       </section>
 
       <section className="market-pdp-trust-section" aria-labelledby="market-pdp-reviews-title">

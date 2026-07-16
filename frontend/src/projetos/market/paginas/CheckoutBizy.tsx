@@ -1,4 +1,5 @@
 import {
+  AlertTriangle,
   Banknote,
   CheckCircle2,
   ClipboardCheck,
@@ -79,12 +80,20 @@ const METODOS_PAGAMENTO: Array<{ id: MetodoPagamentoCheckout; titulo: string; de
 ];
 
 const ETAPAS_CHECKOUT = [
-  { id: "carrinho", titulo: "Carrinho", icone: ShoppingBag },
-  { id: "dados", titulo: "Dados", icone: ClipboardCheck },
+  { id: "carrinho", titulo: "Sacola", icone: ShoppingBag },
+  { id: "dados", titulo: "Identificação", icone: ClipboardCheck },
+  { id: "endereco", titulo: "Endereço", icone: MapPin },
   { id: "entrega", titulo: "Entrega", icone: Truck },
   { id: "pagamento", titulo: "Pagamento", icone: CreditCard },
   { id: "confirmacao", titulo: "Revisão", icone: ReceiptText }
 ] as const;
+
+function assinarCotacaoCheckout(itens: ItemCarrinhoCheckoutBizy[], entrega: EntregaCheckoutPublico): string {
+  const assinaturaItens = itens
+    .map((item) => ({ id: item.id, quantidade: item.quantidade, variantes: item.variantes ?? {} }))
+    .sort((a, b) => a.id.localeCompare(b.id));
+  return JSON.stringify({ itens: assinaturaItens, entrega });
+}
 
 export function PaginaCheckoutBizy() {
   const [itens, setItens] = useState<ItemCarrinhoCheckoutBizy[]>(() => carregarCarrinhoCheckoutBizy());
@@ -99,15 +108,21 @@ export function PaginaCheckoutBizy() {
   const [indiceEtapaAtual, setIndiceEtapaAtual] = useState(0);
   const [enderecosGuardados, setEnderecosGuardados] = useState<EnderecoCompradorBizy[]>([]);
   const [cotacao, setCotacao] = useState<CotacaoCheckoutBizy | null>(null);
+  const [assinaturaCotacao, setAssinaturaCotacao] = useState("");
   const [cotando, setCotando] = useState(false);
+  const [enderecoSeleccionado, setEnderecoSeleccionado] = useState("");
+  const [itemEmAlteracao, setItemEmAlteracao] = useState("");
 
   const grupos = useMemo(() => agruparItensCheckoutPorLoja(itens), [itens]);
   const totais = useMemo(() => calcularTotaisCheckoutBizy(itens), [itens]);
   const checkoutMultiLoja = grupos.length > 1;
   const grupoUnico = grupos[0] ?? null;
+  const assinaturaActual = useMemo(() => assinarCotacaoCheckout(itens, entrega), [entrega, itens]);
+  const cotacaoValida = Boolean(cotacao && assinaturaCotacao === assinaturaActual);
+  const cotacaoAplicavel = cotacaoValida ? cotacao : null;
   const metodosDisponiveis = useMemo(
-    () => METODOS_PAGAMENTO.filter((metodo) => cotacao?.metodosPagamento.includes(metodo.id) ?? metodo.id === "personalizado"),
-    [cotacao]
+    () => METODOS_PAGAMENTO.filter((metodo) => cotacaoAplicavel?.metodosPagamento.includes(metodo.id) ?? metodo.id === "personalizado"),
+    [cotacaoAplicavel]
   );
 
   useEffect(() => {
@@ -142,7 +157,20 @@ export function PaginaCheckoutBizy() {
   const etapaAtual = ETAPAS_CHECKOUT[indiceEtapaAtual]?.id ?? "carrinho";
 
   function aplicarEndereco(endereco: EnderecoCompradorBizy) {
+    setEnderecoSeleccionado(endereco.id);
     setEntrega({ tipo: "ENTREGA", provincia: endereco.provincia, municipio: endereco.municipio, bairro: endereco.bairro, endereco: [endereco.endereco, endereco.referencia].filter(Boolean).join(" · ") });
+  }
+
+  async function gerarCotacao(): Promise<CotacaoCheckoutBizy> {
+    setCotando(true);
+    try {
+      const novaCotacao = await cotarCheckoutBizy(itens, entrega);
+      setCotacao(novaCotacao);
+      setAssinaturaCotacao(assinarCotacaoCheckout(itens, entrega));
+      return novaCotacao;
+    } finally {
+      setCotando(false);
+    }
   }
 
   async function avancarEtapa() {
@@ -151,31 +179,31 @@ export function PaginaCheckoutBizy() {
     if (indiceEtapaAtual === 1 && (!cliente.nome.trim() || !cliente.telefone.trim() || !cliente.consentimentoDados)) return setMensagem("Preenche nome, telefone e consentimento mínimo.");
     if (indiceEtapaAtual === 2) {
       if (entrega.tipo === "ENTREGA" && !entrega.endereco?.trim()) return setMensagem("Informa ou selecciona o endereço de entrega.");
-      setCotando(true);
       try {
-        const novaCotacao = await cotarCheckoutBizy(itens, entrega);
-        setCotacao(novaCotacao);
+        const novaCotacao = await gerarCotacao();
         const primeiroMetodo = METODOS_PAGAMENTO.find((metodo) => novaCotacao.metodosPagamento.includes(metodo.id));
         if (!primeiroMetodo) {
           setMensagem("As lojas deste carrinho não possuem um método de pagamento comum. Separa os produtos em compras diferentes.");
-          setCotando(false);
           return;
         }
         setMetodoPagamento(primeiroMetodo.id);
-      } catch (erro) { setMensagem(erro instanceof Error ? erro.message : "Não foi possível calcular a entrega."); setCotando(false); return; }
-      setCotando(false);
+      } catch (erro) { setMensagem(erro instanceof Error ? erro.message : "Não foi possível calcular a entrega."); return; }
     }
-    setIndiceEtapaAtual((actual) => Math.min(4, actual + 1));
+    setIndiceEtapaAtual((actual) => Math.min(5, actual + 1));
   }
 
   function removerItem(id: string) {
     setItens(removerItemCheckoutBizy(id));
     limparChaveIdempotenciaCheckoutBizy();
+    setMensagem("Produto removido. A cotação será actualizada antes da confirmação.");
   }
 
   function atualizarQuantidade(id: string, quantidade: number) {
+    setItemEmAlteracao(id);
     setItens(atualizarQuantidadeItemCheckoutBizy(id, quantidade));
     limparChaveIdempotenciaCheckoutBizy();
+    setMensagem("Quantidade actualizada. A cotação anterior deixou de ser válida.");
+    window.setTimeout(() => setItemEmAlteracao(""), 280);
   }
 
   function limparCarrinho() {
@@ -183,6 +211,8 @@ export function PaginaCheckoutBizy() {
     limparChaveIdempotenciaCheckoutBizy();
     setItens([]);
     setCompraUnificada(null);
+    setCotacao(null);
+    setAssinaturaCotacao("");
   }
 
   async function finalizarCheckout() {
@@ -210,12 +240,18 @@ export function PaginaCheckoutBizy() {
 
     setFinalizando(true);
     try {
+      let cotacaoFinal = cotacaoAplicavel;
+      if (!cotacaoFinal) cotacaoFinal = await gerarCotacao();
+      const primeiroMetodo = METODOS_PAGAMENTO.find((metodo) => cotacaoFinal.metodosPagamento.includes(metodo.id));
+      if (!primeiroMetodo) throw new Error("As lojas não possuem um método de pagamento comum para esta compra.");
+      const metodoFinal = cotacaoFinal.metodosPagamento.includes(metodoPagamento) ? metodoPagamento : primeiroMetodo.id;
+      if (metodoFinal !== metodoPagamento) setMetodoPagamento(metodoFinal);
       const idempotencyKey = obterChaveIdempotenciaCheckoutBizy(
         itens,
         cliente.telefone,
         JSON.stringify({
           entrega,
-          metodoPagamento,
+          metodoPagamento: metodoFinal,
           observacao: observacao.trim()
         })
       );
@@ -232,7 +268,7 @@ export function PaginaCheckoutBizy() {
         compradorEmail: cliente.email || null,
         itens: [],
         entrega,
-        metodoPagamento,
+        metodoPagamento: metodoFinal,
         enderecoEntrega: enderecoCompleto,
         observacao: observacao.trim() || null,
         origem: "checkout-bizy"
@@ -288,6 +324,10 @@ export function PaginaCheckoutBizy() {
         </span>
       </section>
 
+      {sincronizando && <div className="checkout-sync-state" role="status"><Loader2 className="animate-spin" size={15} />A sincronizar a sacola com o servidor...</div>}
+      {cotacao && !cotacaoValida && <div className="checkout-quote-stale" role="status"><AlertTriangle size={16} /><span><strong>Totais por actualizar</strong>A sacola ou a entrega mudou. Uma nova cotação será criada antes da confirmação.</span></div>}
+      {mensagem && indiceEtapaAtual < 5 && <p className="checkout-global-message" role="status" aria-live="polite">{mensagem}</p>}
+
       {compraUnificada ? (
         <section className="checkout-success-card">
           <CheckCircle2 size={40} />
@@ -341,7 +381,7 @@ export function PaginaCheckoutBizy() {
                     </header>
                     <div className="checkout-item-list">
                       {grupo.itens.map((item) => (
-                        <div key={item.id} className="checkout-item-row">
+                        <div key={item.id} className={`checkout-item-row${itemEmAlteracao === item.id ? " is-updating" : ""}`}>
                           <span className="checkout-item-media">
                             {item.fotoUrl ? <img src={item.fotoUrl} alt="" /> : <Package size={18} />}
                           </span>
@@ -409,18 +449,17 @@ export function PaginaCheckoutBizy() {
               <h2>Identificação</h2>
               <p>Usamos estes dados apenas para a compra, entrega e acompanhamento.</p>
             <div className="checkout-form-grid">
-              <Input value={cliente.nome} onChange={(e) => setCliente({ ...cliente, nome: e.target.value })} placeholder="Nome completo" aria-label="Nome completo" />
-              <Input value={cliente.telefone} onChange={(e) => setCliente({ ...cliente, telefone: e.target.value })} placeholder="Telefone" aria-label="Telefone" />
-              <Input value={cliente.email} onChange={(e) => setCliente({ ...cliente, email: e.target.value })} placeholder="Email opcional" aria-label="Email opcional" />
+              <label><span>Nome completo</span><Input value={cliente.nome} onChange={(e) => setCliente({ ...cliente, nome: e.target.value })} placeholder="Como devemos tratar-te" autoComplete="name" /></label>
+              <label><span>Telefone</span><Input value={cliente.telefone} onChange={(e) => setCliente({ ...cliente, telefone: e.target.value })} placeholder="Número para acompanhamento" inputMode="tel" autoComplete="tel" /></label>
+              <label><span>Email <small>opcional</small></span><Input value={cliente.email} onChange={(e) => setCliente({ ...cliente, email: e.target.value })} placeholder="Recibos e actualizações" inputMode="email" autoComplete="email" /></label>
             </div>
             <label className="checkout-consent-row"><input type="checkbox" checked={cliente.consentimentoDados} onChange={(e) => setCliente({ ...cliente, consentimentoDados: e.target.checked })} /><span>Autorizo o uso dos dados mínimos para criar pedido, entrega e atendimento.</span></label>
             <label className="checkout-consent-row"><input type="checkbox" checked={cliente.consentimentoMarketing} onChange={(e) => setCliente({ ...cliente, consentimentoMarketing: e.target.checked })} /><span>Quero receber novidades por canais permitidos.</span></label>
             </section>
 
             <section className="checkout-step-panel" hidden={indiceEtapaAtual !== 2}>
-              <h2>Entrega</h2>
-              <p>Selecciona uma morada guardada ou informa os dados para calcular custo e prazo.</p>
-              {enderecosGuardados.length > 0 && <div className="checkout-saved-addresses">{enderecosGuardados.map((endereco) => <button type="button" key={endereco.id} onClick={() => aplicarEndereco(endereco)}><MapPin size={15} /><span><strong>{endereco.rotulo}{endereco.principal ? " · Principal" : ""}</strong><small>{[endereco.endereco, endereco.bairro, endereco.municipio].filter(Boolean).join(", ")}</small></span></button>)}</div>}
+              <h2>Endereço e modalidade</h2>
+              <p>Escolhe como queres receber. Só pedimos endereço quando existe entrega.</p>
             <div className="checkout-delivery-options" aria-label="Tipo de entrega">
               {(["ENTREGA", "RETIRADA", "ORCAMENTO"] as EntregaCheckoutPublico["tipo"][]).map((tipo) => (
                 <button
@@ -435,24 +474,26 @@ export function PaginaCheckoutBizy() {
             </div>
 
             {entrega.tipo === "ENTREGA" && (
-              <div className="checkout-form-grid">
-                <Input value={entrega.provincia ?? ""} onChange={(e) => setEntrega({ ...entrega, provincia: e.target.value })} placeholder="Província" />
-                <Input value={entrega.municipio ?? ""} onChange={(e) => setEntrega({ ...entrega, municipio: e.target.value })} placeholder="Município" />
-                <Input value={entrega.bairro ?? ""} onChange={(e) => setEntrega({ ...entrega, bairro: e.target.value })} placeholder="Bairro/zona" />
-                <label className="checkout-address-field">
-                  <MapPin size={15} />
-                  <Textarea
-                    value={entrega.endereco ?? ""}
-                    onChange={(e) => setEntrega({ ...entrega, endereco: e.target.value })}
-                    placeholder="Endereço ou referência"
-                  />
-                </label>
-              </div>
+              <>
+                {enderecosGuardados.length > 0 && <div className="checkout-saved-addresses">{enderecosGuardados.map((endereco) => <button type="button" key={endereco.id} className={enderecoSeleccionado === endereco.id ? "is-active" : ""} aria-pressed={enderecoSeleccionado === endereco.id} onClick={() => aplicarEndereco(endereco)}><MapPin size={15} /><span><strong>{endereco.rotulo}{endereco.principal ? " · Principal" : ""}</strong><small>{[endereco.endereco, endereco.bairro, endereco.municipio].filter(Boolean).join(", ")}</small></span></button>)}</div>}
+                <div className="checkout-form-grid">
+                  <label><span>Província</span><Input value={entrega.provincia ?? ""} onChange={(e) => { setEnderecoSeleccionado(""); setEntrega({ ...entrega, provincia: e.target.value }); }} placeholder="Ex.: Luanda" autoComplete="address-level1" /></label>
+                  <label><span>Município</span><Input value={entrega.municipio ?? ""} onChange={(e) => { setEnderecoSeleccionado(""); setEntrega({ ...entrega, municipio: e.target.value }); }} placeholder="Município" autoComplete="address-level2" /></label>
+                  <label><span>Bairro ou zona</span><Input value={entrega.bairro ?? ""} onChange={(e) => { setEnderecoSeleccionado(""); setEntrega({ ...entrega, bairro: e.target.value }); }} placeholder="Bairro/zona" autoComplete="address-level3" /></label>
+                  <label className="checkout-address-field"><span>Endereço ou referência</span><span><MapPin size={15} /><Textarea value={entrega.endereco ?? ""} onChange={(e) => { setEnderecoSeleccionado(""); setEntrega({ ...entrega, endereco: e.target.value }); }} placeholder="Rua, número e referência" autoComplete="street-address" /></span></label>
+                </div>
+              </>
             )}
-            {cotacao && <div className="checkout-delivery-quote">{cotacao.lojas.map((loja) => <div key={loja.negocioId}><span><strong>{loja.nomeLoja}</strong><small>{loja.prazoMinimoDias != null ? `${loja.prazoMinimoDias}${loja.prazoMaximoDias ? `–${loja.prazoMaximoDias}` : ""} dias` : "Prazo informado pela loja"}</small></span><strong>{loja.taxaEntregaEmKwanza ? formatarKwanza(loja.taxaEntregaEmKwanza) : "Grátis"}</strong></div>)}</div>}
             </section>
 
             <section className="checkout-step-panel" hidden={indiceEtapaAtual !== 3}>
+              <h2>Entrega por fornecedor</h2>
+              <p>Custo e prazo são calculados separadamente para cada loja.</p>
+              {cotacaoAplicavel ? <div className="checkout-delivery-quote">{cotacaoAplicavel.lojas.map((loja) => <div key={loja.negocioId}><span><strong>{loja.nomeLoja}</strong><small>{loja.prazoMinimoDias != null ? `${loja.prazoMinimoDias}${loja.prazoMaximoDias ? `–${loja.prazoMaximoDias}` : ""} dias` : "Prazo informado pela loja"}</small></span><strong>{loja.taxaEntregaEmKwanza ? formatarKwanza(loja.taxaEntregaEmKwanza) : "Grátis"}</strong></div>)}</div> : <div className="checkout-quote-pending"><AlertTriangle size={17} /><span>A cotação precisa de ser recalculada.</span><button type="button" onClick={() => void gerarCotacao()} disabled={cotando}>{cotando ? "A calcular..." : "Recalcular"}</button></div>}
+              <div className="checkout-delivery-total"><span>Total de entrega</span><strong>{cotacaoAplicavel ? formatarKwanza(cotacaoAplicavel.taxaEntregaTotalEmKwanza) : "Por calcular"}</strong></div>
+            </section>
+
+            <section className="checkout-step-panel" hidden={indiceEtapaAtual !== 4}>
             <div className="checkout-section-head">
               <span><CreditCard size={16} /> Pagamento</span>
             </div>
@@ -484,18 +525,20 @@ export function PaginaCheckoutBizy() {
             )}
             </section>
 
-            <section className="checkout-step-panel" hidden={indiceEtapaAtual !== 4}>
+            <section className="checkout-step-panel" hidden={indiceEtapaAtual !== 5}>
             <h2>Revisão final</h2>
             <Textarea value={observacao} onChange={(e) => setObservacao(e.target.value)} placeholder="Observação para a loja" />
+
+            <div className="checkout-review-stores">{grupos.map((grupo) => <div key={grupo.slugLoja}><span><Store size={14} /><strong>{grupo.nomeFornecedor}</strong><small>{grupo.itens.length} produto{grupo.itens.length === 1 ? "" : "s"}</small></span><strong>{formatarKwanza(grupo.subtotalEmKwanza)}</strong></div>)}</div>
 
             <div className="checkout-bizy-summary">
               <div><span>Itens</span><strong>{totais.quantidadeItens}</strong></div>
               <div><span>Subtotal</span><strong>{formatarKwanza(totais.subtotalEmKwanza)}</strong></div>
               <div><span>Fornecedores</span><strong>{totais.totalLojas}</strong></div>
               <div><span>Pagamento</span><strong>{METODOS_PAGAMENTO.find((metodo) => metodo.id === metodoPagamento)?.titulo ?? "A combinar"}</strong></div>
-              <div><span>Entrega</span><strong>{cotacao ? formatarKwanza(cotacao.taxaEntregaTotalEmKwanza) : "Por calcular"}</strong></div>
-              <div><span>IVA</span><strong>{cotacao ? formatarKwanza(cotacao.ivaTotalEmKwanza) : "Por calcular"}</strong></div>
-              <div><span>Total final</span><strong>{cotacao ? formatarKwanza(cotacao.totalEmKwanza) : formatarKwanza(totais.subtotalEmKwanza)}</strong></div>
+              <div><span>Entrega</span><strong>{cotacaoAplicavel ? formatarKwanza(cotacaoAplicavel.taxaEntregaTotalEmKwanza) : "Por calcular"}</strong></div>
+              <div><span>IVA</span><strong>{cotacaoAplicavel ? formatarKwanza(cotacaoAplicavel.ivaTotalEmKwanza) : "Por calcular"}</strong></div>
+              <div><span>Total final</span><strong>{cotacaoAplicavel ? formatarKwanza(cotacaoAplicavel.totalEmKwanza) : "Recalcular cotação"}</strong></div>
             </div>
 
             <div className="checkout-review-panel" aria-live="polite">
@@ -509,12 +552,12 @@ export function PaginaCheckoutBizy() {
               )}
             </div>
 
-            {mensagem && <p className="checkout-message" aria-live="polite">{mensagem}</p>}
+            {mensagem && <p className="checkout-message" role="status" aria-live="polite">{mensagem}</p>}
 
             <Button
               type="button"
               className="checkout-submit"
-              disabled={sincronizando || finalizando || !itens.length}
+              disabled={sincronizando || finalizando || cotando || !itens.length}
               onClick={() => void finalizarCheckout()}
             >
               {finalizando ? <Loader2 className="animate-spin" size={18} /> : <Lock size={18} />}
@@ -524,7 +567,7 @@ export function PaginaCheckoutBizy() {
 
             <div className="checkout-step-actions">
               {indiceEtapaAtual > 0 && <Button type="button" variant="outline" onClick={() => setIndiceEtapaAtual((actual) => Math.max(0, actual - 1))}>Voltar</Button>}
-              {indiceEtapaAtual < 4 && <Button type="button" onClick={() => void avancarEtapa()} disabled={cotando}>{cotando ? "A calcular..." : "Continuar"}</Button>}
+              {indiceEtapaAtual < 5 && <Button type="button" onClick={() => void avancarEtapa()} disabled={cotando}>{cotando ? "A calcular..." : "Continuar"}</Button>}
             </div>
           </aside>}
         </section>

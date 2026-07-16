@@ -14,7 +14,7 @@ class ProvedorSmsFake implements ProvedorSms {
       provider: "fake-sms",
       status: 200,
       idExterno: "sms_123",
-      resposta: { id: "sms_123" },
+      resposta: { id: "sms_123", content: "Bizy: codigo de acesso 123456." },
       erro: null
     };
   }
@@ -45,8 +45,14 @@ describe("AutenticacaoTelefoneUseCase", () => {
     );
     expect(provedor.ultimaMensagem?.conteudo).toContain("codigo de acesso");
     const codigoPersistido = await repositorio.buscarCodigoSmsValido("923456789", new Date());
-    expect(JSON.parse(codigoPersistido?.providerResponseJson ?? "{}")).toEqual(
+    const auditoriaProvider = JSON.parse(codigoPersistido?.providerResponseJson ?? "{}");
+    expect(auditoriaProvider).toEqual(
       expect.objectContaining({
+        provider: {
+          status: 200,
+          idExterno: "sms_123",
+          erro: null
+        },
         metricasOtp: expect.objectContaining({
           latenciaEnvioMs: expect.any(Number),
           sloEnvioMs: 10_000,
@@ -54,6 +60,7 @@ describe("AutenticacaoTelefoneUseCase", () => {
         })
       })
     );
+    expect(JSON.stringify(auditoriaProvider)).not.toContain("123456");
 
     const confirmacao = await useCase.confirmarCodigo({
       telefone: "923456789",

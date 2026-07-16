@@ -4,6 +4,7 @@ import {
   AtualizarPagamentosNegocioSchema,
   ConfirmarCodigoLoginSchema,
   AtualizarModuloNegocioSchema,
+  ConfigurarPerfilOnboardingSchema,
   CriarProdutoInicialOnboardingSchema,
   LoginEstudantilSchema,
   ModuloNegocioParametroSchema,
@@ -12,6 +13,8 @@ import {
   QueryRedirectSchema,
   SolicitarCodigoLoginSchema
 } from "../../../dominio/esquemas.js";
+import { ErroAutenticacaoEstudantil } from "../../../use-case/AutenticacaoEstudantilUseCase.js";
+import { ErroEnvioSms } from "../../../use-case/AutenticacaoTelefoneUseCase.js";
 import { exigirPermissaoComercial, resolverContextoComercial } from "../contextoComercial.js";
 import { ehErroInfraestrutura } from "../errosHttp.js";
 import {
@@ -27,13 +30,29 @@ export const moduloAutenticacao: ModuloHttp = {
   nome: "autenticacao",
   descricao: "Login por telefone, confirmação de SMS e gestão de sessão.",
   registrar(app, contexto) {
+    app.get("/auth/disponibilidade", async () => obterDisponibilidadeAutenticacao(contexto.provedorSms.configurado));
+
     app.post("/auth/telefone/solicitar-codigo", async (request, reply) => {
+      if (!obterDisponibilidadeAutenticacao(contexto.provedorSms.configurado).metodos.telefone.disponivel) {
+        return reply.code(503).send({
+          erro: "LOGIN_SMS_INDISPONIVEL",
+          mensagem: "O acesso por SMS está temporariamente indisponível."
+        });
+      }
+
       const dados = SolicitarCodigoLoginSchema.parse(request.body);
 
       try {
         const resultado = await contexto.autenticacaoTelefone.solicitarCodigo(dados);
         return reply.code(202).send(resultado);
       } catch (erro) {
+        if (erro instanceof ErroEnvioSms) {
+          request.log.warn({ providerError: erro.message }, "Falha ao enviar OTP por SMS.");
+          return reply.code(503).send({
+            erro: "LOGIN_SMS_INDISPONIVEL",
+            mensagem: "Não foi possível enviar o código agora. Tente novamente dentro de instantes."
+          });
+        }
         if (ehErroInfraestrutura(erro)) throw erro;
         return reply.code(400).send({ erro: "LOGIN_SMS", mensagem: (erro as Error).message });
       }
@@ -65,6 +84,13 @@ export const moduloAutenticacao: ModuloHttp = {
 
 
     app.post("/auth/estudantil/login", async (request, reply) => {
+      if (!obterDisponibilidadeAutenticacao(contexto.provedorSms.configurado).metodos.estudante.disponivel) {
+        return reply.code(503).send({
+          erro: "LOGIN_ESTUDANTIL_INDISPONIVEL",
+          mensagem: "O acesso estudantil está temporariamente indisponível."
+        });
+      }
+
       const dados = LoginEstudantilSchema.parse(request.body);
 
       try {
@@ -78,18 +104,32 @@ export const moduloAutenticacao: ModuloHttp = {
         definirCookieSessao(reply, token, resultado.expiraEm);
         return { token, expiraEm: resultado.expiraEm, usuario: resultado.usuario, perfil: resultado.perfil };
       } catch (erro) {
+        if (erro instanceof ErroAutenticacaoEstudantil) {
+          const status =
+            erro.codigo === "CREDENCIAIS_INVALIDAS"
+              ? 401
+              : erro.codigo === "PERFIL_INCOMPLETO"
+                ? 422
+                : 503;
+          return reply.code(status).send({
+            erro: `LOGIN_ESTUDANTIL_${erro.codigo}`,
+            mensagem: erro.message
+          });
+        }
         if (ehErroInfraestrutura(erro)) throw erro;
         return reply.code(400).send({ erro: "LOGIN_ESTUDANTIL", mensagem: (erro as Error).message });
       }
     });
 
-    app.get("/auth/google/status", async () => ({
-      configurado: Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET),
-      mensagem:
-        process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET
-          ? "Login com Gmail configurado."
-          : "Configure GOOGLE_CLIENT_ID e GOOGLE_CLIENT_SECRET para ativar o login com Gmail."
-    }));
+    app.get("/auth/google/status", async () => {
+      const google = obterDisponibilidadeAutenticacao(contexto.provedorSms.configurado).metodos.google;
+      return {
+        configurado: google.disponivel,
+        mensagem: google.disponivel
+          ? "Login com Gmail disponível."
+          : "Login com Gmail temporariamente indisponível."
+      };
+    });
 
     app.get("/auth/google/iniciar", async (request, reply) => {
       const clientId = process.env.GOOGLE_CLIENT_ID;
@@ -227,6 +267,15 @@ export const moduloAutenticacao: ModuloHttp = {
       return contexto.onboardingBizy.obterEstado(usuario.id);
     });
 
+    app.put("/onboarding/perfil", async (request, reply) => {
+      const usuario = await exigirUsuarioAutenticado(contexto, request, reply);
+      if (!usuario) return;
+
+      const dados = ConfigurarPerfilOnboardingSchema.parse(request.body);
+      const perfil = await contexto.onboardingBizy.configurarPerfil(usuario.id, dados.contextos);
+      return reply.send(perfil);
+    });
+
     app.post("/onboarding/negocio", async (request, reply) => {
       const usuario = await exigirUsuarioAutenticado(contexto, request, reply);
       if (!usuario) return;
@@ -337,6 +386,62 @@ export const moduloAutenticacao: ModuloHttp = {
     });
   }
 };
+
+function obterDisponibilidadeAutenticacao(provedorSmsConfigurado: boolean) {
+  const smsDev = process.env.LOGIN_SMS_DEV_MODE === "true";
+  const estudantilDev = process.env.LOGIN_ESTUDANTIL_DEV_MODE === "true";
+  const estudantilDireto = process.env.LOGIN_ESTUDANTIL_DIRECT_ENABLED !== "false";
+  const estudantilRemoto = Boolean(process.env.UORCONNECT_API_URL?.trim());
+  const estudantilConfigurado = estudantilDireto || estudantilRemoto || estudantilDev;
+  const providersSuportados = (process.env.LOGIN_ESTUDANTIL_PROVIDERS ?? "uor,isptec")
+    .split(",")
+    .map((provider) => provider.trim().toLowerCase())
+    .filter((provider): provider is "uor" | "isptec" => provider === "uor" || provider === "isptec");
+  const providers = Array.from(new Set(providersSuportados));
+  const estudanteDisponivel = estudantilConfigurado && providers.length > 0;
+  const modoAcademico = estudantilDireto
+    ? "DIRETO"
+    : estudantilRemoto
+      ? "UOR_CONNECT"
+      : estudantilDev
+        ? "DESENVOLVIMENTO"
+        : "INDISPONIVEL";
+
+  return {
+    versao: 3,
+    metodos: {
+      telefone: {
+        disponivel: provedorSmsConfigurado || smsDev,
+        canal: "SMS" as const
+      },
+      google: {
+        disponivel: Boolean(process.env.GOOGLE_CLIENT_ID?.trim() && process.env.GOOGLE_CLIENT_SECRET?.trim())
+      },
+      estudante: {
+        disponivel: estudanteDisponivel,
+        configurado: estudantilConfigurado,
+        estado: estudanteDisponivel ? "DISPONIVEL" as const : "NAO_CONFIGURADO" as const,
+        modo: modoAcademico,
+        providers,
+        instituicoes: providers.map((provider) => ({
+          provider,
+          nome: provider === "uor" ? "Universidade Óscar Ribas" : "ISPTEC",
+          identificadores: provider === "uor"
+            ? ["studentNumber", "username"] as const
+            : ["studentNumber"] as const
+        })),
+        mensagem: estudanteDisponivel
+          ? estudantilDireto
+            ? "Validação directa com os portais institucionais disponível."
+            : "Login académico disponível através do UOR Connect."
+          : "O acesso académico está registado no Bizy, mas o provider institucional ainda não está configurado."
+      }
+    },
+    modoTeste:
+      process.env.NODE_ENV !== "production" &&
+      process.env.LOGIN_UI_DEV_MODE === "true"
+  };
+}
 
 function extrairPagamentosNegocio(negocio: {
   metodosPagamento: string[];

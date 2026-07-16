@@ -1,13 +1,14 @@
-# Deploy na VPS Antiga
+# Deploy na VPS Bizy
 
-Este guia descreve como subir o Bizy/EMeu na VPS antiga encontrada a partir do projeto UOR Connect.
+Este guia descreve como subir o Bizy/EMeu na VPS que serve os dominios publicos do projeto.
 
 ## Dados da VPS
 
-- VPS antiga: `135.181.47.46`
-- SSH: `root@135.181.47.46`
+- VPS de producao: `185.227.108.135`
+- SSH: `root@185.227.108.135`
 - Referencia da VPS nova do UOR Connect: `178.105.109.96`
-- Pasta sugerida para este projeto na VPS antiga: `/opt/bizy`
+- VPS anterior, fora do DNS publico: `135.181.47.46`
+- Pasta do projeto: `/opt/bizy`
 - Compose de producao: `/opt/bizy/docker-compose.yml` + `/opt/bizy/docker-compose.prod.yml`
 - Ambiente Docker de producao: `/opt/bizy/.env.docker`
 
@@ -16,7 +17,10 @@ Nao colocar segredos neste ficheiro. O `.env.docker` real deve ficar apenas na V
 ## Contexto
 
 - Este documento pertence ao Bizy/EMeu, nao ao UOR Connect.
-- A VPS antiga foi identificada em historico do UOR Connect como `135.181.47.46`.
+- Os dominios `usebizy.space`, `api.usebizy.space`, `app.usebizy.space` e
+  `market.usebizy.space` apontam para `185.227.108.135`.
+- Antes de cada deploy, confirme o DNS. Nao publique em `135.181.47.46` apenas
+  por compatibilidade com instrucoes historicas.
 - Antes de apontar DNS real para esta VPS, validar a stack por IP, por hosts temporarios ou pelos endpoints internos.
 - Se a VPS antiga ja tiver outro projeto em producao, confirmar portas e dominios antes de subir Caddy/Nginx.
 
@@ -25,7 +29,7 @@ Nao colocar segredos neste ficheiro. O `.env.docker` real deve ficar apenas na V
 Entrar e criar a pasta:
 
 ```bash
-ssh root@135.181.47.46
+ssh root@185.227.108.135
 mkdir -p /opt/bizy
 cd /opt/bizy
 ```
@@ -103,7 +107,7 @@ rsync -az \
   --exclude '.env' \
   --exclude '.env.*' \
   --exclude '.env.docker' \
-  ./ root@135.181.47.46:/opt/bizy/
+  ./ root@185.227.108.135:/opt/bizy/
 ```
 
 Usar `--delete` apenas quando tiver certeza de que a pasta local e a fonte correta e que nada importante existe somente na VPS.
@@ -113,27 +117,27 @@ Usar `--delete` apenas quando tiver certeza de que a pasta local e a fonte corre
 Usar quando outro proxy HTTPS ja existe na VPS:
 
 ```bash
-ssh root@135.181.47.46 'cd /opt/bizy && docker compose --env-file .env.docker -f docker-compose.yml -f docker-compose.prod.yml up -d --build'
+ssh root@185.227.108.135 'cd /opt/bizy && docker compose --env-file .env.docker -f docker-compose.yml -f docker-compose.prod.yml up -d --build'
 ```
 
 Verificar containers:
 
 ```bash
-ssh root@135.181.47.46 'cd /opt/bizy && docker compose --env-file .env.docker -f docker-compose.yml -f docker-compose.prod.yml ps'
+ssh root@185.227.108.135 'cd /opt/bizy && docker compose --env-file .env.docker -f docker-compose.yml -f docker-compose.prod.yml ps'
 ```
 
 ## Subir com Caddy interno e HTTPS
 
-Usar quando os dominios ja apontam para `135.181.47.46` e a VPS pode abrir portas `80` e `443`:
+Usar quando os dominios ja apontam para `185.227.108.135` e a VPS pode abrir portas `80` e `443`:
 
 ```bash
-ssh root@135.181.47.46 'cd /opt/bizy && docker compose --env-file .env.docker -f docker-compose.yml -f docker-compose.prod.yml -f docker-compose.staging.yml up -d --build'
+ssh root@185.227.108.135 'cd /opt/bizy && docker compose --env-file .env.docker -f docker-compose.yml -f docker-compose.prod.yml -f docker-compose.staging.yml up -d --build'
 ```
 
 Verificar:
 
 ```bash
-ssh root@135.181.47.46 'cd /opt/bizy && docker compose --env-file .env.docker -f docker-compose.yml -f docker-compose.prod.yml -f docker-compose.staging.yml ps'
+ssh root@185.227.108.135 'cd /opt/bizy && docker compose --env-file .env.docker -f docker-compose.yml -f docker-compose.prod.yml -f docker-compose.staging.yml ps'
 ```
 
 ## Backup antes de deploys sensiveis
@@ -141,13 +145,13 @@ ssh root@135.181.47.46 'cd /opt/bizy && docker compose --env-file .env.docker -f
 Se a stack ja estiver rodando:
 
 ```bash
-ssh root@135.181.47.46 'cd /opt/bizy && BACKUP_ENV=production BACKUP_DATABASE_URL="$(docker compose --env-file .env.docker -f docker-compose.yml -f docker-compose.prod.yml exec -T backend printenv DATABASE_URL)" bash scripts/backup-postgres.sh'
+ssh root@185.227.108.135 'cd /opt/bizy && BACKUP_ENV=production BACKUP_DATABASE_URL="$(docker compose --env-file .env.docker -f docker-compose.yml -f docker-compose.prod.yml exec -T backend printenv DATABASE_URL)" bash scripts/backup-postgres.sh'
 ```
 
 Alternativa simples, quando o script puder ler `DATABASE_URL` do ambiente:
 
 ```bash
-ssh root@135.181.47.46 'cd /opt/bizy && BACKUP_ENV=production npm run backup:postgres'
+ssh root@185.227.108.135 'cd /opt/bizy && BACKUP_ENV=production npm run backup:postgres'
 ```
 
 ## Validacao
@@ -155,7 +159,7 @@ ssh root@135.181.47.46 'cd /opt/bizy && BACKUP_ENV=production npm run backup:pos
 Saude interna pelo backend:
 
 ```bash
-ssh root@135.181.47.46 'cd /opt/bizy && docker compose --env-file .env.docker -f docker-compose.yml -f docker-compose.prod.yml exec -T backend node -e "fetch(\"http://127.0.0.1:3333/saude\").then(async r=>{console.log(r.status, await r.text()); process.exit(r.ok?0:1)}).catch(e=>{console.error(e); process.exit(1)})"'
+ssh root@185.227.108.135 'cd /opt/bizy && docker compose --env-file .env.docker -f docker-compose.yml -f docker-compose.prod.yml exec -T backend node -e "fetch(\"http://127.0.0.1:3333/saude\").then(async r=>{console.log(r.status, await r.text()); process.exit(r.ok?0:1)}).catch(e=>{console.error(e); process.exit(1)})"'
 ```
 
 Saude publica, se DNS estiver apontado:
@@ -168,8 +172,8 @@ curl -I https://app.seu-dominio.com
 Logs:
 
 ```bash
-ssh root@135.181.47.46 'cd /opt/bizy && docker compose --env-file .env.docker -f docker-compose.yml -f docker-compose.prod.yml logs --tail=160 backend'
-ssh root@135.181.47.46 'cd /opt/bizy && docker compose --env-file .env.docker -f docker-compose.yml -f docker-compose.prod.yml logs --tail=120 frontend'
+ssh root@185.227.108.135 'cd /opt/bizy && docker compose --env-file .env.docker -f docker-compose.yml -f docker-compose.prod.yml logs --tail=160 backend'
+ssh root@185.227.108.135 'cd /opt/bizy && docker compose --env-file .env.docker -f docker-compose.yml -f docker-compose.prod.yml logs --tail=120 frontend'
 ```
 
 ## Rollback rapido
@@ -177,25 +181,25 @@ ssh root@135.181.47.46 'cd /opt/bizy && docker compose --env-file .env.docker -f
 1. Ver logs e estado:
 
 ```bash
-ssh root@135.181.47.46 'cd /opt/bizy && docker compose --env-file .env.docker -f docker-compose.yml -f docker-compose.prod.yml ps && docker compose --env-file .env.docker -f docker-compose.yml -f docker-compose.prod.yml logs --tail=200 backend'
+ssh root@185.227.108.135 'cd /opt/bizy && docker compose --env-file .env.docker -f docker-compose.yml -f docker-compose.prod.yml ps && docker compose --env-file .env.docker -f docker-compose.yml -f docker-compose.prod.yml logs --tail=200 backend'
 ```
 
 2. Voltar para uma versao anterior do codigo, se houver commit/tag:
 
 ```bash
-ssh root@135.181.47.46 'cd /opt/bizy && git log --oneline -5'
+ssh root@185.227.108.135 'cd /opt/bizy && git log --oneline -5'
 ```
 
 3. Recriar a stack:
 
 ```bash
-ssh root@135.181.47.46 'cd /opt/bizy && docker compose --env-file .env.docker -f docker-compose.yml -f docker-compose.prod.yml up -d --build'
+ssh root@185.227.108.135 'cd /opt/bizy && docker compose --env-file .env.docker -f docker-compose.yml -f docker-compose.prod.yml up -d --build'
 ```
 
 4. Restaurar banco apenas depois de escolher o dump correto e confirmar impacto:
 
 ```bash
-ssh root@135.181.47.46 'find /opt/bizy -maxdepth 4 -type f -name "*.dump" -o -name "*.tar.gz" | sort | tail'
+ssh root@185.227.108.135 'find /opt/bizy -maxdepth 4 -type f -name "*.dump" -o -name "*.tar.gz" | sort | tail'
 ```
 
 ## Checklist final
