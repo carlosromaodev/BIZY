@@ -5,34 +5,15 @@ import type {
   CatalogoFiltroAtivo,
   CatalogoPersonalizadoLoja,
   ColecaoPerfilLoja,
-  EntregaCheckout,
   ExperienciaLojaPublica,
   LojaPublicaResposta,
   ModoNegocio,
   PaletaLojaPublica,
-  PedidoHistoricoLoja,
-  PerfilClienteLoja,
   ProdutoPublico,
   SecaoVitrine,
   TipoEventoTracking,
   VisualProdutoLoja
 } from "./tipos";
-
-export const perfilVazio: PerfilClienteLoja = {
-  nome: "",
-  telefone: "",
-  email: "",
-  consentimentoMarketing: false,
-  consentimentoDados: true
-};
-
-export const entregaInicial: EntregaCheckout = {
-  tipo: "ENTREGA",
-  provincia: "",
-  municipio: "",
-  bairro: "",
-  endereco: ""
-};
 
 export const TITULOS_ABAS_LOJA: Record<AbaLojaPublica, string> = {
   home: "Início",
@@ -328,10 +309,6 @@ export function selecionarOpcaoProduto(
   return exactaDisponivel?.opcoes ?? compativel?.opcoes ?? exacta?.opcoes ?? tentativa;
 }
 
-export function montarResumoVariantes(variantes: Record<string, string>): string {
-  return Object.entries(variantes).map(([nome, valor]) => `${nome}: ${valor}`).join(", ");
-}
-
 export function resolverCorVisual(valor: string, corFallback: string): string {
   const texto = valor.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
   if (/(preto|black|grafite|graphite)/.test(texto)) return "#111312";
@@ -350,16 +327,6 @@ export function formatarNumeroCurto(valor: number): string {
   if (valor >= 1_000_000) return `${(valor / 1_000_000).toFixed(valor >= 10_000_000 ? 0 : 1)}M`;
   if (valor >= 1_000) return `${(valor / 1_000).toFixed(valor >= 10_000 ? 0 : 1)}k`;
   return String(valor);
-}
-
-export function montarEntregaPayload(entrega: EntregaCheckout) {
-  return {
-    tipo: entrega.tipo,
-    provincia: entrega.provincia || null,
-    municipio: entrega.municipio || null,
-    bairro: entrega.bairro || null,
-    endereco: entrega.endereco || null
-  };
 }
 
 export function obterTrackingIdLoja(slug: string): string {
@@ -383,24 +350,11 @@ export function obterTrackingIdLoja(slug: string): string {
   return novo;
 }
 
-export function carregarPerfilCliente(slug: string): PerfilClienteLoja {
-  if (typeof window === "undefined") return perfilVazio;
-  try {
-    return { ...perfilVazio, ...JSON.parse(window.localStorage.getItem(`bizy_loja_perfil_${slug}`) ?? "{}") };
-  } catch {
-    return perfilVazio;
-  }
-}
-
-export function guardarPerfilCliente(slug: string, perfil: PerfilClienteLoja): void {
-  if (typeof window === "undefined") return;
-  window.localStorage.setItem(`bizy_loja_perfil_${slug}`, JSON.stringify(perfil));
-}
-
 export function carregarFavoritos(slug: string): Set<string> {
   if (typeof window === "undefined") return new Set();
   try {
-    return new Set(JSON.parse(window.localStorage.getItem(`bizy_loja_favoritos_${slug}`) ?? "[]") as string[]);
+    const itens = JSON.parse(window.sessionStorage.getItem("bizy_market_favoritos_sessao") ?? "[]") as string[];
+    return new Set(itens.filter((item) => item.startsWith(`${slug}:`)).map((item) => item.slice(slug.length + 1)));
   } catch {
     return new Set();
   }
@@ -408,51 +362,34 @@ export function carregarFavoritos(slug: string): Set<string> {
 
 export function guardarFavoritos(slug: string, favoritos: Set<string>): void {
   if (typeof window === "undefined") return;
-  window.localStorage.setItem(`bizy_loja_favoritos_${slug}`, JSON.stringify(Array.from(favoritos)));
+  let outros: string[] = [];
+  try { outros = (JSON.parse(window.sessionStorage.getItem("bizy_market_favoritos_sessao") ?? "[]") as string[]).filter((item) => !item.startsWith(`${slug}:`)); } catch { outros = []; }
+  window.sessionStorage.setItem("bizy_market_favoritos_sessao", JSON.stringify([...outros, ...Array.from(favoritos).map((codigo) => `${slug}:${codigo}`)]));
 }
 
 export function guardarProdutoVisto(slug: string, codigo: string): void {
   if (typeof window === "undefined") return;
-  const chave = `bizy_loja_produtos_vistos_${slug}`;
+  const chave = "bizy_market_produtos_vistos_sessao";
   try {
-    const atual = JSON.parse(window.localStorage.getItem(chave) ?? "[]") as string[];
-    const proximo = [codigo, ...atual.filter((item) => item !== codigo)].slice(0, 12);
-    window.localStorage.setItem(chave, JSON.stringify(proximo));
+    const referencia = `${slug}:${codigo}`;
+    const atual = JSON.parse(window.sessionStorage.getItem(chave) ?? "[]") as string[];
+    const proximo = [referencia, ...atual.filter((item) => item !== referencia)].slice(0, 20);
+    window.sessionStorage.setItem(chave, JSON.stringify(proximo));
   } catch {
-    window.localStorage.setItem(chave, JSON.stringify([codigo]));
+    window.sessionStorage.setItem(chave, JSON.stringify([`${slug}:${codigo}`]));
   }
 }
 
 export function carregarProdutosVistos(slug: string, produtos: ProdutoPublico[]): ProdutoPublico[] {
   if (typeof window === "undefined" || !produtos.length) return [];
   try {
-    const codigos = JSON.parse(window.localStorage.getItem(`bizy_loja_produtos_vistos_${slug}`) ?? "[]") as string[];
+    const codigos = (JSON.parse(window.sessionStorage.getItem("bizy_market_produtos_vistos_sessao") ?? "[]") as string[])
+      .filter((item) => item.startsWith(`${slug}:`)).map((item) => item.slice(slug.length + 1));
     return codigos
       .map((codigo) => produtos.find((produto) => produto.codigo === codigo))
       .filter((produto): produto is ProdutoPublico => Boolean(produto));
   } catch {
     return [];
-  }
-}
-
-export function carregarHistoricoPedidos(slug: string): PedidoHistoricoLoja[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const historico = JSON.parse(window.localStorage.getItem(`bizy_loja_historico_${slug}`) ?? "[]") as PedidoHistoricoLoja[];
-    return historico.filter((pedido) => pedido.codigo && pedido.nome && pedido.criadoEm).slice(0, 20);
-  } catch {
-    return [];
-  }
-}
-
-export function guardarHistoricoPedido(slug: string, pedido: PedidoHistoricoLoja): void {
-  if (typeof window === "undefined") return;
-  const chave = `bizy_loja_historico_${slug}`;
-  try {
-    const atual = JSON.parse(window.localStorage.getItem(chave) ?? "[]") as PedidoHistoricoLoja[];
-    window.localStorage.setItem(chave, JSON.stringify([pedido, ...atual].slice(0, 20)));
-  } catch {
-    window.localStorage.setItem(chave, JSON.stringify([pedido]));
   }
 }
 

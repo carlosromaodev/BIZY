@@ -49,9 +49,10 @@ export function montarUrlMarketPublico(
   return normalizarCaminho(caminhoFallback);
 }
 
-export function montarUrlProdutoMarketPublico(codigo: string): string {
-  const segmento = encodeURIComponent(codigo.trim());
-  return montarUrlMarketPublico(`/produtos/${segmento}`, `${CAMINHO_MARKET_INTERNO}/produtos/${segmento}`);
+export function montarUrlProdutoMarketPublico(listingId: string, slug = "produto"): string {
+  const id = encodeURIComponent(listingId.trim());
+  const slugNormalizado = slug.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 100) || "produto";
+  return montarUrlMarketPublico(`/p/${id}/${slugNormalizado}`, `${CAMINHO_MARKET_INTERNO}/p/${id}/${slugNormalizado}`);
 }
 
 export function montarUrlCategoriaMarketPublico(categoria: string): string {

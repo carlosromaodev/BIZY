@@ -52,6 +52,44 @@ interface DependenciasCheckout {
 export class CheckoutUnificadoUseCase {
   constructor(private readonly deps: DependenciasCheckout) {}
 
+  async cotarCheckout(dados: { itens: Array<{ negocioId: string; codigoPeca: string; varianteSelecionada?: Record<string, string> | null; quantidade: number }>; entrega?: NovaCompraUnificada["entrega"]; enderecoEntrega?: string | null }) {
+    const porNegocio = new Map<string, typeof dados.itens>();
+    for (const item of dados.itens) porNegocio.set(item.negocioId, [...(porNegocio.get(item.negocioId) ?? []), item]);
+    const lojas = [];
+    for (const [negocioId, itens] of porNegocio) {
+      const negocio = await this.deps.autenticacao.buscarNegocioPorId(negocioId);
+      if (!negocio) throw new Error("LOJA_NAO_ENCONTRADA");
+      let subtotalEmKwanza = 0;
+      for (const item of itens) {
+        const peca = await this.deps.pecas.buscarPorCodigo(item.codigoPeca, negocioId);
+        if (!peca || item.quantidade < 1 || peca.quantidade < item.quantidade) throw new Error("PRODUTO_OU_STOCK_INVALIDO");
+        const selecao = validarSelecaoVariante(peca.variantes, item.varianteSelecionada);
+        const variantes = await this.deps.pecas.listarVariantesPeca(peca.id);
+        const variante = Object.keys(peca.variantes).length ? encontrarCombinacaoVariante(variantes, selecao) : null;
+        if (Object.keys(peca.variantes).length && (!variante || variante.quantidade < item.quantidade)) throw new Error("VARIANTE_OU_STOCK_INVALIDO");
+        subtotalEmKwanza += (variante?.precoEmKwanza ?? peca.vitrine.precoPromocionalEmKwanza ?? peca.precoEmKwanza) * item.quantidade;
+      }
+      const taxaEntregaEmKwanza = await this.calcularEntregaPorLoja(negocioId, subtotalEmKwanza, dados.entrega, dados.enderecoEntrega ?? undefined);
+      const ivaEmKwanza = Math.round(subtotalEmKwanza * IVA_ANGOLA_PERCENTUAL / 100);
+      const entregaConfig = negocio.entrega ?? {};
+      lojas.push({
+        negocioId, nomeLoja: negocio.nomeComercial, subtotalEmKwanza, taxaEntregaEmKwanza, ivaEmKwanza,
+        totalEmKwanza: subtotalEmKwanza + taxaEntregaEmKwanza + ivaEmKwanza,
+        prazoMinimoDias: this.numero(entregaConfig.prazoMinimoDias),
+        prazoMaximoDias: this.numero(entregaConfig.prazoMaximoDias),
+        metodosPagamento: negocio.metodosPagamento
+      });
+    }
+    return {
+      lojas,
+      metodosPagamento: this.intersecaoMetodosPagamento(lojas.map((loja) => loja.metodosPagamento)),
+      subtotalEmKwanza: lojas.reduce((total, loja) => total + loja.subtotalEmKwanza, 0),
+      taxaEntregaTotalEmKwanza: lojas.reduce((total, loja) => total + loja.taxaEntregaEmKwanza, 0),
+      ivaTotalEmKwanza: lojas.reduce((total, loja) => total + loja.ivaEmKwanza, 0),
+      totalEmKwanza: lojas.reduce((total, loja) => total + loja.totalEmKwanza, 0)
+    };
+  }
+
   /**
    * RF-053: Cria compra unificada agrupando itens por fornecedor em pedidos filhos.
    * RF-054: Uma única transação de pagamento para o comprador.
@@ -86,6 +124,13 @@ export class CheckoutUnificadoUseCase {
     const pedidosFilho: PedidoFilho[] = [];
 
     for (const [negocioId, itens] of itensPorNegocio) {
+      const negocio = await this.deps.autenticacao.buscarNegocioPorId(negocioId);
+      if (!negocio) throw new Error("LOJA_NAO_ENCONTRADA");
+      const permitidos = this.normalizarMetodosLoja(negocio.metodosPagamento);
+      const metodoPagamento = this.normalizarMetodoPagamento(dados.metodoPagamento) ?? (permitidos.length === 1 ? permitidos[0] : null);
+      if (!metodoPagamento || !permitidos.includes(metodoPagamento)) {
+        throw new Error(`Método de pagamento indisponível para ${negocio.nomeComercial}.`);
+      }
       let subtotal = 0;
       const quantidadesProduto = new Map<string, number>();
       const quantidadesVariante = new Map<string, number>();
@@ -229,6 +274,25 @@ export class CheckoutUnificadoUseCase {
       pedidosFilho: await this.deps.comprasUnificadas.listarPedidosFilho(compra.id),
       acessoCompra: await this.deps.contaBizy.emitirAcessoCompra(compra.id)
     };
+  }
+
+  private normalizarMetodoPagamento(metodo?: string | null): string | null {
+    const valor = metodo?.trim().toLowerCase().replace(/_/g, "-") ?? "";
+    if (["transferencia", "transferência", "bank-transfer", "comprovativo"].includes(valor)) return "transferencia";
+    if (["cash", "dinheiro", "dinheiro-entrega", "numerario", "numerário"].includes(valor)) return "cash";
+    if (["multicaixa", "multicaixa-express", "express"].includes(valor)) return "multicaixa";
+    if (["personalizado", "combinar", "a-combinar", "pagamento-manual", "manual"].includes(valor)) return "personalizado";
+    return valor || null;
+  }
+
+  private normalizarMetodosLoja(metodos: string[]): string[] {
+    const normalizados = [...new Set(metodos.map((metodo) => this.normalizarMetodoPagamento(metodo)).filter((metodo): metodo is string => Boolean(metodo)))];
+    return normalizados.length ? normalizados : ["personalizado"];
+  }
+
+  private intersecaoMetodosPagamento(listas: string[][]): string[] {
+    const normalizadas = listas.map((lista) => this.normalizarMetodosLoja(lista));
+    return normalizadas[0]?.filter((metodo) => normalizadas.every((lista) => lista.includes(metodo))) ?? [];
   }
 
   /** RF-064: Fornecedor vê apenas os seus itens e valores */

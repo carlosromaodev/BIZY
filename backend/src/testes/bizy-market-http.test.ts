@@ -76,7 +76,8 @@ async function publicarLojaMarket(
     payload: {
       slug: dados.slug,
       descricaoPublica: `${dados.nomeComercial} no Bizy Market.`,
-      publicada: true
+      publicada: true,
+      pagamentos: { metodosPagamento: ["transferencia", "cash"] }
     }
   });
   expect(resposta.statusCode).toBe(200);
@@ -163,7 +164,7 @@ describe("Bizy Market público HTTP", () => {
           nome: "Vestido verde fluido",
           categoria: "Roupas",
           precoEmKwanza: 18_000,
-          urlProduto: "/lojas/loja-market-a/produtos/VESTIDO-1",
+          urlProduto: expect.stringMatching(/^\/market\/p\/[0-9a-f-]+\/vestido-verde-fluido$/),
           urlLoja: "/lojas/loja-market-a",
           loja: expect.objectContaining({
             slug: "loja-market-a",
@@ -208,7 +209,7 @@ describe("Bizy Market público HTTP", () => {
       const lojaA = await autenticar(app, "923610011", "Loja Market Studio A");
       const lojaB = await autenticar(app, "923610012", "Loja Market Studio B");
 
-      await criarProdutoMarket(app, lojaA, {
+      const produtoDetalhe = await criarProdutoMarket(app, lojaA, {
         codigo: "VESTIDO-DETALHE",
         nome: "Vestido verde premium",
         categoria: "Roupas",
@@ -254,7 +255,7 @@ describe("Bizy Market público HTTP", () => {
 
       const detalhe = await app.inject({
         method: "GET",
-        url: "/publico/market/produtos/VESTIDO-DETALHE"
+        url: `/publico/market/p/${produtoDetalhe.id}`
       });
       expect(detalhe.statusCode).toBe(200);
       expect(detalhe.json()).toEqual(
@@ -276,7 +277,7 @@ describe("Bizy Market público HTTP", () => {
 
       const similares = await app.inject({
         method: "GET",
-        url: "/publico/market/produtos/VESTIDO-DETALHE/similares?limite=5"
+        url: `/publico/market/p/${produtoDetalhe.id}/similares?limite=5`
       });
       expect(similares.statusCode).toBe(200);
       expect(similares.json().produtos).toEqual([
@@ -499,11 +500,11 @@ describe("Bizy Market público HTTP", () => {
             bairro: "Maianga",
             endereco: "Rua de teste 123"
           },
-          metodoPagamento: "Pagamento manual",
+          metodoPagamento: "personalizado",
           origem: "teste-market-eventos"
         }
       });
-      expect(checkoutMarket.statusCode).toBe(201);
+      expect(checkoutMarket.statusCode, checkoutMarket.body).toBe(201);
       const tokenCompra = checkoutMarket.json().acessoCompra.token as string;
 
       const portalComprador = await app.inject({
@@ -653,7 +654,7 @@ describe("Bizy Market público HTTP", () => {
 
       const detalheDespublicado = await app.inject({
         method: "GET",
-        url: "/publico/market/produtos/VESTIDO-DETALHE"
+        url: `/publico/market/p/${produtoDetalhe.id}`
       });
       expect(detalheDespublicado.statusCode).toBe(404);
 
@@ -680,9 +681,35 @@ describe("Bizy Market público HTTP", () => {
 
       const detalheRepublicado = await app.inject({
         method: "GET",
-        url: "/publico/market/produtos/VESTIDO-DETALHE"
+        url: `/publico/market/p/${produtoDetalhe.id}`
       });
       expect(detalheRepublicado.statusCode).toBe(200);
+    } finally {
+      await app.close();
+    }
+  }, 30_000);
+
+  it("isola códigos locais repetidos pela identidade global da oferta", async () => {
+    const app = await criarAplicacao();
+    try {
+      const lojaA = await autenticar(app, "923610091", "Loja Código A");
+      const lojaB = await autenticar(app, "923610092", "Loja Código B");
+      const produtoA = await criarProdutoMarket(app, lojaA, { codigo: "SKU-REPETIDO", nome: "Produto da loja A" });
+      const produtoB = await criarProdutoMarket(app, lojaB, { codigo: "SKU-REPETIDO", nome: "Produto da loja B" });
+      await publicarLojaMarket(app, lojaA, { slug: "loja-codigo-a", nomeComercial: "Loja Código A", provincia: "Luanda", municipio: "Luanda" });
+      await publicarLojaMarket(app, lojaB, { slug: "loja-codigo-b", nomeComercial: "Loja Código B", provincia: "Benguela", municipio: "Benguela" });
+
+      const [detalheA, detalheB, legadoA, legadoB] = await Promise.all([
+        app.inject({ method: "GET", url: `/publico/market/p/${produtoA.id}` }),
+        app.inject({ method: "GET", url: `/publico/market/p/${produtoB.id}` }),
+        app.inject({ method: "GET", url: "/publico/market/lojas/loja-codigo-a/produtos/SKU-REPETIDO" }),
+        app.inject({ method: "GET", url: "/publico/market/lojas/loja-codigo-b/produtos/SKU-REPETIDO" })
+      ]);
+      expect([detalheA.statusCode, detalheB.statusCode, legadoA.statusCode, legadoB.statusCode]).toEqual([200, 200, 200, 200]);
+      expect(detalheA.json().produto).toEqual(expect.objectContaining({ id: produtoA.id, nome: "Produto da loja A" }));
+      expect(detalheB.json().produto).toEqual(expect.objectContaining({ id: produtoB.id, nome: "Produto da loja B" }));
+      expect(legadoA.json().produto.id).toBe(produtoA.id);
+      expect(legadoB.json().produto.id).toBe(produtoB.id);
     } finally {
       await app.close();
     }

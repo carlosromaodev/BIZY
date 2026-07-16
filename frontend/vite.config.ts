@@ -17,7 +17,6 @@ const rotasBackend = [
   "/campanhas",
   "/clientes",
   "/comentarios",
-  "/conta",
   "/actividades",
   "/cotacoes",
   "/diagnosticos",
@@ -63,6 +62,8 @@ const rotasBackend = [
   "/workspaces"
 ] as const;
 
+const rotaContaSpa = /^\/conta(?:$|\/(?:entrar|compras(?:\/[^/?#]+)?|entregas|devolucoes|favoritos|lojas-seguidas|enderecos|avaliacoes|notificacoes|mensagens|afiliacao|seguranca|privacidade)(?:[?#]|$))/;
+
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   build: {
@@ -97,6 +98,14 @@ export default defineConfig({
           }
         ])
       ),
+      "/conta": {
+        target: backendUrl,
+        changeOrigin: true,
+        secure: false,
+        bypass(request) {
+          if (request.method === "GET" && rotaContaSpa.test(request.url ?? "")) return "/index.html";
+        }
+      },
       "^/market/(fornecedor|reembolsos|resumo)": {
         target: backendUrl,
         changeOrigin: true,

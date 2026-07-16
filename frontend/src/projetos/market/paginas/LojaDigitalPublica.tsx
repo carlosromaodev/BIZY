@@ -1,20 +1,16 @@
 import {
   ArrowLeft,
   ArrowRight,
-  Check,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
-  Clock,
   Heart,
   Loader2,
-  Mail,
   MapPin,
   MessageCircle,
   MoreHorizontal,
   Minus,
   Package,
-  Phone,
   Plus,
   Ruler,
   Share2,
@@ -34,22 +30,13 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import {
   Sheet,
   SheetContent,
   SheetDescription,
   SheetHeader,
   SheetTitle
 } from "@/components/ui/sheet";
-import { obterBaseApiUrl, resolverUrlMedia } from "../../../api";
+import { resolverUrlMedia } from "../../../api";
 import { resolverSlugLojaPublica } from "../dominio/lojaSubdominio";
 import { adicionarItemCheckoutBizy, deixarDeSeguirLoja, obterLojaPublica, ROTAS_LOJAS, seguirLoja, verificarSeSegueLoja } from "../api";
 import { AvisoPrivacidade } from "../../../componentes/BizyDesignSystem";
@@ -62,41 +49,28 @@ import type {
   CatalogoFiltroAtivo,
   CatalogoPersonalizadoLoja,
   ColecaoPerfilLoja,
-  EntregaCheckout,
   ExperienciaLojaPublica,
   LojaPublicaResposta,
   ModoNegocio,
-  PassoCheckout,
   PaletaLojaPublica,
-  PedidoHistoricoLoja,
-  PerfilClienteLoja,
   ProdutoPublico,
-  ResumoEntregaCheckout,
   ReviewLojaPublica,
   SecaoVitrine,
-  TipoEntregaCheckout,
   TipoEventoTracking
 } from "../loja-publica/tipos";
 import {
   TITULOS_ABAS_LOJA,
   calcularTopProdutos,
   carregarFavoritos,
-  carregarHistoricoPedidos,
-  carregarPerfilCliente,
   criarFiltroDeCatalogoBloco,
   criarFiltroDeColecaoPerfil,
   criarSelecoesIniciaisProduto,
-  entregaInicial,
   extrairUtmAtual,
   filtrarProdutosPorCatalogo,
   formatarNumeroCurto,
   guardarFavoritos,
-  guardarHistoricoPedido,
-  guardarPerfilCliente,
   guardarProdutoVisto,
   montarCatalogosPorBlocos,
-  montarEntregaPayload,
-  montarResumoVariantes,
   montarVitrinesOrganizadas,
   normalizarCodigoProdutoRota,
   obterTrackingIdLoja,
@@ -127,22 +101,7 @@ export function PaginaLojaDigitalPublica() {
   const [quantidade, setQuantidade] = useState(1);
   const [fotoAtiva, setFotoAtiva] = useState(0);
   const [selecoesVariantes, setSelecoesVariantes] = useState<Record<string, string>>({});
-  const [perfilCliente, setPerfilCliente] = useState<PerfilClienteLoja>(() => carregarPerfilCliente(slug));
-  const [leadModalAberto, setLeadModalAberto] = useState(false);
-  const [leadMotivo, setLeadMotivo] = useState("Receba disponibilidade, preco e novidades pelo WhatsApp.");
-  const [produtosVistos, setProdutosVistos] = useState(0);
-  const [historicoEncomendas, setHistoricoEncomendas] = useState<PedidoHistoricoLoja[]>(() => carregarHistoricoPedidos(slug));
   const [favoritos, setFavoritos] = useState<Set<string>>(() => carregarFavoritos(slug));
-  const [checkoutProduto, setCheckoutProduto] = useState<ProdutoPublico | null>(null);
-  const [checkoutAberto, setCheckoutAberto] = useState(false);
-  const [checkoutPasso, setCheckoutPasso] = useState<PassoCheckout>("variante");
-  const [checkoutQuantidade, setCheckoutQuantidade] = useState(1);
-  const [checkoutVariantes, setCheckoutVariantes] = useState<Record<string, string>>({});
-  const [entregaCheckout, setEntregaCheckout] = useState<EntregaCheckout>(entregaInicial);
-  const [resumoEntrega, setResumoEntrega] = useState<ResumoEntregaCheckout | null>(null);
-  const [calculandoEntrega, setCalculandoEntrega] = useState(false);
-  const [finalizandoCheckout, setFinalizandoCheckout] = useState(false);
-  const [pedidoConfirmado, setPedidoConfirmado] = useState<{ produto: ProdutoPublico; quantidade: number; variantes: Record<string, string>; total: number; entrega: EntregaCheckout; whatsappUrl: string } | null>(null);
   const [abaAtiva, setAbaAtiva] = useState<AbaLojaPublica>("home");
   const [direcaoAba, setDirecaoAba] = useState<"esquerda" | "direita">("direita");
   const touchAbaRef = useRef<{ x: number; t: number } | null>(null);
@@ -218,16 +177,8 @@ export function PaginaLojaDigitalPublica() {
   }, [registrarEvento, slug, trackingId]);
 
   useEffect(() => {
-    guardarPerfilCliente(slug, perfilCliente);
-  }, [perfilCliente, slug]);
-
-  useEffect(() => {
     guardarFavoritos(slug, favoritos);
   }, [favoritos, slug]);
-
-  useEffect(() => {
-    setHistoricoEncomendas(carregarHistoricoPedidos(slug));
-  }, [slug]);
 
   useEffect(() => {
     if (!codigoProdutoRota || !dados?.produtos.length) return;
@@ -261,24 +212,6 @@ export function PaginaLojaDigitalPublica() {
       tipo: "product"
     }));
   }, [dados, produtoAberto, slug]);
-
-  useEffect(() => {
-    if (!checkoutAberto || !checkoutProduto) return;
-    const temporizador = window.setTimeout(() => {
-      void calcularEntregaCheckout();
-    }, 350);
-    return () => window.clearTimeout(temporizador);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    checkoutAberto,
-    checkoutProduto?.codigo,
-    checkoutQuantidade,
-    entregaCheckout.tipo,
-    entregaCheckout.provincia,
-    entregaCheckout.municipio,
-    entregaCheckout.bairro,
-    entregaCheckout.endereco
-  ]);
 
   const categorias = useMemo(() => {
     if (!dados?.produtos) return [];
@@ -397,14 +330,6 @@ export function PaginaLojaDigitalPublica() {
         origemInteracao: "detalhe"
       }
     });
-    setProdutosVistos((total) => {
-      const novoTotal = total + 1;
-      if (novoTotal >= 2 && dados?.loja.experiencia?.leadCaptureAtivo !== false && !perfilCliente.telefone && !leadModalAberto) {
-        setLeadMotivo(dados?.loja.experiencia?.leadCaptureTitulo || "Quer receber disponibilidade, tamanho e novidades desta loja?");
-        setLeadModalAberto(true);
-      }
-      return novoTotal;
-    });
   }
 
   function alternarFavorito(produto: ProdutoPublico) {
@@ -426,32 +351,7 @@ export function PaginaLojaDigitalPublica() {
   }
 
   function abrirCheckout(produto: ProdutoPublico, qtd = 1, variantes = selecoesVariantes) {
-    const selecoes = Object.keys(variantes).length ? variantes : criarSelecoesIniciaisProduto(produto);
-    const stockDisponivel = stockProduto(produto, selecoes);
-    setCheckoutProduto(produto);
-    setCheckoutQuantidade(Math.max(1, Math.min(qtd, stockDisponivel || 1)));
-    setCheckoutVariantes(selecoes);
-    setEntregaCheckout((atual) => ({
-      ...entregaInicial,
-      provincia: atual.provincia,
-      municipio: atual.municipio,
-      bairro: atual.bairro,
-      endereco: atual.endereco
-    }));
-    setResumoEntrega(null);
-    setCheckoutPasso(temVariantesProduto(produto) ? "variante" : perfilCliente.telefone ? "entrega" : "dados");
-    setCheckoutAberto(true);
-    setProdutoAberto(null);
-    registrarEvento("CHECKOUT_INICIADO", {
-      produto,
-      entidadeTipo: "PRODUTO",
-      entidadeId: produto.codigo,
-      metadata: {
-        quantidade: qtd,
-        variantes: selecoes,
-        temPerfil: Boolean(perfilCliente.telefone)
-      }
-    });
+    adicionarProdutoAoCheckoutBizy(produto, qtd, variantes);
   }
 
   function adicionarProdutoAoCheckoutBizy(produto: ProdutoPublico, qtd = 1, variantes = selecoesVariantes) {
@@ -481,132 +381,6 @@ export function PaginaLojaDigitalPublica() {
     });
     setProdutoAberto(null);
     navigate(ROTAS_LOJAS.checkout);
-  }
-
-  async function calcularEntregaCheckout(): Promise<ResumoEntregaCheckout | null> {
-    if (!checkoutProduto) return null;
-    setCalculandoEntrega(true);
-    try {
-      const resposta = await fetch(`${obterBaseApiUrl()}/publico/lojas/${encodeURIComponent(slug)}/entrega/calcular`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          itens: [{
-            codigoPeca: checkoutProduto.codigo,
-            quantidade: checkoutQuantidade,
-            varianteSelecionada: checkoutVariantes
-          }],
-          entrega: montarEntregaPayload(entregaCheckout)
-        })
-      });
-      const corpo = (await resposta.json()) as ResumoEntregaCheckout & { mensagem?: string };
-      if (!resposta.ok) throw new Error(corpo.mensagem ?? "Não foi possível calcular a entrega.");
-      setResumoEntrega(corpo);
-      return corpo;
-    } catch (falha) {
-      setErro(falha instanceof Error ? falha.message : "Não foi possível calcular a entrega.");
-      return null;
-    } finally {
-      setCalculandoEntrega(false);
-    }
-  }
-
-  async function confirmarCheckout() {
-    if (!checkoutProduto) return;
-    if (!perfilCliente.nome.trim() || !perfilCliente.telefone.trim()) {
-      setCheckoutPasso("dados");
-      setErro("Informe nome e WhatsApp para a loja conseguir finalizar a compra.");
-      return;
-    }
-    if (entregaCheckout.tipo === "ENTREGA" && !entregaCheckout.endereco.trim()) {
-      setCheckoutPasso("entrega");
-      setErro("Informe o endereço ou referência para entrega.");
-      return;
-    }
-
-    setFinalizandoCheckout(true);
-    try {
-      const entrega = montarEntregaPayload(entregaCheckout);
-      const resumo = resumoEntrega ?? await calcularEntregaCheckout();
-
-      const respostaCheckout = await fetch(`${obterBaseApiUrl()}/publico/lojas/${encodeURIComponent(slug)}/checkout`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          itens: [{
-            codigoPeca: checkoutProduto.codigo,
-            quantidade: checkoutQuantidade,
-            varianteSelecionada: checkoutVariantes
-          }],
-          entrega,
-          cliente: {
-            nome: perfilCliente.nome,
-            telefone: perfilCliente.telefone,
-            email: perfilCliente.email || null,
-            consentimentoMarketing: perfilCliente.consentimentoMarketing,
-            consentimentoDados: true
-          },
-          trackingId,
-          origem: "loja-web",
-          canal: "site",
-          observacao: montarResumoVariantes(checkoutVariantes)
-        })
-      });
-      const corpoCheckout = (await respostaCheckout.json()) as {
-        mensagem?: string;
-        totalEmKwanza?: number;
-      };
-      if (!respostaCheckout.ok) {
-        throw new Error(corpoCheckout.mensagem ?? "Não foi possível confirmar o pedido.");
-      }
-      const totalConfirmado = corpoCheckout.totalEmKwanza
-        ?? resumo?.totalEmKwanza
-        ?? precoProduto(checkoutProduto, checkoutVariantes) * checkoutQuantidade;
-
-      const respostaWhatsapp = await fetch(
-        `${obterBaseApiUrl()}/publico/lojas/${encodeURIComponent(slug)}/produtos/${encodeURIComponent(checkoutProduto.codigo)}/whatsapp`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            quantidade: checkoutQuantidade,
-            variante: checkoutVariantes,
-            trackingId,
-            origem: "loja-web",
-            entrega
-          })
-        }
-      );
-      const corpoWhatsapp = (await respostaWhatsapp.json()) as { whatsappUrl?: string; mensagem?: string };
-      if (!respostaWhatsapp.ok || !corpoWhatsapp.whatsappUrl) {
-        throw new Error(corpoWhatsapp.mensagem ?? "Não foi possível iniciar a compra no WhatsApp.");
-      }
-
-      const pedidoHistorico: PedidoHistoricoLoja = {
-        codigo: checkoutProduto.codigo,
-        nome: checkoutProduto.nome,
-        totalEmKwanza: totalConfirmado,
-        criadoEm: new Date().toISOString(),
-        quantidade: checkoutQuantidade,
-        variantes: checkoutVariantes
-      };
-      guardarHistoricoPedido(slug, pedidoHistorico);
-      setHistoricoEncomendas((atuais) => [pedidoHistorico, ...atuais].slice(0, 20));
-      guardarPerfilCliente(slug, perfilCliente);
-      setCheckoutAberto(false);
-      setPedidoConfirmado({
-        produto: checkoutProduto,
-        quantidade: checkoutQuantidade,
-        variantes: checkoutVariantes,
-        total: totalConfirmado,
-        entrega: entregaCheckout,
-        whatsappUrl: corpoWhatsapp.whatsappUrl
-      });
-    } catch (falha) {
-      setErro(falha instanceof Error ? falha.message : "Não foi possível finalizar a compra.");
-    } finally {
-      setFinalizandoCheckout(false);
-    }
   }
 
   if (carregando) {
@@ -657,7 +431,6 @@ export function PaginaLojaDigitalPublica() {
   if (!dados) return null;
 
   const experienciaLoja = dados.loja.experiencia;
-  const leadCaptureAtivo = experienciaLoja?.leadCaptureAtivo !== false;
   const catalogosEditaveis = experienciaLoja?.catalogosEditaveis !== false;
 
   function mudarAba(aba: AbaLojaPublica) {
@@ -1099,104 +872,6 @@ export function PaginaLojaDigitalPublica() {
           )}
         </SheetContent>
       </Sheet>
-
-      <Sheet open={checkoutAberto} onOpenChange={setCheckoutAberto}>
-        <SheetContent
-          side="right"
-          className="loja-publica-v2 loja-stitch loja-modal-responsivo flex h-[100dvh] !w-full max-w-full flex-col overflow-hidden p-0 data-[side=right]:sm:max-w-xl"
-          showCloseButton={false}
-        >
-          <SheetHeader className="border-b border-neutral-100 px-5 py-4 text-left">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <SheetTitle>Compra assistida</SheetTitle>
-                <SheetDescription>Produto, dados e entrega preparados antes de abrir o WhatsApp.</SheetDescription>
-              </div>
-              <button
-                type="button"
-                onClick={() => setCheckoutAberto(false)}
-                className="grid size-10 place-items-center text-neutral-500 hover:bg-neutral-100"
-                aria-label="Fechar checkout"
-              >
-                <X size={18} />
-              </button>
-            </div>
-          </SheetHeader>
-          {checkoutProduto && (
-            <CheckoutAssistido
-              produto={checkoutProduto}
-              corPrimaria={corPrimaria}
-              passo={checkoutPasso}
-              setPasso={setCheckoutPasso}
-              quantidade={checkoutQuantidade}
-              setQuantidade={(novaQuantidade) => {
-                setCheckoutQuantidade(novaQuantidade);
-                setResumoEntrega(null);
-              }}
-              selecoesVariantes={checkoutVariantes}
-              setSelecoesVariantes={(novasSelecoes) => {
-                setCheckoutVariantes(novasSelecoes);
-                setResumoEntrega(null);
-              }}
-              perfil={perfilCliente}
-              setPerfil={setPerfilCliente}
-              entrega={entregaCheckout}
-              setEntrega={setEntregaCheckout}
-              resumoEntrega={resumoEntrega}
-              calculandoEntrega={calculandoEntrega}
-              finalizando={finalizandoCheckout}
-              calcularEntregaCheckout={calcularEntregaCheckout}
-              confirmarCheckout={confirmarCheckout}
-            />
-          )}
-        </SheetContent>
-      </Sheet>
-
-      {/* ── Order Confirmation ── */}
-      <Sheet open={!!pedidoConfirmado} onOpenChange={(aberto) => { if (!aberto) setPedidoConfirmado(null); }}>
-        <SheetContent
-          side="bottom"
-          className="loja-publica-v2 loja-stitch loja-modal-responsivo h-[96dvh] overflow-hidden border-0 p-0 data-[side=bottom]:!border-0 sm:mx-auto sm:h-[90dvh] sm:max-w-lg"
-          showCloseButton={false}
-        >
-          <SheetHeader className="sr-only">
-            <SheetTitle>Pedido confirmado</SheetTitle>
-            <SheetDescription>O seu pedido foi enviado com sucesso.</SheetDescription>
-          </SheetHeader>
-          {pedidoConfirmado && (
-            <ConfirmacaoPedido
-              produto={pedidoConfirmado.produto}
-              quantidade={pedidoConfirmado.quantidade}
-              variantes={pedidoConfirmado.variantes}
-              total={pedidoConfirmado.total}
-              entrega={pedidoConfirmado.entrega}
-              onWhatsApp={() => {
-                window.open(pedidoConfirmado.whatsappUrl, "_blank", "noopener,noreferrer");
-              }}
-              onContinuar={() => setPedidoConfirmado(null)}
-            />
-          )}
-        </SheetContent>
-      </Sheet>
-
-      <LeadCaptureModal
-        aberto={leadModalAberto}
-        motivo={leadMotivo}
-        perfil={perfilCliente}
-        setPerfil={setPerfilCliente}
-        fechar={() => setLeadModalAberto(false)}
-        salvar={() => {
-          guardarPerfilCliente(slug, perfilCliente);
-          setLeadModalAberto(false);
-          registrarEvento("CATALOGO_VISTO", {
-            metadata: {
-              acao: "lead_capture_salvo",
-              temEmail: Boolean(perfilCliente.email),
-              marketing: perfilCliente.consentimentoMarketing
-            }
-          });
-        }}
-      />
 
       {erro && dados && (
         <div className="fixed bottom-20 left-1/2 z-50 -translate-x-1/2 animate-in fade-in slide-in-from-bottom-4 sm:bottom-6">
@@ -1697,7 +1372,7 @@ function DetalheProduto({
   const reviewsVisiveis = reviews.slice(0, 4);
   const recomendacoesVisiveis = recomendacoes.filter((item) => item.codigo !== produto.codigo).slice(0, 4);
   const localizacaoLoja = [loja.municipio, loja.provincia].filter(Boolean).join(", ");
-  const urlProdutoMarket = ROTAS_LOJAS.produtoMarket(produto.codigo);
+  const urlProdutoMarket = ROTAS_LOJAS.produtoMarket(produto.listingId ?? produto.id ?? produto.codigo, produto.nome);
 
   useEffect(() => {
     setAbaDetalhe("produto");
@@ -2115,385 +1790,8 @@ function ItemAcordeaoPdp({
   );
 }
 
-function CheckoutAssistido({
-  produto,
-  corPrimaria,
-  passo,
-  setPasso,
-  quantidade,
-  setQuantidade,
-  selecoesVariantes,
-  setSelecoesVariantes,
-  perfil,
-  setPerfil,
-  entrega,
-  setEntrega,
-  resumoEntrega,
-  calculandoEntrega,
-  finalizando,
-  calcularEntregaCheckout,
-  confirmarCheckout
-}: {
-  produto: ProdutoPublico;
-  corPrimaria: string;
-  passo: PassoCheckout;
-  setPasso: (passo: PassoCheckout) => void;
-  quantidade: number;
-  setQuantidade: (quantidade: number) => void;
-  selecoesVariantes: Record<string, string>;
-  setSelecoesVariantes: (selecoes: Record<string, string>) => void;
-  perfil: PerfilClienteLoja;
-  setPerfil: (perfil: PerfilClienteLoja) => void;
-  entrega: EntregaCheckout;
-  setEntrega: (entrega: EntregaCheckout) => void;
-  resumoEntrega: ResumoEntregaCheckout | null;
-  calculandoEntrega: boolean;
-  finalizando: boolean;
-  calcularEntregaCheckout: () => Promise<ResumoEntregaCheckout | null>;
-  confirmarCheckout: () => Promise<void>;
-}) {
-  const passos: Array<{ id: PassoCheckout; titulo: string }> = [
-    { id: "variante", titulo: "Produto" },
-    { id: "dados", titulo: "Dados" },
-    { id: "entrega", titulo: "Entrega" },
-    { id: "confirmar", titulo: "Confirmar" }
-  ];
-  const indiceAtual = passos.findIndex((item) => item.id === passo);
 
-  function proximoPasso() {
-    const proximo = passos[Math.min(indiceAtual + 1, passos.length - 1)];
-    setPasso(proximo.id);
-  }
 
-  function passoAnterior() {
-    const anterior = passos[Math.max(indiceAtual - 1, 0)];
-    setPasso(anterior.id);
-  }
-
-  const stockDisponivel = stockProduto(produto, selecoesVariantes);
-  const subtotal = precoProduto(produto, selecoesVariantes) * quantidade;
-  const taxaEntrega = resumoEntrega?.taxaEntregaEmKwanza ?? 0;
-  const total = resumoEntrega?.totalEmKwanza ?? subtotal;
-  const resumoVariantes = montarResumoVariantes(selecoesVariantes);
-
-  return (
-    <div className="flex min-h-0 flex-1 flex-col">
-      {/* ── Step indicator ── */}
-      <div className="border-b border-neutral-100 px-5 py-3">
-        <div className="grid grid-cols-4 gap-2">
-          {passos.map((item, indice) => (
-            <button
-              key={item.id}
-              type="button"
-              onClick={() => setPasso(item.id)}
-              className={`px-2 py-2 text-xs font-semibold transition-colors ${
-                item.id === passo
-                  ? "text-white"
-                  : indice < indiceAtual
-                    ? "bg-neutral-100 text-neutral-800"
-                    : "bg-neutral-50 text-neutral-400"
-              }`}
-              style={item.id === passo ? { backgroundColor: corPrimaria, color: "#fff" } : undefined}
-            >
-              {item.titulo}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5">
-        {/* ── Cart item card ── */}
-        <div className="lp-cart-item">
-          <span className="lp-cart-ph">
-            {produto.fotos[0] ? <img src={resolverUrlMedia(produto.fotos[0])} alt="" /> : <Package size={22} className="mx-auto mt-5 text-neutral-400" />}
-          </span>
-          <div className="lp-cart-body">
-            <div className="lp-cart-nm">{produto.nome}</div>
-            {resumoVariantes && <div className="lp-cart-meta">{resumoVariantes}</div>}
-            <div className="lp-cart-pr">{formatarKwanza(precoProduto(produto, selecoesVariantes))}</div>
-          </div>
-          <div className="lp-cart-qty">
-            <button type="button" onClick={() => setQuantidade(Math.max(1, quantidade - 1))}>−</button>
-            <span>{quantidade}</span>
-            <button type="button" onClick={() => setQuantidade(Math.min(stockDisponivel || 1, quantidade + 1))}>+</button>
-          </div>
-        </div>
-
-        {passo === "variante" && (
-          <div className="mt-5 space-y-5">
-            <SeletoresVariantes
-              produto={produto}
-              selecoesVariantes={selecoesVariantes}
-              onSelecionar={(nome, valor) => {
-                setSelecoesVariantes(selecionarOpcaoProduto(produto, selecoesVariantes, nome, valor));
-                setQuantidade(1);
-              }}
-              corPrimaria={corPrimaria}
-            />
-          </div>
-        )}
-
-        {passo === "dados" && (
-          <div className="mt-5 grid gap-3">
-            <CampoCheckout icon={<User size={16} />} label="Nome" value={perfil.nome} onChange={(valor) => setPerfil({ ...perfil, nome: valor })} placeholder="O seu nome" />
-            <CampoCheckout icon={<Phone size={16} />} label="WhatsApp" value={perfil.telefone} onChange={(valor) => setPerfil({ ...perfil, telefone: valor })} placeholder="923 000 000" />
-            <CampoCheckout icon={<Mail size={16} />} label="Email opcional" value={perfil.email} onChange={(valor) => setPerfil({ ...perfil, email: valor })} placeholder="email@exemplo.com" />
-            <label className="flex items-start gap-3 border border-neutral-200 bg-white p-3 text-sm text-neutral-600">
-              <input
-                type="checkbox"
-                checked={perfil.consentimentoMarketing}
-                onChange={(evento) => setPerfil({ ...perfil, consentimentoMarketing: evento.target.checked })}
-                className="mt-1"
-              />
-              Quero receber novidades, reposições e promoções desta loja.
-            </label>
-          </div>
-        )}
-
-        {passo === "entrega" && (
-          <div className="mt-5">
-            {/* ── Delivery type zones ── */}
-            <div className="lp-co-block">
-              <div className="lp-co-block-h">Entrega</div>
-              {(["ENTREGA", "RETIRADA", "ORCAMENTO"] as TipoEntregaCheckout[]).map((tipo) => (
-                <div
-                  key={tipo}
-                  className={`lp-zone ${entrega.tipo === tipo ? "on" : ""}`}
-                  onClick={() => setEntrega({ ...entrega, tipo })}
-                  role="button"
-                  tabIndex={0}
-                  onKeyDown={(e) => { if (e.key === "Enter") setEntrega({ ...entrega, tipo }); }}
-                >
-                  <span className="lp-zone-radio" />
-                  <div className="lp-zone-body">
-                    <div className="lp-zone-nm">
-                      {tipo === "ENTREGA" ? "Entrega ao domicílio" : tipo === "RETIRADA" ? "Retirada na loja" : "Orçamento personalizado"}
-                    </div>
-                    <div className="lp-zone-meta">
-                      {tipo === "ENTREGA" ? "Receba no seu endereço" : tipo === "RETIRADA" ? "Levante na loja sem taxa" : "Condições sob consulta"}
-                    </div>
-                  </div>
-                  {tipo === "ENTREGA" && resumoEntrega && (
-                    <span className="lp-zone-pr">{formatarKwanza(resumoEntrega.taxaEntregaEmKwanza)}</span>
-                  )}
-                  {tipo === "RETIRADA" && <span className="lp-zone-pr">Grátis</span>}
-                </div>
-              ))}
-            </div>
-
-            {entrega.tipo === "ENTREGA" && (
-              <div className="mt-4 grid gap-3">
-                <CampoCheckout icon={<MapPin size={16} />} label="Província" value={entrega.provincia} onChange={(valor) => setEntrega({ ...entrega, provincia: valor })} placeholder="Luanda" />
-                <CampoCheckout icon={<MapPin size={16} />} label="Município" value={entrega.municipio} onChange={(valor) => setEntrega({ ...entrega, municipio: valor })} placeholder="Talatona" />
-                <CampoCheckout icon={<MapPin size={16} />} label="Bairro" value={entrega.bairro} onChange={(valor) => setEntrega({ ...entrega, bairro: valor })} placeholder="Bairro ou zona" />
-                <CampoCheckout icon={<Truck size={16} />} label="Endereço/referência" value={entrega.endereco} onChange={(valor) => setEntrega({ ...entrega, endereco: valor })} placeholder="Rua, casa, ponto de referência" />
-                <Button type="button" variant="outline" onClick={() => void calcularEntregaCheckout()} disabled={calculandoEntrega}>
-                  {calculandoEntrega ? <Loader2 className="animate-spin" size={16} /> : <Truck size={16} />}
-                  Calcular entrega
-                </Button>
-              </div>
-            )}
-
-            {/* ── Payment method ── */}
-            <div className="lp-co-block">
-              <div className="lp-co-block-h">Pagamento</div>
-              <div className="lp-pay on">
-                <span className="lp-pay-icon blue"><ShoppingBag size={18} /></span>
-                <div className="lp-pay-body">
-                  <div className="lp-pay-nm">Transferência bancária</div>
-                  <div className="lp-pay-meta">Envie o comprovativo pelo WhatsApp</div>
-                </div>
-                <span className="lp-zone-radio" style={{ borderColor: "oklch(0.45 0.12 159)" }}>
-                  <span style={{ width: 10, height: 10, borderRadius: 99, background: "oklch(0.45 0.12 159)", display: "block" }} />
-                </span>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {passo === "confirmar" && (
-          <>
-            <ResumoConfirmacao
-              produto={produto}
-              quantidade={quantidade}
-              variantes={selecoesVariantes}
-              perfil={perfil}
-              entrega={entrega}
-              resumoEntrega={resumoEntrega}
-              calculandoEntrega={calculandoEntrega}
-            />
-          </>
-        )}
-
-        {/* ── Order summary (visible on entrega + confirmar) ── */}
-        {(passo === "entrega" || passo === "confirmar") && (
-          <div className="lp-summary">
-            <div className="lp-summary-row"><span>Subtotal</span><span>{formatarKwanza(subtotal)}</span></div>
-            {entrega.tipo === "ENTREGA" && (
-              <div className="lp-summary-row">
-                <span>{calculandoEntrega ? "A calcular entrega..." : `Entrega${resumoEntrega?.entrega.regra ? ` · ${resumoEntrega.entrega.regra}` : ""}`}</span>
-                <span>{formatarKwanza(taxaEntrega)}</span>
-              </div>
-            )}
-            <div className="lp-summary-row total"><span>Total</span><span>{formatarKwanza(total)}</span></div>
-          </div>
-        )}
-      </div>
-
-      {/* ── Footer buttons ── */}
-      <div className="lp-co-foot">
-        {passo === "confirmar" ? (
-          <button type="button" className="lp-co-btn" onClick={() => void confirmarCheckout()} disabled={finalizando}>
-            {finalizando ? <Loader2 className="animate-spin" size={16} /> : <Check size={18} />}
-            Confirmar pedido
-          </button>
-        ) : (
-          <div className="flex gap-2">
-            <Button type="button" variant="outline" className="flex-1" onClick={passoAnterior} disabled={indiceAtual === 0 || finalizando}>
-              Voltar
-            </Button>
-            <button type="button" className="lp-co-btn flex-1" onClick={proximoPasso}>
-              Continuar
-            </button>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function LeadCaptureModal({
-  aberto,
-  fechar,
-  motivo,
-  perfil,
-  salvar,
-  setPerfil
-}: {
-  aberto: boolean;
-  fechar: () => void;
-  motivo: string;
-  perfil: PerfilClienteLoja;
-  salvar: () => void;
-  setPerfil: (perfil: PerfilClienteLoja) => void;
-}) {
-  return (
-    <Dialog open={aberto} onOpenChange={(valor) => { if (!valor) fechar(); }}>
-      <DialogContent className="loja-modal-responsivo max-h-[92dvh] overflow-y-auto p-5 sm:max-w-md sm:p-6">
-        <DialogHeader>
-          <Badge variant="outline" className="w-fit">Atendimento rápido</Badge>
-          <DialogTitle>Quer ajuda desta loja?</DialogTitle>
-          <DialogDescription>{motivo}</DialogDescription>
-        </DialogHeader>
-        <div className="grid gap-3">
-          <CampoCheckout icon={<User size={16} />} label="Nome" value={perfil.nome} onChange={(valor) => setPerfil({ ...perfil, nome: valor })} placeholder="O seu nome" />
-          <CampoCheckout icon={<Phone size={16} />} label="WhatsApp" value={perfil.telefone} onChange={(valor) => setPerfil({ ...perfil, telefone: valor })} placeholder="923 000 000" />
-          <CampoCheckout icon={<Mail size={16} />} label="Email opcional" value={perfil.email} onChange={(valor) => setPerfil({ ...perfil, email: valor })} placeholder="email@exemplo.com" />
-          <label className="flex items-start gap-3 border border-neutral-200 bg-neutral-50 p-3 text-sm text-neutral-600">
-            <input
-              type="checkbox"
-              checked={perfil.consentimentoMarketing}
-              onChange={(evento) => setPerfil({ ...perfil, consentimentoMarketing: evento.target.checked })}
-              className="mt-1"
-            />
-            Aceito receber novidades, disponibilidade e promoções desta loja.
-          </label>
-        </div>
-        <DialogFooter className="gap-2 sm:gap-2">
-          <Button variant="outline" className="w-full sm:w-auto" onClick={fechar}>Agora não</Button>
-          <Button className="w-full sm:w-auto" onClick={salvar}>Guardar contacto</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-function ConfirmacaoPedido({
-  produto,
-  quantidade,
-  variantes,
-  total,
-  entrega,
-  onWhatsApp,
-  onContinuar
-}: {
-  produto: ProdutoPublico;
-  quantidade: number;
-  variantes: Record<string, string>;
-  total: number;
-  entrega: EntregaCheckout;
-  onWhatsApp: () => void;
-  onContinuar: () => void;
-}) {
-  const resumoVariante = montarResumoVariantes(variantes);
-  const precoUnitario = precoProduto(produto, variantes);
-
-  return (
-    <div className="flex h-full flex-col">
-      <div className="flex-1 overflow-y-auto">
-        <div className="lp-cf">
-          {/* ── Check ring animation ── */}
-          <div className="lp-cf-ring animate-in zoom-in duration-300">
-            <span className="lp-cf-ring-core">
-              <Check />
-            </span>
-          </div>
-
-          <h2 className="animate-in fade-in slide-in-from-bottom-1 duration-300 delay-150">Pedido confirmado!</h2>
-          <p>Obrigada pela sua compra. Vamos confirmar o pagamento e preparar o envio.</p>
-          <span className="lp-cf-ordno">Pedido #{Date.now().toString(36).toUpperCase().slice(-4)}</span>
-
-          {/* ── Progress steps ── */}
-          <div className="lp-cf-steps">
-            <div className="lp-cf-step done">
-              <span className="lp-cf-step-dot"><Check size={14} /></span>
-              <span className="lp-cf-step-label">Recebido</span>
-              <span className="lp-cf-step-line" />
-            </div>
-            <div className="lp-cf-step now">
-              <span className="lp-cf-step-dot"><Clock size={14} /></span>
-              <span className="lp-cf-step-label">Pagamento</span>
-              <span className="lp-cf-step-line" />
-            </div>
-            <div className="lp-cf-step todo">
-              <span className="lp-cf-step-dot"><Truck size={14} /></span>
-              <span className="lp-cf-step-label">{entrega.tipo === "RETIRADA" ? "Retirada" : "Entrega"}</span>
-            </div>
-          </div>
-
-          {/* ── Order details card ── */}
-          <div className="lp-cf-card">
-            <div className="lp-cf-card-row">
-              <span>{produto.nome}{resumoVariante ? ` · ${resumoVariante}` : ""}</span>
-              <b>{formatarKwanza(precoUnitario * quantidade)}</b>
-            </div>
-            {entrega.tipo === "ENTREGA" && entrega.municipio && (
-              <div className="lp-cf-card-row">
-                <span>Entrega · {entrega.municipio}</span>
-                <b>{formatarKwanza(total - precoUnitario * quantidade)}</b>
-              </div>
-            )}
-            <div className="lp-cf-card-row sep">
-              <span>Total</span>
-              <b>{formatarKwanza(total)}</b>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* ── Footer: WhatsApp + Continue ── */}
-      <div className="lp-cf-foot">
-        <button type="button" className="lp-cf-wa" onClick={onWhatsApp}>
-          <MessageCircle />
-          Acompanhar pelo WhatsApp
-        </button>
-        <button type="button" className="lp-cf-ghost" onClick={onContinuar}>
-          Continuar a comprar
-        </button>
-      </div>
-    </div>
-  );
-}
 
 function SeletoresVariantes({
   corPrimaria,
@@ -2571,81 +1869,6 @@ function QuantidadeSelector({
           <Plus size={16} />
         </button>
       </div>
-    </div>
-  );
-}
-
-function CampoCheckout({
-  icon,
-  label,
-  onChange,
-  placeholder,
-  value
-}: {
-  icon: React.ReactNode;
-  label: string;
-  onChange: (valor: string) => void;
-  placeholder: string;
-  value: string;
-}) {
-  return (
-    <label className="grid gap-1.5">
-      <span className="text-xs font-semibold text-neutral-500">{label}</span>
-      <span className="relative block">
-        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400">{icon}</span>
-        <Input value={value} onChange={(evento) => onChange(evento.target.value)} placeholder={placeholder} className="h-12 border-neutral-200 bg-white pl-10" />
-      </span>
-    </label>
-  );
-}
-
-function ResumoConfirmacao({
-  calculandoEntrega,
-  entrega,
-  perfil,
-  produto,
-  quantidade,
-  resumoEntrega,
-  variantes
-}: {
-  calculandoEntrega: boolean;
-  entrega: EntregaCheckout;
-  perfil: PerfilClienteLoja;
-  produto: ProdutoPublico;
-  quantidade: number;
-  resumoEntrega: ResumoEntregaCheckout | null;
-  variantes: Record<string, string>;
-}) {
-  return (
-    <div className="mt-5 space-y-3">
-      <ResumoLinha titulo="Produto" detalhe={`${produto.nome} x ${quantidade}`} />
-      {Object.keys(variantes).length > 0 && <ResumoLinha titulo="Variantes" detalhe={montarResumoVariantes(variantes)} />}
-      <ResumoLinha titulo="Cliente" detalhe={`${perfil.nome || "Sem nome"} · ${perfil.telefone || "Sem telefone"}`} />
-      <ResumoLinha titulo="Entrega" detalhe={entrega.tipo === "ENTREGA" ? entrega.endereco || "Endereço pendente" : entrega.tipo === "RETIRADA" ? "Retirada na loja" : "Entrega sob orçamento"} />
-      <div className="bg-foreground p-4 text-white">
-        <div className="flex items-center justify-between text-sm text-white/62">
-          <span>Subtotal</span>
-          <span>{formatarKwanza(resumoEntrega?.subtotalEmKwanza ?? precoProduto(produto, variantes) * quantidade)}</span>
-        </div>
-        <div className="mt-2 flex items-center justify-between text-sm text-white/62">
-          <span>{calculandoEntrega ? "A calcular entrega..." : "Entrega"}</span>
-          <span>{formatarKwanza(resumoEntrega?.taxaEntregaEmKwanza ?? 0)}</span>
-        </div>
-        <div className="mt-3 flex items-center justify-between border-t border-white/10 pt-3 text-lg font-bold">
-          <span>Total</span>
-          <span>{formatarKwanza(resumoEntrega?.totalEmKwanza ?? precoProduto(produto, variantes) * quantidade)}</span>
-        </div>
-        {resumoEntrega?.entrega.descricao && <p className="mt-3 text-xs leading-5 text-white/55">{resumoEntrega.entrega.descricao}</p>}
-      </div>
-    </div>
-  );
-}
-
-function ResumoLinha({ detalhe, titulo }: { detalhe: string; titulo: string }) {
-  return (
-    <div className="border border-neutral-200 bg-white p-3">
-      <span className="text-xs font-semibold text-neutral-500">{titulo}</span>
-      <p className="mt-1 text-sm font-medium text-neutral-950">{detalhe}</p>
     </div>
   );
 }

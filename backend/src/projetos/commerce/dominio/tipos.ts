@@ -6,6 +6,17 @@ export type TipoContextoContaBizy =
   | "PRODUTOR_LEARNING"
   | "MEMBRO_NEGOCIO";
 
+export interface ContextoContaBizy {
+  id: string;
+  contaId: string;
+  tipo: TipoContextoContaBizy;
+  negocioId: string | null;
+  chave: string;
+  estado: string;
+  criadoEm: Date;
+  atualizadoEm: Date;
+}
+
 export interface ContaBizy {
   id: string;
   nome: string | null;

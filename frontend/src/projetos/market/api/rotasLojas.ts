@@ -12,15 +12,15 @@ function segmento(valor: string): string {
 export const ROTAS_LOJAS = {
   categoriaMarket: (categoria: string) => montarUrlCategoriaMarketPublico(categoria),
   checkout: "/checkout",
-  compras: "/compras",
-  compra: (id: string) => `/compras/${segmento(id)}`,
+  compras: "/conta/compras",
+  compra: (id: string) => `/conta/compras/${segmento(id)}`,
   formularioLead: (slug: string) => `/f/${segmento(slug)}/lead`,
   loja: (slug: string) => `/lojas/${segmento(slug)}`,
   lojasMarket: montarUrlLojasMarketPublico(),
   market: montarUrlMarketPublico(),
   catalogoLoja: (slug: string, catalogo: string) => `/lojas/${segmento(slug)}/catalogos/${segmento(catalogo)}`,
   produtoLoja: (slug: string, codigo: string) => `/lojas/${segmento(slug)}/produtos/${segmento(codigo)}`,
-  produtoMarket: (codigo: string) => montarUrlProdutoMarketPublico(codigo),
+  produtoMarket: (listingId: string, slug?: string) => montarUrlProdutoMarketPublico(listingId, slug),
   studio: "/app/loja",
   studioLegado: "/app/loja-publica"
 } as const;
@@ -40,8 +40,10 @@ export const ROTAS_API_LOJAS = {
   produtoLojaWhatsApp: (slug: string, codigo: string) =>
     `/publico/lojas/${segmento(slug)}/produtos/${segmento(codigo)}/whatsapp`,
   produtosMarket: "/publico/market/produtos",
-  produtoMarket: (codigo: string) => `/publico/market/produtos/${segmento(codigo)}`,
-  produtosSimilaresMarket: (codigo: string) => `/publico/market/produtos/${segmento(codigo)}/similares`,
+  produtoMarket: (listingId: string) => `/publico/market/p/${segmento(listingId)}`,
+  confiancaProdutoMarket: (listingId: string) => `/publico/market/confianca/produtos/${segmento(listingId)}`,
+  produtosSimilaresMarket: (listingId: string) => `/publico/market/p/${segmento(listingId)}/similares`,
+  sugestoesMarket: "/publico/market/busca/sugestoes",
   publicacaoMarketProduto: (codigo: string) => `/team/loja/produtos/${segmento(codigo)}/publicacao`,
   publicacaoMarketProdutosEmMassa: "/team/loja/produtos/publicacao-em-massa",
   resumoMarketLoja: "/team/loja/market/resumo",

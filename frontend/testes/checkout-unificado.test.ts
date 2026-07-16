@@ -94,7 +94,7 @@ describe("checkout unificado progressivo", () => {
     expect(estilos).toContain(".checkout-review-panel");
   });
 
-  it("liga Market e produto da loja à entrada unificada sem remover checkout atual", () => {
+  it("liga Market e produto da loja ao único checkout unificado", () => {
     const marketProduto = source("src/projetos/market/paginas/ProdutoMarket.tsx");
     const lojaProduto = source("src/projetos/market/paginas/LojaDigitalPublica.tsx");
 
@@ -108,11 +108,11 @@ describe("checkout unificado progressivo", () => {
     expect(lojaProduto).toContain("adicionarItemCheckoutBizy");
     expect(lojaProduto).toContain("ROTAS_LOJAS.checkout");
     expect(lojaProduto).toContain("Comprar agora");
-    expect(lojaProduto).toContain("varianteSelecionada: checkoutVariantes");
+    expect(lojaProduto).toContain("variantes: selecoes");
     expect(lojaProduto).toContain("selecionarOpcaoProduto");
     expect(lojaProduto).toContain("stockProduto");
     expect(lojaProduto).toContain("combinacoesVariantes");
-    expect(lojaProduto).toContain("totalConfirmado");
-    expect(lojaProduto).toContain("setResumoEntrega(null)");
+    expect(lojaProduto).not.toContain("CheckoutAssistido");
+    expect(lojaProduto).not.toContain("/publico/lojas/${encodeURIComponent(slug)}/checkout");
   });
 });

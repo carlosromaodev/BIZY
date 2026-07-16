@@ -169,6 +169,8 @@ describe("API frontend das lojas e Bizy Market", () => {
 
   it("normaliza produto do Market para cards e navegacao", () => {
     const produto: ProdutoMarket = {
+      id: "listing-abc-1",
+      listingId: "listing-abc-1",
       codigo: "ABC 1",
       nome: "Camisa verde",
       descricao: "Algodao",
@@ -206,11 +208,11 @@ describe("API frontend das lojas e Bizy Market", () => {
         precoFinalEmKwanza: 9900,
         slugLoja: "minha-loja",
         urlLoja: "/lojas/minha-loja",
-        urlMarket: "/market/produtos/ABC%201",
+        urlMarket: "/market/p/listing-abc-1/camisa-verde",
         urlProduto: "/lojas/minha-loja/produtos/ABC 1"
       })
     );
-    expect(ROTAS_LOJAS.produtoMarket("ABC 1")).toBe("/market/produtos/ABC%201");
+    expect(ROTAS_LOJAS.produtoMarket("listing-abc-1", "Camisa verde")).toBe("/market/p/listing-abc-1/camisa-verde");
     expect(ROTAS_LOJAS.produtoLoja("minha-loja", "ABC 1")).toBe("/lojas/minha-loja/produtos/ABC%201");
   });
 });

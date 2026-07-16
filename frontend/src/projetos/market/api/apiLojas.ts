@@ -38,6 +38,7 @@ import type {
   RespostaMarketProdutos,
   RespostaProdutoLojaPublica,
   RespostaProdutoMarket,
+  ResumoConfiancaProdutoMarket,
   RespostaPublicacaoProdutoMarket,
   RespostaPublicacaoProdutosMarketEmMassa,
   RespostaSeguidoresTeam,
@@ -124,6 +125,7 @@ export function listarProdutosMarket(filtros: FiltrosMarketProdutos = {}): Promi
       precoMaximo: filtros.precoMaximo,
       apenasDisponivel: filtros.apenasDisponivel,
       apenasPromocao: filtros.apenasPromocao,
+      ordenarPor: filtros.ordenarPor,
       limite: filtros.limite,
       offset: filtros.offset
     }),
@@ -132,13 +134,17 @@ export function listarProdutosMarket(filtros: FiltrosMarketProdutos = {}): Promi
   );
 }
 
-export function obterProdutoMarket(codigo: string): Promise<RespostaProdutoMarket> {
-  return requisitarApi<RespostaProdutoMarket>(ROTAS_API_LOJAS.produtoMarket(codigo), {}, false);
+export function obterProdutoMarket(listingId: string): Promise<RespostaProdutoMarket> {
+  return requisitarApi<RespostaProdutoMarket>(ROTAS_API_LOJAS.produtoMarket(listingId), {}, false);
 }
 
-export function listarProdutosSimilaresMarket(codigo: string, limite?: number | null): Promise<RespostaSimilaresMarket> {
+export function obterConfiancaProdutoMarket(listingId: string): Promise<ResumoConfiancaProdutoMarket> {
+  return requisitarApi<ResumoConfiancaProdutoMarket>(ROTAS_API_LOJAS.confiancaProdutoMarket(listingId), {}, false);
+}
+
+export function listarProdutosSimilaresMarket(listingId: string, limite?: number | null): Promise<RespostaSimilaresMarket> {
   return requisitarApi<RespostaSimilaresMarket>(
-    comQuery(ROTAS_API_LOJAS.produtosSimilaresMarket(codigo), { limite }),
+    comQuery(ROTAS_API_LOJAS.produtosSimilaresMarket(listingId), { limite }),
     {},
     false
   );
@@ -291,8 +297,8 @@ export function montarUrlProdutoLoja(slug?: string | null, codigo?: string | nul
   return slug?.trim() && codigo?.trim() ? ROTAS_LOJAS.produtoLoja(slug, codigo) : "";
 }
 
-export function montarUrlProdutoMarket(codigo?: string | null): string {
-  return codigo?.trim() ? ROTAS_LOJAS.produtoMarket(codigo) : "";
+export function montarUrlProdutoMarket(listingId?: string | null, slug?: string): string {
+  return listingId?.trim() ? ROTAS_LOJAS.produtoMarket(listingId, slug) : "";
 }
 
 function texto(valor: unknown): string {
@@ -371,9 +377,11 @@ export function normalizarProdutoMarket(produto: ProdutoMarket): ProdutoMarketNo
   const precoAntigoEmKwanza = obterPrecoAntigoProduto(produto);
   const urlLoja = texto(produto.urlLoja) || fornecedor.urlLoja;
   const urlProduto =
-    texto(produto.urlProduto) || montarUrlProdutoLoja(fornecedor.slug, produto.codigo) || montarUrlProdutoMarket(produto.codigo);
+    texto(produto.urlProduto) || (produto.listingId ? ROTAS_LOJAS.produtoMarket(produto.listingId, produto.nome) : montarUrlProdutoLoja(fornecedor.slug, produto.codigo));
 
   return {
+    id: produto.id || produto.listingId || `${fornecedor.slug}:${produto.codigo}`,
+    listingId: produto.listingId || produto.id || "",
     categoria: texto(produto.categoria) || "Sem categoria",
     codigo: produto.codigo,
     colecao: texto(produto.colecao),
@@ -395,7 +403,7 @@ export function normalizarProdutoMarket(produto: ProdutoMarket): ProdutoMarketNo
     quantidade: produto.quantidade,
     slugLoja: fornecedor.slug,
     urlLoja,
-    urlMarket: montarUrlProdutoMarket(produto.codigo),
+    urlMarket: produto.listingId ? ROTAS_LOJAS.produtoMarket(produto.listingId, produto.nome) : urlProduto,
     urlProduto,
     selos: produto.vitrine?.selos ?? [],
     variantes: normalizarVariantes(produto.variantes),

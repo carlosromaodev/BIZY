@@ -36,6 +36,7 @@ model Peca {
   itensCarrinho    ItemCarrinhoCommerce[]
   produtosConteudo ProdutoConteudoCommerce[]
   produtosOferta   ProdutoOfertaCreator[]
+  ofertaSeller     OfertaSeller?
 
   @@unique([negocioId, codigo])
   @@index([negocioId])
@@ -534,6 +535,9 @@ model Negocio {
   candidaturasCreator            CandidaturaCreator[]
   amostrasCreator                AmostraCreator[]
   missoesCreator                 MissaoCreator[]
+  programasAfiliacao             ProgramaAfiliacao[]
+  relacoesAfiliacao              RelacaoAfiliacao[]
+  ofertasSeller                  OfertaSeller[]
   tarefasOperacionais            TarefaOperacional[]
   socialInboxItens               SocialInboxItem[]
   playbooksRecuperacao           PlaybookRecuperacao[]
@@ -1015,6 +1019,7 @@ model OfertaCreator {
   produtos      ProdutoOfertaCreator[]
   candidaturas  CandidaturaCreator[]
   missoes       MissaoCreator[]
+  solicitacoes  SolicitacaoAfiliacao[]
 
   @@unique([negocioId, codigo])
   @@index([estado, iniciaEm, terminaEm])
@@ -1022,16 +1027,17 @@ model OfertaCreator {
 }
 
 model ProdutoOfertaCreator {
-  id             String        @id @default(uuid())
+  id             String                       @id @default(uuid())
   ofertaId       String
-  oferta         OfertaCreator @relation(fields: [ofertaId], references: [id], onDelete: Cascade)
+  oferta         OfertaCreator                @relation(fields: [ofertaId], references: [id], onDelete: Cascade)
   negocioId      String
-  negocio        Negocio       @relation(fields: [negocioId], references: [id])
+  negocio        Negocio                      @relation(fields: [negocioId], references: [id])
   pecaId         String
-  peca           Peca          @relation(fields: [pecaId], references: [id])
+  peca           Peca                         @relation(fields: [pecaId], references: [id])
   variantePecaId String?
-  variantePeca   VariantePeca? @relation(fields: [variantePecaId], references: [id], onDelete: SetNull)
-  ordem          Int           @default(0)
+  variantePeca   VariantePeca?                @relation(fields: [variantePecaId], references: [id], onDelete: SetNull)
+  ordem          Int                          @default(0)
+  autorizacoes   AutorizacaoProdutoAfiliado[]
 
   @@unique([ofertaId, pecaId, variantePecaId])
   @@index([negocioId, pecaId])
@@ -1794,10 +1800,161 @@ model ContaBizy {
   sessoesCommerce      SessaoCommerce[]
   conversoesAtribuicao ConversaoAtribuicaoCommerce[]
   parceirosComerciais  ParceiroComercial[]
+  perfilCreator        PerfilCreator?
 
   @@index([status])
   @@index([telefoneVerificadoEm])
   @@index([emailVerificadoEm])
+}
+
+model PerfilCreator {
+  id               String                 @id @default(uuid())
+  contaBizyId      String                 @unique
+  contaBizy        ContaBizy              @relation(fields: [contaBizyId], references: [id], onDelete: Cascade)
+  nomePublico      String
+  bio              String?
+  avatarUrl        String?
+  localizacao      String?
+  categoriasJson   String                 @default("[]")
+  canaisJson       String                 @default("[]")
+  redesSociaisJson String                 @default("{}")
+  estado           String                 @default("RASCUNHO")
+  nivelVerificacao String                 @default("BASICO")
+  termosVersao     String?
+  termosAceitesEm  DateTime?
+  verificadoEm     DateTime?
+  suspensoEm       DateTime?
+  motivoSuspensao  String?
+  criadoEm         DateTime               @default(now())
+  atualizadoEm     DateTime               @updatedAt
+  solicitacoes     SolicitacaoAfiliacao[]
+  relacoes         RelacaoAfiliacao[]
+
+  @@index([estado, criadoEm])
+}
+
+model ProgramaAfiliacao {
+  id                   String                 @id @default(uuid())
+  negocioId            String
+  negocio              Negocio                @relation(fields: [negocioId], references: [id], onDelete: Cascade)
+  nome                 String
+  modalidadeAcesso     String                 @default("APPROVAL_REQUIRED")
+  estado               String                 @default("ATIVO")
+  termosVersao         String                 @default("creator.v1")
+  criteriosJson        String                 @default("{}")
+  politicaComissaoJson String                 @default("{}")
+  politicaConteudoJson String                 @default("{}")
+  criadoEm             DateTime               @default(now())
+  atualizadoEm         DateTime               @updatedAt
+  solicitacoes         SolicitacaoAfiliacao[]
+  relacoes             RelacaoAfiliacao[]
+
+  @@unique([negocioId, nome])
+  @@index([negocioId, estado])
+}
+
+model SolicitacaoAfiliacao {
+  id              String            @id @default(uuid())
+  perfilCreatorId String
+  perfilCreator   PerfilCreator     @relation(fields: [perfilCreatorId], references: [id], onDelete: Cascade)
+  programaId      String
+  programa        ProgramaAfiliacao @relation(fields: [programaId], references: [id], onDelete: Cascade)
+  ofertaId        String?
+  oferta          OfertaCreator?    @relation(fields: [ofertaId], references: [id], onDelete: SetNull)
+  produtoOfertaId String?
+  estado          String            @default("PENDENTE")
+  mensagem        String?
+  motivoDecisao   String?
+  submetidaEm     DateTime          @default(now())
+  decididaEm      DateTime?
+  decididaPorId   String?
+  criadoEm        DateTime          @default(now())
+  atualizadoEm    DateTime          @updatedAt
+
+  @@unique([perfilCreatorId, programaId, ofertaId, produtoOfertaId])
+  @@index([programaId, estado, criadoEm])
+  @@index([perfilCreatorId, estado, criadoEm])
+}
+
+model RelacaoAfiliacao {
+  id                  String                       @id @default(uuid())
+  perfilCreatorId     String
+  perfilCreator       PerfilCreator                @relation(fields: [perfilCreatorId], references: [id], onDelete: Cascade)
+  negocioId           String
+  negocio             Negocio                      @relation(fields: [negocioId], references: [id], onDelete: Cascade)
+  programaId          String
+  programa            ProgramaAfiliacao            @relation(fields: [programaId], references: [id], onDelete: Cascade)
+  parceiroComercialId String?
+  estado              String                       @default("ACTIVA")
+  comissaoJson        String                       @default("{}")
+  termosVersao        String
+  iniciadaEm          DateTime                     @default(now())
+  pausadaEm           DateTime?
+  encerradaEm         DateTime?
+  criadoEm            DateTime                     @default(now())
+  atualizadoEm        DateTime                     @updatedAt
+  autorizacoes        AutorizacaoProdutoAfiliado[]
+
+  @@unique([perfilCreatorId, negocioId, programaId])
+  @@index([negocioId, estado])
+  @@index([parceiroComercialId])
+}
+
+model AutorizacaoProdutoAfiliado {
+  id                     String               @id @default(uuid())
+  relacaoAfiliacaoId     String
+  relacaoAfiliacao       RelacaoAfiliacao     @relation(fields: [relacaoAfiliacaoId], references: [id], onDelete: Cascade)
+  produtoOfertaCreatorId String
+  produtoOfertaCreator   ProdutoOfertaCreator @relation(fields: [produtoOfertaCreatorId], references: [id], onDelete: Cascade)
+  estado                 String               @default("AUTORIZADA")
+  comissaoSnapshotJson   String               @default("{}")
+  iniciaEm               DateTime?
+  terminaEm              DateTime?
+  criadaEm               DateTime             @default(now())
+  atualizadaEm           DateTime             @updatedAt
+
+  @@unique([relacaoAfiliacaoId, produtoOfertaCreatorId])
+  @@index([produtoOfertaCreatorId, estado])
+}
+
+model ProdutoCatalogo {
+  id             String         @id @default(uuid())
+  tituloCanonico String
+  marca          String?
+  modelo         String?
+  categoriaSlug  String?
+  atributosJson  String         @default("{}")
+  mediaJson      String         @default("[]")
+  gtin           String?        @unique
+  estado         String         @default("ACTIVO")
+  criadoEm       DateTime       @default(now())
+  atualizadoEm   DateTime       @updatedAt
+  ofertas        OfertaSeller[]
+
+  @@index([categoriaSlug, estado])
+  @@index([tituloCanonico])
+}
+
+model OfertaSeller {
+  id                String          @id @default(uuid())
+  produtoCatalogoId String
+  produtoCatalogo   ProdutoCatalogo @relation(fields: [produtoCatalogoId], references: [id], onDelete: Restrict)
+  negocioId         String
+  negocio           Negocio         @relation(fields: [negocioId], references: [id], onDelete: Cascade)
+  pecaLegadaId      String          @unique
+  pecaLegada        Peca            @relation(fields: [pecaLegadaId], references: [id], onDelete: Cascade)
+  sku               String?
+  precoEmKwanza     Int
+  stock             Int
+  condicao          String          @default("NOVO")
+  entregaJson       String          @default("{}")
+  garantiaJson      String          @default("{}")
+  estado            String          @default("ACTIVA")
+  criadoEm          DateTime        @default(now())
+  atualizadoEm      DateTime        @updatedAt
+
+  @@index([produtoCatalogoId, estado, precoEmKwanza])
+  @@index([negocioId, estado])
 }
 
 model PerfilComprador {

@@ -3,6 +3,7 @@ import type {
   RepositorioPecas
 } from "../../../dominio/repositorios/contratos.js";
 import type { NegocioBizy, Peca } from "../../../dominio/tipos.js";
+import type { RepositorioCreatorMarketplace } from "../dominio/creatorMarketplace.js";
 import {
   montarPaginacaoOffset,
   normalizarLimitePaginacao,
@@ -19,6 +20,7 @@ export interface FiltrosBizyMarket {
   precoMaximo?: number | null;
   apenasDisponivel?: boolean | null;
   apenasPromocao?: boolean | null;
+  ordenarPor?: "RELEVANCIA" | "PRECO_ASC" | "PRECO_DESC" | "MAIS_VENDIDOS" | "NOVIDADES" | "ENTREGA_RAPIDA" | "MAIOR_DESCONTO" | null;
   limite?: number | null;
   offset?: number | null;
 }
@@ -54,15 +56,27 @@ export interface SellerOnboardingMarket {
 export class BizyMarketUseCase {
   constructor(
     private readonly autenticacao: RepositorioAutenticacao,
-    private readonly pecas: RepositorioPecas
+    private readonly pecas: RepositorioPecas,
+    private readonly creatorMarketplace: RepositorioCreatorMarketplace
   ) {}
 
   async listarProdutos(filtros: FiltrosBizyMarket = {}) {
     const limite = this.normalizarLimite(filtros.limite);
     const offset = normalizarOffsetPaginacao(filtros.offset ?? undefined);
+    const consultaBanco = await this.consultarProdutosMarketNoRepositorio(filtros, limite, offset);
+    if (consultaBanco) {
+      const produtos = consultaBanco.itens.sort((a, b) => this.ordenarItensMarket(a, b, filtros.ordenarPor ?? "RELEVANCIA"));
+      return {
+        produtos: produtos.map(({ peca, loja }) => this.mapearProdutoMarket(peca, loja)),
+        total: consultaBanco.total,
+        filtros: this.mapearFiltrosAplicados(filtros, limite, offset),
+        paginacao: montarPaginacaoOffset(consultaBanco.total, limite, offset),
+        categorias: this.normalizarCategoriasAgregadas(consultaBanco.categorias)
+      };
+    }
     const produtos = (await this.listarItensMarket())
       .filter((item) => this.itemAtendeFiltros(item, filtros))
-      .sort((a, b) => this.ordenarItensMarket(a, b));
+      .sort((a, b) => this.ordenarItensMarket(a, b, filtros.ordenarPor ?? "RELEVANCIA"));
 
     const produtosPaginados = produtos.slice(offset, offset + limite);
 
@@ -76,6 +90,11 @@ export class BizyMarketUseCase {
   }
 
   async listarCategorias() {
+    const consultaBanco = await this.consultarProdutosMarketNoRepositorio({}, 1, 0);
+    if (consultaBanco) {
+      const categorias = this.normalizarCategoriasAgregadas(consultaBanco.categorias).map((item) => ({ ...item, url: `/market/categorias/${encodeURIComponent(item.categoria)}` }));
+      return { categorias, total: categorias.length };
+    }
     const produtos = await this.listarItensMarket();
     const categorias = this.montarCategorias(produtos).map((item) => ({
       ...item,
@@ -88,10 +107,12 @@ export class BizyMarketUseCase {
     };
   }
 
-  async obterProduto(codigo: string) {
-    const item = await this.exigirItemMarket(codigo);
-    const similares = await this.listarProdutosSimilares(codigo, { limite: 6 });
+  async obterProduto(listingId: string) {
+    const item = await this.exigirItemMarketPorId(listingId);
+    const similares = await this.listarProdutosSimilares(listingId, { limite: 6 });
     const combinacoesVariantes = await this.pecas.listarVariantesPeca(item.peca.id);
+    const ofertaAfiliacao = (await this.creatorMarketplace.listarOfertasPublicadas(new Date()))
+      .find((oferta) => oferta.produtos.some((produto) => produto.pecaId === item.peca.id));
 
     return {
       produto: {
@@ -106,19 +127,25 @@ export class BizyMarketUseCase {
         }))
       },
       similares: similares.produtos,
+      afiliacao: ofertaAfiliacao ? {
+        ofertaId: ofertaAfiliacao.id,
+        modalidadeAcesso: this.modalidadeOferta(ofertaAfiliacao.regras),
+        comissaoTipo: ofertaAfiliacao.comissaoTipo,
+        comissaoValor: ofertaAfiliacao.comissaoValor,
+        moeda: ofertaAfiliacao.moeda
+      } : null,
       seo: this.mapearSeoProdutoMarket(item)
     };
   }
 
-  async listarProdutosSimilares(codigo: string, opcoes: { limite?: number | null } = {}) {
-    const origem = await this.exigirItemMarket(codigo);
+  async listarProdutosSimilares(listingId: string, opcoes: { limite?: number | null } = {}) {
+    const origem = await this.exigirItemMarketPorId(listingId);
     const limite = this.normalizarLimite(opcoes.limite ?? 12);
     const categoriaOrigem = this.normalizarTexto(origem.peca.categoria);
     const precoOrigem = origem.peca.precoEmKwanza;
 
     const produtos = (await this.listarItensMarket())
-      .filter((item) => item.peca.codigo !== origem.peca.codigo)
-      .filter((item) => item.loja.id !== origem.loja.id)
+      .filter((item) => item.peca.id !== origem.peca.id)
       .filter((item) => this.normalizarTexto(item.peca.categoria) === categoriaOrigem)
       .sort((a, b) => {
         const distanciaPrecoA = Math.abs(a.peca.precoEmKwanza - precoOrigem);
@@ -136,6 +163,61 @@ export class BizyMarketUseCase {
         limite
       }
     };
+  }
+
+  async obterProdutoLegado(slugLoja: string, codigo: string) {
+    const item = (await this.listarItensMarket()).find((produto) =>
+      produto.loja.slugPublico === slugLoja.trim().toLowerCase() && produto.peca.codigo === codigo.trim().toUpperCase()
+    );
+    if (!item) throw new Error("Produto não encontrado no Bizy Market.");
+    return this.obterProduto(item.peca.id);
+  }
+
+  async sugerirBusca(termo: string, limite = 8) {
+    const busca = this.normalizarTexto(termo);
+    if (busca.length < 2) return { sugestoes: [] };
+    const quantidade = Math.min(limite, 12);
+    const consultaBanco = await this.consultarProdutosMarketNoRepositorio({ busca }, quantidade, 0);
+    const itens = consultaBanco?.itens ?? (await this.listarItensMarket()).filter((item) => this.itemAtendeFiltros(item, { busca })).slice(0, quantidade);
+    const sugestoes = new Map<string, { tipo: "PRODUTO" | "CATEGORIA" | "LOJA"; texto: string; destino: string }>();
+    for (const item of itens) {
+      sugestoes.set(`produto:${item.peca.id}`, { tipo: "PRODUTO", texto: item.peca.nome, destino: this.urlProduto(item.peca) });
+      if (item.peca.categoria) sugestoes.set(`categoria:${this.normalizarTexto(item.peca.categoria)}`, { tipo: "CATEGORIA", texto: item.peca.categoria, destino: `/market/categorias/${encodeURIComponent(item.peca.categoria)}` });
+      if (item.loja.slugPublico) sugestoes.set(`loja:${item.loja.id}`, { tipo: "LOJA", texto: item.loja.nomeComercial, destino: `/lojas/${item.loja.slugPublico}` });
+    }
+    return { sugestoes: [...sugestoes.values()].slice(0, Math.min(limite, 12)) };
+  }
+
+  private async consultarProdutosMarketNoRepositorio(filtros: FiltrosBizyMarket, limite: number, offset: number) {
+    if (!this.pecas.buscarProdutosMarket) return null;
+    const lojas = (await this.autenticacao.listarNegociosPublicados())
+      .filter((loja) => this.lojaParticipaNoMarket(loja))
+      .filter((loja) => this.extrairSellerOnboarding(loja).estado !== "SUSPENSO")
+      .filter((loja) => !filtros.provincia || this.normalizarTexto(loja.provincia).includes(this.normalizarTexto(filtros.provincia)))
+      .filter((loja) => !filtros.municipio || this.normalizarTexto(loja.municipio).includes(this.normalizarTexto(filtros.municipio)))
+      .filter((loja) => !filtros.loja || [loja.nomeComercial, loja.slugPublico].some((valor) => this.normalizarTexto(valor).includes(this.normalizarTexto(filtros.loja))));
+    const busca = this.normalizarTexto(filtros.busca);
+    const negocioIdsCorrespondentesBusca = busca
+      ? lojas.filter((loja) => [loja.nomeComercial, loja.slugPublico].some((valor) => this.normalizarTexto(valor).includes(busca))).map((loja) => loja.id)
+      : [];
+    const resultado = await this.pecas.buscarProdutosMarket({
+      negocioIds: lojas.map((loja) => loja.id),
+      negocioIdsCorrespondentesBusca,
+      busca: filtros.busca,
+      categoria: filtros.categoria,
+      precoMinimo: filtros.precoMinimo,
+      precoMaximo: filtros.precoMaximo,
+      apenasPromocao: filtros.apenasPromocao,
+      ordenarPor: filtros.ordenarPor,
+      limite,
+      offset
+    });
+    const lojasPorId = new Map(lojas.map((loja) => [loja.id, loja]));
+    const itens = resultado.pecas
+      .map((peca) => ({ peca, loja: peca.negocioId ? lojasPorId.get(peca.negocioId) ?? null : null }))
+      .filter((item): item is ItemMarket => Boolean(item.loja))
+      .filter(({ peca }) => this.produtoElegivelMarket(peca));
+    return { itens, total: resultado.total, categorias: resultado.categorias };
   }
 
   async resumirLoja(negocio: NegocioBizy) {
@@ -300,10 +382,12 @@ export class BizyMarketUseCase {
       .filter(({ peca }) => this.produtoElegivelMarket(peca));
   }
 
-  private async exigirItemMarket(codigo: string): Promise<ItemMarket> {
-    const codigoNormalizado = codigo.trim().toUpperCase();
-    const item = (await this.listarItensMarket()).find((produto) => produto.peca.codigo === codigoNormalizado);
-    if (!item) throw new Error(`Produto #${codigo} não encontrado no Bizy Market.`);
+  private async exigirItemMarketPorId(id: string): Promise<ItemMarket> {
+    const peca = await this.pecas.buscarPorId(id);
+    if (!peca || !peca.negocioId || !this.produtoElegivelMarket(peca)) throw new Error("Produto não encontrado no Bizy Market.");
+    const loja = (await this.autenticacao.listarNegociosPublicados()).find((item) => item.id === peca.negocioId);
+    const item = loja && this.lojaParticipaNoMarket(loja) && this.extrairSellerOnboarding(loja).estado !== "SUSPENSO" ? { peca, loja } : null;
+    if (!item) throw new Error("Produto não encontrado no Bizy Market.");
     return item;
   }
 
@@ -402,11 +486,22 @@ export class BizyMarketUseCase {
     };
   }
 
-  private ordenarItensMarket(a: ItemMarket, b: ItemMarket): number {
+  private ordenarItensMarket(a: ItemMarket, b: ItemMarket, ordenarPor: NonNullable<FiltrosBizyMarket["ordenarPor"]> = "RELEVANCIA"): number {
+    const precoA = a.peca.vitrine.precoPromocionalEmKwanza ?? a.peca.precoEmKwanza;
+    const precoB = b.peca.vitrine.precoPromocionalEmKwanza ?? b.peca.precoEmKwanza;
+    const descontoA = a.peca.precoEmKwanza > 0 ? (a.peca.precoEmKwanza - precoA) / a.peca.precoEmKwanza : 0;
+    const descontoB = b.peca.precoEmKwanza > 0 ? (b.peca.precoEmKwanza - precoB) / b.peca.precoEmKwanza : 0;
+    const prioridade = ordenarPor === "PRECO_ASC" ? precoA - precoB
+      : ordenarPor === "PRECO_DESC" ? precoB - precoA
+      : ordenarPor === "NOVIDADES" ? b.peca.atualizadoEm.getTime() - a.peca.atualizadoEm.getTime()
+      : ordenarPor === "MAIOR_DESCONTO" ? descontoB - descontoA
+      : ordenarPor === "MAIS_VENDIDOS" ? Number(b.peca.vitrine.selos.includes("MAIS_VENDIDO")) - Number(a.peca.vitrine.selos.includes("MAIS_VENDIDO"))
+      : ordenarPor === "ENTREGA_RAPIDA" ? this.cumprimentoEntrega(b.loja) - this.cumprimentoEntrega(a.loja)
+      : this.calcularScoreRelevancia(b) - this.calcularScoreRelevancia(a);
     const scoreA = this.calcularScoreRelevancia(a);
     const scoreB = this.calcularScoreRelevancia(b);
     return (
-      scoreB - scoreA ||
+      prioridade || scoreB - scoreA ||
       a.peca.nome.localeCompare(b.peca.nome, "pt-AO", { numeric: true, sensitivity: "base" }) ||
       a.loja.nomeComercial.localeCompare(b.loja.nomeComercial, "pt-AO", { sensitivity: "base" })
     );
@@ -416,17 +511,18 @@ export class BizyMarketUseCase {
     const limite = this.normalizarLimite(filtros.limite ?? 24);
     const offset = normalizarOffsetPaginacao(filtros.offset ?? undefined);
     const itens = await this.listarItensMarket();
-    const lojasPorId = new Map<string, { loja: NegocioBizy; totalProdutos: number; categorias: Set<string> }>();
+    const lojasPorId = new Map<string, { loja: NegocioBizy; totalProdutos: number; categorias: Set<string>; scoreTotal: number }>();
 
     for (const item of itens) {
       const existente = lojasPorId.get(item.loja.id);
       if (existente) {
         existente.totalProdutos++;
+        existente.scoreTotal += this.calcularScoreRelevancia(item);
         if (item.peca.categoria?.trim()) existente.categorias.add(item.peca.categoria.trim());
       } else {
         const cats = new Set<string>();
         if (item.peca.categoria?.trim()) cats.add(item.peca.categoria.trim());
-        lojasPorId.set(item.loja.id, { loja: item.loja, totalProdutos: 1, categorias: cats });
+        lojasPorId.set(item.loja.id, { loja: item.loja, totalProdutos: 1, categorias: cats, scoreTotal: this.calcularScoreRelevancia(item) });
       }
     }
 
@@ -448,13 +544,14 @@ export class BizyMarketUseCase {
       lojas = lojas.filter(({ loja }) => this.normalizarTexto(loja.provincia).includes(prov));
     }
 
-    lojas.sort((a, b) => b.totalProdutos - a.totalProdutos);
+    lojas.sort((a, b) => (b.scoreTotal / b.totalProdutos) - (a.scoreTotal / a.totalProdutos) || b.totalProdutos - a.totalProdutos);
 
     return {
-      lojas: lojas.slice(offset, offset + limite).map(({ loja, totalProdutos, categorias }) => ({
+      lojas: lojas.slice(offset, offset + limite).map(({ loja, totalProdutos, categorias, scoreTotal }) => ({
         ...this.mapearLojaMarket(loja),
         totalProdutos,
-        categorias: [...categorias].sort()
+        categorias: [...categorias].sort(),
+        ranking: { score: Math.round(scoreTotal / totalProdutos), versao: "market.ranking.v1", amostraProdutos: totalProdutos }
       })),
       total: lojas.length,
       paginacao: montarPaginacaoOffset(lojas.length, limite, offset),
@@ -558,6 +655,8 @@ export class BizyMarketUseCase {
     const slug = loja.slugPublico ?? "";
     const patrocinado = peca.vitrine.selos.includes("PATROCINADO");
     return {
+      id: peca.id,
+      listingId: peca.id,
       codigo: peca.codigo,
       sku: peca.sku,
       nome: peca.nome,
@@ -573,7 +672,7 @@ export class BizyMarketUseCase {
       estadoStock: peca.estadoStock,
       patrocinado,
       ranking: this.explicarRanking({ peca, loja }),
-      urlProduto: `/lojas/${slug}/produtos/${peca.codigo}`,
+      urlProduto: this.urlProduto(peca),
       urlLoja: `/lojas/${slug}`,
       loja: this.mapearLojaMarket(loja)
     };
@@ -597,15 +696,19 @@ export class BizyMarketUseCase {
   }
 
   private montarCategorias(items: ItemMarket[]) {
-    const totais = new Map<string, number>();
-    for (const { peca } of items) {
-      const categoria = peca.categoria?.trim();
-      if (!categoria) continue;
-      totais.set(categoria, (totais.get(categoria) ?? 0) + 1);
-    }
+    return this.normalizarCategoriasAgregadas(items.map(({ peca }) => ({ categoria: peca.categoria ?? "", total: 1 })));
+  }
 
-    return [...totais.entries()]
-      .map(([categoria, total]) => ({ categoria, total }))
+  private normalizarCategoriasAgregadas(items: Array<{ categoria: string; total: number }>) {
+    const totais = new Map<string, { categoria: string; total: number }>();
+    for (const item of items) {
+      const categoria = item.categoria.trim();
+      const chave = this.normalizarTexto(categoria);
+      if (!chave) continue;
+      const atual = totais.get(chave);
+      totais.set(chave, { categoria: atual?.categoria ?? categoria, total: (atual?.total ?? 0) + item.total });
+    }
+    return [...totais.values()]
       .sort((a, b) => b.total - a.total || a.categoria.localeCompare(b.categoria, "pt-AO", { sensitivity: "base" }));
   }
 
@@ -615,11 +718,11 @@ export class BizyMarketUseCase {
     return {
       titulo,
       descricao,
-      canonicalPath: `/market/produtos/${item.peca.codigo}`,
+      canonicalPath: this.urlProduto(item.peca),
       imagem: item.peca.fotos[0] ?? null,
       previewSocial: {
-        whatsapp: { titulo, descricao, imagem: item.peca.fotos[0] ?? null, url: `/market/produtos/${item.peca.codigo}` },
-        navegador: { title: titulo, metaDescription: descricao, canonicalPath: `/market/produtos/${item.peca.codigo}` }
+        whatsapp: { titulo, descricao, imagem: item.peca.fotos[0] ?? null, url: this.urlProduto(item.peca) },
+        navegador: { title: titulo, metaDescription: descricao, canonicalPath: this.urlProduto(item.peca) }
       }
     };
   }
@@ -690,6 +793,7 @@ export class BizyMarketUseCase {
       ...(filtros.precoMaximo != null ? { precoMaximo: filtros.precoMaximo } : {}),
       ...(filtros.apenasDisponivel ? { apenasDisponivel: true } : {}),
       ...(filtros.apenasPromocao ? { apenasPromocao: true } : {}),
+      ...(filtros.ordenarPor && filtros.ordenarPor !== "RELEVANCIA" ? { ordenarPor: filtros.ordenarPor } : {}),
       ...(offset > 0 ? { offset } : {}),
       limite
     };
@@ -697,6 +801,22 @@ export class BizyMarketUseCase {
 
   private normalizarLimite(limite?: number | null): number {
     return normalizarLimitePaginacao(limite ?? undefined, 48, 100);
+  }
+
+  private urlProduto(peca: Peca) {
+    const slug = this.normalizarTexto(peca.nome).replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 100) || "produto";
+    return `/market/p/${peca.id}/${slug}`;
+  }
+
+  private cumprimentoEntrega(loja: NegocioBizy) {
+    const marketplace = this.objeto(this.objeto(this.objeto(loja.entrega).lojaDigital).marketplace);
+    const operacao = this.objeto(marketplace.metricasOperacionais);
+    return Math.max(0, Math.min(100, Number(operacao.cumprimentoEntregaPercentual ?? 0)));
+  }
+
+  private modalidadeOferta(regras: Record<string, unknown>) {
+    const valor = String(regras.modalidadeAcesso ?? "APPROVAL_REQUIRED").toUpperCase();
+    return ["OPEN_ACCESS", "APPROVAL_REQUIRED", "INVITE_ONLY", "CAMPAIGN_CURATED"].includes(valor) ? valor : "APPROVAL_REQUIRED";
   }
 
   private normalizarTexto(valor?: string | null): string {

@@ -42,43 +42,84 @@ export class CreatorMarketplaceUseCase {
   }
 
   async listarSeller(negocioId: string) {
-    const [ofertas, candidaturas, amostras] = await Promise.all([
+    const [ofertas, candidaturas, solicitacoes, amostras] = await Promise.all([
       this.deps.marketplace.listarOfertasNegocio(negocioId),
       this.deps.marketplace.listarCandidaturas({ negocioId }),
+      this.deps.marketplace.listarSolicitacoes({ negocioId }),
       this.deps.marketplace.listarAmostras({ negocioId })
     ]);
     const candidaturasPublicas = await Promise.all(candidaturas.map(async (item) => ({
       ...item,
       parceiro: this.publicarParceiro(await this.deps.afiliados.buscarParceiroPorId(item.parceiroId, item.parceiroNegocioOrigemId))
     })));
-    return { ofertas, candidaturas: candidaturasPublicas, amostras };
+    const solicitacoesPublicas = await Promise.all(solicitacoes.map(async (item) => ({ ...item, perfilCreator: await this.deps.marketplace.obterPerfilPorId(item.perfilCreatorId) })));
+    return { ofertas, candidaturas: candidaturasPublicas, solicitacoes: solicitacoesPublicas, amostras };
   }
 
   publicarOferta(id: string, negocioId: string, publicar: boolean) { return this.deps.marketplace.publicarOferta(id, negocioId, publicar, new Date()); }
 
   async listarCreator(conta: ContaBizy) {
+    const perfilCreator = await this.deps.marketplace.obterPerfilPorConta(conta.id);
     const parceiros = await this.parceirosDaConta(conta);
     const ids = parceiros.map((item) => item.id);
-    const [ofertas, candidaturas, amostras, participacoes] = await Promise.all([
+    const [ofertas, candidaturas, solicitacoes, relacoes, amostras, participacoes] = await Promise.all([
       this.deps.marketplace.listarOfertasPublicadas(new Date()),
       this.deps.marketplace.listarCandidaturas({ parceiroIds: ids }),
+      perfilCreator ? this.deps.marketplace.listarSolicitacoes({ perfilCreatorId: perfilCreator.id }) : Promise.resolve([]),
+      perfilCreator ? this.deps.marketplace.listarRelacoes(perfilCreator.id) : Promise.resolve([]),
       this.deps.marketplace.listarAmostras({ parceiroIds: ids }),
       this.deps.marketplace.listarParticipacoes(ids)
     ]);
     const enriquecidas = await Promise.all(ofertas.map((oferta) => this.enriquecerOferta(oferta)));
-    return { parceiros: parceiros.map((item) => this.publicarParceiro(item)), ofertas: enriquecidas, candidaturas, amostras, participacoes };
+    return { perfilCreator, parceiros: parceiros.map((item) => this.publicarParceiro(item)), ofertas: enriquecidas, candidaturas, solicitacoes, relacoes, amostras, participacoes };
   }
 
-  async candidatar(conta: ContaBizy, ofertaId: string, dados: { parceiroId: string; mensagem?: string | null }) {
+  async salvarPerfil(conta: ContaBizy, dados: { nomePublico: string; bio?: string | null; avatarUrl?: string | null; localizacao?: string | null; categorias: string[]; canais: string[]; redesSociais?: Record<string, string>; aceitarTermos: boolean }) {
+    if (!dados.aceitarTermos) throw new Error("TERMOS_CREATOR_OBRIGATORIOS");
+    if (!dados.canais.length) throw new Error("CANAL_DIVULGACAO_OBRIGATORIO");
+    const estado = dados.canais.some((canal) => ["VENDA_PRESENCIAL", "WHATSAPP"].includes(canal)) ? "ACTIVO" : "EM_VERIFICACAO";
+    const perfil = await this.deps.marketplace.salvarPerfil(conta.id, { ...dados, estado, termosVersao: "creator.v1", termosAceitesEm: new Date() });
+    await this.deps.contas.garantirContexto(conta.id, "CRIADOR");
+    return perfil;
+  }
+
+  obterPerfil(conta: ContaBizy) { return this.deps.marketplace.obterPerfilPorConta(conta.id); }
+
+  async candidatar(conta: ContaBizy, ofertaId: string, dados: { mensagem?: string | null }) {
     const oferta = (await this.deps.marketplace.listarOfertasPublicadas(new Date())).find((item) => item.id === ofertaId);
     if (!oferta) throw new Error("RECURSO_NAO_ENCONTRADO");
-    const parceiros = await this.parceirosDaConta(conta);
-    const parceiro = parceiros.find((item) => item.id === dados.parceiroId && item.estado === "ATIVO");
-    if (!parceiro) throw new Error("RECURSO_NAO_ENCONTRADO");
-    return this.deps.marketplace.criarCandidatura({ ofertaId, negocioId: oferta.negocioId, parceiroId: parceiro.id, parceiroNegocioOrigemId: parceiro.negocioId, mensagem: dados.mensagem?.trim() || null });
+    const perfil = await this.deps.marketplace.obterPerfilPorConta(conta.id);
+    if (!perfil || !["ACTIVO", "EM_VERIFICACAO"].includes(perfil.estado)) throw new Error("PERFIL_CREATOR_NAO_EXISTE");
+    const modalidade = this.modalidadeOferta(oferta.regras);
+    const programa = await this.deps.marketplace.garantirPrograma({
+      negocioId: oferta.negocioId, nome: "Programa principal", modalidadeAcesso: modalidade,
+      termosVersao: "creator.v1", criterios: oferta.criterios,
+      politicaComissao: { tipo: oferta.comissaoTipo, valor: oferta.comissaoValor, moeda: oferta.moeda },
+      politicaConteudo: oferta.regras
+    });
+    const agora = new Date();
+    const estado = modalidade === "OPEN_ACCESS" && perfil.estado === "ACTIVO" ? "APROVADA" : "PENDENTE";
+    const solicitacao = await this.deps.marketplace.criarSolicitacao({ perfilCreatorId: perfil.id, programaId: programa.id, ofertaId, estado, mensagem: dados.mensagem?.trim() || null, agora });
+    if (estado === "APROVADA") await this.ativarAfiliacao(conta, perfil.id, programa, oferta, agora, solicitacao.id);
+    return solicitacao;
   }
 
   async decidirCandidatura(id: string, negocioId: string, dados: { aprovar: boolean; motivo?: string | null }) {
+    const solicitacao = await this.deps.marketplace.buscarSolicitacao(id, { negocioId });
+    if (solicitacao) {
+      const decidida = await this.deps.marketplace.decidirSolicitacao(id, negocioId, { estado: dados.aprovar ? "APROVADA" : "REJEITADA", motivo: dados.motivo, agora: new Date() });
+      if (!dados.aprovar || !decidida) return decidida;
+      const [perfil, oferta] = await Promise.all([
+        this.deps.marketplace.obterPerfilPorId(solicitacao.perfilCreatorId),
+        solicitacao.ofertaId ? this.deps.marketplace.buscarOferta(solicitacao.ofertaId, negocioId) : Promise.resolve(null)
+      ]);
+      if (!perfil || !oferta) throw new Error("RECURSO_NAO_ENCONTRADO");
+      const conta = await this.deps.contas.buscarContaPorId(perfil.contaBizyId);
+      if (!conta) throw new Error("RECURSO_NAO_ENCONTRADO");
+      const programa = await this.deps.marketplace.garantirPrograma({ negocioId, nome: "Programa principal", modalidadeAcesso: this.modalidadeOferta(oferta.regras), termosVersao: "creator.v1", criterios: oferta.criterios, politicaComissao: { tipo: oferta.comissaoTipo, valor: oferta.comissaoValor, moeda: oferta.moeda }, politicaConteudo: oferta.regras });
+      await this.ativarAfiliacao(conta, perfil.id, programa, oferta, new Date(), solicitacao.id);
+      return decidida;
+    }
     const candidatura = await this.deps.marketplace.buscarCandidatura(id, { negocioId });
     if (!candidatura) return null;
     const decidida = await this.deps.marketplace.decidirCandidatura(id, negocioId, { estado: dados.aprovar ? "APROVADA" : "REJEITADA", motivo: dados.motivo, agora: new Date() });
@@ -128,6 +169,23 @@ export class CreatorMarketplaceUseCase {
     if (!parceiros.length && conta.telefoneVerificadoEm && conta.telefoneCanonico) parceiros = await this.deps.afiliados.associarParceirosPorContactoVerificado(conta.id, [conta.telefoneCanonico, conta.telefoneCanonico.replace(/^\+/, ""), conta.telefoneCanonico.replace(/^\+?244/, "")]);
     for (const parceiro of parceiros) await this.deps.contas.garantirContexto(conta.id, parceiro.tipo === "CRIADOR" ? "CRIADOR" : "AFILIADO", parceiro.negocioId);
     return parceiros;
+  }
+  private modalidadeOferta(regras: Record<string, unknown>) {
+    const valor = String(regras.modalidadeAcesso ?? "APPROVAL_REQUIRED").toUpperCase();
+    return ["OPEN_ACCESS", "APPROVAL_REQUIRED", "INVITE_ONLY", "CAMPAIGN_CURATED"].includes(valor) ? valor : "APPROVAL_REQUIRED";
+  }
+  private async ativarAfiliacao(conta: ContaBizy, perfilCreatorId: string, programa: { id: string; negocioId: string; termosVersao: string }, oferta: Awaited<ReturnType<RepositorioCreatorMarketplace["buscarOferta"]>> extends infer T ? Exclude<T, null> : never, agora: Date, solicitacaoId: string) {
+    const existentes = await this.deps.afiliados.listarParceiros(programa.negocioId);
+    let parceiro = existentes.find((item) => item.contaBizyId === conta.id);
+    const perfil = await this.deps.marketplace.obterPerfilPorId(perfilCreatorId);
+    const comissao = oferta.comissaoTipo === "PERCENTUAL"
+      ? { tipo: "PERCENTUAL" as const, percentual: oferta.comissaoValor / 100 }
+      : { tipo: "VALOR_FIXO" as const, valorEmKwanza: oferta.comissaoValor };
+    if (!parceiro) parceiro = await this.deps.afiliados.criarParceiro({ negocioId: programa.negocioId, contaBizyId: conta.id, tipo: "AFILIADO", codigo: `CR-${perfilCreatorId.slice(0, 8).toUpperCase()}-${String(Date.now()).slice(-5)}`, nomePublico: perfil?.nomePublico || conta.nome || "Creator Bizy", contacto: conta.telefoneCanonico, estado: "ATIVO", regraComissao: comissao, metodoPagamento: {} });
+    await this.deps.marketplace.ativarRelacao({ perfilCreatorId, negocioId: programa.negocioId, programaId: programa.id, parceiroComercialId: parceiro.id, comissao, termosVersao: programa.termosVersao, produtoOfertaIds: oferta.produtos.map((item) => item.id), agora });
+    await this.deps.marketplace.criarCandidatura({ id: solicitacaoId, ofertaId: oferta.id, negocioId: programa.negocioId, parceiroId: parceiro.id, parceiroNegocioOrigemId: programa.negocioId, estado: "APROVADA" });
+    await this.deps.contas.garantirContexto(conta.id, "AFILIADO", programa.negocioId);
+    return parceiro;
   }
   private publicarParceiro(parceiro: Awaited<ReturnType<RepositorioAfiliados["buscarParceiroPorId"]>> | undefined) { return parceiro ? { id: parceiro.id, nomePublico: parceiro.nomePublico, tipo: parceiro.tipo, estado: parceiro.estado } : null; }
 }

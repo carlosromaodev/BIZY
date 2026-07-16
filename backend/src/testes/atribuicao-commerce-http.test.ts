@@ -73,7 +73,12 @@ async function prepararLoja(
   expect(produto.statusCode).toBe(201);
   const loja = await app.inject({
     method: "PUT", url: "/loja-publica/configuracao", headers: seller,
-    payload: { slug: "loja-attr-cross", descricaoPublica: "Loja cross device", publicada: true }
+    payload: {
+      slug: "loja-attr-cross",
+      descricaoPublica: "Loja cross device",
+      publicada: true,
+      pagamentos: { metodosPagamento: ["transferencia"] }
+    }
   });
   expect(loja.statusCode).toBe(200);
 
@@ -232,6 +237,7 @@ describe("Atribuicao commerce versionada", () => {
           nomeComercial: "Loja Atribuicao Commerce",
           segmento: "moda",
           tipo: "LOJA",
+          metodosPagamento: ["transferencia"],
           entrega: { atribuicao: { modeloPadrao: "PRIMEIRO_TOQUE", janelaDias: 7 } }
         }
       });

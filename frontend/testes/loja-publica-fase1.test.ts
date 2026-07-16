@@ -17,7 +17,7 @@ const fonteStudioLoja = () =>
   ].join("\n");
 
 describe("loja pública e-commerce fase 1", () => {
-  it("usa tracking anónimo, profiling progressivo e checkout assistido antes do WhatsApp", () => {
+  it("usa tracking anónimo, profiling progressivo e o checkout Bizy unificado", () => {
     const pagina = fonteLojaPublica();
 
     expect(pagina).toContain("obterTrackingIdLoja");
@@ -25,10 +25,11 @@ describe("loja pública e-commerce fase 1", () => {
     expect(pagina).toContain("LOJA_VISITADA");
     expect(pagina).toContain("PRODUTO_VISTO");
     expect(pagina).toContain("CHECKOUT_INICIADO");
-    expect(pagina).toContain("LeadCaptureModal");
-    expect(pagina).toContain("CheckoutAssistido");
-    expect(pagina).toContain("calcularEntregaCheckout");
-    expect(pagina).toContain("/entrega/calcular");
+    expect(pagina).not.toContain("LeadCaptureModal");
+    expect(pagina).toContain("adicionarProdutoAoCheckoutBizy");
+    expect(pagina).toContain("navigate(ROTAS_LOJAS.checkout)");
+    expect(pagina).not.toContain("CheckoutAssistido");
+    expect(pagina).not.toContain("/publico/lojas/${encodeURIComponent(slug)}/checkout");
     expect(pagina).toContain("selecoesVariantes");
     expect(pagina).toContain("PerfilLojaSocial");
     expect(pagina).toContain("montarVitrinesOrganizadas");
@@ -75,7 +76,7 @@ describe("loja pública e-commerce fase 1", () => {
     expect(pagina).toContain("SinaisConfiancaLoja");
     expect(pagina).toContain("cupomDestaque");
     expect(pagina).toContain("catalogosEditaveis !== false");
-    expect(pagina).toContain("leadCaptureAtivo !== false");
+    expect(pagina).not.toContain("leadCaptureAtivo !== false");
     expect(pagina).toContain("Incentivo ativo");
     expect(pagina).toContain("Sinais de confiança");
   });

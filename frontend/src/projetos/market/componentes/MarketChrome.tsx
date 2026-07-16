@@ -1,9 +1,9 @@
-import { ChevronDown, Menu, Search, ShoppingBag, Store, Truck, User, X } from "lucide-react";
-import { type FormEvent, type ReactNode, useState } from "react";
+import { ChevronDown, LogOut, Menu, Search, ShoppingBag, Store, Truck, User, UsersRound, X } from "lucide-react";
+import { type FormEvent, type ReactNode, useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { CORES_LOGO_BIZY_ESCURA, LogoBizy } from "../../../marca/bizy";
-import type { CategoriaMarket } from "../api";
-import { ROTAS_LOJAS } from "../api";
+import type { CategoriaMarket, ResumoContaBizy } from "../api";
+import { encerrarSessaoContaBizy, obterEstadoContaBizy, obterResumoContaBizy, ROTAS_LOJAS } from "../api";
 
 const DEPARTAMENTOS_PADRAO = ["Moda", "Beleza", "Casa", "Tecnologia", "Comida", "Serviços"];
 
@@ -41,10 +41,20 @@ export function CabecalhoMarket({
 }) {
   const navigate = useNavigate();
   const [buscaInterna, setBuscaInterna] = useState("");
+  const [conta, setConta] = useState<ResumoContaBizy | null>(null);
   const busca = buscaControlada ?? buscaInterna;
   const departamentos = categorias.length
     ? categorias.slice(0, 6).map((categoria) => categoria.categoria)
     : DEPARTAMENTOS_PADRAO;
+
+  useEffect(() => {
+    let ativo = true;
+    void obterEstadoContaBizy()
+      .then((estado) => estado.autenticada ? obterResumoContaBizy() : null)
+      .then((resumo) => { if (ativo) setConta(resumo); })
+      .catch(() => { if (ativo) setConta(null); });
+    return () => { ativo = false; };
+  }, []);
 
   function alterarBusca(valor: string) {
     if (buscaControlada === undefined) setBuscaInterna(valor);
@@ -72,8 +82,8 @@ export function CabecalhoMarket({
   return (
     <header className="market-ecom-shell" aria-label="Cabeçalho do Bizy Market">
       <div className="market-util util" aria-label="Benefícios do Bizy Market">
-        <span className="l"><Truck size={14} />Fornecedor visível · checkout unificado · preços em Kz</span>
-        <span className="r"><Link to="/login">Vender no Bizy</Link><Link to={ROTAS_LOJAS.compras}>Acompanhar pedido</Link><span>PT · Kz</span></span>
+        <span className="l"><Truck size={14} />Lojas identificadas · compra acompanhada · preços em Kz</span>
+        <span className="r"><Link to="/login?returnTo=/onboarding&surface=team">Vender no Bizy</Link><Link to="/conta/compras">Acompanhar compra</Link><span>PT · Kz</span></span>
       </div>
 
       <div className="market-ecom-header hd2">
@@ -113,10 +123,25 @@ export function CabecalhoMarket({
             <ShoppingBag size={20} />
             <span>Sacola</span>
           </Link>
-          <Link to="/login" className="market-action-icon act" aria-label="Abrir conta">
-            <User size={20} />
-            <span>Conta</span>
-          </Link>
+          {conta ? (
+            <details className="market-account-menu">
+              <summary className="market-action-icon act" aria-label="Abrir menu da conta">
+                <User size={20} /><span>{conta.conta.nome?.split(" ")[0] || "Conta"}</span>
+              </summary>
+              <div>
+                <header><strong>{conta.conta.nome || "Conta Bizy"}</strong><small>{conta.conta.telefone || conta.conta.email}</small></header>
+                <Link to="/conta"><User size={16} /> Minha conta</Link>
+                <Link to="/conta/compras"><ShoppingBag size={16} /> Minhas compras</Link>
+                {conta.navegacao.creator ? <Link to="/creator"><UsersRound size={16} /> Abrir Bizy Creator</Link> : <Link to="/conta/afiliacao"><UsersRound size={16} /> Tornar-me afiliado</Link>}
+                {conta.navegacao.team && <Link to="/app"><Store size={16} /> Abrir Bizy Team</Link>}
+                <button type="button" onClick={async () => { await encerrarSessaoContaBizy(); setConta(null); navigate("/conta/entrar"); }}><LogOut size={16} /> Terminar sessão</button>
+              </div>
+            </details>
+          ) : (
+            <Link to="/conta" className="market-action-icon act" aria-label="Abrir conta">
+              <User size={20} /><span>Conta</span>
+            </Link>
+          )}
         </div>
       </div>
 
@@ -170,13 +195,13 @@ export function RodapeMarket() {
             </div>
             <div className="market-footer-col">
               <strong>Compras</strong>
-              <Link to={ROTAS_LOJAS.compras}>Acompanhar pedido</Link>
+              <Link to="/conta/compras">Acompanhar compra</Link>
               <Link to={ROTAS_LOJAS.checkout}>Finalizar compra</Link>
             </div>
             <div className="market-footer-col">
               <strong>Vendedores</strong>
-              <Link to="/login">Entrar no Team</Link>
-              <Link to="/onboarding">Criar loja</Link>
+              <Link to="/login?returnTo=/app&surface=team">Entrar no Team</Link>
+              <Link to="/login?returnTo=/onboarding&surface=team">Criar loja</Link>
             </div>
           </div>
         </div>

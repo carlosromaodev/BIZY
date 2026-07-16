@@ -7,7 +7,8 @@ import {
   limparCookieConta,
   metadadosAcesso,
   obterTokenCompra,
-  obterTokenSessaoConta
+  obterTokenSessaoConta,
+  resolverContaAutenticada
 } from "./segurancaContaBizy.js";
 
 const OtpSchema = z.object({
@@ -50,6 +51,13 @@ export const moduloContaBizy: ModuloHttp = {
   nome: "conta-bizy",
   descricao: "Conta universal, OTP e sessoes revogaveis do comprador.",
   registrar(app, contexto) {
+    app.get("/conta/estado", async (request) => {
+      const acesso = await resolverContaAutenticada(contexto, request);
+      return acesso
+        ? { autenticada: true, conta: { id: acesso.conta.id, nome: acesso.conta.nome } }
+        : { autenticada: false, conta: null };
+    });
+
     app.post("/conta/otp/solicitar", async (request, reply) => {
       const dados = OtpSchema.parse(request.body ?? {});
       try {
@@ -91,6 +99,25 @@ export const moduloContaBizy: ModuloHttp = {
           status: acesso.conta.status
         }
       };
+    });
+
+    app.get("/conta/resumo", async (request, reply) => {
+      const acesso = await exigirContaAutenticada(contexto, request, reply);
+      if (!acesso) return;
+      return contexto.contaBizy.obterResumo(acesso.conta);
+    });
+
+    app.get("/conta/contextos", async (request, reply) => {
+      const acesso = await exigirContaAutenticada(contexto, request, reply);
+      if (!acesso) return;
+      return { contextos: await contexto.contaBizy.obterContextos(acesso.conta.id) };
+    });
+
+    app.get("/conta/navegacao", async (request, reply) => {
+      const acesso = await exigirContaAutenticada(contexto, request, reply);
+      if (!acesso) return;
+      const resumo = await contexto.contaBizy.obterResumo(acesso.conta);
+      return { conta: resumo.conta, contextos: resumo.contextos, navegacao: resumo.navegacao };
     });
 
     app.get("/conta/sessoes", async (request, reply) => {

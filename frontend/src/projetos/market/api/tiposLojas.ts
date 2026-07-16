@@ -49,6 +49,8 @@ export interface FornecedorMarket {
 }
 
 export interface ProdutoMarket {
+  id?: string;
+  listingId?: string;
   codigo: string;
   sku?: string | null;
   nome: string;
@@ -90,6 +92,8 @@ export interface FornecedorMarketNormalizado {
 }
 
 export interface ProdutoMarketNormalizado {
+  id: string;
+  listingId: string;
   categoria: string;
   codigo: string;
   colecao: string;
@@ -122,6 +126,12 @@ export interface ProdutoMarketNormalizado {
   }>;
 }
 
+export interface ResumoConfiancaProdutoMarket {
+  produto: { media: number | null; total: number };
+  seller: { media: number | null; total: number };
+  avaliacoes: Array<{ id: string; notaProduto: number; notaEntrega: number; notaSeller: number; titulo: string | null; comentario: string | null; compraVerificada: true; criadoEm: string }>;
+}
+
 export interface CategoriaMarket {
   categoria: string;
   total: number;
@@ -138,6 +148,7 @@ export interface FiltrosMarketProdutos {
   precoMaximo?: number | null;
   apenasDisponivel?: boolean | null;
   apenasPromocao?: boolean | null;
+  ordenarPor?: "RELEVANCIA" | "PRECO_ASC" | "PRECO_DESC" | "MAIS_VENDIDOS" | "NOVIDADES" | "ENTREGA_RAPIDA" | "MAIOR_DESCONTO" | null;
   limite?: number | null;
   offset?: number | null;
 }
@@ -158,6 +169,13 @@ export interface RespostaMarketProdutos {
 export interface RespostaProdutoMarket {
   produto: ProdutoMarket;
   similares: ProdutoMarket[];
+  afiliacao?: {
+    ofertaId: string;
+    modalidadeAcesso: "OPEN_ACCESS" | "APPROVAL_REQUIRED" | "INVITE_ONLY" | "CAMPAIGN_CURATED";
+    comissaoTipo: "PERCENTUAL" | "FIXA";
+    comissaoValor: number;
+    moeda: string;
+  } | null;
   seo?: SeoPublico;
 }
 

@@ -28,4 +28,27 @@ describe("confianca, risco e proteccao commerce", () => {
     expect(avaliacao).toEqual(expect.objectContaining({ pedidoId: "p", pecaId: "produto-1" }));
     expect(create).toHaveBeenCalledTimes(1);
   });
+
+  it("publica apenas medias baseadas em avaliacoes verificadas", async () => {
+    const findMany = vi.fn()
+      .mockResolvedValueOnce([
+        { id: "a-1", notaProduto: 5, notaEntrega: 4, notaSeller: 4, titulo: null, comentario: "Bom", compraVerificada: true, criadoEm: new Date() },
+        { id: "a-2", notaProduto: 4, notaEntrega: 5, notaSeller: 5, titulo: null, comentario: null, compraVerificada: true, criadoEm: new Date() }
+      ])
+      .mockResolvedValueOnce([{ notaSeller: 4 }, { notaSeller: 5 }]);
+    const prisma = {
+      peca: { findUnique: vi.fn(async () => ({ negocioId: "seller-1" })) },
+      avaliacaoVerificadaCommerce: { findMany }
+    } as unknown as PrismaClient;
+
+    const resumo = await new ConfiancaCommerceUseCase(prisma).obterResumoPublicoProduto("produto-1");
+
+    expect(resumo).toEqual(expect.objectContaining({
+      produto: { media: 4.5, total: 2 },
+      seller: { media: 4.5, total: 2 }
+    }));
+    expect(findMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({ compraVerificada: true, estado: "PUBLICADA" })
+    }));
+  });
 });

@@ -134,6 +134,19 @@ import type {
 export interface RepositorioPecas {
   criar(dados: NovaPeca): Promise<Peca>;
   listar(negocioId?: string | null): Promise<Peca[]>;
+  buscarProdutosMarket?(consulta: {
+    negocioIds: string[];
+    negocioIdsCorrespondentesBusca?: string[];
+    busca?: string | null;
+    categoria?: string | null;
+    precoMinimo?: number | null;
+    precoMaximo?: number | null;
+    apenasPromocao?: boolean | null;
+    ordenarPor?: "RELEVANCIA" | "PRECO_ASC" | "PRECO_DESC" | "MAIS_VENDIDOS" | "NOVIDADES" | "ENTREGA_RAPIDA" | "MAIOR_DESCONTO" | null;
+    limite: number;
+    offset: number;
+  }): Promise<{ pecas: Peca[]; total: number; categorias: Array<{ categoria: string; total: number }> }>;
+  buscarPorId(id: string): Promise<Peca | null>;
   buscarPorCodigo(codigo: string, negocioId?: string | null): Promise<Peca | null>;
   atualizar(codigo: string, dados: AtualizarPeca, negocioId?: string | null): Promise<Peca>;
   atualizarEstado(codigo: string, estado: EstadoPeca, negocioId?: string | null): Promise<Peca>;

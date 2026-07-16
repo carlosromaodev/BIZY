@@ -1,4 +1,4 @@
-import type { ProdutoMarketNormalizado } from "./tiposLojas";
+import type { EntregaCheckoutPublico, ProdutoMarketNormalizado } from "./tiposLojas";
 import { requisitarApi } from "../../../api";
 
 export const CHAVE_CARRINHO_BIZY = "bizy_checkout_unificado_v1";
@@ -58,6 +58,15 @@ export interface TotaisCheckoutBizy {
   quantidadeItens: number;
   subtotalEmKwanza: number;
   totalLojas: number;
+}
+
+export interface CotacaoCheckoutBizy {
+  lojas: Array<{ negocioId: string; nomeLoja: string; subtotalEmKwanza: number; taxaEntregaEmKwanza: number; ivaEmKwanza: number; totalEmKwanza: number; prazoMinimoDias: number | null; prazoMaximoDias: number | null; metodosPagamento: string[] }>;
+  metodosPagamento: string[];
+  subtotalEmKwanza: number;
+  taxaEntregaTotalEmKwanza: number;
+  ivaTotalEmKwanza: number;
+  totalEmKwanza: number;
 }
 
 type ItemEntradaCheckoutBizy = Omit<ItemCarrinhoCheckoutBizy, "adicionadoEm" | "id"> & { id?: string };
@@ -324,6 +333,16 @@ export function calcularTotaisCheckoutBizy(itens: ItemCarrinhoCheckoutBizy[]): T
     subtotalEmKwanza: itens.reduce((total, item) => total + item.precoUnitarioEmKwanza * item.quantidade, 0),
     totalLojas: grupos.length
   };
+}
+
+export function cotarCheckoutBizy(itens: ItemCarrinhoCheckoutBizy[], entrega: EntregaCheckoutPublico): Promise<CotacaoCheckoutBizy> {
+  return requisitarApi("/publico/market/checkout/cotacao", {
+    method: "POST",
+    body: {
+      itens: itens.map((item) => ({ slugLoja: item.slugLoja, codigoPeca: item.codigoProduto, varianteSelecionada: item.variantes ?? {}, quantidade: item.quantidade })),
+      entrega
+    }
+  }, false);
 }
 
 export function criarItemCheckoutDeProdutoMarket(

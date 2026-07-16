@@ -1,12 +1,12 @@
 import type { DadosSeo } from "../../../utilidades";
 
 export type TipoEventoTracking = "LOJA_VISITADA" | "PRODUTO_VISTO" | "CATALOGO_VISTO" | "CHECKOUT_INICIADO";
-export type PassoCheckout = "variante" | "dados" | "entrega" | "confirmar";
-export type TipoEntregaCheckout = "ENTREGA" | "RETIRADA" | "ORCAMENTO";
 export type ModoNegocio = "moda" | "comida" | "servicos" | "geral";
 export type CriterioCatalogoPersonalizado = "categoria" | "colecao" | "busca" | "todos";
 
 export interface ProdutoPublico {
+  id?: string;
+  listingId?: string;
   codigo: string;
   sku?: string | null;
   nome: string;
@@ -97,37 +97,6 @@ export interface LojaPublicaResposta {
   produtos: ProdutoPublico[];
   vitrine?: Partial<Record<"destaques" | "promocoes" | "novidades" | "reposicoes" | "maisVendidos" | "kits", ProdutoPublico[]>>;
   seo?: DadosSeo;
-}
-
-export interface PerfilClienteLoja {
-  nome: string;
-  telefone: string;
-  email: string;
-  consentimentoMarketing: boolean;
-  consentimentoDados: boolean;
-}
-
-export interface EntregaCheckout {
-  tipo: TipoEntregaCheckout;
-  provincia: string;
-  municipio: string;
-  bairro: string;
-  endereco: string;
-}
-
-export interface ResumoEntregaCheckout {
-  subtotalEmKwanza: number;
-  taxaEntregaEmKwanza: number;
-  totalEmKwanza: number;
-  moeda?: string;
-  entrega: {
-    tipo: TipoEntregaCheckout;
-    regra: string;
-    taxaEmKwanza: number;
-    prazo: string | null;
-    descricao: string;
-    endereco: string | null;
-  };
 }
 
 export interface SecaoVitrine {
@@ -231,15 +200,6 @@ export interface PaletaLojaPublica {
   superficie: string;
   texto: string;
   acento: string;
-}
-
-export interface PedidoHistoricoLoja {
-  codigo: string;
-  nome: string;
-  totalEmKwanza: number;
-  criadoEm: string;
-  quantidade?: number;
-  variantes?: Record<string, string>;
 }
 
 export type AbaLojaPublica = "home" | "item" | "new" | "promo" | "review";

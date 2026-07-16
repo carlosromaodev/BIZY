@@ -159,8 +159,8 @@ export const moduloLojaPublica: ModuloHttp = {
       const { slug, codigo } = request.params as { slug: string; codigo: string };
       const query = request.query as Record<string, string | undefined>;
       aplicarCacheCatalogoPublico(reply);
-      await contexto.lojaPublica.obterProduto(slug, codigo);
-      return contexto.bizyMarket.listarProdutosSimilares(codigo, {
+      const detalhe = await contexto.lojaPublica.obterProduto(slug, codigo);
+      return contexto.bizyMarket.listarProdutosSimilares(detalhe.produto.id, {
         limite: normalizarLimiteProdutosPublicos(query.limite)
       });
     });

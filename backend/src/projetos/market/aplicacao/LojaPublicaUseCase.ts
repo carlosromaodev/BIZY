@@ -926,6 +926,8 @@ export class LojaPublicaUseCase {
     const selosCombinados = [...new Set([...peca.vitrine.selos, ...selosAutomaticos])];
 
     return {
+      id: peca.id,
+      listingId: peca.id,
       codigo: peca.codigo,
       sku: peca.sku,
       nome: peca.nome,

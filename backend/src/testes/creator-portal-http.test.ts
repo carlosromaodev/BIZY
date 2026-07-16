@@ -75,12 +75,18 @@ describe("Portal Creator autenticado", () => {
       expect(portal.json().metricas.receitaAtribuidaEmKwanza).toBe(0);
       expect(JSON.stringify(portal.json())).not.toContain("923777099");
 
-      const link = await app.inject({
+      const produtoNaoAutorizado = await app.inject({
         method: "POST", url: "/creator/links/criar", headers: { cookie },
         payload: { parceiroId: parceiro.json().id, destinoTipo: "PRODUTO", slugLoja: "loja-creator", codigoProduto: "PROD-1" }
       });
+      expect(produtoNaoAutorizado.statusCode).toBe(403);
+
+      const link = await app.inject({
+        method: "POST", url: "/creator/links/criar", headers: { cookie },
+        payload: { parceiroId: parceiro.json().id, destinoTipo: "LOJA", slugLoja: "loja-creator" }
+      });
       expect(link.statusCode).toBe(201);
-      expect(link.json()).toEqual(expect.objectContaining({ afiliadoId: parceiro.json().id, destinoTipo: "PRODUTO" }));
+      expect(link.json()).toEqual(expect.objectContaining({ afiliadoId: parceiro.json().id, destinoTipo: "LOJA" }));
 
       const cookieAlheio = await entrarConta(app, "923777098");
       const portalAlheio = await app.inject({ method: "GET", url: "/creator/portal", headers: { cookie: cookieAlheio } });

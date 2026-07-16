@@ -2,6 +2,7 @@ import type { UsuarioSistema } from "../../../dominio/tipos.js";
 import type {
   CodigoOtpContaBizy,
   ContaBizy,
+  ContextoContaBizy,
   EnderecoComprador,
   FavoritoComprador,
   MetadadosAcessoContaBizy,
@@ -42,6 +43,7 @@ export interface RepositorioContaBizy {
   adicionarFavorito(contaId: string, slugLoja: string, codigoProduto: string): Promise<FavoritoComprador>;
   removerFavorito(contaId: string, slugLoja: string, codigoProduto: string): Promise<boolean>;
   garantirContexto(contaId: string, tipo: TipoContextoContaBizy, negocioId?: string | null): Promise<void>;
+  listarContextos(contaId: string): Promise<ContextoContaBizy[]>;
   criarConsentimento(dados: {
     contaId: string;
     tipo: string;

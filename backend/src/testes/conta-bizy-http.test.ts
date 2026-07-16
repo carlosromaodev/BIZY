@@ -101,6 +101,10 @@ describe("Conta Bizy e seguranca do comprador", () => {
   it("associa compra guest depois do OTP e protege o portal por sessao revogavel", async () => {
     const app = await criarAplicacao();
     try {
+      const estadoAnonimo = await app.inject({ method: "GET", url: "/conta/estado" });
+      expect(estadoAnonimo.statusCode).toBe(200);
+      expect(estadoAnonimo.json()).toEqual({ autenticada: false, conta: null });
+
       const checkout = await prepararCompra(app, "923920002");
       const headersGuest = { "x-bizy-compra-token": checkout.acessoCompra.token, "x-bizy-device-id": "browser-comprador-1" };
       const solicitar = await app.inject({
@@ -119,6 +123,8 @@ describe("Conta Bizy e seguranca do comprador", () => {
       expect(confirmar.statusCode).toBe(200);
       const cookie = cookieDaResposta(confirmar);
       expect(cookie).toMatch(/^bizy_conta_sessao=/);
+      const estadoAutenticado = await app.inject({ method: "GET", url: "/conta/estado", headers: { cookie } });
+      expect(estadoAutenticado.json()).toEqual(expect.objectContaining({ autenticada: true }));
 
       const portal = await app.inject({ method: "GET", url: "/conta/comprador/compras", headers: { cookie } });
       expect(portal.statusCode).toBe(200);

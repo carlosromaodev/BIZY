@@ -1,11 +1,11 @@
 import {
   ArrowRight,
-  BarChart3,
+  BookOpen,
   CheckCircle2,
+  Link2,
   MessageCircle,
   ShieldCheckIcon,
   ShoppingBag,
-  Store,
   Users
 } from "lucide-react";
 import { motion } from "motion/react";
@@ -15,34 +15,34 @@ import { Button } from "./button";
 import { PROMPT_FONT_FAMILY } from "@/lib/prompt-font";
 
 const inclusos = [
-  { texto: "Loja online, catálogo digital e stock", icone: Store },
-  { texto: "Pedidos de WhatsApp, live, site e links", icone: ShoppingBag },
-  { texto: "CRM de clientes com histórico e origem", icone: Users },
-  { texto: "Relatórios, recuperação e afiliados", icone: BarChart3 }
+  { texto: "Team: clientes, operação e finanças", icone: Users },
+  { texto: "Market: loja, carrinho e checkout", icone: ShoppingBag },
+  { texto: "Learning: programas e comunidade", icone: BookOpen },
+  { texto: "Creators, Smart Links e atribuição", icone: Link2 }
 ];
 
 const planos = [
   {
     nome: "Mensal",
     etiqueta: "Teste controlado",
-    descricao: "Para organizar vendas, atendimento e catálogo sem compromisso longo.",
+    descricao: "Para centralizar operação, vendas e atendimento sem compromisso longo.",
     preco: "24 900",
     periodo: "/mês",
     detalhe: "cancela quando quiseres",
     cta: "Começar mensal",
     destaque: false,
-    beneficios: ["Todas as funções incluídas", "Loja online, catálogo e stock", "WhatsApp e checkout unificado"]
+    beneficios: ["Núcleo Team e ContaBizy", "Loja, catálogo e stock", "Market e checkout unificado"]
   },
   {
     nome: "Anual",
     etiqueta: "-33%",
-    descricao: "Melhor valor para equipas multicanal que querem previsibilidade e setup assistido.",
+    descricao: "Melhor valor para equipas que querem operar o ecossistema com previsibilidade.",
     preco: "19 900",
     periodo: "/mês",
     detalhe: "238 800 Kz cobrados por ano",
     cta: "Escolher anual",
     destaque: true,
-    beneficios: ["Pedidos de WhatsApp, live e site", "Afiliados, relatórios e recuperação", "Setup assistido da primeira loja"]
+    beneficios: ["Canais, creators e atribuição", "Learning, relatórios e recuperação", "Setup assistido da primeira operação"]
   }
 ];
 
@@ -52,7 +52,7 @@ export function Pricing() {
       <div className="bizy-section-head">
         <span>Preços em Kwanza</span>
         <h2>Um preço simples para <em>crescer</em></h2>
-        <p>Sistema completo, sem módulos soltos nem taxas escondidas. A loja entra com catálogo, pedidos, clientes e checkout no mesmo CRM.</p>
+        <p>Team, Market e Learning partilham a mesma base operacional. Escolhe o ciclo de cobrança sem reconstruir a operação.</p>
       </div>
 
       <motion.div
@@ -106,8 +106,8 @@ export function Pricing() {
         <div className="bizy-pricing-proof">
           <span><MessageCircle size={17} /></span>
           <div>
-            <strong>Feito para venda social em Angola</strong>
-            <p>WhatsApp, live, loja digital, pedidos e clientes no mesmo fluxo.</p>
+            <strong>Feito para operação comercial em Angola</strong>
+            <p>Kwanza, telefone angolano, venda social e checkout no mesmo fluxo.</p>
           </div>
         </div>
 
@@ -125,7 +125,7 @@ export function Pricing() {
 
         <p>
           <ShieldCheckIcon size={15} />
-          Acesso a todas as funções principais, sem taxa escondida.
+          Contrato simples e módulos activados no mesmo contexto de negócio.
         </p>
       </div>
     </section>

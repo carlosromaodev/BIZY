@@ -65,6 +65,16 @@ function parseUsuarioHash(valor: string | null): UsuarioSessao | null {
   try { return JSON.parse(valor) as UsuarioSessao; } catch { return null; }
 }
 
+function destinoInternoSeguro(valor: string | null): string | null {
+  if (!valor || !valor.startsWith("/") || valor.startsWith("//") || valor.includes("\\")) return null;
+  try {
+    const url = new URL(valor, window.location.origin);
+    return url.origin === window.location.origin ? `${url.pathname}${url.search}${url.hash}` : null;
+  } catch {
+    return null;
+  }
+}
+
 const GoogleIcon = (props: React.ComponentProps<"svg">) => (
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" {...props}>
     <path d="M12.479 14.265v-3.279h11.049c.108.571.164 1.247.164 1.979 0 2.46-.672 5.502-2.84 7.669C18.744 22.829 16.051 24 12.483 24 5.869 24 .308 18.613.308 12S5.869 0 12.483 0c3.659 0 6.265 1.436 8.223 3.307L18.392 5.62c-1.404-1.317-3.307-2.341-5.913-2.341C7.65 3.279 3.873 7.171 3.873 12s3.777 8.721 8.606 8.721c3.132 0 4.916-1.258 6.059-2.401.927-.927 1.537-2.251 1.777-4.059l-7.836.004z" />
@@ -98,14 +108,18 @@ export function PaginaLogin() {
   const rotuloIdentificador = tipoIdentificador === "username" && providerEstudantil === "uor"
     ? "Nome de utilizador" : "Número de estudante";
   const estaCriandoConta = fluxoIdentidade === "criar";
-  const tituloFormulario = estaCriandoConta ? "Cria a tua conta" : "Entra na tua conta";
-  const descricaoFormulario = estaCriandoConta
-    ? "Validamos o teu contacto e preparamos o teu negócio em seguida."
-    : "Usa o canal que já está ligado ao teu perfil Bizy.";
+  const parametrosEntrada = new URLSearchParams(window.location.search);
+  const superficie = parametrosEntrada.get("surface");
+  const returnTo = destinoInternoSeguro(parametrosEntrada.get("returnTo") ?? parametrosEntrada.get("pos_auth"));
+  const entradaPessoal = superficie === "market" || superficie === "creator" || Boolean(returnTo?.startsWith("/conta") || returnTo?.startsWith("/creator") || returnTo?.startsWith("/checkout"));
+  const tituloFormulario = entradaPessoal ? "Entrar ou criar conta" : estaCriandoConta ? "Cria a tua conta" : "Entra na tua conta";
+  const descricaoFormulario = entradaPessoal
+    ? "Valida o teu contacto e regressa exactamente ao que estavas a fazer."
+    : estaCriandoConta ? "Validamos o teu contacto antes de iniciares a configuração do negócio." : "Usa o canal ligado ao teu perfil Bizy.";
   const rotuloGmail = estaCriandoConta ? "Continuar com Gmail" : "Entrar com Gmail";
   const rotuloTelefone = estaCriandoConta ? "Criar conta" : "Enviar código";
   const rotuloEstudantil = estaCriandoConta ? "Criar com login estudantil" : "Entrar com login estudantil";
-  const destinoAposAutenticacao = estaCriandoConta ? "/onboarding" : "/app";
+  const destinoAposAutenticacao = returnTo ?? (entradaPessoal ? "/conta" : estaCriandoConta ? "/onboarding" : "/app");
 
   /* ── Auth effects ── */
 
@@ -115,8 +129,9 @@ export function PaginaLogin() {
     const usuario = parseUsuarioHash(parametros.get("bizy_usuario"));
     const sessaoPorCookie = parametros.get("bizy_auth") === "cookie";
     const erro = parametros.get("bizy_erro");
-    const destinoSolicitado = new URLSearchParams(window.location.search).get("pos_auth");
-    const destinoHash = destinoSolicitado === "/app" ? "/app" : "/onboarding";
+    const parametrosUrl = new URLSearchParams(window.location.search);
+    const destinoHash = destinoInternoSeguro(parametrosUrl.get("returnTo") ?? parametrosUrl.get("pos_auth"))
+      ?? (parametrosUrl.get("surface") === "market" || parametrosUrl.get("surface") === "creator" ? "/conta" : "/app");
     let cancelado = false;
 
     if (sessaoPorCookie) {
@@ -135,7 +150,7 @@ export function PaginaLogin() {
       return;
     }
     if (erro) { setMensagem(erro); window.history.replaceState(null, "", window.location.pathname + window.location.search); return; }
-    if (obterToken() || obterUsuario()) navigate("/app", { replace: true });
+    if (obterToken() || obterUsuario()) navigate(destinoHash, { replace: true });
   }, [navigate]);
 
   useEffect(() => {
@@ -204,7 +219,7 @@ export function PaginaLogin() {
 
   function entrarModoTeste() {
     guardarSessao(null, { id: "usuario-teste-bizy", nome: nome.trim() || `Vendedor ${NOME_PRODUTO}`, telefone: normalizarTelefoneFormulario(telefone) ?? "923456789", email: "teste@bizy.local", papel: "ADMIN", origemCadastro: "Modo teste", perfilCompletoEm: null });
-    navigate("/onboarding", { replace: true });
+    navigate(destinoAposAutenticacao, { replace: true });
   }
 
   /* ═══════════════════════════════════════════════════════════

@@ -4,6 +4,7 @@ import type { RepositorioContaBizy } from "../../dominio/contratos.js";
 import type {
   CodigoOtpContaBizy,
   ContaBizy,
+  ContextoContaBizy,
   MetadadosAcessoContaBizy,
   PerfilComprador,
   EnderecoComprador,
@@ -33,7 +34,7 @@ interface AcessoCompraMemoria {
 export class RepositorioContaBizyMemoria implements RepositorioContaBizy {
   private readonly contas = new Map<string, ContaBizy>();
   private readonly perfis = new Map<string, PerfilComprador>();
-  private readonly contextos = new Set<string>();
+  private readonly contextos = new Map<string, ContextoContaBizy>();
   private readonly enderecos = new Map<string, EnderecoComprador>();
   private readonly favoritos = new Map<string, FavoritoComprador>();
   private readonly codigos = new Map<string, CodigoOtpMemoria>();
@@ -166,7 +167,20 @@ export class RepositorioContaBizyMemoria implements RepositorioContaBizy {
   }
 
   async garantirContexto(contaId: string, tipo: TipoContextoContaBizy, negocioId?: string | null): Promise<void> {
-    this.contextos.add(`${contaId}:${tipo}:${negocioId ?? "GLOBAL"}`);
+    const chave = `${tipo}:${negocioId ?? "GLOBAL"}`;
+    const indice = `${contaId}:${chave}`;
+    const atual = this.contextos.get(indice);
+    const agora = new Date();
+    this.contextos.set(indice, {
+      id: atual?.id ?? randomUUID(), contaId, tipo, negocioId: negocioId ?? null, chave,
+      estado: "ATIVO", criadoEm: atual?.criadoEm ?? agora, atualizadoEm: agora
+    });
+  }
+
+  async listarContextos(contaId: string) {
+    return [...this.contextos.values()]
+      .filter((contexto) => contexto.contaId === contaId && contexto.estado === "ATIVO")
+      .sort((a, b) => a.tipo.localeCompare(b.tipo));
   }
 
   async criarConsentimento(): Promise<void> {}

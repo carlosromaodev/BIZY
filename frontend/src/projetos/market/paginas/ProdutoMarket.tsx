@@ -1,5 +1,7 @@
 import {
+  BadgeDollarSign,
   CheckCircle2,
+  ChevronRight,
   Heart,
   MessageCircle,
   Minus,
@@ -8,6 +10,7 @@ import {
   ShieldCheck,
   ShoppingBag,
   Store,
+  Star,
   Tags,
   Truck,
 } from "lucide-react";
@@ -21,11 +24,14 @@ import {
   listarProdutosSimilaresMarket,
   listarFavoritosContaBizy,
   normalizarProdutoMarket,
+  obterConfiancaProdutoMarket,
+  obterEstadoContaBizy,
   obterProdutoMarket,
   removerFavoritoContaBizy,
   ROTAS_LOJAS
 } from "../api";
-import type { ProdutoMarketNormalizado } from "../api";
+import type { ProdutoMarketNormalizado, ResumoConfiancaProdutoMarket } from "../api";
+import type { RespostaProdutoMarket } from "../api";
 import { aplicarSeoMetaTags, formatarKwanza, montarSeoPublico } from "../../../utilidades";
 import { CabecalhoMarket, RodapeMarket } from "../componentes/MarketChrome";
 import { CartaoProdutoMarket } from "../componentes/CartaoProdutoMarket";
@@ -79,7 +85,7 @@ function formatarSeloPdpMarket(selo: string): string {
 }
 
 export function PaginaProdutoMarket() {
-  const { codigo = "" } = useParams();
+  const { listingId = "" } = useParams();
   const navigate = useNavigate();
   const reduzirMovimento = useReducedMotion();
   const [produto, setProduto] = useState<ProdutoMarketNormalizado | null>(null);
@@ -91,6 +97,8 @@ export function PaginaProdutoMarket() {
   const [carregando, setCarregando] = useState(true);
   const [favorito, setFavorito] = useState(false);
   const [variantesSelecionadas, setVariantesSelecionadas] = useState<Record<string, string>>({});
+  const [afiliacao, setAfiliacao] = useState<RespostaProdutoMarket["afiliacao"]>(null);
+  const [confianca, setConfianca] = useState<ResumoConfiancaProdutoMarket | null>(null);
 
   useEffect(() => {
     let ativo = true;
@@ -100,18 +108,24 @@ export function PaginaProdutoMarket() {
       setCarregando(true);
       setErro("");
       try {
-        const resposta = await obterProdutoMarket(codigo);
-        const respostaSimilares = await listarProdutosSimilaresMarket(codigo, 8).catch(() => null);
+        const resposta = await obterProdutoMarket(listingId);
+        const [respostaSimilares, resumoConfianca] = await Promise.all([
+          listarProdutosSimilaresMarket(listingId, 8).catch(() => null),
+          obterConfiancaProdutoMarket(listingId).catch(() => null)
+        ]);
         if (!ativo) return;
         if (!resposta?.produto) {
           throw new Error("Produto fora do Market ou indisponível.");
         }
         const normalizado = normalizarProdutoMarket(resposta.produto);
         setProduto(normalizado);
+        setAfiliacao(resposta.afiliacao ?? null);
+        setConfianca(resumoConfianca);
         const combinacaoInicial = normalizado.combinacoesVariantes.find((item) => item.estado === "ATIVA" && item.quantidade > 0)
           ?? normalizado.combinacoesVariantes.find((item) => item.estado === "ATIVA");
         setVariantesSelecionadas(combinacaoInicial?.opcoes ?? {});
-        const favoritos = await listarFavoritosContaBizy().catch(() => null);
+        const estadoConta = await obterEstadoContaBizy().catch(() => null);
+        const favoritos = estadoConta?.autenticada ? await listarFavoritosContaBizy().catch(() => null) : null;
         if (ativo) setFavorito(Boolean(favoritos?.favoritos.some((item) => item.slugLoja === normalizado.fornecedor.slug && item.codigoProduto === normalizado.codigo)));
         setSimilares((respostaSimilares?.produtos ?? resposta.similares ?? []).map(normalizarProdutoMarket));
         setFotoAtiva(0);
@@ -119,7 +133,7 @@ export function PaginaProdutoMarket() {
         limparSeo = aplicarSeoMetaTags(resposta.seo ?? montarSeoPublico({
           titulo: `${normalizado.nome} | Bizy Market`,
           descricao: normalizado.descricao || `${normalizado.nome} de ${normalizado.nomeFornecedor} no Bizy Market.`,
-          canonicalPath: normalizado.urlMarket || ROTAS_LOJAS.produtoMarket(normalizado.codigo),
+          canonicalPath: normalizado.urlMarket || ROTAS_LOJAS.produtoMarket(normalizado.listingId, normalizado.nome),
           imagem: normalizado.fotos[0] || undefined,
           tipo: "product"
         }));
@@ -128,6 +142,7 @@ export function PaginaProdutoMarket() {
         setErro(falha instanceof Error ? falha.message : "Produto fora do Market ou indisponível.");
         setProduto(null);
         setSimilares([]);
+        setConfianca(null);
       } finally {
         if (ativo) setCarregando(false);
       }
@@ -138,7 +153,7 @@ export function PaginaProdutoMarket() {
       ativo = false;
       limparSeo();
     };
-  }, [codigo]);
+  }, [listingId]);
 
   const fotos = useMemo(() => (produto?.fotos.length ? produto.fotos.slice(0, 6) : []), [produto]);
   const thumbs = fotos.length ? fotos : ["", "", "", ""];
@@ -156,7 +171,7 @@ export function PaginaProdutoMarket() {
       else await adicionarFavoritoContaBizy(produto.fornecedor.slug, produto.codigo);
       setFavorito((valor) => !valor);
     } catch {
-      navigate(ROTAS_LOJAS.compras);
+      navigate(`/conta/entrar?returnTo=${encodeURIComponent(window.location.pathname)}`);
     }
   }
 
@@ -320,7 +335,7 @@ export function PaginaProdutoMarket() {
                   </span>
                 )}
               </div>
-              <div className="loc">{produto.fornecedor.localizacao || "Loja Bizy"} · fornecedor identificado</div>
+              <div className="loc">{produto.fornecedor.localizacao || "Loja Bizy"} · {confianca?.seller.total ? `${confianca.seller.media}/5 em ${confianca.seller.total} avaliação${confianca.seller.total === 1 ? "" : "ões"} verificada${confianca.seller.total === 1 ? "" : "s"}` : "sem avaliações verificadas"}</div>
             </div>
             <Link to={ROTAS_LOJAS.loja(produto.slugLoja)} className="go">Ver loja →</Link>
           </div>
@@ -402,6 +417,14 @@ export function PaginaProdutoMarket() {
             </Link>
           </div>
 
+          {afiliacao && (
+            <Link className="market-pdp-affiliate" to={`/creator/oportunidades?produto=${encodeURIComponent(produto.listingId)}&oferta=${encodeURIComponent(afiliacao.ofertaId)}`}>
+              <BadgeDollarSign size={18} />
+              <span><strong>Promover e ganhar comissão</strong><small>{afiliacao.comissaoTipo === "PERCENTUAL" ? `${afiliacao.comissaoValor / 100}% por venda atribuída` : `${formatarKwanza(afiliacao.comissaoValor)} por venda atribuída`}</small></span>
+              <ChevronRight size={17} />
+            </Link>
+          )}
+
           <div className="market-pdp-description">
             {produto.descricao || produto.colecao || "Produto publicado por uma loja Bizy."}
           </div>
@@ -414,6 +437,27 @@ export function PaginaProdutoMarket() {
 
           {selecaoResumo && <small className="market-pdp-selection">Seleção inicial: {selecaoResumo}</small>}
         </motion.aside>
+      </section>
+
+      <section className="market-pdp-trust-section" aria-labelledby="market-pdp-reviews-title">
+        <div className="market-section-title">
+          <span id="market-pdp-reviews-title">Avaliações de compras verificadas</span>
+          <strong>{confianca?.produto.total ? `${confianca.produto.media}/5 · ${confianca.produto.total} avaliação${confianca.produto.total === 1 ? "" : "ões"}` : "Este produto ainda não recebeu avaliações verificadas."}</strong>
+        </div>
+        {confianca?.avaliacoes.length ? (
+          <div className="market-pdp-review-grid">
+            {confianca.avaliacoes.slice(0, 6).map((avaliacao) => (
+              <article key={avaliacao.id}>
+                <header><span><Star size={15} fill="currentColor" /> {avaliacao.notaProduto}/5</span><small><CheckCircle2 size={13} /> Compra verificada</small></header>
+                {avaliacao.titulo && <strong>{avaliacao.titulo}</strong>}
+                <p>{avaliacao.comentario || "O comprador avaliou este produto sem comentário."}</p>
+                <time dateTime={avaliacao.criadoEm}>{new Intl.DateTimeFormat("pt-AO", { dateStyle: "medium" }).format(new Date(avaliacao.criadoEm))}</time>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <div className="market-pdp-no-reviews"><Star size={20} /><span>A reputação só aparece após avaliações de pedidos entregues. Nenhuma nota foi estimada.</span></div>
+        )}
       </section>
 
       <section className="market-similar-section">

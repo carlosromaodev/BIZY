@@ -75,6 +75,9 @@ export function PaginaMarket() {
   const precoMaximo = searchParams.get("precoMaximo") ?? "";
   const apenasDisponivel = searchParams.get("apenasDisponivel") === "true";
   const apenasPromocao = searchParams.get("apenasPromocao") === "true";
+  const ordenarPor = (searchParams.get("ordenarPor") || "RELEVANCIA") as "RELEVANCIA" | "PRECO_ASC" | "PRECO_DESC" | "MAIS_VENDIDOS" | "NOVIDADES" | "ENTREGA_RAPIDA" | "MAIOR_DESCONTO";
+  const pagina = Math.max(1, Number(searchParams.get("pagina")) || 1);
+  const limitePagina = 24;
 
   const fornecedores = useMemo(() => {
     const mapa = new Map<string, ProdutoMarketNormalizado["fornecedor"] & { total: number }>();
@@ -98,6 +101,7 @@ export function PaginaMarket() {
       const texto = valor.trim();
       if (texto) proximos.set(chave, texto);
       else proximos.delete(chave);
+      proximos.delete("pagina");
       setSearchParams(proximos, { replace: true });
     },
     [searchParams, setSearchParams]
@@ -108,6 +112,7 @@ export function PaginaMarket() {
       const proximos = new URLSearchParams(searchParams);
       if (proximos.get(chave) === "true") proximos.delete(chave);
       else proximos.set(chave, "true");
+      proximos.delete("pagina");
       setSearchParams(proximos, { replace: true });
     },
     [searchParams, setSearchParams]
@@ -133,7 +138,9 @@ export function PaginaMarket() {
             precoMaximo: precoMaximo ? Number(precoMaximo) : undefined,
             apenasDisponivel: apenasDisponivel || undefined,
             apenasPromocao: apenasPromocao || undefined,
-            limite: 48
+            ordenarPor,
+            limite: limitePagina,
+            offset: (pagina - 1) * limitePagina
           })
         ]);
 
@@ -165,7 +172,7 @@ export function PaginaMarket() {
       ativo = false;
       limparSeo();
     };
-  }, [busca, categoriaSelecionada, loja, municipio, provincia, precoMinimo, precoMaximo, apenasDisponivel, apenasPromocao]);
+  }, [busca, categoriaSelecionada, loja, municipio, provincia, precoMinimo, precoMaximo, apenasDisponivel, apenasPromocao, ordenarPor, pagina]);
 
   function abrirCategoria(categoria: string) {
     const query = new URLSearchParams(searchParams);
@@ -204,19 +211,18 @@ export function PaginaMarket() {
             transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
           >
             <span className="k">Bizy Market</span>
-            <h2>Produtos de lojas reais, fornecedor sempre visível.</h2>
+            <h1>Produtos de lojas reais, fornecedor sempre visível.</h1>
             <p>Busca, categorias e checkout unificado sem apagar a identidade de cada loja.</p>
             <button type="button" className="bcta btn2 lime" onClick={() => abrirCategoria(categorias[0]?.categoria ?? "Moda")} disabled={!categorias.length}>
               Explorar Market
               <ArrowRight size={16} />
             </button>
-            <div className="dots" aria-hidden="true"><i className="on" /><i /><i /></div>
           </motion.div>
 
           <div className="market-ecom-hero-side side">
             <button type="button" className="market-hero-mini mini is-green" onClick={() => navigate(ROTAS_LOJAS.lojasMarket)}>
               <span className="t">Lojas ativas</span>
-              <span className="s">{Math.max(totalLojas, 2)} fornecedores entraram no Bizy</span>
+              <span className="s">{totalLojas ? `${totalLojas} lojas nos resultados actuais` : "Explora o directório de lojas"}</span>
               <span className="lnk">
                 Descobrir
                 <ArrowRight size={16} />
@@ -247,8 +253,8 @@ export function PaginaMarket() {
       {fornecedores.length > 0 && (
         <section className="market-featured-stores market-commerce-stores" aria-label="Lojas em destaque">
           <div className="market-section-title">
-            <span>Melhores lojas em destaque</span>
-            <strong>Fornecedores ativos dentro do Bizy Market.</strong>
+            <span>Lojas nos resultados</span>
+            <strong>Fornecedores com produtos publicados nesta selecção.</strong>
           </div>
           <div className="market-store-row">
             {fornecedores.map((fornecedor) => (
@@ -346,10 +352,10 @@ export function PaginaMarket() {
               <span>{carregando ? "A procurar" : `${total} produtos`}</span>
               <h2>{categoriaSelecionada || "Todos os produtos"}</h2>
             </div>
-            <Link to="/login" className="market-seller-link">
-              Vender no Bizy
-              <ArrowRight size={15} />
-            </Link>
+            <div className="market-results-actions">
+              <label><span>Ordenar</span><select value={ordenarPor} onChange={(evento) => { const proximos = new URLSearchParams(searchParams); if (evento.target.value === "RELEVANCIA") proximos.delete("ordenarPor"); else proximos.set("ordenarPor", evento.target.value); proximos.delete("pagina"); setSearchParams(proximos); }}><option value="RELEVANCIA">Relevância</option><option value="PRECO_ASC">Menor preço</option><option value="PRECO_DESC">Maior preço</option><option value="MAIS_VENDIDOS">Mais vendidos</option><option value="NOVIDADES">Novidades</option><option value="ENTREGA_RAPIDA">Melhor entrega</option><option value="MAIOR_DESCONTO">Maior desconto</option></select></label>
+              <Link to="/login?returnTo=/onboarding&surface=team" className="market-seller-link">Vender no Bizy<ArrowRight size={15} /></Link>
+            </div>
           </div>
 
           {erro && <div className="market-empty-state" role="alert">{erro}</div>}
@@ -373,6 +379,13 @@ export function PaginaMarket() {
               <span>Experimente retirar filtros ou procurar noutra categoria.</span>
               <button type="button" onClick={limparFiltros}>Ver todos</button>
             </div>
+          )}
+          {!erro && !carregando && total > limitePagina && (
+            <nav className="market-pagination" aria-label="Paginação de produtos">
+              <button type="button" disabled={pagina === 1} onClick={() => { const proximos = new URLSearchParams(searchParams); pagina <= 2 ? proximos.delete("pagina") : proximos.set("pagina", String(pagina - 1)); setSearchParams(proximos); window.scrollTo({ top: 0, behavior: "smooth" }); }}>Anterior</button>
+              <span>Página {pagina} de {Math.ceil(total / limitePagina)}</span>
+              <button type="button" disabled={pagina * limitePagina >= total} onClick={() => { const proximos = new URLSearchParams(searchParams); proximos.set("pagina", String(pagina + 1)); setSearchParams(proximos); window.scrollTo({ top: 0, behavior: "smooth" }); }}>Carregar mais</button>
+            </nav>
           )}
         </section>
       </section>
@@ -582,10 +595,7 @@ function SecaoCategoriasMarket({
   onCategoria: (categoria: string) => void;
 }) {
   const categoriasPorNome = new Map(categorias.map((categoria) => [categoria.categoria.toLowerCase(), categoria]));
-  const nomes = Array.from(new Set([
-    ...categorias.map((categoria) => categoria.categoria),
-    ...CATEGORIAS_EDITORIAIS.map((categoria) => categoria.titulo)
-  ])).slice(0, 6);
+  const nomes = categorias.map((categoria) => categoria.categoria).slice(0, 6);
   const tiles = nomes.map((titulo, indice) => {
     const categoria = categoriasPorNome.get(titulo.toLowerCase());
     const editorial = CATEGORIAS_EDITORIAIS.find((item) => item.titulo.toLowerCase() === titulo.toLowerCase())
@@ -593,9 +603,7 @@ function SecaoCategoriasMarket({
     const produtoRepresentativo = produtos.find((produto) => produto.categoria.toLowerCase() === titulo.toLowerCase() && produto.fotoPrincipal);
     return {
       titulo,
-      subtitulo: categoria
-        ? `${categoria.total} produto${categoria.total === 1 ? "" : "s"} disponíveis`
-        : editorial.subtitulo,
+      subtitulo: categoria ? `${categoria.total} produto${categoria.total === 1 ? "" : "s"} disponíveis` : editorial.subtitulo,
       acento: editorial.acento,
       icone: editorial.icone,
       imagem: produtoRepresentativo?.fotoPrincipal ?? ""

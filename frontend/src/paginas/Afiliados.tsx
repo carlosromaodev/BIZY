@@ -64,6 +64,7 @@ interface ResumoSaldos {
 interface MarketplaceSellerDados {
   ofertas: Array<{ id: string; codigo: string; titulo: string; estado: string; comissaoTipo: string; comissaoValor: number; stockAmostras: number; produtos: unknown[]; missoes: unknown[] }>;
   candidaturas: Array<{ id: string; ofertaId: string; estado: string; parceiro: { nomePublico: string; tipo: string } | null; mensagem: string | null }>;
+  solicitacoes: Array<{ id: string; ofertaId: string | null; estado: string; perfilCreator: { nomePublico: string; estado: string } | null; mensagem: string | null }>;
   amostras: Array<{ id: string; candidaturaId: string; estado: string }>;
 }
 
@@ -79,7 +80,7 @@ export function PaginaAfiliados() {
   const [mensagem, setMensagem] = useState("");
   const [carregando, setCarregando] = useState(true);
   const [mostrarForm, setMostrarForm] = useState(false);
-  const [marketplace, setMarketplace] = useState<MarketplaceSellerDados>({ ofertas: [], candidaturas: [], amostras: [] });
+  const [marketplace, setMarketplace] = useState<MarketplaceSellerDados>({ ofertas: [], candidaturas: [], solicitacoes: [], amostras: [] });
   const [tituloOferta, setTituloOferta] = useState("");
   const [codigoProdutoOferta, setCodigoProdutoOferta] = useState("");
   const [comissaoOferta, setComissaoOferta] = useState("10");
@@ -101,7 +102,7 @@ export function PaginaAfiliados() {
       setParceiros(respostaParceiros.status === "fulfilled" ? normalizarParceirosAfiliados(respostaParceiros.value) : []);
       setLinks(respostaLinks.status === "fulfilled" ? normalizarLinksAfiliados(respostaLinks.value) : []);
       setSaldos(respostaSaldos.status === "fulfilled" ? respostaSaldos.value : null);
-      setMarketplace(respostaMarketplace.status === "fulfilled" ? respostaMarketplace.value : { ofertas: [], candidaturas: [], amostras: [] });
+      setMarketplace(respostaMarketplace.status === "fulfilled" ? respostaMarketplace.value : { ofertas: [], candidaturas: [], solicitacoes: [], amostras: [] });
       setMensagem("");
     } catch (erro) {
       setMensagem(erro instanceof Error ? erro.message : "Erro ao carregar afiliados.");
@@ -286,6 +287,7 @@ export function PaginaAfiliados() {
         <div className="grid gap-3 lg:grid-cols-2" style={{ marginTop: 18 }}>
           <div>{marketplace.ofertas.map((oferta) => <div className="creator-row" key={oferta.id}><div><strong>{oferta.titulo}</strong><span>{oferta.comissaoValor / 100}% · {oferta.produtos.length} produto(s) · {oferta.stockAmostras} amostra(s)</span></div><button type="button" className="bz-btn bz-btn-ghost" onClick={() => void publicarOferta(oferta.id, oferta.estado !== "PUBLICADA")}>{oferta.estado === "PUBLICADA" ? "Encerrar" : "Publicar"}</button></div>)}{!marketplace.ofertas.length && <p className="bz-feed-empty">Sem ofertas criadas.</p>}</div>
           <div>{marketplace.candidaturas.map((candidatura) => <div className="creator-row" key={candidatura.id}><div><strong>{candidatura.parceiro?.nomePublico ?? "Creator"}</strong><span>{candidatura.estado} · {candidatura.mensagem || "Sem mensagem"}</span></div>{candidatura.estado === "PENDENTE" && <div className="flex gap-1"><button type="button" className="bz-iconbtn" title="Aprovar" onClick={() => void decidirCandidatura(candidatura.id, true)}><Check size={15} /></button><button type="button" className="bz-iconbtn" title="Rejeitar" onClick={() => void decidirCandidatura(candidatura.id, false)}><X size={15} /></button></div>}</div>)}{!marketplace.candidaturas.length && <p className="bz-feed-empty">Sem candidaturas recebidas.</p>}</div>
+          <div>{marketplace.solicitacoes.map((solicitacao) => <div className="creator-row" key={solicitacao.id}><div><strong>{solicitacao.perfilCreator?.nomePublico ?? "Creator"}</strong><span>{solicitacao.estado} · {solicitacao.mensagem || "Solicitação de afiliação"}</span></div>{solicitacao.estado === "PENDENTE" && <div className="flex gap-1"><button type="button" className="bz-iconbtn" title="Aprovar solicitação" onClick={() => void decidirCandidatura(solicitacao.id, true)}><Check size={15} /></button><button type="button" className="bz-iconbtn" title="Rejeitar solicitação" onClick={() => void decidirCandidatura(solicitacao.id, false)}><X size={15} /></button></div>}</div>)}{!marketplace.solicitacoes.length && !marketplace.candidaturas.length && <p className="bz-feed-empty">Sem solicitações recebidas.</p>}</div>
         </div>
       </section>
 

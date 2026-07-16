@@ -23,6 +23,26 @@ export class ConfiancaCommerceUseCase {
     return this.prisma.avaliacaoVerificadaCommerce.findMany({ where: { estado: "PUBLICADA", compraVerificada: true, ...(filtros.negocioId ? { negocioId: filtros.negocioId } : {}), ...(filtros.pecaId ? { pecaId: filtros.pecaId } : {}) }, orderBy: { criadoEm: "desc" }, take: 100, select: { id: true, notaProduto: true, notaEntrega: true, notaSeller: true, titulo: true, comentario: true, compraVerificada: true, criadoEm: true } });
   }
 
+  async obterResumoPublicoProduto(pecaId: string) {
+    const peca = await this.prisma.peca.findUnique({ where: { id: pecaId }, select: { negocioId: true } });
+    if (!peca?.negocioId) return null;
+    const [avaliacoesProduto, avaliacoesSeller] = await Promise.all([
+      this.listarAvaliacoesPublicas({ pecaId }),
+      this.prisma.avaliacaoVerificadaCommerce.findMany({
+        where: { negocioId: peca.negocioId, estado: "PUBLICADA", compraVerificada: true },
+        select: { notaSeller: true }
+      })
+    ]);
+    const media = (valores: number[]) => valores.length
+      ? Math.round((valores.reduce((total, valor) => total + valor, 0) / valores.length) * 10) / 10
+      : null;
+    return {
+      produto: { media: media(avaliacoesProduto.map((item) => item.notaProduto)), total: avaliacoesProduto.length },
+      seller: { media: media(avaliacoesSeller.map((item) => item.notaSeller)), total: avaliacoesSeller.length },
+      avaliacoes: avaliacoesProduto
+    };
+  }
+
   async abrirProtecao(contaBizyId: string, dados: { compraId: string; pedidoId?: string | null; tipo: string; descricao: string; evidencias?: string[] }) {
     const compra = await this.prisma.compraUnificada.findFirst({ where: { id: dados.compraId, contaBizyId }, include: { pedidosFilho: true } });
     if (!compra || (dados.pedidoId && !compra.pedidosFilho.some((item) => item.pedidoId === dados.pedidoId))) return null;

@@ -14,7 +14,7 @@ describe("frontend do Bizy Market e Studio", () => {
     expect(rotas).toContain("PaginaProdutoMarket");
     expect(rotas).toContain('/market/lojas');
     expect(rotas).toContain('/market/categorias/:categoria');
-    expect(rotas).toContain('/market/produtos/:codigo');
+    expect(rotas).toContain('/market/p/:listingId/:slug');
     expect(rotas).toContain('/market');
     expect(rotas).toContain('/app/loja');
     expect(rotas).toContain('rotulo: "Bizy Studio"');

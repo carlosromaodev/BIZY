@@ -56,6 +56,17 @@ const SincronizarCarrinhoSchema = z.object({
   itens: z.array(ItemCarrinhoSchema).max(100)
 });
 
+const CotarCheckoutSchema = z.object({
+  itens: z.array(ItemCarrinhoSchema).min(1).max(100),
+  entrega: z.object({
+    tipo: z.enum(["ENTREGA", "RETIRADA", "ORCAMENTO"]),
+    provincia: z.string().trim().max(120).nullable().optional(),
+    municipio: z.string().trim().max(120).nullable().optional(),
+    bairro: z.string().trim().max(120).nullable().optional(),
+    endereco: z.string().trim().max(500).nullable().optional()
+  })
+});
+
 const SolicitarReembolsoSchema = z.object({
   negocioId: z.string(),
   pedidoId: z.string(),
@@ -197,6 +208,26 @@ export const moduloCheckoutUnificado: ModuloHttp = {
       return { carrinho: formatarCarrinho(carrinho) };
     });
 
+    app.post("/publico/market/checkout/cotacao", async (request, reply) => {
+      const dados = CotarCheckoutSchema.parse(request.body ?? {});
+      const slugs = [...new Set(dados.itens.map((item) => item.slugLoja))];
+      const mapa = new Map<string, string>();
+      for (const slug of slugs) {
+        const negocio = await contexto.repositorios.autenticacao.buscarNegocioPorSlugPublico(slug);
+        if (!negocio) return reply.code(404).send({ erro: "LOJA_NAO_ENCONTRADA" });
+        mapa.set(slug, negocio.id);
+      }
+      try {
+        return await contexto.checkoutUnificado.cotarCheckout({
+          itens: dados.itens.map((item) => ({ negocioId: mapa.get(item.slugLoja)!, codigoPeca: item.codigoPeca, varianteSelecionada: item.varianteSelecionada, quantidade: item.quantidade })),
+          entrega: dados.entrega,
+          enderecoEntrega: [dados.entrega.endereco, dados.entrega.bairro, dados.entrega.municipio, dados.entrega.provincia].filter(Boolean).join(", ")
+        });
+      } catch (erro) {
+        return reply.code(409).send({ erro: erro instanceof Error ? erro.message : "COTACAO_INVALIDA" });
+      }
+    });
+
     app.post("/publico/market/checkout", async (request, reply) => {
       const chaves = JSON.stringify(request.body ?? {}).toLowerCase();
       if (/"(pan|cvv|cvc|cardnumber|numero_cartao|n[uú]mero_cart[aã]o)"\s*:/.test(chaves)) {
@@ -291,13 +322,22 @@ export const moduloCheckoutUnificado: ModuloHttp = {
         }).catch(() => undefined)
       ]));
 
-      const resultado = await contexto.checkoutUnificado.criarCompraUnificada({
-        ...dados,
-        compradorTelefone,
-        contaBizyId: acessoConta?.conta.id ?? null,
-        sessaoCommerceId: contextoSmartLink?.sessao.id ?? carrinho?.sessaoCommerceId ?? null,
-        itens: itensResolvidos
-      });
+      let resultado;
+      try {
+        resultado = await contexto.checkoutUnificado.criarCompraUnificada({
+          ...dados,
+          compradorTelefone,
+          contaBizyId: acessoConta?.conta.id ?? null,
+          sessaoCommerceId: contextoSmartLink?.sessao.id ?? carrinho?.sessaoCommerceId ?? null,
+          itens: itensResolvidos
+        });
+      } catch (erro) {
+        const mensagem = erro instanceof Error ? erro.message : "CHECKOUT_INVALIDO";
+        const estado = /não encontrad|NAO_ENCONTRAD/i.test(mensagem) ? 404
+          : /variante|quantidade|stock/i.test(mensagem) ? 400
+          : 409;
+        return reply.code(estado).send({ erro: mensagem });
+      }
       const codigosProdutoPorNegocio = new Map<string, string[]>();
       for (const item of itensResolvidos) {
         const codigos = codigosProdutoPorNegocio.get(item.negocioId) ?? [];

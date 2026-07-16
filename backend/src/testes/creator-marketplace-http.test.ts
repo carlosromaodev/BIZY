@@ -16,23 +16,22 @@ describe("Creator Marketplace", () => {
       const sellerB = await seller(app, "923792002", "Seller Marketplace B");
       const produto = await app.inject({ method: "POST", url: "/pecas", headers: sellerA, payload: { codigo: "CREATOR-OFFER-1", sku: "SKU-CREATOR-OFFER-1", nome: "Produto Creator Offer", descricao: "Produto real para oferta Creator", precoEmKwanza: 30000, custoEmKwanza: 15000, quantidade: 20, stockMinimo: 2, categoria: "Creator" } });
       expect(produto.statusCode).toBe(201);
-      const parceiro = await app.inject({ method: "POST", url: "/afiliados", headers: sellerB, payload: { tipo: "CRIADOR", codigo: "CREATOR-MARKET-1", nomePublico: "Creator Marketplace", contacto: "923792099", regraComissao: { tipo: "PERCENTUAL", percentual: 8 } } });
-      expect(parceiro.statusCode).toBe(201);
-
       const oferta = await app.inject({ method: "POST", url: "/creator/team/ofertas", headers: sellerA, payload: { codigo: "OFERTA-1", titulo: "Campanha Creator Julho", descricao: "Produzir conteúdo de demonstração do produto em contexto real.", comissaoTipo: "PERCENTUAL", comissaoValor: 1250, stockAmostras: 1, produtos: [{ codigoProduto: "CREATOR-OFFER-1" }], missoes: [{ titulo: "Publicar review", descricao: "Publicar uma review com divulgação comercial.", bonusEmKwanza: 5000 }] } });
       expect(oferta.statusCode).toBe(201);
       const publicar = await app.inject({ method: "PATCH", url: `/creator/team/ofertas/${oferta.json().id}/publicacao`, headers: sellerA, payload: { publicar: true } });
       expect(publicar.statusCode).toBe(200);
 
       const conta = await creator(app, "923792099");
+      const perfil = await app.inject({ method: "POST", url: "/creator/perfil", headers: conta, payload: { nomePublico: "Creator Marketplace", bio: "Conteúdo de comércio e reviews.", categorias: ["Creator"], canais: ["WHATSAPP"], redesSociais: {}, aceitarTermos: true } });
+      expect(perfil.statusCode).toBe(201);
       const descobrir = await app.inject({ method: "GET", url: "/creator/oportunidades/dados", headers: conta });
       expect(descobrir.statusCode).toBe(200);
       expect(descobrir.json().ofertas[0]).toEqual(expect.objectContaining({ id: oferta.json().id, comissaoValor: 1250, stockAmostras: 1 }));
       expect(descobrir.json().ofertas[0].produtos[0]).toEqual(expect.objectContaining({ codigo: "CREATOR-OFFER-1", precoEmKwanza: 30000 }));
 
-      const candidatura = await app.inject({ method: "POST", url: `/creator/oportunidades/${oferta.json().id}/candidaturas`, headers: conta, payload: { parceiroId: parceiro.json().id, mensagem: "Tenho audiência adequada." } });
+      const candidatura = await app.inject({ method: "POST", url: `/creator/oportunidades/${oferta.json().id}/candidaturas`, headers: conta, payload: { mensagem: "Tenho audiência adequada." } });
       expect(candidatura.statusCode).toBe(201);
-      const repetida = await app.inject({ method: "POST", url: `/creator/oportunidades/${oferta.json().id}/candidaturas`, headers: conta, payload: { parceiroId: parceiro.json().id } });
+      const repetida = await app.inject({ method: "POST", url: `/creator/oportunidades/${oferta.json().id}/candidaturas`, headers: conta, payload: {} });
       expect(repetida.statusCode).toBe(409);
 
       const idor = await app.inject({ method: "PATCH", url: `/creator/team/candidaturas/${candidatura.json().id}/decisao`, headers: sellerB, payload: { aprovar: true } });
@@ -53,6 +52,12 @@ describe("Creator Marketplace", () => {
       const missao = await app.inject({ method: "POST", url: `/creator/missoes/${missaoId}/aceitar`, headers: conta, payload: {} });
       expect(missao.statusCode).toBe(201);
       expect(missao.json()).toEqual(expect.objectContaining({ missaoId, estado: "ACEITE" }));
+
+      const ofertaAberta = await app.inject({ method: "POST", url: "/creator/team/ofertas", headers: sellerA, payload: { codigo: "OFERTA-ABERTA", titulo: "Programa Creator aberto", descricao: "Afiliação aberta para creators com perfil activo.", comissaoTipo: "PERCENTUAL", comissaoValor: 900, regras: { modalidadeAcesso: "OPEN_ACCESS" }, produtos: [{ codigoProduto: "CREATOR-OFFER-1" }] } });
+      await app.inject({ method: "PATCH", url: `/creator/team/ofertas/${ofertaAberta.json().id}/publicacao`, headers: sellerA, payload: { publicar: true } });
+      const candidaturaAberta = await app.inject({ method: "POST", url: `/creator/oportunidades/${ofertaAberta.json().id}/candidaturas`, headers: conta, payload: {} });
+      expect(candidaturaAberta.statusCode).toBe(201);
+      expect(candidaturaAberta.json().estado).toBe("APROVADA");
     } finally { await app.close(); }
   });
 });

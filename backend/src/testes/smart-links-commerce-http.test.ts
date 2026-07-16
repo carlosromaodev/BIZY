@@ -65,7 +65,12 @@ async function preparar(app: Awaited<ReturnType<typeof criarAplicacao>>) {
     method: "PUT",
     url: "/loja-publica/configuracao",
     headers,
-    payload: { slug: "loja-smart-links", descricaoPublica: "Loja publica Smart Links", publicada: true }
+    payload: {
+      slug: "loja-smart-links",
+      descricaoPublica: "Loja publica Smart Links",
+      publicada: true,
+      pagamentos: { metodosPagamento: ["transferencia"] }
+    }
   });
   expect(loja.statusCode).toBe(200);
 

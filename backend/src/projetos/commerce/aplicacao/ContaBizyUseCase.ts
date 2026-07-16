@@ -180,6 +180,40 @@ export class ContaBizyUseCase {
     return this.deps.contas.listarSessoes(contaId, new Date());
   }
 
+  async obterContextos(contaId: string) {
+    return this.deps.contas.listarContextos(contaId);
+  }
+
+  async obterResumo(conta: ContaBizy) {
+    const [perfil, contextos, compras, enderecos, favoritos, sessoes] = await Promise.all([
+      this.deps.contas.obterPerfilComprador(conta.id),
+      this.deps.contas.listarContextos(conta.id),
+      this.deps.compras.listarComprasPorConta(conta.id, 100),
+      this.deps.contas.listarEnderecos(conta.id),
+      this.deps.contas.listarFavoritos(conta.id),
+      this.deps.contas.listarSessoes(conta.id, new Date())
+    ]);
+    const contextosAtivos = new Set(contextos.filter((item) => item.estado === "ATIVO").map((item) => item.tipo));
+    return {
+      conta: this.publicarConta(conta),
+      perfil,
+      contextos,
+      indicadores: {
+        compras: compras.length,
+        comprasEmCurso: compras.filter((item) => !["CONCLUIDA", "CANCELADA", "REEMBOLSADA"].includes(item.estado)).length,
+        favoritos: favoritos.length,
+        enderecos: enderecos.length,
+        sessoesAtivas: sessoes.length
+      },
+      navegacao: {
+        conta: true,
+        creator: contextosAtivos.has("CRIADOR") || contextosAtivos.has("AFILIADO"),
+        team: contextosAtivos.has("SELLER") || contextosAtivos.has("MEMBRO_NEGOCIO"),
+        learning: contextosAtivos.has("PRODUTOR_LEARNING")
+      }
+    };
+  }
+
   revogarSessao(id: string, contaId: string) {
     return this.deps.contas.revogarSessao(id, contaId, "REVOGADA_PELO_TITULAR", new Date());
   }

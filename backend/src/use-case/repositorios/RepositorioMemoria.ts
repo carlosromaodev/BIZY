@@ -238,6 +238,10 @@ export class RepositorioPecasMemoria implements RepositorioPecas {
       .sort((a, b) => a.codigo.localeCompare(b.codigo, "pt-AO", { numeric: true }));
   }
 
+  async buscarPorId(id: string): Promise<Peca | null> {
+    return [...this.pecas.values()].find((peca) => peca.id === id) ?? null;
+  }
+
   async buscarPorCodigo(codigo: string, negocioId?: string | null): Promise<Peca | null> {
     if (negocioId) {
       return this.pecas.get(this.chavePeca(codigo, negocioId)) ?? null;

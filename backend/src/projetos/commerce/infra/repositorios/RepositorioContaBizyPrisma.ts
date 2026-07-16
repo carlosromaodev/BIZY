@@ -156,6 +156,13 @@ export class RepositorioContaBizyPrisma implements RepositorioContaBizy {
     });
   }
 
+  listarContextos(contaId: string) {
+    return this.prisma.contextoContaBizy.findMany({
+      where: { contaId, estado: "ATIVO" },
+      orderBy: [{ tipo: "asc" }, { criadoEm: "asc" }]
+    }) as ReturnType<RepositorioContaBizy["listarContextos"]>;
+  }
+
   async criarConsentimento(dados: {
     contaId: string; tipo: string; versao: string; concedido: boolean; origem: string; ipHash?: string | null;
   }): Promise<void> {

@@ -14,7 +14,7 @@ const authPageSource = () => readFileSync(resolve(process.cwd(), "src/components
 const loginSource = () => readFileSync(resolve(process.cwd(), "src/paginas/Login.tsx"), "utf8");
 
 describe("landing page Bizy", () => {
-  it("usa hero live-commerce com imagem local, marquee e shadcn", () => {
+  it("comunica o ecossistema Bizy com imagem local e capacidades verificáveis", () => {
     const source = homeSource();
     const footer = footerSource();
     const pricing = pricingSource();
@@ -23,18 +23,23 @@ describe("landing page Bizy", () => {
 
     expect(source).toContain("motion/react");
     expect(source).toContain("useReducedMotion");
-    expect(source).toContain("Marquee");
     expect(source).toContain("Pricing");
-    expect(source).toContain("@/components/ui/marquee");
     expect(source).toContain("@/components/ui/single-pricing-card-1");
-    expect(source).toContain("Loja + Marketplace + Team + Finanças + Inteligência + Equipa");
-    expect(source).toContain("Team e gestão de clientes");
-    expect(source).toContain("Team comercial completo");
-    expect(source).toContain("Como funciona o Team comercial?");
-    expect(source).toContain("Team e clientes");
+    expect(source).toContain('/bizy-login-team.png');
+    expect(source).toContain("Bizy. Um sistema para");
+    expect(source).toContain("Bizy Team");
+    expect(source).toContain("Bizy Market");
+    expect(source).toContain("Bizy Learning");
+    expect(source).toContain("Anani");
+    expect(source).toContain("ContaBizy");
+    expect(source).toContain("Smart Links");
+    expect(source).toContain("Creator Marketplace");
+    expect(source).toContain("ledger imutável");
+    expect(source).not.toContain("+2 400");
+    expect(source).not.toContain("milhares de compradores");
+    expect(source).not.toContain("Começar grátis");
+    expect(source).not.toContain("const testemunhos");
     expect(source).not.toContain("CRM+");
-    expect(source).not.toContain("CRM e gestão de clientes");
-    expect(source).not.toContain("Como funciona o CRM?");
     expect(pricing).toContain("Preços em Kwanza");
     expect(pricing).toContain("Mensal");
     expect(pricing).toContain("Anual");

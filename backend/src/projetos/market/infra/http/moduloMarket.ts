@@ -156,24 +156,37 @@ export const moduloMarket: ModuloHttp = {
         precoMaximo: query.precoMaximo,
         apenasDisponivel: query.apenasDisponivel || undefined,
         apenasPromocao: query.apenasPromocao || undefined,
+        ordenarPor: query.ordenarPor,
         limite: query.limite,
         offset: query.offset
       });
     });
 
-    app.get("/publico/market/produtos/:codigo", async (request, reply) => {
+    app.get("/publico/market/busca/sugestoes", async (request, reply) => {
       aplicarCacheMarketPublico(reply);
-      const { codigo } = ParamCodigoSchema.parse(request.params);
-      return contexto.bizyMarket.obterProduto(codigo);
+      const query = z.object({ termo: z.string().trim().min(2).max(120), limite: z.coerce.number().int().min(1).max(12).optional() }).parse(request.query);
+      return contexto.bizyMarket.sugerirBusca(query.termo, query.limite);
     });
 
-    app.get("/publico/market/produtos/:codigo/similares", async (request, reply) => {
+    app.get("/publico/market/p/:id", async (request, reply) => {
       aplicarCacheMarketPublico(reply);
-      const { codigo } = ParamCodigoSchema.parse(request.params);
+      const { id } = ParamIdSchema.parse(request.params);
+      return contexto.bizyMarket.obterProduto(id);
+    });
+
+    app.get("/publico/market/p/:id/similares", async (request, reply) => {
+      aplicarCacheMarketPublico(reply);
+      const { id } = ParamIdSchema.parse(request.params);
       const query = QueryLimiteSchema.parse(request.query);
-      return contexto.bizyMarket.listarProdutosSimilares(codigo, {
+      return contexto.bizyMarket.listarProdutosSimilares(id, {
         limite: query.limite
       });
+    });
+
+    app.get("/publico/market/lojas/:slug/produtos/:codigo", async (request, reply) => {
+      aplicarCacheMarketPublico(reply);
+      const { slug, codigo } = z.object({ slug: z.string().trim().min(1).max(160), codigo: z.string().trim().min(1).max(160) }).parse(request.params);
+      return contexto.bizyMarket.obterProdutoLegado(slug, codigo);
     });
 
     // Fase 2: Listagem de lojas no Market

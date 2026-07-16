@@ -577,7 +577,7 @@ export function criarContextoAplicacao(logger: FastifyBaseLogger): ContextoAplic
     gestaoGovernancaCrm,
     gestaoTarefas
   );
-  const bizyMarket = new BizyMarketUseCase(repositorios.autenticacao, repositorios.pecas);
+  const bizyMarket = new BizyMarketUseCase(repositorios.autenticacao, repositorios.pecas, repositorios.creatorMarketplace);
   const bizyLearning = new BizyLearningUseCase(repositorios.eventosOperacionais, repositorios.autenticacao);
   const segredoAuth = process.env.AUTH_SECRET ?? (() => { throw new Error("AUTH_SECRET não configurado."); })();
 
@@ -600,7 +600,9 @@ export function criarContextoAplicacao(logger: FastifyBaseLogger): ContextoAplic
     contas: repositorios.contaBizy,
     afiliados: repositorios.afiliados,
     tracking: repositorios.trackingComercial,
-    ledger: ledgerComissoes
+    ledger: ledgerComissoes,
+    marketplace: repositorios.creatorMarketplace,
+    pecas: repositorios.pecas
   });
   const conteudoCompravel = new ConteudoCompravelUseCase({
     conteudos: repositorios.conteudosCommerce,

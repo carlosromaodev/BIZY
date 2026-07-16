@@ -2,625 +2,529 @@ import {
   ArrowRight,
   BarChart3,
   BookOpen,
-  CalendarCheck,
   CheckCircle2,
-  Clock,
-  Compass,
   CreditCard,
-  Globe,
   GraduationCap,
-  Heart,
-  Headphones,
   Layers,
   Link2,
   Menu,
   MessageCircle,
   Package,
-  Palette,
-  Play,
-  Receipt,
+  Radio,
   ReceiptText,
-  Repeat,
   Search,
   Shield,
   ShoppingBag,
   ShoppingCart,
-  Sparkles,
-  Star,
   Store,
   Target,
   Truck,
-  TrendingUp,
   UserCheck,
   Users,
+  Wallet,
+  Workflow,
   X,
-  Zap,
   type LucideIcon
 } from "lucide-react";
-import {
-  motion,
-  useInView,
-  useReducedMotion,
-  AnimatePresence
-} from "motion/react";
+import { AnimatePresence, motion, useInView, useReducedMotion } from "motion/react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
-import { Marquee } from "@/components/ui/marquee";
 import { Pricing } from "@/components/ui/single-pricing-card-1";
 import { ROTAS_LOJAS } from "../lojas";
 import { LogoBizy, NOME_PRODUTO } from "../marca/bizy";
 
-/* ═══════════════════════════════════════════════════════════
-   Data — comprehensive Bizy platform features
-   ═══════════════════════════════════════════════════════════ */
-
-const beneficiosPrincipais = [
-  { icone: Store, titulo: "Loja digital completa", texto: "Catálogo com variantes, fotos, stock e preços. Loja pública com subdomínio próprio, checkout integrado e perfil profissional. Do produto à venda — tudo pronto.", tom: "azul" as const },
-  { icone: ShoppingCart, titulo: "Bizy Market — marketplace", texto: "Os teus produtos aparecem no marketplace. Pesquisa por localização, categoria e preço. Checkout multi-loja para o comprador comprar de várias lojas num só pedido.", tom: "verde" as const },
-  { icone: Users, titulo: "Team e gestão de clientes", texto: "Cada cliente com histórico de compras, conversas, notas e tags. Funil de vendas, pipeline comercial, score de fiabilidade e perfil enriquecido automaticamente.", tom: "violeta" as const },
-  { icone: MessageCircle, titulo: "Inbox omnicanal", texto: "WhatsApp, Instagram e TikTok — todas as conversas num único inbox. Respostas rápidas, sequências automáticas e histórico completo por cliente.", tom: "ambar" as const },
-  { icone: Zap, titulo: "Lives que vendem sozinhas", texto: "Cada comentário com palavra-chave vira pedido automático. Stock actualizado em tempo real, checkout preparado e notificação ao comprador — tu focas na câmara.", tom: "rosa" as const },
-  { icone: CreditCard, titulo: "Finanças e facturação", texto: "Contas a receber e pagar, cobranças automáticas, risco de inadimplência por cliente, priorização de pagamentos e orçamento mensal. Facturação com recibos PDF.", tom: "azul" as const },
-  { icone: Link2, titulo: "Afiliados e parcerias", texto: "Cria links rastreáveis, recruta parceiros e define comissões automáticas por venda. Cada conversão atribuída ao parceiro certo com relatório detalhado.", tom: "verde" as const },
-  { icone: BarChart3, titulo: "Inteligência preditiva", texto: "Scoring RFM, alertas de churn VIP, previsão de fluxo de caixa, detecção de anomalias, análise de carga da equipa e funil comercial com sugestões automáticas.", tom: "violeta" as const },
-  { icone: Target, titulo: "Equipa e metas", texto: "Gestão de equipa com turnos, presenças, metas de vendas com alertas, bónus e comissões estimadas. Passagem de turno com resumo automático e feed de actividade.", tom: "ambar" as const },
-  { icone: Shield, titulo: "Governança e compliance", texto: "Gestão de módulos por negócio, permissões por papel, auditoria de eventos, contratos de plataforma e denúncias no marketplace. Dados protegidos.", tom: "rosa" as const },
-];
-
-const modulosPlataforma: { icone: LucideIcon; titulo: string; itens: string[] }[] = [
-  { icone: Store, titulo: "Loja digital", itens: ["Catálogo com variantes e stock", "Loja pública com slug", "Colecções manuais e automáticas", "Compra assistida por WhatsApp", "Cupões e promoções", "SEO por loja e produto", "Sistema de seguidores"] },
-  { icone: Globe, titulo: "Bizy Market", itens: ["Marketplace multi-loja", "Pesquisa por localização e preço", "Compra unificada multi-fornecedor", "Produtos patrocinados e destaques", "Repasses financeiros automáticos", "Reembolsos parciais e totais", "Denúncias e moderação"] },
-  { icone: Users, titulo: "Team comercial completo", itens: ["Ficha de cliente com histórico", "Fluxo e funil de vendas", "Tags, notas e segmentação", "Score de fiabilidade privado", "Partilha de perfil com consentimento", "Recuperação de clientes inativos", "Playbooks automáticos"] },
-  { icone: Receipt, titulo: "Finanças e facturação", itens: ["Contas a receber e pagar", "Cobranças automáticas de vencidos", "Risco de inadimplência por cliente", "Priorização de pagamentos", "Orçamento mensal por categoria", "Recibos e facturas em PDF", "Metas de vendas com comissões"] },
-  { icone: BarChart3, titulo: "Inteligência preditiva", itens: ["Scoring RFM de clientes", "Alertas de churn VIP", "Previsão de fluxo de caixa", "Detecção de anomalias", "Análise de carga da equipa", "Funil comercial com sugestões", "LTV por cliente"] },
-  { icone: CalendarCheck, titulo: "Equipa e operação", itens: ["Turnos e registo de presenças", "Metas com alertas e bónus", "Passagem de turno automática", "Feed de actividade da equipa", "Comissão estimada diária/mensal", "Convites e papéis por membro", "Notas com menções e notificações"] },
-];
-
-const resultados = [
-  { valor: "25+", label: "módulos integrados", icone: Layers },
-  { valor: "100", label: "funcionalidades", icone: Compass },
-  { valor: "5", label: "canais de venda", icone: Globe },
-  { valor: "24h", label: "da conta à primeira venda", icone: Clock },
-];
-
-const vendedores = [
-  { iniciais: "MK", cor: "#7A63C9" },
-  { iniciais: "ZA", cor: "#D98E2B" },
-  { iniciais: "KL", cor: "#0E8C68" },
-  { iniciais: "BY", cor: "#C9564A" },
-  { iniciais: "FS", cor: "#3d7bc0" },
-];
-
 const linksNavegacao = [
-  { href: "#plataforma", label: "Plataforma" },
-  { href: "#modulos", label: "Módulos" },
+  { href: "#ecossistema", label: "Ecossistema" },
+  { href: "#commerce", label: "Commerce" },
+  { href: "#operacao", label: "Operação" },
   { href: "#como-funciona", label: "Como funciona" },
-  { href: "#pricing", label: "Preços" },
-  { href: "#faq", label: "Dúvidas" },
+  { href: "#pricing", label: "Preços" }
 ];
 
-const capacidades = [
-  "Loja digital com checkout",
-  "Bizy Market — marketplace",
-  "Team e perfil de cliente",
-  "Inbox WhatsApp + Instagram",
-  "Lives com captura automática",
-  "Finanças e facturação",
-  "Cobranças automáticas",
-  "Checkout multi-loja",
-  "Programa de afiliados",
-  "Inteligência preditiva",
-  "Scoring RFM e churn",
-  "Previsão de fluxo de caixa",
-  "Turnos e presenças",
-  "Metas com bónus",
-  "Passagem de turno",
-  "Comissões estimadas",
-  "Detecção de anomalias",
-  "Gestão de equipa",
-  "Risco de inadimplência",
-  "Auditoria e compliance",
-  "SEO e descoberta",
-  "Colecções e catálogos",
-  "Recibos e facturas PDF",
-  "Feed de actividade",
+const sistemas: Array<{
+  nome: string;
+  tipo: string;
+  resumo: string;
+  descricao: string;
+  itens: string[];
+  icone: LucideIcon;
+  link: string;
+  acao: string;
+  tom: "team" | "market" | "learning";
+}> = [
+  {
+    nome: "Bizy Team",
+    tipo: "Operação privada",
+    resumo: "A fonte de verdade do negócio.",
+    descricao: "Clientes, produtos, pedidos, conversas, tarefas, equipa, projectos e dinheiro trabalham no mesmo contexto operacional.",
+    itens: ["Clientes e atendimento", "Stock, pedidos e entregas", "Equipa, metas e finanças"],
+    icone: Users,
+    link: "/login",
+    acao: "Entrar no Team",
+    tom: "team"
+  },
+  {
+    nome: "Bizy Market",
+    tipo: "Descoberta e compra",
+    resumo: "Lojas reais num marketplace integrado.",
+    descricao: "O comprador encontra produtos, escolhe variantes, combina lojas no mesmo carrinho e acompanha a compra numa conta segura.",
+    itens: ["Lojas e produtos", "Checkout multi-loja", "Conta e protecção do comprador"],
+    icone: ShoppingBag,
+    link: ROTAS_LOJAS.market,
+    acao: "Explorar o Market",
+    tom: "market"
+  },
+  {
+    nome: "Bizy Learning",
+    tipo: "Conhecimento como produto",
+    resumo: "Formação ligada à operação.",
+    descricao: "Cursos, mentorias, cohorts e comunidades podem ser publicados, vendidos, acompanhados e geridos dentro do mesmo ecossistema.",
+    itens: ["Programas e lições", "Avaliações e certificados", "Comunidades e progresso"],
+    icone: GraduationCap,
+    link: "/learning",
+    acao: "Abrir o Learning",
+    tom: "learning"
+  }
 ];
 
-const canaisVenda = [
-  { nome: "Loja digital", desc: "Perfil público com subdomínio, catálogo e checkout", icone: Store },
-  { nome: "Bizy Market", desc: "Marketplace com milhares de compradores", icone: ShoppingBag },
-  { nome: "WhatsApp", desc: "Checkout assistido directo no chat", icone: MessageCircle },
-  { nome: "Instagram", desc: "Comentários e DMs que geram pedidos", icone: Heart },
-  { nome: "Lives", desc: "Captura automática por palavra-chave", icone: Zap },
+const cicloComercial = [
+  { nome: "Descobrir", texto: "Market, conteúdo, live e Smart Links", icone: Search },
+  { nome: "Converter", texto: "Produto, variante, carrinho e checkout", icone: ShoppingCart },
+  { nome: "Executar", texto: "Pedido, pagamento, stock e entrega", icone: Truck },
+  { nome: "Reter", texto: "Atendimento, Learning e recuperação", icone: MessageCircle },
+  { nome: "Controlar", texto: "Finanças, risco, relatórios e auditoria", icone: Shield }
 ];
 
-const testemunhos = [
-  { texto: "Antes perdia metade dos pedidos na live. Agora o Bizy captura tudo e eu foco em apresentar os produtos.", nome: "Marlene K.", papel: "Vendedora de moda, Luanda", iniciais: "MK", cor: "#7A63C9" },
-  { texto: "O Team mostrou-me que 40% dos meus clientes eram recorrentes. Comecei a fazer ofertas e as vendas dispararam.", nome: "Zeca A.", papel: "Electrónica e acessórios", iniciais: "ZA", cor: "#D98E2B" },
-  { texto: "Configurei a loja num sábado à noite e na segunda já estava a receber pedidos pelo link. Simples assim.", nome: "Keyla L.", papel: "Cosmética natural, Viana", iniciais: "KL", cor: "#0E8C68" },
-  { texto: "O marketplace trouxe-me clientes que nunca teria encontrado sozinha. E o checkout multi-loja é genial para o comprador.", nome: "Beatriz Y.", papel: "Artesanato, Benguela", iniciais: "BY", cor: "#C9564A" },
-  { texto: "O programa de afiliados criou-me uma rede de vendedores que promovem os meus produtos. Comissão automática, sem stress.", nome: "Fábio S.", papel: "Suplementos e fitness", iniciais: "FS", cor: "#3d7bc0" },
+const creatorCommerce = [
+  { titulo: "Smart Links", texto: "Links canónicos que preservam campanha, creator, produto e sessão sem expor dados pessoais.", icone: Link2 },
+  { titulo: "Conteúdo comprável", texto: "Vídeos, reviews, tutoriais e colecções ligam produtos de uma ou várias lojas ao checkout.", icone: Radio },
+  { titulo: "Creator Marketplace", texto: "Ofertas, oportunidades, candidaturas, amostras e missões ligam sellers a criadores.", icone: Target },
+  { titulo: "Carrinhos partilháveis", texto: "Creators, afiliados e vendedores preparam selecções prontas para importar e comprar.", icone: ShoppingCart },
+  { titulo: "Atribuição explicável", texto: "Primeiro toque, último toque e conversões assistidas ficam registados com regra e versão.", icone: BarChart3 },
+  { titulo: "Comissões auditáveis", texto: "Ledger imutável, retenções, reversões e payouts evitam saldos financeiros opacos.", icone: Wallet }
 ];
 
-const perguntasFrequentes: [string, string][] = [
-  ["O Bizy serve apenas para lives?", "De todo. O Bizy é uma plataforma completa: loja digital, marketplace, Team, finanças, inteligência preditiva, gestão de equipa com turnos e metas, facturação PDF, afiliados e relatórios. As lives são apenas um dos canais de venda."],
-  ["O que é o Bizy Market?", "É o marketplace integrado onde os teus produtos ficam visíveis a milhares de compradores. Funciona como um shopping digital — o comprador pode comprar de várias lojas num único checkout, com pagamento unificado e repasse automático a cada fornecedor."],
-  ["Como funciona o Team comercial?", "Cada cliente tem uma ficha completa: histórico de compras, conversas, notas privadas, tags e score de fiabilidade. O pipeline de vendas acompanha cada oportunidade. Quando um cliente fica inactivo, o sistema sugere playbooks de recuperação."],
-  ["O que é a inteligência preditiva?", "O motor analisa os teus dados e gera scoring RFM dos clientes, alertas de churn VIP, previsão de fluxo de caixa com cenários, detecção de anomalias em receitas e despesas, análise de carga da equipa e funil comercial com sugestões."],
-  ["Como funciona a gestão de equipa?", "Crias membros com papéis e permissões, defines turnos e registos de presença, estabeleces metas de vendas com alertas automáticos e bónus por atingimento. O sistema calcula comissões estimadas e gera passagens de turno com resumo."],
-  ["Como funcionam as finanças?", "Contas a receber e pagar, cobranças automáticas de vencidos, risco de inadimplência por cliente, priorização de pagamentos, orçamento mensal por categoria, recibos e facturas em PDF — tudo com auditoria completa."],
-  ["Preciso de saber programar?", "Zero código. O assistente guia-te na criação da loja em minutos — nome, produtos, pagamento e publicação."],
-  ["Existe plano gratuito?", "Sim. Começas grátis com todas as funcionalidades base. Só passas para plano pago quando precisares de mais."],
-  ["Os meus dados estão protegidos?", "Sim. O sistema segue os princípios da Lei 22/11 angolana: dados de clientes são privados por loja, partilha apenas com consentimento, auditoria completa e permissões por papel."],
+const areasOperacao = [
+  {
+    numero: "01",
+    nome: "Vender",
+    descricao: "Publica e converte em canais diferentes sem duplicar produto, preço ou stock.",
+    itens: ["Bizy Studio", "Market", "WhatsApp", "Live", "Creator commerce"],
+    icone: Store
+  },
+  {
+    numero: "02",
+    nome: "Atender",
+    descricao: "Mantém cliente, conversa, tarefa e histórico comercial ligados à mesma operação.",
+    itens: ["Clientes 360", "Social Inbox", "Notas", "Formulários", "Recuperação"],
+    icone: MessageCircle
+  },
+  {
+    numero: "03",
+    nome: "Entregar",
+    descricao: "Confirma variante e stock no servidor, divide pedidos por fornecedor e acompanha o fulfillment.",
+    itens: ["Carrinho server-side", "Checkout multi-loja", "Comprovativo privado", "Pedidos-filho", "Reembolsos"],
+    icone: Package
+  },
+  {
+    numero: "04",
+    nome: "Gerir",
+    descricao: "Organiza pessoas, trabalho e dinheiro com ownership, permissões e contexto por negócio.",
+    itens: ["Equipa e turnos", "Metas", "Projectos", "Finanças", "Facturação"],
+    icone: Workflow
+  },
+  {
+    numero: "05",
+    nome: "Aprender",
+    descricao: "Transforma conhecimento em programa, produto digital, comunidade e desenvolvimento da equipa.",
+    itens: ["Cursos", "Mentorias", "Cohorts", "Avaliações", "Certificados"],
+    icone: BookOpen
+  }
+];
+
+const pilaresConfianca = [
+  {
+    titulo: "Uma conta, vários contextos",
+    texto: "A mesma ContaBizy pode representar comprador, creator, afiliado, seller, produtor Learning e membro de negócio.",
+    icone: UserCheck
+  },
+  {
+    titulo: "Acesso passwordless",
+    texto: "OTP por telefone, sessões revogáveis e associação segura da compra convidada depois do checkout.",
+    icone: CreditCard
+  },
+  {
+    titulo: "Compra protegida",
+    texto: "Comprovativo privado, avaliação verificada, casos de risco, disputas e revisão humana em decisões sensíveis.",
+    icone: Shield
+  },
+  {
+    titulo: "Dinheiro com histórico",
+    texto: "Atribuição, comissões, retenções e pagamentos preservam evidência e não dependem de regras no frontend.",
+    icone: ReceiptText
+  }
 ];
 
 const passos = [
-  { numero: "01", titulo: "Cria a tua conta", texto: "Telefone, Gmail ou identidade académica. Sem cartão, sem compromisso.", icone: Headphones },
-  { numero: "02", titulo: "Monta a tua loja", texto: "Nome, segmento, fotos e pagamento. O assistente IA guia todo o processo.", icone: Store },
-  { numero: "03", titulo: "Publica os produtos", texto: "Fotos, variantes, preços e stock. A loja fica online com catálogo profissional.", icone: Package },
-  { numero: "04", titulo: "Liga os canais", texto: "WhatsApp, Instagram, lives — activa os canais onde os teus clientes já estão.", icone: MessageCircle },
-  { numero: "05", titulo: "Vende e gere tudo", texto: "Pedidos, clientes, conversas, pagamentos e relatórios — tudo numa plataforma.", icone: TrendingUp },
-] as const;
-
-const diferenciais = [
-  { icone: Globe, titulo: "Multi-canal nativo", texto: "Não é um plugin — cada canal (loja, market, WhatsApp, Instagram, live) está integrado de raiz." },
-  { icone: UserCheck, titulo: "Team com identidade", texto: "Um cliente, um perfil global. Cada loja tem a sua relação privada — dados protegidos por design." },
-  { icone: BarChart3, titulo: "Inteligência preditiva", texto: "RFM, churn VIP, previsão de caixa e detecção de anomalias — o sistema antecipa problemas antes que aconteçam." },
-  { icone: Search, titulo: "Descoberta no Market", texto: "Os teus produtos aparecem a compradores que ainda não te conhecem. SEO, filtros e destaques." },
-  { icone: CalendarCheck, titulo: "Equipa organizada", texto: "Turnos, presenças, metas de vendas com bónus, comissões estimadas e passagem de turno com resumo automático." },
-  { icone: ReceiptText, titulo: "Finanças e facturação", texto: "Contas a receber, cobranças automáticas, risco de inadimplência, facturas PDF e orçamento mensal — tudo auditável." },
+  { numero: "01", titulo: "Cria a ContaBizy", texto: "Entra por telefone e usa a mesma identidade nos contextos autorizados.", icone: UserCheck },
+  { numero: "02", titulo: "Configura a operação", texto: "Define negócio, equipa, produtos, pagamentos e módulos no Team.", icone: Layers },
+  { numero: "03", titulo: "Publica e distribui", texto: "Activa loja, Market, Learning, creators e os canais que fazem sentido.", icone: Store },
+  { numero: "04", titulo: "Executa com controlo", texto: "Acompanha vendas, atendimento, entrega, dinheiro, risco e desempenho.", icone: BarChart3 }
 ];
 
-/* ═══════════════════════════════════════════════════════════
-   Primitives
-   ═══════════════════════════════════════════════════════════ */
+const perguntasFrequentes: Array<[string, string]> = [
+  ["O que é o Bizy hoje?", "O Bizy é um Business Operating System modular para pequenos negócios. Team gere a operação privada, Market cuida da descoberta e compra, Learning transforma conhecimento em produto e Anani aplica inteligência, risco e governança nos bastidores."],
+  ["Qual é a diferença entre Team, Market e Learning?", "Team é a fonte de verdade do negócio. Market é a camada pública de lojas, produtos e checkout. Learning é a camada de cursos, mentorias, comunidades, progresso e certificados. Os três partilham identidade e dados operacionais autorizados."],
+  ["O comprador precisa criar conta antes de comprar?", "Não. O checkout convidado continua disponível. Depois da compra, o comprador pode confirmar o telefone por OTP e associar o pedido à sua ContaBizy para acompanhar estados e compras futuras."],
+  ["Como funciona o creator commerce?", "Creators e afiliados podem descobrir oportunidades, candidatar-se, criar conteúdo comprável, Smart Links e carrinhos partilháveis. Cliques, pedidos, atribuição e comissões ficam ligados à jornada real."],
+  ["As comissões são apenas uma estimativa no ecrã?", "Não. O backend mantém um ledger imutável com créditos, retenções, libertações, reversões e payouts. Confirmações bancárias externas continuam sujeitas ao provider e à revisão aplicável."],
+  ["O que o Anani faz?", "Anani é o núcleo interno de inteligência, risco, auditoria e governança. Não é um chatbot público: os utilizadores vêem os seus efeitos através de alertas, protecções, tarefas e revisões dentro dos produtos Bizy."],
+  ["O Bizy substitui o WhatsApp?", "Não. O WhatsApp é um canal importante, mas cliente, produto, pedido, pagamento, entrega e auditoria permanecem no Bizy. Assim a operação não depende do histórico de um único chat."],
+  ["Posso activar apenas o que preciso?", "Sim. O Bizy é modular e o Team controla os módulos activos, papéis e permissões de cada negócio."],
+  ["Os meus dados ficam misturados com outras lojas?", "Não. Rotas privadas validam autenticação, tenant, ownership e permissão. Dados de compradores e negócios são expostos apenas no contexto autorizado."]
+];
 
-function Reveal({ children, className, delay = 0, ...props }: {
-  children: ReactNode; className?: string; delay?: number; [k: string]: unknown;
-}) {
+function Reveal({ children, className, delay = 0 }: { children: ReactNode; className?: string; delay?: number }) {
   const ref = useRef<HTMLDivElement>(null);
-  const isInView = useInView(ref, { once: true, amount: 0.15 });
-  const rm = useReducedMotion();
+  const visivel = useInView(ref, { once: true, amount: 0.12 });
+  const reduzirMovimento = useReducedMotion();
+
   return (
-    <motion.div ref={ref} className={className} {...props}
-      initial={rm ? { opacity: 1 } : { opacity: 0, y: 18 }}
-      animate={isInView ? { opacity: 1, y: 0 } : undefined}
-      transition={{ duration: 0.55, delay, ease: [0.22, 1, 0.36, 1] }}
-    >{children}</motion.div>
+    <motion.div
+      ref={ref}
+      className={className}
+      initial={reduzirMovimento ? { opacity: 1 } : { opacity: 0, y: 16 }}
+      animate={visivel ? { opacity: 1, y: 0 } : undefined}
+      transition={{ duration: 0.45, delay, ease: [0.22, 1, 0.36, 1] }}
+    >
+      {children}
+    </motion.div>
   );
 }
 
 function FaqItem({ pergunta, resposta }: { pergunta: string; resposta: string }) {
   const [aberto, setAberto] = useState(false);
+
   return (
     <motion.article className={`bizy-faq-item${aberto ? " is-open" : ""}`} layout>
-      <button type="button" onClick={() => setAberto((v) => !v)}>
+      <button type="button" onClick={() => setAberto((valor) => !valor)} aria-expanded={aberto}>
         <h3>{pergunta}</h3>
-        <motion.span animate={{ rotate: aberto ? 45 : 0 }} transition={{ duration: 0.2 }} className="bizy-faq-toggle">+</motion.span>
+        <motion.span animate={{ rotate: aberto ? 45 : 0 }} transition={{ duration: 0.18 }} className="bizy-faq-toggle">+</motion.span>
       </button>
       <AnimatePresence>
         {aberto && (
-          <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }} className="bizy-faq-answer"
-          ><p>{resposta}</p></motion.div>
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.24 }}
+            className="bizy-faq-answer"
+          >
+            <p>{resposta}</p>
+          </motion.div>
         )}
       </AnimatePresence>
     </motion.article>
   );
 }
 
-/* ═══════════════════════════════════════════════════════════
-   Page
-   ═══════════════════════════════════════════════════════════ */
-
 export function PaginaHome() {
   const [menuAberto, setMenuAberto] = useState(false);
   const [navScrolled, setNavScrolled] = useState(false);
-  const rm = useReducedMotion();
+  const reduzirMovimento = useReducedMotion();
 
   useEffect(() => {
-    function onScroll() { setNavScrolled(window.scrollY > 20); }
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
+    const tituloAnterior = document.title;
+    const descricao = document.querySelector<HTMLMetaElement>('meta[name="description"]');
+    const descricaoAnterior = descricao?.content;
+    document.title = "Bizy | Team, Market e Learning para o teu negócio";
+    if (descricao) descricao.content = "Bizy liga operação, marketplace, learning e creator commerce num sistema feito para negócios em Angola.";
+
+    function aoRolar() {
+      setNavScrolled(window.scrollY > 20);
+    }
+    window.addEventListener("scroll", aoRolar, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", aoRolar);
+      document.title = tituloAnterior;
+      if (descricao && descricaoAnterior) descricao.content = descricaoAnterior;
+    };
   }, []);
 
   return (
-    <main className="bizy-public bizy-home">
-      {/* ══════════ NAV ══════════ */}
+    <main className="bizy-public bizy-home bizy-home-2026">
       <motion.header
         className={`bizy-home-nav${navScrolled ? " is-scrolled" : ""}`}
-        initial={rm ? false : { y: -16, opacity: 0 }}
+        initial={reduzirMovimento ? false : { y: -12, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
-        transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+        transition={{ duration: 0.35 }}
       >
-        <Link className="bizy-home-logo" to="/" aria-label="Bizy home">
-          <LogoBizy />
-        </Link>
-
+        <Link className="bizy-home-logo" to="/" aria-label="Página inicial do Bizy"><LogoBizy /></Link>
         <nav className="bizy-home-links" aria-label="Navegação principal">
-          {linksNavegacao.map((l) => (
-            <a key={l.href} href={l.href}>{l.label}</a>
-          ))}
+          {linksNavegacao.map((link) => <a key={link.href} href={link.href}>{link.label}</a>)}
         </nav>
-
         <div className="bizy-home-actions">
-          <a className="bizy-btn bizy-btn-market" href={ROTAS_LOJAS.market}>
-            <ShoppingBag size={15} /> Bizy Market
-          </a>
+          <Link className="bizy-link-muted" to="/learning">Learning</Link>
+          <a className="bizy-btn bizy-btn-market" href={ROTAS_LOJAS.market}><ShoppingBag size={15} />Market</a>
           <Link className="bizy-link-muted" to="/login">Entrar</Link>
-          <Link className="bizy-btn bizy-btn-primary" to="/login">
-            Começar grátis <ArrowRight size={15} />
-          </Link>
+          <Link className="bizy-btn bizy-btn-primary" to="/login">Começar <ArrowRight size={15} /></Link>
         </div>
-
-        <button className="bizy-mobile-menu" type="button" onClick={() => setMenuAberto((v) => !v)}
-          aria-label={menuAberto ? "Fechar menu" : "Abrir menu"} aria-expanded={menuAberto}
-        >{menuAberto ? <X size={20} /> : <Menu size={20} />}</button>
-
+        <button
+          className="bizy-mobile-menu"
+          type="button"
+          onClick={() => setMenuAberto((valor) => !valor)}
+          aria-label={menuAberto ? "Fechar menu" : "Abrir menu"}
+          aria-expanded={menuAberto}
+        >
+          {menuAberto ? <X size={20} /> : <Menu size={20} />}
+        </button>
         <AnimatePresence>
           {menuAberto && (
-            <motion.nav className="bizy-mobile-panel" aria-label="Navegação mobile"
-              initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.2 }}
+            <motion.nav
+              className="bizy-mobile-panel"
+              aria-label="Navegação mobile"
+              initial={{ opacity: 0, y: -8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
             >
-              {linksNavegacao.map((l) => (
-                <a key={l.href} href={l.href} onClick={() => setMenuAberto(false)}>{l.label}</a>
-              ))}
+              {linksNavegacao.map((link) => <a key={link.href} href={link.href} onClick={() => setMenuAberto(false)}>{link.label}</a>)}
+              <Link to="/learning" onClick={() => setMenuAberto(false)}>Bizy Learning</Link>
               <a href={ROTAS_LOJAS.market} onClick={() => setMenuAberto(false)}>Bizy Market</a>
-              <Link to="/login" onClick={() => setMenuAberto(false)}>Começar grátis</Link>
+              <Link to="/login" onClick={() => setMenuAberto(false)}>Começar no Bizy</Link>
             </motion.nav>
           )}
         </AnimatePresence>
       </motion.header>
 
-      {/* ══════════ HERO ══════════ */}
-      <section className="bizy-home-hero">
+      <section className="bizy-home-hero bizy-home-hero-2026">
+        <img className="bizy-hero-media" src="/bizy-login-team.png" alt="Equipa de uma loja angolana a vender em live com o Bizy" />
+        <div className="bizy-hero-overlay" aria-hidden="true" />
         <div className="bizy-hero-inner">
-          <motion.p
-            className="bizy-hero-eyebrow"
-            initial={rm ? false : { opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.45, delay: 0.08, ease: [0.22, 1, 0.36, 1] }}
-          >Loja + Marketplace + Team + Finanças + Inteligência + Equipa</motion.p>
-
-          <motion.h1
-            className="bizy-hero-h1"
-            initial={rm ? false : { opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.55, delay: 0.14, ease: [0.22, 1, 0.36, 1] }}
-          >
-            A plataforma completa{"\n"}para o teu <em>negócio</em>.
-          </motion.h1>
-
-          <motion.p
-            className="bizy-hero-sub"
-            initial={rm ? false : { opacity: 0, y: 14 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.22, ease: [0.22, 1, 0.36, 1] }}
-          >
-            Loja digital, marketplace, Team, finanças com cobranças automáticas, inteligência preditiva, gestão de equipa com turnos e metas, facturação PDF, afiliados e relatórios — tudo integrado numa única plataforma feita para Angola.
+          <motion.p className="bizy-hero-eyebrow" initial={reduzirMovimento ? false : { opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+            Business Operating System para Angola
           </motion.p>
-
-          <motion.div
-            className="bizy-hero-ctas"
-            initial={rm ? false : { opacity: 0, y: 14 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.3, ease: [0.22, 1, 0.36, 1] }}
-          >
-            <Link className="bizy-btn bizy-btn-hero" to="/login">
-              Começar grátis <ArrowRight size={16} />
-            </Link>
-            <a className="bizy-btn bizy-btn-market bizy-btn-market-hero" href={ROTAS_LOJAS.market}>
-              <ShoppingBag size={16} /> Ver Bizy Market
-            </a>
-            <a className="bizy-btn bizy-btn-ghost" href="#plataforma">
-              <Play size={14} /> Explorar a plataforma
-            </a>
+          <motion.h1 className="bizy-hero-h1" initial={reduzirMovimento ? false : { opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.08 }}>
+            Bizy. Um sistema para <em>vender, operar e crescer.</em>
+          </motion.h1>
+          <motion.p className="bizy-hero-sub" initial={reduzirMovimento ? false : { opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.16 }}>
+            Team organiza o negócio. Market cria descoberta e compra. Learning transforma conhecimento em produto. Uma ContaBizy liga compradores, equipas, sellers e creators com controlo nos bastidores.
+          </motion.p>
+          <motion.div className="bizy-hero-ctas" initial={reduzirMovimento ? false : { opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.24 }}>
+            <Link className="bizy-btn bizy-btn-lime bizy-btn-large" to="/login">Começar no Bizy <ArrowRight size={16} /></Link>
+            <a className="bizy-btn bizy-btn-hero-market bizy-btn-large" href={ROTAS_LOJAS.market}><ShoppingBag size={16} />Explorar o Market</a>
+            <Link className="bizy-hero-text-link" to="/learning">Ver Learning <ArrowRight size={15} /></Link>
           </motion.div>
-
-          <motion.div
-            className="bizy-hero-proof"
-            initial={rm ? false : { opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.6, delay: 0.42 }}
-          >
-            <span className="bizy-avatar-stack">
-              {vendedores.map((v) => (
-                <span key={v.iniciais} style={{ backgroundColor: v.cor }}>{v.iniciais}</span>
-              ))}
-            </span>
-            <span><strong>+2 400</strong> empreendedores já usam o {NOME_PRODUTO}</span>
+          <motion.div className="bizy-hero-facts" initial={reduzirMovimento ? false : { opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.34 }}>
+            <span><UserCheck size={15} />Conta universal por OTP</span>
+            <span><CreditCard size={15} />Checkout em Kz</span>
+            <span><Store size={15} />Operação multi-loja</span>
           </motion.div>
         </div>
       </section>
 
-      {/* ══════════ MARQUEE ══════════ */}
-      <div className="bizy-marquee-strip">
-        <Marquee pauseOnHover className="[--duration:50s] [--gap:0rem]">
-          {capacidades.map((c) => (
-            <span key={c} className="bizy-marquee-item">{c}</span>
-          ))}
-        </Marquee>
-      </div>
+      <nav className="bizy-product-switcher" aria-label="Produtos Bizy">
+        <a href="#team"><strong>Team</strong><span>Operação do negócio</span></a>
+        <a href={ROTAS_LOJAS.market}><strong>Market</strong><span>Descoberta e compra</span></a>
+        <Link to="/learning"><strong>Learning</strong><span>Conhecimento e comunidade</span></Link>
+        <a href="#anani"><strong>Anani</strong><span>Risco e governança interna</span></a>
+      </nav>
 
-      {/* ══════════ STATS ══════════ */}
-      <section className="bizy-home-strip">
-        {resultados.map((r, i) => {
-          const Icone = r.icone;
-          return (
-            <Reveal key={r.label} className="bizy-stat-cell" delay={i * 0.06}>
-              <span className="bizy-strip-icon"><Icone size={16} /></span>
-              <strong>{r.valor}</strong>
-              <span>{r.label}</span>
-            </Reveal>
-          );
-        })}
-      </section>
-
-      {/* ══════════ 5 CANAIS DE VENDA ══════════ */}
-      <section className="bizy-home-section" id="plataforma">
+      <section className="bizy-home-section bizy-ecosystem" id="ecossistema">
         <Reveal>
-          <div className="bizy-section-head">
-            <span>Vende em todo o lado</span>
-            <h2>5 canais de venda, <em>uma plataforma</em></h2>
-            <p>Não importa onde o teu cliente está — a venda acontece e os dados convergem num único lugar.</p>
+          <div className="bizy-section-head bizy-section-head-left">
+            <span>Um ecossistema, uma direcção</span>
+            <h2>Três produtos visíveis. <em>Uma operação ligada.</em></h2>
+            <p>O Bizy deixa de tratar loja, clientes, marketplace e formação como caminhos separados. Cada produto lidera uma responsabilidade clara e devolve dados accionáveis ao Team.</p>
           </div>
         </Reveal>
-        <div className="bizy-channels-grid">
-          {canaisVenda.map((c, i) => {
-            const Icone = c.icone;
+        <div className="bizy-platform-grid">
+          {sistemas.map((sistema, indice) => {
+            const Icone = sistema.icone;
             return (
-              <Reveal key={c.nome} className="bizy-channel-card" delay={i * 0.06}>
-                <span className="bizy-channel-icon"><Icone size={24} /></span>
-                <h3>{c.nome}</h3>
-                <p>{c.desc}</p>
+              <Reveal key={sistema.nome} className="bizy-platform-card" delay={indice * 0.06}>
+                <article data-system={sistema.tom} id={sistema.tom === "team" ? "team" : undefined}>
+                  <div className="bizy-platform-top"><span><Icone size={20} /></span><small>{sistema.tipo}</small></div>
+                  <p className="bizy-platform-name">{sistema.nome}</p>
+                  <h3>{sistema.resumo}</h3>
+                  <p>{sistema.descricao}</p>
+                  <ul>{sistema.itens.map((item) => <li key={item}><CheckCircle2 size={14} />{item}</li>)}</ul>
+                  <Link to={sistema.link}>{sistema.acao} <ArrowRight size={15} /></Link>
+                </article>
               </Reveal>
+            );
+          })}
+        </div>
+        <Reveal>
+          <aside className="bizy-anani-band" id="anani">
+            <div><span><Shield size={18} /></span><small>Núcleo interno</small><h3>Anani protege a operação sem criar um quarto caminho para o utilizador.</h3></div>
+            <p>Políticas, risco, auditoria, incidentes e revisão humana aparecem dentro de Team, Market e Learning como alertas, protecções e tarefas accionáveis.</p>
+          </aside>
+        </Reveal>
+      </section>
+
+      <section className="bizy-loop-section" aria-label="Ciclo comercial Bizy">
+        <div className="bizy-loop-intro"><span>O ciclo comercial completo</span><h2>Da descoberta ao controlo.</h2></div>
+        <div className="bizy-loop">
+          {cicloComercial.map((etapa, indice) => {
+            const Icone = etapa.icone;
+            return (
+              <div className="bizy-loop-step" key={etapa.nome}>
+                <span><Icone size={18} /></span>
+                <div><strong>{etapa.nome}</strong><small>{etapa.texto}</small></div>
+                {indice < cicloComercial.length - 1 && <ArrowRight size={16} aria-hidden="true" />}
+              </div>
             );
           })}
         </div>
       </section>
 
-      {/* ══════════ PROBLEMA → SOLUÇÃO ══════════ */}
-      <section className="bizy-home-section bizy-problem-section">
-        <Reveal>
-          <div className="bizy-section-head">
-            <span>O antes e depois</span>
-            <h2>Sem sistema, <em>perdes vendas</em></h2>
-          </div>
-        </Reveal>
-        <div className="bizy-problem-grid">
-          <Reveal className="bizy-problem-card" delay={0.1}>
-            <span className="bizy-problem-label">Sem Bizy</span>
-            <ul>
-              <li>Pedidos perdidos em comentários e mensagens</li>
-              <li>Copiar e colar dados entre WhatsApp e Excel</li>
-              <li>Sem saber quem pagou, quem deve, quem desistiu</li>
-              <li>Clientes espalhados sem histórico</li>
-              <li>Sem loja online, sem marketplace, sem visibilidade</li>
-              <li>Comissões de afiliados calculadas à mão</li>
-            </ul>
+      <section className="bizy-commerce-section" id="commerce">
+        <div className="bizy-commerce-inner">
+          <Reveal className="bizy-commerce-copy">
+            <span>Creator commerce</span>
+            <h2>Conteúdo que vira venda. Com atribuição que pode ser explicada.</h2>
+            <p>O Bizy liga sellers, creators e afiliados numa jornada completa: oportunidade, conteúdo, clique, produto, carrinho, pedido, comissão e payout.</p>
+            <div>
+              <Link className="bizy-btn bizy-btn-lime" to="/creator">Abrir portal Creator <ArrowRight size={16} /></Link>
+              <Link className="bizy-commerce-secondary" to="/login">Gerir no Team</Link>
+            </div>
           </Reveal>
-          <Reveal className="bizy-solution-card" delay={0.18}>
-            <span className="bizy-solution-label"><Sparkles size={14} />Com Bizy</span>
-            <ul>
-              <li>Cada comentário e mensagem vira pedido automático</li>
-              <li>Finanças com cobranças automáticas e risco por cliente</li>
-              <li>Inteligência preditiva: churn, RFM, previsão de caixa</li>
-              <li>Equipa com turnos, metas, bónus e passagem de turno</li>
-              <li>Loja digital + marketplace com milhares de compradores</li>
-              <li>Facturas e recibos PDF gerados automaticamente</li>
-            </ul>
-          </Reveal>
+          <div className="bizy-commerce-grid">
+            {creatorCommerce.map((item, indice) => {
+              const Icone = item.icone;
+              return (
+                <Reveal key={item.titulo} className="bizy-commerce-item" delay={indice * 0.04}>
+                  <span><Icone size={19} /></span><div><h3>{item.titulo}</h3><p>{item.texto}</p></div>
+                </Reveal>
+              );
+            })}
+          </div>
         </div>
       </section>
 
-      {/* ══════════ FUNCIONALIDADES PRINCIPAIS ══════════ */}
-      <section className="bizy-home-section" id="beneficios">
+      <section className="bizy-home-section bizy-operation-section" id="operacao">
         <Reveal>
-          <div className="bizy-section-head">
-            <span>Plataforma completa</span>
-            <h2>Tudo o que o {NOME_PRODUTO} faz <em>por ti</em></h2>
-            <p>Loja, marketplace, Team, finanças, inteligência preditiva, gestão de equipa, facturação, afiliados e muito mais — integrado de raiz.</p>
+          <div className="bizy-section-head bizy-section-head-left">
+            <span>Operação sem caminhos paralelos</span>
+            <h2>O trabalho diário organizado por <em>resultado.</em></h2>
+            <p>Em vez de acumular ferramentas isoladas, o Bizy liga cada acção à mesma fonte de verdade para cliente, produto, pedido, dinheiro e equipa.</p>
           </div>
         </Reveal>
-        <div className="bizy-feature-grid">
-          {beneficiosPrincipais.map((b, i) => {
-            const Icone = b.icone;
+        <div className="bizy-operation-list">
+          {areasOperacao.map((area, indice) => {
+            const Icone = area.icone;
             return (
-              <Reveal className="bizy-feature-card" data-tone={b.tom} key={b.titulo} delay={i * 0.05}>
-                <span className="bizy-feature-icon"><Icone size={22} /></span>
-                <h3>{b.titulo}</h3>
-                <p>{b.texto}</p>
+              <Reveal key={area.nome} className="bizy-operation-row" delay={indice * 0.04}>
+                <span className="bizy-operation-number">{area.numero}</span>
+                <span className="bizy-operation-icon"><Icone size={20} /></span>
+                <div><h3>{area.nome}</h3><p>{area.descricao}</p></div>
+                <div className="bizy-operation-tags">{area.itens.map((item) => <span key={item}>{item}</span>)}</div>
               </Reveal>
             );
           })}
         </div>
       </section>
 
-      {/* ══════════ MÓDULOS DETALHADOS ══════════ */}
-      <section className="bizy-home-section bizy-modules" id="modulos">
+      <section className="bizy-home-section bizy-trust-section">
         <Reveal>
-          <div className="bizy-section-head">
-            <span>Dentro da plataforma</span>
-            <h2>6 módulos, <em>dezenas</em> de funcionalidades</h2>
-            <p>Cada módulo resolve uma área completa do teu negócio. Activa só o que precisas.</p>
+          <div className="bizy-section-head bizy-section-head-left">
+            <span>Identidade, confiança e segurança</span>
+            <h2>Crescer sem perder o <em>controlo.</em></h2>
+            <p>As novas jornadas de comprador e creator foram construídas no backend, com sessão, ownership, tenant, auditoria e regras financeiras fora do navegador.</p>
           </div>
         </Reveal>
-        <div className="bizy-modules-grid">
-          {modulosPlataforma.map((m, i) => {
-            const Icone = m.icone;
+        <div className="bizy-trust-grid">
+          {pilaresConfianca.map((pilar, indice) => {
+            const Icone = pilar.icone;
             return (
-              <Reveal key={m.titulo} className="bizy-module-card" delay={i * 0.06}>
-                <div className="bizy-module-header">
-                  <span className="bizy-module-icon"><Icone size={20} /></span>
-                  <h3>{m.titulo}</h3>
-                </div>
-                <ul>
-                  {m.itens.map((item) => (
-                    <li key={item}><CheckCircle2 size={14} />{item}</li>
-                  ))}
-                </ul>
+              <Reveal key={pilar.titulo} className="bizy-trust-item" delay={indice * 0.05}>
+                <span><Icone size={20} /></span><h3>{pilar.titulo}</h3><p>{pilar.texto}</p>
               </Reveal>
             );
           })}
         </div>
       </section>
 
-      {/* ══════════ DIFERENCIAIS ══════════ */}
-      <section className="bizy-home-section">
-        <Reveal>
-          <div className="bizy-section-head">
-            <span>Porquê o Bizy</span>
-            <h2>O que nos torna <em>diferentes</em></h2>
-          </div>
-        </Reveal>
-        <div className="bizy-diff-grid">
-          {diferenciais.map((d, i) => {
-            const Icone = d.icone;
-            return (
-              <Reveal key={d.titulo} className="bizy-diff-card" delay={i * 0.05}>
-                <Icone size={20} />
-                <h3>{d.titulo}</h3>
-                <p>{d.texto}</p>
-              </Reveal>
-            );
-          })}
-        </div>
-      </section>
-
-      {/* ══════════ COMO FUNCIONA ══════════ */}
       <section className="bizy-home-section bizy-steps" id="como-funciona">
         <Reveal>
           <div className="bizy-section-head">
-            <span>Pronto em minutos</span>
-            <h2>Da conta criada ao negócio a funcionar</h2>
-            <p>Sem tutoriais longos, sem configurações técnicas. O assistente guia-te em cada passo.</p>
+            <span>Começar com clareza</span>
+            <h2>Uma conta. Quatro passos. <em>Operação real.</em></h2>
+            <p>O Bizy cresce com o negócio sem obrigar a criar identidades ou catálogos duplicados para cada produto.</p>
           </div>
         </Reveal>
-        <div className="bizy-step-grid">
-          <div className="bizy-step-line" aria-hidden="true" />
-          {passos.map((p, i) => {
-            const Icone = p.icone;
+        <div className="bizy-step-grid bizy-step-grid-2026">
+          {passos.map((passo, indice) => {
+            const Icone = passo.icone;
             return (
-              <Reveal key={p.numero} className="bizy-step-card" delay={i * 0.08}>
-                <div className="bizy-step-number">
-                  <span className="bizy-step-num-text">{p.numero}</span>
-                  <span className="bizy-step-icon"><Icone size={16} /></span>
-                </div>
-                <h3>{p.titulo}</h3>
-                <p>{p.texto}</p>
+              <Reveal key={passo.numero} className="bizy-step-card" delay={indice * 0.06}>
+                <div className="bizy-step-number"><span className="bizy-step-num-text">{passo.numero}</span><span className="bizy-step-icon"><Icone size={16} /></span></div>
+                <h3>{passo.titulo}</h3><p>{passo.texto}</p>
               </Reveal>
             );
           })}
         </div>
       </section>
 
-      {/* ══════════ TESTEMUNHOS ══════════ */}
-      <section className="bizy-home-section bizy-testimonials">
-        <Reveal>
-          <div className="bizy-section-head">
-            <span>Quem já usa</span>
-            <h2>Histórias de quem <em>vende com o Bizy</em></h2>
-          </div>
-        </Reveal>
-        <div className="bizy-testimonial-grid">
-          {testemunhos.map((t, i) => (
-            <Reveal className="bizy-testimonial-card" key={t.nome} delay={i * 0.06}>
-              <div className="bizy-quote-mark" aria-hidden="true">"</div>
-              <p>{t.texto}</p>
-              <footer>
-                <span className="bizy-testimonial-avatar" style={{ backgroundColor: t.cor }}>{t.iniciais}</span>
-                <div><strong>{t.nome}</strong><small>{t.papel}</small></div>
-              </footer>
-            </Reveal>
-          ))}
+      <Pricing />
+
+      <section className="bizy-home-band bizy-home-band-2026">
+        <div>
+          <span>Pronto para centralizar a operação?</span>
+          <h2>Começa pelo Team e activa o ecossistema quando fizer sentido.</h2>
+          <p>Produtos, vendas, atendimento, Market, Learning, creators, equipa e finanças ligados à mesma base operacional.</p>
+        </div>
+        <div className="bizy-final-actions">
+          <Link className="bizy-btn bizy-btn-lime bizy-btn-large" to="/login">Começar no Bizy <ArrowRight size={17} /></Link>
+          <a href={ROTAS_LOJAS.market}>Visitar o Market</a>
         </div>
       </section>
 
-      {/* ══════════ PREÇOS ══════════ */}
-      <Pricing />
-
-      {/* ══════════ ESTUDANTES ══════════ */}
-      <Reveal>
-        <section className="bizy-student-band">
-          <div>
-            <span><GraduationCap size={15} />Entrada académica incluída</span>
-            <h2>Estudantes da UOR e ISPTEC entram com a identidade da universidade.</h2>
-            <p>Começa com telefone, Gmail ou login académico. Os dados pessoais ficam sempre separados da operação comercial.</p>
-          </div>
-          <div>
-            {["Telefone", "Gmail", "UOR/ISPTEC"].map((item) => (
-              <span key={item}><CheckCircle2 size={16} />{item}</span>
-            ))}
-          </div>
-        </section>
-      </Reveal>
-
-      {/* ══════════ CTA FINAL ══════════ */}
-      <Reveal>
-        <section className="bizy-home-band">
-          <div>
-            <h2>O teu negócio merece mais do que um caderno e o WhatsApp.</h2>
-            <p>Loja, marketplace, Team, pagamentos, relatórios e muito mais — tudo pronto para começares hoje. Grátis.</p>
-          </div>
-          <Link className="bizy-btn bizy-btn-lime bizy-btn-large" to="/login">
-            Começar grátis agora <ArrowRight size={17} />
-          </Link>
-        </section>
-      </Reveal>
-
-      {/* ══════════ FAQ ══════════ */}
       <section className="bizy-home-section bizy-faq" id="faq">
         <Reveal>
           <div className="bizy-section-head">
-            <span>Dúvidas rápidas</span>
+            <span>Respostas directas</span>
             <h2>Perguntas frequentes sobre o {NOME_PRODUTO}</h2>
-            <p>Se a tua dúvida não está aqui, fala connosco pelo WhatsApp.</p>
+            <p>O que cada produto faz, como a conta funciona e onde entram creators, compradores e segurança.</p>
           </div>
         </Reveal>
         <div className="bizy-faq-grid">
-          {perguntasFrequentes.map(([p, r], i) => (
-            <Reveal key={p} delay={i * 0.04}>
-              <FaqItem pergunta={p} resposta={r} />
-            </Reveal>
+          {perguntasFrequentes.map(([pergunta, resposta], indice) => (
+            <Reveal key={pergunta} delay={indice * 0.03}><FaqItem pergunta={pergunta} resposta={resposta} /></Reveal>
           ))}
         </div>
       </section>
 
-      {/* ══════════ FOOTER ══════════ */}
       <footer className="bizy-home-footer">
         <div className="bizy-footer-main">
           <div className="bizy-footer-brand">
             <LogoBizy />
-            <p>A plataforma completa de comércio para empreendedores angolanos — loja, marketplace, Team, finanças, inteligência e equipa.</p>
-            <Link className="bizy-btn bizy-btn-primary" to="/login">Começar agora <ArrowRight size={16} /></Link>
+            <p>O sistema operacional comercial que liga Team, Market, Learning e creator commerce para negócios em Angola.</p>
+            <Link className="bizy-btn bizy-btn-primary" to="/login">Entrar no Bizy <ArrowRight size={16} /></Link>
           </div>
-          <nav aria-label="Plataforma">
-            <strong>Plataforma</strong>
-            <a href="#plataforma">Canais de venda</a>
-            <a href="#beneficios">Funcionalidades</a>
-            <a href="#modulos">Módulos</a>
+          <nav aria-label="Produtos">
+            <strong>Produtos</strong>
+            <Link to="/login">Bizy Team</Link>
+            <a href={ROTAS_LOJAS.market}>Bizy Market</a>
+            <Link to="/learning">Bizy Learning</Link>
+            <Link to="/creator">Portal Creator</Link>
+          </nav>
+          <nav aria-label="Capacidades">
+            <strong>Capacidades</strong>
+            <a href="#commerce">Creator commerce</a>
+            <a href="#operacao">Operação</a>
             <a href="#como-funciona">Como funciona</a>
             <a href="#pricing">Preços</a>
-          </nav>
-          <nav aria-label="Produto">
-            <strong>Produto</strong>
-            <span>Loja digital</span>
-            <span>Bizy Market</span>
-            <span>Team e clientes</span>
-            <span>Finanças e facturação</span>
-            <span>Inteligência preditiva</span>
-            <span>Gestão de equipa</span>
           </nav>
           <div className="bizy-footer-contact">
             <strong>Contacto</strong>
             <span>Luanda, Angola</span>
             <a href="mailto:suporte@bizy.ao">suporte@bizy.ao</a>
-            <span>Loja, marketplace, Team, finanças, inteligência — tudo num lugar.</span>
+            <span>Operação em Kwanza, telefone angolano e fluxos comerciais locais.</span>
           </div>
         </div>
         <div className="bizy-footer-bottom">
-          <span>© 2026 Bizy · Luanda, Angola</span>
+          <span>© {new Date().getFullYear()} Bizy. Todos os direitos reservados.</span>
           <div><a href="#privacidade">Privacidade</a><a href="#termos">Termos</a></div>
         </div>
       </footer>

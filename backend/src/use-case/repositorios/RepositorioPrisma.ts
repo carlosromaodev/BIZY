@@ -197,8 +197,8 @@ export class RepositorioPecasPrisma implements RepositorioPecas {
   constructor(private readonly prisma: PrismaClient) {}
 
   async criar(dados: NovaPeca): Promise<Peca> {
-    const peca = await this.prisma.peca.create({
-      data: {
+    const peca = await this.prisma.$transaction(async (tx) => {
+      const criada = await tx.peca.create({ data: {
         codigo: dados.codigo,
         negocioId: dados.negocioId ?? null,
         sku: dados.sku ?? null,
@@ -215,7 +215,9 @@ export class RepositorioPecasPrisma implements RepositorioPecas {
         variantesJson: JSON.stringify(dados.variantes ?? {}),
         vitrineJson: JSON.stringify(dados.vitrine ?? this.vitrinePadrao()),
         estado: dados.estado ?? (dados.quantidade > 0 ? "DISPONIVEL" : "ESGOTADA")
-      }
+      } });
+      await this.sincronizarOfertaSeller(tx, criada);
+      return criada;
     });
 
     const mapeada = this.mapearPeca(peca);
@@ -229,6 +231,67 @@ export class RepositorioPecasPrisma implements RepositorioPecas {
       orderBy: { codigo: "asc" }
     });
     return pecas.map((peca) => this.mapearPeca(peca));
+  }
+
+  async buscarProdutosMarket(consulta: Parameters<NonNullable<RepositorioPecas["buscarProdutosMarket"]>>[0]) {
+    if (!consulta.negocioIds.length) return { pecas: [], total: 0, categorias: [] };
+    const busca = consulta.busca?.trim();
+    const where: Prisma.PecaWhereInput = {
+      negocioId: { in: consulta.negocioIds },
+      arquivadaEm: null,
+      quantidade: { gt: 0 },
+      precoEmKwanza: {
+        gt: 0,
+        ...(consulta.precoMinimo != null ? { gte: consulta.precoMinimo } : {}),
+        ...(consulta.precoMaximo != null ? { lte: consulta.precoMaximo } : {})
+      },
+      estado: { notIn: ["ESGOTADA", "VENDIDA"] },
+      categoria: consulta.categoria?.trim()
+        ? { contains: consulta.categoria.trim(), mode: "insensitive" }
+        : { not: null },
+      fotosJson: { not: "[]" },
+      AND: [
+        { vitrineJson: { not: { contains: '"publicado":false' } } },
+        { vitrineJson: { not: { contains: '"visibilidade":"loja"' } } },
+        { vitrineJson: { not: { contains: '"visibilidade":"campanhas"' } } },
+        ...(consulta.apenasPromocao ? [{ vitrineJson: { contains: '"precoPromocionalEmKwanza":' } }, { vitrineJson: { not: { contains: '"precoPromocionalEmKwanza":null' } } }] : [])
+      ],
+      ...(busca ? {
+        OR: [
+          { codigo: { contains: busca, mode: "insensitive" } },
+          { sku: { contains: busca, mode: "insensitive" } },
+          { nome: { contains: busca, mode: "insensitive" } },
+          { descricao: { contains: busca, mode: "insensitive" } },
+          { categoria: { contains: busca, mode: "insensitive" } },
+          { colecao: { contains: busca, mode: "insensitive" } },
+          ...((consulta.negocioIdsCorrespondentesBusca?.length ?? 0) > 0
+            ? [{ negocioId: { in: consulta.negocioIdsCorrespondentesBusca } }]
+            : [])
+        ]
+      } : {})
+    };
+    const orderBy: Prisma.PecaOrderByWithRelationInput[] = consulta.ordenarPor === "PRECO_ASC"
+      ? [{ precoEmKwanza: "asc" }, { atualizadoEm: "desc" }]
+      : consulta.ordenarPor === "PRECO_DESC"
+        ? [{ precoEmKwanza: "desc" }, { atualizadoEm: "desc" }]
+        : [{ atualizadoEm: "desc" }, { nome: "asc" }];
+    const [registos, total, categorias] = await Promise.all([
+      this.prisma.peca.findMany({ where, orderBy, take: consulta.limite, skip: consulta.offset }),
+      this.prisma.peca.count({ where }),
+      this.prisma.peca.groupBy({ by: ["categoria"], where, _count: { categoria: true }, orderBy: { categoria: "asc" } })
+    ]);
+    return {
+      pecas: registos.map((peca) => this.mapearPeca(peca)),
+      total,
+      categorias: categorias
+        .filter((item): item is typeof item & { categoria: string } => Boolean(item.categoria?.trim()))
+        .map((item) => ({ categoria: item.categoria, total: item._count.categoria }))
+    };
+  }
+
+  async buscarPorId(id: string): Promise<Peca | null> {
+    const peca = await this.prisma.peca.findUnique({ where: { id } });
+    return peca ? this.mapearPeca(peca) : null;
   }
 
   async buscarPorCodigo(codigo: string, negocioId?: string | null): Promise<Peca | null> {
@@ -248,9 +311,8 @@ export class RepositorioPecasPrisma implements RepositorioPecas {
       throw new Error(`Peça #${codigo} não encontrada.`);
     }
 
-    const peca = await this.prisma.peca.update({
-      where: { id: atual.id },
-      data: {
+    const peca = await this.prisma.$transaction(async (tx) => {
+      const atualizada = await tx.peca.update({ where: { id: atual.id }, data: {
         sku: dados.sku,
         nome: dados.nome,
         descricao: dados.descricao,
@@ -266,7 +328,9 @@ export class RepositorioPecasPrisma implements RepositorioPecas {
         fotosJson: dados.fotos ? JSON.stringify(dados.fotos) : undefined,
         variantesJson: dados.variantes ? JSON.stringify(dados.variantes) : undefined,
         vitrineJson: dados.vitrine ? JSON.stringify(dados.vitrine) : undefined
-      }
+      } });
+      await this.sincronizarOfertaSeller(tx, atualizada);
+      return atualizada;
     });
 
     const mapeada = this.mapearPeca(peca);
@@ -337,6 +401,10 @@ export class RepositorioPecasPrisma implements RepositorioPecas {
       await tx.peca.update({
         where: { id: pecaId },
         data: { quantidade: quantidadeTotal, estado: quantidadeTotal > 0 ? "DISPONIVEL" : "ESGOTADA" }
+      });
+      await tx.ofertaSeller.updateMany({
+        where: { pecaLegadaId: pecaId },
+        data: { stock: quantidadeTotal, estado: quantidadeTotal > 0 ? "ACTIVA" : "INACTIVA" }
       });
       return { quantidade: atualizada.quantidade, quantidadeTotal };
     });
@@ -424,6 +492,10 @@ export class RepositorioPecasPrisma implements RepositorioPecas {
           where: { id: pecaId },
           data: { quantidade, estado: quantidade > 0 ? "DISPONIVEL" : "ESGOTADA" }
         });
+        await tx.ofertaSeller.updateMany({
+          where: { pecaLegadaId: pecaId },
+          data: { stock: quantidade, estado: quantidade > 0 ? "ACTIVA" : "INACTIVA" }
+        });
       }
     });
     return this.listarVariantesPeca(pecaId);
@@ -448,6 +520,58 @@ export class RepositorioPecasPrisma implements RepositorioPecas {
         estado: "ATIVA" as const
       };
     }));
+  }
+
+  private async sincronizarOfertaSeller(
+    tx: Prisma.TransactionClient,
+    peca: {
+      id: string; negocioId: string | null; nome: string; categoria: string | null; fotosJson: string;
+      sku: string | null; precoEmKwanza: number; quantidade: number; estado: string; arquivadaEm: Date | null;
+    }
+  ): Promise<void> {
+    if (!peca.negocioId) return;
+    const produtoCatalogoId = `catalogo-${peca.id}`;
+    const categoriaSlug = peca.categoria
+      ?.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") || null;
+    const activo = !peca.arquivadaEm && peca.estado !== "ESGOTADA" && peca.estado !== "VENDIDA";
+    await tx.produtoCatalogo.upsert({
+      where: { id: produtoCatalogoId },
+      create: {
+        id: produtoCatalogoId,
+        tituloCanonico: peca.nome,
+        categoriaSlug,
+        mediaJson: peca.fotosJson,
+        estado: peca.arquivadaEm ? "ARQUIVADO" : "ACTIVO"
+      },
+      update: {
+        tituloCanonico: peca.nome,
+        categoriaSlug,
+        mediaJson: peca.fotosJson,
+        estado: peca.arquivadaEm ? "ARQUIVADO" : "ACTIVO"
+      }
+    });
+    await tx.ofertaSeller.upsert({
+      where: { pecaLegadaId: peca.id },
+      create: {
+        id: peca.id,
+        produtoCatalogoId,
+        negocioId: peca.negocioId,
+        pecaLegadaId: peca.id,
+        sku: peca.sku,
+        precoEmKwanza: peca.precoEmKwanza,
+        stock: peca.quantidade,
+        estado: activo ? "ACTIVA" : "INACTIVA"
+      },
+      update: {
+        produtoCatalogoId,
+        negocioId: peca.negocioId,
+        sku: peca.sku,
+        precoEmKwanza: peca.precoEmKwanza,
+        stock: peca.quantidade,
+        estado: activo ? "ACTIVA" : "INACTIVA"
+      }
+    });
   }
 
   private mapearVariantePeca(variante: {

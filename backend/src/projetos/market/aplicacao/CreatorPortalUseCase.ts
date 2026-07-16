@@ -1,17 +1,21 @@
 import { randomBytes } from "node:crypto";
 import type {
   RepositorioAfiliados,
+  RepositorioPecas,
   RepositorioTrackingComercial
 } from "../../../dominio/repositorios/contratos.js";
 import type { ContaBizy } from "../../commerce/dominio/tipos.js";
 import type { RepositorioContaBizy } from "../../commerce/dominio/contratos.js";
 import type { LedgerComissoesUseCase } from "./LedgerComissoesUseCase.js";
+import type { RepositorioCreatorMarketplace } from "../dominio/creatorMarketplace.js";
 
 interface DependenciasCreatorPortal {
   contas: RepositorioContaBizy;
   afiliados: RepositorioAfiliados;
   tracking: RepositorioTrackingComercial;
   ledger: LedgerComissoesUseCase;
+  marketplace: RepositorioCreatorMarketplace;
+  pecas: RepositorioPecas;
 }
 
 const TIPOS_DESTINO = new Set(["LOJA", "PRODUTO", "CAMPANHA", "CONTEUDO", "CARRINHO", "MINI_LOJA", "LEARNING"]);
@@ -113,6 +117,10 @@ export class CreatorPortalUseCase {
     const parceiros = await this.parceirosDaConta(conta);
     const parceiro = parceiros.find((item) => item.id === dados.parceiroId && item.estado === "ATIVO");
     if (!parceiro || !TIPOS_DESTINO.has(dados.destinoTipo)) throw new Error("RECURSO_NAO_ENCONTRADO");
+    if (dados.destinoTipo === "PRODUTO") {
+      const peca = dados.codigoProduto ? await this.deps.pecas.buscarPorCodigo(dados.codigoProduto, parceiro.negocioId) : null;
+      if (!peca || !await this.deps.marketplace.produtoAutorizado(parceiro.id, peca.id)) throw new Error("PRODUTO_NAO_AUTORIZADO");
+    }
     const codigo = `CR-${randomBytes(7).toString("base64url").toUpperCase()}`;
     return this.deps.afiliados.criarLink({
       negocioId: parceiro.negocioId,

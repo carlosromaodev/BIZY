@@ -1,14 +1,14 @@
 import {
-  BadgeDollarSign, BarChart3, BookOpen, Boxes, BriefcaseBusiness, CheckCircle2, ChevronRight,
+  BadgeDollarSign, BarChart3, BookOpen, Boxes, BriefcaseBusiness, CheckCircle2, ChevronRight, ClipboardCheck,
   CircleDollarSign, ExternalLink, FileVideo, Link2, LogOut, PackageSearch, Radio, Settings,
-  ShoppingCart, Sparkles, Target, WalletCards
+  ShoppingCart, Sparkles, Target, UserRound, UsersRound, WalletCards
 } from "lucide-react";
 import { type FormEvent, useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { confirmarOtpContaBizy, encerrarSessaoContaBizy, solicitarOtpContaBizy } from "../api/contaBizy";
+import { confirmarOtpContaBizy, encerrarSessaoContaBizy, obterEstadoContaBizy, solicitarOtpContaBizy } from "../api/contaBizy";
 import { criarSmartLinkCreator, obterCreatorPortal, type CreatorPortalDados } from "../api/creatorPortal";
 import { criarConteudoCreator, listarConteudosCreator, type ConteudoCommerceDados } from "../api/conteudoCompravel";
-import { aceitarMissaoCreator, candidatarOfertaCreator, obterCreatorMarketplace, solicitarAmostraCreator, type CreatorMarketplaceDados } from "../api/creatorMarketplace";
+import { aceitarMissaoCreator, candidatarOfertaCreator, obterCreatorMarketplace, salvarPerfilCreator, solicitarAmostraCreator, type CreatorMarketplaceDados, type DadosPerfilCreator } from "../api/creatorMarketplace";
 import { criarCarrinhoCreator, listarCarrinhosCreator, type CarrinhoPartilhavelCreator } from "../api/carrinhosPartilhaveis";
 import { MarcaMarket, MarketPublicPage } from "../componentes/MarketChrome";
 
@@ -16,6 +16,8 @@ const NAVEGACAO = [
   ["/creator", "Visão geral", BarChart3],
   ["/creator/oportunidades", "Oportunidades", BriefcaseBusiness],
   ["/creator/produtos", "Produtos", PackageSearch],
+  ["/creator/solicitacoes", "Solicitações", ClipboardCheck],
+  ["/creator/parcerias", "Parcerias", UsersRound],
   ["/creator/campanhas", "Campanhas", Target],
   ["/creator/conteudos", "Conteúdos", FileVideo],
   ["/creator/links", "Smart Links", Link2],
@@ -24,6 +26,7 @@ const NAVEGACAO = [
   ["/creator/comissoes", "Comissões", CircleDollarSign],
   ["/creator/pagamentos", "Pagamentos", WalletCards],
   ["/creator/desempenho", "Desempenho", BarChart3],
+  ["/creator/perfil", "Perfil", UserRound],
   ["/creator/configuracoes", "Configurações", Settings]
 ] as const;
 
@@ -44,6 +47,11 @@ export function PaginaCreatorPortal() {
   async function carregar() {
     setCarregando(true);
     try {
+      const estado = await obterEstadoContaBizy();
+      if (!estado.autenticada) {
+        setDados(null);
+        return;
+      }
       setDados(await obterCreatorPortal());
       setErro("");
     } catch {
@@ -96,6 +104,10 @@ export function PaginaCreatorPortal() {
         </section>
       </MarketPublicPage>
     );
+  }
+
+  if (location.pathname === "/creator/onboarding") {
+    return <OnboardingCreator nomeInicial={dados.conta.nome || ""} concluido={() => navigate("/creator", { replace: true })} />;
   }
 
   return (
@@ -172,20 +184,32 @@ function MarketplaceCreator({ rota }: { rota: string }) {
   useEffect(() => { void carregar(); }, []);
   if (erro) return <section className="creator-panel"><p role="alert">{erro}</p></section>;
   if (!dados) return <section className="creator-panel"><p className="creator-empty">A carregar oportunidades...</p></section>;
-  const parceiroId = dados.parceiros[0]?.id;
+  if (!dados.perfilCreator) return <section className="creator-panel creator-domain-state"><UsersRound size={28} /><h2>Cria o teu perfil Creator</h2><p>O perfil pessoal é necessário antes de pedir afiliação a uma loja.</p><Link to="/creator/onboarding">Começar perfil<ChevronRight size={16} /></Link></section>;
+  if (rota === "/creator/solicitacoes") return <section className="creator-panel"><div className="creator-panel-head"><div><span>Afiliação</span><h2>Solicitações</h2></div><ClipboardCheck size={20} /></div>{dados.solicitacoes.map((item) => <div className="creator-row" key={item.id}><div><strong>{dados.ofertas.find((oferta) => oferta.id === item.ofertaId)?.titulo || "Programa de afiliação"}</strong><span>{new Date(item.criadoEm).toLocaleDateString("pt-AO")}{item.motivoDecisao ? ` · ${item.motivoDecisao}` : ""}</span></div><span className="creator-status">{item.estado}</span></div>)}{!dados.solicitacoes.length && <p className="creator-empty">Ainda não enviaste solicitações.</p>}</section>;
+  if (rota === "/creator/parcerias") return <section className="creator-panel"><div className="creator-panel-head"><div><span>Relações activas</span><h2>Parcerias</h2></div><UsersRound size={20} /></div>{dados.relacoes.map((item) => <div className="creator-row" key={item.id}><div><strong>{dados.ofertas.find((oferta) => oferta.negocioId === item.negocioId)?.loja.nome || "Loja Bizy"}</strong><span>Desde {new Date(item.iniciadaEm).toLocaleDateString("pt-AO")}</span></div><span className="creator-status">{item.estado}</span></div>)}{!dados.relacoes.length && <p className="creator-empty">As parcerias aparecem após aprovação ou acesso aberto.</p>}</section>;
   if (rota === "/creator/produtos") {
     const produtos = dados.ofertas.flatMap((oferta) => oferta.produtos.map((produto) => ({ ...produto, oferta })));
     return <section className="creator-market-grid">{produtos.map(({ oferta, ...produto }) => <article className="creator-market-product" key={`${oferta.id}-${produto.id}`}>{produto.fotoUrl ? <img src={produto.fotoUrl} alt={produto.nome} /> : <div><Boxes size={28} /></div>}<span>{oferta.loja.nome}</span><h2>{produto.nome}</h2><strong>{formatarKwanza(produto.precoEmKwanza)}</strong><small>{oferta.comissaoTipo === "PERCENTUAL" ? `${oferta.comissaoValor / 100}% de comissão` : `${formatarKwanza(oferta.comissaoValor)} por venda`}</small></article>)}</section>;
   }
   if (rota === "/creator/missoes") {
-    const candidaturasAprovadas = new Set(dados.candidaturas.filter((item) => item.estado === "APROVADA").map((item) => item.ofertaId));
+    const candidaturasAprovadas = new Set([...dados.candidaturas.filter((item) => item.estado === "APROVADA").map((item) => item.ofertaId), ...dados.solicitacoes.filter((item) => item.estado === "APROVADA" && item.ofertaId).map((item) => item.ofertaId as string)]);
     const missoes = dados.ofertas.filter((oferta) => candidaturasAprovadas.has(oferta.id)).flatMap((oferta) => oferta.missoes.map((missao) => ({ ...missao, oferta })));
     return <section className="creator-panel"><div className="creator-panel-head"><div><span>Execução</span><h2>Missões activas</h2></div><CheckCircle2 size={20} /></div>{missoes.map(({ oferta, ...missao }) => { const aceite = dados.participacoes.some((item) => item.missaoId === missao.id); return <div className="creator-market-mission" key={missao.id}><div><strong>{missao.titulo}</strong><span>{oferta.titulo} · Bónus {formatarKwanza(missao.bonusEmKwanza)}</span><p>{missao.descricao}</p></div><button type="button" disabled={aceite} onClick={async () => { await aceitarMissaoCreator(missao.id); await carregar(); }}>{aceite ? "Aceite" : "Aceitar missão"}</button></div>; })}{!missoes.length && <p className="creator-empty">As missões aparecem depois de uma candidatura aprovada.</p>}</section>;
   }
   return <section className="creator-market-opportunities">{dados.ofertas.map((oferta) => {
-    const candidatura = dados.candidaturas.find((item) => item.ofertaId === oferta.id); const amostra = candidatura ? dados.amostras.find((item) => item.candidaturaId === candidatura.id) : null;
-    return <article className="creator-opportunity" key={oferta.id}><header><div><span>{oferta.loja.nome}</span><h2>{oferta.titulo}</h2></div><strong>{oferta.comissaoTipo === "PERCENTUAL" ? `${oferta.comissaoValor / 100}%` : formatarKwanza(oferta.comissaoValor)}</strong></header><p>{oferta.descricao}</p><div className="creator-opportunity-facts"><span>{oferta.produtos.length} produto(s)</span><span>{oferta.missoes.length} missão(ões)</span><span>{oferta.stockAmostras} amostra(s)</span></div><footer>{candidatura ? <span className="creator-status">{candidatura.estado}</span> : <button type="button" disabled={!parceiroId} onClick={async () => { if (!parceiroId) return; await candidatarOfertaCreator(oferta.id, parceiroId); await carregar(); }}>Candidatar-me</button>}{candidatura?.estado === "APROVADA" && oferta.stockAmostras > 0 && <button type="button" disabled={Boolean(amostra)} onClick={async () => { await solicitarAmostraCreator(candidatura.id); await carregar(); }}>{amostra ? `Amostra ${amostra.estado.toLowerCase()}` : "Pedir amostra"}</button>}</footer></article>;
+    const candidatura = dados.candidaturas.find((item) => item.ofertaId === oferta.id); const solicitacao = dados.solicitacoes.find((item) => item.ofertaId === oferta.id); const estado = solicitacao?.estado ?? candidatura?.estado; const amostra = candidatura ? dados.amostras.find((item) => item.candidaturaId === candidatura.id) : null;
+    return <article className="creator-opportunity" key={oferta.id}><header><div><span>{oferta.loja.nome}</span><h2>{oferta.titulo}</h2></div><strong>{oferta.comissaoTipo === "PERCENTUAL" ? `${oferta.comissaoValor / 100}%` : formatarKwanza(oferta.comissaoValor)}</strong></header><p>{oferta.descricao}</p><div className="creator-opportunity-facts"><span>{oferta.produtos.length} produto(s)</span><span>{oferta.missoes.length} missão(ões)</span><span>{oferta.stockAmostras} amostra(s)</span></div><footer>{estado ? <span className="creator-status">{estado}</span> : <button type="button" onClick={async () => { await candidatarOfertaCreator(oferta.id); await carregar(); }}>Solicitar afiliação</button>}{candidatura?.estado === "APROVADA" && oferta.stockAmostras > 0 && <button type="button" disabled={Boolean(amostra)} onClick={async () => { await solicitarAmostraCreator(candidatura.id); await carregar(); }}>{amostra ? `Amostra ${amostra.estado.toLowerCase()}` : "Pedir amostra"}</button>}</footer></article>;
   })}{!dados.ofertas.length && <section className="creator-panel"><p className="creator-empty">Nenhuma oportunidade publicada neste momento.</p></section>}</section>;
+}
+
+function OnboardingCreator({ nomeInicial, concluido }: { nomeInicial: string; concluido: () => void }) {
+  const [etapa, setEtapa] = useState(1); const [erro, setErro] = useState(""); const [guardando, setGuardando] = useState(false);
+  const [dados, setDados] = useState<DadosPerfilCreator>({ nomePublico: nomeInicial, bio: "", localizacao: "", categorias: [], canais: [], redesSociais: {}, aceitarTermos: true });
+  const categorias = ["Moda", "Beleza", "Tecnologia", "Casa", "Alimentação", "Livros", "Educação", "Serviços"];
+  const canais: DadosPerfilCreator["canais"] = ["WHATSAPP", "INSTAGRAM", "TIKTOK", "FACEBOOK", "YOUTUBE", "SITE", "COMUNIDADE", "VENDA_PRESENCIAL"];
+  function alternar<T extends string>(lista: T[], valor: T) { return lista.includes(valor) ? lista.filter((item) => item !== valor) : [...lista, valor]; }
+  async function concluir() { setErro(""); if (dados.nomePublico.trim().length < 2 || !dados.categorias.length || !dados.canais.length) { setErro("Preenche o nome, pelo menos uma categoria e um canal."); return; } setGuardando(true); try { await salvarPerfilCreator(dados); concluido(); } catch (falha) { setErro(falha instanceof Error ? falha.message : "Não foi possível criar o perfil."); } finally { setGuardando(false); } }
+  return <MarketPublicPage className="creator-public creator-onboarding"><header className="creator-auth-header"><Link to="/market"><MarcaMarket /></Link><span>Creator</span></header><main className="creator-onboarding-shell"><header><span>Etapa {etapa} de 4</span><h1>Cria o teu perfil Creator</h1><p>Uma identidade pública global, separada das parcerias com cada loja.</p></header><div className="creator-onboarding-progress"><i style={{ width: `${etapa * 25}%` }} /></div>{etapa === 1 && <section><label>Nome público<input value={dados.nomePublico} onChange={(e) => setDados({ ...dados, nomePublico: e.target.value })} /></label><label>Bio<textarea value={dados.bio || ""} onChange={(e) => setDados({ ...dados, bio: e.target.value })} /></label><label>Localização geral<input value={dados.localizacao || ""} onChange={(e) => setDados({ ...dados, localizacao: e.target.value })} placeholder="Luanda, Angola" /></label></section>}{etapa === 2 && <section><h2>Canais de divulgação</h2><div className="creator-choice-grid">{canais.map((canal) => <button type="button" key={canal} className={dados.canais.includes(canal) ? "is-selected" : ""} onClick={() => setDados({ ...dados, canais: alternar(dados.canais, canal) })}>{canal.replace(/_/g, " ")}</button>)}</div></section>}{etapa === 3 && <section><h2>Categorias</h2><div className="creator-choice-grid">{categorias.map((categoria) => <button type="button" key={categoria} className={dados.categorias.includes(categoria) ? "is-selected" : ""} onClick={() => setDados({ ...dados, categorias: alternar(dados.categorias, categoria) })}>{categoria}</button>)}</div></section>}{etapa === 4 && <section className="creator-terms"><h2>Regras do programa</h2><p>Ao continuar, aceitas os termos Creator, a política de afiliação, as regras de conteúdo, a divulgação de comissão e a política anti-fraude.</p><label><input type="checkbox" checked={dados.aceitarTermos} onChange={(e) => setDados({ ...dados, aceitarTermos: e.target.checked as true })} /> Confirmo que sou elegível e aceito as regras.</label></section>}{erro && <p role="alert" className="creator-onboarding-error">{erro}</p>}<footer><button type="button" onClick={() => setEtapa((valor) => Math.max(1, valor - 1))} disabled={etapa === 1}>Voltar</button>{etapa < 4 ? <button type="button" onClick={() => setEtapa((valor) => Math.min(4, valor + 1))}>Continuar</button> : <button type="button" onClick={() => void concluir()} disabled={guardando || !dados.aceitarTermos}>{guardando ? "A criar..." : "Criar perfil"}</button>}</footer></main></MarketPublicPage>;
 }
 
 function EstadoDominio({ rota }: { rota: string }) {

@@ -1763,6 +1763,7 @@ export const QueryMarketProdutosSchema = z.object({
   precoMaximo: z.coerce.number().min(0).optional(),
   apenasDisponivel: BooleanQueryOpcionalSchema,
   apenasPromocao: BooleanQueryOpcionalSchema,
+  ordenarPor: z.enum(["RELEVANCIA", "PRECO_ASC", "PRECO_DESC", "MAIS_VENDIDOS", "NOVIDADES", "ENTREGA_RAPIDA", "MAIOR_DESCONTO"]).optional(),
   limite: LimiteQuerySchema,
   offset: OffsetQuerySchema
 });

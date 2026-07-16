@@ -186,7 +186,7 @@ describe("Checkout Unificado multi-loja", () => {
       expect(configuracao.json().produto.quantidade).toBe(3);
       await publicarLoja(app, loja, "fornecedor-variantes");
 
-      const publico = await app.inject({ method: "GET", url: "/publico/market/produtos/PROD-VAR-1" });
+      const publico = await app.inject({ method: "GET", url: `/publico/market/p/${produto.json().id}` });
       expect(publico.statusCode).toBe(200);
       expect(publico.json().produto.combinacoesVariantes).toEqual(expect.arrayContaining([
         expect.objectContaining({ opcoes: { cor: "Preto", tamanho: "40" }, precoEmKwanza: 12_000, quantidade: 1, estado: "ATIVA" }),

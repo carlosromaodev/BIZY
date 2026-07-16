@@ -21,6 +21,17 @@ const ConteudoSchema = z.object({
   produtos: z.array(z.object({ slugLoja: z.string().trim().min(1).max(160), codigoProduto: z.string().trim().min(1).max(160), variantePecaId: z.string().uuid().nullable().optional() })).min(1).max(50)
 });
 
+const PerfilCreatorSchema = z.object({
+  nomePublico: z.string().trim().min(2).max(120),
+  bio: z.string().trim().max(1200).nullable().optional(),
+  avatarUrl: z.string().url().max(500).nullable().optional(),
+  localizacao: z.string().trim().max(160).nullable().optional(),
+  categorias: z.array(z.string().trim().min(2).max(80)).min(1).max(20),
+  canais: z.array(z.enum(["WHATSAPP", "INSTAGRAM", "TIKTOK", "FACEBOOK", "YOUTUBE", "SITE", "COMUNIDADE", "VENDA_PRESENCIAL"])).min(1).max(8),
+  redesSociais: z.record(z.string().trim().max(300)).optional(),
+  aceitarTermos: z.literal(true)
+});
+
 const OfertaCreatorSchema = z.object({
   codigo: z.string().trim().min(2).max(80), titulo: z.string().trim().min(3).max(180), descricao: z.string().trim().min(10).max(4000),
   comissaoTipo: z.enum(["PERCENTUAL", "FIXA"]), comissaoValor: z.number().int().positive(),
@@ -47,6 +58,24 @@ export const moduloCreatorPortal: ModuloHttp = {
       const acesso = await exigirContaAutenticada(contexto, request, reply);
       if (!acesso) return;
       return contexto.creatorPortal.obterPortal(acesso.conta);
+    });
+
+    app.get("/creator/perfil", async (request, reply) => {
+      const acesso = await exigirContaAutenticada(contexto, request, reply); if (!acesso) return;
+      const perfil = await contexto.creatorMarketplace.obterPerfil(acesso.conta);
+      return perfil ? { perfil } : reply.code(404).send({ erro: "PERFIL_CREATOR_NAO_EXISTE" });
+    });
+
+    app.post("/creator/perfil", async (request, reply) => {
+      const acesso = await exigirContaAutenticada(contexto, request, reply); if (!acesso) return;
+      try { return reply.code(201).send({ perfil: await contexto.creatorMarketplace.salvarPerfil(acesso.conta, PerfilCreatorSchema.parse(request.body ?? {})) }); }
+      catch (erro) { return reply.code(400).send({ erro: erro instanceof Error ? erro.message : "PERFIL_CREATOR_INVALIDO" }); }
+    });
+
+    app.patch("/creator/perfil", async (request, reply) => {
+      const acesso = await exigirContaAutenticada(contexto, request, reply); if (!acesso) return;
+      try { return { perfil: await contexto.creatorMarketplace.salvarPerfil(acesso.conta, PerfilCreatorSchema.parse(request.body ?? {})) }; }
+      catch (erro) { return reply.code(400).send({ erro: erro instanceof Error ? erro.message : "PERFIL_CREATOR_INVALIDO" }); }
     });
 
     app.get("/creator/team/ledger", async (request, reply) => {
@@ -108,8 +137,9 @@ export const moduloCreatorPortal: ModuloHttp = {
       if (!acesso) return;
       try {
         return reply.code(201).send(await contexto.creatorPortal.criarLink(acesso.conta, LinkSchema.parse(request.body ?? {})));
-      } catch {
-        return reply.code(404).send({ erro: "RECURSO_NAO_ENCONTRADO" });
+      } catch (erro) {
+        const mensagem = erro instanceof Error ? erro.message : "RECURSO_NAO_ENCONTRADO";
+        return reply.code(mensagem === "PRODUTO_NAO_AUTORIZADO" ? 403 : 404).send({ erro: mensagem });
       }
     });
 
@@ -146,9 +176,9 @@ export const moduloCreatorPortal: ModuloHttp = {
     app.post("/creator/oportunidades/:id/candidaturas", async (request, reply) => {
       const acesso = await exigirContaAutenticada(contexto, request, reply); if (!acesso) return;
       const { id } = z.object({ id: z.string().uuid() }).parse(request.params);
-      const dados = z.object({ parceiroId: z.string().uuid(), mensagem: z.string().trim().max(2000).nullable().optional() }).parse(request.body ?? {});
+      const dados = z.object({ mensagem: z.string().trim().max(2000).nullable().optional() }).parse(request.body ?? {});
       try { return reply.code(201).send(await contexto.creatorMarketplace.candidatar(acesso.conta, id, dados)); }
-      catch (erro) { const mensagem = erro instanceof Error ? erro.message : "CANDIDATURA_INVALIDA"; return reply.code(mensagem === "CANDIDATURA_EXISTENTE" ? 409 : 404).send({ erro: mensagem }); }
+      catch (erro) { const mensagem = erro instanceof Error ? erro.message : "CANDIDATURA_INVALIDA"; return reply.code(mensagem === "PERFIL_CREATOR_NAO_EXISTE" ? 409 : mensagem === "CANDIDATURA_EXISTENTE" ? 409 : 404).send({ erro: mensagem }); }
     });
 
     app.post("/creator/candidaturas/:id/amostras", async (request, reply) => {
